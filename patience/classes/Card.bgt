@@ -1,0 +1,20 @@
+class Card
+{
+	int number;
+	string color;
+	string name;
+	
+	Card(int numb, string col, string nam)
+	{
+		if(numb>0 || numb<=13) this.number=numb;
+		this.color=col;
+		this.name=nam;
+	}
+	
+	
+	bool CompareColor(Card other)
+	{
+		if(this.color==other.color) return true;
+		else return false;
+	}
+}
