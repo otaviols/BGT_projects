@@ -1,0 +1,185 @@
+#include"sound_pool.bgt"
+
+
+Board@ boardPerforming=emptyB.changeToIt(mBoard);
+sound_pool p;
+
+//now the boards of the game.
+
+Board emptyB;
+ExitBoard exitB;
+MainBoard mBoard;
+
+
+//the definition of the classes boards
+
+funcdefvoid changeToItFunc();
+
+interface BoardAct
+{
+	void ActKeys();
+	void escapeAct();
+	void rightAct();
+	void leftAct();
+	void upAct();
+	void downAct();
+	void returnAct();
+	}
+
+class Board : BoardAct
+{
+	bool active;
+	int position;
+	string name, header;
+	Board@[] options;
+	sound  menubackground;
+	
+	Board()
+	{
+		this.header="selecione uma opção";
+		this.name="Menú";
+		this.active=false;
+		this.position=0;
+		this.menubackground.load("menu-intro.wav");
+		}
+	
+	Board(string name, string background,  string header="Selecione uma opção")
+	{
+		this.name=name;
+		this.header=header;
+		this.menubackground.load(background);
+		this.position=0;
+		this.active=false;
+		}
+	
+	bool IsActive()
+	{
+		return active;
+	}
+	
+
+	void AddOption(Board@ option)
+	{
+		if(@option==null) return;
+		this.options.insert_last(option);
+	}
+	
+	void DefineOptions(Board@[] optionslist)
+	{
+		if(@optionslist==null) return;
+		this.options=optionslist;
+	}
+	
+	void returnAct()
+	{
+		if(position<0 || position >= options.length)
+		{
+			p.play_stationary("error.ogg",false);
+			return;
+		}
+		
+		speak(options[position].name);
+		p.play_stationary("menu-confirm.wav",false);
+		boardPerforming=changeToIt(options[position]);
+	}
+	
+	void upAct()
+	{
+		p.play_stationary("menu-click.wav",false);
+		
+		if(position<=0) position=options.length-1;
+		else position--;
+		speak(options[position].name);
+	}
+	
+	void downAct()
+	{
+		p.play_stationary("menu-click.wav",false);
+		if(position>=options.length) position=0;
+		else position++;
+		speak(options[position].name);
+	}
+	
+	void rightAct()
+	{
+		return;
+	}
+	
+	void leftAct()
+	{
+		return;
+	}
+	
+	void escapeAct()
+	{
+		p.play_stationary("exitConfirm.ogg",false);
+		if(question("Sair","Tem certeza que deseja sair do jogo, todos os ganhos serão perdidos")==1)
+		{
+			speak("Então tchau!");
+			exit();
+		}
+	}
+	
+	void rAct()
+	{
+		speak(this.header);
+	}
+	
+	void ActKeys()
+	{
+		if(key_pressed(KEY_RETURN)) returnAct();
+		else if(key_pressed(KEY_ESCAPE)) escapeAct();
+		else if(key_pressed(KEY_RIGHT)) rightAct();
+		else if(key_pressed(KEY_LEFT)) leftAct();
+		else if(key_pressed(KEY_R)) rAct();
+	}
+	
+	Board@ changeToIt(changeToItFunc@ fNext)
+	{
+		this.active=false;
+		return fNext();
+	}
+	
+	
+}
+
+//the diferent boards
+class ExitBoard : Board
+{
+	ExitBoard()
+	{
+		super("Sair", "menu-intro.wav", "a");
+	}
+	
+	
+	Board@ changeToIt()
+	{
+		escapeAct();
+		return null;
+	}
+}
+
+
+
+class MainBoard : Board
+{
+	MainBoard()
+	{
+		super("Menú principal", "menu-intro.wav", "Menú principal: Selecione uma opção com as setas cima e baixo e tecle enter para confirmar");
+	}
+	
+	Board@ changeToIt(MainBoard next)
+	{
+				p.play_stationary("boardChanging.ogg",false);
+		next.menubackground.volume=-10;
+		next.menubackground.play_looped();
+		speak(next.header);
+		next.active=true;
+		this.active=false;
+		return @next;
+	}
+	
+}
+
+
+

@@ -1,16 +1,26 @@
+#include"sounds.dat"
 #include"classes/card.bgt"
+#include"classes/screenReader.bgt"
 #include"sound_pool.bgt"
+#include"classes/board.bgt"
 
 string versao="0.1 beta";
 
 void main()
 {
-	show_game_window("Patience show - "+versao);
+	set_sound_decryption_key("lll123", true);
+	set_sound_storage("*");
 	
-	while(true)
+	show_game_window("Patience show - "+versao);
+	wait(1000);
+	
+	while(boardPerforming.IsActive())
 	{
-		if(key_pressed(KEY_ESCAPE)) exit();
-	}
+		boardPerforming.ActKeys();
+
 }
+}
+
+
 
 
