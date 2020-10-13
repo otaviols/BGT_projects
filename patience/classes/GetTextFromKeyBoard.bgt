@@ -1,0 +1,228 @@
+string GetTextFromKeyBoard(string msg)
+{
+string mensagem_final;
+get_characters();//Função interna para pegar caractéres digitados
+speak(msg);//Função de include
+while(true)//Começa a verificação
+{
+string c=get_characters();//String c onde verifica caractéres digitados
+if(key_down(KEY_LCONTROL)&&key_pressed(KEY_V)||key_down(KEY_RCONTROL)&&key_pressed(KEY_V))//Se apertar ctrl v
+{
+if(clipboard_read_text()=="")//Área de trabalho vasia
+{
+speak("Á área de trabalho está vasia.");
+}
+else//Continuando
+{
+mensagem_final+=clipboard_read_text();//Adiciona à mensagem_final o texto da área de transferência
+speak("Texto colado.");
+}
+}
+if(c!="")//Se a variável c deixar de ser vasia
+{
+if(c==" ")//Se usar espaço
+{
+speak("espaço");
+}
+else if(c==".")//Ponto final
+{
+speak("ponto");
+}
+else if(c==",")//Vírgula
+{
+speak("vírgula");
+}
+else if(c=="-")//ifem
+{
+speak("menos");
+}
+else if(c=="_")//Sublinhado
+{
+speak("underline");
+}
+else if(c=="=")//igual
+{
+speak("igual");
+}
+else if(c=="`")//Sinal craze
+{
+speak("grave");
+}
+else if(c=="*")//Asterisco
+{
+speak("asterisco");
+}
+else
+{
+speak(c);
+}
+mensagem_final+=c;
+}
+if(key_pressed(KEY_BACK))
+{
+if(mensagem_final.length()>0)
+{
+string currentchar=mensagem_final[mensagem_final.length()-1];
+if(currentchar!="")
+{
+if(currentchar==" ")
+{
+speak("espaço");
+}
+else if(currentchar==".")
+{
+speak("ponto");
+}
+else if(currentchar==",")
+{
+speak("vírgula");
+}
+else if(currentchar=="-")
+{
+speak("menos");
+}
+else if(currentchar=="_")
+{
+speak("underline");
+}
+else if(currentchar=="=")
+{
+speak("igual");
+}
+else if(currentchar=="`")
+{
+speak("grave");
+}
+else if(currentchar=="*")
+{
+speak("asterisco");
+}
+else if(currentchar=="~")
+{
+speak("til");
+}
+else if(currentchar=="!")
+{
+speak("Exclamação");
+}
+else if(currentchar=="?")
+{
+speak("interrogação");
+}
+else if(currentchar=="@")
+{
+speak("arroba");
+}
+else if(currentchar=="#")
+{
+speak("number");
+}
+else if(currentchar=="$")
+{
+speak("cifrão");
+}
+else if(currentchar=="%")
+{
+speak("porcento");
+}
+else if(currentchar=="^")
+{
+speak("circonflexo");
+}
+else if(currentchar=="&")
+{
+speak("é comercial");
+}
+else if(currentchar=="(")
+{
+speak("Abre parênteses");
+}
+else if(currentchar==")")
+{
+speak("fecha parênteses");
+}
+else if(currentchar=="-")
+{
+speak("menos");
+}
+else if(currentchar=="+")
+{
+speak("mais");
+}
+else if(currentchar=="[")
+{
+speak("abre couchetes");
+}
+else if(currentchar=="]")
+{
+speak("fecha couchetes");
+}
+else if(currentchar=="{")
+{
+speak("abre chave");
+}
+else if(currentchar=="}")
+{
+speak("fecha chave");
+}
+else if(currentchar=="\\")
+{
+speak("barra invertida");
+}
+else if(currentchar=="\"")
+{
+speak("aspas");
+}
+else if(currentchar=="\'")
+{
+speak("apóstrofo");
+}
+else if(currentchar=="<")
+{
+speak("menor");
+}
+else if(currentchar==">")
+{
+speak("maior");
+}
+else if(currentchar=="/")
+{
+speak("barra");
+}
+else if(currentchar==";")
+{
+speak("ponto e vírgula");
+}
+else if(currentchar==":")
+{
+speak("dois pontos");
+}
+else
+{
+speak(currentchar);
+}
+mensagem_final.resize(mensagem_final.length()-1);
+}
+else
+{
+speak("em branco");
+}
+}
+else
+{
+speak("em branco");
+}
+}
+else if(key_pressed(KEY_ESCAPE))
+{
+speak("Cancelado");
+return "";
+}
+else if(key_pressed(KEY_RETURN)&&mensagem_final.length()>0)
+{
+return mensagem_final;
+}
+wait(5);
+}
+return "";
+}

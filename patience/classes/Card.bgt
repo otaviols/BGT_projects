@@ -4,9 +4,18 @@ class Card
 	string color;
 	string name;
 	
+	Card()
+	{
+		this.number=0;
+		this.color="white";
+		this.name="Joker";
+	}
+	
+	
 	Card(int numb, string col, string nam)
 	{
-		if(numb>0 || numb<=13) this.number=numb;
+		if(numb<1 || numb>=13) return;
+		this.number=numb;
 		this.color=col;
 		this.name=nam;
 	}
@@ -17,4 +26,71 @@ class Card
 		if(this.color==other.color) return true;
 		else return false;
 	}
+}
+
+class Deck
+{
+	Card[] cards;
+	
+	Deck()
+	{
+		this.cards=FillDeck();
+	}
+	
+	Deck(int qtd)
+	{
+		this.cards=FillDeck(qtd);
+	}
+	
+	Card[] FillDeck(int qtd=1)
+	{
+		Card[] cardsList;
+		cardsList.resize(0);
+		
+		for(int i=0; i<qtd; i++)
+		{
+			AppendCards(@cardsList, GetNipes("Diamante"));
+			AppendCards(@cardsList, GetNipes("Espadas"));
+			AppendCards(@cardsList, GetNipes("Copas"));
+			AppendCards(@cardsList, GetNipes("Paus"));
+			
+		}
+		return cardsList;
+	}
+	
+	void AppendCards(Card[]@ list, Card[] complement)
+	{
+		for(uint i=0; i<complement.length; i++)
+		{
+			list.insert_last(complement[i]);
+		}
+	}
+	
+	Card[] GetNipes(string nipename)
+	{
+		Card[] nipes;
+		
+		for(int i=1; i<=13; i++)
+		{
+			string name;
+			
+			if(i==11) name="Valete";
+			else if(i==12) name="Dama";
+			else if(i==13) name="Rei";
+			else if(i==1) name="Ás";
+			else name=""+i;
+			name+=" de "+nipename;
+			
+			Card tcard(i,"black",name);
+			nipes.insert_last(tcard);
+		}
+		
+		return nipes;
+	}
+	
+	int length()
+	{
+		return cards.length;
+	}
+	
 }

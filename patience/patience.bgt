@@ -1,24 +1,19 @@
-#include"sounds.dat"
+﻿#include"sounds.dat"
 #include"classes/card.bgt"
 #include"classes/screenReader.bgt"
 #include"sound_pool.bgt"
-#include"classes/board.bgt"
+#include"classes/MenuManager.bgt"
+#include"classes/Exception.bgt"
 
-string versao="0.1 beta";
+string versao="0.2 beta";
+sound_pool pool;
 
 void main()
 {
-	set_sound_decryption_key("lll123", true);
+		set_sound_decryption_key("lll123", true);
 	set_sound_storage("*");
 	
 	show_game_window("Patience show - "+versao);
-	wait(1000);
-	
-	while(boardPerforming.IsActive())
-	{
-		boardPerforming.ActKeys();
-
-}
 }
 
 

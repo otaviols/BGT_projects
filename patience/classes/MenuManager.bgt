@@ -1,0 +1,41 @@
+#include"GetTextFromKeyBoard.bgt"
+
+//the definition of a function type to handle after in the menu logic
+funcdef void FuncOptionRun();
+
+//the object that will be used in the list of menu options
+class Option
+{
+	int Index;
+	string Name;
+	string Type;
+	FuncOptionRun@ Action;
+	
+	Option()
+	{
+	}
+	
+	Option(int index, string name, string type, FuncOptionRun@ action=null)
+	{
+		this.Index=index;
+		this.Name=name;
+		@this.Action=action;
+		
+		//text is a simple text to be readed, menu can be other menu to be activated or any function to be executed and gkt is (Get keyboard typing) a input field
+		if(type!="text" || type!="menu" || type!="gkt") throw(Exception("Tipo de opção inválido"));
+		this.Type=type;
+	}
+	
+	void Activate()
+	{
+		this.Action();
+	}
+	
+}
+
+
+class MMenu
+{
+	Option[] options;
+	
+}

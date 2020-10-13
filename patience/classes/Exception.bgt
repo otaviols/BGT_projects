@@ -1,0 +1,17 @@
+class Exception
+{
+	string Msg;
+	string Description;
+	
+	Exception(string msg, string description="Origem: "+SCRIPT_CURRENT_FUNCTION)
+	{
+		this.Msg=msg;
+		this.Description=description;
+	}
+}
+
+void throw(Exception ex)
+{
+	alert("Ocorreu um erro ao processar a solicitação",ex.Msg+"\r\n"+ex.Description);
+	exit();
+}
