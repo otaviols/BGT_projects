@@ -1,5 +1,9 @@
 #include"GetTextFromKeyBoard.bgt"
 
+//the global menus of the game
+MMenu mainMenu, exitMenu, ambienceMenu;
+
+
 //the definition of a function type to handle after in the menu logic
 funcdef void FuncOptionRun();
 
@@ -10,32 +14,134 @@ class Option
 	string Name;
 	string Type;
 	FuncOptionRun@ Action;
+	string Result;
 	
 	Option()
 	{
 	}
 	
-	Option(int index, string name, string type, FuncOptionRun@ action=null)
+	Option(int index, string name, string typ, FuncOptionRun@ action=null)
 	{
 		this.Index=index;
 		this.Name=name;
 		@this.Action=action;
 		
 		//text is a simple text to be readed, menu can be other menu to be activated or any function to be executed and gkt is (Get keyboard typing) a input field
-		if(type!="text" || type!="menu" || type!="gkt") throw(Exception("Tipo de opção inválido"));
-		this.Type=type;
+		if(typ=="text" || typ=="menu" || typ=="gkt") this.Type=typ;
+	else throw(Exception("Tipo de opção inválido: "+typ));
 	}
 	
 	void Activate()
 	{
-		this.Action();
+		if(Type=="menu") this.Action();
+		else if(Type=="text") this.Result=Name;
+		else if(Type=="gkt") this.Result=GetTextFromKeyBoard(Name);
 	}
 	
+	string GetResult()
+	{
+		return this.Result;
+	}
 }
 
 
 class MMenu
 {
 	Option[] options;
+	dynamic_menu_pro mPro;
+	FuncOptionRun@ bfrw;
+	string Header;
+	int optionResult;
+	bool executed;
+	
+	MMenu()
+	{
+	}
+	
+	MMenu(string header, bool uad=true,FuncOptionRun@ back=null)
+	{
+		@this.bfrw=back;
+		
+		this.mPro.reset(true);
+		this.options.resize(0);
+		this.Header=header;
+		this.mPro.enable_first_letter_navigation=true;
+		
+		this.mPro.click_sound="menu-click.wav";
+		this.mPro.enter_sound="menu-confirm.wav";
+		
+		
+		
+		uad ? this.mPro.enable_up_and_down=true : this.mPro.enable_side_scrolling=true;
+		this.executed=false;
+		
+		}
+	
+	void AddMenuOption(string text, FuncOptionRun@ func)
+	{
+		this.options.insert_last(Option(this.mPro.add_item_tts(text), text, "menu", func));
+	}
+	
+	void AddTextOption(string text)
+	{
+		this.options.insert_last(Option(this.mPro.add_item_tts(text), text, "text"));
+	}
+	
+	void AddInputTextOption(string text)
+	{
+		this.options.insert_last(Option(this.mPro.add_item_tts(text), text, "gkt"));
+	}
+	void ChangeBack(FuncOptionRun@ bf)
+	{
+		@this.bfrw=bf;
+	}
+	
+	
+	//the run function will run the  menu and do the action of the option, if the option returns something, the return result will be in the variable (Result)
+	void RunMenu()
+	{
+		this.optionResult=FindOption(this.mPro.run(Header,true));
+		
+		if(this.optionResult==-1) this.bfrw();
+		else if(this.optionResult<-1) throw(Exception("Opção não encontrada"));
+		
+		this.options[this.optionResult].Activate();
+		this.executed=true;
+		
+	}
+	
+	string GetMenuResult()
+	{
+		if(this.executed==false) return "";
+		if(this.optionResult<0 || this.options[this.optionResult].Type=="menu") return "";
+		
+		return options[this.optionResult].GetResult();
+	}
+	
+	
+	int FindOption(int rr)
+	{
+		if(rr==0) return -1;
+		else if(rr<0 || options.length<=0) return -2;
+		
+		for(int i=0; i<options.length(); i++)
+		{
+			if(options[i].Index==rr) return i;
+		}
+		return -3;
+	}
+	
+	
+}
+
+//the function that build the all menus of the program
+
+void BuildMenus()
+{
+	//the main menú of the game
+	mainMenu=MMenu("Menú principal, navegue com as setas e enter para confirmar");
+	mainMenu.AddMenuOption("Jogar",Game);
+	mainMenu.AddTextOption("oi");
+	mainMenu.AddMenuOption("Sair", exit);
 	
 }

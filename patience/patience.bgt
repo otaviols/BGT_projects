@@ -1,21 +1,31 @@
 ﻿#include"sounds.dat"
 #include"classes/card.bgt"
-#include"classes/screenReader.bgt"
 #include"sound_pool.bgt"
+#include"classes/m_pro.bgt"
 #include"classes/MenuManager.bgt"
 #include"classes/Exception.bgt"
 
 string versao="0.2 beta";
 sound_pool pool;
+sound music;
 
 void main()
 {
 		set_sound_decryption_key("lll123", true);
 	set_sound_storage("*");
+	music.load("menu-intro.wav");
+	BuildMenus();
 	
 	show_game_window("Patience show - "+versao);
+	music.play_looped();
+	mainMenu.RunMenu();
 }
 
 
 
 
+
+void Game()
+{
+	alert("jogo","jogo irá aqui");
+}
