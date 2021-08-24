@@ -13,5 +13,4 @@ class Exception
 void throw(Exception ex)
 {
 	alert("Ocorreu um erro ao processar a solicitação",ex.Msg+"\r\n"+ex.Description);
-	exit();
 }

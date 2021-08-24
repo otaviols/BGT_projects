@@ -91,6 +91,7 @@ class MMenu
 	{
 		this.options.insert_last(Option(this.mPro.add_item_tts(text), text, "gkt"));
 	}
+	
 	void ChangeBack(FuncOptionRun@ bf)
 	{
 		@this.bfrw=bf;
@@ -102,7 +103,12 @@ class MMenu
 	{
 		this.optionResult=FindOption(this.mPro.run(Header,true));
 		
-		if(this.optionResult==-1) this.bfrw();
+		if(this.optionResult==-1)
+		{
+			this.bfrw();
+			this.optionResult=FindOption(this.mPro.run_extended(Header,true,this,optionResult,false));
+			}
+		
 		else if(this.optionResult<-1) throw(Exception("Opção não encontrada"));
 		
 		this.options[this.optionResult].Activate();
@@ -142,6 +148,6 @@ void BuildMenus()
 	mainMenu=MMenu("Menú principal, navegue com as setas e enter para confirmar");
 	mainMenu.AddMenuOption("Jogar",Game);
 	mainMenu.AddTextOption("oi");
-	mainMenu.AddMenuOption("Sair", exit);
+	MainMenu.ChangeBack(Quit());
 	
 }
