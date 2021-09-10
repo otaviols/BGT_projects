@@ -31,6 +31,11 @@ void Game()
 
 void Quit()
 {
-	pool.play_stationary("exitConfirm.ogg",false);
-	}
+	//pool.play_stationary("exitConfirm.ogg",false);
+	speak("Adeus!!!!");
+	music.stop();
+	music.close();
+	music.load("ExitConfirm.ogg");
+	music.play_wait();
 	
+	}

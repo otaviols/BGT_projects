@@ -76,6 +76,7 @@ class MMenu
 		this.executed=false;
 		
 		}
+		
 	
 	void AddMenuOption(string text, FuncOptionRun@ func)
 	{
@@ -98,7 +99,7 @@ class MMenu
 	}
 	
 	
-	//the run function will run the  menu and do the action of the option, if the option returns something, the return result will be in the variable (Result)
+	//the run function will execute the  menu and do the action of the option, if the option returns something, the return result will be in the variable (Result)
 	void RunMenu()
 	{
 		this.optionResult=FindOption(this.mPro.run(Header,true));
@@ -106,10 +107,13 @@ class MMenu
 		if(this.optionResult==-1)
 		{
 			this.bfrw();
-			this.optionResult=FindOption(this.mPro.run_extended(Header,true,this,optionResult,false));
+			return;
 			}
 		
-		else if(this.optionResult<-1) throw(Exception("Opção não encontrada"));
+		else if(this.optionResult<-1){
+			throw(Exception("Opção não encontrada"));
+			return;
+		}
 		
 		this.options[this.optionResult].Activate();
 		this.executed=true;
@@ -145,9 +149,7 @@ class MMenu
 void BuildMenus()
 {
 	//the main menú of the game
-	mainMenu=MMenu("Menú principal, navegue com as setas e enter para confirmar");
+	mainMenu=MMenu("Menú principal, navegue com as setas e enter para confirmar",true,Quit);
 	mainMenu.AddMenuOption("Jogar",Game);
 	mainMenu.AddTextOption("oi");
-	MainMenu.ChangeBack(Quit());
-	
 }
