@@ -1,0 +1,46 @@
+class Audio_box {
+    int bgmvolume;
+    sound bgm,dialog;
+    Audio_box() {
+        bgmvolume=-10;
+    }
+    bool fade(sound@ noise, double start_volume, double end_volume, double time, bool interruptable=false) {
+        noise.volume = start_volume;
+        timer t;
+        double elapsed = t.elapsed;
+        while(elapsed < time) {
+            noise.volume = start_volume + (end_volume-start_volume)*elapsed/time;
+            wait(10);
+            elapsed = t.elapsed;
+            if(key_pressed(KEY_SPACE) && interruptable) return true;
+        }
+        noise.volume = end_volume;
+        noise.close();
+        return false;
+    }
+    bool playsong(string filename,bool playover=true) {
+        if((playover==true)&&(bgm.active)) bgm.close();
+        if(bgm.stream(filename)==false) return false;
+        bgm.volume=bgmvolume;
+        bgm.play_looped();
+        return true;
+    }
+    bool play(string filename) {
+        if(dialog.active) dialog.close();
+        if(dialog.load(filename)==false) return false;
+        dialog.play();
+            while(dialog.playing) {
+            wait(5);
+            if((key_pressed(KEY_SPACE))||(key_pressed(KEY_RETURN))) {
+                fade(dialog,0,-50,1750);
+                break;
+            }
+        }
+        return true;
+    }
+    void fade_bgm(int final_volume,int time) {
+    fade(bgm,bgmvolume,final_volume,time);
+    bgm.stop();
+    bgm.close();
+    }
+}

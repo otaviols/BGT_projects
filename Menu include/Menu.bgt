@@ -1,0 +1,102 @@
+class Menu {
+    Game_menu_callback@ menu_callback;
+    string menu_callback_user_data;
+    string[] options;
+    sound click,select;
+    string title,click_sound,select_sound,current_click_sound,current_select_sound;
+    int position,items;
+    bool allow_escape,wrap;
+    void reset() {
+        position=0;
+        title="";
+        allow_escape=true;
+        options.resize(0);
+        items=0;
+        click_sound="";
+        select_sound="";
+        wrap=true;
+        @menu_callback=null;
+        menu_callback_user_data="";
+    }
+    bool set_callback(Game_menu_callback@ handle,string user_data="") {
+        if(@handle==null) return false;
+        this.menu_callback_user_data=user_data;
+        @this.menu_callback=handle;
+        return true;
+    }
+    bool add(string new_item) {
+        if(new_item=="") return false;
+        else options.insert_last(new_item);
+        return true;
+    }
+    int run(string title,uint initial_position=0,bool title_interrupts=true) {
+        items=options.length()-1;
+        if(items==-1) return -2;
+        msg.print(title);
+        position=initial_position;
+        uint8 read=0,read_temp=0;
+        msg.print(options[position],false);
+        while(true) {
+            if(@menu_callback!=null) {
+                int result=menu_callback(this,menu_callback_user_data);
+                if(result!=-1) return result;
+            }
+            if(read!=0) {
+                read_temp=read;
+                read=0;
+                if(position<0) {
+                    if(wrap) position=items;
+                    else {
+                        position=0;
+                        continue;
+                    }
+                }
+                else if(position>items) {
+                    if(wrap) position=0;
+                    else {
+                        position=items;
+                        continue;
+                    }
+                }
+                msg.print(options[position]);
+                if(read_temp==2) {
+                    click.stop();
+                    if(click_sound!=current_click_sound) {
+                        current_click_sound=click_sound;
+                        click.close();
+                        click.load(click_sound);
+                    }
+                    click.play();
+                }
+                read_temp=0;
+            }
+            else if(key_pressed(KEY_UP)) {
+                position--;
+                read=2;
+            }
+            else if(key_pressed(KEY_DOWN)) {
+                position++;
+                read=2;
+            }
+            else if(key_pressed(KEY_SPACE)) read=1;
+            else if(key_pressed(KEY_RETURN)) {
+                select.stop();
+                if(current_select_sound!=select_sound) {
+                    current_select_sound=select_sound;
+                    select.close();
+                    select.load(select_sound);
+                }
+                select.play();
+                break;
+            }
+            else if((key_pressed(KEY_ESCAPE))&&(allow_escape==true)) {
+                position=-1;
+                break;
+            }
+            wait(5);
+        }
+        return position;
+    }
+}
+
+funcdef int Game_menu_callback(Menu@,string);

@@ -1,8 +1,8 @@
 ﻿#include"sounds.dat"
 #include"classes/card.bgt"
 #include"sound_pool.bgt"
-#include"classes/m_pro.bgt"
 #include"classes/MenuManager.bgt"
+#include"classes/gameMenus.bgt"
 #include"classes/Exception.bgt"
 
 string versao="0.2 beta";
@@ -13,8 +13,8 @@ void main()
 {
 		set_sound_decryption_key("lll123", true);
 	set_sound_storage("*");
-	music.load("menu-intro.wav");
 	BuildMenus();
+	music.load("menu-intro.wav");
 	
 	show_game_window("Patience show - "+versao);
 	music.play_looped();
@@ -25,13 +25,13 @@ void main()
 
 void Game()
 {
-	alert("jogo","jogo irá aqui");
+	Deck deck;
+	deck.chuffle();
 }
 
 
 void Quit()
 {
-	//pool.play_stationary("exitConfirm.ogg",false);
 	speak("Adeus!!!!");
 	music.stop();
 	music.close();

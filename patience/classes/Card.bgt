@@ -49,7 +49,7 @@ class Deck
 		
 		for(int i=0; i<qtd; i++)
 		{
-			AppendCards(@cardsList, GetNipes("Diamante"));
+			AppendCards(@cardsList, GetNipes("Ouros"));
 			AppendCards(@cardsList, GetNipes("Espadas"));
 			AppendCards(@cardsList, GetNipes("Copas"));
 			AppendCards(@cardsList, GetNipes("Paus"));
@@ -81,7 +81,15 @@ class Deck
 			else name=""+i;
 			name+=" de "+nipename;
 			
-			Card tcard(i,"black",name);
+			Card tcard;
+			if(nipename=="Espadas" || nipename=="Paus"){
+				tcard=Card(i,"black",name);
+			}
+			else{
+				tcard=Card(i,"red",name);
+			}
+			
+			
 			nipes.insert_last(tcard);
 		}
 		
@@ -91,6 +99,21 @@ class Deck
 	int length()
 	{
 		return cards.length;
+	}
+	
+	bool chuffle()
+	{
+		if(this.cards.length<2) return false;
+		
+		for(uint i=0; i<this.cards.length(); i++){
+			int j=random(0,cards.length-1);
+			Card temp =cards[i];
+			cards[i]=cards[j];
+			cards[j]=temp;
+		}
+		pool.play_stationary("game-shuffle.ogg",true);
+		
+		return true;
 	}
 	
 }

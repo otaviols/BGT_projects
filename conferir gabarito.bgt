@@ -1,0 +1,11 @@
+string[] seq=string_split("A B C D C B D D D C C B A A A B B C B B D A B B A D A A B A A A A C B A A B C D A D B C A C B D A A C C A B A B B A B C B D D A D A A B C D A A A B C D A D C B"," ",false);
+int count=0;
+
+void main()
+{
+string[] resp=string_split(input_box("digite as respostas","separadas por espaço")," ",false);
+for(uint i=0; i<resp.length(); i++){
+if(resp[i]==seq[i]) count++;
+}
+alert("número de respostas iguais",""+count);
+}

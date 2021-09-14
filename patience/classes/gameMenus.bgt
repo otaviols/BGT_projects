@@ -1,0 +1,14 @@
+//the global menus of the game
+MMenu mainMenu, exitMenu, ambienceMenu;
+
+
+//the function that build the all menus of the program
+
+void BuildMenus()
+{
+	//the main menú of the game
+	mainMenu=MMenu("Menú principal, navegue com as setas e enter para confirmar",true,Quit);
+	mainMenu.AddMenuOption("Jogar",Game);
+	mainMenu.AddMenuOption("Sair",Quit);
+	
+}

@@ -1,0 +1,121 @@
+class Message_box {
+    tts_voice voice;
+    string[] ldict;
+    uint audio_output=1;
+    void print(string message,bool interrupts=true) {
+        string[] temp;
+        if(ldict.length()>1) {
+            for(uint x=0;x<ldict.length();x++) {
+                temp=string_split(ldict[x],"=",true);
+                message=string_replace(message,temp[0],temp[1],true);
+            }
+        }
+        if(audio_output==1) {
+            if((screen_reader_is_running(NVDA)==false)&&(screen_reader_set_library_path(NVDA,"Nvdacontrollerclient32.dll")==false)) audio_output=2;
+            if(interrupts==false) screen_reader_speak(NVDA,message);
+            else screen_reader_speak_interrupt(NVDA,message);
+        }
+        if(audio_output==2) {
+            if(screen_reader_is_running(NVDA)==true) print(message,interrupts);
+            else {
+                if(interrupts==true) voice.speak_interrupt(message);
+                else voice.speak(message);
+            }
+        }
+    }   
+    void dialog(string message) {
+        bool read=true;
+        while(!key_pressed(KEY_RETURN)) {
+            if(read==true) {
+                read=false;
+                print(message);
+            }
+            else if(key_pressed(KEY_SPACE)) read=true;
+            wait(5);
+            system_events();
+        }
+    }
+    bool load_language(string filename) {
+        file f;
+        string decryption_key="Bolsonaroneles";
+        if(SCRIPT_COMPILED) {
+            if((!file_exists(filename+".dat"))&&(file_exists(filename+".txt"))) {
+                file f2;
+                f2.open(filename+".dat","wb");
+                f.open(filename+".txt","r");
+                f2.write(string_encrypt(f.read(),decryption_key));
+                f2.close();
+                f.close();
+            }
+        }
+        bool result;
+        string parser;
+        result = f.open(filename+((SCRIPT_COMPILED) ? ".dat": ".txt"), ((SCRIPT_COMPILED) ? "rb": "r"));
+        parser=f.read();
+        if(SCRIPT_COMPILED) parser=string_decrypt(parser, decryption_key);
+        ldict=string_split(parser,"\n",true);
+        f.close();
+        return true;
+    }
+    string input(string title, bool speak, string current_value="", string filter="") {
+        string add = "", final=current_value, to_say="";
+        bool filter_detected;
+        add = get_characters();
+        add = "";
+        msg.print(title);
+        while(true) {
+            add = get_characters();
+            if(add != "") {
+                for(uint x=0; x<filter.length(); x++) {
+                    if(string_contains(add, filter[x], 1) >= 0) {
+                        filter_detected=true;
+                        break;
+                    }
+                }
+                if(filter_detected) {
+                    filter_detected=false;
+                    continue;
+                }
+                final += add;
+                if(speak) to_say = add;
+            }
+            else if(((key_down(KEY_LCONTROL))||(key_down(KEY_RCONTROL)))&&(key_pressed(KEY_V))) {
+                msg.print("Colado");
+                final += clipboard_read_text();
+            }
+            else if((key_pressed(KEY_BACK))&&(final != "")) {
+                to_say = final[final.length()-1];
+                final.resize(final.length()-1);
+            }
+            else if(key_pressed(KEY_RETURN)) break;
+            else if(key_pressed(KEY_ESCAPE)) {
+                final="";
+                break;
+            }
+            else if(to_say != "") {
+                if(to_say == " ") msg.print("espaço");
+                else if(to_say == ",") msg.print("vírgula");
+                else if(to_say == "'") msg.print("apóstrofo");
+                else if(to_say == "\"") msg.print("aspas");
+                else if(to_say == "_") msg.print("underline");
+                else if(to_say == "-") msg.print("hífen");
+                else if(to_say == "[") msg.print("abre colchetes");
+                else if(to_say == "]") msg.print("fecha colchetes");
+                else if(to_say == "(") msg.print("abre parênteses");
+                else if(to_say == ")") msg.print("fecha parênteses");
+                else if(to_say == "!") msg.print("exclamação");
+                else if(to_say == "?") msg.print("interrogação");
+                else if(to_say == ";") msg.print("ponto e vírgula");
+                else if(to_say == ":") msg.print("dois pontos");
+                else if(to_say == "\\") msg.print("barra invertida");
+                else if(to_say == "{") msg.print("abre chaves");
+                else if(to_say == "}") msg.print("fecha chaves");
+                else msg.print(to_say);
+                to_say = "";
+            }
+            wait(5);
+            system_events();
+        }
+        return final;
+    }
+}
