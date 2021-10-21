@@ -1,0 +1,76 @@
+class NetInstance
+{
+	private Event@[] stackToSend,eventStack;
+	private Net nt;
+	private bool IsServer;
+	private int Port;
+	private string Address;
+	
+	
+	NetInstance(string host="localhost",int port=42000,bool isServer=false,string pw="lnsio12n3kc")
+	{
+		nt.set_decryption_key(pw);
+		nt.set_outgoing_bandwidth(65536.0);
+		nt.set_incomming_bandwidth(65536.0);
+		this.Port=port;
+		this.Address=host;
+		this.IsServer=isServer;
+		eventStack.resize(0);
+		stackToSend.resize(0);
+	}
+	
+	bool SetupConnection()
+	{
+		if(this.IsServer){
+			if(nt.create_server(100,4000)) return nt.connect(this.Address,this.Port)>0;
+		}
+		else
+		{
+			if(nt.create_client(100,4000)) return nt.connect(this.Address,this.Port)>0;
+		}
+		return false;
+	}
+	
+	void Update()
+	{
+		nt.request();
+		for(uint i=0;i<eventStack.length; i++)
+		{
+			if(eventStack[i].IsDone()==true)
+			{
+				eventStack.remove_at(i);
+				i--;
+			}
+		}
+		
+		Listener();
+	}
+	
+	void Listener()
+	{
+		if(nt.is_received()==true)
+		{
+			string etype=string_split(nt.get_message(),":",false)[0];
+			
+			if(etype=="Message")
+			{
+				NetEvent nev;
+				eventStack.insert_last(nev.BuildByString(nt.get_message()));
+			}
+			else if(etype=="MoovePerson")
+			{
+				MooveNetEvent nev;
+				eventStack.insert_last(nev.BuildByString(nt.get_message()));
+			}
+			
+		}
+		
+		for(uint i=0; i<eventStack.length;i++)
+		{
+			eventStack[i].Action();
+		}
+		
+	}
+	
+	
+}

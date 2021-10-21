@@ -163,9 +163,10 @@ return this.n.get_peer_address(p);
 }
 
 //this function tries to connect to someone
-void connect(string h, uint p)
+uint connect(string h, uint p)
 {
-id=this.n.connect(h, p);
+this.id=this.n.connect(h, p);
+return this.id;
 }
 
 //destroy's the network

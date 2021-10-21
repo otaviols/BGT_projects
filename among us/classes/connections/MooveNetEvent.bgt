@@ -24,6 +24,7 @@ class MooveNetEvent : NetEvent
 	bool action()
 	{
 	//impementar movimentação de personagens
+	return true;
 	}
 	
 	

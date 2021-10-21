@@ -1,4 +1,3 @@
-
 class NetEvent : Event
 {
 	string Message;
@@ -27,7 +26,8 @@ class NetEvent : Event
 	
 	bool Action()
 	{
-		return screenReader.Speak(Message);
+		this.Answered=screenReader.Speak(Message);
+		return this.Answered;
 	}
 	
 	Event@ BuildByString(string param)
@@ -45,6 +45,11 @@ class NetEvent : Event
 		}
 		
 		return nev;
+	}
+	
+	bool IsDone()
+	{
+	return this.Answered;
 	}
 	
 }

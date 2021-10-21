@@ -19,13 +19,14 @@ void main()
 	{
 				int pos=0;
 		string[] messages(0);
-
+		
 		isUp=true;
 		show_game_window("server: "+nt.get_port());
 		while(isUp)
 		{
 			nt.request();
 			if(key_pressed(KEY_ESCAPE)) isUp=false;
+			else if(key_pressed(KEY_Q)) screenReader.Speak(""+nt.get_peer_list().length());
 			
 			else if(key_pressed(KEY_UP))
 			{

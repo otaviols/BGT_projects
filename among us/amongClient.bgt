@@ -19,6 +19,7 @@ void main()
 		string servc=GetTextFromKeyBoard("Digite o endereço à se conectar.");
 		
 		nt.connect(servc,42000);
+		show_game_window("Cliente"+nt.get_id());
 		while(isUp)
 		{
 			if(key_pressed(KEY_ESCAPE)) isUp=false;

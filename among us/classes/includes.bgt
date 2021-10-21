@@ -1,6 +1,7 @@
 #include"connections/Net.bgt"
 #include"connections/MooveNetEvent.bgt"
 #include"connections/NetEvent.bgt"
+#include"connections/NetInstance.bgt"
 #include"FoundationLayer/ScreenReader.bgt"
 #include"FoundationLayer/Event.bgt"
 #include"sound_pool.bgt"
