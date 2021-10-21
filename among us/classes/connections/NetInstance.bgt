@@ -3,33 +3,49 @@ class NetInstance
 	private NetEvent@[] stackToSend,eventStack;
 	private Net nt;
 	private bool IsServer;
-	private int Port;
 	private string Address;
+	private bool Connected;
 	
 	
-	NetInstance(string host="localhost",int port=42000,bool isServer=false,string pw="lnsio12n3kc")
+	NetInstance(bool isServer,string host="localhost",int port=42000,string pw="lnsio12n3kc")
 	{
 		nt.set_decryption_key(pw);
 		nt.set_outgoing_bandwidth(65536.0);
 		nt.set_incomming_bandwidth(65536.0);
-		this.Port=port;
+		this.nt.set_port(port);
 		this.Address=host;
 		this.IsServer=isServer;
 		eventStack.resize(0);
 		stackToSend.resize(0);
+		this.Connected=false;
 	}
 	
 	bool SetupConnection()
 	{
-		if(this.IsServer){
-			if(nt.create_server(100,4000)) return nt.connect(this.Address,this.Port)>0;
+		if(this.IsServer)
+		{
+			this.Connected=nt.create_server(100,4000);
+			return this.Connected;
+			
 		}
 		else
 		{
-			if(nt.create_client(100,4000)) return nt.connect(this.Address,this.Port)>0;
+			if(nt.create_client(100,4000))
+{
+			this.Connected=nt.connect(this.Address,nt.get_port())>0;
+			return this.Connected;
+			}
+			
 		}
 		return false;
 	}
+	
+	bool Disconnect()
+	{
+		this.Connected=nt.disconnect(2,nt.get_id());
+		return this.Connected;
+	}
+	
 	
 	void Update()
 	{
@@ -98,6 +114,11 @@ class NetInstance
 				}
 			}
 		}
+	}
+	
+	bool IsConnected()
+	{
+	return this.Connected;
 	}
 	
 	
