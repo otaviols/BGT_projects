@@ -32,6 +32,12 @@ class NetEvent : Event
 	
 	Event@ BuildByString(string param)
 	{
+	return BuildByString(param,false);
+	}
+	
+	
+	NetEvent BuildByString(string param,bool answered)
+	{
 		NetEvent nev;
 		string[] divided=string_split(param,":",false);
 		
@@ -41,7 +47,7 @@ class NetEvent : Event
 			nev.Message=divided[1];
 			nev.To=string_to_number(divided[2]);
 			nev.Channel=string_to_number(0);
-			nev.Answered=false;
+			nev.Answered=answered;
 		}
 		
 		return nev;
@@ -51,5 +57,17 @@ class NetEvent : Event
 	{
 	return this.Answered;
 	}
+	
+	bool IsReadyToSend()
+	{
+	return this.Type!="" && this.Message!="" && this.Channel>=0 && this.To>=0;
+	}
+	
+	
+	int GetChannel()
+	{
+	return this.Channel;
+	}
+	
 	
 }

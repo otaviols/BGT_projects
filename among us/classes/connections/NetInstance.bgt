@@ -1,6 +1,6 @@
 class NetInstance
 {
-	private Event@[] stackToSend,eventStack;
+	private NetEvent@[] stackToSend,eventStack;
 	private Net nt;
 	private bool IsServer;
 	private int Port;
@@ -34,6 +34,7 @@ class NetInstance
 	void Update()
 	{
 		nt.request();
+		SendAll();
 		for(uint i=0;i<eventStack.length; i++)
 		{
 			if(eventStack[i].IsDone()==true)
@@ -43,10 +44,16 @@ class NetInstance
 			}
 		}
 		
-		Listener();
+		if(this.IsServer) ClientListener();
+		else ServListener();
 	}
 	
-	void Listener()
+	void ServListener()
+	{
+		//todo
+	}
+	
+	void ClientListener()
 	{
 		if(nt.is_received()==true)
 		{
@@ -55,12 +62,12 @@ class NetInstance
 			if(etype=="Message")
 			{
 				NetEvent nev;
-				eventStack.insert_last(nev.BuildByString(nt.get_message()));
+				eventStack.insert_last(nev.BuildByString(nt.get_message(),false));
 			}
 			else if(etype=="MoovePerson")
 			{
 				MooveNetEvent nev;
-				eventStack.insert_last(nev.BuildByString(nt.get_message()));
+				eventStack.insert_last(nev.BuildByString(nt.get_message(),false));
 			}
 			
 		}
@@ -70,6 +77,27 @@ class NetInstance
 			eventStack[i].Action();
 		}
 		
+	}
+	
+	void AddToSend(NetEvent newEv)
+	{
+		if(!newEv.IsReadyToSend()) return;
+		stackToSend.insert_last(newEv);
+	}
+	
+	void SendAll()
+	{
+		bool reliable=true;
+		if(stackToSend.length>0)
+		{
+			for(uint i=0; i<stackToSend.length; i++)
+			{
+				if(stackToSend[i].IsDone()==false)
+				{
+					stackToSend[i].Answered=nt.send(nt.get_id(),stackToSend[i].ToString(),stackToSend[i].GetChannel(),reliable);
+				}
+			}
+		}
 	}
 	
 	
