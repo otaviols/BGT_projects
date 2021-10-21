@@ -1,0 +1,59 @@
+class MooveNetEvent : NetEvent
+{
+	vector personMoove;
+	int PeerId;
+	
+	MooveNetEvent()
+	{
+	}
+	
+	MooveNetEvent(vector toMoove,int peerId,string message="",string type="MoovePerson",int to=0,int channel=0)
+	{
+		this.personMoove=toMoove;
+		this.PeerId=peerId;
+		
+		super(message,type,channel);
+	}
+	
+	
+	string ToString()
+	{
+		return this.Type+":"+this.personMoove.x+","+this.personMoove.y+","+this.personMoove.z+"/"+this.PeerId+":"+this.To;
+	}
+	
+	bool action()
+	{
+	//impementar movimentação de personagens
+	}
+	
+	
+	Event@ BuildByString(string param)
+	{
+		MooveNetEvent nev;
+		string[] divided=string_split(param,":",false);
+		
+		if(divided.length>0)
+		{
+			nev.Type=divided[0];
+			nev.Message="";
+			nev.To=string_to_number(divided[2]);
+			nev.Channel=string_to_number(0);
+			nev.Answered=false;
+			
+			string[] messaged=string_split(divided[1],"/",false);
+			if(messaged.length>0)
+			{
+				string[] vectr=string_split(messaged[0],",",false);
+				if(vectr.length>0)
+				{
+					nev.personMoove=vector(string_to_number(vectr[0]),string_to_number(vectr[1]),string_to_number(vectr[2]));
+				}
+				nev.PeerId=string_to_number(messaged[1]);
+			}
+			
+		}
+		
+		return nev;
+	}
+	
+}

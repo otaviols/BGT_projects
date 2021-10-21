@@ -34,7 +34,6 @@ void main()
 					pos--;
 					if(pos<0) pos=0;
 				}
-				wait(1000);
 				if(messages.length()>0) screenReader.Speak(messages[pos]);
 				
 			}
@@ -43,12 +42,9 @@ void main()
 				if(pos<messages.length())
 				{
 					pos++;
-										screenReader.Speak(""+pos);
-
 					if(pos>=messages.length) pos=messages.length-1;
 					
 				}
-				wait(1000);
 				if(messages.length()>0) screenReader.Speak(messages[pos]);
 				
 			}
