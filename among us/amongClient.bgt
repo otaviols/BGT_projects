@@ -1,0 +1,37 @@
+#include"classes/includes.bgt"
+
+	ScreenReader screenReader;
+
+
+void main()
+{
+	sound_pool pool;
+	bool isUp=false;
+	screenReader.Start();
+	Net nt;
+	nt.set_decryption_key("asd123");
+	
+	if(nt.create_client(100,10))
+	{
+		isUp=true;
+		
+		show_game_window("Cliente"+nt.get_id());
+		string servc=GetTextFromKeyBoard("Digite o endereço à se conectar.");
+		
+		nt.connect(servc,42000);
+		while(isUp)
+		{
+			if(key_pressed(KEY_ESCAPE)) isUp=false;
+			nt.request();
+			
+			if(key_pressed(KEY_C))
+			{
+				if(nt.send(0,GetTextFromKeyBoard("digite a msg a mandar"),0,true)) pool.play_stationary("sounds/MessageSent.wav",false);
+			}
+			
+				
+		}
+	}
+	
+	nt.destroy();
+}

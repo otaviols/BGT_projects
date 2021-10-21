@@ -1,0 +1,228 @@
+string GetTextFromKeyBoard(string msg)
+{
+string mensagem_final;
+get_characters();//Função interna para pegar caractéres digitados
+screenReader.Speak(msg);//Função de include
+while(true)//Começa a verificação
+{
+string c=get_characters();//String c onde verifica caractéres digitados
+if(key_down(KEY_LCONTROL)&&key_pressed(KEY_V)||key_down(KEY_RCONTROL)&&key_pressed(KEY_V))//Se apertar ctrl v
+{
+if(clipboard_read_text()=="")//Área de trabalho vasia
+{
+screenReader.Speak("Á área de trabalho está vasia.");
+}
+else//Continuando
+{
+mensagem_final+=clipboard_read_text();//Adiciona à mensagem_final o texto da área de transferência
+screenReader.Speak("Texto colado.");
+}
+}
+if(c!="")//Se a variável c deixar de ser vasia
+{
+if(c==" ")//Se usar espaço
+{
+screenReader.Speak("espaço");
+}
+else if(c==".")//Ponto final
+{
+screenReader.Speak("ponto");
+}
+else if(c==",")//Vírgula
+{
+screenReader.Speak("vírgula");
+}
+else if(c=="-")//ifem
+{
+screenReader.Speak("menos");
+}
+else if(c=="_")//Sublinhado
+{
+screenReader.Speak("underline");
+}
+else if(c=="=")//igual
+{
+screenReader.Speak("igual");
+}
+else if(c=="`")//Sinal craze
+{
+screenReader.Speak("grave");
+}
+else if(c=="*")//Asterisco
+{
+screenReader.Speak("asterisco");
+}
+else
+{
+screenReader.Speak(c);
+}
+mensagem_final+=c;
+}
+if(key_pressed(KEY_BACK))
+{
+if(mensagem_final.length()>0)
+{
+string currentchar=mensagem_final[mensagem_final.length()-1];
+if(currentchar!="")
+{
+if(currentchar==" ")
+{
+screenReader.Speak("espaço");
+}
+else if(currentchar==".")
+{
+screenReader.Speak("ponto");
+}
+else if(currentchar==",")
+{
+screenReader.Speak("vírgula");
+}
+else if(currentchar=="-")
+{
+screenReader.Speak("menos");
+}
+else if(currentchar=="_")
+{
+screenReader.Speak("underline");
+}
+else if(currentchar=="=")
+{
+screenReader.Speak("igual");
+}
+else if(currentchar=="`")
+{
+screenReader.Speak("grave");
+}
+else if(currentchar=="*")
+{
+screenReader.Speak("asterisco");
+}
+else if(currentchar=="~")
+{
+screenReader.Speak("til");
+}
+else if(currentchar=="!")
+{
+screenReader.Speak("Exclamação");
+}
+else if(currentchar=="?")
+{
+screenReader.Speak("interrogação");
+}
+else if(currentchar=="@")
+{
+screenReader.Speak("arroba");
+}
+else if(currentchar=="#")
+{
+screenReader.Speak("number");
+}
+else if(currentchar=="$")
+{
+screenReader.Speak("cifrão");
+}
+else if(currentchar=="%")
+{
+screenReader.Speak("porcento");
+}
+else if(currentchar=="^")
+{
+screenReader.Speak("circonflexo");
+}
+else if(currentchar=="&")
+{
+screenReader.Speak("é comercial");
+}
+else if(currentchar=="(")
+{
+screenReader.Speak("Abre parênteses");
+}
+else if(currentchar==")")
+{
+screenReader.Speak("fecha parênteses");
+}
+else if(currentchar=="-")
+{
+screenReader.Speak("menos");
+}
+else if(currentchar=="+")
+{
+screenReader.Speak("mais");
+}
+else if(currentchar=="[")
+{
+screenReader.Speak("abre couchetes");
+}
+else if(currentchar=="]")
+{
+screenReader.Speak("fecha couchetes");
+}
+else if(currentchar=="{")
+{
+screenReader.Speak("abre chave");
+}
+else if(currentchar=="}")
+{
+screenReader.Speak("fecha chave");
+}
+else if(currentchar=="\\")
+{
+screenReader.Speak("barra invertida");
+}
+else if(currentchar=="\"")
+{
+screenReader.Speak("aspas");
+}
+else if(currentchar=="\'")
+{
+screenReader.Speak("apóstrofo");
+}
+else if(currentchar=="<")
+{
+screenReader.Speak("menor");
+}
+else if(currentchar==">")
+{
+screenReader.Speak("maior");
+}
+else if(currentchar=="/")
+{
+screenReader.Speak("barra");
+}
+else if(currentchar==";")
+{
+screenReader.Speak("ponto e vírgula");
+}
+else if(currentchar==":")
+{
+screenReader.Speak("dois pontos");
+}
+else
+{
+screenReader.Speak(currentchar);
+}
+mensagem_final.resize(mensagem_final.length()-1);
+}
+else
+{
+screenReader.Speak("em branco");
+}
+}
+else
+{
+screenReader.Speak("em branco");
+}
+}
+else if(key_pressed(KEY_ESCAPE))
+{
+screenReader.Speak("Cancelado");
+return "";
+}
+else if(key_pressed(KEY_RETURN)&&mensagem_final.length()>0)
+{
+return mensagem_final;
+}
+wait(5);
+}
+return "";
+}

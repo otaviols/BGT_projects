@@ -1,0 +1,50 @@
+
+class NetEvent : Event
+{
+	string Message;
+	string Type;
+	int Channel;
+	int To;
+	bool Answered;
+	
+	NetEvent()
+	{
+	}
+	
+	NetEvent(string message,string type="Message",int to=0,int channel=0)
+	{
+		this.Type=type;
+		this.Message=message;
+		this.To=to;
+		this.Channel=channel;
+		this.Answered=false;
+	}
+	
+	string ToString()
+	{
+		return this.Type+":"+this.Message+":"+this.To;
+	}
+	
+	bool Action()
+	{
+		return screenReader.Speak(Message);
+	}
+	
+	Event@ BuildByString(string param)
+	{
+		NetEvent nev;
+		string[] divided=string_split(param,":",false);
+		
+		if(divided.length>0)
+		{
+			nev.Type=divided[0];
+			nev.Message=divided[1];
+			nev.To=string_to_number(divided[2]);
+			nev.Channel=string_to_number(0);
+			nev.Answered=false;
+		}
+		
+		return nev;
+	}
+	
+}

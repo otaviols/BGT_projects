@@ -1,0 +1,6 @@
+interface Event
+{
+	string ToString();
+	Event@ BuildByString(string param);
+	bool Action();
+}

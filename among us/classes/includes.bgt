@@ -1,0 +1,11 @@
+#include"connections/Net.bgt"
+#include"connections/NetEvent.bgt"
+#include"FoundationLayer/ScreenReader.bgt"
+#include"FoundationLayer/Event.bgt"
+#include"sound_pool.bgt"
+#include"FoundationLayer/GetTextFromKeyBoard.bgt"
+
+class Includes
+{
+	string pack=1;
+}

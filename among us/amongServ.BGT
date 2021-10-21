@@ -1,0 +1,76 @@
+#include"classes/includes.bgt"
+
+	ScreenReader screenReader;
+
+
+void main()
+{
+	sound_pool pool;
+	bool isUp=false;
+	screenReader.Start();
+	Net nt;
+	nt.set_decryption_key("asd123");
+	nt.set_port(42000);
+	nt.set_outgoing_bandwidth(65536.0);
+	nt.set_incomming_bandwidth(65536.0);
+	
+	
+	if(nt.create_server(100,10))
+	{
+				int pos=0;
+		string[] messages(0);
+
+		isUp=true;
+		show_game_window("server: "+nt.get_port());
+		while(isUp)
+		{
+			nt.request();
+			if(key_pressed(KEY_ESCAPE)) isUp=false;
+			
+			else if(key_pressed(KEY_UP))
+			{
+				if(pos>=0)
+				{
+					pos--;
+					if(pos<0) pos=0;
+				}
+				wait(1000);
+				if(messages.length()>0) screenReader.Speak(messages[pos]);
+				
+			}
+			else if(key_pressed(KEY_DOWN))
+			{
+				if(pos<messages.length())
+				{
+					pos++;
+										screenReader.Speak(""+pos);
+
+					if(pos>=messages.length) pos=messages.length-1;
+					
+				}
+				wait(1000);
+				if(messages.length()>0) screenReader.Speak(messages[pos]);
+				
+			}
+			
+			
+			if(nt.is_connected())
+			{
+				pool.play_stationary("sounds/enter.wav",false);
+				messages.insert_last("usuario entrou!: "+nt.get_id());
+			}
+			
+			if(nt.is_received())
+			{
+				pool.play_stationary("sounds/MessageReceived.wav",false);
+				string msgr=nt.get_message();
+				screenReader.Speak(msgr);
+				messages.insert_last(msgr);
+			}
+			
+			
+		}
+	}
+	
+	nt.destroy();
+}
