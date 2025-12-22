@@ -1,0 +1,386 @@
+// User Database Management
+// Sistema de gerenciamento de banco de dados de usuários usando SQLite3
+
+#pragma plugin nvgt_sqlite
+#include "sqlite3constants.nvgt"
+
+class UserDatabase {
+	private sqlite3@ db;
+	private string db_path;
+	
+	UserDatabase() {
+		@db = sqlite3();
+		db_path = "among_users.db";
+	}
+	
+	// Inicializa o banco de dados
+	bool initialize() {
+		if (!db.open(db_path)) {
+			return false;
+		}
+		
+		return create_tables();
+	}
+	
+	// Cria as tabelas necessárias
+	private bool create_tables() {
+		// Tabela de usuários
+		string create_users = "CREATE TABLE IF NOT EXISTS users ("
+			"id INTEGER PRIMARY KEY AUTOINCREMENT, "
+			"username TEXT UNIQUE NOT NULL, "
+			"password_hash TEXT NOT NULL, "
+			"salt TEXT NOT NULL, "
+			"email TEXT, "
+			"level INTEGER DEFAULT 1, "
+			"created_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+		")";
+		
+		if (db.execute(create_users) != SQLITE_OK) {
+			return false;
+		}
+		
+		// Tabela de estatísticas
+		string create_stats = "CREATE TABLE IF NOT EXISTS user_stats ("
+			"user_id INTEGER PRIMARY KEY, "
+			"games_played INTEGER DEFAULT 0, "
+			"games_won INTEGER DEFAULT 0, "
+			"crewmate_wins INTEGER DEFAULT 0, "
+			"impostor_wins INTEGER DEFAULT 0, "
+			"tasks_completed INTEGER DEFAULT 0, "
+			"kills INTEGER DEFAULT 0, "
+			"FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE"
+		")";
+		
+		if (db.execute(create_stats) != SQLITE_OK) {
+			return false;
+		}
+		
+		// Tabela de sessões
+		string create_sessions = "CREATE TABLE IF NOT EXISTS sessions ("
+			"id INTEGER PRIMARY KEY AUTOINCREMENT, "
+			"user_id INTEGER NOT NULL, "
+			"token TEXT UNIQUE NOT NULL, "
+			"created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+			"expires_at DATETIME NOT NULL, "
+			"FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE"
+		")";
+		
+		if (db.execute(create_sessions) != SQLITE_OK) {
+			return false;
+		}
+		
+		// Índices para performance
+		db.execute("CREATE INDEX IF NOT EXISTS idx_username ON users(username)");
+		db.execute("CREATE INDEX IF NOT EXISTS idx_token ON sessions(token)");
+		
+		return true;
+	}
+	
+	// Cria novo usuário
+	bool create_user(string username, string password, string email = "") {
+		// Valida entrada
+		if (username.length() < 3 || username.length() > 16) {
+			return false;
+		}
+		
+		if (password.length() < 6) {
+			return false;
+		}
+		
+		// Verifica se usuário já existe
+		if (user_exists(username)) {
+			return false;
+		}
+		
+		// Gera salt aleatório
+		string salt = generate_salt();
+		
+		// Hash da senha com salt
+		string password_hash = hash_password(password, salt);
+		
+		// Insere usuário
+		sqlite3_statement@ stmt = db.prepare(
+			"INSERT INTO users (username, password_hash, salt, email) VALUES (?, ?, ?, ?)"
+		);
+		
+		if (@stmt == null) {
+			return false;
+		}
+		
+		stmt.bind_text(1, username);
+		stmt.bind_text(2, password_hash);
+		stmt.bind_text(3, salt);
+		stmt.bind_text(4, email);
+		
+		bool success = stmt.step() == SQLITE_DONE;
+		stmt.finalize();
+		
+		if (success) {
+			// Cria estatísticas iniciais
+			int user_id = get_user_id(username);
+			if (user_id > 0) {
+				create_user_stats(user_id);
+			}
+		}
+		
+		return success;
+	}
+	
+	// Verifica se usuário existe
+	bool user_exists(string username) {
+		sqlite3_statement@ stmt = db.prepare(
+			"SELECT COUNT(*) FROM users WHERE username = ?"
+		);
+		
+		if (@stmt == null) {
+			return false;
+		}
+		
+		stmt.bind_text(1, username);
+		
+		bool exists = false;
+		if (stmt.step() == SQLITE_ROW) {
+			exists = stmt.column_int(0) > 0;
+		}
+		
+		stmt.finalize();
+		return exists;
+	}
+	
+	// Verifica login
+	bool verify_login(string username, string password) {
+		sqlite3_statement@ stmt = db.prepare(
+			"SELECT password_hash, salt FROM users WHERE username = ?"
+		);
+		
+		if (@stmt == null) {
+			return false;
+		}
+		
+		stmt.bind_text(1, username);
+		
+		bool valid = false;
+		if (stmt.step() == SQLITE_ROW) {
+			string stored_hash = stmt.column_text(0);
+			string salt = stmt.column_text(1);
+			string provided_hash = hash_password(password, salt);
+			valid = stored_hash == provided_hash;
+		}
+		
+		stmt.finalize();
+		return valid;
+	}
+	
+	// Obtém ID do usuário
+	int get_user_id(string username) {
+		sqlite3_statement@ stmt = db.prepare(
+			"SELECT id FROM users WHERE username = ?"
+		);
+		
+		if (@stmt == null) {
+			return -1;
+		}
+		
+		stmt.bind_text(1, username);
+		
+		int user_id = -1;
+		if (stmt.step() == SQLITE_ROW) {
+			user_id = stmt.column_int(0);
+		}
+		
+		stmt.finalize();
+		return user_id;
+	}
+	
+	// Cria estatísticas iniciais para usuário
+	private bool create_user_stats(int user_id) {
+		sqlite3_statement@ stmt = db.prepare(
+			"INSERT INTO user_stats (user_id) VALUES (?)"
+		);
+		
+		if (@stmt == null) {
+			return false;
+		}
+		
+		stmt.bind_int(1, user_id);
+		bool success = stmt.step() == SQLITE_DONE;
+		stmt.finalize();
+		
+		return success;
+	}
+	
+	// Obtém estatísticas do usuário
+	dictionary get_user_stats(string username) {
+		dictionary stats;
+		
+		int user_id = get_user_id(username);
+		if (user_id < 0) {
+			return stats;
+		}
+		
+		sqlite3_statement@ stmt = db.prepare(
+			"SELECT games_played, games_won, crewmate_wins, impostor_wins, tasks_completed, kills "
+			"FROM user_stats WHERE user_id = ?"
+		);
+		
+		if (@stmt == null) {
+			return stats;
+		}
+		
+		stmt.bind_int(1, user_id);
+		
+		if (stmt.step() == SQLITE_ROW) {
+			stats.set("games_played", stmt.column_int(0));
+			stats.set("games_won", stmt.column_int(1));
+			stats.set("crewmate_wins", stmt.column_int(2));
+			stats.set("impostor_wins", stmt.column_int(3));
+			stats.set("tasks_completed", stmt.column_int(4));
+			stats.set("kills", stmt.column_int(5));
+		}
+		
+		stmt.finalize();
+		return stats;
+	}
+	
+	// Atualiza estatísticas
+	bool update_stats(string username, string stat_name, int increment) {
+		int user_id = get_user_id(username);
+		if (user_id < 0) {
+			return false;
+		}
+		
+		string query = "UPDATE user_stats SET " + stat_name + " = " + stat_name + " + ? WHERE user_id = ?";
+		sqlite3_statement@ stmt = db.prepare(query);
+		
+		if (@stmt == null) {
+			return false;
+		}
+		
+		stmt.bind_int(1, increment);
+		stmt.bind_int(2, user_id);
+		
+		bool success = stmt.step() == SQLITE_DONE;
+		stmt.finalize();
+		
+		return success;
+	}
+	
+	// Cria sessão de login
+	string create_session(string username) {
+		int user_id = get_user_id(username);
+		if (user_id < 0) {
+			return "";
+		}
+		
+		// Gera token único
+		string token = generate_token();
+		
+		// Expira em 7 dias
+		datetime expires = datetime();
+		expires.add_days(7);
+		
+		sqlite3_statement@ stmt = db.prepare(
+			"INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)"
+		);
+		
+		if (@stmt == null) {
+			return "";
+		}
+		
+		stmt.bind_int(1, user_id);
+		stmt.bind_text(2, token);
+		stmt.bind_text(3, expires.format("%Y-%m-%d %H:%M:%S"));
+		
+		if (stmt.step() == SQLITE_DONE) {
+			stmt.finalize();
+			return token;
+		}
+		
+		stmt.finalize();
+		return "";
+	}
+	
+	// Valida sessão
+	string validate_session(string token) {
+		sqlite3_statement@ stmt = db.prepare(
+			"SELECT u.username FROM sessions s "
+			"JOIN users u ON s.user_id = u.id "
+			"WHERE s.token = ? AND s.expires_at > datetime('now')"
+		);
+		
+		if (@stmt == null) {
+			return "";
+		}
+		
+		stmt.bind_text(1, token);
+		
+		string username = "";
+		if (stmt.step() == SQLITE_ROW) {
+			username = stmt.column_text(0);
+		}
+		
+		stmt.finalize();
+		return username;
+	}
+	
+	// Deleta sessão (logout)
+	bool delete_session(string token) {
+		sqlite3_statement@ stmt = db.prepare(
+			"DELETE FROM sessions WHERE token = ?"
+		);
+		
+		if (@stmt == null) {
+			return false;
+		}
+		
+		stmt.bind_text(1, token);
+		bool success = stmt.step() == SQLITE_DONE;
+		stmt.finalize();
+		
+		return success;
+	}
+	
+	// Limpa sessões expiradas
+	void cleanup_expired_sessions() {
+		db.execute("DELETE FROM sessions WHERE expires_at < datetime('now')");
+	}
+	
+	// Gera salt aleatório
+	private string generate_salt() {
+		string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+		string salt = "";
+		
+		for (int i = 0; i < 16; i++) {
+			salt += chars[random(0, chars.length() - 1)];
+		}
+		
+		return salt;
+	}
+	
+	// Gera token de sessão
+	private string generate_token() {
+		string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+		string token = "";
+		
+		for (int i = 0; i < 64; i++) {
+			token += chars[random(0, chars.length() - 1)];
+		}
+		
+		return token;
+	}
+	
+	// Hash de senha com salt
+	private string hash_password(string password, string salt) {
+		return string_hash_sha512(password + salt);
+	}
+	
+	// Fecha banco de dados
+	void close() {
+		if (@db != null) {
+			db.close();
+		}
+	}
+}
+
+// Instância global
+UserDatabase@ g_user_db = null;

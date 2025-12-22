@@ -1,0 +1,227 @@
+// Audio Manager
+// Gerenciador centralizado de áudio do jogo
+
+#include "../config/game_constants.nvgt"
+
+class AudioManager {
+	// private sound_pool pool; // sound_pool não é tipo no NVGT
+	private dictionary loaded_sounds; // string -> bool
+	private float master_volume;
+	private float sfx_volume;
+	private float voice_volume;
+	
+	AudioManager() {
+		master_volume = 1.0;
+		sfx_volume = 1.0;
+		voice_volume = 1.0;
+	}
+	
+	// Inicializa o sistema de áudio
+	bool initialize() {
+		// pool.hrtf = true;
+		// pool.max_distance = MAX_AUDIO_DISTANCE;
+		return true;
+	}
+	
+	// Pré-carrega sons
+	bool preload_sounds() {
+		// Footsteps
+		preload_sound("sounds/footstep.ogg");
+		
+		// UI Sounds
+		preload_sound("sounds/click.ogg");
+		preload_sound("sounds/select.ogg");
+		preload_sound("sounds/error.ogg");
+		preload_sound("sounds/success.ogg");
+		
+		// Game Sounds
+		preload_sound("sounds/door_open.ogg");
+		preload_sound("sounds/door_close.ogg");
+		preload_sound("sounds/task_complete.ogg");
+		preload_sound("sounds/emergency_meeting.ogg");
+		preload_sound("sounds/body_reported.ogg");
+		preload_sound("sounds/kill.ogg");
+		preload_sound("sounds/vent_enter.ogg");
+		preload_sound("sounds/vent_exit.ogg");
+		
+		// Voting Sounds
+		preload_sound("sounds/vote_submitted.ogg");
+		preload_sound("sounds/discussion_start.ogg");
+		preload_sound("sounds/voting_start.ogg");
+		
+		// Victory Sounds
+		preload_sound("sounds/victory_crewmates.ogg");
+		preload_sound("sounds/victory_impostors.ogg");
+		
+		return true;
+	}
+	
+	// Pré-carrega um som individual
+	private bool preload_sound(string filename) {
+		if (!file_exists(filename)) {
+			return false;
+		}
+		
+		loaded_sounds.set(filename, true);
+		return true;
+	}
+	
+	// Toca som 3D espacial
+	int play_3d(string filename, float listener_x, float listener_y, float listener_z, 
+	            float sound_x, float sound_y, float sound_z, bool looping = false, 
+	            float volume = 1.0) {
+		if (!sound_exists(filename)) {
+			return -1;
+		}
+		
+		float final_volume = volume * sfx_volume * master_volume;
+		
+		int sound_id = pool.play_3d(
+			filename,
+			listener_x, listener_y, listener_z,
+			sound_x, sound_y, sound_z,
+			0, // rotation
+			looping,
+			final_volume
+		);
+		
+		return sound_id;
+	}
+	
+	// Toca som de UI (não espacial)
+	int play_ui(string filename, float volume = 1.0) {
+		if (!sound_exists(filename)) {
+			return -1;
+		}
+		
+		float final_volume = volume * UI_SOUND_VOLUME * master_volume;
+		
+		int sound_id = pool.play_1d(filename, 0, false, final_volume);
+		return sound_id;
+	}
+	
+	// Toca som de voz (não espacial, usado para TTS ou narração)
+	int play_voice(string filename, float volume = 1.0) {
+		if (!sound_exists(filename)) {
+			return -1;
+		}
+		
+		float final_volume = volume * voice_volume * master_volume;
+		
+		int sound_id = pool.play_1d(filename, 0, false, final_volume);
+		return sound_id;
+	}
+	
+	// Atualiza posição do listener (jogador)
+	void update_listener(float x, float y, float z, float rotation = 0) {
+		pool.update_listener_3d(x, y, z, rotation);
+	}
+	
+	// Atualiza posição de um som 3D
+	void update_sound_position(int sound_id, float x, float y, float z) {
+		if (sound_id < 0) {
+			return;
+		}
+		pool.update_sound_3d(sound_id, x, y, z);
+	}
+	
+	// Para um som
+	void stop_sound(int sound_id) {
+		if (sound_id < 0) {
+			return;
+		}
+		pool.destroy_sound(sound_id);
+	}
+	
+	// Pausa um som
+	void pause_sound(int sound_id) {
+		if (sound_id < 0) {
+			return;
+		}
+		pool.pause_sound(sound_id);
+	}
+	
+	// Resume um som
+	void resume_sound(int sound_id) {
+		if (sound_id < 0) {
+			return;
+		}
+		pool.resume_sound(sound_id);
+	}
+	
+	// Verifica se som está tocando
+	bool is_playing(int sound_id) {
+		if (sound_id < 0) {
+			return false;
+		}
+		return pool.sound_is_playing(sound_id);
+	}
+	
+	// Verifica se som está ativo
+	bool is_active(int sound_id) {
+		if (sound_id < 0) {
+			return false;
+		}
+		return pool.sound_is_active(sound_id);
+	}
+	
+	// Define volume mestre
+	void set_master_volume(float volume) {
+		master_volume = clamp(volume, 0.0, 1.0);
+	}
+	
+	// Define volume de efeitos
+	void set_sfx_volume(float volume) {
+		sfx_volume = clamp(volume, 0.0, 1.0);
+	}
+	
+	// Define volume de voz
+	void set_voice_volume(float volume) {
+		voice_volume = clamp(volume, 0.0, 1.0);
+	}
+	
+	// Obtém volume mestre
+	float get_master_volume() {
+		return master_volume;
+	}
+	
+	// Obtém volume de efeitos
+	float get_sfx_volume() {
+		return sfx_volume;
+	}
+	
+	// Obtém volume de voz
+	float get_voice_volume() {
+		return voice_volume;
+	}
+	
+	// Verifica se som existe
+	private bool sound_exists(string filename) {
+		bool exists = false;
+		if (loaded_sounds.get(filename, exists)) {
+			return exists;
+		}
+		return file_exists(filename);
+	}
+	
+	// Função auxiliar de clamp
+	private float clamp(float value, float min_val, float max_val) {
+		if (value < min_val) return min_val;
+		if (value > max_val) return max_val;
+		return value;
+	}
+	
+	// Para todos os sons
+	void stop_all_sounds() {
+		pool.destroy_all();
+	}
+	
+	// Cleanup
+	void cleanup() {
+		pool.destroy_all();
+		loaded_sounds.delete_all();
+	}
+}
+
+// Instância global
+AudioManager@ g_audio = null;

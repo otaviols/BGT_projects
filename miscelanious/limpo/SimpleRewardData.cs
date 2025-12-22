@@ -1,0 +1,2 @@
+AssetPath() => this.PrefabAssetPath;
+}

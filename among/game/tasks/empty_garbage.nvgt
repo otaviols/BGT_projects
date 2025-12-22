@@ -1,0 +1,70 @@
+// Empty Garbage Task - Button Press Sequence
+#include "../task_manager.nvgt"
+
+class EmptyGarbageTask {
+	bool lever_pulled = false;
+	bool completed = false;
+	timer hold_timer;
+	int HOLD_TIME = 3000; // 3 segundos segurando
+	
+	bool start() {
+		lever_pulled = false;
+		completed = false;
+		
+		screen_reader_speak(tr("task_empty_garbage_start"), true);
+		wait(500);
+		screen_reader_speak(tr("task_empty_garbage_instructions"), true);
+		
+		return run();
+	}
+	
+	bool run() {
+		while (!completed) {
+			wait(50);
+			
+			if (key_pressed(KEY_SPACE) && !lever_pulled) {
+				screen_reader_speak(tr("task_empty_garbage_hold"), true);
+				g_audio.play_ui("sounds/garbage_lever.ogg");
+				lever_pulled = true;
+				hold_timer.restart();
+			}
+			
+			if (lever_pulled && key_down(KEY_SPACE)) {
+				// Verifica se segurou tempo suficiente
+				int elapsed = hold_timer.elapsed;
+				
+				// Feedback a cada segundo
+				if (elapsed >= 1000 && elapsed < 2000 && hold_timer.elapsed % 1000 < 100) {
+					screen_reader_speak("1", true);
+					g_audio.play_ui("sounds/garbage_dump.ogg", 0.5);
+				} else if (elapsed >= 2000 && elapsed < 3000 && hold_timer.elapsed % 1000 < 100) {
+					screen_reader_speak("2", true);
+					g_audio.play_ui("sounds/garbage_dump.ogg", 0.7);
+				}
+				
+				if (elapsed >= HOLD_TIME) {
+					completed = true;
+					screen_reader_speak(tr("task_empty_garbage_complete"), true);
+					g_audio.play_ui("sounds/task_complete.ogg");
+					wait(1000);
+					return true;
+				}
+			} else if (lever_pulled && !key_down(KEY_SPACE)) {
+				// Soltou antes do tempo
+				screen_reader_speak(tr("task_empty_garbage_failed"), true);
+				g_audio.play_ui("sounds/task_fail.ogg");
+				lever_pulled = false;
+			}
+			
+			if (key_pressed(KEY_ESCAPE)) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	bool is_completed() {
+		return completed;
+	}
+}

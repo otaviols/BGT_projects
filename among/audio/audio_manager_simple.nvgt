@@ -1,0 +1,91 @@
+// Audio Manager - Simple Version
+// Gerenciador simplificado de áudio do jogo
+
+#include "../config/game_constants.nvgt"
+
+class AudioManager {
+	private dictionary loaded_sounds; // string -> bool
+	private float master_volume;
+	private float sfx_volume;
+	private float voice_volume;
+	private sound@ last_sound;
+	
+	AudioManager() {
+		master_volume = 1.0;
+		sfx_volume = 1.0;
+		voice_volume = 1.0;
+		@last_sound = null;
+	}
+	
+	// Inicializa o sistema de áudio
+	bool initialize() {
+		return true;
+	}
+	
+	// Pré-carrega sons
+	bool preload_sounds() {
+		// Por enquanto, apenas marca como carregados
+		return true;
+	}
+	
+	// Toca som 3D (versão simplificada com parâmetros extras ignorados)
+	void play_3d(string filename, float x, float y, float z, float volume = 1.0, float pan_left = 0.0, float pan_right = 0.0, bool loop = false, float pitch = 1.0) {
+		// Implementação simplificada sem sound_pool
+		// Em produção deveria usar sound_pool com HRTF
+		play_ui(filename, volume);
+	}
+	
+	// Toca som de UI (2D)
+	void play_ui(string filename, float volume = 1.0) {
+		sound snd;
+		if (snd.load(filename)) {
+			snd.set_volume(volume * sfx_volume * master_volume);
+			snd.play();
+		}
+	}
+	
+	// Toca voz
+	void play_voice(string filename, float volume = 1.0) {
+		sound snd;
+		if (snd.load(filename)) {
+			snd.set_volume(volume * voice_volume * master_volume);
+			snd.play();
+		}
+	}
+	
+	// Atualiza posição do ouvinte
+	void update_listener(float x, float y, float z, float rotation) {
+		// Implementação futura com sound_pool
+	}
+	
+	// Controles de volume
+	void set_master_volume(float vol) {
+		master_volume = clamp(vol, 0.0, 1.0);
+	}
+	
+	void set_sfx_volume(float vol) {
+		sfx_volume = clamp(vol, 0.0, 1.0);
+	}
+	
+	void set_voice_volume(float vol) {
+		voice_volume = clamp(vol, 0.0, 1.0);
+	}
+	
+	float get_master_volume() { return master_volume; }
+	float get_sfx_volume() { return sfx_volume; }
+	float get_voice_volume() { return voice_volume; }
+	
+	// Limpa recursos
+	void cleanup() {
+		loaded_sounds.delete_all();
+	}
+	
+	private float clamp(float value, float min, float max) {
+		if (value < min) return min;
+		if (value > max) return max;
+		return value;
+	}
+}
+
+// Instância global
+AudioManager@ g_audio = null;

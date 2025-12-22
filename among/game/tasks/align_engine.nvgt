@@ -1,0 +1,125 @@
+// Align Engine Task - Directional Alignment
+#include "../task_manager.nvgt"
+
+class AlignEngineTask {
+	float current_position = 0.0; // -1.0 a 1.0
+	float target_position = 0.0;
+	bool completed = false;
+	float ALIGNMENT_TOLERANCE = 0.05;
+	float MOVE_SPEED = 0.5; // unidades por segundo
+	timer update_timer;
+	timer beep_timer;
+	
+	bool start() {
+		// Gera posição aleatória do alvo
+		target_position = random_float(-0.8, 0.8);
+		current_position = random_float(-0.8, 0.8);
+		completed = false;
+		
+		screen_reader_speak(tr("task_align_engine_start"), true);
+		wait(500);
+		screen_reader_speak(tr("task_align_engine_instructions"), true);
+		
+		update_timer.restart();
+		beep_timer.restart();
+		
+		return run();
+	}
+	
+	bool run() {
+		while (!completed) {
+			wait(50);
+			
+			float delta = float(update_timer.elapsed) / 1000.0;
+			update_timer.restart();
+			
+			// Movimento com setas
+			if (key_down(KEY_LEFT)) {
+				current_position -= MOVE_SPEED * delta;
+				if (current_position < -1.0) current_position = -1.0;
+			}
+			
+			if (key_down(KEY_RIGHT)) {
+				current_position += MOVE_SPEED * delta;
+				if (current_position > 1.0) current_position = 1.0;
+			}
+			
+			// Feedback sonoro baseado na distância do alvo
+			float distance = abs(current_position - target_position);
+			
+			if (beep_timer.elapsed >= get_beep_interval(distance)) {
+				beep_timer.restart();
+				
+				// Pitch varia com a distância
+				float pitch = 1.0 - (distance * 0.5);
+				g_audio.play_ui("sounds/align_beep.ogg");
+			}
+			
+			// Anuncia posição periodicamente
+			if (key_pressed(KEY_P)) {
+				announce_position();
+			}
+			
+			// Confirma alinhamento
+			if (key_pressed(KEY_SPACE)) {
+				if (is_aligned()) {
+					completed = true;
+					screen_reader_speak(tr("task_align_engine_complete"), true);
+					g_audio.play_ui("sounds/task_complete.ogg");
+					wait(1000);
+					return true;
+				} else {
+					screen_reader_speak(tr("task_align_engine_not_aligned"), true);
+					g_audio.play_ui("sounds/task_fail.ogg");
+				}
+			}
+			
+			if (key_pressed(KEY_ESCAPE)) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	bool is_aligned() {
+		return abs(current_position - target_position) <= ALIGNMENT_TOLERANCE;
+	}
+	
+	int get_beep_interval(float distance) {
+		// Beep mais rápido quando está perto
+		if (distance < 0.1) return 200;
+		if (distance < 0.3) return 400;
+		if (distance < 0.5) return 600;
+		return 1000;
+	}
+	
+	void announce_position() {
+		float distance = abs(current_position - target_position);
+		
+		if (is_aligned()) {
+			screen_reader_speak(tr("task_align_perfect"), true);
+		} else if (distance < 0.2) {
+			screen_reader_speak(tr("task_align_close"), true);
+		} else if (distance < 0.5) {
+			screen_reader_speak(tr("task_align_medium"), true);
+		} else {
+			screen_reader_speak(tr("task_align_far"), true);
+		}
+		
+		// Indica direção
+		if (current_position < target_position) {
+			screen_reader_speak(tr("task_align_move_right"), true);
+		} else if (current_position > target_position) {
+			screen_reader_speak(tr("task_align_move_left"), true);
+		}
+	}
+	
+	bool is_completed() {
+		return completed;
+	}
+	
+	float random_float(float min, float max) {
+		return min + (float(random(0, 1000)) / 1000.0) * (max - min);
+	}
+}

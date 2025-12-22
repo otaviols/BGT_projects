@@ -1,0 +1,211 @@
+// Spatial Audio Manager
+// Gerenciador de áudio espacial para jogadores e eventos do jogo
+
+#include "audio_manager_simple.nvgt"
+#include "../database/models.nvgt"
+
+class SpatialAudioManager {
+	private dictionary player_sound_ids; // uint64 (peer_id) -> int (sound_id)
+	private float listener_x, listener_y, listener_z;
+	private float listener_rotation;
+	
+	SpatialAudioManager() {
+		listener_x = 0;
+		listener_y = 0;
+		listener_z = 0;
+		listener_rotation = 0;
+	}
+	
+	// Atualiza posição do listener (jogador local)
+	void update_listener_position(float x, float y, float z, float rotation = 0) {
+		listener_x = x;
+		listener_y = y;
+		listener_z = z;
+		listener_rotation = rotation;
+		
+		if (@g_audio != null) {
+			g_audio.update_listener(x, y, z, rotation);
+		}
+	}
+	
+	// Toca footstep de um jogador
+	void play_player_footstep(uint64 peer_id, float x, float y, float z) {
+		if (@g_audio == null) {
+			return;
+		}
+		
+		// Não toca footstep do próprio jogador
+		// (isso seria feito em outro lugar com som não-espacial)
+		
+		g_audio.play_3d(
+			"sounds/footstep.ogg",
+			listener_x, listener_y, listener_z,
+			x, y, z,
+			false,
+			FOOTSTEP_VOLUME
+		);
+	}
+	
+	// Atualiza som contínuo de um jogador (se houver)
+	void update_player_sound(uint64 peer_id, float x, float y, float z) {
+		string key = formatUInt64(peer_id);
+		int sound_id = -1;
+		
+		if (player_sound_ids.get(key, sound_id)) {
+			if (@g_audio != null && g_audio.is_active(sound_id)) {
+				g_audio.update_sound_position(sound_id, x, y, z);
+			}
+		}
+	}
+	
+	// Inicia som contínuo para um jogador (ex: som ambiente)
+	void start_player_continuous_sound(uint64 peer_id, string filename, float x, float y, float z) {
+		if (@g_audio == null) {
+			return;
+		}
+		
+		// Para som anterior se existir
+		stop_player_continuous_sound(peer_id);
+		
+		// Inicia novo som
+		int sound_id = g_audio.play_3d(
+			filename,
+			listener_x, listener_y, listener_z,
+			x, y, z,
+			true // looping
+		);
+		
+		if (sound_id >= 0) {
+			player_sound_ids.set(formatUInt64(peer_id), sound_id);
+		}
+	}
+	
+	// Para som contínuo de um jogador
+	void stop_player_continuous_sound(uint64 peer_id) {
+		string key = formatUInt64(peer_id);
+		int sound_id = -1;
+		
+		if (player_sound_ids.get(key, sound_id)) {
+			if (@g_audio != null) {
+				g_audio.stop_sound(sound_id);
+			}
+			player_sound_ids.delete(key);
+		}
+	}
+	
+	// Toca som de porta
+	void play_door_sound(bool opening, float x, float y, float z) {
+		if (@g_audio == null) {
+			return;
+		}
+		
+		string filename = opening ? "sounds/door_open.ogg" : "sounds/door_close.ogg";
+		
+		g_audio.play_3d(
+			filename,
+			listener_x, listener_y, listener_z,
+			x, y, z
+		);
+	}
+	
+	// Toca som de kill
+	void play_kill_sound(float x, float y, float z) {
+		if (@g_audio == null) {
+			return;
+		}
+		
+		g_audio.play_3d(
+			"sounds/kill.ogg",
+			listener_x, listener_y, listener_z,
+			x, y, z
+		);
+	}
+	
+	// Toca som de vent
+	void play_vent_sound(bool entering, float x, float y, float z) {
+		if (@g_audio == null) {
+			return;
+		}
+		
+		string filename = entering ? "sounds/vent_enter.ogg" : "sounds/vent_exit.ogg";
+		
+		g_audio.play_3d(
+			filename,
+			listener_x, listener_y, listener_z,
+			x, y, z
+		);
+	}
+	
+	// Toca som de task sendo completada
+	void play_task_complete_sound(float x, float y, float z) {
+		if (@g_audio == null) {
+			return;
+		}
+		
+		g_audio.play_3d(
+			"sounds/task_complete.ogg",
+			listener_x, listener_y, listener_z,
+			x, y, z
+		);
+	}
+	
+	// Toca som ambiente de sala
+	int play_room_ambient(string room_name, float x, float y, float z) {
+		if (@g_audio == null) {
+			return -1;
+		}
+		
+		string filename = "sounds/ambient_" + room_name.lower() + ".ogg";
+		
+		if (!file_exists(filename)) {
+			return -1;
+		}
+		
+		return g_audio.play_3d(
+			filename,
+			listener_x, listener_y, listener_z,
+			x, y, z,
+			true // looping
+		);
+	}
+	
+	// Calcula distância até uma posição
+	float distance_to(float x, float y, float z) {
+		float dx = listener_x - x;
+		float dy = listener_y - y;
+		float dz = listener_z - z;
+		return sqrt(dx * dx + dy * dy + dz * dz);
+	}
+	
+	// Verifica se posição está dentro do range de áudio
+	bool is_in_audio_range(float x, float y, float z) {
+		return distance_to(x, y, z) <= MAX_AUDIO_DISTANCE;
+	}
+	
+	// Cleanup - para todos os sons de jogadores
+	void cleanup_all_player_sounds() {
+		string[] keys = player_sound_ids.get_keys();
+		for (uint i = 0; i < keys.length(); i++) {
+			int sound_id;
+			if (player_sound_ids.get(keys[i], sound_id)) {
+				if (@g_audio != null) {
+					g_audio.stop_sound(sound_id);
+				}
+			}
+		}
+		player_sound_ids.delete_all();
+	}
+	
+	// Remove jogador do sistema de áudio
+	void remove_player(uint64 peer_id) {
+		stop_player_continuous_sound(peer_id);
+	}
+	
+	// Função auxiliar
+	private string formatUInt64(uint64 value) {
+		return "" + value;
+	}
+}
+
+// Instância global
+SpatialAudioManager@ g_spatial_audio = null;

@@ -1,0 +1,158 @@
+// Configuration Presets
+// Presets de configuração pré-definidos
+
+#include "lobby_config.nvgt"
+
+// Preset Normal (balanceado)
+LobbyConfig@ create_preset_normal() {
+	LobbyConfig@ config = LobbyConfig();
+	config.impostors = 2;
+	config.kill_cooldown = 25;
+	config.kill_distance = 2.5;
+	config.player_speed = 1.0;
+	config.discussion_time = 30;
+	config.voting_time = 120;
+	config.tasks_per_player = 5;
+	config.visual_tasks = true;
+	config.confirm_ejects = true;
+	config.emergency_meetings = 1;
+	return config;
+}
+
+// Preset Quick (partidas rápidas)
+LobbyConfig@ create_preset_quick() {
+	LobbyConfig@ config = LobbyConfig();
+	config.impostors = 2;
+	config.kill_cooldown = 15;
+	config.kill_distance = 3.0;
+	config.player_speed = 1.5;
+	config.discussion_time = 15;
+	config.voting_time = 60;
+	config.tasks_per_player = 3;
+	config.visual_tasks = true;
+	config.confirm_ejects = false;
+	config.emergency_meetings = 1;
+	return config;
+}
+
+// Preset Long (partidas longas e estratégicas)
+LobbyConfig@ create_preset_long() {
+	LobbyConfig@ config = LobbyConfig();
+	config.impostors = 2;
+	config.kill_cooldown = 40;
+	config.kill_distance = 2.0;
+	config.player_speed = 0.8;
+	config.discussion_time = 60;
+	config.voting_time = 180;
+	config.tasks_per_player = 8;
+	config.visual_tasks = false;
+	config.confirm_ejects = true;
+	config.emergency_meetings = 2;
+	return config;
+}
+
+// Preset Classic (estilo Among Us clássico)
+LobbyConfig@ create_preset_classic() {
+	LobbyConfig@ config = LobbyConfig();
+	config.impostors = 1;
+	config.kill_cooldown = 30;
+	config.kill_distance = 2.5;
+	config.player_speed = 1.0;
+	config.discussion_time = 45;
+	config.voting_time = 120;
+	config.tasks_per_player = 5;
+	config.visual_tasks = true;
+	config.confirm_ejects = true;
+	config.emergency_meetings = 1;
+	return config;
+}
+
+// Obtém preset por nome
+LobbyConfig@ get_preset(string preset_name) {
+	if (preset_name == "quick") {
+		return create_preset_quick();
+	} else if (preset_name == "long") {
+		return create_preset_long();
+	} else if (preset_name == "classic") {
+		return create_preset_classic();
+	} else {
+		return create_preset_normal();
+	}
+}
+
+// Lista de nomes de presets disponíveis
+string[] get_preset_names() {
+	string[] names = {
+		"normal",
+		"quick",
+		"long",
+		"classic"
+	};
+	return names;
+}
+
+// Obtém nome traduzido do preset
+string get_preset_display_name(string preset_name) {
+	if (preset_name == "normal") {
+		return tr("config_preset_normal");
+	} else if (preset_name == "quick") {
+		return tr("config_preset_quick");
+	} else if (preset_name == "long") {
+		return tr("config_preset_long");
+	} else if (preset_name == "classic") {
+		return tr("config_preset_classic");
+	}
+	return preset_name;
+}
+
+// Salva configuração customizada
+bool save_custom_config(string name, LobbyConfig@ config) {
+	if (@config == null) {
+		return false;
+	}
+	
+	string filename = "config/custom_" + name + ".json";
+	string json_data = config.to_json();
+	
+	return file_put_contents(filename, json_data);
+}
+
+// Carrega configuração customizada
+LobbyConfig@ load_custom_config(string name) {
+	string filename = "config/custom_" + name + ".json";
+	
+	if (!file_exists(filename)) {
+		return null;
+	}
+	
+	string json_data = file_get_contents(filename);
+	if (json_data.empty()) {
+		return null;
+	}
+	
+	LobbyConfig@ config = LobbyConfig();
+	if (!config.from_json(json_data)) {
+		return null;
+	}
+	
+	return config;
+}
+
+// Lista configurações customizadas salvas
+string[] list_custom_configs() {
+	string[] configs;
+	string[] files = find_files("config/custom_*.json");
+	
+	for (uint i = 0; i < files.length(); i++) {
+		string filename = files[i];
+		// Extrai nome entre "custom_" e ".json"
+		int start = filename.find("custom_") + 7;
+		int end = filename.find(".json");
+		if (start > 7 && end > start) {
+			string name = filename.substr(start, end - start);
+			configs.insert_last(name);
+		}
+	}
+	
+	return configs;
+}

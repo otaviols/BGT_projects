@@ -1,0 +1,343 @@
+// Task System Base
+// Sistema base de tarefas
+
+#include "../config/game_constants.nvgt"
+#include "../database/models.nvgt"
+#include "tasks/fix_wiring.nvgt"
+#include "tasks/download_data.nvgt"
+#include "tasks/empty_garbage.nvgt"
+#include "tasks/align_engine.nvgt"
+
+// Definições de tasks disponíveis
+class TaskDefinition {
+	int id;
+	string name;
+	string description;
+	string[] steps;
+	TaskType type;
+	int room_id;
+	
+	TaskDefinition(int task_id, string task_name, string desc, TaskType task_type, int room) {
+		id = task_id;
+		name = task_name;
+		description = desc;
+		type = task_type;
+		room_id = room;
+	}
+}
+
+// Gerenciador de tasks
+class TaskManager {
+	private TaskDefinition@[] task_definitions;
+	private TaskData@[] player_tasks;
+	
+	TaskManager() {
+		initialize_task_definitions();
+	}
+	
+	// Inicializa definições de tasks
+	private void initialize_task_definitions() {
+		// Short Tasks
+		task_definitions.insert_last(TaskDefinition(
+			0, "Fix Wiring", 
+			"Conecte os fios nas cores corretas",
+			TASK_SHORT, 0
+		));
+		
+		task_definitions.insert_last(TaskDefinition(
+			1, "Download Data",
+			"Inicie o download dos dados",
+			TASK_SHORT, 1
+		));
+		
+		task_definitions.insert_last(TaskDefinition(
+			2, "Empty Garbage",
+			"Esvazie o lixo",
+			TASK_SHORT, 6
+		));
+		
+		task_definitions.insert_last(TaskDefinition(
+			3, "Align Engine Output",
+			"Alinhe a saída do motor",
+			TASK_SHORT, 7
+		));
+		
+		// Common Tasks
+		task_definitions.insert_last(TaskDefinition(
+			4, "Swipe Card",
+			"Passe o cartão no leitor",
+			TASK_COMMON, 0
+		));
+		
+		// Long Tasks (multi-step)
+		task_definitions.insert_last(TaskDefinition(
+			5, "Fuel Engines",
+			"Abasteça os motores em múltiplas localizações",
+			TASK_LONG, 6
+		));
+		
+		task_definitions.insert_last(TaskDefinition(
+			6, "Calibrate Distributor",
+			"Calibre o distribuidor em três etapas",
+			TASK_LONG, 7
+		));
+		
+		task_definitions.insert_last(TaskDefinition(
+			7, "Upload Data",
+			"Complete o upload dos dados baixados",
+			TASK_LONG, 5
+		));
+	}
+	
+	// Atribui tasks aleatórias ao jogador
+	void assign_tasks(int count) {
+		player_tasks.resize(0);
+		
+		// Sempre inclui uma common task
+		int common_task_id = 4;
+		TaskData@ common_task = create_task_data(common_task_id);
+		if (@common_task != null) {
+			player_tasks.insert_last(common_task);
+			count--;
+		}
+		
+		// Distribui tasks aleatórias
+		int[] available_tasks;
+		for (uint i = 0; i < task_definitions.length(); i++) {
+			if (int(i) != common_task_id) {
+				available_tasks.insert_last(i);
+			}
+		}
+		
+		// Embaralha
+		for (int i = available_tasks.length() - 1; i > 0; i--) {
+			int j = random(0, i);
+			int temp = available_tasks[i];
+			available_tasks[i] = available_tasks[j];
+			available_tasks[j] = temp;
+		}
+		
+		// Seleciona tasks
+		for (int i = 0; i < count && i < int(available_tasks.length()); i++) {
+			TaskData@ task = create_task_data(available_tasks[i]);
+			if (@task != null) {
+				player_tasks.insert_last(task);
+			}
+		}
+	}
+	
+	// Cria TaskData a partir de definição
+	private TaskData@ create_task_data(int task_def_id) {
+		TaskDefinition@ def = get_task_definition(task_def_id);
+		if (@def == null) {
+			return null;
+		}
+		
+		TaskData@ task = TaskData();
+		task.id = def.id;
+		task.name = def.name;
+		task.description = def.description;
+		task.type = def.type;
+		task.room_id = def.room_id;
+		task.state = TASK_ASSIGNED;
+		
+		// Define passos baseado no tipo
+		if (def.type == TASK_SHORT || def.type == TASK_COMMON) {
+			task.step_count = 1;
+		} else {
+			task.step_count = 3;
+		}
+		
+		task.current_step = 0;
+		
+		return task;
+	}
+	
+	// Obtém definição de task
+	TaskDefinition@ get_task_definition(int task_id) {
+		for (uint i = 0; i < task_definitions.length(); i++) {
+			if (task_definitions[i].id == task_id) {
+				return task_definitions[i];
+			}
+		}
+		return null;
+	}
+	
+	// Obtém task do jogador por ID
+	TaskData@ get_player_task(int task_id) {
+		for (uint i = 0; i < player_tasks.length(); i++) {
+			if (player_tasks[i].id == task_id) {
+				return player_tasks[i];
+			}
+		}
+		return null;
+	}
+	
+	// Obtém todas as tasks do jogador
+	TaskData@[]@ get_all_player_tasks() {
+		return player_tasks;
+	}
+	
+	// Obtém tasks por sala
+	TaskData@[] get_tasks_in_room(int room_id) {
+		TaskData@[] room_tasks;
+		
+		for (uint i = 0; i < player_tasks.length(); i++) {
+			if (player_tasks[i].room_id == room_id && !player_tasks[i].is_completed()) {
+				room_tasks.insert_last(player_tasks[i]);
+			}
+		}
+		
+		return room_tasks;
+	}
+	
+	// Inicia uma task
+	bool start_task(int task_id) {
+		TaskData@ task = get_player_task(task_id);
+		if (@task == null) {
+			return false;
+		}
+		
+		if (task.state == TASK_ASSIGNED) {
+			task.state = TASK_IN_PROGRESS;
+			return true;
+		}
+		
+		return false;
+	}
+	
+	// Avança passo da task
+	bool progress_task(int task_id) {
+		TaskData@ task = get_player_task(task_id);
+		if (@task == null) {
+			return false;
+		}
+		
+		if (task.state != TASK_IN_PROGRESS) {
+			return false;
+		}
+		
+		task.current_step++;
+		
+		if (task.current_step >= task.step_count) {
+			task.state = TASK_COMPLETED;
+			return true; // Task completada
+		}
+		
+		return false;
+	}
+	
+	// Completa task imediatamente
+	bool complete_task(int task_id) {
+		TaskData@ task = get_player_task(task_id);
+		if (@task == null) {
+			return false;
+		}
+		
+		if (task.state == TASK_COMPLETED) {
+			return false; // Já completada
+		}
+		
+		task.state = TASK_COMPLETED;
+		task.current_step = task.step_count;
+		
+		return true;
+	}
+	
+	// Conta tasks completadas
+	int count_completed_tasks() {
+		int count = 0;
+		for (uint i = 0; i < player_tasks.length(); i++) {
+			if (player_tasks[i].is_completed()) {
+				count++;
+			}
+		}
+		return count;
+	}
+	
+	// Conta tasks totais
+	int count_total_tasks() {
+		return player_tasks.length();
+	}
+	
+	// Calcula progresso percentual
+	float get_progress_percentage() {
+		int total = count_total_tasks();
+		if (total == 0) {
+			return 0.0;
+		}
+		return float(count_completed_tasks()) / float(total) * 100.0;
+	}
+	
+	// Limpa todas as tasks
+	void clear_tasks() {
+		player_tasks.resize(0);
+	}
+	
+	// Executa mini-game de uma task
+	bool execute_task_minigame(int task_id) {
+		TaskData@ task = get_player_task(task_id);
+		if (@task == null) {
+			return false;
+		}
+		
+		if (task.is_completed()) {
+			screen_reader_speak(tr("task_already_completed"), true);
+			return false;
+		}
+		
+		// Inicia task se ainda não iniciada
+		if (task.state == TASK_ASSIGNED) {
+			start_task(task_id);
+		}
+		
+		bool success = false;
+		
+		// Executa mini-game baseado no tipo de task
+		switch (task.id) {
+			case 0: { // Fix Wiring
+				FixWiringTask@ fix_wiring = FixWiringTask();
+				success = fix_wiring.start();
+				break;
+			}
+			
+			case 1: { // Download Data
+				DownloadDataTask@ download = DownloadDataTask();
+				success = download.start();
+				break;
+			}
+			
+			case 2: { // Empty Garbage
+				EmptyGarbageTask@ garbage = EmptyGarbageTask();
+				success = garbage.start();
+				break;
+			}
+			
+			case 3: { // Align Engine
+				AlignEngineTask@ align = AlignEngineTask();
+				success = align.start();
+				break;
+			}
+			
+			// TODO: Adicionar mais tasks aqui
+			
+			default:
+				// Task sem implementação de mini-game
+				success = progress_task(task_id);
+				if (task.is_completed()) {
+					screen_reader_speak(tr("task_complete"), true);
+				}
+				break;
+		}
+		
+		// Se completada com sucesso, marca como completa
+		if (success && task.state != TASK_COMPLETED) {
+			complete_task(task_id);
+		}
+		
+		return success;
+	}
+}
+
+// Instância global
+TaskManager@ g_task_manager = null;

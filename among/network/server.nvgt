@@ -1,0 +1,1043 @@
+// Dedicated Game Server
+// Servidor dedicado para gerenciar lobbies e partidas
+
+#include "../config/game_constants.nvgt"
+#include "../config/lobby_config.nvgt"
+#include "../database/models.nvgt"
+#include "../network/protocol.nvgt"
+#include "../network/packet.nvgt"
+
+// Estrutura de lobby no servidor
+class ServerLobby {
+	int id;
+	string name;
+	string host_username;
+	uint64 host_peer_id;
+	int max_players;
+	GameState state;
+	LobbyConfig@ config;
+	
+	PlayerData@[] players;
+	
+	ServerLobby(int lobby_id, string lobby_name, string host, uint64 host_peer, int max_plrs) {
+		id = lobby_id;
+		name = lobby_name;
+		host_username = host;
+		host_peer_id = host_peer;
+		max_players = max_plrs;
+		state = STATE_LOBBY;
+		@config = LobbyConfig();
+	}
+	
+	bool is_full() {
+		return players.length() >= uint(max_players);
+	}
+	
+	bool can_start() {
+		return players.length() >= MIN_PLAYERS_TO_START && state == STATE_LOBBY;
+	}
+	
+	PlayerData@ get_player_by_peer_id(uint64 peer_id) {
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].peer_id == peer_id) {
+				return players[i];
+			}
+		}
+		return null;
+	}
+	
+	void remove_player(uint64 peer_id) {
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].peer_id == peer_id) {
+				players.remove_at(i);
+				return;
+			}
+		}
+	}
+	
+	bool is_host(uint64 peer_id) {
+		return peer_id == host_peer_id;
+	}
+	
+	int count_alive_players() {
+		int count = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].state == PLAYER_ALIVE) {
+				count++;
+			}
+		}
+		return count;
+	}
+	
+	int count_alive_impostors() {
+		int count = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].state == PLAYER_ALIVE && players[i].role == ROLE_IMPOSTOR) {
+				count++;
+			}
+		}
+		return count;
+	}
+	
+	int count_alive_crewmates() {
+		int count = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].state == PLAYER_ALIVE && players[i].role == ROLE_CREWMATE) {
+				count++;
+			}
+		}
+		return count;
+	}
+}
+
+// Classe principal do servidor
+class GameServer {
+	private network net;
+	private ServerLobby@[] lobbies;
+	private int next_lobby_id;
+	private dictionary peer_to_username; // uint64 -> string
+	private dictionary peer_to_lobby; // uint64 -> int (lobby id)
+	private bool running;
+	private timer update_timer;
+	
+	GameServer() {
+		next_lobby_id = 1;
+		running = false;
+	}
+	
+	// Inicia o servidor
+	bool start(int port = DEFAULT_PORT) {
+		if (!net.setup_server(port, 2, MAX_PLAYERS_PER_LOBBY * MAX_LOBBIES)) {
+			return false;
+		}
+		
+		// net.IPv6enabled = false; // Propriedade não existe no NVGT
+		// net.packet_compression = true; // Propriedade não existe no NVGT
+		
+		running = true;
+		update_timer.restart();
+		
+		return true;
+	}
+	
+	// Loop principal do servidor
+	void run() {
+		while (running) {
+			wait(5); // ~200 FPS
+			update();
+		}
+	}
+	
+	// Atualiza o servidor (uma iteração)
+	void update() {
+		// Processa eventos de rede
+		process_network_events();
+		
+		// Atualiza lobbies
+		if (update_timer.elapsed >= NETWORK_UPDATE_INTERVAL) {
+			update_lobbies();
+			update_timer.restart();
+		}
+	}
+	
+	// Processa eventos de rede
+	private void process_network_events() {
+		const network_event@ e = net.request(0);
+		
+		if (e.type == event_connect) {
+			handle_player_connect(e.peer_id);
+		} else if (e.type == event_disconnect || e.type == event_disconnect_timeout) {
+			handle_player_disconnect(e.peer_id);
+		} else if (e.type == event_receive) {
+			handle_packet(e.peer_id, e.message);
+		}
+	}
+	
+	// Handle conexão de jogador
+	private void handle_player_connect(uint64 peer_id) {
+		// Jogador conectou, aguarda autenticação
+	}
+	
+	// Handle desconexão de jogador
+	private void handle_player_disconnect(uint64 peer_id) {
+		// Remove jogador do lobby
+		int lobby_id = -1;
+		if (peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			ServerLobby@ lobby = get_lobby(lobby_id);
+			if (@lobby != null) {
+				lobby.remove_player(peer_id);
+				broadcast_lobby_update(lobby);
+				
+				// Se era o host, transfere para outro jogador ou fecha lobby
+				if (lobby.is_host(peer_id) && lobby.players.length() > 0) {
+					lobby.host_peer_id = lobby.players[0].peer_id;
+					lobby.host_username = lobby.players[0].username;
+				} else if (lobby.players.length() == 0) {
+					remove_lobby(lobby_id);
+				}
+			}
+			peer_to_lobby.delete(formatUInt64(peer_id));
+		}
+		
+		peer_to_username.delete(formatUInt64(peer_id));
+	}
+	
+	// Handle pacote recebido
+	private void handle_packet(uint64 peer_id, string message) {
+		Packet packet;
+		if (!packet.deserialize(message)) {
+			return;
+		}
+		
+		switch (packet.type) {
+			case MSG_SESSION_VALIDATE:
+				handle_session_validate(peer_id, packet);
+				break;
+			case MSG_REGISTER_REQUEST:
+				handle_register(peer_id, packet);
+				break;
+			case MSG_LOBBY_LIST_REQUEST:
+				handle_lobby_list_request(peer_id);
+				break;
+			case MSG_LOBBY_CREATE:
+				handle_lobby_create(peer_id, packet);
+				break;
+			case MSG_LOBBY_JOIN:
+				handle_lobby_join(peer_id, packet);
+				break;
+			case MSG_LOBBY_LEAVE:
+				handle_lobby_leave(peer_id);
+				break;
+			case MSG_LOBBY_CONFIG_UPDATE:
+				handle_lobby_config_update(peer_id, packet);
+				break;
+			case MSG_GAME_START:
+				handle_game_start(peer_id);
+				break;
+			case MSG_PLAYER_MOVE:
+				handle_player_move(peer_id, packet);
+				break;
+			case MSG_TASK_COMPLETE:
+				handle_task_complete(peer_id, packet);
+				break;
+			case MSG_KILL:
+				handle_kill(peer_id, packet);
+				break;
+			case MSG_EMERGENCY_MEETING:
+				handle_emergency_meeting(peer_id);
+				break;
+			case MSG_BODY_REPORT:
+				handle_body_report(peer_id, packet);
+				break;
+			case MSG_VOTE:
+				handle_vote(peer_id, packet);
+				break;
+			case MSG_PROXIMITY_CHECK:
+				handle_proximity_check(peer_id);
+				break;
+			case MSG_HEARTBEAT:
+				// Heartbeat recebido
+				break;
+		}
+	}
+	
+	// Validação de sessão
+	private void handle_session_validate(uint64 peer_id, Packet@ packet) {
+		string session_token = packet.read_string();
+		
+		// Valida sessão no banco de dados
+		string username = "";
+		if (@g_user_db != null) {
+			username = g_user_db.validate_session(session_token);
+		}
+		
+		if (username.empty()) {
+			send_error(peer_id, ERROR_INVALID_SESSION, "Invalid session token");
+			return;
+		}
+		
+		// Armazena username
+		peer_to_username.set(formatUInt64(peer_id), username);
+		
+		// Envia confirmação
+		Packet@ response = create_login_response(true, session_token, "");
+		send_packet(peer_id, response);
+	}
+	
+	// Registro de novo usuário
+	private void handle_register(uint64 peer_id, Packet@ packet) {
+		string username = packet.read_string();
+		string password = packet.read_string();
+		
+		// Valida dados
+		if (username.empty() || password.empty()) {
+			Packet@ response = create_register_response(false, "Username and password required");
+			send_packet(peer_id, response);
+			return;
+		}
+		
+		if (username.length() < 3 || username.length() > 20) {
+			Packet@ response = create_register_response(false, "Username must be 3-20 characters");
+			send_packet(peer_id, response);
+			return;
+		}
+		
+		if (password.length() < 6) {
+			Packet@ response = create_register_response(false, "Password must be at least 6 characters");
+			send_packet(peer_id, response);
+			return;
+		}
+		
+		// Registra no banco de dados
+		bool success = false;
+		string error_msg = "";
+		
+		if (@g_user_db != null) {
+			success = g_user_db.register_user(username, password);
+			if (!success) {
+				error_msg = "Username already exists";
+			}
+		} else {
+			error_msg = "Database not available";
+		}
+		
+		// Envia resposta
+		Packet@ response = create_register_response(success, error_msg);
+		send_packet(peer_id, response);
+	}
+	
+	// Lista de lobbies
+	private void handle_lobby_list_request(uint64 peer_id) {
+		Packet@ response = Packet(MSG_LOBBY_LIST_RESPONSE);
+		response.write_int(lobbies.length());
+		
+		for (uint i = 0; i < lobbies.length(); i++) {
+			response.write_int(lobbies[i].id);
+			response.write_string(lobbies[i].name);
+			response.write_string(lobbies[i].host_username);
+			response.write_int(lobbies[i].players.length());
+			response.write_int(lobbies[i].max_players);
+			response.write_enum(lobbies[i].state);
+		}
+		
+		send_packet(peer_id, response);
+	}
+	
+	// Criar lobby
+	private void handle_lobby_create(uint64 peer_id, Packet@ packet) {
+		string username = get_username(peer_id);
+		if (username.empty()) {
+			send_error(peer_id, ERROR_AUTHENTICATION_FAILED, "Not authenticated");
+			return;
+		}
+		
+		string lobby_name = packet.read_string();
+		int max_players = packet.read_int();
+		
+		if (max_players < MIN_PLAYERS_TO_START || max_players > MAX_PLAYERS_PER_LOBBY) {
+			max_players = MAX_PLAYERS_PER_LOBBY;
+		}
+		
+		// Cria novo lobby
+		ServerLobby@ lobby = ServerLobby(next_lobby_id++, lobby_name, username, peer_id, max_players);
+		lobbies.insert_last(lobby);
+		
+		// Adiciona host ao lobby
+		PlayerData@ host = PlayerData();
+		host.peer_id = peer_id;
+		host.username = username;
+		lobby.players.insert_last(host);
+		
+		peer_to_lobby.set(formatUInt64(peer_id), lobby.id);
+		
+		// Confirma criação
+		Packet@ response = Packet(MSG_LOBBY_CREATE);
+		response.write_bool(true);
+		response.write_int(lobby.id);
+		send_packet(peer_id, response);
+	}
+	
+	// Entrar no lobby
+	private void handle_lobby_join(uint64 peer_id, Packet@ packet) {
+		string username = get_username(peer_id);
+		if (username.empty()) {
+			send_error(peer_id, ERROR_AUTHENTICATION_FAILED, "Not authenticated");
+			return;
+		}
+		
+		int lobby_id = packet.read_int();
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		
+		if (@lobby == null) {
+			send_error(peer_id, ERROR_LOBBY_NOT_FOUND, "Lobby not found");
+			return;
+		}
+		
+		if (lobby.is_full()) {
+			send_error(peer_id, ERROR_LOBBY_FULL, "Lobby is full");
+			return;
+		}
+		
+		if (lobby.state != STATE_LOBBY) {
+			send_error(peer_id, ERROR_GAME_IN_PROGRESS, "Game in progress");
+			return;
+		}
+		
+		// Adiciona jogador ao lobby
+		PlayerData@ player = PlayerData();
+		player.peer_id = peer_id;
+		player.username = username;
+		lobby.players.insert_last(player);
+		
+		peer_to_lobby.set(formatUInt64(peer_id), lobby.id);
+		
+		// Confirma entrada
+		Packet@ response = Packet(MSG_LOBBY_JOIN);
+		response.write_bool(true);
+		send_packet(peer_id, response);
+		
+		// Notifica todos os jogadores
+		broadcast_lobby_update(lobby);
+	}
+	
+	// Sair do lobby
+	private void handle_lobby_leave(uint64 peer_id) {
+		handle_player_disconnect(peer_id);
+	}
+	
+	// Atualizar configurações do lobby
+	private void handle_lobby_config_update(uint64 peer_id, Packet@ packet) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null || !lobby.is_host(peer_id)) {
+			send_error(peer_id, ERROR_PERMISSION_DENIED, "Only host can change settings");
+			return;
+		}
+		
+		string config_json = packet.read_string();
+		lobby.config.from_json(config_json);
+		
+		// Broadcast nova configuração
+		broadcast_lobby_config(lobby);
+	}
+	
+	// Iniciar jogo
+	private void handle_game_start(uint64 peer_id) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null || !lobby.is_host(peer_id)) {
+			send_error(peer_id, ERROR_PERMISSION_DENIED, "Only host can start game");
+			return;
+		}
+		
+		if (!lobby.can_start()) {
+			send_error(peer_id, ERROR_INVALID_ACTION, "Not enough players");
+			return;
+		}
+		
+		// Inicia jogo
+		start_game(lobby);
+	}
+	
+	// Movimento de jogador
+	private void handle_player_move(uint64 peer_id, Packet@ packet) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null) {
+			return;
+		}
+		
+		PlayerData@ player = lobby.get_player_by_peer_id(peer_id);
+		if (@player == null) {
+			return;
+		}
+		
+		// Atualiza posição
+		player.x = packet.read_float();
+		player.y = packet.read_float();
+		player.z = packet.read_float();
+		player.rotation = packet.read_float();
+		
+		// Broadcast para outros jogadores
+		Packet@ broadcast = create_position_update(peer_id, player.x, player.y, player.z, player.rotation);
+		broadcast_to_lobby(lobby, broadcast, peer_id);
+	}
+	
+	// Completar task
+	private void handle_task_complete(uint64 peer_id, Packet@ packet) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null) {
+			return;
+		}
+		
+		PlayerData@ player = lobby.get_player_by_peer_id(peer_id);
+		if (@player == null || player.role != ROLE_CREWMATE) {
+			return;
+		}
+		
+		int task_id = packet.read_int();
+		
+		// Valida e adiciona task completada
+		bool found = false;
+		for (uint i = 0; i < player.assigned_task_ids.length(); i++) {
+			if (player.assigned_task_ids[i] == task_id) {
+				found = true;
+				break;
+			}
+		}
+		
+		if (!found) {
+			return;
+		}
+		
+		// Verifica se já completou
+		for (uint i = 0; i < player.completed_task_ids.length(); i++) {
+			if (player.completed_task_ids[i] == task_id) {
+				return; // Já completada
+			}
+		}
+		
+		player.completed_task_ids.insert_last(task_id);
+		
+		// Broadcast task completada
+		Packet@ broadcast = create_task_complete(task_id);
+		broadcast_to_lobby(lobby, broadcast);
+		
+		// Verifica vitória por tasks
+		check_task_victory(lobby);
+	}
+	
+	// Kill
+	private void handle_kill(uint64 peer_id, Packet@ packet) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null) {
+			return;
+		}
+		
+		PlayerData@ killer = lobby.get_player_by_peer_id(peer_id);
+		if (@killer == null || !killer.can_kill()) {
+			return;
+		}
+		
+		uint64 target_peer_id = packet.read_uint64();
+		PlayerData@ target = lobby.get_player_by_peer_id(target_peer_id);
+		
+		if (@target == null || target.state != PLAYER_ALIVE) {
+			return;
+		}
+		
+		// Valida distância
+		float distance = killer.distance_to(target);
+		if (distance > lobby.config.kill_distance) {
+			return;
+		}
+		
+		// Executa kill
+		target.state = PLAYER_DEAD;
+		killer.kills_count++;
+		killer.kill_cooldown_remaining = lobby.config.kill_cooldown;
+		
+		// Broadcast kill
+		Packet@ broadcast = Packet(MSG_KILL);
+		broadcast.write_uint64(target_peer_id);
+		broadcast_to_lobby(lobby, broadcast);
+		
+		// Verifica vitória
+		check_victory_conditions(lobby);
+	}
+	
+	// Reunião de emergência
+	private void handle_emergency_meeting(uint64 peer_id) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null) {
+			return;
+		}
+		
+		PlayerData@ caller = lobby.get_player_by_peer_id(peer_id);
+		if (@caller == null || !caller.can_call_emergency()) {
+			return;
+		}
+		
+		caller.emergency_meetings_remaining--;
+		start_meeting(lobby, MEETING_EMERGENCY, peer_id);
+	}
+	
+	// Report body
+	private void handle_body_report(uint64 peer_id, Packet@ packet) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null) {
+			return;
+		}
+		
+		uint64 body_peer_id = packet.read_uint64();
+		start_meeting(lobby, MEETING_BODY_REPORT, body_peer_id);
+	}
+	
+	// Voto
+	private void handle_vote(uint64 peer_id, Packet@ packet) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null || lobby.state != STATE_VOTING) {
+			return;
+		}
+		
+		PlayerData@ voter = lobby.get_player_by_peer_id(peer_id);
+		if (@voter == null || voter.has_voted) {
+			return;
+		}
+		
+		int player_index = packet.read_int();
+		voter.voted_for_player_id = player_index;
+		voter.has_voted = true;
+		
+		// Verifica se todos votaram
+		check_voting_complete(lobby);
+	}
+	
+	// Proximity check
+	private void handle_proximity_check(uint64 peer_id) {
+		int lobby_id = -1;
+		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
+			return;
+		}
+		
+		ServerLobby@ lobby = get_lobby(lobby_id);
+		if (@lobby == null) {
+			return;
+		}
+		
+		PlayerData@ requester = lobby.get_player_by_peer_id(peer_id);
+		if (@requester == null) {
+			return;
+		}
+		
+		// Encontra jogadores próximos
+		Packet@ response = Packet(MSG_PROXIMITY_RESPONSE);
+		int nearby_count = 0;
+		
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].peer_id == peer_id) {
+				continue;
+			}
+			
+			float distance = requester.distance_to(lobby.players[i]);
+			if (distance <= PROXIMITY_VOICE_DISTANCE) {
+				nearby_count++;
+			}
+		}
+		
+		response.write_int(nearby_count);
+		
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].peer_id == peer_id) {
+				continue;
+			}
+			
+			float distance = requester.distance_to(lobby.players[i]);
+			if (distance <= PROXIMITY_VOICE_DISTANCE) {
+				response.write_string(lobby.players[i].username);
+				response.write_float(distance);
+			}
+		}
+		
+		send_packet(peer_id, response);
+	}
+	
+	// Atualiza lobbies
+	private void update_lobbies() {
+		for (uint i = 0; i < lobbies.length(); i++) {
+			update_lobby(lobbies[i]);
+		}
+	}
+	
+	// Atualiza lobby individual
+	private void update_lobby(ServerLobby@ lobby) {
+		if (lobby.state == STATE_PLAYING) {
+			// Atualiza cooldowns
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				if (lobby.players[i].kill_cooldown_remaining > 0) {
+					lobby.players[i].kill_cooldown_remaining -= float(NETWORK_UPDATE_INTERVAL) / 1000.0;
+					if (lobby.players[i].kill_cooldown_remaining < 0) {
+						lobby.players[i].kill_cooldown_remaining = 0;
+					}
+				}
+			}
+		}
+	}
+	
+	// Inicia jogo
+	private void start_game(ServerLobby@ lobby) {
+		lobby.state = STATE_STARTING;
+		
+		// Atribui roles
+		assign_roles(lobby);
+		
+		// Atribui tasks aos crewmates
+		assign_tasks(lobby);
+		
+		// Define posições iniciais
+		spawn_players(lobby);
+		
+		// Muda estado para jogando
+		lobby.state = STATE_PLAYING;
+		
+		// Notifica todos os jogadores
+		broadcast_game_start(lobby);
+	}
+	
+	// Atribui roles
+	private void assign_roles(ServerLobby@ lobby) {
+		int impostor_count = lobby.config.impostors;
+		int player_count = lobby.players.length();
+		
+		// Valida número de impostors
+		if (impostor_count >= player_count) {
+			impostor_count = 1;
+		}
+		
+		// Embaralha jogadores
+		int[] indices;
+		for (int i = 0; i < player_count; i++) {
+			indices.insert_last(i);
+		}
+		
+		// Shuffle simples
+		for (int i = player_count - 1; i > 0; i--) {
+			int j = random(0, i);
+			int temp = indices[i];
+			indices[i] = indices[j];
+			indices[j] = temp;
+		}
+		
+		// Atribui impostors
+		for (int i = 0; i < impostor_count; i++) {
+			lobby.players[indices[i]].role = ROLE_IMPOSTOR;
+		}
+		
+		// Resto são crewmates
+		for (int i = impostor_count; i < player_count; i++) {
+			lobby.players[indices[i]].role = ROLE_CREWMATE;
+		}
+		
+		// Envia roles para cada jogador
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			Packet@ role_packet = create_role_assignment(lobby.players[i].role);
+			send_packet(lobby.players[i].peer_id, role_packet);
+		}
+	}
+	
+	// Atribui tasks
+	private void assign_tasks(ServerLobby@ lobby) {
+		// TODO: Implementar sistema de tasks
+		// Por enquanto, atribui IDs de tasks aleatórias
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].role == ROLE_CREWMATE) {
+				for (int j = 0; j < lobby.config.tasks_per_player; j++) {
+					lobby.players[i].assigned_task_ids.insert_last(j);
+				}
+			}
+		}
+	}
+	
+	// Spawn players
+	private void spawn_players(ServerLobby@ lobby) {
+		// Spawn na cafeteria (room 0)
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			lobby.players[i].x = random(-5.0, 5.0);
+			lobby.players[i].y = 0;
+			lobby.players[i].z = random(-5.0, 5.0);
+			lobby.players[i].current_room_id = 0;
+			lobby.players[i].emergency_meetings_remaining = lobby.config.emergency_meetings;
+		}
+	}
+	
+	// Inicia reunião
+	private void start_meeting(ServerLobby@ lobby, MeetingType type, uint64 related_peer_id) {
+		lobby.state = STATE_DISCUSSION;
+		
+		// Reset votos
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			lobby.players[i].has_voted = false;
+			lobby.players[i].voted_for_player_id = -1;
+		}
+		
+		// Broadcast reunião
+		Packet@ meeting_packet = Packet(MSG_MEETING_START);
+		meeting_packet.write_enum(type);
+		meeting_packet.write_uint64(related_peer_id);
+		meeting_packet.write_int(lobby.config.discussion_time);
+		meeting_packet.write_int(lobby.config.voting_time);
+		broadcast_to_lobby(lobby, meeting_packet);
+	}
+	
+	// Verifica se votação completou
+	private void check_voting_complete(ServerLobby@ lobby) {
+		int alive_count = lobby.count_alive_players();
+		int voted_count = 0;
+		
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].state == PLAYER_ALIVE && lobby.players[i].has_voted) {
+				voted_count++;
+			}
+		}
+		
+		if (voted_count >= alive_count) {
+			process_voting_results(lobby);
+		}
+	}
+	
+	// Processa resultados de votação
+	private void process_voting_results(ServerLobby@ lobby) {
+		dictionary vote_counts;
+		
+		// Conta votos
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].state == PLAYER_ALIVE && lobby.players[i].has_voted) {
+				int voted_for = lobby.players[i].voted_for_player_id;
+				int count = 0;
+				vote_counts.get(formatInt(voted_for), count);
+				vote_counts.set(formatInt(voted_for), count + 1);
+			}
+		}
+		
+		// Encontra mais votado
+		int max_votes = 0;
+		int ejected_index = -1;
+		bool tied = false;
+		
+		string[] keys = vote_counts.get_keys();
+		for (uint i = 0; i < keys.length(); i++) {
+			int count;
+			vote_counts.get(keys[i], count);
+			
+			if (count > max_votes) {
+				max_votes = count;
+				ejected_index = parseInt(keys[i]);
+				tied = false;
+			} else if (count == max_votes) {
+				tied = true;
+			}
+		}
+		
+		// Ejeta jogador se não houve empate
+		if (!tied && ejected_index >= 0 && ejected_index < int(lobby.players.length())) {
+			lobby.players[ejected_index].state = PLAYER_DEAD;
+		}
+		
+		// Broadcast resultados
+		Packet@ results = Packet(MSG_VOTE_RESULTS);
+		results.write_bool(tied);
+		results.write_int(ejected_index);
+		if (!tied && ejected_index >= 0 && ejected_index < int(lobby.players.length())) {
+			results.write_enum(lobby.players[ejected_index].role);
+		}
+		broadcast_to_lobby(lobby, results);
+		
+		// Volta ao jogo
+		lobby.state = STATE_PLAYING;
+		
+		// Verifica condições de vitória
+		check_victory_conditions(lobby);
+	}
+	
+	// Verifica vitória por tasks
+	private void check_task_victory(ServerLobby@ lobby) {
+		int total_tasks = 0;
+		int completed_tasks = 0;
+		
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].role == ROLE_CREWMATE) {
+				total_tasks += lobby.players[i].assigned_task_ids.length();
+				completed_tasks += lobby.players[i].completed_task_ids.length();
+			}
+		}
+		
+		if (total_tasks > 0 && completed_tasks >= total_tasks) {
+			end_game(lobby, ROLE_CREWMATE);
+		}
+	}
+	
+	// Verifica condições de vitória
+	private void check_victory_conditions(ServerLobby@ lobby) {
+		int alive_crewmates = lobby.count_alive_crewmates();
+		int alive_impostors = lobby.count_alive_impostors();
+		
+		if (alive_impostors == 0) {
+			// Crewmates vencem
+			end_game(lobby, ROLE_CREWMATE);
+		} else if (alive_impostors >= alive_crewmates) {
+			// Impostors vencem
+			end_game(lobby, ROLE_IMPOSTOR);
+		}
+	}
+	
+	// Finaliza jogo
+	private void end_game(ServerLobby@ lobby, Role winning_role) {
+		lobby.state = STATE_GAME_OVER;
+		
+		// Broadcast fim de jogo
+		Packet@ end_packet = Packet(MSG_GAME_END);
+		end_packet.write_enum(winning_role);
+		broadcast_to_lobby(lobby, end_packet);
+		
+		// Reset lobby
+		lobby.state = STATE_LOBBY;
+	}
+	
+	// Broadcast para o lobby
+	private void broadcast_to_lobby(ServerLobby@ lobby, Packet@ packet, uint64 exclude_peer = 0) {
+		string message = packet.serialize();
+		
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].peer_id != exclude_peer) {
+				net.send_reliable(lobby.players[i].peer_id, message, 0);
+			}
+		}
+	}
+	
+	// Broadcast atualização de lobby
+	private void broadcast_lobby_update(ServerLobby@ lobby) {
+		Packet@ update = Packet(MSG_LOBBY_UPDATE);
+		update.write_int(lobby.players.length());
+		
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			update.write_string(lobby.players[i].username);
+		}
+		
+		broadcast_to_lobby(lobby, update);
+	}
+	
+	// Broadcast configuração de lobby
+	private void broadcast_lobby_config(ServerLobby@ lobby) {
+		Packet@ config_packet = create_lobby_config_update(lobby.config);
+		broadcast_to_lobby(lobby, config_packet);
+	}
+	
+	// Broadcast início de jogo
+	private void broadcast_game_start(ServerLobby@ lobby) {
+		Packet@ start_packet = create_game_start();
+		broadcast_to_lobby(lobby, start_packet);
+	}
+	
+	// Envia pacote para peer específico
+	private void send_packet(uint64 peer_id, Packet@ packet) {
+		string message = packet.serialize();
+		net.send_reliable(peer_id, message, 0);
+	}
+	
+	// Envia erro
+	private void send_error(uint64 peer_id, ErrorCode code, string message) {
+		Packet@ error_packet = create_error(code, message);
+		send_packet(peer_id, error_packet);
+	}
+	
+	// Obtém lobby por ID
+	private ServerLobby@ get_lobby(int lobby_id) {
+		for (uint i = 0; i < lobbies.length(); i++) {
+			if (lobbies[i].id == lobby_id) {
+				return lobbies[i];
+			}
+		}
+		return null;
+	}
+	
+	// Remove lobby
+	private void remove_lobby(int lobby_id) {
+		for (uint i = 0; i < lobbies.length(); i++) {
+			if (lobbies[i].id == lobby_id) {
+				lobbies.remove_at(i);
+				return;
+			}
+		}
+	}
+	
+	// Obtém username por peer_id
+	private string get_username(uint64 peer_id) {
+		string username;
+		peer_to_username.get(formatUInt64(peer_id), username);
+		return username;
+	}
+	
+	// Para o servidor
+	void stop() {
+		running = false;
+		net.destroy();
+	}
+	
+	// Funções auxiliares
+	private string formatUInt64(uint64 value) {
+		return "" + value;
+	}
+	
+	private string formatInt(int value) {
+		return "" + value;
+	}
+	
+	private int parseInt(string str) {
+		return parse_int(str);
+	}
+	
+	// Métodos auxiliares para console do servidor
+	int get_player_count() {
+		string[] keys = peer_to_username.get_keys();
+		return keys.length();
+	}
+	
+	int get_lobby_count() {
+		return lobbies.length();
+	}
+	
+	int get_active_games_count() {
+		int count = 0;
+		for (uint i = 0; i < lobbies.length(); i++) {
+			if (lobbies[i].state != STATE_LOBBY) {
+				count++;
+			}
+		}
+		return count;
+	}
+	
+	uint64 get_uptime() {
+		return update_timer.elapsed;
+	}
+	
+	ServerLobby@[] get_all_lobbies() {
+		return lobbies;
+	}
+}

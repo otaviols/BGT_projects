@@ -1,0 +1,166 @@
+using System.Collections;
+using System.Collections.Generic;
+
+public class TRL_Dungeon_Boss_204h : TRL_Dungeon
+{
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Death_Long_03 = new AssetReference("VO_TRLA_204h_Male_Troll_Death_Long_03.prefab:fda150aeab916c247b5e7849cf7c17fd");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Emote_Respond_Greetings_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Emote_Respond_Greetings_01.prefab:002210047b2026043aca9bec75914b70");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Emote_Respond_Oops_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Emote_Respond_Oops_01.prefab:55792cf328c80294c9a70143ab1c55f9");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Emote_Respond_Sorry_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Emote_Respond_Sorry_01.prefab:210dc50662e3c564b8ab24b060c72f46");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Emote_Respond_Thanks_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Emote_Respond_Thanks_01.prefab:3e1457e272054124ca4a2cb85dad89ff");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Emote_Respond_Threaten_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Emote_Respond_Threaten_01.prefab:10d05366788d54a43a674d80e1edcb8e");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Emote_Respond_Well_Played_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Emote_Respond_Well_Played_01.prefab:fda94620074f94441834d158801217d8");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Emote_Respond_Wow_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Emote_Respond_Wow_01.prefab:6ef33f7420a5de64090e2d303730d6db");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Kill_Shrine_Generic_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Kill_Shrine_Generic_01.prefab:f4dbe7aab706692498ab873e8882a460");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Kill_Shrine_Shaman_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Kill_Shrine_Shaman_01.prefab:922a0ade13b61c847a4d5d3c1136eda5");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Shrine_Killed_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Shrine_Killed_01.prefab:198f62dc268ac6941b005a9cacb82508");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Shrine_Killed_02 = new AssetReference("VO_TRLA_204h_Male_Troll_Shrine_Killed_02.prefab:759e5249d671ece43a543a2eef6daad1");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Shrine_Killed_03 = new AssetReference("VO_TRLA_204h_Male_Troll_Shrine_Killed_03.prefab:ac9f78056deea734496a44a18e3804a0");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Event_Harbinger_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Event_Harbinger_01.prefab:bf83f97a09381e1428294b3027d3ea7a");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Event_Hatchet_02 = new AssetReference("VO_TRLA_204h_Male_Troll_Event_Hatchet_02.prefab:247c8868743663d41ad2c6ff3a75d61e");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Event_Lynx_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Event_Lynx_01.prefab:9a3ced7509c29bb4eb8e7adbee37a0fc");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Event_Panther_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Event_Panther_01.prefab:186cc9daf641ff145ad4b5aa0dc8cb53");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Event_RandomSpell_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Event_RandomSpell_01.prefab:5926f66071a55a748afab3b1949bfd78");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Event_Reducecost_01 = new AssetReference("VO_TRLA_204h_Male_Troll_Event_Reducecost_01.prefab:4642293430bc30e4cbabfb995e800fa6");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Shrine_BigDamage_02 = new AssetReference("VO_TRLA_204h_Male_Troll_Shrine_BigDamage_02.prefab:5a397fcc9b97d3f41a9f5f64b9ba98b5");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Shrine_BigDamage_03 = new AssetReference("VO_TRLA_204h_Male_Troll_Shrine_BigDamage_03.prefab:f9973fb2d7005754098083cf8383eeb8");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Shrine_BigDamage_04 = new AssetReference("VO_TRLA_204h_Male_Troll_Shrine_BigDamage_04.prefab:cf30b9449d5e2854bb2ea1a8685069a2");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Shrine_DrawCards_02 = new AssetReference("VO_TRLA_204h_Male_Troll_Shrine_DrawCards_02.prefab:350fbe7120c47dd489e7012b4da2c184");
+  private static readonly AssetReference VO_TRLA_204h_Male_Troll_Shrine_DrawCards_03 = new AssetReference("VO_TRLA_204h_Male_Troll_Shrine_DrawCards_03.prefab:b543906e2e89a3144b918d16ed0dbe22");
+  private HashSet<string> m_playedLines = new HashSet<string>();
+
+  public override void PreloadAssets()
+  {
+    base.PreloadAssets();
+    foreach (string soundPath in new List<string>()
+    {
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Death_Long_03,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Greetings_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Wow_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Threaten_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Well_Played_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Thanks_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Oops_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Sorry_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Kill_Shrine_Generic_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Kill_Shrine_Shaman_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_Killed_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_Killed_02,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_Killed_03,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_BigDamage_02,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_BigDamage_03,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_BigDamage_04,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_DrawCards_02,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_DrawCards_03,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Panther_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Lynx_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Harbinger_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_RandomSpell_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Reducecost_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Hatchet_02
+    })
+      this.PreloadSound(soundPath);
+  }
+
+  public override void OnCreateGame()
+  {
+    base.OnCreateGame();
+    TRL_Dungeon.s_deathLine = (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Death_Long_03;
+    TRL_Dungeon.s_responseLineGreeting = (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Greetings_01;
+    TRL_Dungeon.s_responseLineOops = (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Oops_01;
+    TRL_Dungeon.s_responseLineSorry = (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Sorry_01;
+    TRL_Dungeon.s_responseLineThanks = (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Thanks_01;
+    TRL_Dungeon.s_responseLineThreaten = (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Threaten_01;
+    TRL_Dungeon.s_responseLineWellPlayed = (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Well_Played_01;
+    TRL_Dungeon.s_responseLineWow = (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Emote_Respond_Wow_01;
+    TRL_Dungeon.s_bossShrineDeathLines = new List<string>()
+    {
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_Killed_01,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_Killed_02,
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_Killed_03
+    };
+    TRL_Dungeon.s_genericShrineDeathLines = new List<string>()
+    {
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Kill_Shrine_Generic_01
+    };
+    TRL_Dungeon.s_shamanShrineDeathLines = new List<string>()
+    {
+      (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Kill_Shrine_Shaman_01
+    };
+  }
+
+  protected override bool GetShouldSupressDeathTextBubble() => false;
+
+  protected override IEnumerator HandleMissionEventWithTiming(int missionEvent)
+  {
+    TRL_Dungeon_Boss_204h trlDungeonBoss204h = this;
+    while (trlDungeonBoss204h.m_enemySpeaking)
+      yield return (object) null;
+    Actor actor = GameState.Get().GetOpposingSidePlayer().GetHeroCard().GetActor();
+    switch (missionEvent)
+    {
+      case 1001:
+        yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_RandomSpell_01);
+        break;
+      case 1002:
+        yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Reducecost_01);
+        break;
+      case 1003:
+        yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_DrawCards_02);
+        break;
+      case 1004:
+        yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_BigDamage_02);
+        break;
+      case 1005:
+        yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_BigDamage_03);
+        break;
+      default:
+        // ISSUE: reference to a compiler-generated method
+        yield return (object) trlDungeonBoss204h.\u003C\u003En__0(missionEvent);
+        break;
+    }
+  }
+
+  protected override IEnumerator RespondToPlayedCardWithTiming(Entity entity)
+  {
+    TRL_Dungeon_Boss_204h trlDungeonBoss204h = this;
+    while (trlDungeonBoss204h.m_enemySpeaking)
+      yield return (object) null;
+    while (entity.GetCardType() == TAG_CARDTYPE.INVALID)
+      yield return (object) null;
+    if (!trlDungeonBoss204h.m_playedLines.Contains(entity.GetCardId()))
+    {
+      yield return (object) trlDungeonBoss204h.WaitForEntitySoundToFinish(entity);
+      string cardId = entity.GetCardId();
+      trlDungeonBoss204h.m_playedLines.Add(cardId);
+      Actor actor = GameState.Get().GetOpposingSidePlayer().GetHero().GetCard().GetActor();
+      if (!(cardId == "TRL_901"))
+      {
+        if (!(cardId == "TRL_900"))
+        {
+          if (!(cardId == "TRLA_165"))
+          {
+            if (!(cardId == "TRL_348"))
+            {
+              if (!(cardId == "TRLA_166"))
+              {
+                if (cardId == "TRL_111")
+                  yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Hatchet_02);
+              }
+              else
+                yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Harbinger_01);
+            }
+            else
+              yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Lynx_01);
+          }
+          else
+            yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_DrawCards_03);
+        }
+        else
+          yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Shrine_BigDamage_04);
+      }
+      else
+        yield return (object) trlDungeonBoss204h.PlayLineOnlyOnce(actor, (string) TRL_Dungeon_Boss_204h.VO_TRLA_204h_Male_Troll_Event_Panther_01);
+    }
+  }
+}

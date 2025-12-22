@@ -1,0 +1,100 @@
+// Internationalization System
+// Sistema de internacionalização para múltiplos idiomas
+
+class I18n {
+	private dictionary strings;
+	private string current_language;
+	
+	I18n() {
+		current_language = "pt_BR";
+	}
+	
+	// Carrega arquivo de idioma
+	bool load_language(string lang_code) {
+		string file_path = "lang/" + lang_code + ".json";
+		
+		if (!file_exists(file_path)) {
+			return false;
+		}
+		
+		string content = file_get_contents(file_path);
+		if (content.empty()) {
+			return false;
+		}
+		
+		var@ parsed = parse_json(content);
+		if (@parsed == null) {
+			return false;
+		}
+		
+		json_object@ lang_data = parsed;
+		strings.delete_all();
+		
+		string[] keys = lang_data.get_keys();
+		for (uint i = 0; i < keys.length(); i++) {
+			strings.set(keys[i], string(lang_data[keys[i]]));
+		}
+		
+		current_language = lang_code;
+		return true;
+	}
+	
+	// Obtém string traduzida
+	string get(string key, string default_value = "") {
+		string result;
+		if (strings.get(key, result)) {
+			return result;
+		}
+		return default_value.empty() ? key : default_value;
+	}
+	
+	// Obtém string traduzida com substituições
+	string get_formatted(string key, dictionary@ params) {
+		string text = get(key);
+		
+		if (@params == null) {
+			return text;
+		}
+		
+		string[] param_keys = params.get_keys();
+		for (uint i = 0; i < param_keys.length(); i++) {
+			string param_key = param_keys[i];
+			string param_value;
+			params.get(param_key, param_value);
+			text = text.replace("{" + param_key + "}", param_value);
+		}
+		
+		return text;
+	}
+	
+	// Obtém idioma atual
+	string get_current_language() {
+		return current_language;
+	}
+	
+	// Lista idiomas disponíveis
+	string[] get_available_languages() {
+		string[] languages;
+		string[] files = find_directories("lang/*.json");
+		
+		for (uint i = 0; i < files.length(); i++) {
+			string filename = files[i];
+			string lang_code = filename.substr(5, filename.length() - 10); // Remove "lang/" e ".json"
+			languages.insert_last(lang_code);
+		}
+		
+		return languages;
+	}
+}
+
+// Instância global
+I18n@ g_i18n = I18n();
+
+// Funções auxiliares
+string tr(string key) {
+	return g_i18n.get(key);
+}
+
+string tr(string key, dictionary@ params) {
+	return g_i18n.get_formatted(key, params);
+}

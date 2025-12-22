@@ -27,6 +27,20 @@ void Game()
 {
 	Deck deck;
 	deck.chuffle();
+	int i=0;
+	while(true)
+	{
+		if(key_pressed(KEY_ESCAPE)) Quit();
+		if(key_pressed(KEY_RIGHT)){
+			speak(deck.cards[++i].name);
+			}
+		if(key_pressed(KEY_LEFT)){
+			speak(deck.cards[--i].name);
+			}
+		
+		}
+	
+
 }
 
 
@@ -37,5 +51,5 @@ void Quit()
 	music.close();
 	music.load("ExitConfirm.ogg");
 	music.play_wait();
-	
+	exit();
 	}

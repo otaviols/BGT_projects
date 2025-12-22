@@ -1,0 +1,3 @@
+xtUtils.TransformCardText(entity, text);
+  }
+}

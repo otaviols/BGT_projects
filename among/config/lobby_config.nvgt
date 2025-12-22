@@ -1,0 +1,118 @@
+// Lobby Configuration
+// Configurações de lobby com validação
+
+#include "../config/game_constants.nvgt"
+
+class LobbyConfig {
+	// Configurações básicas
+	int impostors;
+	int kill_cooldown;
+	float kill_distance;
+	float player_speed;
+	int discussion_time;
+	int voting_time;
+	int tasks_per_player;
+	bool visual_tasks;
+	bool confirm_ejects;
+	int emergency_meetings;
+	
+	LobbyConfig() {
+		set_defaults();
+	}
+	
+	// Define valores padrão (preset Normal)
+	void set_defaults() {
+		impostors = 2;
+		kill_cooldown = 25;
+		kill_distance = 2.5;
+		player_speed = 1.0;
+		discussion_time = 30;
+		voting_time = 120;
+		tasks_per_player = 5;
+		visual_tasks = true;
+		confirm_ejects = true;
+		emergency_meetings = 1;
+	}
+	
+	// Valida e ajusta valores dentro dos limites
+	void validate() {
+		impostors = clamp(impostors, MIN_IMPOSTORS, MAX_IMPOSTORS);
+		kill_cooldown = clamp(kill_cooldown, MIN_KILL_COOLDOWN, MAX_KILL_COOLDOWN);
+		kill_distance = clamp(kill_distance, MIN_KILL_DISTANCE, MAX_KILL_DISTANCE);
+		player_speed = clamp(player_speed, MIN_PLAYER_SPEED, MAX_PLAYER_SPEED);
+		discussion_time = clamp(discussion_time, MIN_DISCUSSION_TIME, MAX_DISCUSSION_TIME);
+		voting_time = clamp(voting_time, MIN_VOTING_TIME, MAX_VOTING_TIME);
+		tasks_per_player = clamp(tasks_per_player, MIN_TASKS_PER_PLAYER, MAX_TASKS_PER_PLAYER);
+		emergency_meetings = clamp(emergency_meetings, MIN_EMERGENCY_MEETINGS, MAX_EMERGENCY_MEETINGS);
+	}
+	
+	// Serializa para JSON
+	string to_json() {
+		json_object config;
+		config["impostors"] = impostors;
+		config["kill_cooldown"] = kill_cooldown;
+		config["kill_distance"] = kill_distance;
+		config["player_speed"] = player_speed;
+		config["discussion_time"] = discussion_time;
+		config["voting_time"] = voting_time;
+		config["tasks_per_player"] = tasks_per_player;
+		config["visual_tasks"] = visual_tasks;
+		config["confirm_ejects"] = confirm_ejects;
+		config["emergency_meetings"] = emergency_meetings;
+		
+		return config.stringify();
+	}
+	
+	// Deserializa de JSON
+	bool from_json(string json_str) {
+		var@ parsed = parse_json(json_str);
+		if (@parsed == null) {
+			return false;
+		}
+		
+		json_object@ config = parsed;
+		
+		impostors = int(config["impostors"]);
+		kill_cooldown = int(config["kill_cooldown"]);
+		kill_distance = float(config["kill_distance"]);
+		player_speed = float(config["player_speed"]);
+		discussion_time = int(config["discussion_time"]);
+		voting_time = int(config["voting_time"]);
+		tasks_per_player = int(config["tasks_per_player"]);
+		visual_tasks = bool(config["visual_tasks"]);
+		confirm_ejects = bool(config["confirm_ejects"]);
+		emergency_meetings = int(config["emergency_meetings"]);
+		
+		validate();
+		return true;
+	}
+	
+	// Cria cópia da configuração
+	LobbyConfig@ clone() {
+		LobbyConfig@ copy = LobbyConfig();
+		copy.impostors = impostors;
+		copy.kill_cooldown = kill_cooldown;
+		copy.kill_distance = kill_distance;
+		copy.player_speed = player_speed;
+		copy.discussion_time = discussion_time;
+		copy.voting_time = voting_time;
+		copy.tasks_per_player = tasks_per_player;
+		copy.visual_tasks = visual_tasks;
+		copy.confirm_ejects = confirm_ejects;
+		copy.emergency_meetings = emergency_meetings;
+		return copy;
+	}
+	
+	// Função auxiliar de clamp
+	private int clamp(int value, int min_val, int max_val) {
+		if (value < min_val) return min_val;
+		if (value > max_val) return max_val;
+		return value;
+	}
+	
+	private float clamp(float value, float min_val, float max_val) {
+		if (value < min_val) return min_val;
+		if (value > max_val) return max_val;
+		return value;
+	}
+}

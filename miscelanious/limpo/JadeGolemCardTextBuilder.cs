@@ -1,0 +1,2 @@
+TextHistoryData) new JadeGolemCardTextHistoryData();
+}

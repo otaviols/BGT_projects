@@ -1,0 +1,147 @@
+// Game Map
+// Sistema de mapa e navegação entre salas
+
+#include "../config/game_constants.nvgt"
+
+// Definição de sala
+class Room {
+	int id;
+	string name;
+	float center_x, center_y, center_z;
+	int[] connected_rooms;
+	float width, height, depth;
+	
+	Room(int room_id, string room_name, float cx, float cy, float cz, float w, float h, float d) {
+		id = room_id;
+		name = room_name;
+		center_x = cx;
+		center_y = cy;
+		center_z = cz;
+		width = w;
+		height = h;
+		depth = d;
+	}
+	
+	bool is_inside(float x, float y, float z) {
+		float half_w = width / 2.0;
+		float half_d = depth / 2.0;
+		
+		return (x >= center_x - half_w && x <= center_x + half_w &&
+		        z >= center_z - half_d && z <= center_z + half_d);
+	}
+	
+	float distance_to(float x, float y, float z) {
+		float dx = center_x - x;
+		float dy = center_y - y;
+		float dz = center_z - z;
+		return sqrt(dx * dx + dy * dy + dz * dz);
+	}
+}
+
+// Classe do mapa
+class GameMap {
+	private Room@[] rooms;
+	
+	GameMap() {
+		initialize_rooms();
+	}
+	
+	// Inicializa salas do mapa
+	private void initialize_rooms() {
+		// Cafeteria (spawn point)
+		Room@ cafeteria = Room(0, "Cafeteria", 0, 0, 0, 20, 5, 15);
+		cafeteria.connected_rooms = {1, 7}; // Weapons, Storage
+		rooms.insert_last(cafeteria);
+		
+		// Weapons
+		Room@ weapons = Room(1, "Weapons", 25, 0, 0, 12, 5, 10);
+		weapons.connected_rooms = {0, 2}; // Cafeteria, O2
+		rooms.insert_last(weapons);
+		
+		// O2
+		Room@ o2 = Room(2, "O2", 40, 0, 15, 10, 5, 10);
+		o2.connected_rooms = {1, 3}; // Weapons, Navigation
+		rooms.insert_last(o2);
+		
+		// Navigation
+		Room@ navigation = Room(3, "Navigation", 40, 0, 30, 12, 5, 8);
+		navigation.connected_rooms = {2, 4}; // O2, Shields
+		rooms.insert_last(navigation);
+		
+		// Shields
+		Room@ shields = Room(4, "Shields", 25, 0, 40, 10, 5, 10);
+		shields.connected_rooms = {3, 5}; // Navigation, Communications
+		rooms.insert_last(shields);
+		
+		// Communications
+		Room@ communications = Room(5, "Communications", 0, 0, 40, 12, 5, 10);
+		communications.connected_rooms = {4, 6}; // Shields, Storage
+		rooms.insert_last(communications);
+		
+		// Storage
+		Room@ storage = Room(6, "Storage", -15, 0, 25, 15, 5, 12);
+		storage.connected_rooms = {5, 0, 7}; // Communications, Cafeteria, Electrical
+		rooms.insert_last(storage);
+		
+		// Electrical
+		Room@ electrical = Room(7, "Electrical", -25, 0, 10, 10, 5, 10);
+		electrical.connected_rooms = {6, 0}; // Storage, Cafeteria
+		rooms.insert_last(electrical);
+	}
+	
+	// Obtém sala por ID
+	Room@ get_room(int room_id) {
+		if (room_id < 0 || room_id >= int(rooms.length())) {
+			return null;
+		}
+		return rooms[room_id];
+	}
+	
+	// Obtém sala por posição
+	Room@ get_room_at_position(float x, float y, float z) {
+		for (uint i = 0; i < rooms.length(); i++) {
+			if (rooms[i].is_inside(x, y, z)) {
+				return rooms[i];
+			}
+		}
+		return null;
+	}
+	
+	// Obtém nome da sala por ID
+	string get_room_name(int room_id) {
+		Room@ room = get_room(room_id);
+		if (@room == null) {
+			return "Unknown";
+		}
+		return room.name;
+	}
+	
+	// Verifica se duas salas estão conectadas
+	bool are_rooms_connected(int room_id_1, int room_id_2) {
+		Room@ room = get_room(room_id_1);
+		if (@room == null) {
+			return false;
+		}
+		
+		for (uint i = 0; i < room.connected_rooms.length(); i++) {
+			if (room.connected_rooms[i] == room_id_2) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	// Obtém quantidade total de salas
+	int get_room_count() {
+		return rooms.length();
+	}
+	
+	// Obtém todas as salas
+	Room@[]@ get_all_rooms() {
+		return rooms;
+	}
+}
+
+// Instância global
+GameMap@ g_map = null;

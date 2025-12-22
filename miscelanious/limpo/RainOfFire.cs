@@ -1,0 +1,2 @@
+tHandZone().GetCardCount();
+}

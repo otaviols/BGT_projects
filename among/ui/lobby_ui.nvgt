@@ -1,0 +1,104 @@
+// Lobby UI
+// Interface para gerenciamento de lobbies
+
+#include "menu.nvgt"
+#include "../lang/i18n.nvgt"
+#include "../database/models.nvgt"
+
+class LobbyUI {
+	private menu lobby_menu;
+	private LobbyData@[] cached_lobbies;
+	
+	LobbyUI() {
+		lobby_menu.wrap = true;
+		lobby_menu.allow_escape = true;
+	}
+	
+	// Atualiza lista de lobbies
+	void update_lobby_list(LobbyData@[] lobbies) {
+		cached_lobbies.resize(0);
+		for (uint i = 0; i < lobbies.length(); i++) {
+			cached_lobbies.insert_last(lobbies[i]);
+		}
+	}
+	
+	// Mostra lista de lobbies
+	int show_lobby_list() {
+		if (cached_lobbies.length() == 0) {
+			screen_reader_speak("Nenhum lobby disponível", true);
+			return -1;
+		}
+		
+		lobby_menu.reset();
+		lobby_menu.intro_text = tr("lobby_title");
+		
+		for (uint i = 0; i < cached_lobbies.length(); i++) {
+			LobbyData@ lobby = cached_lobbies[i];
+			
+			dictionary params;
+			params.set("current", "" + lobby.current_players);
+			params.set("max", "" + lobby.max_players);
+			
+			string status = get_lobby_status_text(lobby);
+			string item_text = lobby.name + " - " + lobby.host_username + " - " + 
+			                   tr("lobby_players", params) + " - " + status;
+			
+			lobby_menu.add_item(item_text);
+		}
+		
+		while (true) {
+			wait(5);
+			if (!lobby_menu.monitor()) {
+				int selected = lobby_menu.focused_item;
+				
+				if (selected >= 0 && selected < int(cached_lobbies.length())) {
+					return selected;
+				}
+				
+				return -1;
+			}
+			
+			if (key_pressed(KEY_ESCAPE)) {
+				return -1;
+			}
+		}
+		
+		return -1;
+	}
+	
+	// Obtém lobby selecionado
+	LobbyData@ get_selected_lobby(int index) {
+		if (index < 0 || index >= int(cached_lobbies.length())) {
+			return null;
+		}
+		return cached_lobbies[index];
+	}
+	
+	// Obtém texto de status do lobby
+	private string get_lobby_status_text(LobbyData@ lobby) {
+		if (lobby.is_full()) {
+			return tr("lobby_status_full");
+		}
+		
+		if (lobby.is_in_game()) {
+			return tr("lobby_status_in_game");
+		}
+		
+		return tr("lobby_status_waiting");
+	}
+	
+	// Mostra informações do lobby
+	void show_lobby_info(LobbyData@ lobby) {
+		if (@lobby == null) return;
+		
+		string info = lobby.name + "\n\n";
+		info += "Host: " + lobby.host_username + "\n";
+		info += "Jogadores: " + lobby.current_players + "/" + lobby.max_players + "\n";
+		info += "Status: " + get_lobby_status_text(lobby) + "\n";
+		
+		screen_reader_speak(info, true);
+	}
+}
+
+// Instância global
+LobbyUI@ g_lobby_ui = null;

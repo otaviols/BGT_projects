@@ -1,0 +1,653 @@
+// Among Us Audiogame - Client Entry Point
+// Ponto de entrada principal do cliente
+
+#include "lang/i18n.nvgt"
+#include "config/game_constants.nvgt"
+#include "config/lobby_config.nvgt"
+#include "config/presets.nvgt"
+#include "database/user_db_simple.nvgt"
+#include "database/models.nvgt"
+#include "network/client.nvgt"
+#include "core/player.nvgt"
+#include "core/game_state.nvgt"
+#include "audio/audio_manager_simple.nvgt"
+#include "audio/spatial_audio_simple.nvgt"
+#include "game/map.nvgt"
+#include "game/task_manager.nvgt"
+#include "ui/menu_manager.nvgt"
+#include "ui/lobby_ui.nvgt"
+#include "ui/task_ui.nvgt"
+
+// Estado global do cliente
+GameClient@ g_client = null;
+User@ g_current_user = null;
+bool g_running = true;
+timer g_update_timer;
+timer g_position_sync_timer;
+
+// Estado da reunião
+bool g_in_meeting = false;
+MeetingType g_meeting_type;
+timer g_meeting_timer;
+int g_discussion_time = 0;
+int g_voting_time = 0;
+
+void main() {
+	// Inicializa sistemas
+	if (!initialize_systems()) {
+		alert("Erro", "Falha ao inicializar sistemas");
+		return;
+	}
+	
+	show_window(tr("app_title"));
+	
+	// Login
+	if (!handle_login()) {
+		cleanup_systems();
+		return;
+	}
+	
+	// Loop principal do menu
+	while (g_running) {
+		MenuResult result = g_menu_manager.show_main_menu();
+		
+		switch (result) {
+			case MENU_PLAY:
+				handle_play();
+				break;
+			case MENU_STATS:
+				handle_stats();
+				break;
+			case MENU_SETTINGS:
+				handle_settings();
+				break;
+			case MENU_QUIT:
+				g_running = false;
+				break;
+		}
+	}
+	
+	// Cleanup
+	cleanup_systems();
+}
+
+// Inicializa todos os sistemas
+bool initialize_systems() {
+	// I18n
+	if (!g_i18n.load_language("pt_BR")) {
+		return false;
+	}
+	
+	// Database
+	@g_user_db = UserDatabase();
+	if (!g_user_db.initialize()) {
+		return false;
+	}
+	
+	// Audio
+	@g_audio = AudioManager();
+	if (!g_audio.initialize()) {
+		return false;
+	}
+	g_audio.preload_sounds();
+	
+	@g_spatial_audio = SpatialAudioManager();
+	
+	// Map
+	@g_map = GameMap();
+	
+	// Task Manager
+	@g_task_manager = TaskManager();
+	
+	// Game State
+	@g_game_state = GameStateManager();
+	
+	// UI
+	@g_menu_manager = MenuManager();
+	@g_lobby_ui = LobbyUI();
+	@g_task_ui = TaskUI();
+	
+	// Client
+	@g_client = GameClient();
+	setup_client_callbacks();
+	
+	return true;
+}
+
+// Configura callbacks do cliente
+void setup_client_callbacks() {
+	g_client.set_on_login_response(OnLoginResponseHandler);
+	g_client.set_on_register_response(OnRegisterResponseHandler);
+	g_client.set_on_lobby_list_received(OnLobbyListReceivedHandler);
+	g_client.set_on_lobby_joined(OnLobbyJoinedHandler);
+	g_client.set_on_lobby_update(OnLobbyUpdateHandler);
+	g_client.set_on_game_start(OnGameStartHandler);
+	g_client.set_on_role_assigned(OnRoleAssignedHandler);
+	g_client.set_on_player_position_update(OnPlayerPositionUpdateHandler);
+	g_client.set_on_player_killed(OnPlayerKilledHandler);
+	g_client.set_on_meeting_start(OnMeetingStartHandler);
+	g_client.set_on_vote_results(OnVoteResultsHandler);
+	g_client.set_on_game_end(OnGameEndHandler);
+	g_client.set_on_error(OnErrorHandler);
+}
+
+// Handle login
+bool handle_login() {
+	while (true) {
+		// Menu inicial: Login, Registrar, Sair
+		menu m;
+		m.add_item(tr("menu_login"));
+		m.add_item(tr("menu_register"));
+		m.add_item(tr("menu_quit"));
+		
+		int choice = -1;
+		while (true) {
+			wait(5);
+			if (!m.monitor()) {
+				choice = m.focused_item;
+				break;
+			}
+		}
+		
+		if (choice == 0) {
+			// Login
+			if (do_login()) {
+				return true;
+			}
+		} else if (choice == 1) {
+			// Registro
+			do_register();
+		} else {
+			// Sair
+			return false;
+		}
+	}
+	
+	return false;
+}
+
+// Função de login
+bool do_login() {
+	dictionary@ login_data = g_menu_manager.show_login_form();
+	
+	if (@login_data == null) {
+		return false; // Usuário cancelou
+	}
+	
+	string username, password;
+	login_data.get("username", username);
+	login_data.get("password", password);
+	
+	// Primeiro faz login local (para criar sessão)
+	if (!g_user_db.verify_login(username, password)) {
+		alert(tr("error_title"), tr("login_error"));
+		return false;
+	}
+	
+	// Cria sessão local
+	string session_token = g_user_db.create_session(username);
+	
+	// Conecta ao servidor
+	screen_reader_speak(tr("game_connecting"), true);
+	
+	if (!g_client.connect("127.0.0.1", DEFAULT_PORT)) {
+		alert(tr("error_title"), tr("error_connection"));
+		return false;
+	}
+	
+	// Valida sessão no servidor
+	g_client.validate_session(session_token);
+	
+	// Aguarda resposta
+	timer auth_timeout;
+	auth_timeout.restart();
+	
+	while (!g_client.is_authenticated() && auth_timeout.elapsed < 5000) {
+		wait(50);
+		g_client.update();
+	}
+	
+	if (g_client.is_authenticated()) {
+		// Login bem-sucedido
+		@g_current_user = User();
+		g_current_user.username = username;
+		g_current_user.session_token = g_client.get_session_token();
+		
+		screen_reader_speak(tr("login_success"), true);
+		return true;
+	} else {
+		g_client.disconnect();
+		alert(tr("error_title"), tr("login_error"));
+		return false;
+	}
+}
+
+// Função de registro
+void do_register() {
+	dictionary@ register_data = g_menu_manager.show_register_form();
+	
+	if (@register_data == null) {
+		return; // Usuário cancelou
+	}
+	
+	string username, password;
+	register_data.get("username", username);
+	register_data.get("password", password);
+	
+	// Conecta ao servidor
+	screen_reader_speak(tr("game_connecting"), true);
+	
+	if (!g_client.connect("127.0.0.1", DEFAULT_PORT)) {
+		alert(tr("error_title"), tr("error_connection"));
+		return;
+	}
+	
+	// Envia registro
+	g_client.register_user(username, password);
+	
+	// Aguarda resposta
+	timer reg_timeout;
+	reg_timeout.restart();
+	bool response_received = false;
+	
+	while (!response_received && reg_timeout.elapsed < 5000) {
+		wait(50);
+		g_client.update();
+		// response_received será definido no callback
+	}
+	
+	g_client.disconnect();
+}
+
+// Handle jogar
+void handle_play() {
+	// Conecta ao servidor
+	screen_reader_speak(tr("game_connecting"), true);
+	
+	if (!g_client.connect("127.0.0.1", DEFAULT_PORT)) {
+		alert(tr("error_title"), tr("error_connection"));
+		return;
+	}
+	
+	// Valida sessão
+	g_client.validate_session(g_current_user.session_token);
+	
+	// Aguarda autenticação
+	timer auth_timeout;
+	auth_timeout.restart();
+	
+	while (!g_client.is_authenticated() && auth_timeout.elapsed < 5000) {
+		wait(50);
+		g_client.update();
+	}
+	
+	if (!g_client.is_authenticated()) {
+		alert(tr("error_title"), tr("error_authentication"));
+		g_client.disconnect();
+		return;
+	}
+	
+	screen_reader_speak(tr("game_connected"), true);
+	
+	// Mostra menu de lobby
+	handle_lobby_selection();
+	
+	// Desconecta ao sair
+	g_client.disconnect();
+}
+
+// Handle seleção de lobby
+void handle_lobby_selection() {
+	while (true) {
+		MenuResult result = g_menu_manager.show_lobby_menu();
+		
+		if (result == MENU_CREATE_LOBBY) {
+			// Criar novo lobby
+			dictionary@ lobby_data = g_menu_manager.show_create_lobby_form();
+			
+			if (@lobby_data != null) {
+				string name;
+				int max_players;
+				lobby_data.get("name", name);
+				lobby_data.get("max_players", max_players);
+				
+				g_client.create_lobby(name, max_players);
+				wait(500); // Aguarda resposta
+				
+				if (g_client.get_lobby_id() >= 0) {
+					handle_waiting_room(true);
+				}
+			}
+		} else if (result == MENU_REFRESH) {
+			// Atualizar lista
+			g_client.request_lobby_list();
+			wait(500); // Aguarda resposta
+			
+			// Mostra lista e permite entrar
+			int selected = g_lobby_ui.show_lobby_list();
+			if (selected >= 0) {
+				LobbyData@ lobby = g_lobby_ui.get_selected_lobby(selected);
+				if (@lobby != null && !lobby.is_full() && !lobby.is_in_game()) {
+					g_client.join_lobby(lobby.id);
+					wait(500);
+					
+					if (g_client.get_lobby_id() >= 0) {
+						handle_waiting_room(false);
+					}
+				}
+			}
+		} else {
+			return; // Voltar
+		}
+	}
+}
+
+// Handle sala de espera
+void handle_waiting_room(bool is_host) {
+	string[] player_names;
+	
+	while (true) {
+		g_client.update();
+		wait(50);
+		
+		bool can_start = player_names.length() >= MIN_PLAYERS_TO_START;
+		MenuResult result = g_menu_manager.show_waiting_room_menu(player_names, is_host, can_start);
+		
+		if (result == MENU_CONFIG && is_host) {
+			// Configurar lobby
+			LobbyConfig@ config = g_menu_manager.show_lobby_config_form(g_client.get_lobby_config());
+			if (@config != null) {
+				g_client.update_lobby_config(config);
+			}
+		} else if (result == MENU_START_GAME && is_host && can_start) {
+			// Iniciar jogo
+			g_client.start_game();
+			// Aguarda início do jogo
+			return;
+		} else if (result == MENU_LEAVE_LOBBY) {
+			// Sair do lobby
+			if (g_menu_manager.show_confirm_dialog(tr("confirm_leave_lobby"))) {
+				g_client.leave_lobby();
+				return;
+			}
+		}
+	}
+}
+
+// Loop do jogo
+void game_loop() {
+	Player@ player = g_game_state.get_local_player();
+	if (@player == null) return;
+	
+	g_update_timer.restart();
+	g_position_sync_timer.restart();
+	
+	while (g_game_state.is_playing() || g_game_state.in_meeting()) {
+		wait(5);
+		
+		float delta = float(g_update_timer.elapsed) / 1000.0;
+		g_update_timer.restart();
+		
+		// Atualiza cliente de rede
+		g_client.update();
+		
+		// Atualiza estado do jogo
+		g_game_state.update(delta);
+		
+		// Atualiza áudio
+		g_spatial_audio.update_listener_position(player.x, player.y, player.z, player.rotation);
+		
+		// Handle input se pode mover
+		if (g_game_state.can_move() && !g_in_meeting) {
+			handle_game_input(player, delta);
+		}
+		
+		// Handle input de reunião
+		if (g_in_meeting) {
+			handle_meeting_input();
+		}
+		
+		// Sincroniza posição com servidor
+		if (g_position_sync_timer.elapsed >= NETWORK_UPDATE_INTERVAL) {
+			g_client.send_player_move(player.x, player.y, player.z, player.rotation);
+			g_position_sync_timer.restart();
+		}
+		
+		// ESC para sair
+		if (key_pressed(KEY_ESCAPE)) {
+			if (g_menu_manager.show_confirm_dialog(tr("confirm_leave_game"))) {
+				g_client.leave_lobby();
+				return;
+			}
+		}
+	}
+}
+
+// Handle input do jogo
+void handle_game_input(Player@ player, float delta) {
+	// Movimento
+	float dx = 0, dz = 0;
+	
+	if (key_down(KEY_W)) dz += 1;
+	if (key_down(KEY_S)) dz -= 1;
+	if (key_down(KEY_A)) dx -= 1;
+	if (key_down(KEY_D)) dx += 1;
+	
+	if (dx != 0 || dz != 0) {
+		player.move(dx * delta, dz * delta);
+		
+		// Toca footstep local
+		if (g_audio != null) {
+			g_audio.play_ui("sounds/footstep.ogg", 0.3);
+		}
+	}
+	
+	// Tasks (T)
+	if (key_pressed(KEY_T) && player.role == ROLE_CREWMATE) {
+		g_task_ui.show_task_menu();
+	}
+	
+	// Proximity check (Tab)
+	if (key_pressed(KEY_TAB)) {
+		g_client.request_proximity_check();
+	}
+	
+	// Kill (K) - apenas impostor
+	if (key_pressed(KEY_K) && player.can_kill()) {
+		// TODO: Detectar jogador mais próximo e enviar kill
+	}
+	
+	// Report body (R)
+	if (key_pressed(KEY_R)) {
+		// TODO: Detectar corpo próximo e reportar
+	}
+	
+	// Emergency meeting (Q)
+	if (key_pressed(KEY_Q) && player.can_call_emergency()) {
+		g_client.call_emergency_meeting();
+		player.use_emergency_meeting();
+	}
+}
+
+// Handle input de reunião
+void handle_meeting_input() {
+	// TODO: Implementar UI de discussão e votação
+}
+
+// Handle estatísticas
+void handle_stats() {
+	if (@g_current_user != null) {
+		g_menu_manager.show_stats(g_current_user);
+	}
+}
+
+// Handle configurações
+void handle_settings() {
+	dictionary@ settings = g_menu_manager.show_settings_form();
+	
+	if (@settings != null) {
+		// Aplica configurações
+		string language;
+		int master_volume, sfx_volume;
+		
+		settings.get("language", language);
+		settings.get("master_volume", master_volume);
+		settings.get("sfx_volume", sfx_volume);
+		
+		g_i18n.load_language(language);
+		
+		if (@g_audio != null) {
+			g_audio.set_master_volume(float(master_volume) / 100.0);
+			g_audio.set_sfx_volume(float(sfx_volume) / 100.0);
+		}
+	}
+}
+
+// Cleanup de sistemas
+void cleanup_systems() {
+	if (@g_client != null) {
+		g_client.disconnect();
+	}
+	
+	if (@g_audio != null) {
+		g_audio.cleanup();
+	}
+	
+	if (@g_user_db != null) {
+		g_user_db.close();
+	}
+}
+
+// Callbacks do cliente
+void OnLoginResponseHandler(bool success, string token, string error_msg) {
+	if (!success) {
+		alert(tr("error_title"), error_msg);
+	}
+}
+
+void OnRegisterResponseHandler(bool success, string error_msg) {
+	if (success) {
+		alert(tr("register_title"), tr("register_success"));
+	} else {
+		alert(tr("error_title"), error_msg);
+	}
+}
+
+void OnLobbyListReceivedHandler(LobbyData@[] lobbies) {
+	g_lobby_ui.update_lobby_list(lobbies);
+}
+
+void OnLobbyJoinedHandler(bool success) {
+	if (!success) {
+		alert(tr("error_title"), tr("error_lobby_full"));
+	}
+}
+
+void OnLobbyUpdateHandler(string[] player_names) {
+	// Atualiza lista de jogadores na sala de espera
+}
+
+void OnGameStartHandler() {
+	// Jogo iniciou
+	g_game_state.change_state(STATE_STARTING);
+}
+
+void OnRoleAssignedHandler(Role role) {
+	// Role atribuído
+	Player@ player = Player(g_current_user.username);
+	player.set_role(role, g_client.get_lobby_config());
+	g_game_state.set_local_player(player);
+	g_game_state.set_config(g_client.get_lobby_config());
+	
+	// Atribui tasks se for crewmate
+	if (role == ROLE_CREWMATE) {
+		g_task_manager.assign_tasks(g_client.get_lobby_config().tasks_per_player);
+		screen_reader_speak(tr("game_role_crewmate") + "\n" + tr("game_objective_crewmate"), true);
+	} else if (role == ROLE_IMPOSTOR) {
+		screen_reader_speak(tr("game_role_impostor") + "\n" + tr("game_objective_impostor"), true);
+	}
+	
+	// Inicia game loop
+	g_game_state.change_state(STATE_PLAYING);
+	game_loop();
+}
+
+void OnPlayerPositionUpdateHandler(uint64 peer_id, float x, float y, float z, float rotation) {
+	g_game_state.update_remote_player(peer_id, x, y, z, rotation);
+	
+	// Atualiza áudio espacial
+	if (@g_spatial_audio != null) {
+		g_spatial_audio.update_player_sound(peer_id, x, y, z);
+	}
+}
+
+void OnPlayerKilledHandler(uint64 peer_id) {
+	g_game_state.mark_player_dead(peer_id);
+	
+	if (@g_audio != null) {
+		g_audio.play_ui("sounds/kill.ogg");
+	}
+}
+
+void OnMeetingStartHandler(MeetingType type, uint64 related_peer, int discussion_time, int voting_time) {
+	g_in_meeting = true;
+	g_meeting_type = type;
+	g_discussion_time = discussion_time;
+	g_voting_time = voting_time;
+	g_meeting_timer.restart();
+	
+	g_game_state.change_state(STATE_DISCUSSION);
+	
+	if (type == MEETING_EMERGENCY) {
+		screen_reader_speak(tr("game_emergency_meeting"), true);
+		if (@g_audio != null) {
+			g_audio.play_ui("sounds/emergency_meeting.ogg");
+		}
+	} else {
+		screen_reader_speak(tr("game_body_found"), true);
+		if (@g_audio != null) {
+			g_audio.play_ui("sounds/body_reported.ogg");
+		}
+	}
+}
+
+void OnVoteResultsHandler(bool tied, int ejected_index, Role ejected_role) {
+	g_in_meeting = false;
+	g_game_state.change_state(STATE_PLAYING);
+	
+	if (tied) {
+		screen_reader_speak(tr("meeting_tied"), true);
+	} else if (ejected_index >= 0) {
+		dictionary params;
+		params.set("player", "Player " + ejected_index);
+		params.set("role", ejected_role == ROLE_CREWMATE ? "Crewmate" : "Impostor");
+		
+		screen_reader_speak(tr("meeting_ejected", params), true);
+		
+		if (g_client.get_lobby_config().confirm_ejects) {
+			screen_reader_speak(tr("meeting_ejected_role", params), true);
+		}
+	}
+}
+
+void OnGameEndHandler(Role winning_role) {
+	g_game_state.change_state(STATE_GAME_OVER);
+	
+	if (winning_role == ROLE_CREWMATE) {
+		screen_reader_speak(tr("victory_crewmates"), true);
+		if (@g_audio != null) {
+			g_audio.play_ui("sounds/victory_crewmates.ogg");
+		}
+	} else {
+		screen_reader_speak(tr("victory_impostors"), true);
+		if (@g_audio != null) {
+			g_audio.play_ui("sounds/victory_impostors.ogg");
+		}
+	}
+	
+	wait(3000);
+}
+
+void OnErrorHandler(ErrorCode code, string message) {
+	alert(tr("error_title"), message);
+}

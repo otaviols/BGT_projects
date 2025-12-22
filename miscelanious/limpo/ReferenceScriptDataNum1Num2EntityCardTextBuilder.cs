@@ -1,0 +1,3 @@
+rmCardText(entity, text);
+  }
+}

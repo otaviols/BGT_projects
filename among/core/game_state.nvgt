@@ -1,0 +1,229 @@
+// Game State Manager
+// Gerenciador de estado do jogo
+
+#include "../config/game_constants.nvgt"
+#include "../config/lobby_config.nvgt"
+#include "../database/models.nvgt"
+#include "player.nvgt"
+
+class GameStateManager {
+	private GameState current_state;
+	private GameState previous_state;
+	private LobbyConfig@ config;
+	private Player@ local_player;
+	private dictionary remote_players; // uint64 -> PlayerData@
+	private timer state_timer;
+	
+	GameStateManager() {
+		current_state = STATE_LOBBY;
+		previous_state = STATE_LOBBY;
+		@config = LobbyConfig();
+	}
+	
+	// Define jogador local
+	void set_local_player(Player@ player) {
+		@local_player = player;
+	}
+	
+	// Define configuração
+	void set_config(LobbyConfig@ lobby_config) {
+		@config = lobby_config;
+	}
+	
+	// Muda estado do jogo
+	void change_state(GameState new_state) {
+		if (current_state == new_state) return;
+		
+		previous_state = current_state;
+		current_state = new_state;
+		state_timer.restart();
+		
+		on_state_changed(new_state);
+	}
+	
+	// Callback quando estado muda
+	private void on_state_changed(GameState new_state) {
+		switch (new_state) {
+			case STATE_LOBBY:
+				// Reset para lobby
+				if (@local_player != null) {
+					local_player.reset_for_new_game();
+				}
+				remote_players.delete_all();
+				break;
+				
+			case STATE_STARTING:
+				// Jogo iniciando
+				break;
+				
+			case STATE_PLAYING:
+				// Jogo em andamento
+				if (@local_player != null && @config != null) {
+					local_player.set_movement_config(config);
+				}
+				break;
+				
+			case STATE_DISCUSSION:
+				// Fase de discussão
+				break;
+				
+			case STATE_VOTING:
+				// Fase de votação
+				break;
+				
+			case STATE_GAME_OVER:
+				// Jogo terminado
+				break;
+		}
+	}
+	
+	// Atualiza estado do jogo
+	void update(float delta) {
+		// Atualiza jogador local
+		if (@local_player != null) {
+			local_player.update(delta);
+		}
+	}
+	
+	// Adiciona/atualiza jogador remoto
+	void update_remote_player(uint64 peer_id, float x, float y, float z, float rotation) {
+		PlayerData@ player;
+		string key = formatUInt64(peer_id);
+		
+		if (!remote_players.exists(key)) {
+			@player = PlayerData();
+			player.peer_id = peer_id;
+			remote_players.set(key, @player);
+		} else {
+			remote_players.get(key, @player);
+		}
+		
+		if (@player != null) {
+			player.x = x;
+			player.y = y;
+			player.z = z;
+			player.rotation = rotation;
+		}
+	}
+	
+	// Remove jogador remoto
+	void remove_remote_player(uint64 peer_id) {
+		string key = formatUInt64(peer_id);
+		remote_players.delete(key);
+	}
+	
+	// Marca jogador como morto
+	void mark_player_dead(uint64 peer_id) {
+		if (@local_player != null && peer_id == 0) {
+			// Jogador local morreu (peer_id 0 representa local)
+			local_player.kill();
+		} else {
+			// Jogador remoto morreu
+			PlayerData@ player;
+			string key = formatUInt64(peer_id);
+			if (remote_players.get(key, @player)) {
+				player.state = PLAYER_DEAD;
+			}
+		}
+	}
+	
+	// Obtém jogador remoto
+	PlayerData@ get_remote_player(uint64 peer_id) {
+		PlayerData@ player;
+		string key = formatUInt64(peer_id);
+		if (remote_players.get(key, @player)) {
+			return player;
+		}
+		return null;
+	}
+	
+	// Obtém todos os jogadores remotos
+	PlayerData@[] get_all_remote_players() {
+		PlayerData@[] players;
+		string[] keys = remote_players.get_keys();
+		
+		for (uint i = 0; i < keys.length(); i++) {
+			PlayerData@ player;
+			if (remote_players.get(keys[i], @player)) {
+				players.insert_last(player);
+			}
+		}
+		
+		return players;
+	}
+	
+	// Verifica se pode mover
+	bool can_move() {
+		return current_state == STATE_PLAYING && 
+		       @local_player != null && 
+		       local_player.state == PLAYER_ALIVE;
+	}
+	
+	// Verifica se pode interagir
+	bool can_interact() {
+		return current_state == STATE_PLAYING && 
+		       @local_player != null && 
+		       local_player.state == PLAYER_ALIVE;
+	}
+	
+	// Verifica se está em reunião
+	bool in_meeting() {
+		return current_state == STATE_DISCUSSION || 
+		       current_state == STATE_VOTING;
+	}
+	
+	// Verifica se está jogando
+	bool is_playing() {
+		return current_state == STATE_PLAYING;
+	}
+	
+	// Verifica se está no lobby
+	bool is_in_lobby() {
+		return current_state == STATE_LOBBY;
+	}
+	
+	// Obtém estado atual
+	GameState get_current_state() {
+		return current_state;
+	}
+	
+	// Obtém estado anterior
+	GameState get_previous_state() {
+		return previous_state;
+	}
+	
+	// Obtém tempo no estado atual
+	uint64 get_state_time() {
+		return state_timer.elapsed;
+	}
+	
+	// Obtém jogador local
+	Player@ get_local_player() {
+		return local_player;
+	}
+	
+	// Obtém configuração
+	LobbyConfig@ get_config() {
+		return config;
+	}
+	
+	// Reset completo
+	void reset() {
+		current_state = STATE_LOBBY;
+		previous_state = STATE_LOBBY;
+		
+		if (@local_player != null) {
+			local_player.reset_for_new_game();
+		}
+		
+		remote_players.delete_all();
+	}
+	
+	// Função auxiliar
+	private string formatUInt64(uint64 value) {
+		return "" + value;
+	}
+}
+
+// Instância global
+GameStateManager@ g_game_state = null;

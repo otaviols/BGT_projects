@@ -1,0 +1,228 @@
+// Player Class
+// Classe principal do jogador local
+
+#include "../config/game_constants.nvgt"
+#include "../database/models.nvgt"
+#include "../game/map.nvgt"
+
+class Player {
+	string username;
+	Role role;
+	PlayerState state;
+	
+	// Posição e movimento
+	float x, y, z;
+	float rotation;
+	float velocity_x, velocity_z;
+	int current_room_id;
+	
+	// Estado de jogo
+	bool in_vent;
+	float kill_cooldown;
+	int emergency_meetings_remaining;
+	
+	// Configurações de movimento
+	float movement_speed;
+	
+	// Timers
+	timer move_timer;
+	
+	Player(string player_username) {
+		username = player_username;
+		role = ROLE_NONE;
+		state = PLAYER_ALIVE;
+		
+		x = 0;
+		y = 0;
+		z = 0;
+		rotation = 0;
+		velocity_x = 0;
+		velocity_z = 0;
+		current_room_id = 0;
+		
+		in_vent = false;
+		kill_cooldown = 0;
+		emergency_meetings_remaining = 0;
+		
+		movement_speed = DEFAULT_MOVEMENT_SPEED;
+	}
+	
+	// Atualiza jogador
+	void update(float delta) {
+		// Atualiza posição com velocidade
+		x += velocity_x * delta;
+		z += velocity_z * delta;
+		
+		// Atualiza sala atual
+		update_current_room();
+		
+		// Atualiza cooldowns
+		if (kill_cooldown > 0) {
+			kill_cooldown -= delta;
+			if (kill_cooldown < 0) {
+				kill_cooldown = 0;
+			}
+		}
+		
+		// Limita velocidade
+		velocity_x *= 0.9;
+		velocity_z *= 0.9;
+		
+		if (abs(velocity_x) < 0.01) velocity_x = 0;
+		if (abs(velocity_z) < 0.01) velocity_z = 0;
+	}
+	
+	// Movimento
+	void move(float dx, float dz) {
+		if (state != PLAYER_ALIVE || in_vent) {
+			return;
+		}
+		
+		velocity_x += dx * movement_speed;
+		velocity_z += dz * movement_speed;
+		
+		// Limita velocidade máxima
+		float max_vel = movement_speed * 2;
+		if (abs(velocity_x) > max_vel) {
+			velocity_x = velocity_x > 0 ? max_vel : -max_vel;
+		}
+		if (abs(velocity_z) > max_vel) {
+			velocity_z = velocity_z > 0 ? max_vel : -max_vel;
+		}
+	}
+	
+	// Define posição diretamente (para sincronização)
+	void set_position(float px, float py, float pz, float rot) {
+		x = px;
+		y = py;
+		z = pz;
+		rotation = rot;
+		update_current_room();
+	}
+	
+	// Atualiza sala atual
+	private void update_current_room() {
+		if (@g_map == null) return;
+		
+		Room@ room = g_map.get_room_at_position(x, y, z);
+		if (@room != null) {
+			current_room_id = room.id;
+		}
+	}
+	
+	// Verifica se pode matar
+	bool can_kill() {
+		return role == ROLE_IMPOSTOR && 
+		       state == PLAYER_ALIVE && 
+		       !in_vent && 
+		       kill_cooldown <= 0;
+	}
+	
+	// Verifica se pode usar vent
+	bool can_use_vent() {
+		return role == ROLE_IMPOSTOR && state == PLAYER_ALIVE;
+	}
+	
+	// Verifica se pode chamar reunião
+	bool can_call_emergency() {
+		return state == PLAYER_ALIVE && emergency_meetings_remaining > 0;
+	}
+	
+	// Verifica se pode interagir com task
+	bool can_interact_with_task(int task_id) {
+		if (@g_task_manager == null) return false;
+		if (role != ROLE_CREWMATE || state != PLAYER_ALIVE) return false;
+		
+		TaskData@ task = g_task_manager.get_player_task(task_id);
+		if (@task == null) return false;
+		
+		// Verifica se está na sala certa
+		return task.room_id == current_room_id && !task.is_completed();
+	}
+	
+	// Mata o jogador
+	void kill() {
+		state = PLAYER_DEAD;
+		movement_speed = DEAD_MOVEMENT_SPEED;
+	}
+	
+	// Entra no vent
+	void enter_vent() {
+		if (!can_use_vent()) return;
+		in_vent = true;
+	}
+	
+	// Sai do vent
+	void exit_vent() {
+		if (role != ROLE_IMPOSTOR) return;
+		in_vent = false;
+	}
+	
+	// Define role
+	void set_role(Role player_role, LobbyConfig@ config) {
+		role = player_role;
+		
+		if (@config != null) {
+			movement_speed = DEFAULT_MOVEMENT_SPEED * config.player_speed;
+			emergency_meetings_remaining = config.emergency_meetings;
+		}
+	}
+	
+	// Define configuração de movimento
+	void set_movement_config(LobbyConfig@ config) {
+		if (@config == null) return;
+		movement_speed = DEFAULT_MOVEMENT_SPEED * config.player_speed;
+		emergency_meetings_remaining = config.emergency_meetings;
+	}
+	
+	// Inicia cooldown de kill
+	void start_kill_cooldown(float cooldown) {
+		kill_cooldown = cooldown;
+	}
+	
+	// Usa reunião de emergência
+	void use_emergency_meeting() {
+		if (emergency_meetings_remaining > 0) {
+			emergency_meetings_remaining--;
+		}
+	}
+	
+	// Calcula distância para outra posição
+	float distance_to(float tx, float ty, float tz) {
+		float dx = x - tx;
+		float dy = y - ty;
+		float dz = z - tz;
+		return sqrt(dx * dx + dy * dy + dz * dz);
+	}
+	
+	// Verifica se está em range de interação
+	bool in_interaction_range(float tx, float ty, float tz) {
+		return distance_to(tx, ty, tz) <= MAX_INTERACTION_DISTANCE;
+	}
+	
+	// Obtém nome da sala atual
+	string get_current_room_name() {
+		if (@g_map == null) return "Unknown";
+		return g_map.get_room_name(current_room_id);
+	}
+	
+	// Reset para novo jogo
+	void reset_for_new_game() {
+		state = PLAYER_ALIVE;
+		x = 0;
+		y = 0;
+		z = 0;
+		rotation = 0;
+		velocity_x = 0;
+		velocity_z = 0;
+		current_room_id = 0;
+		in_vent = false;
+		kill_cooldown = 0;
+		movement_speed = DEFAULT_MOVEMENT_SPEED;
+	}
+	
+	// Função auxiliar
+	private float abs(float value) {
+		return value < 0 ? -value : value;
+	}
+}

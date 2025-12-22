@@ -1,0 +1,2 @@
+ this.TriggerState(nameof (BigChestSecondaryStayOpen));
+}

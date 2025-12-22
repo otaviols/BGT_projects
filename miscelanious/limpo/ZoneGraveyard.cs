@@ -1,0 +1,4 @@
+de void OnLifestealDoesDamageEntityMousedOver()
+  {
+  }
+}

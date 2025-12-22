@@ -1,0 +1,3 @@
+rdText(entity, text);
+  }
+}

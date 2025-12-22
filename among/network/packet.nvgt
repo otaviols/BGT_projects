@@ -1,0 +1,322 @@
+// Network Packet System
+// Sistema de serialização/deserialização de pacotes de rede
+
+#include "protocol.nvgt"
+
+class Packet {
+	MessageType type;
+	datastream data;
+	
+	Packet() {
+		type = MSG_HEARTBEAT;
+		data.binary = true;
+	}
+	
+	Packet(MessageType msg_type) {
+		type = msg_type;
+		data.binary = true;
+	}
+	
+	// Serializa pacote para string
+	string serialize() {
+		datastream ds;
+		ds.binary = true;
+		
+		// Escreve tipo de mensagem
+		ds.write_uint8(type);
+		
+		// Escreve dados
+		string data_str = data.read();
+		ds.write_uint(data_str.length());
+		ds << data_str;
+		
+		return ds.read();
+	}
+	
+	// Deserializa string para pacote
+	bool deserialize(string packet_str) {
+		datastream ds;
+		ds.binary = true;
+		ds << packet_str;
+		
+		// Lê tipo de mensagem
+		int msg_type = ds.read_uint8();
+		if (msg_type < 0) {
+			return false;
+		}
+		type = MessageType(msg_type);
+		
+		// Lê tamanho dos dados
+		uint data_length = ds.read_uint();
+		if (data_length == 0) {
+			return true;
+		}
+		
+		// Lê dados
+		string data_str;
+		ds >> data_str;
+		
+		data.binary = true;
+		data << data_str;
+		
+		return true;
+	}
+	
+	// Métodos de escrita
+	void write_bool(bool value) {
+		data.write_uint8(value ? 1 : 0);
+	}
+	
+	void write_int(int value) {
+		data.write_int(value);
+	}
+	
+	void write_uint(uint value) {
+		data.write_uint(value);
+	}
+	
+	void write_int64(int64 value) {
+		data.write_int64(value);
+	}
+	
+	void write_uint64(uint64 value) {
+		data.write_uint64(value);
+	}
+	
+	void write_float(float value) {
+		data.write_float(value);
+	}
+	
+	void write_string(string value) {
+		data.write_uint(value.length());
+		data << value;
+	}
+	
+	void write_enum(int value) {
+		data.write_int(value);
+	}
+	
+	// Métodos de leitura
+	bool read_bool() {
+		return data.read_uint8() != 0;
+	}
+	
+	int read_int() {
+		return data.read_int();
+	}
+	
+	uint read_uint() {
+		return data.read_uint();
+	}
+	
+	int64 read_int64() {
+		return data.read_int64();
+	}
+	
+	uint64 read_uint64() {
+		return data.read_uint64();
+	}
+	
+	float read_float() {
+		return data.read_float();
+	}
+	
+	string read_string() {
+		uint length = data.read_uint();
+		if (length == 0) {
+			return "";
+		}
+		string value;
+		data >> value;
+		return value;
+	}
+	
+	int read_enum() {
+		return data.read_int();
+	}
+}
+
+// Funções auxiliares para construção de pacotes específicos
+
+// Login Request
+Packet@ create_login_request(string username, string password) {
+	Packet@ packet = Packet(MSG_LOGIN_REQUEST);
+	packet.write_string(username);
+	packet.write_string(password);
+	return packet;
+}
+
+// Login Response
+Packet@ create_login_response(bool success, string session_token, string error_msg = "") {
+	Packet@ packet = Packet(MSG_LOGIN_RESPONSE);
+	packet.write_bool(success);
+	packet.write_string(session_token);
+	packet.write_string(error_msg);
+	return packet;
+}
+
+// Register Request
+Packet@ create_register_request(string username, string password) {
+	Packet@ packet = Packet(MSG_REGISTER_REQUEST);
+	packet.write_string(username);
+	packet.write_string(password);
+	return packet;
+}
+
+// Register Response
+Packet@ create_register_response(bool success, string error_msg = "") {
+	Packet@ packet = Packet(MSG_REGISTER_RESPONSE);
+	packet.write_bool(success);
+	packet.write_string(error_msg);
+	return packet;
+}
+
+// Session Validate
+Packet@ create_session_validate(string session_token) {
+	Packet@ packet = Packet(MSG_SESSION_VALIDATE);
+	packet.write_string(session_token);
+	return packet;
+}
+
+// Lobby List Request
+Packet@ create_lobby_list_request() {
+	Packet@ packet = Packet(MSG_LOBBY_LIST_REQUEST);
+	return packet;
+}
+
+// Lobby Create
+Packet@ create_lobby_create(string lobby_name, int max_players) {
+	Packet@ packet = Packet(MSG_LOBBY_CREATE);
+	packet.write_string(lobby_name);
+	packet.write_int(max_players);
+	return packet;
+}
+
+// Lobby Join
+Packet@ create_lobby_join(int lobby_id) {
+	Packet@ packet = Packet(MSG_LOBBY_JOIN);
+	packet.write_int(lobby_id);
+	return packet;
+}
+
+// Lobby Leave
+Packet@ create_lobby_leave() {
+	Packet@ packet = Packet(MSG_LOBBY_LEAVE);
+	return packet;
+}
+
+// Lobby Config Update
+Packet@ create_lobby_config_update(LobbyConfig@ config) {
+	Packet@ packet = Packet(MSG_LOBBY_CONFIG_UPDATE);
+	packet.write_string(config.to_json());
+	return packet;
+}
+
+// Game Start
+Packet@ create_game_start() {
+	Packet@ packet = Packet(MSG_GAME_START);
+	return packet;
+}
+
+// Player Move
+Packet@ create_player_move(float x, float y, float z, float rotation) {
+	Packet@ packet = Packet(MSG_PLAYER_MOVE);
+	packet.write_float(x);
+	packet.write_float(y);
+	packet.write_float(z);
+	packet.write_float(rotation);
+	return packet;
+}
+
+// Player Position Update (servidor para clientes)
+Packet@ create_position_update(uint64 peer_id, float x, float y, float z, float rotation) {
+	Packet@ packet = Packet(MSG_PLAYER_POSITION_UPDATE);
+	packet.write_uint64(peer_id);
+	packet.write_float(x);
+	packet.write_float(y);
+	packet.write_float(z);
+	packet.write_float(rotation);
+	return packet;
+}
+
+// Task Start
+Packet@ create_task_start(int task_id) {
+	Packet@ packet = Packet(MSG_TASK_START);
+	packet.write_int(task_id);
+	return packet;
+}
+
+// Task Complete
+Packet@ create_task_complete(int task_id) {
+	Packet@ packet = Packet(MSG_TASK_COMPLETE);
+	packet.write_int(task_id);
+	return packet;
+}
+
+// Kill
+Packet@ create_kill(uint64 target_peer_id) {
+	Packet@ packet = Packet(MSG_KILL);
+	packet.write_uint64(target_peer_id);
+	return packet;
+}
+
+// Emergency Meeting
+Packet@ create_emergency_meeting() {
+	Packet@ packet = Packet(MSG_EMERGENCY_MEETING);
+	return packet;
+}
+
+// Body Report
+Packet@ create_body_report(uint64 body_peer_id) {
+	Packet@ packet = Packet(MSG_BODY_REPORT);
+	packet.write_uint64(body_peer_id);
+	return packet;
+}
+
+// Vote
+Packet@ create_vote(int player_index) {
+	Packet@ packet = Packet(MSG_VOTE);
+	packet.write_int(player_index);
+	return packet;
+}
+
+// Role Assignment
+Packet@ create_role_assignment(Role role) {
+	Packet@ packet = Packet(MSG_ROLE_ASSIGNMENT);
+	packet.write_enum(role);
+	return packet;
+}
+
+// Game State Update
+Packet@ create_game_state_update(GameState state) {
+	Packet@ packet = Packet(MSG_GAME_STATE_UPDATE);
+	packet.write_enum(state);
+	return packet;
+}
+
+// Chat Message
+Packet@ create_chat(string message) {
+	Packet@ packet = Packet(MSG_CHAT);
+	packet.write_string(message);
+	return packet;
+}
+
+// Proximity Check
+Packet@ create_proximity_check() {
+	Packet@ packet = Packet(MSG_PROXIMITY_CHECK);
+	return packet;
+}
+
+// Error
+Packet@ create_error(ErrorCode code, string message) {
+	Packet@ packet = Packet(MSG_ERROR);
+	packet.write_enum(code);
+	packet.write_string(message);
+	return packet;
+}
+
+// Heartbeat
+Packet@ create_heartbeat() {
+	Packet@ packet = Packet(MSG_HEARTBEAT);
+	return packet;
+}

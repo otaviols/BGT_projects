@@ -1,0 +1,239 @@
+// Data Models
+// Modelos de dados para o jogo
+
+#include "../config/game_constants.nvgt"
+
+// Modelo de usuário
+class User {
+	int id;
+	string username;
+	string password_hash;
+	string email;
+	int level;
+	datetime created_at;
+	
+	// Estatísticas
+	int games_played;
+	int games_won;
+	int crewmate_wins;
+	int impostor_wins;
+	int tasks_completed;
+	int kills;
+	
+	// Sessão
+	string session_token;
+	
+	User() {
+		id = -1;
+		level = 1;
+		games_played = 0;
+		games_won = 0;
+		crewmate_wins = 0;
+		impostor_wins = 0;
+		tasks_completed = 0;
+		kills = 0;
+		created_at = datetime();
+	}
+	
+	// Carrega dados do usuário (versão simplificada)
+	bool load(string uname) {
+		if (@g_user_db == null) {
+			return false;
+		}
+		
+		username = uname;
+		User@ existing = g_user_db.get_user(username);
+		
+		if (@existing == null) {
+			return false;
+		}
+		
+		// Copia dados
+		id = existing.id;
+		email = existing.email;
+		level = existing.level;
+		games_played = existing.games_played;
+		games_won = existing.games_won;
+		crewmate_wins = existing.crewmate_wins;
+		impostor_wins = existing.impostor_wins;
+		tasks_completed = existing.tasks_completed;
+		kills = existing.kills;
+		session_token = existing.session_token;
+		
+		return true;
+	}
+	
+	// Cria sessão
+	bool create_session() {
+		if (@g_user_db == null) {
+			return false;
+		}
+		
+		session_token = g_user_db.create_session(username);
+		return session_token != "";
+	}
+	
+	// Calcula taxa de vitória
+	float get_win_rate() {
+		if (games_played == 0) {
+			return 0.0;
+		}
+		return float(games_won) / float(games_played) * 100.0;
+	}
+}
+
+// Modelo de jogador em jogo
+class PlayerData {
+	uint64 peer_id;
+	string username;
+	Role role;
+	PlayerState state;
+	
+	// Posição
+	float x;
+	float y;
+	float z;
+	float rotation;
+	
+	// Estado do jogo
+	int current_room_id;
+	bool in_vent;
+	int kills_count;
+	float kill_cooldown_remaining;
+	int emergency_meetings_remaining;
+	
+	// Tasks (apenas para crewmates)
+	int[] assigned_task_ids;
+	int[] completed_task_ids;
+	
+	// Votação
+	int voted_for_player_id;
+	bool has_voted;
+	
+	PlayerData() {
+		peer_id = 0;
+		role = ROLE_NONE;
+		state = PLAYER_ALIVE;
+		x = 0;
+		y = 0;
+		z = 0;
+		rotation = 0;
+		current_room_id = 0;
+		in_vent = false;
+		kills_count = 0;
+		kill_cooldown_remaining = 0;
+		emergency_meetings_remaining = 0;
+		voted_for_player_id = -1;
+		has_voted = false;
+	}
+	
+	// Verifica se pode matar
+	bool can_kill() {
+		return role == ROLE_IMPOSTOR && 
+		       state == PLAYER_ALIVE && 
+		       !in_vent && 
+		       kill_cooldown_remaining <= 0;
+	}
+	
+	// Verifica se pode chamar reunião de emergência
+	bool can_call_emergency() {
+		return state == PLAYER_ALIVE && 
+		       emergency_meetings_remaining > 0;
+	}
+	
+	// Calcula progresso de tasks
+	float get_task_progress() {
+		if (assigned_task_ids.length() == 0) {
+			return 0.0;
+		}
+		return float(completed_task_ids.length()) / float(assigned_task_ids.length()) * 100.0;
+	}
+	
+	// Calcula distância para outro jogador
+	float distance_to(PlayerData@ other) {
+		if (@other == null) {
+			return 999999.0;
+		}
+		
+		float dx = x - other.x;
+		float dy = y - other.y;
+		float dz = z - other.z;
+		
+		return sqrt(dx * dx + dy * dy + dz * dz);
+	}
+	
+	// Verifica se está na mesma sala
+	bool in_same_room(PlayerData@ other) {
+		if (@other == null) {
+			return false;
+		}
+		return current_room_id == other.current_room_id;
+	}
+}
+
+// Modelo de lobby
+class LobbyData {
+	int id;
+	string name;
+	string host_username;
+	int max_players;
+	int current_players;
+	GameState state;
+	
+	LobbyData() {
+		id = -1;
+		max_players = MAX_PLAYERS_PER_LOBBY;
+		current_players = 0;
+		state = STATE_LOBBY;
+	}
+	
+	bool is_full() {
+		return current_players >= max_players;
+	}
+	
+	bool can_start() {
+		return current_players >= MIN_PLAYERS_TO_START;
+	}
+	
+	bool is_in_game() {
+		return state == STATE_PLAYING || 
+		       state == STATE_DISCUSSION || 
+		       state == STATE_VOTING;
+	}
+}
+
+// Modelo de tarefa
+class TaskData {
+	int id;
+	string name;
+	string description;
+	TaskType type;
+	TaskState state;
+	int room_id;
+	int step_count;
+	int current_step;
+	
+	TaskData() {
+		id = -1;
+		type = TASK_SHORT;
+		state = TASK_ASSIGNED;
+		room_id = 0;
+		step_count = 1;
+		current_step = 0;
+	}
+	
+	bool is_completed() {
+		return state == TASK_COMPLETED;
+	}
+	
+	bool is_in_progress() {
+		return state == TASK_IN_PROGRESS;
+	}
+	
+	float get_progress() {
+		if (step_count == 0) {
+			return 0.0;
+		}
+		return float(current_step) / float(step_count) * 100.0;
+	}
+}

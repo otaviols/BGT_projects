@@ -1,0 +1,152 @@
+// Server Entry Point
+// Ponto de entrada do servidor dedicado
+
+#include "network/server.nvgt"
+#include "database/user_db_simple.nvgt"
+
+void main() {
+	// Inicializa banco de dados
+	@g_user_db = UserDatabase();
+	if (!g_user_db.initialize()) {
+		alert("Erro", "Falha ao inicializar banco de dados");
+		return;
+	}
+	
+	// Cria servidor
+	GameServer server;
+	
+	// Inicia servidor
+	int port = DEFAULT_PORT;
+	if (!server.start(port)) {
+		alert("Erro", "Falha ao iniciar servidor na porta " + port);
+		g_user_db.close();
+		return;
+	}
+	
+	show_window("Among Us Server - Porta " + port);
+	screen_reader_speak("Servidor iniciado na porta " + port, true);
+	print_server_help();
+	
+	// Loop principal com console interativo
+	timer update_timer;
+	update_timer.restart();
+	bool running = true;
+	
+	while (running) {
+		// Atualiza servidor
+		server.update();
+		
+		// Verifica comandos
+		if (update_timer.elapsed >= 100) {
+			update_timer.restart();
+			
+			// Verifica teclas de comando
+			if (key_pressed(KEY_H)) {
+				print_server_help();
+			} else if (key_pressed(KEY_S)) {
+				print_server_status(server);
+			} else if (key_pressed(KEY_L)) {
+				print_lobbies_status(server);
+			} else if (key_pressed(KEY_U)) {
+				print_users_status();
+			} else if (key_pressed(KEY_Q) || key_pressed(KEY_ESCAPE)) {
+				if (confirm_shutdown()) {
+					running = false;
+				}
+			}
+		}
+		
+		wait(10);
+	}
+	
+	// Cleanup
+	screen_reader_speak("Encerrando servidor...", true);
+	server.stop();
+	g_user_db.close();
+	screen_reader_speak("Servidor encerrado.", true);
+	wait(1000);
+}
+
+// Imprime ajuda
+void print_server_help() {
+	string help = "=== COMANDOS DO SERVIDOR ===\n";
+	help += "H - Mostrar esta ajuda\n";
+	help += "S - Status do servidor\n";
+	help += "L - Listar lobbies\n";
+	help += "U - Listar usuarios\n";
+	help += "Q/ESC - Encerrar servidor\n";
+	help += "===========================\n";
+	
+	screen_reader_speak(help, true);
+}
+
+// Imprime status do servidor
+void print_server_status(GameServer@ server) {
+	string status = "=== STATUS DO SERVIDOR ===\n";
+	status += "Jogadores conectados: " + server.get_player_count() + "\n";
+	status += "Lobbies ativos: " + server.get_lobby_count() + "\n";
+	status += "Lobbies em jogo: " + server.get_active_games_count() + "\n";
+	status += "Tempo online: " + (server.get_uptime() / 1000) + " segundos\n";
+	status += "===========================\n";
+	
+	screen_reader_speak(status, true);
+}
+
+// Imprime status dos lobbies
+void print_lobbies_status(GameServer@ server) {
+	string status = "=== LOBBIES ATIVOS ===\n";
+	
+	int lobby_count = server.get_lobby_count();
+	if (lobby_count == 0) {
+		status += "Nenhum lobby ativo.\n";
+	} else {
+		ServerLobby@[] lobbies = server.get_all_lobbies();
+		for (uint i = 0; i < lobbies.length(); i++) {
+			ServerLobby@ lobby = lobbies[i];
+			status += "Lobby #" + lobby.id + ": " + lobby.name + "\n";
+			status += "  Jogadores: " + lobby.players.length() + "/" + lobby.max_players + "\n";
+			status += "  Status: " + (lobby.state != STATE_LOBBY ? "Em jogo" : "Aguardando") + "\n";
+			
+			if (lobby.players.length() > 0) {
+				status += "  Players: ";
+				for (uint j = 0; j < lobby.players.length(); j++) {
+					if (j > 0) status += ", ";
+					status += lobby.players[j].username;
+				}
+				status += "\n";
+			}
+		}
+	}
+	
+	status += "===========================\n";
+	screen_reader_speak(status, true);
+}
+
+// Imprime status dos usuários
+void print_users_status() {
+	string status = "=== USUARIOS REGISTRADOS ===\n";
+	
+	if (@g_user_db != null) {
+		int user_count = g_user_db.get_user_count();
+		status += "Total de usuarios: " + user_count + "\n";
+		
+		string[] usernames = g_user_db.get_all_usernames();
+		if (usernames.length() > 0) {
+			status += "Usuarios:\n";
+			for (uint i = 0; i < usernames.length(); i++) {
+				status += "  - " + usernames[i] + "\n";
+			}
+		}
+	} else {
+		status += "Banco de dados nao disponivel.\n";
+	}
+	
+	status += "===========================\n";
+	screen_reader_speak(status, true);
+}
+
+// Confirma encerramento
+bool confirm_shutdown() {
+	int result = question("Encerrar Servidor", "Deseja realmente encerrar o servidor?");
+	return result == 1;
+}

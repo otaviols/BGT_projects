@@ -1,0 +1,2 @@
+cyType.GOLD;
+}

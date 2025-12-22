@@ -1,0 +1,3 @@
+ALID_OPTION,
+  IS_SPELL,
+}

@@ -1,0 +1,3 @@
+tils.TransformCardText(entity, text);
+  }
+}

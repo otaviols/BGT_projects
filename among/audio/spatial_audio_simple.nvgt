@@ -1,0 +1,128 @@
+// Spatial Audio Manager - Simple Version
+// Gerenciador simplificado de áudio espacial
+
+#include "audio_manager_simple.nvgt"
+#include "../database/models.nvgt"
+
+class SpatialAudioManager {
+	private dictionary player_sound_ids; // uint64 (peer_id) -> int (sound_id)
+	private float listener_x, listener_y, listener_z;
+	private float listener_rotation;
+	
+	SpatialAudioManager() {
+		listener_x = 0;
+		listener_y = 0;
+		listener_z = 0;
+		listener_rotation = 0;
+	}
+	
+	// Atualiza posição do ouvinte
+	void update_listener_position(float x, float y, float z, float rotation) {
+		listener_x = x;
+		listener_y = y;
+		listener_z = z;
+		listener_rotation = rotation;
+	}
+	
+	// Toca footstep de jogador (simplificado)
+	void play_player_footstep(uint64 peer_id, float x, float y, float z) {
+		if (@g_audio != null) {
+			float volume = calculate_volume(x, y, z);
+			g_audio.play_3d("sounds/footstep.ogg", x, y, z, volume);
+		}
+	}
+	
+	// Atualiza som de jogador (simplificado)
+	void update_player_sound(uint64 peer_id, float x, float y, float z) {
+		// Implementação simplificada - sem continuous sounds
+	}
+	
+	// Inicia som contínuo de jogador (simplificado)
+	void start_player_continuous_sound(uint64 peer_id, string filename, float x, float y, float z) {
+		// Implementação simplificada
+	}
+	
+	// Para som contínuo de jogador (simplificado)
+	void stop_player_continuous_sound(uint64 peer_id) {
+		// Implementação simplificada
+	}
+	
+	// Remove som de jogador
+	void remove_player_sound(uint64 peer_id) {
+		string key = "" + peer_id;
+		if (player_sound_ids.exists(key)) {
+			player_sound_ids.delete(key);
+		}
+	}
+	
+	// Toca som de porta
+	void play_door_sound(bool opening, float x, float y, float z) {
+		if (@g_audio != null) {
+			string filename = opening ? "sounds/door_open.ogg" : "sounds/door_close.ogg";
+			float volume = calculate_volume(x, y, z);
+			g_audio.play_3d(filename, x, y, z, volume);
+		}
+	}
+	
+	// Toca som de kill
+	void play_kill_sound(float x, float y, float z) {
+		if (@g_audio != null) {
+			float volume = calculate_volume(x, y, z);
+			g_audio.play_3d("sounds/kill.ogg", x, y, z, volume);
+		}
+	}
+	
+	// Toca som de vent
+	void play_vent_sound(bool entering, float x, float y, float z) {
+		if (@g_audio != null) {
+			string filename = entering ? "sounds/vent_enter.ogg" : "sounds/vent_exit.ogg";
+			float volume = calculate_volume(x, y, z);
+			g_audio.play_3d(filename, x, y, z, volume);
+		}
+	}
+	
+	// Toca som de task completa
+	void play_task_complete_sound(float x, float y, float z) {
+		if (@g_audio != null) {
+			float volume = calculate_volume(x, y, z);
+			g_audio.play_3d("sounds/task_complete.ogg", x, y, z, volume);
+		}
+	}
+	
+	// Toca ambiente de sala (simplificado)
+	int play_room_ambient(string filename, float x, float y, float z) {
+		if (@g_audio != null) {
+			float volume = calculate_volume(x, y, z);
+			g_audio.play_3d(filename, x, y, z, volume, 0.0, 0.0, true);
+		}
+		return 0;
+	}
+	
+	// Para ambiente de sala
+	void stop_room_ambient(int sound_id) {
+		// Implementação simplificada
+	}
+	
+	// Limpa todos os sons de jogadores
+	void cleanup_all_player_sounds() {
+		player_sound_ids.delete_all();
+	}
+	
+	// Calcula volume baseado na distância
+	private float calculate_volume(float x, float y, float z) {
+		float dx = x - listener_x;
+		float dy = y - listener_y;
+		float dz = z - listener_z;
+		float distance = sqrt(dx * dx + dy * dy + dz * dz);
+		
+		float max_distance = 50.0;
+		if (distance >= max_distance) {
+			return 0.0;
+		}
+		
+		return 1.0 - (distance / max_distance);
+	}
+}
+
+// Instância global
+SpatialAudioManager@ g_spatial_audio = null;
