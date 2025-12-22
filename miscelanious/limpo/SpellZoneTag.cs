@@ -1,2 +1,0 @@
- QUEST_REWARD,
-}

@@ -1,7 +1,0 @@
-using Blizzard.T5.MaterialService.Extensions;
-using UnityEngine;
-
-public class Glow : MonoBehaviour
-{
-  public void UpdateAlpha(float alpha) => this.GetComponent<Renderer>().GetMaterial().SetColor("_TintColor", new Color(1f, 1f, 1f, alpha));
-}

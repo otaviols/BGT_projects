@@ -1,2 +1,0 @@
-tType GetPlaylist();
-}

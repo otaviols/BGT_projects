@@ -1,3 +1,0 @@
-REQUEST,
-  QUEUE_CANCELED,
-}

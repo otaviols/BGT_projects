@@ -1,3 +1,0 @@
-ext(entity, text);
-  }
-}

@@ -1,3 +1,0 @@
-rmCardText(entity, text);
-  }
-}

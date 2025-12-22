@@ -1,2 +1,0 @@
-.HIDDEN_CHOICE));
-}

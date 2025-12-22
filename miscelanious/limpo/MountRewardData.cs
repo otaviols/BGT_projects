@@ -1,4 +1,0 @@
-C_CARPET_CARD,
-    WOW_SARGE_TALE,
-  }
-}

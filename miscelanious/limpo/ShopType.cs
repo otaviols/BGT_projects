@@ -1,2 +1,0 @@
-UCKY_DRAW_STORE,
-}

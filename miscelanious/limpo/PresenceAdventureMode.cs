@@ -1,5 +1,0 @@
-HEROIC,
-  BOH,
-  BOM,
-  RLK,
-}

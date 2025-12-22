@@ -1,2 +1,0 @@
-DS_OPPONENT_HERO,
-}

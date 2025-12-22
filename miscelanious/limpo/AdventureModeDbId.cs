@@ -1,2 +1,0 @@
-AWL_HEROIC,
-}

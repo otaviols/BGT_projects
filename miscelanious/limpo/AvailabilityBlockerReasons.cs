@@ -1,3 +1,0 @@
-Y_INVITE,
-  EDITING_DECK,
-}

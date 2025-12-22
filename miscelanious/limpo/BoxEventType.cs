@@ -1,2 +1,0 @@
-UP_SET_ROTATION,
-}

@@ -1,2 +1,0 @@
-bled, (object) this.PrefabName);
-}

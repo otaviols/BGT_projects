@@ -1,3 +1,0 @@
-lend = blend;
-  }
-}

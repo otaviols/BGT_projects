@@ -1,2 +1,0 @@
-nchor canvasAnchor;
-}
