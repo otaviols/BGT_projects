@@ -1,229 +1,335 @@
-// Game State Manager
-// Gerenciador de estado do jogo
+// game_state.nvgt
+// Estado autoritativo de uma partida em andamento: jogadores, mapa, corpos, sabotagens,
+// reuniões/votação e condição de vitória. Não conhece a camada de rede diretamente - produz
+// net_packet@ para o servidor transmitir aos clientes da lobby.
 
 #include "../config/game_constants.nvgt"
 #include "../config/lobby_config.nvgt"
-#include "../database/models.nvgt"
+#include "../game/map.nvgt"
 #include "player.nvgt"
+#include "../network/protocol.nvgt"
+#include "../network/packet.nvgt"
 
-class GameStateManager {
-	private GameState current_state;
-	private GameState previous_state;
-	private LobbyConfig@ config;
-	private Player@ local_player;
-	private dictionary remote_players; // uint64 -> PlayerData@
-	private timer state_timer;
-	
-	GameStateManager() {
-		current_state = STATE_LOBBY;
-		previous_state = STATE_LOBBY;
-		@config = LobbyConfig();
-	}
-	
-	// Define jogador local
-	void set_local_player(Player@ player) {
-		@local_player = player;
-	}
-	
-	// Define configuração
-	void set_config(LobbyConfig@ lobby_config) {
-		@config = lobby_config;
-	}
-	
-	// Muda estado do jogo
-	void change_state(GameState new_state) {
-		if (current_state == new_state) return;
-		
-		previous_state = current_state;
-		current_state = new_state;
-		state_timer.restart();
-		
-		on_state_changed(new_state);
-	}
-	
-	// Callback quando estado muda
-	private void on_state_changed(GameState new_state) {
-		switch (new_state) {
-			case STATE_LOBBY:
-				// Reset para lobby
-				if (@local_player != null) {
-					local_player.reset_for_new_game();
-				}
-				remote_players.delete_all();
-				break;
-				
-			case STATE_STARTING:
-				// Jogo iniciando
-				break;
-				
-			case STATE_PLAYING:
-				// Jogo em andamento
-				if (@local_player != null && @config != null) {
-					local_player.set_movement_config(config);
-				}
-				break;
-				
-			case STATE_DISCUSSION:
-				// Fase de discussão
-				break;
-				
-			case STATE_VOTING:
-				// Fase de votação
-				break;
-				
-			case STATE_GAME_OVER:
-				// Jogo terminado
-				break;
-		}
-	}
-	
-	// Atualiza estado do jogo
-	void update(float delta) {
-		// Atualiza jogador local
-		if (@local_player != null) {
-			local_player.update(delta);
-		}
-	}
-	
-	// Adiciona/atualiza jogador remoto
-	void update_remote_player(uint64 peer_id, float x, float y, float z, float rotation) {
-		PlayerData@ player;
-		string key = formatUInt64(peer_id);
-		
-		if (!remote_players.exists(key)) {
-			@player = PlayerData();
-			player.peer_id = peer_id;
-			remote_players.set(key, @player);
-		} else {
-			remote_players.get(key, @player);
-		}
-		
-		if (@player != null) {
-			player.x = x;
-			player.y = y;
-			player.z = z;
-			player.rotation = rotation;
-		}
-	}
-	
-	// Remove jogador remoto
-	void remove_remote_player(uint64 peer_id) {
-		string key = formatUInt64(peer_id);
-		remote_players.delete(key);
-	}
-	
-	// Marca jogador como morto
-	void mark_player_dead(uint64 peer_id) {
-		if (@local_player != null && peer_id == 0) {
-			// Jogador local morreu (peer_id 0 representa local)
-			local_player.kill();
-		} else {
-			// Jogador remoto morreu
-			PlayerData@ player;
-			string key = formatUInt64(peer_id);
-			if (remote_players.get(key, @player)) {
-				player.state = PLAYER_DEAD;
-			}
-		}
-	}
-	
-	// Obtém jogador remoto
-	PlayerData@ get_remote_player(uint64 peer_id) {
-		PlayerData@ player;
-		string key = formatUInt64(peer_id);
-		if (remote_players.get(key, @player)) {
-			return player;
+class body_info {
+	string id;
+	uint64 victim_peer_id;
+	float x, y;
+	string room_id;
+}
+
+class vote_entry {
+	uint64 voter_peer_id;
+	int64 target_peer_id; // -1 = pular voto
+}
+
+class game_state {
+	string lobby_id;
+	string lobby_name;
+	uint64 host_peer_id;
+	lobby_config@ config;
+	game_map@ map;
+	array<game_player@> players;
+	array<body_info> bodies;
+	array<vote_entry> votes;
+
+	string state = "waiting"; // waiting | in_progress | meeting | voting | ended
+	float meeting_timer = 0.0;
+	float voting_timer = 0.0;
+	uint64 meeting_caller = 0;
+	string meeting_reason = ""; // "body" | "button"
+
+	string active_sabotage = ""; // "" | "lights" | "oxygen"
+	float sabotage_timer = 0.0;
+	float sabotage_cooldown_remaining = 0.0;
+	array<string> sabotage_fixed_panels;
+
+	string winner = ""; // "" | "crewmates" | "impostors"
+	string win_reason = "";
+	float elapsed_time = 0.0;
+
+	game_player@ find_player(uint64 peer_id) const {
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].peer_id == peer_id) return players[i];
 		}
 		return null;
 	}
-	
-	// Obtém todos os jogadores remotos
-	PlayerData@[] get_all_remote_players() {
-		PlayerData@[] players;
-		string[] keys = remote_players.get_keys();
-		
-		for (uint i = 0; i < keys.length(); i++) {
-			PlayerData@ player;
-			if (remote_players.get(keys[i], @player)) {
-				players.insert_last(player);
+
+	array<game_player@>@ alive_players() const {
+		array<game_player@> result;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].alive) result.insert_last(players[i]);
+		}
+		return result;
+	}
+
+	uint alive_crewmate_count() const {
+		uint count = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].alive && !players[i].is_impostor) count++;
+		}
+		return count;
+	}
+
+	uint alive_impostor_count() const {
+		uint count = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].alive && players[i].is_impostor) count++;
+		}
+		return count;
+	}
+
+	// Jogadores no mesmo cômodo/corredor que peer_id, vivos, não escondidos em vent - usado pelo radar.
+	array<game_player@>@ players_in_same_room(uint64 peer_id) const {
+		array<game_player@> result;
+		game_player@ me = find_player(peer_id);
+		if (@me == null) return result;
+		string my_room = map.room_id_at(me.x, me.y);
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.peer_id == peer_id || !p.alive || p.vented) continue;
+			if (map.room_id_at(p.x, p.y) == my_room) result.insert_last(p);
+		}
+		return result;
+	}
+
+	// Move validado usando o relógio interno da partida (elapsed_time) para calcular o delta desde
+	// o último movimento aceito deste jogador - evita depender de relógio de rede não confiável.
+	bool try_move_player(uint64 peer_id, float x, float y) {
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) return false;
+		float delta = elapsed_time - p.last_move_time;
+		if (delta <= 0.0) delta = 1.0 / NETWORK_TICKS_PER_SECOND;
+		bool ok = p.try_move(x, y, delta);
+		p.last_move_time = elapsed_time;
+		return ok;
+	}
+
+	// --- Kill ---
+	bool try_kill(uint64 killer_peer, uint64 target_peer, net_packet@&out out_event) {
+		game_player@ killer = find_player(killer_peer);
+		game_player@ target = find_player(target_peer);
+		if (@killer == null || @target == null) return false;
+		if (!killer.can_kill()) return false;
+		if (!target.alive || target.peer_id == killer.peer_id) return false;
+		if (distance_2d(killer.x, killer.y, target.x, target.y) > PLAYER_KILL_RANGE) return false;
+
+		target.alive = false;
+		killer.kill_cooldown_remaining = config.kill_cooldown_seconds;
+
+		body_info body;
+		body.id = "body_" + target.peer_id;
+		body.victim_peer_id = target.peer_id;
+		body.x = target.x;
+		body.y = target.y;
+		body.room_id = map.room_id_at(target.x, target.y);
+		bodies.insert_last(body);
+
+		@out_event = net_packet(S_PLAYER_KILLED);
+		out_event.set_uint64("peer_id", target.peer_id);
+		out_event.set_int("killer_color", killer.color);
+		out_event.set_float("x", target.x);
+		out_event.set_float("y", target.y);
+		return true;
+	}
+
+	body_info@ find_body_near(float x, float y, float max_range) {
+		for (uint i = 0; i < bodies.length(); i++) {
+			if (distance_2d(x, y, bodies[i].x, bodies[i].y) <= max_range) return bodies[i];
+		}
+		return null;
+	}
+
+	// --- Reunião / votação ---
+	bool start_meeting(uint64 caller_peer, const string&in reason, net_packet@&out out_event) {
+		if (state != "in_progress") return false;
+		game_player@ caller = find_player(caller_peer);
+		if (@caller == null || !caller.alive) return false;
+		if (reason == "button" && caller.meetings_called >= config.emergency_meetings_per_player) return false;
+
+		if (reason == "button") caller.meetings_called++;
+
+		state = "meeting";
+		meeting_timer = config.discussion_time_seconds;
+		meeting_caller = caller_peer;
+		meeting_reason = reason;
+		votes.resize(0);
+
+		@out_event = net_packet(S_MEETING_STARTED);
+		out_event.set_uint64("caller_peer", caller_peer);
+		out_event.set_string("reason", reason);
+		out_event.set_float("discussion_time", meeting_timer);
+		return true;
+	}
+
+	bool cast_vote(uint64 voter_peer, int64 target_peer) {
+		if (state != "voting") return false;
+		game_player@ voter = find_player(voter_peer);
+		if (@voter == null || !voter.alive) return false;
+		for (uint i = 0; i < votes.length(); i++) {
+			if (votes[i].voter_peer_id == voter_peer) return false; // já votou
+		}
+		vote_entry v;
+		v.voter_peer_id = voter_peer;
+		v.target_peer_id = target_peer;
+		votes.insert_last(v);
+		return true;
+	}
+
+	bool all_alive_voted() const {
+		uint alive_count = alive_crewmate_count() + alive_impostor_count();
+		return votes.length() >= alive_count;
+	}
+
+	net_packet@ tally_votes() {
+		dictionary counts;
+		array<int64> targets;
+		for (uint i = 0; i < votes.length(); i++) {
+			int64 t = votes[i].target_peer_id;
+			int64 c = 0;
+			string key = "" + t;
+			counts.get(key, c);
+			c++;
+			counts.set(key, c);
+			if (targets.find(t) == -1) targets.insert_last(t);
+		}
+
+		int64 best_target = -1;
+		int64 best_count = 0;
+		bool tie = false;
+		for (uint i = 0; i < targets.length(); i++) {
+			int64 t = targets[i];
+			if (t == -1) continue; // votos de "pular" não elegem ninguém
+			int64 c = 0;
+			counts.get("" + t, c);
+			if (c > best_count) { best_count = c; best_target = t; tie = false; }
+			else if (c == best_count && c > 0) tie = true;
+		}
+
+		net_packet@ result = net_packet(S_VOTE_RESULT);
+		if (best_target != -1 && !tie && best_count > 0) {
+			game_player@ ejected = find_player(uint64(best_target));
+			if (@ejected != null) {
+				ejected.alive = false;
+				result.set_uint64("ejected_peer", ejected.peer_id);
+				result.set_string("ejected_name", ejected.username);
+				result.set_bool("was_impostor", ejected.is_impostor);
+				result.set_bool("tie", false);
+			}
+		} else {
+			result.set_uint64("ejected_peer", 0);
+			result.set_string("ejected_name", "");
+			result.set_bool("was_impostor", false);
+			result.set_bool("tie", tie);
+		}
+
+		state = "in_progress";
+		votes.resize(0);
+		return result;
+	}
+
+	// --- Sabotagem ---
+	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event) {
+		game_player@ impostor = find_player(impostor_peer);
+		if (@impostor == null || !impostor.is_impostor || !impostor.alive) return false;
+		if (active_sabotage != "") return false;
+		if (sabotage_cooldown_remaining > 0.0) return false;
+
+		active_sabotage = sabotage_id;
+		sabotage_fixed_panels.resize(0);
+		sabotage_timer = sabotage_id == "oxygen" ? SABOTAGE_OXYGEN_TIMER_SECONDS : SABOTAGE_LIGHTS_DURATION_SECONDS;
+
+		@out_event = net_packet(S_SABOTAGE_STARTED);
+		out_event.set_string("sabotage_id", sabotage_id);
+		out_event.set_float("timer", sabotage_timer);
+		return true;
+	}
+
+	int required_panels_for(const string&in sabotage_id) const {
+		return sabotage_id == "oxygen" ? 2 : 1;
+	}
+
+	bool try_fix_sabotage_panel(uint64 peer_id, const string&in object_id, net_packet@&out out_event) {
+		if (active_sabotage == "") return false;
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) return false;
+
+		map_object@ obj = map.find_object(object_id);
+		if (@obj == null || obj.obj_type != OBJ_SABOTAGE_PANEL) return false;
+		if (obj.task_type != active_sabotage) return false;
+		if (distance_2d(p.x, p.y, obj.x, obj.y) > PLAYER_INTERACT_RANGE) return false;
+
+		if (sabotage_fixed_panels.find(object_id) == -1) sabotage_fixed_panels.insert_last(object_id);
+		if (int(sabotage_fixed_panels.length()) < required_panels_for(active_sabotage)) return false;
+
+		@out_event = net_packet(S_SABOTAGE_FIXED);
+		out_event.set_string("sabotage_id", active_sabotage);
+		active_sabotage = "";
+		sabotage_fixed_panels.resize(0);
+		sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
+		return true;
+	}
+
+	// --- Tick: avança timers, retorna eventos que o servidor precisa transmitir. ---
+	array<net_packet@>@ tick(float delta_seconds) {
+		array<net_packet@> events;
+		elapsed_time += delta_seconds;
+
+		for (uint i = 0; i < players.length(); i++) players[i].tick_cooldowns(delta_seconds);
+
+		if (sabotage_cooldown_remaining > 0.0) {
+			sabotage_cooldown_remaining -= delta_seconds;
+			if (sabotage_cooldown_remaining < 0.0) sabotage_cooldown_remaining = 0.0;
+		}
+
+		if (active_sabotage != "") {
+			sabotage_timer -= delta_seconds;
+			if (sabotage_timer <= 0.0) {
+				if (active_sabotage == "oxygen") {
+					winner = "impostors";
+					win_reason = "oxygen_depleted";
+				}
+				active_sabotage = "";
+				sabotage_fixed_panels.resize(0);
 			}
 		}
-		
-		return players;
-	}
-	
-	// Verifica se pode mover
-	bool can_move() {
-		return current_state == STATE_PLAYING && 
-		       @local_player != null && 
-		       local_player.state == PLAYER_ALIVE;
-	}
-	
-	// Verifica se pode interagir
-	bool can_interact() {
-		return current_state == STATE_PLAYING && 
-		       @local_player != null && 
-		       local_player.state == PLAYER_ALIVE;
-	}
-	
-	// Verifica se está em reunião
-	bool in_meeting() {
-		return current_state == STATE_DISCUSSION || 
-		       current_state == STATE_VOTING;
-	}
-	
-	// Verifica se está jogando
-	bool is_playing() {
-		return current_state == STATE_PLAYING;
-	}
-	
-	// Verifica se está no lobby
-	bool is_in_lobby() {
-		return current_state == STATE_LOBBY;
-	}
-	
-	// Obtém estado atual
-	GameState get_current_state() {
-		return current_state;
-	}
-	
-	// Obtém estado anterior
-	GameState get_previous_state() {
-		return previous_state;
-	}
-	
-	// Obtém tempo no estado atual
-	uint64 get_state_time() {
-		return state_timer.elapsed;
-	}
-	
-	// Obtém jogador local
-	Player@ get_local_player() {
-		return local_player;
-	}
-	
-	// Obtém configuração
-	LobbyConfig@ get_config() {
-		return config;
-	}
-	
-	// Reset completo
-	void reset() {
-		current_state = STATE_LOBBY;
-		previous_state = STATE_LOBBY;
-		
-		if (@local_player != null) {
-			local_player.reset_for_new_game();
+
+		if (state == "meeting") {
+			meeting_timer -= delta_seconds;
+			if (meeting_timer <= 0.0) {
+				state = "voting";
+				voting_timer = config.voting_time_seconds;
+				net_packet@ vs = net_packet(S_VOTING_STARTED);
+				vs.set_float("voting_time", voting_timer);
+				events.insert_last(vs);
+			}
+		} else if (state == "voting") {
+			voting_timer -= delta_seconds;
+			if (voting_timer <= 0.0 || all_alive_voted()) {
+				events.insert_last(tally_votes());
+			}
 		}
-		
-		remote_players.delete_all();
-	}
-	
-	// Função auxiliar
-	private string formatUInt64(uint64 value) {
-		return "" + value;
+
+		if (winner == "") {
+			if (alive_impostor_count() == 0) { winner = "crewmates"; win_reason = "impostors_ejected"; }
+			else if (alive_impostor_count() >= alive_crewmate_count()) { winner = "impostors"; win_reason = "majority"; }
+			else {
+				bool all_done = true;
+				for (uint i = 0; i < players.length(); i++) {
+					if (players[i].is_impostor) continue;
+					if (!players[i].all_tasks_completed()) { all_done = false; break; }
+				}
+				if (all_done && players.length() > 0) { winner = "crewmates"; win_reason = "tasks_completed"; }
+			}
+		}
+
+		if (winner != "" && state != "ended") {
+			state = "ended";
+			net_packet@ go = net_packet(S_GAME_OVER);
+			go.set_string("winner", winner);
+			go.set_string("reason", win_reason);
+			events.insert_last(go);
+		}
+
+		return events;
 	}
 }
-
-// Instância global
-GameStateManager@ g_game_state = null;

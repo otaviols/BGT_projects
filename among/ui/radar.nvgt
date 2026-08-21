@@ -1,0 +1,43 @@
+// radar.nvgt
+// Radar de jogadores próximos: Tab / Shift+Tab. Servidor decide quem está por perto (mesma
+// sala/área - decisão de design) e devolve um alvo por vez; aqui só tocamos o beep posicionado
+// e falamos o nome via TTS.
+
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../audio/audio_manager.nvgt"
+#include "../lang/i18n.nvgt"
+#include "speech.nvgt"
+
+class radar_ui {
+	game_client@ client;
+	audio_manager@ audio;
+
+	radar_ui(game_client@ client, audio_manager@ audio) {
+		@this.client = client;
+		@this.audio = audio;
+	}
+
+	void scan_next() {
+		client.send_radar_scan(1);
+	}
+
+	void scan_previous() {
+		client.send_radar_scan(-1);
+	}
+
+	// Chamar quando o loop principal receber um pacote do tipo S_RADAR_RESULT.
+	void handle_result(net_packet@ pkt) {
+		if (pkt.get_bool("empty", true)) {
+			speak(tr("radar.no_players_nearby"));
+			return;
+		}
+		float x = pkt.get_float("x");
+		float y = pkt.get_float("y");
+		string name = pkt.get_string("name");
+		audio.play_radar_beep(x, y);
+		dictionary@ params = dictionary();
+		params.set("name", name);
+		speak(tr("radar.player_at", params));
+	}
+}

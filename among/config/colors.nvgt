@@ -1,0 +1,55 @@
+// colors.nvgt
+// Cores de personagem disponíveis. Cada cor tem sons de morte/kill próprios quando existirem
+// em sounds/colors/<cor>/, com fallback para os sons genéricos do protótipo antigo.
+
+enum player_color {
+	COLOR_RED = 0,
+	COLOR_BLUE,
+	COLOR_GREEN,
+	COLOR_PINK,
+	COLOR_ORANGE,
+	COLOR_YELLOW,
+	COLOR_BLACK,
+	COLOR_WHITE,
+	COLOR_PURPLE,
+	COLOR_BROWN,
+	COLOR_COUNT
+}
+
+// Chave usada tanto para i18n (color.<key>) quanto para o nome da subpasta em sounds/colors/.
+string color_key(int color_id) {
+	switch (color_id) {
+		case COLOR_RED: return "red";
+		case COLOR_BLUE: return "blue";
+		case COLOR_GREEN: return "green";
+		case COLOR_PINK: return "pink";
+		case COLOR_ORANGE: return "orange";
+		case COLOR_YELLOW: return "yellow";
+		case COLOR_BLACK: return "black";
+		case COLOR_WHITE: return "white";
+		case COLOR_PURPLE: return "purple";
+		case COLOR_BROWN: return "brown";
+	}
+	return "unknown";
+}
+
+// Caminho do som de morte para a cor, com fallback para os sons genéricos existentes.
+string color_death_sound_path(int color_id) {
+	string specific = "sounds/colors/" + color_key(color_id) + "/death.wav";
+	if (file_exists(specific)) return specific;
+	// Fallback: alterna entre os dois sons genéricos já existentes no protótipo.
+	return (color_id % 2 == 0) ? "sounds/killed1.wav" : "sounds/killed2.wav";
+}
+
+// Caminho do som de risada/kill para a cor, com fallback para os sons genéricos existentes.
+string color_kill_sound_path(int color_id) {
+	string specific = "sounds/colors/" + color_key(color_id) + "/kill.wav";
+	if (file_exists(specific)) return specific;
+	return (color_id % 2 == 0) ? "sounds/killer3.wav" : "sounds/killer4.wav";
+}
+
+array<int>@ all_color_ids() {
+	array<int> ids;
+	for (int i = 0; i < COLOR_COUNT; i++) ids.insert_last(i);
+	return ids;
+}

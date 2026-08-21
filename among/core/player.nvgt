@@ -1,228 +1,92 @@
-// Player Class
-// Classe principal do jogador local
+// player.nvgt
+// Estado de um jogador durante uma partida (compartilhado entre servidor e cliente).
+// Posição é client-authoritative (o cliente informa via C_MOVE), o servidor só valida limites
+// de velocidade (ver PLAYER_MAX_SPEED_TOLERANCE) e retransmite aos demais.
 
 #include "../config/game_constants.nvgt"
-#include "../database/models.nvgt"
-#include "../game/map.nvgt"
+#include "../config/colors.nvgt"
 
-class Player {
+class player_task {
+	string object_id;
+	string task_type;
+	bool completed = false;
+}
+
+class game_player {
+	uint64 peer_id;
 	string username;
-	Role role;
-	PlayerState state;
-	
-	// Posição e movimento
-	float x, y, z;
-	float rotation;
-	float velocity_x, velocity_z;
-	int current_room_id;
-	
-	// Estado de jogo
-	bool in_vent;
-	float kill_cooldown;
-	int emergency_meetings_remaining;
-	
-	// Configurações de movimento
-	float movement_speed;
-	
-	// Timers
-	timer move_timer;
-	
-	Player(string player_username) {
-		username = player_username;
-		role = ROLE_NONE;
-		state = PLAYER_ALIVE;
-		
-		x = 0;
-		y = 0;
-		z = 0;
-		rotation = 0;
-		velocity_x = 0;
-		velocity_z = 0;
-		current_room_id = 0;
-		
-		in_vent = false;
-		kill_cooldown = 0;
-		emergency_meetings_remaining = 0;
-		
-		movement_speed = DEFAULT_MOVEMENT_SPEED;
+	bool authenticated = false;
+	string lobby_id = "";
+	int color = COLOR_RED;
+	float x = 0.0;
+	float y = 0.0;
+	uint32 last_move_seq = 0;
+	bool alive = true;
+	bool is_impostor = false;
+	bool vented = false;
+	bool ready = false;
+	float kill_cooldown_remaining = 0.0;
+	uint meetings_called = 0;
+	int radar_index = -1;
+	float last_move_time = 0.0;
+	array<player_task> tasks;
+
+	game_player(uint64 peer_id, const string&in username) {
+		this.peer_id = peer_id;
+		this.username = username;
 	}
-	
-	// Atualiza jogador
-	void update(float delta) {
-		// Atualiza posição com velocidade
-		x += velocity_x * delta;
-		z += velocity_z * delta;
-		
-		// Atualiza sala atual
-		update_current_room();
-		
-		// Atualiza cooldowns
-		if (kill_cooldown > 0) {
-			kill_cooldown -= delta;
-			if (kill_cooldown < 0) {
-				kill_cooldown = 0;
+
+	// Aplica um movimento vindo do cliente, validando se a distância percorrida desde a última
+	// posição conhecida é fisicamente possível no tempo decorrido (anti-cheat simples).
+	bool try_move(float new_x, float new_y, float delta_seconds) {
+		float dist = distance_2d(x, y, new_x, new_y);
+		float max_dist = PLAYER_MOVE_SPEED * delta_seconds * PLAYER_MAX_SPEED_TOLERANCE;
+		if (dist > max_dist && delta_seconds > 0.0) return false;
+		x = new_x;
+		y = new_y;
+		return true;
+	}
+
+	uint task_count() const {
+		return tasks.length();
+	}
+
+	uint completed_task_count() const {
+		uint count = 0;
+		for (uint i = 0; i < tasks.length(); i++) {
+			if (tasks[i].completed) count++;
+		}
+		return count;
+	}
+
+	bool all_tasks_completed() const {
+		if (tasks.length() == 0) return true;
+		return completed_task_count() == tasks.length();
+	}
+
+	int task_progress_percent() const {
+		if (tasks.length() == 0) return 100;
+		return int((completed_task_count() * 100) / tasks.length());
+	}
+
+	bool complete_task(const string&in object_id) {
+		for (uint i = 0; i < tasks.length(); i++) {
+			if (tasks[i].object_id == object_id) {
+				tasks[i].completed = true;
+				return true;
 			}
 		}
-		
-		// Limita velocidade
-		velocity_x *= 0.9;
-		velocity_z *= 0.9;
-		
-		if (abs(velocity_x) < 0.01) velocity_x = 0;
-		if (abs(velocity_z) < 0.01) velocity_z = 0;
+		return false;
 	}
-	
-	// Movimento
-	void move(float dx, float dz) {
-		if (state != PLAYER_ALIVE || in_vent) {
-			return;
-		}
-		
-		velocity_x += dx * movement_speed;
-		velocity_z += dz * movement_speed;
-		
-		// Limita velocidade máxima
-		float max_vel = movement_speed * 2;
-		if (abs(velocity_x) > max_vel) {
-			velocity_x = velocity_x > 0 ? max_vel : -max_vel;
-		}
-		if (abs(velocity_z) > max_vel) {
-			velocity_z = velocity_z > 0 ? max_vel : -max_vel;
+
+	void tick_cooldowns(float delta_seconds) {
+		if (kill_cooldown_remaining > 0.0) {
+			kill_cooldown_remaining -= delta_seconds;
+			if (kill_cooldown_remaining < 0.0) kill_cooldown_remaining = 0.0;
 		}
 	}
-	
-	// Define posição diretamente (para sincronização)
-	void set_position(float px, float py, float pz, float rot) {
-		x = px;
-		y = py;
-		z = pz;
-		rotation = rot;
-		update_current_room();
-	}
-	
-	// Atualiza sala atual
-	private void update_current_room() {
-		if (@g_map == null) return;
-		
-		Room@ room = g_map.get_room_at_position(x, y, z);
-		if (@room != null) {
-			current_room_id = room.id;
-		}
-	}
-	
-	// Verifica se pode matar
-	bool can_kill() {
-		return role == ROLE_IMPOSTOR && 
-		       state == PLAYER_ALIVE && 
-		       !in_vent && 
-		       kill_cooldown <= 0;
-	}
-	
-	// Verifica se pode usar vent
-	bool can_use_vent() {
-		return role == ROLE_IMPOSTOR && state == PLAYER_ALIVE;
-	}
-	
-	// Verifica se pode chamar reunião
-	bool can_call_emergency() {
-		return state == PLAYER_ALIVE && emergency_meetings_remaining > 0;
-	}
-	
-	// Verifica se pode interagir com task
-	bool can_interact_with_task(int task_id) {
-		if (@g_task_manager == null) return false;
-		if (role != ROLE_CREWMATE || state != PLAYER_ALIVE) return false;
-		
-		TaskData@ task = g_task_manager.get_player_task(task_id);
-		if (@task == null) return false;
-		
-		// Verifica se está na sala certa
-		return task.room_id == current_room_id && !task.is_completed();
-	}
-	
-	// Mata o jogador
-	void kill() {
-		state = PLAYER_DEAD;
-		movement_speed = DEAD_MOVEMENT_SPEED;
-	}
-	
-	// Entra no vent
-	void enter_vent() {
-		if (!can_use_vent()) return;
-		in_vent = true;
-	}
-	
-	// Sai do vent
-	void exit_vent() {
-		if (role != ROLE_IMPOSTOR) return;
-		in_vent = false;
-	}
-	
-	// Define role
-	void set_role(Role player_role, LobbyConfig@ config) {
-		role = player_role;
-		
-		if (@config != null) {
-			movement_speed = DEFAULT_MOVEMENT_SPEED * config.player_speed;
-			emergency_meetings_remaining = config.emergency_meetings;
-		}
-	}
-	
-	// Define configuração de movimento
-	void set_movement_config(LobbyConfig@ config) {
-		if (@config == null) return;
-		movement_speed = DEFAULT_MOVEMENT_SPEED * config.player_speed;
-		emergency_meetings_remaining = config.emergency_meetings;
-	}
-	
-	// Inicia cooldown de kill
-	void start_kill_cooldown(float cooldown) {
-		kill_cooldown = cooldown;
-	}
-	
-	// Usa reunião de emergência
-	void use_emergency_meeting() {
-		if (emergency_meetings_remaining > 0) {
-			emergency_meetings_remaining--;
-		}
-	}
-	
-	// Calcula distância para outra posição
-	float distance_to(float tx, float ty, float tz) {
-		float dx = x - tx;
-		float dy = y - ty;
-		float dz = z - tz;
-		return sqrt(dx * dx + dy * dy + dz * dz);
-	}
-	
-	// Verifica se está em range de interação
-	bool in_interaction_range(float tx, float ty, float tz) {
-		return distance_to(tx, ty, tz) <= MAX_INTERACTION_DISTANCE;
-	}
-	
-	// Obtém nome da sala atual
-	string get_current_room_name() {
-		if (@g_map == null) return "Unknown";
-		return g_map.get_room_name(current_room_id);
-	}
-	
-	// Reset para novo jogo
-	void reset_for_new_game() {
-		state = PLAYER_ALIVE;
-		x = 0;
-		y = 0;
-		z = 0;
-		rotation = 0;
-		velocity_x = 0;
-		velocity_z = 0;
-		current_room_id = 0;
-		in_vent = false;
-		kill_cooldown = 0;
-		movement_speed = DEFAULT_MOVEMENT_SPEED;
-	}
-	
-	// Função auxiliar
-	private float abs(float value) {
-		return value < 0 ? -value : value;
+
+	bool can_kill() const {
+		return is_impostor && alive && kill_cooldown_remaining <= 0.0;
 	}
 }

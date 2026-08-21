@@ -1,211 +1,62 @@
-// Spatial Audio Manager
-// Gerenciador de áudio espacial para jogadores e eventos do jogo
+// spatial_audio.nvgt
+// Fina camada sobre o sound_pool nativo do NVGT para posicionamento 2D simples (mundo absoluto,
+// sem rotação de personagem - ver decisão de design). Um único listener (o jogador local) é
+// atualizado a cada quadro; sons individuais são posicionados/movidos por slot.
 
-#include "audio_manager_simple.nvgt"
-#include "../database/models.nvgt"
+#include "sound_pool.nvgt"
 
-class SpatialAudioManager {
-	private dictionary player_sound_ids; // uint64 (peer_id) -> int (sound_id)
-	private float listener_x, listener_y, listener_z;
-	private float listener_rotation;
-	
-	SpatialAudioManager() {
-		listener_x = 0;
-		listener_y = 0;
-		listener_z = 0;
-		listener_rotation = 0;
+class spatial_audio {
+	sound_pool@ pool;
+	float listener_x = 0.0;
+	float listener_y = 0.0;
+
+	spatial_audio(int max_sounds = 64) {
+		@pool = sound_pool(max_sounds);
 	}
-	
-	// Atualiza posição do listener (jogador local)
-	void update_listener_position(float x, float y, float z, float rotation = 0) {
+
+	// Chamar uma vez por quadro com a posição atual do jogador local.
+	void update_listener(float x, float y) {
 		listener_x = x;
 		listener_y = y;
-		listener_z = z;
-		listener_rotation = rotation;
-		
-		if (@g_audio != null) {
-			g_audio.update_listener(x, y, z, rotation);
-		}
+		pool.update_listener_2d(x, y);
 	}
-	
-	// Toca footstep de um jogador
-	void play_player_footstep(uint64 peer_id, float x, float y, float z) {
-		if (@g_audio == null) {
-			return;
-		}
-		
-		// Não toca footstep do próprio jogador
-		// (isso seria feito em outro lugar com som não-espacial)
-		
-		g_audio.play_3d(
-			"sounds/footstep.ogg",
-			listener_x, listener_y, listener_z,
-			x, y, z,
-			false,
-			FOOTSTEP_VOLUME
-		);
+
+	// Som posicionado que toca uma vez e se limpa sozinho (passos, efeitos de interação, mortes, etc.).
+	int play_once(const string&in path, float x, float y) {
+		return pool.play_2d(path, listener_x, listener_y, x, y, false, false);
 	}
-	
-	// Atualiza som contínuo de um jogador (se houver)
-	void update_player_sound(uint64 peer_id, float x, float y, float z) {
-		string key = formatUInt64(peer_id);
-		int sound_id = -1;
-		
-		if (player_sound_ids.get(key, sound_id)) {
-			if (@g_audio != null && g_audio.is_active(sound_id)) {
-				g_audio.update_sound_position(sound_id, x, y, z);
-			}
-		}
+
+	// Som posicionado contínuo (ambiente de sala, alarme de sabotagem, corpo no chão). `persistent`
+	// mantém o slot vivo mesmo fora do alcance de audição, retomando quando o jogador se aproximar.
+	int play_looping(const string&in path, float x, float y, bool persistent = true) {
+		return pool.play_2d(path, listener_x, listener_y, x, y, true, persistent);
 	}
-	
-	// Inicia som contínuo para um jogador (ex: som ambiente)
-	void start_player_continuous_sound(uint64 peer_id, string filename, float x, float y, float z) {
-		if (@g_audio == null) {
-			return;
-		}
-		
-		// Para som anterior se existir
-		stop_player_continuous_sound(peer_id);
-		
-		// Inicia novo som
-		int sound_id = g_audio.play_3d(
-			filename,
-			listener_x, listener_y, listener_z,
-			x, y, z,
-			true // looping
-		);
-		
-		if (sound_id >= 0) {
-			player_sound_ids.set(formatUInt64(peer_id), sound_id);
-		}
+
+	// Som sem posição (UI/menu, notificações do sistema) - sempre audível, sem espacialização.
+	int play_ui(const string&in path, bool looping = false) {
+		return pool.play_stationary(path, looping);
 	}
-	
-	// Para som contínuo de um jogador
-	void stop_player_continuous_sound(uint64 peer_id) {
-		string key = formatUInt64(peer_id);
-		int sound_id = -1;
-		
-		if (player_sound_ids.get(key, sound_id)) {
-			if (@g_audio != null) {
-				g_audio.stop_sound(sound_id);
-			}
-			player_sound_ids.delete(key);
-		}
+
+	// Reposiciona um som já em reprodução (ex.: outro jogador andando, corpo carregado - não usado
+	// hoje, mas útil para futuros objetos móveis).
+	void move_sound(int slot, float x, float y) {
+		if (slot < 0 or slot >= int(pool.items.length())) return;
+		pool.items[slot].x = x;
+		pool.items[slot].y = y;
+		pool.update_listener_2d(listener_x, listener_y);
 	}
-	
-	// Toca som de porta
-	void play_door_sound(bool opening, float x, float y, float z) {
-		if (@g_audio == null) {
-			return;
-		}
-		
-		string filename = opening ? "sounds/door_open.ogg" : "sounds/door_close.ogg";
-		
-		g_audio.play_3d(
-			filename,
-			listener_x, listener_y, listener_z,
-			x, y, z
-		);
+
+	void stop_sound(int slot) {
+		if (slot < 0) return;
+		pool.destroy_sound(slot);
 	}
-	
-	// Toca som de kill
-	void play_kill_sound(float x, float y, float z) {
-		if (@g_audio == null) {
-			return;
-		}
-		
-		g_audio.play_3d(
-			"sounds/kill.ogg",
-			listener_x, listener_y, listener_z,
-			x, y, z
-		);
+
+	bool is_playing(int slot) const {
+		return pool.sound_is_playing(slot);
 	}
-	
-	// Toca som de vent
-	void play_vent_sound(bool entering, float x, float y, float z) {
-		if (@g_audio == null) {
-			return;
-		}
-		
-		string filename = entering ? "sounds/vent_enter.ogg" : "sounds/vent_exit.ogg";
-		
-		g_audio.play_3d(
-			filename,
-			listener_x, listener_y, listener_z,
-			x, y, z
-		);
-	}
-	
-	// Toca som de task sendo completada
-	void play_task_complete_sound(float x, float y, float z) {
-		if (@g_audio == null) {
-			return;
-		}
-		
-		g_audio.play_3d(
-			"sounds/task_complete.ogg",
-			listener_x, listener_y, listener_z,
-			x, y, z
-		);
-	}
-	
-	// Toca som ambiente de sala
-	int play_room_ambient(string room_name, float x, float y, float z) {
-		if (@g_audio == null) {
-			return -1;
-		}
-		
-		string filename = "sounds/ambient_" + room_name.lower() + ".ogg";
-		
-		if (!file_exists(filename)) {
-			return -1;
-		}
-		
-		return g_audio.play_3d(
-			filename,
-			listener_x, listener_y, listener_z,
-			x, y, z,
-			true // looping
-		);
-	}
-	
-	// Calcula distância até uma posição
-	float distance_to(float x, float y, float z) {
-		float dx = listener_x - x;
-		float dy = listener_y - y;
-		float dz = listener_z - z;
-		return sqrt(dx * dx + dy * dy + dz * dz);
-	}
-	
-	// Verifica se posição está dentro do range de áudio
-	bool is_in_audio_range(float x, float y, float z) {
-		return distance_to(x, y, z) <= MAX_AUDIO_DISTANCE;
-	}
-	
-	// Cleanup - para todos os sons de jogadores
-	void cleanup_all_player_sounds() {
-		string[] keys = player_sound_ids.get_keys();
-		for (uint i = 0; i < keys.length(); i++) {
-			int sound_id;
-			if (player_sound_ids.get(keys[i], sound_id)) {
-				if (@g_audio != null) {
-					g_audio.stop_sound(sound_id);
-				}
-			}
-		}
-		player_sound_ids.delete_all();
-	}
-	
-	// Remove jogador do sistema de áudio
-	void remove_player(uint64 peer_id) {
-		stop_player_continuous_sound(peer_id);
-	}
-	
-	// Função auxiliar
-	private string formatUInt64(uint64 value) {
-		return "" + value;
+
+	// Reduz o alcance de audição geral (ex.: sabotagem de luzes). 0 = sem limite.
+	void set_max_distance(int distance) {
+		pool.max_distance = distance;
 	}
 }
-
-// Instância global
-SpatialAudioManager@ g_spatial_audio = null;

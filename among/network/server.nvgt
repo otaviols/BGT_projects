@@ -1,1043 +1,592 @@
-// Dedicated Game Server
-// Servidor dedicado para gerenciar lobbies e partidas
+// server.nvgt
+// Servidor dedicado: aceita conexões, gerencia lobbies e delega a lógica de partida para
+// core/game_state.nvgt. Mantém-se sempre de pé; jogadores criam/entram em partidas.
 
+#include "protocol.nvgt"
+#include "packet.nvgt"
 #include "../config/game_constants.nvgt"
+#include "../config/colors.nvgt"
 #include "../config/lobby_config.nvgt"
-#include "../database/models.nvgt"
-#include "../network/protocol.nvgt"
-#include "../network/packet.nvgt"
+#include "../config/presets.nvgt"
+#include "../core/player.nvgt"
+#include "../core/game_state.nvgt"
+#include "../game/map.nvgt"
+#include "../database/user_db.nvgt"
+#include "../lang/i18n.nvgt"
 
-// Estrutura de lobby no servidor
-class ServerLobby {
-	int id;
-	string name;
-	string host_username;
-	uint64 host_peer_id;
-	int max_players;
-	GameState state;
-	LobbyConfig@ config;
-	
-	PlayerData@[] players;
-	
-	ServerLobby(int lobby_id, string lobby_name, string host, uint64 host_peer, int max_plrs) {
-		id = lobby_id;
-		name = lobby_name;
-		host_username = host;
-		host_peer_id = host_peer;
-		max_players = max_plrs;
-		state = STATE_LOBBY;
-		@config = LobbyConfig();
-	}
-	
-	bool is_full() {
-		return players.length() >= uint(max_players);
-	}
-	
-	bool can_start() {
-		return players.length() >= MIN_PLAYERS_TO_START && state == STATE_LOBBY;
-	}
-	
-	PlayerData@ get_player_by_peer_id(uint64 peer_id) {
-		for (uint i = 0; i < players.length(); i++) {
-			if (players[i].peer_id == peer_id) {
-				return players[i];
-			}
-		}
-		return null;
-	}
-	
-	void remove_player(uint64 peer_id) {
-		for (uint i = 0; i < players.length(); i++) {
-			if (players[i].peer_id == peer_id) {
-				players.remove_at(i);
-				return;
-			}
-		}
-	}
-	
-	bool is_host(uint64 peer_id) {
-		return peer_id == host_peer_id;
-	}
-	
-	int count_alive_players() {
-		int count = 0;
-		for (uint i = 0; i < players.length(); i++) {
-			if (players[i].state == PLAYER_ALIVE) {
-				count++;
-			}
-		}
-		return count;
-	}
-	
-	int count_alive_impostors() {
-		int count = 0;
-		for (uint i = 0; i < players.length(); i++) {
-			if (players[i].state == PLAYER_ALIVE && players[i].role == ROLE_IMPOSTOR) {
-				count++;
-			}
-		}
-		return count;
-	}
-	
-	int count_alive_crewmates() {
-		int count = 0;
-		for (uint i = 0; i < players.length(); i++) {
-			if (players[i].state == PLAYER_ALIVE && players[i].role == ROLE_CREWMATE) {
-				count++;
-			}
-		}
-		return count;
+uint g_lobby_counter = 0;
+
+void shuffle_int_array(array<int>@ arr) {
+	for (int i = int(arr.length()) - 1; i > 0; i--) {
+		int j = random(0, i);
+		int tmp = arr[i];
+		arr[i] = arr[j];
+		arr[j] = tmp;
 	}
 }
 
-// Classe principal do servidor
-class GameServer {
-	private network net;
-	private ServerLobby@[] lobbies;
-	private int next_lobby_id;
-	private dictionary peer_to_username; // uint64 -> string
-	private dictionary peer_to_lobby; // uint64 -> int (lobby id)
-	private bool running;
-	private timer update_timer;
-	
-	GameServer() {
-		next_lobby_id = 1;
-		running = false;
+void shuffle_player_array(array<game_player@>@ arr) {
+	for (int i = int(arr.length()) - 1; i > 0; i--) {
+		int j = random(0, i);
+		game_player@ tmp = @arr[i];
+		@arr[i] = @arr[j];
+		@arr[j] = @tmp;
 	}
-	
-	// Inicia o servidor
-	bool start(int port = DEFAULT_PORT) {
-		if (!net.setup_server(port, 2, MAX_PLAYERS_PER_LOBBY * MAX_LOBBIES)) {
-			return false;
-		}
-		
-		// net.IPv6enabled = false; // Propriedade não existe no NVGT
-		// net.packet_compression = true; // Propriedade não existe no NVGT
-		
-		running = true;
-		update_timer.restart();
-		
+}
+
+void shuffle_object_array(array<map_object@>@ arr) {
+	for (int i = int(arr.length()) - 1; i > 0; i--) {
+		int j = random(0, i);
+		map_object@ tmp = @arr[i];
+		@arr[i] = @arr[j];
+		@arr[j] = @tmp;
+	}
+}
+
+class game_server {
+	network@ net;
+	array<game_player@> connections;
+	array<game_state@> lobbies;
+	timer@ clock;
+
+	bool start(uint16 port) {
+		@net = network();
+		if (!net.setup_server(port, MAX_PACKET_CHANNELS, MAX_PLAYERS * 30)) return false;
+		@g_user_db = user_database();
+		if (!g_user_db.open("among_users.db")) return false;
+		g_i18n.load_language(language_default());
+		@clock = timer();
 		return true;
 	}
-	
-	// Loop principal do servidor
+
 	void run() {
-		while (running) {
-			wait(5); // ~200 FPS
-			update();
+		while (true) {
+			const network_event@ ev = net.request(20);
+			if (@ev != null) handle_event(ev);
+
+			float delta = float(clock.elapsed) / 1000.0;
+			clock.restart();
+			tick_lobbies(delta);
+			wait(5);
 		}
 	}
-	
-	// Atualiza o servidor (uma iteração)
-	void update() {
-		// Processa eventos de rede
-		process_network_events();
-		
-		// Atualiza lobbies
-		if (update_timer.elapsed >= NETWORK_UPDATE_INTERVAL) {
-			update_lobbies();
-			update_timer.restart();
-		}
-	}
-	
-	// Processa eventos de rede
-	private void process_network_events() {
-		const network_event@ e = net.request(0);
-		
-		if (e.type == event_connect) {
-			handle_player_connect(e.peer_id);
-		} else if (e.type == event_disconnect || e.type == event_disconnect_timeout) {
-			handle_player_disconnect(e.peer_id);
-		} else if (e.type == event_receive) {
-			handle_packet(e.peer_id, e.message);
-		}
-	}
-	
-	// Handle conexão de jogador
-	private void handle_player_connect(uint64 peer_id) {
-		// Jogador conectou, aguarda autenticação
-	}
-	
-	// Handle desconexão de jogador
-	private void handle_player_disconnect(uint64 peer_id) {
-		// Remove jogador do lobby
-		int lobby_id = -1;
-		if (peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			ServerLobby@ lobby = get_lobby(lobby_id);
-			if (@lobby != null) {
-				lobby.remove_player(peer_id);
-				broadcast_lobby_update(lobby);
-				
-				// Se era o host, transfere para outro jogador ou fecha lobby
-				if (lobby.is_host(peer_id) && lobby.players.length() > 0) {
-					lobby.host_peer_id = lobby.players[0].peer_id;
-					lobby.host_username = lobby.players[0].username;
-				} else if (lobby.players.length() == 0) {
-					remove_lobby(lobby_id);
-				}
-			}
-			peer_to_lobby.delete(formatUInt64(peer_id));
-		}
-		
-		peer_to_username.delete(formatUInt64(peer_id));
-	}
-	
-	// Handle pacote recebido
-	private void handle_packet(uint64 peer_id, string message) {
-		Packet packet;
-		if (!packet.deserialize(message)) {
-			return;
-		}
-		
-		switch (packet.type) {
-			case MSG_SESSION_VALIDATE:
-				handle_session_validate(peer_id, packet);
-				break;
-			case MSG_REGISTER_REQUEST:
-				handle_register(peer_id, packet);
-				break;
-			case MSG_LOBBY_LIST_REQUEST:
-				handle_lobby_list_request(peer_id);
-				break;
-			case MSG_LOBBY_CREATE:
-				handle_lobby_create(peer_id, packet);
-				break;
-			case MSG_LOBBY_JOIN:
-				handle_lobby_join(peer_id, packet);
-				break;
-			case MSG_LOBBY_LEAVE:
-				handle_lobby_leave(peer_id);
-				break;
-			case MSG_LOBBY_CONFIG_UPDATE:
-				handle_lobby_config_update(peer_id, packet);
-				break;
-			case MSG_GAME_START:
-				handle_game_start(peer_id);
-				break;
-			case MSG_PLAYER_MOVE:
-				handle_player_move(peer_id, packet);
-				break;
-			case MSG_TASK_COMPLETE:
-				handle_task_complete(peer_id, packet);
-				break;
-			case MSG_KILL:
-				handle_kill(peer_id, packet);
-				break;
-			case MSG_EMERGENCY_MEETING:
-				handle_emergency_meeting(peer_id);
-				break;
-			case MSG_BODY_REPORT:
-				handle_body_report(peer_id, packet);
-				break;
-			case MSG_VOTE:
-				handle_vote(peer_id, packet);
-				break;
-			case MSG_PROXIMITY_CHECK:
-				handle_proximity_check(peer_id);
-				break;
-			case MSG_HEARTBEAT:
-				// Heartbeat recebido
-				break;
-		}
-	}
-	
-	// Validação de sessão
-	private void handle_session_validate(uint64 peer_id, Packet@ packet) {
-		string session_token = packet.read_string();
-		
-		// Valida sessão no banco de dados
-		string username = "";
-		if (@g_user_db != null) {
-			username = g_user_db.validate_session(session_token);
-		}
-		
-		if (username.empty()) {
-			send_error(peer_id, ERROR_INVALID_SESSION, "Invalid session token");
-			return;
-		}
-		
-		// Armazena username
-		peer_to_username.set(formatUInt64(peer_id), username);
-		
-		// Envia confirmação
-		Packet@ response = create_login_response(true, session_token, "");
-		send_packet(peer_id, response);
-	}
-	
-	// Registro de novo usuário
-	private void handle_register(uint64 peer_id, Packet@ packet) {
-		string username = packet.read_string();
-		string password = packet.read_string();
-		
-		// Valida dados
-		if (username.empty() || password.empty()) {
-			Packet@ response = create_register_response(false, "Username and password required");
-			send_packet(peer_id, response);
-			return;
-		}
-		
-		if (username.length() < 3 || username.length() > 20) {
-			Packet@ response = create_register_response(false, "Username must be 3-20 characters");
-			send_packet(peer_id, response);
-			return;
-		}
-		
-		if (password.length() < 6) {
-			Packet@ response = create_register_response(false, "Password must be at least 6 characters");
-			send_packet(peer_id, response);
-			return;
-		}
-		
-		// Registra no banco de dados
-		bool success = false;
-		string error_msg = "";
-		
-		if (@g_user_db != null) {
-			success = g_user_db.register_user(username, password);
-			if (!success) {
-				error_msg = "Username already exists";
-			}
-		} else {
-			error_msg = "Database not available";
-		}
-		
-		// Envia resposta
-		Packet@ response = create_register_response(success, error_msg);
-		send_packet(peer_id, response);
-	}
-	
-	// Lista de lobbies
-	private void handle_lobby_list_request(uint64 peer_id) {
-		Packet@ response = Packet(MSG_LOBBY_LIST_RESPONSE);
-		response.write_int(lobbies.length());
-		
-		for (uint i = 0; i < lobbies.length(); i++) {
-			response.write_int(lobbies[i].id);
-			response.write_string(lobbies[i].name);
-			response.write_string(lobbies[i].host_username);
-			response.write_int(lobbies[i].players.length());
-			response.write_int(lobbies[i].max_players);
-			response.write_enum(lobbies[i].state);
-		}
-		
-		send_packet(peer_id, response);
-	}
-	
-	// Criar lobby
-	private void handle_lobby_create(uint64 peer_id, Packet@ packet) {
-		string username = get_username(peer_id);
-		if (username.empty()) {
-			send_error(peer_id, ERROR_AUTHENTICATION_FAILED, "Not authenticated");
-			return;
-		}
-		
-		string lobby_name = packet.read_string();
-		int max_players = packet.read_int();
-		
-		if (max_players < MIN_PLAYERS_TO_START || max_players > MAX_PLAYERS_PER_LOBBY) {
-			max_players = MAX_PLAYERS_PER_LOBBY;
-		}
-		
-		// Cria novo lobby
-		ServerLobby@ lobby = ServerLobby(next_lobby_id++, lobby_name, username, peer_id, max_players);
-		lobbies.insert_last(lobby);
-		
-		// Adiciona host ao lobby
-		PlayerData@ host = PlayerData();
-		host.peer_id = peer_id;
-		host.username = username;
-		lobby.players.insert_last(host);
-		
-		peer_to_lobby.set(formatUInt64(peer_id), lobby.id);
-		
-		// Confirma criação
-		Packet@ response = Packet(MSG_LOBBY_CREATE);
-		response.write_bool(true);
-		response.write_int(lobby.id);
-		send_packet(peer_id, response);
-	}
-	
-	// Entrar no lobby
-	private void handle_lobby_join(uint64 peer_id, Packet@ packet) {
-		string username = get_username(peer_id);
-		if (username.empty()) {
-			send_error(peer_id, ERROR_AUTHENTICATION_FAILED, "Not authenticated");
-			return;
-		}
-		
-		int lobby_id = packet.read_int();
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		
-		if (@lobby == null) {
-			send_error(peer_id, ERROR_LOBBY_NOT_FOUND, "Lobby not found");
-			return;
-		}
-		
-		if (lobby.is_full()) {
-			send_error(peer_id, ERROR_LOBBY_FULL, "Lobby is full");
-			return;
-		}
-		
-		if (lobby.state != STATE_LOBBY) {
-			send_error(peer_id, ERROR_GAME_IN_PROGRESS, "Game in progress");
-			return;
-		}
-		
-		// Adiciona jogador ao lobby
-		PlayerData@ player = PlayerData();
-		player.peer_id = peer_id;
-		player.username = username;
-		lobby.players.insert_last(player);
-		
-		peer_to_lobby.set(formatUInt64(peer_id), lobby.id);
-		
-		// Confirma entrada
-		Packet@ response = Packet(MSG_LOBBY_JOIN);
-		response.write_bool(true);
-		send_packet(peer_id, response);
-		
-		// Notifica todos os jogadores
-		broadcast_lobby_update(lobby);
-	}
-	
-	// Sair do lobby
-	private void handle_lobby_leave(uint64 peer_id) {
-		handle_player_disconnect(peer_id);
-	}
-	
-	// Atualizar configurações do lobby
-	private void handle_lobby_config_update(uint64 peer_id, Packet@ packet) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null || !lobby.is_host(peer_id)) {
-			send_error(peer_id, ERROR_PERMISSION_DENIED, "Only host can change settings");
-			return;
-		}
-		
-		string config_json = packet.read_string();
-		lobby.config.from_json(config_json);
-		
-		// Broadcast nova configuração
-		broadcast_lobby_config(lobby);
-	}
-	
-	// Iniciar jogo
-	private void handle_game_start(uint64 peer_id) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null || !lobby.is_host(peer_id)) {
-			send_error(peer_id, ERROR_PERMISSION_DENIED, "Only host can start game");
-			return;
-		}
-		
-		if (!lobby.can_start()) {
-			send_error(peer_id, ERROR_INVALID_ACTION, "Not enough players");
-			return;
-		}
-		
-		// Inicia jogo
-		start_game(lobby);
-	}
-	
-	// Movimento de jogador
-	private void handle_player_move(uint64 peer_id, Packet@ packet) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null) {
-			return;
-		}
-		
-		PlayerData@ player = lobby.get_player_by_peer_id(peer_id);
-		if (@player == null) {
-			return;
-		}
-		
-		// Atualiza posição
-		player.x = packet.read_float();
-		player.y = packet.read_float();
-		player.z = packet.read_float();
-		player.rotation = packet.read_float();
-		
-		// Broadcast para outros jogadores
-		Packet@ broadcast = create_position_update(peer_id, player.x, player.y, player.z, player.rotation);
-		broadcast_to_lobby(lobby, broadcast, peer_id);
-	}
-	
-	// Completar task
-	private void handle_task_complete(uint64 peer_id, Packet@ packet) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null) {
-			return;
-		}
-		
-		PlayerData@ player = lobby.get_player_by_peer_id(peer_id);
-		if (@player == null || player.role != ROLE_CREWMATE) {
-			return;
-		}
-		
-		int task_id = packet.read_int();
-		
-		// Valida e adiciona task completada
-		bool found = false;
-		for (uint i = 0; i < player.assigned_task_ids.length(); i++) {
-			if (player.assigned_task_ids[i] == task_id) {
-				found = true;
-				break;
-			}
-		}
-		
-		if (!found) {
-			return;
-		}
-		
-		// Verifica se já completou
-		for (uint i = 0; i < player.completed_task_ids.length(); i++) {
-			if (player.completed_task_ids[i] == task_id) {
-				return; // Já completada
-			}
-		}
-		
-		player.completed_task_ids.insert_last(task_id);
-		
-		// Broadcast task completada
-		Packet@ broadcast = create_task_complete(task_id);
-		broadcast_to_lobby(lobby, broadcast);
-		
-		// Verifica vitória por tasks
-		check_task_victory(lobby);
-	}
-	
-	// Kill
-	private void handle_kill(uint64 peer_id, Packet@ packet) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null) {
-			return;
-		}
-		
-		PlayerData@ killer = lobby.get_player_by_peer_id(peer_id);
-		if (@killer == null || !killer.can_kill()) {
-			return;
-		}
-		
-		uint64 target_peer_id = packet.read_uint64();
-		PlayerData@ target = lobby.get_player_by_peer_id(target_peer_id);
-		
-		if (@target == null || target.state != PLAYER_ALIVE) {
-			return;
-		}
-		
-		// Valida distância
-		float distance = killer.distance_to(target);
-		if (distance > lobby.config.kill_distance) {
-			return;
-		}
-		
-		// Executa kill
-		target.state = PLAYER_DEAD;
-		killer.kills_count++;
-		killer.kill_cooldown_remaining = lobby.config.kill_cooldown;
-		
-		// Broadcast kill
-		Packet@ broadcast = Packet(MSG_KILL);
-		broadcast.write_uint64(target_peer_id);
-		broadcast_to_lobby(lobby, broadcast);
-		
-		// Verifica vitória
-		check_victory_conditions(lobby);
-	}
-	
-	// Reunião de emergência
-	private void handle_emergency_meeting(uint64 peer_id) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null) {
-			return;
-		}
-		
-		PlayerData@ caller = lobby.get_player_by_peer_id(peer_id);
-		if (@caller == null || !caller.can_call_emergency()) {
-			return;
-		}
-		
-		caller.emergency_meetings_remaining--;
-		start_meeting(lobby, MEETING_EMERGENCY, peer_id);
-	}
-	
-	// Report body
-	private void handle_body_report(uint64 peer_id, Packet@ packet) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null) {
-			return;
-		}
-		
-		uint64 body_peer_id = packet.read_uint64();
-		start_meeting(lobby, MEETING_BODY_REPORT, body_peer_id);
-	}
-	
-	// Voto
-	private void handle_vote(uint64 peer_id, Packet@ packet) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null || lobby.state != STATE_VOTING) {
-			return;
-		}
-		
-		PlayerData@ voter = lobby.get_player_by_peer_id(peer_id);
-		if (@voter == null || voter.has_voted) {
-			return;
-		}
-		
-		int player_index = packet.read_int();
-		voter.voted_for_player_id = player_index;
-		voter.has_voted = true;
-		
-		// Verifica se todos votaram
-		check_voting_complete(lobby);
-	}
-	
-	// Proximity check
-	private void handle_proximity_check(uint64 peer_id) {
-		int lobby_id = -1;
-		if (!peer_to_lobby.get(formatUInt64(peer_id), lobby_id)) {
-			return;
-		}
-		
-		ServerLobby@ lobby = get_lobby(lobby_id);
-		if (@lobby == null) {
-			return;
-		}
-		
-		PlayerData@ requester = lobby.get_player_by_peer_id(peer_id);
-		if (@requester == null) {
-			return;
-		}
-		
-		// Encontra jogadores próximos
-		Packet@ response = Packet(MSG_PROXIMITY_RESPONSE);
-		int nearby_count = 0;
-		
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].peer_id == peer_id) {
-				continue;
-			}
-			
-			float distance = requester.distance_to(lobby.players[i]);
-			if (distance <= PROXIMITY_VOICE_DISTANCE) {
-				nearby_count++;
-			}
-		}
-		
-		response.write_int(nearby_count);
-		
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].peer_id == peer_id) {
-				continue;
-			}
-			
-			float distance = requester.distance_to(lobby.players[i]);
-			if (distance <= PROXIMITY_VOICE_DISTANCE) {
-				response.write_string(lobby.players[i].username);
-				response.write_float(distance);
-			}
-		}
-		
-		send_packet(peer_id, response);
-	}
-	
-	// Atualiza lobbies
-	private void update_lobbies() {
-		for (uint i = 0; i < lobbies.length(); i++) {
-			update_lobby(lobbies[i]);
-		}
-	}
-	
-	// Atualiza lobby individual
-	private void update_lobby(ServerLobby@ lobby) {
-		if (lobby.state == STATE_PLAYING) {
-			// Atualiza cooldowns
-			for (uint i = 0; i < lobby.players.length(); i++) {
-				if (lobby.players[i].kill_cooldown_remaining > 0) {
-					lobby.players[i].kill_cooldown_remaining -= float(NETWORK_UPDATE_INTERVAL) / 1000.0;
-					if (lobby.players[i].kill_cooldown_remaining < 0) {
-						lobby.players[i].kill_cooldown_remaining = 0;
-					}
-				}
-			}
-		}
-	}
-	
-	// Inicia jogo
-	private void start_game(ServerLobby@ lobby) {
-		lobby.state = STATE_STARTING;
-		
-		// Atribui roles
-		assign_roles(lobby);
-		
-		// Atribui tasks aos crewmates
-		assign_tasks(lobby);
-		
-		// Define posições iniciais
-		spawn_players(lobby);
-		
-		// Muda estado para jogando
-		lobby.state = STATE_PLAYING;
-		
-		// Notifica todos os jogadores
-		broadcast_game_start(lobby);
-	}
-	
-	// Atribui roles
-	private void assign_roles(ServerLobby@ lobby) {
-		int impostor_count = lobby.config.impostors;
-		int player_count = lobby.players.length();
-		
-		// Valida número de impostors
-		if (impostor_count >= player_count) {
-			impostor_count = 1;
-		}
-		
-		// Embaralha jogadores
-		int[] indices;
-		for (int i = 0; i < player_count; i++) {
-			indices.insert_last(i);
-		}
-		
-		// Shuffle simples
-		for (int i = player_count - 1; i > 0; i--) {
-			int j = random(0, i);
-			int temp = indices[i];
-			indices[i] = indices[j];
-			indices[j] = temp;
-		}
-		
-		// Atribui impostors
-		for (int i = 0; i < impostor_count; i++) {
-			lobby.players[indices[i]].role = ROLE_IMPOSTOR;
-		}
-		
-		// Resto são crewmates
-		for (int i = impostor_count; i < player_count; i++) {
-			lobby.players[indices[i]].role = ROLE_CREWMATE;
-		}
-		
-		// Envia roles para cada jogador
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			Packet@ role_packet = create_role_assignment(lobby.players[i].role);
-			send_packet(lobby.players[i].peer_id, role_packet);
-		}
-	}
-	
-	// Atribui tasks
-	private void assign_tasks(ServerLobby@ lobby) {
-		// TODO: Implementar sistema de tasks
-		// Por enquanto, atribui IDs de tasks aleatórias
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].role == ROLE_CREWMATE) {
-				for (int j = 0; j < lobby.config.tasks_per_player; j++) {
-					lobby.players[i].assigned_task_ids.insert_last(j);
-				}
-			}
-		}
-	}
-	
-	// Spawn players
-	private void spawn_players(ServerLobby@ lobby) {
-		// Spawn na cafeteria (room 0)
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			lobby.players[i].x = random(-5.0, 5.0);
-			lobby.players[i].y = 0;
-			lobby.players[i].z = random(-5.0, 5.0);
-			lobby.players[i].current_room_id = 0;
-			lobby.players[i].emergency_meetings_remaining = lobby.config.emergency_meetings;
-		}
-	}
-	
-	// Inicia reunião
-	private void start_meeting(ServerLobby@ lobby, MeetingType type, uint64 related_peer_id) {
-		lobby.state = STATE_DISCUSSION;
-		
-		// Reset votos
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			lobby.players[i].has_voted = false;
-			lobby.players[i].voted_for_player_id = -1;
-		}
-		
-		// Broadcast reunião
-		Packet@ meeting_packet = Packet(MSG_MEETING_START);
-		meeting_packet.write_enum(type);
-		meeting_packet.write_uint64(related_peer_id);
-		meeting_packet.write_int(lobby.config.discussion_time);
-		meeting_packet.write_int(lobby.config.voting_time);
-		broadcast_to_lobby(lobby, meeting_packet);
-	}
-	
-	// Verifica se votação completou
-	private void check_voting_complete(ServerLobby@ lobby) {
-		int alive_count = lobby.count_alive_players();
-		int voted_count = 0;
-		
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].state == PLAYER_ALIVE && lobby.players[i].has_voted) {
-				voted_count++;
-			}
-		}
-		
-		if (voted_count >= alive_count) {
-			process_voting_results(lobby);
-		}
-	}
-	
-	// Processa resultados de votação
-	private void process_voting_results(ServerLobby@ lobby) {
-		dictionary vote_counts;
-		
-		// Conta votos
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].state == PLAYER_ALIVE && lobby.players[i].has_voted) {
-				int voted_for = lobby.players[i].voted_for_player_id;
-				int count = 0;
-				vote_counts.get(formatInt(voted_for), count);
-				vote_counts.set(formatInt(voted_for), count + 1);
-			}
-		}
-		
-		// Encontra mais votado
-		int max_votes = 0;
-		int ejected_index = -1;
-		bool tied = false;
-		
-		string[] keys = vote_counts.get_keys();
-		for (uint i = 0; i < keys.length(); i++) {
-			int count;
-			vote_counts.get(keys[i], count);
-			
-			if (count > max_votes) {
-				max_votes = count;
-				ejected_index = parseInt(keys[i]);
-				tied = false;
-			} else if (count == max_votes) {
-				tied = true;
-			}
-		}
-		
-		// Ejeta jogador se não houve empate
-		if (!tied && ejected_index >= 0 && ejected_index < int(lobby.players.length())) {
-			lobby.players[ejected_index].state = PLAYER_DEAD;
-		}
-		
-		// Broadcast resultados
-		Packet@ results = Packet(MSG_VOTE_RESULTS);
-		results.write_bool(tied);
-		results.write_int(ejected_index);
-		if (!tied && ejected_index >= 0 && ejected_index < int(lobby.players.length())) {
-			results.write_enum(lobby.players[ejected_index].role);
-		}
-		broadcast_to_lobby(lobby, results);
-		
-		// Volta ao jogo
-		lobby.state = STATE_PLAYING;
-		
-		// Verifica condições de vitória
-		check_victory_conditions(lobby);
-	}
-	
-	// Verifica vitória por tasks
-	private void check_task_victory(ServerLobby@ lobby) {
-		int total_tasks = 0;
-		int completed_tasks = 0;
-		
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].role == ROLE_CREWMATE) {
-				total_tasks += lobby.players[i].assigned_task_ids.length();
-				completed_tasks += lobby.players[i].completed_task_ids.length();
-			}
-		}
-		
-		if (total_tasks > 0 && completed_tasks >= total_tasks) {
-			end_game(lobby, ROLE_CREWMATE);
-		}
-	}
-	
-	// Verifica condições de vitória
-	private void check_victory_conditions(ServerLobby@ lobby) {
-		int alive_crewmates = lobby.count_alive_crewmates();
-		int alive_impostors = lobby.count_alive_impostors();
-		
-		if (alive_impostors == 0) {
-			// Crewmates vencem
-			end_game(lobby, ROLE_CREWMATE);
-		} else if (alive_impostors >= alive_crewmates) {
-			// Impostors vencem
-			end_game(lobby, ROLE_IMPOSTOR);
-		}
-	}
-	
-	// Finaliza jogo
-	private void end_game(ServerLobby@ lobby, Role winning_role) {
-		lobby.state = STATE_GAME_OVER;
-		
-		// Broadcast fim de jogo
-		Packet@ end_packet = Packet(MSG_GAME_END);
-		end_packet.write_enum(winning_role);
-		broadcast_to_lobby(lobby, end_packet);
-		
-		// Reset lobby
-		lobby.state = STATE_LOBBY;
-	}
-	
-	// Broadcast para o lobby
-	private void broadcast_to_lobby(ServerLobby@ lobby, Packet@ packet, uint64 exclude_peer = 0) {
-		string message = packet.serialize();
-		
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].peer_id != exclude_peer) {
-				net.send_reliable(lobby.players[i].peer_id, message, 0);
-			}
-		}
-	}
-	
-	// Broadcast atualização de lobby
-	private void broadcast_lobby_update(ServerLobby@ lobby) {
-		Packet@ update = Packet(MSG_LOBBY_UPDATE);
-		update.write_int(lobby.players.length());
-		
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			update.write_string(lobby.players[i].username);
-		}
-		
-		broadcast_to_lobby(lobby, update);
-	}
-	
-	// Broadcast configuração de lobby
-	private void broadcast_lobby_config(ServerLobby@ lobby) {
-		Packet@ config_packet = create_lobby_config_update(lobby.config);
-		broadcast_to_lobby(lobby, config_packet);
-	}
-	
-	// Broadcast início de jogo
-	private void broadcast_game_start(ServerLobby@ lobby) {
-		Packet@ start_packet = create_game_start();
-		broadcast_to_lobby(lobby, start_packet);
-	}
-	
-	// Envia pacote para peer específico
-	private void send_packet(uint64 peer_id, Packet@ packet) {
-		string message = packet.serialize();
-		net.send_reliable(peer_id, message, 0);
-	}
-	
-	// Envia erro
-	private void send_error(uint64 peer_id, ErrorCode code, string message) {
-		Packet@ error_packet = create_error(code, message);
-		send_packet(peer_id, error_packet);
-	}
-	
-	// Obtém lobby por ID
-	private ServerLobby@ get_lobby(int lobby_id) {
-		for (uint i = 0; i < lobbies.length(); i++) {
-			if (lobbies[i].id == lobby_id) {
-				return lobbies[i];
-			}
+
+	// --- Infra de conexão ---
+
+	game_player@ find_connection(uint64 peer_id) const {
+		for (uint i = 0; i < connections.length(); i++) {
+			if (connections[i].peer_id == peer_id) return connections[i];
 		}
 		return null;
 	}
-	
-	// Remove lobby
-	private void remove_lobby(int lobby_id) {
+
+	game_state@ find_lobby(const string&in lobby_id) const {
 		for (uint i = 0; i < lobbies.length(); i++) {
-			if (lobbies[i].id == lobby_id) {
-				lobbies.remove_at(i);
-				return;
-			}
+			if (lobbies[i].lobby_id == lobby_id) return lobbies[i];
+		}
+		return null;
+	}
+
+	game_state@ find_lobby_of_peer(uint64 peer_id) const {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.lobby_id == "") return null;
+		return find_lobby(conn.lobby_id);
+	}
+
+	void send_to(uint64 peer_id, net_packet@ pkt, bool reliable = true) {
+		if (reliable) net.send_reliable(peer_id, pkt.to_wire(), CHANNEL_RELIABLE);
+		else net.send_unreliable(peer_id, pkt.to_wire(), CHANNEL_UNRELIABLE);
+	}
+
+	void broadcast_to_lobby(game_state@ lobby, net_packet@ pkt, uint64 exclude_peer = 0, bool reliable = true) {
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].peer_id == exclude_peer) continue;
+			send_to(lobby.players[i].peer_id, pkt, reliable);
 		}
 	}
-	
-	// Obtém username por peer_id
-	private string get_username(uint64 peer_id) {
-		string username;
-		peer_to_username.get(formatUInt64(peer_id), username);
-		return username;
+
+	void handle_event(const network_event@ ev) {
+		if (ev.type == event_connect) {
+			game_player@ conn = game_player(ev.peer_id, "");
+			connections.insert_last(conn);
+		} else if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) {
+			on_disconnect(ev.peer_id);
+		} else if (ev.type == event_receive) {
+			net_packet@ pkt = packet_from_wire(ev.message);
+			if (@pkt != null) route_packet(ev.peer_id, pkt);
+		}
 	}
-	
-	// Para o servidor
-	void stop() {
-		running = false;
-		net.destroy();
+
+	void on_disconnect(uint64 peer_id) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby != null) remove_from_lobby(lobby, peer_id);
+
+		for (uint i = 0; i < connections.length(); i++) {
+			if (connections[i].peer_id == peer_id) { connections.remove_at(i); break; }
+		}
 	}
-	
-	// Funções auxiliares
-	private string formatUInt64(uint64 value) {
-		return "" + value;
+
+	void remove_from_lobby(game_state@ lobby, uint64 peer_id) {
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].peer_id == peer_id) { lobby.players.remove_at(i); break; }
+		}
+		if (lobby.players.length() == 0) {
+			for (uint i = 0; i < lobbies.length(); i++) {
+				if (lobbies[i].lobby_id == lobby.lobby_id) { lobbies.remove_at(i); break; }
+			}
+			return;
+		}
+		if (lobby.host_peer_id == peer_id) lobby.host_peer_id = lobby.players[0].peer_id;
+
+		net_packet@ left = net_packet(S_PLAYER_LEFT);
+		left.set_uint64("peer_id", peer_id);
+		broadcast_to_lobby(lobby, left);
 	}
-	
-	private string formatInt(int value) {
-		return "" + value;
+
+	// --- Roteamento ---
+
+	void route_packet(uint64 peer_id, net_packet@ pkt) {
+		string t = pkt.type;
+		if (t == C_LOGIN) on_login(peer_id, pkt);
+		else if (t == C_REGISTER) on_register(peer_id, pkt);
+		else if (t == C_LIST_LOBBIES) on_list_lobbies(peer_id, pkt);
+		else if (t == C_CREATE_LOBBY) on_create_lobby(peer_id, pkt);
+		else if (t == C_JOIN_LOBBY) on_join_lobby(peer_id, pkt);
+		else if (t == C_LEAVE_LOBBY) on_leave_lobby(peer_id, pkt);
+		else if (t == C_SET_READY) on_set_ready(peer_id, pkt);
+		else if (t == C_START_GAME) on_start_game(peer_id, pkt);
+		else if (t == C_MOVE) on_move(peer_id, pkt);
+		else if (t == C_START_TASK) on_start_task(peer_id, pkt);
+		else if (t == C_TASK_INPUT) on_task_input(peer_id, pkt);
+		else if (t == C_KILL) on_kill(peer_id, pkt);
+		else if (t == C_REPORT_BODY) on_report_body(peer_id, pkt);
+		else if (t == C_CALL_MEETING) on_call_meeting(peer_id, pkt);
+		else if (t == C_CAST_VOTE) on_cast_vote(peer_id, pkt);
+		else if (t == C_USE_VENT) on_use_vent(peer_id, pkt);
+		else if (t == C_RADAR_SCAN) on_radar_scan(peer_id, pkt);
+		else if (t == C_TRIGGER_SABOTAGE) on_trigger_sabotage(peer_id, pkt);
+		else if (t == C_INTERACT) on_interact(peer_id, pkt);
 	}
-	
-	private int parseInt(string str) {
-		return parse_int(str);
+
+	// --- Autenticação ---
+
+	void on_login(uint64 peer_id, net_packet@ pkt) {
+		string username = pkt.get_string("username");
+		string password = pkt.get_string("password");
+		net_packet@ result = net_packet(S_LOGIN_RESULT);
+
+		if (g_user_db.verify_login(username, password)) {
+			game_player@ conn = find_connection(peer_id);
+			if (@conn != null) {
+				conn.username = username;
+				conn.authenticated = true;
+			}
+			result.set_bool("ok", true);
+			result.set_string("message", "login.success");
+			result.set_string("username", username);
+		} else {
+			result.set_bool("ok", false);
+			result.set_string("message", "login.invalid_credentials");
+		}
+		send_to(peer_id, result);
 	}
-	
-	// Métodos auxiliares para console do servidor
-	int get_player_count() {
-		string[] keys = peer_to_username.get_keys();
-		return keys.length();
+
+	void on_register(uint64 peer_id, net_packet@ pkt) {
+		string username = pkt.get_string("username");
+		string password = pkt.get_string("password");
+		string err;
+		bool ok = g_user_db.create_user(username, password, err);
+
+		net_packet@ result = net_packet(S_REGISTER_RESULT);
+		result.set_bool("ok", ok);
+		result.set_string("message", ok ? "login.register_success" : ("login." + err));
+		send_to(peer_id, result);
 	}
-	
-	int get_lobby_count() {
-		return lobbies.length();
-	}
-	
-	int get_active_games_count() {
-		int count = 0;
+
+	// --- Lobbies ---
+
+	void on_list_lobbies(uint64 peer_id, net_packet@ pkt) {
+		json_array@ list = json_array();
 		for (uint i = 0; i < lobbies.length(); i++) {
-			if (lobbies[i].state != STATE_LOBBY) {
-				count++;
+			game_state@ lobby = lobbies[i];
+			if (lobby.state != "waiting") continue;
+			json_object@ entry = json_object();
+			entry.set("id", lobby.lobby_id);
+			entry.set("name", lobby.lobby_name);
+			entry.set("current", int(lobby.players.length()));
+			entry.set("max", int(lobby.config.max_players));
+			list.add(entry);
+		}
+		net_packet@ result = net_packet(S_LOBBY_LIST);
+		result.set_array("lobbies", list);
+		send_to(peer_id, result);
+	}
+
+	void on_create_lobby(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+
+		game_state@ lobby = game_state();
+		lobby.lobby_id = "lobby_" + (++g_lobby_counter);
+		lobby.lobby_name = pkt.get_string("lobby_name", "Partida de " + conn.username);
+		@lobby.config = get_preset(pkt.get_string("preset", "classic"));
+		lobby.config.validate();
+		lobby.host_peer_id = peer_id;
+		@lobby.map = build_the_hub_map();
+
+		conn.lobby_id = lobby.lobby_id;
+		conn.ready = false;
+		lobby.players.insert_last(conn);
+		lobbies.insert_last(lobby);
+
+		send_lobby_state(lobby, peer_id);
+	}
+
+	void on_join_lobby(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+
+		string lobby_id = pkt.get_string("lobby_id");
+		game_state@ lobby = find_lobby(lobby_id);
+		net_packet@ result = net_packet(S_JOIN_RESULT);
+
+		if (@lobby == null || lobby.state != "waiting" || lobby.players.length() >= lobby.config.max_players) {
+			result.set_bool("ok", false);
+			result.set_string("message", "lobby_unavailable");
+			send_to(peer_id, result);
+			return;
+		}
+
+		conn.lobby_id = lobby.lobby_id;
+		conn.ready = false;
+		lobby.players.insert_last(conn);
+
+		result.set_bool("ok", true);
+		send_to(peer_id, result);
+
+		net_packet@ joined = net_packet(S_PLAYER_JOINED);
+		joined.set_uint64("peer_id", peer_id);
+		joined.set_string("name", conn.username);
+		broadcast_to_lobby(lobby, joined, peer_id);
+
+		send_lobby_state(lobby, 0);
+	}
+
+	void on_leave_lobby(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		remove_from_lobby(lobby, peer_id);
+		game_player@ conn = find_connection(peer_id);
+		if (@conn != null) conn.lobby_id = "";
+	}
+
+	void on_set_ready(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null) return;
+		p.ready = pkt.get_bool("ready");
+		send_lobby_state(lobby, 0);
+	}
+
+	// Envia o estado da lobby. Se target_peer for 0, transmite para todos os membros.
+	void send_lobby_state(game_state@ lobby, uint64 target_peer) {
+		net_packet@ pkt = net_packet(S_LOBBY_STATE);
+		pkt.set_string("lobby_id", lobby.lobby_id);
+		pkt.set_string("lobby_name", lobby.lobby_name);
+		pkt.set_int("max_players", int(lobby.config.max_players));
+
+		json_array@ players_json = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			json_object@ pj = json_object();
+			pj.set("peer_id", lobby.players[i].peer_id);
+			pj.set("name", lobby.players[i].username);
+			pj.set("ready", lobby.players[i].ready);
+			players_json.add(pj);
+		}
+		pkt.set_array("players", players_json);
+
+		if (target_peer != 0) send_to(target_peer, pkt);
+		else broadcast_to_lobby(lobby, pkt);
+	}
+
+	// --- Início de partida ---
+
+	void on_start_game(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) return;
+		if (lobby.players.length() < MIN_PLAYERS) return;
+
+		array<game_player@> shuffled = lobby.players;
+		shuffle_player_array(shuffled);
+
+		int impostor_count = lobby.config.resolved_impostor_count(shuffled.length());
+		array<int>@ color_ids = all_color_ids();
+		shuffle_int_array(color_ids);
+
+		array<map_object@>@ task_spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+
+		for (uint i = 0; i < shuffled.length(); i++) {
+			game_player@ p = shuffled[i];
+			p.is_impostor = int(i) < impostor_count;
+			p.color = color_ids[i % color_ids.length()];
+			p.alive = true;
+			p.vented = false;
+			p.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
+			p.meetings_called = 0;
+			p.radar_index = -1;
+			p.last_move_time = 0.0;
+			p.tasks.resize(0);
+			p.x = float(random(-30, 30)) / 10.0;
+			p.y = float(random(-30, 30)) / 10.0;
+
+			if (!p.is_impostor) {
+				array<map_object@> pool = task_spots;
+				shuffle_object_array(pool);
+				uint count = lobby.config.task_count_per_crewmate;
+				if (count > pool.length()) count = pool.length();
+				for (uint t = 0; t < count; t++) {
+					player_task pt;
+					pt.object_id = pool[t].id;
+					pt.task_type = pool[t].task_type;
+					p.tasks.insert_last(pt);
+				}
 			}
 		}
-		return count;
+
+		lobby.bodies.resize(0);
+		lobby.votes.resize(0);
+		lobby.active_sabotage = "";
+		lobby.sabotage_fixed_panels.resize(0);
+		lobby.winner = "";
+		lobby.elapsed_time = 0.0;
+		lobby.state = "in_progress";
+
+		json_array@ roster = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			json_object@ rj = json_object();
+			rj.set("peer_id", lobby.players[i].peer_id);
+			rj.set("name", lobby.players[i].username);
+			rj.set("color", lobby.players[i].color);
+			rj.set("x", lobby.players[i].x);
+			rj.set("y", lobby.players[i].y);
+			roster.add(rj);
+		}
+
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			net_packet@ start = net_packet(S_GAME_START);
+			start.set_string("map_name", lobby.map.name);
+			start.set_bool("your_role_impostor", p.is_impostor);
+			start.set_int("your_color", p.color);
+			start.set_float("your_x", p.x);
+			start.set_float("your_y", p.y);
+			start.set_array("players", roster);
+
+			json_array@ tasks_json = json_array();
+			for (uint t = 0; t < p.tasks.length(); t++) {
+				json_object@ tj = json_object();
+				tj.set("object_id", p.tasks[t].object_id);
+				tj.set("task_type", p.tasks[t].task_type);
+				tasks_json.add(tj);
+			}
+			start.set_array("tasks", tasks_json);
+
+			send_to(p.peer_id, start);
+		}
 	}
-	
-	uint64 get_uptime() {
-		return update_timer.elapsed;
+
+	// --- Jogo em andamento ---
+
+	void on_move(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		float x = pkt.get_float("x");
+		float y = pkt.get_float("y");
+		if (!lobby.try_move_player(peer_id, x, y)) return;
+
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || p.vented) return; // jogador escondido no vent não transmite posição
+
+		net_packet@ moved = net_packet(S_PLAYER_MOVED);
+		moved.set_uint64("peer_id", peer_id);
+		moved.set_float("x", x);
+		moved.set_float("y", y);
+		broadcast_to_lobby(lobby, moved, peer_id, false);
 	}
-	
-	ServerLobby@[] get_all_lobbies() {
-		return lobbies;
+
+	void on_start_task(uint64 peer_id, net_packet@ pkt) {
+		// O minigame roda inteiramente no cliente; nada a validar aqui além de existir a task.
+		// Reservado para uso futuro (ex.: bloquear duas pessoas na mesma task ao mesmo tempo).
 	}
+
+	void on_task_input(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive) return;
+
+		string task_id = pkt.get_string("task_id");
+		bool success = pkt.get_bool("success");
+		if (!success) return;
+		if (!p.complete_task(task_id)) return;
+
+		g_user_db.increment_stat(p.username, "tasks_completed", 1);
+
+		net_packet@ result = net_packet(S_TASK_RESULT);
+		result.set_string("task_id", task_id);
+		result.set_bool("ok", true);
+		result.set_int("progress", p.task_progress_percent());
+		send_to(peer_id, result);
+	}
+
+	void on_kill(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		uint64 target_peer = pkt.get_uint64("target_peer");
+
+		net_packet@ event;
+		if (lobby.try_kill(peer_id, target_peer, event)) {
+			broadcast_to_lobby(lobby, event);
+		}
+	}
+
+	void on_report_body(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive) return;
+
+		body_info@ body = lobby.find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
+		if (@body == null) return;
+
+		net_packet@ reported = net_packet(S_BODY_REPORTED);
+		reported.set_uint64("reporter_peer", peer_id);
+		reported.set_uint64("body_peer", body.victim_peer_id);
+		broadcast_to_lobby(lobby, reported);
+
+		for (uint i = 0; i < lobby.bodies.length(); i++) {
+			if (lobby.bodies[i].id == body.id) { lobby.bodies.remove_at(i); break; }
+		}
+
+		net_packet@ event;
+		if (lobby.start_meeting(peer_id, "body", event)) broadcast_to_lobby(lobby, event);
+	}
+
+	void on_call_meeting(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive) return;
+
+		array<map_object@>@ buttons = lobby.map.objects_by_type(OBJ_EMERGENCY_BUTTON);
+		bool near_button = false;
+		for (uint i = 0; i < buttons.length(); i++) {
+			if (distance_2d(p.x, p.y, buttons[i].x, buttons[i].y) <= PLAYER_INTERACT_RANGE) { near_button = true; break; }
+		}
+		if (!near_button) return;
+
+		net_packet@ event;
+		if (lobby.start_meeting(peer_id, "button", event)) broadcast_to_lobby(lobby, event);
+	}
+
+	void on_cast_vote(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		int64 target = pkt.get_int64("target_peer", -1);
+		lobby.cast_vote(peer_id, target);
+	}
+
+	void on_use_vent(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive || !p.is_impostor) return;
+
+		string vent_id = pkt.get_string("vent_id");
+		map_object@ vent = lobby.map.find_object(vent_id);
+		if (@vent == null || vent.obj_type != OBJ_VENT) return;
+
+		if (!p.vented) {
+			if (distance_2d(p.x, p.y, vent.x, vent.y) > PLAYER_INTERACT_RANGE) return;
+			map_object@ dest = lobby.map.find_object(vent.linked_object_id);
+			if (@dest == null) return;
+			p.x = dest.x;
+			p.y = dest.y;
+			p.vented = true;
+		} else {
+			p.vented = false;
+			net_packet@ moved = net_packet(S_PLAYER_MOVED);
+			moved.set_uint64("peer_id", peer_id);
+			moved.set_float("x", p.x);
+			moved.set_float("y", p.y);
+			broadcast_to_lobby(lobby, moved, peer_id, false);
+		}
+	}
+
+	void on_radar_scan(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ me = lobby.find_player(peer_id);
+		if (@me == null || !me.alive) return;
+
+		array<game_player@>@ nearby = lobby.players_in_same_room(peer_id);
+		net_packet@ result = net_packet(S_RADAR_RESULT);
+		if (nearby.length() == 0) {
+			result.set_bool("empty", true);
+			send_to(peer_id, result);
+			return;
+		}
+
+		int direction = pkt.get_int("direction", 1);
+		me.radar_index = (me.radar_index + direction) % int(nearby.length());
+		if (me.radar_index < 0) me.radar_index += int(nearby.length());
+
+		game_player@ target = nearby[me.radar_index];
+		result.set_bool("empty", false);
+		result.set_uint64("peer_id", target.peer_id);
+		result.set_string("name", target.username);
+		result.set_float("x", target.x);
+		result.set_float("y", target.y);
+		send_to(peer_id, result);
+	}
+
+	void on_trigger_sabotage(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		string sabotage_id = pkt.get_string("sabotage_id");
+
+		net_packet@ event;
+		if (lobby.trigger_sabotage(peer_id, sabotage_id, event)) broadcast_to_lobby(lobby, event);
+	}
+
+	void on_interact(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		string object_id = pkt.get_string("object_id");
+
+		net_packet@ event;
+		if (lobby.try_fix_sabotage_panel(peer_id, object_id, event)) broadcast_to_lobby(lobby, event);
+	}
+
+	// --- Tick geral ---
+
+	void tick_lobbies(float delta) {
+		for (uint i = 0; i < lobbies.length(); i++) {
+			game_state@ lobby = lobbies[i];
+			if (lobby.state == "waiting" || lobby.state == "ended") continue;
+			array<net_packet@>@ events = lobby.tick(delta);
+			for (uint e = 0; e < events.length(); e++) broadcast_to_lobby(lobby, events[e]);
+		}
+	}
+}
+
+void main() {
+	game_server server;
+	if (!server.start(DEFAULT_SERVER_PORT)) {
+		println("Falha ao iniciar o servidor.");
+		return;
+	}
+	println("Servidor rodando na porta " + DEFAULT_SERVER_PORT + "...");
+	server.run();
 }

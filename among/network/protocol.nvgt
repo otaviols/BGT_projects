@@ -1,78 +1,51 @@
-// Network Protocol
-// Definição do protocolo de comunicação cliente-servidor
+// protocol.nvgt
+// Definição de todos os tipos de mensagem trocados entre cliente e servidor.
+// O payload de cada pacote é um json_object (ver packet.nvgt) serializado como string.
+// Canais: 0 = confiável (estado de jogo, eventos), 1 = não confiável (posição/movimento).
 
-// Tipos de mensagens
-enum MessageType {
-	// Autenticação
-	MSG_LOGIN_REQUEST = 1,
-	MSG_LOGIN_RESPONSE = 2,
-	MSG_SESSION_VALIDATE = 3,
-	MSG_REGISTER_REQUEST = 4,
-	MSG_REGISTER_RESPONSE = 5,
-	
-	// Lobby
-	MSG_LOBBY_LIST_REQUEST = 10,
-	MSG_LOBBY_LIST_RESPONSE = 11,
-	MSG_LOBBY_CREATE = 12,
-	MSG_LOBBY_JOIN = 13,
-	MSG_LOBBY_LEAVE = 14,
-	MSG_LOBBY_UPDATE = 15,
-	MSG_LOBBY_CONFIG_UPDATE = 16,
-	MSG_GAME_START = 17,
-	
-	// Gameplay
-	MSG_PLAYER_MOVE = 30,
-	MSG_PLAYER_POSITION_UPDATE = 31,
-	MSG_PLAYER_ACTION = 32,
-	MSG_PLAYER_STATE_UPDATE = 33,
-	
-	// Tasks
-	MSG_TASK_START = 40,
-	MSG_TASK_PROGRESS = 41,
-	MSG_TASK_COMPLETE = 42,
-	MSG_TASK_LIST_UPDATE = 43,
-	
-	// Impostor
-	MSG_KILL = 50,
-	MSG_KILL_COOLDOWN_UPDATE = 51,
-	MSG_VENT_ENTER = 52,
-	MSG_VENT_EXIT = 53,
-	MSG_SABOTAGE = 54,
-	
-	// Reuniões
-	MSG_EMERGENCY_MEETING = 60,
-	MSG_BODY_REPORT = 61,
-	MSG_MEETING_START = 62,
-	MSG_VOTE = 63,
-	MSG_VOTE_RESULTS = 64,
-	MSG_MEETING_END = 65,
-	
-	// Estado do jogo
-	MSG_GAME_STATE_UPDATE = 70,
-	MSG_GAME_END = 71,
-	MSG_ROLE_ASSIGNMENT = 72,
-	
-	// Chat/Comunicação
-	MSG_CHAT = 80,
-	MSG_PROXIMITY_CHECK = 81,
-	MSG_PROXIMITY_RESPONSE = 82,
-	
-	// Sistema
-	MSG_HEARTBEAT = 90,
-	MSG_DISCONNECT = 91,
-	MSG_ERROR = 99
-}
+const uint8 CHANNEL_RELIABLE = 0;
+const uint8 CHANNEL_UNRELIABLE = 1;
 
-// Códigos de erro
-enum ErrorCode {
-	ERROR_NONE = 0,
-	ERROR_AUTHENTICATION_FAILED = 1,
-	ERROR_INVALID_SESSION = 2,
-	ERROR_LOBBY_FULL = 3,
-	ERROR_LOBBY_NOT_FOUND = 4,
-	ERROR_GAME_IN_PROGRESS = 5,
-	ERROR_INVALID_ACTION = 6,
-	ERROR_PERMISSION_DENIED = 7,
-	ERROR_PLAYER_NOT_FOUND = 8,
-	ERROR_INVALID_DATA = 9
-}
+// Cliente -> Servidor
+const string C_LOGIN = "c_login";                 // {username, password}
+const string C_REGISTER = "c_register";           // {username, password}
+const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
+const string C_CREATE_LOBBY = "c_create_lobby";   // {lobby_name, preset}
+const string C_JOIN_LOBBY = "c_join_lobby";       // {lobby_id}
+const string C_LEAVE_LOBBY = "c_leave_lobby";     // {}
+const string C_SET_READY = "c_set_ready";         // {ready}
+const string C_START_GAME = "c_start_game";       // {} (só host)
+const string C_MOVE = "c_move";                   // {x, y, seq}
+const string C_INTERACT = "c_interact";           // {object_id}
+const string C_START_TASK = "c_start_task";       // {task_id}
+const string C_TASK_INPUT = "c_task_input";       // {task_id, input}
+const string C_KILL = "c_kill";                   // {target_peer}
+const string C_REPORT_BODY = "c_report_body";     // {body_id}
+const string C_CALL_MEETING = "c_call_meeting";   // {}
+const string C_CAST_VOTE = "c_cast_vote";         // {target_peer}  (target_peer = -1 para pular)
+const string C_USE_VENT = "c_use_vent";           // {vent_id}
+const string C_RADAR_SCAN = "c_radar_scan";       // {direction} (1 = próximo, -1 = anterior)
+const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("lights" | "oxygen"), só impostor
+
+// Servidor -> Cliente
+const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username}
+const string S_REGISTER_RESULT = "s_register_result";     // {ok, message}
+const string S_LOBBY_LIST = "s_lobby_list";               // {lobbies: [...]}
+const string S_LOBBY_STATE = "s_lobby_state";             // {lobby_id, players: [...], config}
+const string S_JOIN_RESULT = "s_join_result";             // {ok, message}
+const string S_GAME_START = "s_game_start";                // {map_name, your_role, your_color, players, tasks}
+const string S_PLAYER_MOVED = "s_player_moved";           // {peer_id, x, y, seq}
+const string S_PLAYER_JOINED = "s_player_joined";         // {peer_id, name, color}
+const string S_PLAYER_LEFT = "s_player_left";             // {peer_id}
+const string S_TASK_RESULT = "s_task_result";             // {task_id, ok, progress}
+const string S_TASK_ASSIGNED = "s_task_assigned";         // {tasks: [...]}
+const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, killer_color, x, y}
+const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer}
+const string S_MEETING_STARTED = "s_meeting_started";     // {reason, caller_peer, discussion_time}
+const string S_VOTING_STARTED = "s_voting_started";       // {voting_time, candidates: [...]}
+const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejected_name, was_impostor, tie}
+const string S_SABOTAGE_STARTED = "s_sabotage_started";   // {sabotage_id, timer}
+const string S_SABOTAGE_FIXED = "s_sabotage_fixed";       // {sabotage_id}
+const string S_GAME_OVER = "s_game_over";                 // {winner, reason}
+const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, y} ou {empty: true}
+const string S_ERROR = "s_error";                          // {message}

@@ -1,0 +1,41 @@
+// crewmate.nvgt
+// Ações disponíveis para o papel de tripulante: iniciar/concluir tasks, reportar corpos e chamar
+// reunião de emergência. Validação real (alcance, cooldown, etc.) acontece no servidor
+// (core/game_state.nvgt) - esta classe só traduz intenção do jogador em mensagens de rede.
+
+#include "../../network/client.nvgt"
+
+class crewmate_controller {
+	game_client@ client;
+
+	crewmate_controller(game_client@ client) {
+		@this.client = client;
+	}
+
+	// object_id é o id do map_object da task (ver game/map.nvgt). O minigame roda localmente;
+	// o resultado é reportado via submit_task_result().
+	void start_task(const string&in object_id) {
+		client.send_start_task(object_id);
+	}
+
+	void submit_task_result(const string&in object_id, bool success) {
+		client.send_task_input(object_id, success);
+	}
+
+	// O servidor encontra o corpo mais próximo sozinho - não precisamos informar qual é.
+	void report_body() {
+		client.send_report_body("");
+	}
+
+	void call_emergency_meeting() {
+		client.send_call_meeting();
+	}
+
+	void cast_vote(int64 target_peer_id) {
+		client.send_cast_vote(target_peer_id);
+	}
+
+	void skip_vote() {
+		client.send_cast_vote(-1);
+	}
+}
