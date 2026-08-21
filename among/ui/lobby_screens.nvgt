@@ -1,0 +1,183 @@
+// lobby_screens.nvgt
+// Telas de lobby: navegador de partidas (listar/criar/entrar) e sala de espera (pronto/iniciar).
+
+#include "menu.nvgt"
+#include "form.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../core/client_state.nvgt"
+#include "../lang/i18n.nvgt"
+#include "../config/game_constants.nvgt"
+
+// Resultado do navegador de lobbies: o jogador criou uma partida, entrou em uma existente, ou
+// voltou ao menu anterior.
+class lobby_browser_result {
+	bool joined = false;
+	bool go_back = false;
+	bool is_host = false;
+}
+
+// Busca a lista de lobbies em espera no servidor e monta um menu navegável: cada partida existente
+// + "Criar partida" + "Atualizar lista" + "Voltar".
+lobby_browser_result run_lobby_browser_screen(game_client@ client) {
+	lobby_browser_result result;
+
+	while (true) {
+		client.send_list_lobbies();
+		json_array@ lobbies = wait_for_lobby_list(client);
+
+		menu m;
+		m.click_sound = "menuclick.wav";
+		m.select_sound = "menuconfirm.wav";
+		m.sounds_prefix = "sounds/";
+		m.intro_text = @lobbies == null || lobbies.length() == 0 ? tr("lobby.no_lobbies") : tr("menu.join_lobby");
+
+		if (@lobbies != null) {
+			for (uint i = 0; i < lobbies.length(); i++) {
+				json_object@ entry = lobbies.get_object(i);
+				if (@entry == null) continue;
+				dictionary@ p = dictionary();
+				p.set("current", "" + int(entry["current"]));
+				p.set("max", "" + int(entry["max"]));
+				string label = string(entry["name"]) + " - " + tr("lobby.players", p);
+				m.add_item(label, string(entry["id"]));
+			}
+		}
+		m.add_item(tr("menu.create_lobby"), "__create__");
+		m.add_item(tr("lobby.refresh"), "__refresh__");
+		m.add_item(tr("menu.back"), "__back__");
+
+		m.run();
+		string id = m.selected_item_id;
+
+		if (id == "" || id == "__back__") {
+			result.go_back = true;
+			return result;
+		}
+		if (id == "__refresh__") continue;
+		if (id == "__create__") {
+			if (run_create_lobby_screen(client)) {
+				result.joined = true;
+				result.is_host = true;
+				return result;
+			}
+			continue;
+		}
+
+		client.send_join_lobby(id);
+		if (wait_for_join_result(client)) {
+			result.joined = true;
+			result.is_host = false;
+			return result;
+		}
+		speak(tr("lobby.join_failed"));
+	}
+	return result; // inalcançável - o laço só termina via return acima
+}
+
+json_array@ wait_for_lobby_list(game_client@ client) {
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_LOBBY_LIST) return pkt.get_array("lobbies");
+			@pkt = client.poll_message();
+		}
+	}
+	return null;
+}
+
+bool wait_for_join_result(game_client@ client) {
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_JOIN_RESULT) return pkt.get_bool("ok");
+			@pkt = client.poll_message();
+		}
+	}
+	return false;
+}
+
+// Tela simples de criação de partida: nome + preset (clássico/rápido/caos).
+bool run_create_lobby_screen(game_client@ client) {
+	audio_form f;
+	f.create_window(tr("menu.create_lobby"));
+	int f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
+	int f_preset = f.create_list(tr("menu.settings"));
+	f.add_list_item(f_preset, tr("lobby.preset.classic"), "classic");
+	f.add_list_item(f_preset, tr("lobby.preset.quick"), "quick");
+	f.add_list_item(f_preset, tr("lobby.preset.chaos"), "chaos");
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+
+	while (true) {
+		wait(5);
+		f.monitor();
+		if (f.is_pressed(f_cancel)) return false;
+		if (f.is_pressed(f_ok)) {
+			string lobby_name = f.get_text(f_name);
+			int preset_index = f.get_list_position(f_preset);
+			string preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";
+			client.send_create_lobby(lobby_name, preset_id);
+			return wait_for_join_result_after_create(client);
+		}
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}
+
+bool wait_for_join_result_after_create(game_client@ client) {
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_LOBBY_STATE) return true;
+			@pkt = client.poll_message();
+		}
+	}
+	return false;
+}
+
+// Sala de espera: fala entradas/saídas, permite alternar "pronto" (R), o anfitrião inicia a
+// partida (Enter) e qualquer um pode sair (ESC). Retorna o pacote S_GAME_START quando a partida
+// começa, ou null se o jogador saiu antes disso.
+net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
+	bool ready = false;
+	speak(tr("lobby.waiting_for_host"));
+
+	while (true) {
+		wait(10);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_PLAYER_JOINED) {
+				dictionary@ p = dictionary();
+				p.set("name", pkt.get_string("name"));
+				speak(tr("lobby.player_joined", p));
+			} else if (pkt.type == S_GAME_START) {
+				return pkt;
+			}
+			@pkt = client.poll_message();
+		}
+
+		if (key_pressed(KEY_R)) {
+			ready = !ready;
+			client.send_set_ready(ready);
+			speak(tr(ready ? "lobby.ready" : "lobby.not_ready"));
+		}
+		if (is_host && key_pressed(KEY_RETURN)) {
+			client.send_start_game();
+		}
+		if (key_pressed(KEY_ESCAPE)) {
+			client.send_leave_lobby();
+			return null;
+		}
+	}
+	return null; // inalcançável - o laço só termina via return acima
+}

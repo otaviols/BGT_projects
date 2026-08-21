@@ -1,0 +1,35 @@
+// main.nvgt
+// Ponto de entrada do cliente. Fluxo: conectar ao servidor -> login/cadastro -> navegador de
+// lobby (criar/entrar) -> sala de espera -> partida -> volta ao navegador de lobby ao terminar.
+
+#include "network/client.nvgt"
+#include "ui/onboarding_screens.nvgt"
+#include "ui/lobby_screens.nvgt"
+#include "game/game_loop.nvgt"
+#include "lang/i18n.nvgt"
+#include "config/game_constants.nvgt"
+
+void main() {
+	g_i18n.load_language("pt_BR");
+
+	game_client client;
+
+	if (!run_connect_screen(client)) return;
+
+	login_result login = run_login_screen(client);
+	if (!login.ok) return;
+
+	while (true) {
+		lobby_browser_result browse = run_lobby_browser_screen(client);
+		if (browse.go_back || !browse.joined) break;
+
+		net_packet@ start_pkt = run_waiting_room_screen(client, browse.is_host);
+		if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador
+
+		run_game(client, start_pkt);
+		// ao fim da partida (S_GAME_OVER), o servidor volta a lobby pro estado "waiting";
+		// o jogador retorna ao navegador de lobbies.
+	}
+
+	client.disconnect();
+}

@@ -1,0 +1,15 @@
+// server_main.nvgt
+// Ponto de entrada do servidor dedicado. Compile e execute este arquivo para hospedar uma
+// partida (ex: `nvgt server_main.nvgt` ou compile para um executável com `nvgt -c`).
+
+#include "network/server.nvgt"
+
+void main() {
+	game_server server;
+	if (!server.start(DEFAULT_SERVER_PORT)) {
+		println("Falha ao iniciar o servidor.");
+		return;
+	}
+	println("Servidor rodando na porta " + DEFAULT_SERVER_PORT + "...");
+	server.run();
+}

@@ -1,0 +1,117 @@
+// meeting_ui.nvgt
+// Reação do cliente a eventos de reunião/votação/sabotagem/corpo/fim de jogo: anúncios falados,
+// sons de alarme e o menu de votação navegável por teclado (setas + Enter, ESC = pular votação).
+
+#include "menu.nvgt"
+#include "speech.nvgt"
+#include "../network/protocol.nvgt"
+#include "../network/packet.nvgt"
+#include "../network/client.nvgt"
+#include "../core/client_state.nvgt"
+#include "../audio/audio_manager.nvgt"
+#include "../lang/i18n.nvgt"
+#include "../config/game_constants.nvgt"
+
+class meeting_ui {
+	game_client@ client;
+	audio_manager@ audio;
+	client_roster@ roster;
+
+	meeting_ui(game_client@ client, audio_manager@ audio, client_roster@ roster) {
+		@this.client = client;
+		@this.audio = audio;
+		@this.roster = roster;
+	}
+
+	private string name_of(uint64 peer_id) const {
+		roster_entry@ e = roster.find(peer_id);
+		return @e != null ? e.name : "";
+	}
+
+	void on_body_reported(net_packet@ pkt) {
+		audio.stop_body_beacon();
+		dictionary@ params = dictionary();
+		params.set("name", name_of(pkt.get_uint64("body_peer")));
+		speak(tr("game.body_reported", params));
+	}
+
+	void on_meeting_started(net_packet@ pkt) {
+		string reason = pkt.get_string("reason");
+		if (reason == "button") {
+			dictionary@ params = dictionary();
+			params.set("name", name_of(pkt.get_uint64("caller_peer")));
+			speak(tr("game.emergency_meeting_called", params));
+		} else {
+			speak(tr("game.meeting_discussion"));
+		}
+	}
+
+	void on_voting_started(net_packet@ pkt) {
+		speak(tr("game.meeting_voting"));
+		run_voting_menu();
+	}
+
+	void on_vote_result(net_packet@ pkt) {
+		uint64 ejected_peer = pkt.get_uint64("ejected_peer");
+		if (ejected_peer == 0) {
+			speak(tr(pkt.get_bool("tie") ? "game.vote_result_tie" : "game.no_one_ejected"));
+			return;
+		}
+		roster.mark_dead(ejected_peer);
+		dictionary@ params = dictionary();
+		params.set("name", pkt.get_string("ejected_name"));
+		speak(tr("game.vote_result_ejected", params));
+	}
+
+	void on_sabotage_started(net_packet@ pkt) {
+		string sabotage_id = pkt.get_string("sabotage_id");
+		speak(tr(sabotage_id == "lights" ? "sabotage.lights.name" : "sabotage.oxygen.name"));
+		audio.start_sabotage_alarm(0.0, 0.0);
+		if (sabotage_id == "lights") audio.apply_lights_out(true, 40);
+	}
+
+	void on_sabotage_fixed(net_packet@ pkt) {
+		speak(tr("sabotage.fixed"));
+		audio.stop_sabotage_alarm();
+		audio.apply_lights_out(false, 40);
+	}
+
+	void on_player_killed(net_packet@ pkt) {
+		uint64 peer_id = pkt.get_uint64("peer_id");
+		roster.mark_dead(peer_id);
+		audio.play_death(pkt.get_int("killer_color"), pkt.get_float("x"), pkt.get_float("y"));
+	}
+
+	void on_game_over(net_packet@ pkt) {
+		if (pkt.get_string("winner") == "crewmates") {
+			speak(tr("game.crewmates_win"));
+			audio.play_win();
+		} else {
+			speak(tr("game.impostors_win"));
+			audio.play_defeat();
+		}
+	}
+
+	// Menu de votação: lista jogadores vivos + opção de pular. ESC também pula.
+	private void run_voting_menu() {
+		menu vote_menu;
+		vote_menu.intro_text = tr("game.meeting_voting");
+		vote_menu.click_sound = "menuclick.wav";
+		vote_menu.select_sound = "menuconfirm.wav";
+		vote_menu.sounds_prefix = "sounds/";
+
+		array<roster_entry@>@ alive = roster.alive_entries();
+		for (uint i = 0; i < alive.length(); i++) {
+			vote_menu.add_item(alive[i].name, "" + alive[i].peer_id);
+		}
+		vote_menu.add_item(tr("game.vote_skip"), "skip");
+
+		vote_menu.run();
+		string selected_id = vote_menu.selected_item_id;
+
+		if (selected_id == "" || selected_id == "skip") client.send_cast_vote(-1);
+		else client.send_cast_vote(parse_int(selected_id));
+
+		audio.play_vote_confirm();
+	}
+}

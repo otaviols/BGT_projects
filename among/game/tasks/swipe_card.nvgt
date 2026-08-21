@@ -1,0 +1,57 @@
+// swipe_card.nvgt
+// Task nova (inspirada no "passar cartão" clássico, reimaginada como ritmo por áudio): dois bipes
+// tocam marcando o início e o fim da janela ideal de passar o cartão - o jogador deve pressionar
+// Enter entre eles, nem cedo nem tarde demais.
+
+#include "task_common.nvgt"
+
+bool run_swipe_card_task() {
+	const float WINDOW_START_SECONDS = 0.8;
+	const float WINDOW_LENGTH_SECONDS = 0.6;
+
+	speak(tr("task.swipe_card.instructions"));
+	task_sound("GetCard.wav");
+
+	timer clock;
+	clock.restart();
+	bool start_beeped = false;
+	bool end_beeped = false;
+	bool swiped = false;
+	bool swiped_in_window = false;
+
+	while (true) {
+		wait(5);
+		if (task_cancel_requested()) return false;
+
+		float elapsed = float(clock.elapsed) / 1000.0;
+
+		if (!start_beeped && elapsed >= WINDOW_START_SECONDS) {
+			start_beeped = true;
+			task_sound("beep.wav");
+		}
+		if (!end_beeped && elapsed >= WINDOW_START_SECONDS + WINDOW_LENGTH_SECONDS) {
+			end_beeped = true;
+			task_sound("beep.wav");
+		}
+
+		bool in_window = elapsed >= WINDOW_START_SECONDS && elapsed <= WINDOW_START_SECONDS + WINDOW_LENGTH_SECONDS;
+
+		if (!swiped && key_pressed(KEY_RETURN)) {
+			swiped = true;
+			swiped_in_window = in_window;
+		}
+
+		if (end_beeped) {
+			if (swiped && swiped_in_window) {
+				task_sound("CardComplet.wav");
+				speak(tr("task.completed"));
+				return true;
+			} else {
+				task_sound("CardError.wav");
+				speak(tr("task.failed"));
+				return false;
+			}
+		}
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}

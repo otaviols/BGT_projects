@@ -1,0 +1,43 @@
+// download_data.nvgt
+// Task de progresso simples: segurar Espaço baixa dados a uma taxa fixa por segundo. Um bipe
+// periódico (mais agudo conforme o progresso avança) dá feedback sonoro sem precisar de tela.
+
+#include "task_common.nvgt"
+
+bool run_download_data_task() {
+	const float PROGRESS_PER_SECOND = 20.0;
+	const float BEEP_INTERVAL_SECONDS = 0.4;
+
+	speak(tr("task.download_data.instructions"));
+
+	float progress = 0.0;
+	timer frame_clock;
+	timer beep_clock;
+	frame_clock.restart();
+	beep_clock.restart();
+
+	while (true) {
+		wait(5);
+		if (task_cancel_requested()) return false;
+
+		float delta = float(frame_clock.elapsed) / 1000.0;
+		frame_clock.restart();
+
+		if (key_down(KEY_SPACE)) {
+			progress += PROGRESS_PER_SECOND * delta;
+			if (progress > 100.0) progress = 100.0;
+
+			if (float(beep_clock.elapsed) / 1000.0 >= BEEP_INTERVAL_SECONDS) {
+				beep_clock.restart();
+				sound_play("sounds/beep.wav", vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, 0.0, 100.0 + progress);
+			}
+
+			if (progress >= 100.0) {
+				task_sound("BeepComplet.wav");
+				speak(tr("task.completed"));
+				return true;
+			}
+		}
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}

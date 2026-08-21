@@ -1,0 +1,48 @@
+// align_engine.nvgt
+// Task de alinhamento do motor: um "ponteiro" invisível se move e o jogador usa as setas
+// esquerda/direita para centralizá-lo. Um bipe fica mais agudo quanto mais perto do centro -
+// pressionar Enter quando o tom estiver no ponto mais alto tranca o alinhamento.
+
+#include "task_common.nvgt"
+
+bool run_align_engine_task() {
+	const float TRACK_HALF_WIDTH = 50.0; // -50..50, 0 = centro
+	const float STEP = 3.0;
+	const float SUCCESS_TOLERANCE = 6.0;
+	const float BEEP_INTERVAL_SECONDS = 0.25;
+
+	speak(tr("task.align_engine.instructions"));
+
+	float position = float(random(-40, 40));
+	timer beep_clock;
+	beep_clock.restart();
+
+	while (true) {
+		wait(5);
+		if (task_cancel_requested()) return false;
+
+		if (key_pressed(KEY_LEFT)) position -= STEP;
+		if (key_pressed(KEY_RIGHT)) position += STEP;
+		if (position < -TRACK_HALF_WIDTH) position = -TRACK_HALF_WIDTH;
+		if (position > TRACK_HALF_WIDTH) position = TRACK_HALF_WIDTH;
+
+		if (float(beep_clock.elapsed) / 1000.0 >= BEEP_INTERVAL_SECONDS) {
+			beep_clock.restart();
+			float distance_ratio = absf(position) / TRACK_HALF_WIDTH; // 0 = centro, 1 = extremo
+			float pitch = 200.0 - (distance_ratio * 120.0); // mais agudo perto do centro
+			float pan = position / TRACK_HALF_WIDTH; // ajuda quem ouve em estéreo, mas não é obrigatório
+			sound_play("sounds/beep.wav", vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, pan, pitch);
+		}
+
+		if (key_pressed(KEY_RETURN)) {
+			if (absf(position) <= SUCCESS_TOLERANCE) {
+				task_sound("BeepComplet.wav");
+				speak(tr("task.completed"));
+				return true;
+			} else {
+				task_sound("CardError.wav");
+			}
+		}
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}

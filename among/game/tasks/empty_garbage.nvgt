@@ -1,0 +1,55 @@
+// empty_garbage.nvgt
+// Reinterpretação acessível da task de esvaziar o lixo: segurar (puxar a alavanca) e depois reagir
+// rápido a um sinal sonoro (soltar o lixo na hora certa), como no jogo original mas guiado só por
+// áudio em vez de uma barra visual.
+
+#include "task_common.nvgt"
+
+bool run_empty_garbage_task() {
+	const float HOLD_SECONDS_REQUIRED = 2.0;
+	const float REACTION_WINDOW_SECONDS = 1.0;
+
+	speak(tr("task.empty_garbage.instructions"));
+
+	// Etapa 1: segurar Enter por HOLD_SECONDS_REQUIRED segundos.
+	float held = 0.0;
+	timer frame_clock;
+	frame_clock.restart();
+	while (held < HOLD_SECONDS_REQUIRED) {
+		wait(5);
+		if (task_cancel_requested()) return false;
+		float delta = float(frame_clock.elapsed) / 1000.0;
+		frame_clock.restart();
+		if (key_down(KEY_RETURN)) held += delta;
+		else held = 0.0; // soltou cedo demais - recomeça a contagem
+	}
+
+	task_sound("BeepComplet.wav");
+
+	// Etapa 2: espera aleatória, depois toca o bipe de reação - o jogador precisa apertar Enter
+	// dentro da janela de reação.
+	int wait_ms = random(500, 2000);
+	uint waited = 0;
+	while (waited < uint(wait_ms)) {
+		wait(5);
+		if (task_cancel_requested()) return false;
+		waited += 5;
+	}
+
+	task_sound("beep.wav");
+	timer reaction_clock;
+	reaction_clock.restart();
+	while (float(reaction_clock.elapsed) / 1000.0 <= REACTION_WINDOW_SECONDS) {
+		wait(5);
+		if (task_cancel_requested()) return false;
+		if (key_pressed(KEY_RETURN)) {
+			task_sound("BeepComplet.wav");
+			speak(tr("task.completed"));
+			return true;
+		}
+	}
+
+	task_sound("CardError.wav");
+	speak(tr("task.failed"));
+	return false;
+}

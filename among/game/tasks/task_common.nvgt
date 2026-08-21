@@ -1,0 +1,30 @@
+// task_common.nvgt
+// Utilidades compartilhadas pelas minigames de tasks (game/tasks/*.nvgt). Cada minigame roda em um
+// laço bloqueante local no cliente - travar a entrada por alguns segundos é aceitável já que o
+// jogador está deliberadamente parado interagindo com um objeto. O resultado final (sucesso ou
+// cancelamento) é reportado ao servidor via crewmate_controller.submit_task_result().
+
+#include "speech.nvgt"
+#include "../../lang/i18n.nvgt"
+
+const int TASK_CANCEL_KEY = KEY_ESCAPE;
+
+// true se o jogador pediu para cancelar a task (ESC).
+bool task_cancel_requested() {
+	return key_pressed(KEY_ESCAPE);
+}
+
+// Embaralha uma lista pequena de inteiros (Fisher-Yates). Usado para sortear tons/posições.
+void shuffle_int_list(array<int>@ arr) {
+	for (int i = int(arr.length()) - 1; i > 0; i--) {
+		int j = random(0, i);
+		int tmp = arr[i];
+		arr[i] = arr[j];
+		arr[j] = tmp;
+	}
+}
+
+// Toca um som de feedback simples, sem posicionamento (a minigame não conhece a posição do jogador).
+void task_sound(const string&in filename) {
+	sound_play("sounds/" + filename);
+}

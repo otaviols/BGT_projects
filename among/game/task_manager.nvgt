@@ -1,0 +1,20 @@
+// task_manager.nvgt
+// Ponto único para rodar a minigame certa a partir do task_type de um map_object (ver game/map.nvgt).
+// Devolve o resultado (sucesso/cancelado) para quem chamou reportar ao servidor.
+
+#include "tasks/fix_wiring.nvgt"
+#include "tasks/download_data.nvgt"
+#include "tasks/empty_garbage.nvgt"
+#include "tasks/align_engine.nvgt"
+#include "tasks/swipe_card.nvgt"
+
+// Roda a minigame correspondente a task_type e retorna true em caso de sucesso, false se falhou
+// ou foi cancelada (ESC). task_type desconhecido também retorna false.
+bool run_task_minigame(const string&in task_type) {
+	if (task_type == "fix_wiring") return run_fix_wiring_task();
+	if (task_type == "download_data") return run_download_data_task();
+	if (task_type == "empty_garbage") return run_empty_garbage_task();
+	if (task_type == "align_engine") return run_align_engine_task();
+	if (task_type == "swipe_card") return run_swipe_card_task();
+	return false;
+}

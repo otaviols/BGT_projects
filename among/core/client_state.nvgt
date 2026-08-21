@@ -1,0 +1,89 @@
+// client_state.nvgt
+// Espelho local (client-side) do elenco de jogadores da partida atual: nomes, cores e quem está
+// vivo. Alimentado pelos pacotes S_GAME_START/S_PLAYER_KILLED/S_VOTE_RESULT/S_PLAYER_LEFT.
+// Usado pela UI (radar já resolve nomes via servidor, mas votação/anúncios precisam de uma lista
+// local de "quem está na partida" para montar o menu de votação).
+
+#include "../network/packet.nvgt"
+#include "../config/game_constants.nvgt"
+
+class roster_entry {
+	uint64 peer_id;
+	string name;
+	int color;
+	bool alive = true;
+	bool ready = false;
+	float x = 0.0;
+	float y = 0.0;
+}
+
+class client_roster {
+	array<roster_entry@> entries;
+
+	void reset() {
+		entries.resize(0);
+	}
+
+	void add(uint64 peer_id, const string&in name, int color) {
+		roster_entry@ e = roster_entry();
+		e.peer_id = peer_id;
+		e.name = name;
+		e.color = color;
+		e.alive = true;
+		entries.insert_last(e);
+	}
+
+	roster_entry@ find(uint64 peer_id) const {
+		for (uint i = 0; i < entries.length(); i++) {
+			if (entries[i].peer_id == peer_id) return entries[i];
+		}
+		return null;
+	}
+
+	void mark_dead(uint64 peer_id) {
+		roster_entry@ e = find(peer_id);
+		if (@e != null) e.alive = false;
+	}
+
+	void update_position(uint64 peer_id, float x, float y) {
+		roster_entry@ e = find(peer_id);
+		if (@e != null) { e.x = x; e.y = y; }
+	}
+
+	array<roster_entry@>@ alive_entries() const {
+		array<roster_entry@> result;
+		for (uint i = 0; i < entries.length(); i++) {
+			if (entries[i].alive) result.insert_last(entries[i]);
+		}
+		return result;
+	}
+
+	// Jogador vivo mais próximo de (x,y), excluindo exclude_peer. Retorna null se ninguém dentro
+	// de max_range estiver rastreado (posições só são conhecidas se S_PLAYER_MOVED já chegou).
+	roster_entry@ nearest_alive(float x, float y, uint64 exclude_peer, float max_range) const {
+		roster_entry@ best = null;
+		float best_dist = max_range;
+		for (uint i = 0; i < entries.length(); i++) {
+			roster_entry@ e = entries[i];
+			if (!e.alive || e.peer_id == exclude_peer) continue;
+			float dist = distance_2d(x, y, e.x, e.y);
+			if (dist <= best_dist) {
+				best_dist = dist;
+				@best = e;
+			}
+		}
+		return best;
+	}
+
+	// Popula o elenco a partir do pacote S_GAME_START (campo "players": [{peer_id, name, color, x, y}]).
+	void load_from_start_packet(net_packet@ pkt) {
+		reset();
+		json_array@ players = pkt.get_array("players");
+		if (@players == null) return;
+		for (uint i = 0; i < players.length(); i++) {
+			json_object@ p = players.get_object(i);
+			if (@p == null) continue;
+			add(uint64(p["peer_id"]), string(p["name"]), int(p["color"]));
+		}
+	}
+}

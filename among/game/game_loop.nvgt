@@ -1,0 +1,259 @@
+// game_loop.nvgt
+// Laço principal de uma partida em andamento (após receber S_GAME_START). Cuida de: movimento
+// absoluto (W/A/S/D = N/S/O/L), interação contextual com o objeto mais próximo (Enter), tasks,
+// radar (Tab/Shift+Tab), reporte de corpo (R), ações de impostor (K = matar, V = ventilar,
+// G = sabotagem), leitura da lista de tasks (T) e reação a todos os eventos de servidor.
+
+#include "menu.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../audio/audio_manager.nvgt"
+#include "../ui/radar.nvgt"
+#include "../ui/meeting_ui.nvgt"
+#include "../core/client_state.nvgt"
+#include "../core/player.nvgt"
+#include "../game/roles/crewmate.nvgt"
+#include "../game/roles/impostor.nvgt"
+#include "../game/task_manager.nvgt"
+#include "../game/map.nvgt"
+#include "../lang/i18n.nvgt"
+#include "../config/game_constants.nvgt"
+
+const int KEY_MOVE_NORTH = KEY_W;
+const int KEY_MOVE_SOUTH = KEY_S;
+const int KEY_MOVE_WEST = KEY_A;
+const int KEY_MOVE_EAST = KEY_D;
+const int KEY_INTERACT = KEY_RETURN;
+const int KEY_REPORT = KEY_R;
+const int KEY_KILL = KEY_K;
+const int KEY_VENT = KEY_V;
+const int KEY_SABOTAGE_MENU = KEY_G;
+const int KEY_TASK_LIST = KEY_T;
+const float FOOTSTEP_INTERVAL_SECONDS = 0.35;
+
+// Retorna o objeto interativo mais próximo dentro do alcance com o qual o jogador pode agir
+// agora (task pendente própria, vent se impostor, painel de sabotagem, botão de emergência).
+map_object@ find_interactable(game_map@ map, float x, float y, array<player_task>@ my_tasks, bool is_impostor) {
+	map_object@ best = null;
+	float best_dist = PLAYER_INTERACT_RANGE;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type == OBJ_DECORATION) continue;
+		if (o.obj_type == OBJ_TASK_SPOT) {
+			bool mine = false;
+			for (uint t = 0; t < my_tasks.length(); t++) {
+				if (my_tasks[t].object_id == o.id && !my_tasks[t].completed) { mine = true; break; }
+			}
+			if (!mine) continue;
+		}
+		if (o.obj_type == OBJ_VENT && !is_impostor) continue;
+		float dist = distance_2d(x, y, o.x, o.y);
+		if (dist <= best_dist) {
+			best_dist = dist;
+			@best = o;
+		}
+	}
+	return best;
+}
+
+string object_name(map_object@ o) {
+	if (o.obj_type == OBJ_EMERGENCY_BUTTON) return tr("object.emergency_button");
+	if (o.obj_type == OBJ_SABOTAGE_PANEL) return tr("object.sabotage_panel");
+	return tr(o.name_key);
+}
+
+// Quantidade de variantes de som disponíveis em sounds/ para cada prefixo de piso (ex: Tile1.wav,
+// Tile2.wav). Usado para não pedir uma variante que não existe como arquivo.
+int footstep_variant_count(const string&in floor_prefix) {
+	if (floor_prefix == "Tile") return 2;
+	if (floor_prefix == "MetalTile") return 3;
+	if (floor_prefix == "EarthTile") return 3;
+	if (floor_prefix == "VentTile") return 4;
+	return 2;
+}
+
+void run_sabotage_menu(impostor_controller@ imp) {
+	menu m;
+	m.intro_text = tr("game.sabotage_menu_hint");
+	m.click_sound = "menuclick.wav";
+	m.select_sound = "menuconfirm.wav";
+	m.sounds_prefix = "sounds/";
+	m.add_item(tr("sabotage.lights.name"), "lights");
+	m.add_item(tr("sabotage.oxygen.name"), "oxygen");
+	m.run();
+	string id = m.selected_item_id;
+	if (id != "") imp.trigger_sabotage(id);
+}
+
+// Executa uma partida inteira a partir do pacote S_GAME_START. Bloqueia até o fim da partida
+// (S_GAME_OVER) ou até o jogador escolher sair (ESC + confirmação).
+void run_game(game_client@ client, net_packet@ start_pkt) {
+	game_map@ map = build_the_hub_map();
+	audio_manager@ audio = audio_manager();
+	client_roster@ roster = client_roster();
+	radar_ui@ radar = radar_ui(client, audio);
+	meeting_ui@ mui = meeting_ui(client, audio, roster);
+	crewmate_controller@ crew = crewmate_controller(client);
+	impostor_controller@ imp = impostor_controller(client);
+
+	bool is_impostor = start_pkt.get_bool("your_role_impostor");
+	float my_x = start_pkt.get_float("your_x");
+	float my_y = start_pkt.get_float("your_y");
+	roster.load_from_start_packet(start_pkt);
+
+	array<player_task> my_tasks;
+	json_array@ tasks_json = start_pkt.get_array("tasks");
+	if (@tasks_json != null) {
+		for (uint i = 0; i < tasks_json.length(); i++) {
+			json_object@ tj = tasks_json.get_object(i);
+			player_task pt;
+			pt.object_id = string(tj["object_id"]);
+			pt.task_type = string(tj["task_type"]);
+			my_tasks.insert_last(pt);
+		}
+	}
+
+	speak(tr(is_impostor ? "role.assigned_impostor" : "role.assigned_crewmate"));
+	audio.update_listener(my_x, my_y);
+
+	timer@ frame_clock = timer();
+	timer@ footstep_clock = timer();
+	bool game_over = false;
+	bool alive = true;
+
+	while (!game_over) {
+		wait(5);
+		client.update();
+
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			string t = pkt.type;
+			if (t == S_PLAYER_MOVED) {
+				roster.update_position(pkt.get_uint64("peer_id"), pkt.get_float("x"), pkt.get_float("y"));
+			} else if (t == S_PLAYER_LEFT) {
+				roster.mark_dead(pkt.get_uint64("peer_id"));
+			} else if (t == S_TASK_RESULT) {
+				string task_id = pkt.get_string("task_id");
+				for (uint i = 0; i < my_tasks.length(); i++) {
+					if (my_tasks[i].object_id == task_id) my_tasks[i].completed = pkt.get_bool("ok");
+				}
+				if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
+			} else if (t == S_PLAYER_KILLED) {
+				mui.on_player_killed(pkt);
+				if (pkt.get_uint64("peer_id") == client.my_peer_id) {
+					alive = false;
+					speak(tr("game.you_were_killed"));
+				}
+			} else if (t == S_BODY_REPORTED) {
+				mui.on_body_reported(pkt);
+			} else if (t == S_MEETING_STARTED) {
+				mui.on_meeting_started(pkt);
+			} else if (t == S_VOTING_STARTED) {
+				mui.on_voting_started(pkt);
+			} else if (t == S_VOTE_RESULT) {
+				mui.on_vote_result(pkt);
+			} else if (t == S_SABOTAGE_STARTED) {
+				mui.on_sabotage_started(pkt);
+			} else if (t == S_SABOTAGE_FIXED) {
+				mui.on_sabotage_fixed(pkt);
+			} else if (t == S_RADAR_RESULT) {
+				radar.handle_result(pkt);
+			} else if (t == S_GAME_OVER) {
+				mui.on_game_over(pkt);
+				game_over = true;
+			}
+			@pkt = client.poll_message();
+		}
+		if (game_over) break;
+
+		float delta = float(frame_clock.elapsed) / 1000.0;
+		frame_clock.restart();
+
+		if (alive) {
+			float dx = 0.0, dy = 0.0;
+			if (key_down(KEY_MOVE_NORTH)) dy -= 1.0;
+			if (key_down(KEY_MOVE_SOUTH)) dy += 1.0;
+			if (key_down(KEY_MOVE_WEST)) dx -= 1.0;
+			if (key_down(KEY_MOVE_EAST)) dx += 1.0;
+
+			if (dx != 0.0 || dy != 0.0) {
+				float len = sqrt(dx * dx + dy * dy);
+				dx /= len;
+				dy /= len;
+				my_x += dx * PLAYER_MOVE_SPEED * delta;
+				my_y += dy * PLAYER_MOVE_SPEED * delta;
+				client.send_move(my_x, my_y);
+				audio.update_listener(my_x, my_y);
+
+				if (float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
+					footstep_clock.restart();
+					map_zone@ zone = map.zone_at(my_x, my_y);
+					string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
+					audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
+				}
+			}
+
+			if (key_pressed(KEY_INTERACT)) {
+				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, is_impostor);
+				if (@obj != null) {
+					speak(object_name(obj));
+					if (obj.obj_type == OBJ_TASK_SPOT) {
+						bool success = run_task_minigame(obj.task_type);
+						client.send_task_input(obj.id, success);
+					} else if (obj.obj_type == OBJ_VENT) {
+						imp.use_vent(obj.id);
+					} else if (obj.obj_type == OBJ_SABOTAGE_PANEL) {
+						imp.fix_sabotage_panel(obj.id);
+					} else if (obj.obj_type == OBJ_EMERGENCY_BUTTON) {
+						crew.call_emergency_meeting();
+					}
+				} else {
+					speak(tr("game.nothing_nearby"));
+				}
+			}
+
+			if (key_pressed(KEY_REPORT)) crew.report_body();
+
+			if (key_pressed(KEY_TAB)) {
+				if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous();
+				else radar.scan_next();
+			}
+
+			if (key_pressed(KEY_TASK_LIST)) {
+				uint total = my_tasks.length();
+				if (total == 0) {
+					speak(tr("task.list_empty"));
+				} else {
+					uint done = 0;
+					for (uint i = 0; i < my_tasks.length(); i++) if (my_tasks[i].completed) done++;
+					dictionary@ p = dictionary();
+					p.set("percent", "" + (done * 100 / total));
+					speak(tr("task.progress", p));
+				}
+			}
+
+			if (is_impostor) {
+				if (key_pressed(KEY_KILL)) {
+					roster_entry@ target = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE);
+					if (@target != null) imp.kill(target.peer_id);
+				}
+				if (key_pressed(KEY_SABOTAGE_MENU)) run_sabotage_menu(imp);
+			}
+		}
+
+		if (key_pressed(KEY_ESCAPE)) {
+			if (yes_no(tr("menu.quit_confirm"))) {
+				client.send_leave_lobby();
+				return;
+			}
+		}
+	}
+}
+
+bool my_tasks_all_completed(array<player_task>@ tasks) {
+	if (tasks.length() == 0) return false;
+	for (uint i = 0; i < tasks.length(); i++) {
+		if (!tasks[i].completed) return false;
+	}
+	return true;
+}

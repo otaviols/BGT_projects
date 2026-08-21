@@ -1,0 +1,42 @@
+// impostor.nvgt
+// Ações extras disponíveis apenas para o papel de impostor: matar, usar vents e sabotar.
+// Herda as ações comuns (reunião/votação) reaproveitando os mesmos comandos de rede.
+
+#include "../../network/client.nvgt"
+
+class impostor_controller {
+	game_client@ client;
+
+	impostor_controller(game_client@ client) {
+		@this.client = client;
+	}
+
+	void kill(uint64 target_peer_id) {
+		client.send_kill(target_peer_id);
+	}
+
+	void use_vent(const string&in vent_id) {
+		client.send_use_vent(vent_id);
+	}
+
+	void trigger_sabotage(const string&in sabotage_id) {
+		client.send_trigger_sabotage(sabotage_id);
+	}
+
+	// Também usado por tripulantes reparando painéis - a task_type do painel decide qual sabotagem.
+	void fix_sabotage_panel(const string&in object_id) {
+		client.send_interact(object_id);
+	}
+
+	void call_emergency_meeting() {
+		client.send_call_meeting();
+	}
+
+	void cast_vote(int64 target_peer_id) {
+		client.send_cast_vote(target_peer_id);
+	}
+
+	void skip_vote() {
+		client.send_cast_vote(-1);
+	}
+}

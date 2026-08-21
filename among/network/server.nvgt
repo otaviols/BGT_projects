@@ -580,13 +580,3 @@ class game_server {
 		}
 	}
 }
-
-void main() {
-	game_server server;
-	if (!server.start(DEFAULT_SERVER_PORT)) {
-		println("Falha ao iniciar o servidor.");
-		return;
-	}
-	println("Servidor rodando na porta " + DEFAULT_SERVER_PORT + "...");
-	server.run();
-}
