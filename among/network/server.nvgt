@@ -127,8 +127,13 @@ class game_server {
 	}
 
 	void remove_from_lobby(game_state@ lobby, uint64 peer_id) {
+		string left_name = "";
 		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].peer_id == peer_id) { lobby.players.remove_at(i); break; }
+			if (lobby.players[i].peer_id == peer_id) {
+				left_name = lobby.players[i].username;
+				lobby.players.remove_at(i);
+				break;
+			}
 		}
 		if (lobby.players.length() == 0) {
 			for (uint i = 0; i < lobbies.length(); i++) {
@@ -138,8 +143,12 @@ class game_server {
 		}
 		if (lobby.host_peer_id == peer_id) lobby.host_peer_id = lobby.players[0].peer_id;
 
+		// Inclui nome e o anfitrião atual (pode ter mudado nesta mesma saída) pra que o cliente
+		// consiga anunciar quem saiu e quem é o novo anfitrião sem precisar de outro pacote.
 		net_packet@ left = net_packet(S_PLAYER_LEFT);
 		left.set_uint64("peer_id", peer_id);
+		left.set_string("name", left_name);
+		left.set_uint64("host_peer_id", lobby.host_peer_id);
 		broadcast_to_lobby(lobby, left);
 	}
 
@@ -295,6 +304,7 @@ class game_server {
 		pkt.set_string("lobby_id", lobby.lobby_id);
 		pkt.set_string("lobby_name", lobby.lobby_name);
 		pkt.set_int("max_players", int(lobby.config.max_players));
+		pkt.set_uint64("host_peer_id", lobby.host_peer_id);
 
 		json_array@ players_json = json_array();
 		for (uint i = 0; i < lobby.players.length(); i++) {
@@ -315,7 +325,14 @@ class game_server {
 	void on_start_game(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.host_peer_id != peer_id) return;
-		if (lobby.players.length() < MIN_PLAYERS) return;
+		if (lobby.players.length() < MIN_PLAYERS) {
+			dictionary@ p = dictionary();
+			p.set("min", "" + MIN_PLAYERS);
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr("lobby.min_players_warning", p));
+			send_to(peer_id, err);
+			return;
+		}
 
 		array<game_player@> shuffled = lobby.players;
 		shuffle_player_array(shuffled);

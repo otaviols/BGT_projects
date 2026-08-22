@@ -79,7 +79,11 @@ class meeting_ui {
 	void on_player_killed(net_packet@ pkt) {
 		uint64 peer_id = pkt.get_uint64("peer_id");
 		roster.mark_dead(peer_id);
-		audio.play_death(pkt.get_int("killer_color"), pkt.get_float("x"), pkt.get_float("y"));
+		float x = pkt.get_float("x");
+		float y = pkt.get_float("y");
+		int killer_color = pkt.get_int("killer_color");
+		audio.play_death(killer_color, x, y);
+		audio.play_kill_laugh(killer_color, x, y);
 	}
 
 	void on_game_over(net_packet@ pkt) {
@@ -94,6 +98,7 @@ class meeting_ui {
 
 	// Menu de votação: lista jogadores vivos + opção de pular. ESC também pula.
 	private void run_voting_menu() {
+		sound_play("sounds/openDialog.wav");
 		menu vote_menu;
 		vote_menu.intro_text = tr("game.meeting_voting");
 		vote_menu.click_sound = "menuclick.wav";
@@ -108,6 +113,7 @@ class meeting_ui {
 
 		vote_menu.run();
 		string selected_id = vote_menu.selected_item_id;
+		sound_play("sounds/closeDialog.wav");
 
 		if (selected_id == "" || selected_id == "skip") client.send_cast_vote(-1);
 		else client.send_cast_vote(parse_int(selected_id));

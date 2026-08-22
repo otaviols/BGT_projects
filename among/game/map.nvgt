@@ -175,5 +175,25 @@ game_map@ build_the_hub_map() {
 	m.objects.insert_last(map_object("emergency_button", "game.emergency_meeting_called", 0, 3, "cafeteria",
 		OBJ_EMERGENCY_BUTTON, "sounds/emergence1.wav"));
 
+	// Ambiente por sala (OBJ_DECORATION, sem interação): um som de fundo em loop por sala, no centro
+	// dela. Todos apontam pro mesmo "sounds/ambience.wav" como placeholder - trocar por um som
+	// específico de cada sala é só editar o sound_path aqui embaixo.
+	m.objects.insert_last(map_object("ambient_cafeteria", "room.cafeteria", 0, 0, "cafeteria",
+		OBJ_DECORATION, "sounds/ambience.wav"));
+	m.objects.insert_last(map_object("ambient_weapons", "room.weapons", -30, 0, "weapons",
+		OBJ_DECORATION, "sounds/ambience.wav"));
+	m.objects.insert_last(map_object("ambient_navigation", "room.navigation", 35, 0, "navigation",
+		OBJ_DECORATION, "sounds/ambience.wav"));
+	m.objects.insert_last(map_object("ambient_admin", "room.admin", 0, -25, "admin",
+		OBJ_DECORATION, "sounds/ambience.wav"));
+	m.objects.insert_last(map_object("ambient_medbay", "room.medbay", -30, -25, "medbay",
+		OBJ_DECORATION, "sounds/ambience.wav"));
+	m.objects.insert_last(map_object("ambient_storage", "room.storage", 0, -50, "storage",
+		OBJ_DECORATION, "sounds/ambience.wav"));
+	m.objects.insert_last(map_object("ambient_electrical", "room.electrical", -30, -50, "electrical",
+		OBJ_DECORATION, "sounds/ambience.wav"));
+	m.objects.insert_last(map_object("ambient_reactor", "room.reactor", -30, -75, "reactor",
+		OBJ_DECORATION, "sounds/ambience.wav"));
+
 	return m;
 }

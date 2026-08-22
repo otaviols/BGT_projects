@@ -25,7 +25,10 @@ class game_client {
 	void update() {
 		while (true) {
 			const network_event@ ev = net.request(0);
-			if (@ev == null) break;
+			// net.request() nunca retorna null - quando não há nada pendente ele retorna um
+			// evento de tipo event_none. É isso (não @ev == null) que sinaliza "acabaram os
+			// eventos deste quadro" e permite sair do laço.
+			if (@ev == null || ev.type == event_none) break;
 
 			if (ev.type == event_connect) {
 				connected = true;

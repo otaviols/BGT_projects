@@ -11,6 +11,7 @@
 
 void main() {
 	g_i18n.load_language("pt_BR");
+	show_window(tr("app.title"));
 
 	game_client client;
 

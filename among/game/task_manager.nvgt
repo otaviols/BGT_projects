@@ -11,10 +11,13 @@
 // Roda a minigame correspondente a task_type e retorna true em caso de sucesso, false se falhou
 // ou foi cancelada (ESC). task_type desconhecido também retorna false.
 bool run_task_minigame(const string&in task_type) {
-	if (task_type == "fix_wiring") return run_fix_wiring_task();
-	if (task_type == "download_data") return run_download_data_task();
-	if (task_type == "empty_garbage") return run_empty_garbage_task();
-	if (task_type == "align_engine") return run_align_engine_task();
-	if (task_type == "swipe_card") return run_swipe_card_task();
-	return false;
+	sound_play("sounds/openDialog.wav");
+	bool result = false;
+	if (task_type == "fix_wiring") result = run_fix_wiring_task();
+	else if (task_type == "download_data") result = run_download_data_task();
+	else if (task_type == "empty_garbage") result = run_empty_garbage_task();
+	else if (task_type == "align_engine") result = run_align_engine_task();
+	else if (task_type == "swipe_card") result = run_swipe_card_task();
+	sound_play("sounds/closeDialog.wav");
+	return result;
 }

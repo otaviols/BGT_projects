@@ -11,6 +11,8 @@ class audio_manager {
 	spatial_audio@ spatial;
 	int ambient_body_slot = -1;
 	int ambient_sabotage_slot = -1;
+	int ambient_ship_slot = -1;
+	array<int> decoration_ambient_slots;
 	uint footstep_variant_seed = 0;
 
 	audio_manager() {
@@ -63,6 +65,36 @@ class audio_manager {
 		}
 	}
 
+	// --- Ambiente da nave (toca durante toda a partida) ---
+	void start_ship_ambience() {
+		stop_ship_ambience();
+		ambient_ship_slot = spatial.play_ui("sounds/ambience.wav", true);
+	}
+
+	void stop_ship_ambience() {
+		if (ambient_ship_slot != -1) {
+			spatial.stop_sound(ambient_ship_slot);
+			ambient_ship_slot = -1;
+		}
+	}
+
+	// --- Ambiente por sala (objetos OBJ_DECORATION do mapa) ---
+	// Ainda usam sound_path = "sounds/ambience.wav" como placeholder em todo mapa (ver map.nvgt);
+	// trocar por um som próprio de cada sala é só editar o sound_path do objeto correspondente.
+	void start_room_ambience(game_map@ map) {
+		stop_room_ambience();
+		array<map_object@>@ decorations = map.objects_by_type(OBJ_DECORATION);
+		for (uint i = 0; i < decorations.length(); i++) {
+			int slot = play_object_ambient(decorations[i]);
+			if (slot != -1) decoration_ambient_slots.insert_last(slot);
+		}
+	}
+
+	void stop_room_ambience() {
+		for (uint i = 0; i < decoration_ambient_slots.length(); i++) spatial.stop_sound(decoration_ambient_slots[i]);
+		decoration_ambient_slots.resize(0);
+	}
+
 	// --- Sabotagem ---
 	void start_sabotage_alarm(float x, float y) {
 		stop_sabotage_alarm();
@@ -89,6 +121,7 @@ class audio_manager {
 
 	void play_menu_click() { play_ui_sound("menuclick.wav"); }
 	void play_menu_confirm() { play_ui_sound("menuconfirm.wav"); }
+	void play_intro() { play_ui_sound("intro.wav"); }
 	void play_player_enter() { play_ui_sound("PlayerEnter.wav"); }
 	void play_player_leave() { play_ui_sound("PlayerLeave.wav"); }
 	void play_start_game() { play_ui_sound("startGame.wav"); }

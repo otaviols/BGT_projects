@@ -42,6 +42,8 @@
 	"lobby.join_failed": "Não foi possível entrar na partida.",
 	"lobby.player_joined": "{name} entrou na partida.",
 	"lobby.player_left": "{name} saiu da partida.",
+	"lobby.you_are_host": "Você agora é o anfitrião.",
+	"lobby.new_host": "{name} agora é o anfitrião.",
 
 	"color.red": "Vermelho",
 	"color.blue": "Azul",

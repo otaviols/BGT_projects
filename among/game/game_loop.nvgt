@@ -73,6 +73,7 @@ int footstep_variant_count(const string&in floor_prefix) {
 }
 
 void run_sabotage_menu(impostor_controller@ imp) {
+	sound_play("sounds/openDialog.wav");
 	menu m;
 	m.intro_text = tr("game.sabotage_menu_hint");
 	m.click_sound = "menuclick.wav";
@@ -82,6 +83,7 @@ void run_sabotage_menu(impostor_controller@ imp) {
 	m.add_item(tr("sabotage.oxygen.name"), "oxygen");
 	m.run();
 	string id = m.selected_item_id;
+	sound_play("sounds/closeDialog.wav");
 	if (id != "") imp.trigger_sabotage(id);
 }
 
@@ -113,6 +115,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		}
 	}
 
+	audio.play_start_game();
+	audio.start_ship_ambience();
+	audio.start_room_ambience(map);
 	speak(tr(is_impostor ? "role.assigned_impostor" : "role.assigned_crewmate"));
 	audio.update_listener(my_x, my_y);
 
@@ -244,10 +249,14 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		if (key_pressed(KEY_ESCAPE)) {
 			if (yes_no(tr("menu.quit_confirm"))) {
 				client.send_leave_lobby();
+				audio.stop_ship_ambience();
+				audio.stop_room_ambience();
 				return;
 			}
 		}
 	}
+	audio.stop_ship_ambience();
+	audio.stop_room_ambience();
 }
 
 bool my_tasks_all_completed(array<player_task>@ tasks) {

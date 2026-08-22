@@ -1,0 +1,7 @@
+; Configuração do projeto Among Us Audiogame.
+; Por padrão o NVGT exclui algumas bibliotecas de plugin do pacote final
+; (build.shared_library_excludes = "plist TrueAudioNext GPUUtilities systemd_notify sqlite git2 curl").
+; Usamos o plugin sqlite (database/user_db.nvgt: #pragma plugin nvgt_sqlite), então precisamos
+; removê-lo dessa lista de exclusão para que nvgt_sqlite.dll seja copiado/empacotado junto do jogo.
+[build]
+shared_library_excludes = plist TrueAudioNext GPUUtilities systemd_notify git2 curl

@@ -8,6 +8,7 @@
 #include "../core/client_state.nvgt"
 #include "../lang/i18n.nvgt"
 #include "../config/game_constants.nvgt"
+#include "../audio/audio_manager.nvgt"
 
 // Resultado do navegador de lobbies: o jogador criou uma partida, entrou em uma existente, ou
 // voltou ao menu anterior.
@@ -17,10 +18,23 @@ class lobby_browser_result {
 	bool is_host = false;
 }
 
+// menu.run() e o monitor() de audio_form bloqueiam localmente enquanto o jogador decide (às vezes
+// dezenas de segundos, alternando entre janelas ao testar com vários clientes) sem nunca chamar
+// client.update(). Sem isso a conexão para de ser "servida" (nada de keepalive/ack via ENet) e o
+// servidor pode considerá-la caída, fazendo a lista de lobbies parecer travada/vazia mesmo com o
+// servidor funcionando. background_callback do menu.nvgt roda a cada iteração do monitor() interno,
+// então usamos ele pra manter a rede viva enquanto o menu está aberto.
+game_client@ g_lobby_pump_client;
+void pump_client_during_menu(menu@ m, string data) {
+	if (@g_lobby_pump_client != null) g_lobby_pump_client.update();
+}
+
 // Busca a lista de lobbies em espera no servidor e monta um menu navegável: cada partida existente
 // + "Criar partida" + "Atualizar lista" + "Voltar".
 lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 	lobby_browser_result result;
+	audio_manager@ audio = audio_manager();
+	audio.play_intro();
 
 	while (true) {
 		client.send_list_lobbies();
@@ -31,6 +45,8 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		m.select_sound = "menuconfirm.wav";
 		m.sounds_prefix = "sounds/";
 		m.intro_text = @lobbies == null || lobbies.length() == 0 ? tr("lobby.no_lobbies") : tr("menu.join_lobby");
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
 
 		if (@lobbies != null) {
 			for (uint i = 0; i < lobbies.length(); i++) {
@@ -106,7 +122,7 @@ bool wait_for_join_result(game_client@ client) {
 // Tela simples de criação de partida: nome + preset (clássico/rápido/caos).
 bool run_create_lobby_screen(game_client@ client) {
 	audio_form f;
-	f.create_window(tr("menu.create_lobby"));
+	f.create_window(tr("menu.create_lobby"), false); // não sobrescreve o título da janela (nome do jogo)
 	int f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
 	int f_preset = f.create_list(tr("menu.settings"));
 	f.add_list_item(f_preset, tr("lobby.preset.classic"), "classic");
@@ -117,6 +133,7 @@ bool run_create_lobby_screen(game_client@ client) {
 
 	while (true) {
 		wait(5);
+		client.update(); // mantém a conexão viva enquanto o jogador preenche o formulário
 		f.monitor();
 		if (f.is_pressed(f_cancel)) return false;
 		if (f.is_pressed(f_ok)) {
@@ -144,11 +161,33 @@ bool wait_for_join_result_after_create(game_client@ client) {
 	return false;
 }
 
+// Atualiza is_host/host_peer_id a partir de um novo valor vindo do servidor (S_LOBBY_STATE ou
+// S_PLAYER_LEFT) e anuncia a troca de anfitrião - só quando já sabíamos quem era antes (host_peer_id
+// != 0), pra não anunciar nada na entrada na sala.
+void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inout is_host,
+		uint64 new_host_peer_id, const string&in new_host_name) {
+	bool was_known = host_peer_id != 0;
+	bool changed = was_known && new_host_peer_id != host_peer_id;
+	host_peer_id = new_host_peer_id;
+	is_host = client.my_peer_id == host_peer_id;
+	if (!changed) return;
+	if (is_host) {
+		speak(tr("lobby.you_are_host"));
+	} else if (new_host_name != "") {
+		dictionary@ p = dictionary();
+		p.set("name", new_host_name);
+		speak(tr("lobby.new_host", p));
+	}
+}
+
 // Sala de espera: fala entradas/saídas, permite alternar "pronto" (R), o anfitrião inicia a
 // partida (Enter) e qualquer um pode sair (ESC). Retorna o pacote S_GAME_START quando a partida
 // começa, ou null se o jogador saiu antes disso.
 net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 	bool ready = false;
+	audio_manager@ audio = audio_manager();
+	uint64 host_peer_id = 0; // 0 = ainda não recebemos nenhum S_LOBBY_STATE
+
 	speak(tr("lobby.waiting_for_host"));
 
 	while (true) {
@@ -160,6 +199,26 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 				dictionary@ p = dictionary();
 				p.set("name", pkt.get_string("name"));
 				speak(tr("lobby.player_joined", p));
+				audio.play_player_enter();
+			} else if (pkt.type == S_PLAYER_LEFT) {
+				dictionary@ p = dictionary();
+				p.set("name", pkt.get_string("name", "?"));
+				speak(tr("lobby.player_left", p));
+				audio.play_player_leave();
+				apply_host_change(client, host_peer_id, is_host, pkt.get_uint64("host_peer_id"), "");
+			} else if (pkt.type == S_LOBBY_STATE) {
+				string new_host_name = "";
+				json_array@ players = pkt.get_array("players");
+				uint64 new_host_id = pkt.get_uint64("host_peer_id");
+				if (@players != null) {
+					for (uint i = 0; i < players.length(); i++) {
+						json_object@ pj = players.get_object(i);
+						if (@pj != null && uint64(pj["peer_id"]) == new_host_id) { new_host_name = string(pj["name"]); break; }
+					}
+				}
+				apply_host_change(client, host_peer_id, is_host, new_host_id, new_host_name);
+			} else if (pkt.type == S_ERROR) {
+				speak(pkt.get_string("message"));
 			} else if (pkt.type == S_GAME_START) {
 				return pkt;
 			}

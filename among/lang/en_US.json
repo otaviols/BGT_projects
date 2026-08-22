@@ -42,6 +42,8 @@
 	"lobby.join_failed": "Could not join the lobby.",
 	"lobby.player_joined": "{name} joined the lobby.",
 	"lobby.player_left": "{name} left the lobby.",
+	"lobby.you_are_host": "You are now the host.",
+	"lobby.new_host": "{name} is now the host.",
 
 	"color.red": "Red",
 	"color.blue": "Blue",
