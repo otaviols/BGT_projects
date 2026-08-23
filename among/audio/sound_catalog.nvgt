@@ -1,0 +1,159 @@
+// sound_catalog.nvgt
+// Catálogo central de todo arquivo de som que o jogo usa. Objetivo: um lugar só pra saber quais
+// sons existem, o que cada um faz, e (via tools/check_sounds.nvgt) quais ainda faltam em sounds/.
+//
+// Convenção: as constantes SND_* de cenário/UI já incluem o prefixo "sounds/" (é o que
+// spatial_audio/play_ui_sound esperam). As de tasks (usadas com task_sound(), que já prefixa
+// "sounds/" sozinho) ficam sem prefixo de propósito - task_common.nvgt cuida disso.
+
+#include "../config/colors.nvgt"
+
+// --- UI / menus (sem posição) ---
+const string SND_MENU_CLICK = "sounds/menuclick.wav";
+const string SND_MENU_CONFIRM = "sounds/menuconfirm.wav";
+const string SND_INTRO = "sounds/intro.wav";
+const string SND_PLAYER_ENTER = "sounds/PlayerEnter.wav";
+const string SND_PLAYER_LEAVE = "sounds/PlayerLeave.wav";
+const string SND_START_GAME = "sounds/startGame.wav";
+const string SND_WIN = "sounds/Win.wav";
+const string SND_DEFEAT = "sounds/defeat.wav";
+const string SND_MEETING_RESULT = "sounds/meetingResult.wav"; // ainda sem call site - ver audio_manager.play_meeting_result()
+const string SND_VOTE_CONFIRM = "sounds/voteConfirm.wav";
+const string SND_BODY_REPORTED = "sounds/bodyReport.wav"; // toca 1x pra nave inteira quando o corpo é reportado
+
+// --- Diálogos (abrir/fechar tasks, paineis, votação) ---
+const string SND_DIALOG_OPEN = "sounds/openDialog.wav";
+const string SND_DIALOG_CLOSE = "sounds/closeDialog.wav";
+
+// --- Cenário / ambiente ---
+const string SND_SHIP_AMBIENCE = "sounds/ambience.wav";     // loop, nave inteira, toca a partida inteira
+const string SND_SABOTAGE_ALARM = "sounds/emergence.wav";   // loop, nave inteira, enquanto sabotagem ativa
+const string SND_PASSAGE = "sounds/passage.ogg";            // loop, um arquivo só, em todo corredor
+const string SND_WALL_BUMP = "sounds/wall_bump.ogg";        // toca ao esbarrar fora de sala/corredor
+const string SND_BODY_ON_FLOOR = "sounds/body.ogg";         // loop no local do corpo até ser reportado
+const string SND_AMBIENT_CAFETERIA = "sounds/ambient_cafeteria.wav";
+const string SND_AMBIENT_WEAPONS = "sounds/ambient_weapons.wav";
+const string SND_AMBIENT_NAVIGATION = "sounds/ambient_navigation.wav";
+const string SND_AMBIENT_ADMIN = "sounds/ambient_admin.wav";
+const string SND_AMBIENT_MEDBAY = "sounds/ambient_medbay.wav";
+const string SND_AMBIENT_STORAGE = "sounds/ambient_storage.wav";
+const string SND_AMBIENT_ELECTRICAL = "sounds/ambient_electrical.wav";
+const string SND_AMBIENT_REACTOR = "sounds/ambient_reactor.wav";
+
+// --- Objetos do mapa (som de UMA VEZ ao usar - abrir painel, entrar/sair do vent) ---
+const string SND_VENT_DOOR_1 = "sounds/ventDoor1.wav";
+const string SND_VENT_DOOR_2 = "sounds/ventDoor2.wav";
+const string SND_OPEN_PANEL = "sounds/openPanel.wav";
+
+// --- Radar ---
+const string SND_RADAR_BEEP = "sounds/sonar.ogg";
+
+// --- Beacons (som CONTÍNUO posicionado, tocando a partida inteira, pra achar o objeto de longe) ---
+// Um arquivo por objeto - cada local precisa soar diferente pra dar pra distinguir por ouvido.
+const string SND_BUTTON_BEACON = "sounds/button.ogg";
+const string SND_PANEL_BEACON_LIGHTS_ELECTRICAL = "sounds/panel_lights_electrical.ogg";
+const string SND_PANEL_BEACON_OXYGEN_ADMIN = "sounds/panel_oxygen_admin.ogg";
+const string SND_PANEL_BEACON_OXYGEN_ELECTRICAL = "sounds/panel_oxygen_electrical.ogg";
+const string SND_VENT_BEACON_REACTOR = "sounds/vent_reactor.ogg";
+const string SND_VENT_BEACON_ELECTRICAL = "sounds/vent_electrical.ogg";
+const string SND_VENT_BEACON_MEDBAY = "sounds/vent_medbay.ogg";
+
+// --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
+const string SND_BEEP = "beep.wav";
+const string SND_BEEP_COMPLETE = "BeepComplet.wav";
+const string SND_CARD_ERROR = "CardError.wav";
+const string SND_CARD_COMPLETE = "CardComplet.wav";
+const string SND_GET_CARD = "GetCard.wav";
+
+// fix_wiring usa 3 variantes numeradas - ver electrical_string_sound() abaixo.
+const uint ELECTRICAL_STRING_VARIANT_COUNT = 3;
+string electrical_string_sound(int variant_1_based) {
+	return "eletricalString" + variant_1_based + ".wav";
+}
+
+// --- Morte / kill (ver config/colors.nvgt pra fallback por cor) ---
+const string SND_KILL = "sounds/kill.wav";                  // ouvido por quem tiver perto do assassinato
+const uint KILLED_VARIANT_COUNT_FOR_CATALOG = 4;            // ver colors.KILLED_SOUND_VARIANT_COUNT
+
+// Retorna TODO caminho de som que o jogo pode precisar tocar, já expandindo os construídos
+// dinamicamente (passos por piso, variantes de fix_wiring, variantes de morte) - é isso que
+// tools/check_sounds.nvgt varre pra dizer o que falta em sounds/.
+array<string>@ all_sound_paths() {
+	array<string> list;
+
+	list.insert_last(SND_MENU_CLICK);
+	list.insert_last(SND_MENU_CONFIRM);
+	list.insert_last(SND_INTRO);
+	list.insert_last(SND_PLAYER_ENTER);
+	list.insert_last(SND_PLAYER_LEAVE);
+	list.insert_last(SND_START_GAME);
+	list.insert_last(SND_WIN);
+	list.insert_last(SND_DEFEAT);
+	list.insert_last(SND_MEETING_RESULT);
+	list.insert_last(SND_VOTE_CONFIRM);
+	list.insert_last(SND_BODY_REPORTED);
+	list.insert_last(SND_DIALOG_OPEN);
+	list.insert_last(SND_DIALOG_CLOSE);
+	list.insert_last(SND_SHIP_AMBIENCE);
+	list.insert_last(SND_SABOTAGE_ALARM);
+	list.insert_last(SND_PASSAGE);
+	list.insert_last(SND_WALL_BUMP);
+	list.insert_last(SND_BODY_ON_FLOOR);
+	list.insert_last(SND_BUTTON_BEACON);
+	list.insert_last(SND_PANEL_BEACON_LIGHTS_ELECTRICAL);
+	list.insert_last(SND_PANEL_BEACON_OXYGEN_ADMIN);
+	list.insert_last(SND_PANEL_BEACON_OXYGEN_ELECTRICAL);
+	list.insert_last(SND_VENT_BEACON_REACTOR);
+	list.insert_last(SND_VENT_BEACON_ELECTRICAL);
+	list.insert_last(SND_VENT_BEACON_MEDBAY);
+	list.insert_last(SND_AMBIENT_CAFETERIA);
+	list.insert_last(SND_AMBIENT_WEAPONS);
+	list.insert_last(SND_AMBIENT_NAVIGATION);
+	list.insert_last(SND_AMBIENT_ADMIN);
+	list.insert_last(SND_AMBIENT_MEDBAY);
+	list.insert_last(SND_AMBIENT_STORAGE);
+	list.insert_last(SND_AMBIENT_ELECTRICAL);
+	list.insert_last(SND_AMBIENT_REACTOR);
+	list.insert_last(SND_VENT_DOOR_1);
+	list.insert_last(SND_VENT_DOOR_2);
+	list.insert_last(SND_OPEN_PANEL);
+	list.insert_last(SND_RADAR_BEEP);
+	list.insert_last("sounds/" + SND_BEEP);
+	list.insert_last("sounds/" + SND_BEEP_COMPLETE);
+	list.insert_last("sounds/" + SND_CARD_ERROR);
+	list.insert_last("sounds/" + SND_CARD_COMPLETE);
+	list.insert_last("sounds/" + SND_GET_CARD);
+	list.insert_last(SND_KILL);
+
+	for (int i = 1; i <= int(ELECTRICAL_STRING_VARIANT_COUNT); i++) {
+		list.insert_last("sounds/" + electrical_string_sound(i));
+	}
+	for (uint i = 1; i <= KILLED_VARIANT_COUNT_FOR_CATALOG; i++) {
+		list.insert_last("sounds/killed" + i + ".wav");
+	}
+
+	// Passos por piso - ver footstep_variant_count()/footstep_variant_extension() em game_loop.nvgt.
+	list.insert_last("sounds/Tile1.wav");
+	list.insert_last("sounds/Tile2.wav");
+	list.insert_last("sounds/MetalTile1.wav");
+	list.insert_last("sounds/MetalTile2.wav");
+	list.insert_last("sounds/MetalTile3.wav");
+	for (uint i = 1; i <= 5; i++) list.insert_last("sounds/EarthTile" + i + ".ogg");
+	// VentTile1-4.wav existem em sounds/ mas nenhuma sala/corredor usa esse prefixo hoje - não
+	// entram na checagem porque não são "esperados", ver game/the_hub.md.
+
+	return list;
+}
+
+// Sons opcionais: têm fallback no código se não existirem (ver config/colors.nvgt), então não
+// contam como "faltando" - só avisamos que dariam mais variedade se existissem.
+array<string>@ optional_sound_paths() {
+	array<string> list;
+	array<int>@ ids = all_color_ids();
+	for (uint i = 0; i < ids.length(); i++) {
+		string key = color_key(ids[i]);
+		list.insert_last("sounds/colors/" + key + "/death.wav");
+		list.insert_last("sounds/colors/" + key + "/kill.wav");
+	}
+	return list;
+}

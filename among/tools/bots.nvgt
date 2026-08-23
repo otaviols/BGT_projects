@@ -1,0 +1,124 @@
+// tools/bots.nvgt
+// Ferramenta de desenvolvimento: conecta N clientes "bot" no servidor, loga (cria a conta se ainda
+// não existir) e entra na primeira lobby em espera que encontrar. Não joga de verdade (não se move,
+// não faz tasks) - só serve pra preencher o número mínimo de jogadores sem precisar abrir vários
+// clientes manuais toda vez que for testar.
+//
+// Uso: suba o servidor (server_main.nvgt), abra seu client normal e crie a lobby, depois rode este
+// script (`nvgt tools/bots.nvgt`). Ele entra nos bots na primeira lobby em espera. Deixe a janela
+// aberta - ela mantém as conexões vivas até você fechar.
+
+#include "../network/client.nvgt"
+#include "../config/game_constants.nvgt"
+
+const uint BOT_COUNT = 3;
+const string BOT_PASSWORD = "botpass123";
+const string BOT_HOST = "127.0.0.1";
+const uint16 BOT_PORT = DEFAULT_SERVER_PORT;
+
+class bot {
+	game_client@ client;
+	string name;
+	bool joined_lobby = false;
+
+	bot(const string&in name) {
+		this.name = name;
+		@client = game_client();
+	}
+}
+
+// Bombeia client.update() até chegar um pacote do tipo pedido ou estourar o timeout.
+net_packet@ wait_for_type(game_client@ client, const string&in type, float timeout_seconds) {
+	timer@ t = timer();
+	while (float(t.elapsed) / 1000.0 < timeout_seconds) {
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == type) return pkt;
+			@pkt = client.poll_message();
+		}
+		wait(5);
+	}
+	return null;
+}
+
+bool setup_bot(bot@ b) {
+	println(b.name + ": conectando em " + BOT_HOST + ":" + BOT_PORT + "...");
+	if (!b.client.connect_to(BOT_HOST, BOT_PORT)) {
+		println(b.name + ": connect_to falhou.");
+		return false;
+	}
+
+	timer@ t = timer();
+	while (float(t.elapsed) / 1000.0 < 5.0 && !b.client.connected) {
+		b.client.update();
+		wait(5);
+	}
+	if (!b.client.connected) {
+		println(b.name + ": timeout esperando confirmação de conexão.");
+		return false;
+	}
+
+	// Tenta criar a conta; se já existir de uma rodada anterior, tudo bem, o login abaixo resolve.
+	b.client.send_register(b.name, BOT_PASSWORD);
+	wait_for_type(b.client, S_REGISTER_RESULT, 3.0);
+
+	b.client.send_login(b.name, BOT_PASSWORD);
+	net_packet@ login_result = wait_for_type(b.client, S_LOGIN_RESULT, 5.0);
+	if (@login_result == null || !login_result.get_bool("ok")) {
+		println(b.name + ": falha no login.");
+		return false;
+	}
+
+	println(b.name + ": logado. procurando lobby em espera...");
+	b.client.send_list_lobbies();
+	net_packet@ list_pkt = wait_for_type(b.client, S_LOBBY_LIST, 5.0);
+	string lobby_id = "";
+	if (@list_pkt != null) {
+		json_array@ lobbies = list_pkt.get_array("lobbies");
+		if (@lobbies != null && lobbies.length() > 0) {
+			json_object@ first = lobbies.get_object(0);
+			if (@first != null) lobby_id = string(first["id"]);
+		}
+	}
+	if (lobby_id == "") {
+		println(b.name + ": nenhuma lobby em espera encontrada. Crie uma partida no seu cliente antes de rodar este script.");
+		return false;
+	}
+
+	b.client.send_join_lobby(lobby_id);
+	net_packet@ join_result = wait_for_type(b.client, S_JOIN_RESULT, 5.0);
+	if (@join_result == null || !join_result.get_bool("ok")) {
+		println(b.name + ": falha ao entrar na lobby " + lobby_id + ".");
+		return false;
+	}
+
+	b.joined_lobby = true;
+	b.client.send_set_ready(true);
+	println(b.name + ": entrou na lobby " + lobby_id + " e ficou pronto.");
+	return true;
+}
+
+void main() {
+	println("=== bots de teste (" + BOT_COUNT + ") ===");
+
+	array<bot@> bots;
+	for (uint i = 0; i < BOT_COUNT; i++) bots.insert_last(bot("bot_" + (i + 1)));
+
+	uint ok_count = 0;
+	for (uint i = 0; i < bots.length(); i++) {
+		if (setup_bot(bots[i])) ok_count++;
+	}
+
+	println("--- " + ok_count + "/" + BOT_COUNT + " bots entraram. ---");
+	if (ok_count > 0) println("Deixe esta janela aberta enquanto testa. Feche quando terminar.");
+
+	// Mantém as conexões vivas (sem isso o servidor derruba os bots por inatividade - ver o bug
+	// de menu.run() sem client.update() que já corrigimos no client de verdade).
+	while (true) {
+		for (uint i = 0; i < bots.length(); i++) {
+			if (bots[i].joined_lobby) bots[i].client.update();
+		}
+		wait(20);
+	}
+}

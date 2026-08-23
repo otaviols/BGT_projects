@@ -25,26 +25,26 @@ bool run_fix_wiring_task() {
 
 		if (key_pressed(KEY_UP)) {
 			left_cursor = (left_cursor + 2) % 3;
-			task_sound("eletricalString" + (left_order[left_cursor] + 1) + ".wav");
+			task_sound(electrical_string_sound(left_order[left_cursor] + 1));
 		}
 		if (key_pressed(KEY_DOWN)) {
 			left_cursor = (left_cursor + 1) % 3;
-			task_sound("eletricalString" + (left_order[left_cursor] + 1) + ".wav");
+			task_sound(electrical_string_sound(left_order[left_cursor] + 1));
 		}
 		if (key_pressed(KEY_LEFT)) {
 			right_cursor = (right_cursor + 2) % 3;
-			task_sound("eletricalString" + (right_order[right_cursor] + 1) + ".wav");
+			task_sound(electrical_string_sound(right_order[right_cursor] + 1));
 		}
 		if (key_pressed(KEY_RIGHT)) {
 			right_cursor = (right_cursor + 1) % 3;
-			task_sound("eletricalString" + (right_order[right_cursor] + 1) + ".wav");
+			task_sound(electrical_string_sound(right_order[right_cursor] + 1));
 		}
 
 		if (key_pressed(KEY_RETURN)) {
 			if (connected[left_cursor]) continue;
 			if (left_order[left_cursor] == right_order[right_cursor]) {
 				connected[left_cursor] = true;
-				task_sound("BeepComplet.wav");
+				task_sound(SND_BEEP_COMPLETE);
 				bool all_done = true;
 				for (uint i = 0; i < connected.length(); i++) {
 					if (!connected[i]) { all_done = false; break; }
@@ -54,7 +54,7 @@ bool run_fix_wiring_task() {
 					return true;
 				}
 			} else {
-				task_sound("CardError.wav");
+				task_sound(SND_CARD_ERROR);
 			}
 		}
 	}

@@ -1,0 +1,61 @@
+// tools/check_sounds.nvgt
+// Ferramenta de desenvolvimento: compara o catálogo central de sons (audio/sound_catalog.nvgt) com
+// o que existe de fato em sounds/, e avisa dos dois lados - o que o código espera e não existe, e o
+// que existe na pasta mas não é referenciado em lugar nenhum (pode ser lixo ou algo ainda não
+// conectado). Rode com `nvgt tools/check_sounds.nvgt` sempre que adicionar/renomear um som.
+
+#include "../audio/sound_catalog.nvgt"
+
+void main() {
+	// NVGT muda o diretório de trabalho para a pasta do script (tools/) ao rodar este arquivo
+	// diretamente. Os caminhos do catálogo (ex.: "sounds/x.wav") assumem a raiz do projeto (among/,
+	// de onde o jogo de verdade roda) - voltamos um nível pra bater com essa suposição.
+	chdir("..");
+
+	array<string>@ expected = all_sound_paths();
+	array<string>@ optional = optional_sound_paths();
+	array<string>@ found_files = find_files("sounds/*");
+
+	dictionary found;
+	for (uint i = 0; i < found_files.length(); i++) found.set(found_files[i], true);
+
+	dictionary claimed; // marca quais arquivos da pasta já foram "explicados" pelo catálogo
+
+	println("=== Sons que o codigo espera (audio/sound_catalog.nvgt) ===");
+	uint missing_count = 0;
+	for (uint i = 0; i < expected.length(); i++) {
+		string path = expected[i];
+		string bare = path.find_last("/") >= 0 ? path.substr(path.find_last("/") + 1) : path;
+		if (found.exists(bare)) {
+			claimed.set(bare, true);
+		} else {
+			missing_count++;
+			println("FALTA: " + path);
+		}
+	}
+	if (missing_count == 0) println("(nenhum - todos os sons esperados existem)");
+
+	println("");
+	println("=== Sons opcionais (por cor, com fallback se nao existirem) ===");
+	uint optional_present = 0;
+	for (uint i = 0; i < optional.length(); i++) {
+		string path = optional[i];
+		if (file_exists(path)) {
+			optional_present++;
+			println("presente: " + path);
+		}
+	}
+	if (optional_present == 0) println("(nenhum criado ainda - usando os fallbacks genericos)");
+
+	println("");
+	println("=== Arquivos em sounds/ sem uso conhecido no codigo ===");
+	uint unused_count = 0;
+	for (uint i = 0; i < found_files.length(); i++) {
+		string name = found_files[i];
+		if (!claimed.exists(name)) {
+			unused_count++;
+			println(name);
+		}
+	}
+	if (unused_count == 0) println("(nenhum - todo arquivo em sounds/ e usado em algum lugar)");
+}

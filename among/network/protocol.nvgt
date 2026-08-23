@@ -47,5 +47,5 @@ const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejec
 const string S_SABOTAGE_STARTED = "s_sabotage_started";   // {sabotage_id, timer}
 const string S_SABOTAGE_FIXED = "s_sabotage_fixed";       // {sabotage_id}
 const string S_GAME_OVER = "s_game_over";                 // {winner, reason}
-const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, y} ou {empty: true}
+const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, y, distance} ou {empty: true}
 const string S_ERROR = "s_error";                          // {message}

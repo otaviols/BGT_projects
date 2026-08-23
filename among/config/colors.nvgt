@@ -33,19 +33,24 @@ string color_key(int color_id) {
 	return "unknown";
 }
 
+const uint KILLED_SOUND_VARIANT_COUNT = 4; // killed1.wav .. killed4.wav
+
 // Caminho do som de morte para a cor, com fallback para os sons genéricos existentes.
 string color_death_sound_path(int color_id) {
 	string specific = "sounds/colors/" + color_key(color_id) + "/death.wav";
 	if (file_exists(specific)) return specific;
-	// Fallback: alterna entre os dois sons genéricos já existentes no protótipo.
-	return (color_id % 2 == 0) ? "sounds/killed1.wav" : "sounds/killed2.wav";
+	// Fallback: alterna entre as 4 variantes genéricas de morte já existentes.
+	uint variant = uint(color_id) % KILLED_SOUND_VARIANT_COUNT + 1;
+	return "sounds/killed" + variant + ".wav";
 }
 
-// Caminho do som de risada/kill para a cor, com fallback para os sons genéricos existentes.
+// Caminho do som de kill (ouvido por quem está por perto do assassinato) para a cor, com fallback
+// pro som genérico. Ainda não existe uma risada própria por cor - quando existir, colocar em
+// sounds/colors/<cor>/kill.wav que o fallback deixa de ser usado automaticamente.
 string color_kill_sound_path(int color_id) {
 	string specific = "sounds/colors/" + color_key(color_id) + "/kill.wav";
 	if (file_exists(specific)) return specific;
-	return (color_id % 2 == 0) ? "sounds/killer3.wav" : "sounds/killer4.wav";
+	return "sounds/kill.wav";
 }
 
 array<int>@ all_color_ids() {

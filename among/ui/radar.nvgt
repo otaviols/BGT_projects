@@ -35,9 +35,11 @@ class radar_ui {
 		float x = pkt.get_float("x");
 		float y = pkt.get_float("y");
 		string name = pkt.get_string("name");
+		float distance = pkt.get_float("distance");
 		audio.play_radar_beep(x, y);
 		dictionary@ params = dictionary();
 		params.set("name", name);
-		speak(tr("radar.player_at", params));
+		params.set("steps", "" + int(distance + 0.5)); // passos ~ unidades de mundo, arredondado
+		speak(tr("radar.player_at_steps", params));
 	}
 }

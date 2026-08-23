@@ -89,6 +89,9 @@
 	"task.swipe_card.instructions": "Press Enter at the right moment, between the two beeps, to swipe the card at the correct rhythm. ESC cancels.",
 	"task.list_empty": "You have no pending tasks.",
 	"task.all_completed": "All your tasks are complete.",
+	"task.status_done": "done",
+	"task.status_pending": "pending",
+	"task.list_item": "{name}, in {room}: {status}.",
 
 	"sabotage.lights.name": "Sabotage: Lights",
 	"sabotage.oxygen.name": "Sabotage: Oxygen",
@@ -98,6 +101,7 @@
 
 	"radar.no_players_nearby": "No players nearby.",
 	"radar.player_at": "{name}",
+	"radar.player_at_steps": "{name}, {steps} steps away.",
 
 	"room.cafeteria": "Cafeteria",
 	"room.weapons": "Weapons",
@@ -114,6 +118,7 @@
 	"object.emergency_button": "Emergency button",
 
 	"game.nothing_nearby": "Nothing nearby.",
+	"game.location_info": "{room}. Position: {x}, {y}.",
 	"game.you_are_dead": "You are dead. Keep watching silently.",
 	"game.tasks_menu_hint": "Task list opened.",
 	"game.sabotage_menu_hint": "Choose a sabotage.",

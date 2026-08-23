@@ -29,11 +29,11 @@ bool run_download_data_task() {
 
 			if (float(beep_clock.elapsed) / 1000.0 >= BEEP_INTERVAL_SECONDS) {
 				beep_clock.restart();
-				sound_play("sounds/beep.wav", vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, 0.0, 100.0 + progress);
+				sound_play("sounds/" + SND_BEEP, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, 0.0, 100.0 + progress);
 			}
 
 			if (progress >= 100.0) {
-				task_sound("BeepComplet.wav");
+				task_sound(SND_BEEP_COMPLETE);
 				speak(tr("task.completed"));
 				return true;
 			}

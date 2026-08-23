@@ -97,6 +97,7 @@ class game_state {
 	bool try_move_player(uint64 peer_id, float x, float y) {
 		game_player@ p = find_player(peer_id);
 		if (@p == null || !p.alive) return false;
+		if (!map.is_walkable(x, y)) return false; // fora de qualquer sala/corredor - anti-cheat
 		float delta = elapsed_time - p.last_move_time;
 		if (delta <= 0.0) delta = 1.0 / NETWORK_TICKS_PER_SECOND;
 		bool ok = p.try_move(x, y, delta);

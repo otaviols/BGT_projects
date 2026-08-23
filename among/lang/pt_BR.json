@@ -84,6 +84,9 @@
 	"task.progress": "Progresso: {percent}%",
 	"task.list_empty": "Você não tem tasks pendentes.",
 	"task.all_completed": "Todas as suas tasks foram concluídas.",
+	"task.status_done": "concluída",
+	"task.status_pending": "pendente",
+	"task.list_item": "{name}, em {room}: {status}.",
 	"task.fix_wiring.instructions": "Use seta cima e baixo para ouvir os fios da esquerda, e seta esquerda e direita para os da direita. Pressione Enter para conectar o par selecionado quando o tom for igual. ESC cancela.",
 	"task.download_data.instructions": "Segure Espaço para baixar os dados. Solte para pausar. ESC cancela.",
 	"task.empty_garbage.instructions": "Segure Enter até ouvir o aviso, depois solte e pressione Enter de novo rapidamente quando ouvir o bipe. ESC cancela.",
@@ -98,6 +101,7 @@
 
 	"radar.no_players_nearby": "Nenhum jogador por perto.",
 	"radar.player_at": "{name}",
+	"radar.player_at_steps": "{name}, a {steps} passos.",
 
 	"room.cafeteria": "Cafeteria",
 	"room.weapons": "Sala de armas",
@@ -114,6 +118,7 @@
 	"object.emergency_button": "Botão de emergência",
 
 	"game.nothing_nearby": "Nada por perto.",
+	"game.location_info": "{room}. Posição: {x}, {y}.",
 	"game.you_are_dead": "Você está morto. Continue observando em silêncio.",
 	"game.tasks_menu_hint": "Lista de tasks aberta.",
 	"game.sabotage_menu_hint": "Escolha uma sabotagem.",

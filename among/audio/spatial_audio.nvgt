@@ -26,10 +26,19 @@ class spatial_audio {
 		return pool.play_2d(path, listener_x, listener_y, x, y, false, false);
 	}
 
-	// Som posicionado contínuo (ambiente de sala, alarme de sabotagem, corpo no chão). `persistent`
-	// mantém o slot vivo mesmo fora do alcance de audição, retomando quando o jogador se aproximar.
+	// Som posicionado contínuo (alarme de sabotagem, corpo no chão). `persistent` mantém o slot vivo
+	// mesmo fora do alcance de audição, retomando quando o jogador se aproximar.
 	int play_looping(const string&in path, float x, float y, bool persistent = true) {
 		return pool.play_2d(path, listener_x, listener_y, x, y, true, persistent);
+	}
+
+	// Som posicionado contínuo que toca em volume constante em qualquer ponto dentro de uma área
+	// retangular (half_width/half_height a partir de x,y) - só passa a atenuar por distância depois
+	// que o jogador sai dessa área. Usado pro ambiente de cada sala (ver map_zone em map.nvgt): sem
+	// isso o som só ficava audível perto do centro da sala, como um play_looping normal.
+	int play_room_ambience(const string&in path, float x, float y, int half_width, int half_height) {
+		return pool.play_extended_2d(path, listener_x, listener_y, x, y, half_width, half_width,
+			half_height, half_height, true, 0, 0.0, 0.0, 100.0, true);
 	}
 
 	// Som sem posição (UI/menu, notificações do sistema) - sempre audível, sem espacialização.

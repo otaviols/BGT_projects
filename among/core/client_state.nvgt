@@ -24,12 +24,14 @@ class client_roster {
 		entries.resize(0);
 	}
 
-	void add(uint64 peer_id, const string&in name, int color) {
+	void add(uint64 peer_id, const string&in name, int color, float x = 0.0, float y = 0.0) {
 		roster_entry@ e = roster_entry();
 		e.peer_id = peer_id;
 		e.name = name;
 		e.color = color;
 		e.alive = true;
+		e.x = x;
+		e.y = y;
 		entries.insert_last(e);
 	}
 
@@ -83,7 +85,7 @@ class client_roster {
 		for (uint i = 0; i < players.length(); i++) {
 			json_object@ p = players.get_object(i);
 			if (@p == null) continue;
-			add(uint64(p["peer_id"]), string(p["name"]), int(p["color"]));
+			add(uint64(p["peer_id"]), string(p["name"]), int(p["color"]), float(p["x"]), float(p["y"]));
 		}
 	}
 }

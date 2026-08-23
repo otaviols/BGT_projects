@@ -6,6 +6,7 @@
 
 #include "speech.nvgt"
 #include "../../lang/i18n.nvgt"
+#include "../../audio/sound_catalog.nvgt"
 
 const int TASK_CANCEL_KEY = KEY_ESCAPE;
 

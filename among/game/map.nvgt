@@ -5,6 +5,7 @@
 // posição/alcance de interação, o cliente usa para tocar os sons posicionados corretos.
 
 #include "../config/game_constants.nvgt"
+#include "../audio/sound_catalog.nvgt"
 
 class map_zone {
 	string id;
@@ -47,13 +48,14 @@ class map_object {
 	float x, y;
 	string room_id;
 	int obj_type;
-	string sound_path;      // som tocado ao interagir / ambiente contínuo baixo
+	string sound_path;      // som tocado UMA VEZ ao interagir (abrir painel, usar vent, etc.)
+	string beacon_sound_path; // som CONTÍNUO posicionado, pra achar o objeto de longe - "" = sem beacon
 	string task_type;       // se OBJ_TASK_SPOT: "fix_wiring", "download_data", etc.
 	string linked_object_id; // se OBJ_VENT: id do vent de destino
 
 	map_object(const string&in id, const string&in name_key, float x, float y, const string&in room_id,
 			int obj_type, const string&in sound_path, const string&in task_type = "",
-			const string&in linked_object_id = "") {
+			const string&in linked_object_id = "", const string&in beacon_sound_path = "") {
 		this.id = id;
 		this.name_key = name_key;
 		this.x = x;
@@ -63,6 +65,7 @@ class map_object {
 		this.sound_path = sound_path;
 		this.task_type = task_type;
 		this.linked_object_id = linked_object_id;
+		this.beacon_sound_path = beacon_sound_path;
 	}
 }
 
@@ -81,6 +84,20 @@ class game_map {
 	string room_id_at(float x, float y) const {
 		map_zone@ z = zone_at(x, y);
 		return @z == null ? "" : z.id;
+	}
+
+	map_zone@ find_zone(const string&in id) const {
+		for (uint i = 0; i < zones.length(); i++) {
+			if (zones[i].id == id) return zones[i];
+		}
+		return null;
+	}
+
+	// Uma posição só é válida se cair dentro de alguma sala ou corredor - o resto do "mundo" é
+	// parede/vazio. Usado tanto pelo cliente (som de bater na parede) quanto pelo servidor
+	// (anti-cheat: rejeita posições fora de qualquer sala/corredor).
+	bool is_walkable(float x, float y) const {
+		return @zone_at(x, y) != null;
 	}
 
 	map_object@ find_object(const string&in id) const {
@@ -135,65 +152,87 @@ game_map@ build_the_hub_map() {
 
 	// Vents (tríade clássica: reactor <-> electrical <-> medbay), só usável pelo impostor
 	m.objects.insert_last(map_object("vent_reactor", "object.vent", -30, -71, "reactor", OBJ_VENT,
-		"sounds/ventDoor1.wav", "", "vent_electrical"));
+		SND_VENT_DOOR_1, "", "vent_electrical"));
 	m.objects.insert_last(map_object("vent_electrical", "object.vent", -30, -46, "electrical", OBJ_VENT,
-		"sounds/ventDoor1.wav", "", "vent_medbay"));
+		SND_VENT_DOOR_1, "", "vent_medbay"));
 	m.objects.insert_last(map_object("vent_medbay", "object.vent", -30, -21, "medbay", OBJ_VENT,
-		"sounds/ventDoor2.wav", "", "vent_reactor"));
+		SND_VENT_DOOR_2, "", "vent_reactor"));
 
 	// Tasks (espalhadas por várias salas, jogador recebe um subconjunto aleatório)
 	m.objects.insert_last(map_object("task_wiring_admin", "task.fix_wiring.name", 3, -22, "admin",
-		OBJ_TASK_SPOT, "sounds/eletricalString1.wav", "fix_wiring"));
+		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring"));
 	m.objects.insert_last(map_object("task_wiring_electrical", "task.fix_wiring.name", -33, -47, "electrical",
-		OBJ_TASK_SPOT, "sounds/eletricalString2.wav", "fix_wiring"));
+		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(2), "fix_wiring"));
 	m.objects.insert_last(map_object("task_wiring_navigation", "task.fix_wiring.name", 38, 3, "navigation",
-		OBJ_TASK_SPOT, "sounds/eletricalString3.wav", "fix_wiring"));
+		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(3), "fix_wiring"));
 	m.objects.insert_last(map_object("task_download_admin", "task.download_data.name", -3, -28, "admin",
-		OBJ_TASK_SPOT, "sounds/beep.wav", "download_data"));
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data"));
 	m.objects.insert_last(map_object("task_download_navigation", "task.download_data.name", 32, -3, "navigation",
-		OBJ_TASK_SPOT, "sounds/beep.wav", "download_data"));
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data"));
 	m.objects.insert_last(map_object("task_download_weapons", "task.download_data.name", -33, 3, "weapons",
-		OBJ_TASK_SPOT, "sounds/beep.wav", "download_data"));
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data"));
 	m.objects.insert_last(map_object("task_garbage_cafeteria", "task.empty_garbage.name", 5, 5, "cafeteria",
-		OBJ_TASK_SPOT, "sounds/BeepComplet.wav", "empty_garbage"));
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP_COMPLETE, "empty_garbage"));
 	m.objects.insert_last(map_object("task_garbage_storage", "task.empty_garbage.name", 3, -53, "storage",
-		OBJ_TASK_SPOT, "sounds/BeepComplet.wav", "empty_garbage"));
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP_COMPLETE, "empty_garbage"));
 	m.objects.insert_last(map_object("task_align_navigation", "task.align_engine.name", 35, -3, "navigation",
-		OBJ_TASK_SPOT, "sounds/beep.wav", "align_engine"));
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "align_engine"));
 	m.objects.insert_last(map_object("task_card_admin", "task.swipe_card.name", -3, -22, "admin",
-		OBJ_TASK_SPOT, "sounds/GetCard.wav", "swipe_card"));
+		OBJ_TASK_SPOT, "sounds/" + SND_GET_CARD, "swipe_card"));
 
 	// Sabotagens
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -27, -53, "electrical",
-		OBJ_SABOTAGE_PANEL, "sounds/openPanel.wav", "lights"));
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights"));
 	m.objects.insert_last(map_object("panel_oxygen_admin", "sabotage.oxygen.name", 3, -22, "admin",
-		OBJ_SABOTAGE_PANEL, "sounds/openPanel.wav", "oxygen"));
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen"));
 	m.objects.insert_last(map_object("panel_oxygen_electrical", "sabotage.oxygen.name", -33, -53, "electrical",
-		OBJ_SABOTAGE_PANEL, "sounds/openPanel.wav", "oxygen"));
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen"));
 
-	// Botão de emergência
+	// Botão de emergência - o sound_path aqui é o beacon contínuo pra achar o botão por som (ver
+	// audio_manager.start_landmark_beacons()), não o alarme de reunião (esse é SND_SABOTAGE_ALARM,
+	// tocado ship-wide só no momento em que alguém aperta o botão).
 	m.objects.insert_last(map_object("emergency_button", "game.emergency_meeting_called", 0, 3, "cafeteria",
-		OBJ_EMERGENCY_BUTTON, "sounds/emergence1.wav"));
+		OBJ_EMERGENCY_BUTTON, SND_BUTTON_BEACON));
 
 	// Ambiente por sala (OBJ_DECORATION, sem interação): um som de fundo em loop por sala, no centro
-	// dela. Todos apontam pro mesmo "sounds/ambience.wav" como placeholder - trocar por um som
-	// específico de cada sala é só editar o sound_path aqui embaixo.
+	// dela, um arquivo próprio pra cada uma.
 	m.objects.insert_last(map_object("ambient_cafeteria", "room.cafeteria", 0, 0, "cafeteria",
-		OBJ_DECORATION, "sounds/ambience.wav"));
+		OBJ_DECORATION, SND_AMBIENT_CAFETERIA));
 	m.objects.insert_last(map_object("ambient_weapons", "room.weapons", -30, 0, "weapons",
-		OBJ_DECORATION, "sounds/ambience.wav"));
+		OBJ_DECORATION, SND_AMBIENT_WEAPONS));
 	m.objects.insert_last(map_object("ambient_navigation", "room.navigation", 35, 0, "navigation",
-		OBJ_DECORATION, "sounds/ambience.wav"));
+		OBJ_DECORATION, SND_AMBIENT_NAVIGATION));
 	m.objects.insert_last(map_object("ambient_admin", "room.admin", 0, -25, "admin",
-		OBJ_DECORATION, "sounds/ambience.wav"));
+		OBJ_DECORATION, SND_AMBIENT_ADMIN));
 	m.objects.insert_last(map_object("ambient_medbay", "room.medbay", -30, -25, "medbay",
-		OBJ_DECORATION, "sounds/ambience.wav"));
+		OBJ_DECORATION, SND_AMBIENT_MEDBAY));
 	m.objects.insert_last(map_object("ambient_storage", "room.storage", 0, -50, "storage",
-		OBJ_DECORATION, "sounds/ambience.wav"));
+		OBJ_DECORATION, SND_AMBIENT_STORAGE));
 	m.objects.insert_last(map_object("ambient_electrical", "room.electrical", -30, -50, "electrical",
-		OBJ_DECORATION, "sounds/ambience.wav"));
+		OBJ_DECORATION, SND_AMBIENT_ELECTRICAL));
 	m.objects.insert_last(map_object("ambient_reactor", "room.reactor", -30, -75, "reactor",
-		OBJ_DECORATION, "sounds/ambience.wav"));
+		OBJ_DECORATION, SND_AMBIENT_REACTOR));
+
+	// Som de passagem: toca nos corredores (mesmo mecanismo de ambiente por sala acima), pra dar uma
+	// pista sonora de "você está numa passagem entre salas". Um arquivo só, compartilhado por todos.
+	m.objects.insert_last(map_object("passage_cafeteria_weapons", "corridor", -17, 0,
+		"corridor_cafeteria_weapons", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_cafeteria_navigation", "corridor", 19.5, 0,
+		"corridor_cafeteria_navigation", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_cafeteria_admin", "corridor", 0, -12.5,
+		"corridor_cafeteria_admin", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_weapons_medbay", "corridor", -30, -12.5,
+		"corridor_weapons_medbay", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_admin_medbay", "corridor", -15, -25,
+		"corridor_admin_medbay", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_admin_storage", "corridor", 0, -37.5,
+		"corridor_admin_storage", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_medbay_electrical", "corridor", -30, -37.5,
+		"corridor_medbay_electrical", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_storage_electrical", "corridor", -16, -50,
+		"corridor_storage_electrical", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_electrical_reactor", "corridor", -30, -62.5,
+		"corridor_electrical_reactor", OBJ_DECORATION, SND_PASSAGE));
 
 	return m;
 }

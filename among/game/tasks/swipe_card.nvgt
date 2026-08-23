@@ -10,7 +10,7 @@ bool run_swipe_card_task() {
 	const float WINDOW_LENGTH_SECONDS = 0.6;
 
 	speak(tr("task.swipe_card.instructions"));
-	task_sound("GetCard.wav");
+	task_sound(SND_GET_CARD);
 
 	timer clock;
 	clock.restart();
@@ -27,11 +27,11 @@ bool run_swipe_card_task() {
 
 		if (!start_beeped && elapsed >= WINDOW_START_SECONDS) {
 			start_beeped = true;
-			task_sound("beep.wav");
+			task_sound(SND_BEEP);
 		}
 		if (!end_beeped && elapsed >= WINDOW_START_SECONDS + WINDOW_LENGTH_SECONDS) {
 			end_beeped = true;
-			task_sound("beep.wav");
+			task_sound(SND_BEEP);
 		}
 
 		bool in_window = elapsed >= WINDOW_START_SECONDS && elapsed <= WINDOW_START_SECONDS + WINDOW_LENGTH_SECONDS;
@@ -43,11 +43,11 @@ bool run_swipe_card_task() {
 
 		if (end_beeped) {
 			if (swiped && swiped_in_window) {
-				task_sound("CardComplet.wav");
+				task_sound(SND_CARD_COMPLETE);
 				speak(tr("task.completed"));
 				return true;
 			} else {
-				task_sound("CardError.wav");
+				task_sound(SND_CARD_ERROR);
 				speak(tr("task.failed"));
 				return false;
 			}

@@ -565,6 +565,7 @@ class game_server {
 		result.set_string("name", target.username);
 		result.set_float("x", target.x);
 		result.set_float("y", target.y);
+		result.set_float("distance", distance_2d(me.x, me.y, target.x, target.y));
 		send_to(peer_id, result);
 	}
 

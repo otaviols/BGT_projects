@@ -25,11 +25,13 @@ const int KEY_MOVE_WEST = KEY_A;
 const int KEY_MOVE_EAST = KEY_D;
 const int KEY_INTERACT = KEY_RETURN;
 const int KEY_REPORT = KEY_R;
-const int KEY_KILL = KEY_K;
+const int KEY_KILL = KEY_Q;
 const int KEY_VENT = KEY_V;
 const int KEY_SABOTAGE_MENU = KEY_G;
 const int KEY_TASK_LIST = KEY_T;
+const int KEY_ROOM_INFO = KEY_L;
 const float FOOTSTEP_INTERVAL_SECONDS = 0.35;
+const float WALL_BUMP_INTERVAL_SECONDS = 0.3;
 
 // Retorna o objeto interativo mais próximo dentro do alcance com o qual o jogador pode agir
 // agora (task pendente própria, vent se impostor, painel de sabotagem, botão de emergência).
@@ -67,13 +69,19 @@ string object_name(map_object@ o) {
 int footstep_variant_count(const string&in floor_prefix) {
 	if (floor_prefix == "Tile") return 2;
 	if (floor_prefix == "MetalTile") return 3;
-	if (floor_prefix == "EarthTile") return 3;
+	if (floor_prefix == "EarthTile") return 5;
 	if (floor_prefix == "VentTile") return 4;
 	return 2;
 }
 
+// Extensão do arquivo de passo de cada piso - a maioria é .wav, mas nem todos (ex.: EarthTile é .ogg).
+string footstep_variant_extension(const string&in floor_prefix) {
+	if (floor_prefix == "EarthTile") return "ogg";
+	return "wav";
+}
+
 void run_sabotage_menu(impostor_controller@ imp) {
-	sound_play("sounds/openDialog.wav");
+	sound_play(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.sabotage_menu_hint");
 	m.click_sound = "menuclick.wav";
@@ -83,7 +91,7 @@ void run_sabotage_menu(impostor_controller@ imp) {
 	m.add_item(tr("sabotage.oxygen.name"), "oxygen");
 	m.run();
 	string id = m.selected_item_id;
-	sound_play("sounds/closeDialog.wav");
+	sound_play(SND_DIALOG_CLOSE);
 	if (id != "") imp.trigger_sabotage(id);
 }
 
@@ -118,11 +126,13 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	audio.play_start_game();
 	audio.start_ship_ambience();
 	audio.start_room_ambience(map);
+	audio.start_landmark_beacons(map);
 	speak(tr(is_impostor ? "role.assigned_impostor" : "role.assigned_crewmate"));
 	audio.update_listener(my_x, my_y);
 
 	timer@ frame_clock = timer();
 	timer@ footstep_clock = timer();
+	timer@ wall_bump_clock = timer();
 	bool game_over = false;
 	bool alive = true;
 
@@ -185,16 +195,24 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				float len = sqrt(dx * dx + dy * dy);
 				dx /= len;
 				dy /= len;
-				my_x += dx * PLAYER_MOVE_SPEED * delta;
-				my_y += dy * PLAYER_MOVE_SPEED * delta;
-				client.send_move(my_x, my_y);
-				audio.update_listener(my_x, my_y);
+				float new_x = my_x + dx * PLAYER_MOVE_SPEED * delta;
+				float new_y = my_y + dy * PLAYER_MOVE_SPEED * delta;
 
-				if (float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
-					footstep_clock.restart();
-					map_zone@ zone = map.zone_at(my_x, my_y);
-					string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
-					audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
+				if (map.is_walkable(new_x, new_y)) {
+					my_x = new_x;
+					my_y = new_y;
+					client.send_move(my_x, my_y);
+					audio.update_listener(my_x, my_y);
+
+					if (float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
+						footstep_clock.restart();
+						map_zone@ zone = map.zone_at(my_x, my_y);
+						string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
+						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y, footstep_variant_extension(prefix));
+					}
+				} else if (float(wall_bump_clock.elapsed) / 1000.0 >= WALL_BUMP_INTERVAL_SECONDS) {
+					wall_bump_clock.restart();
+					audio.play_wall_bump(my_x, my_y);
 				}
 			}
 
@@ -230,11 +248,30 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					speak(tr("task.list_empty"));
 				} else {
 					uint done = 0;
-					for (uint i = 0; i < my_tasks.length(); i++) if (my_tasks[i].completed) done++;
+					string listing = "";
+					for (uint i = 0; i < my_tasks.length(); i++) {
+						if (my_tasks[i].completed) done++;
+						map_object@ obj = map.find_object(my_tasks[i].object_id);
+						map_zone@ zone = @obj != null ? map.find_zone(obj.room_id) : null;
+						dictionary@ item = dictionary();
+						item.set("name", @obj != null ? tr(obj.name_key) : tr(my_tasks[i].task_type + ".name"));
+						item.set("room", @zone != null ? tr(zone.name_key) : "");
+						item.set("status", tr(my_tasks[i].completed ? "task.status_done" : "task.status_pending"));
+						listing += tr("task.list_item", item) + " ";
+					}
 					dictionary@ p = dictionary();
 					p.set("percent", "" + (done * 100 / total));
-					speak(tr("task.progress", p));
+					speak(listing + tr("task.progress", p));
 				}
+			}
+
+			if (key_pressed(KEY_ROOM_INFO)) {
+				map_zone@ zone = map.zone_at(my_x, my_y);
+				dictionary@ p = dictionary();
+				p.set("room", @zone != null ? tr(zone.name_key) : tr("game.nothing_nearby"));
+				p.set("x", "" + int(my_x));
+				p.set("y", "" + int(my_y));
+				speak(tr("game.location_info", p));
 			}
 
 			if (is_impostor) {
@@ -251,12 +288,14 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				client.send_leave_lobby();
 				audio.stop_ship_ambience();
 				audio.stop_room_ambience();
+				audio.stop_landmark_beacons();
 				return;
 			}
 		}
 	}
 	audio.stop_ship_ambience();
 	audio.stop_room_ambience();
+	audio.stop_landmark_beacons();
 }
 
 bool my_tasks_all_completed(array<player_task>@ tasks) {

@@ -24,7 +24,7 @@ bool run_empty_garbage_task() {
 		else held = 0.0; // soltou cedo demais - recomeça a contagem
 	}
 
-	task_sound("BeepComplet.wav");
+	task_sound(SND_BEEP_COMPLETE);
 
 	// Etapa 2: espera aleatória, depois toca o bipe de reação - o jogador precisa apertar Enter
 	// dentro da janela de reação.
@@ -36,20 +36,20 @@ bool run_empty_garbage_task() {
 		waited += 5;
 	}
 
-	task_sound("beep.wav");
+	task_sound(SND_BEEP);
 	timer reaction_clock;
 	reaction_clock.restart();
 	while (float(reaction_clock.elapsed) / 1000.0 <= REACTION_WINDOW_SECONDS) {
 		wait(5);
 		if (task_cancel_requested()) return false;
 		if (key_pressed(KEY_RETURN)) {
-			task_sound("BeepComplet.wav");
+			task_sound(SND_BEEP_COMPLETE);
 			speak(tr("task.completed"));
 			return true;
 		}
 	}
 
-	task_sound("CardError.wav");
+	task_sound(SND_CARD_ERROR);
 	speak(tr("task.failed"));
 	return false;
 }

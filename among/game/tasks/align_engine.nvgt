@@ -31,16 +31,16 @@ bool run_align_engine_task() {
 			float distance_ratio = absf(position) / TRACK_HALF_WIDTH; // 0 = centro, 1 = extremo
 			float pitch = 200.0 - (distance_ratio * 120.0); // mais agudo perto do centro
 			float pan = position / TRACK_HALF_WIDTH; // ajuda quem ouve em estéreo, mas não é obrigatório
-			sound_play("sounds/beep.wav", vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, pan, pitch);
+			sound_play("sounds/" + SND_BEEP, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, pan, pitch);
 		}
 
 		if (key_pressed(KEY_RETURN)) {
 			if (absf(position) <= SUCCESS_TOLERANCE) {
-				task_sound("BeepComplet.wav");
+				task_sound(SND_BEEP_COMPLETE);
 				speak(tr("task.completed"));
 				return true;
 			} else {
-				task_sound("CardError.wav");
+				task_sound(SND_CARD_ERROR);
 			}
 		}
 	}
