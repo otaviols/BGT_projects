@@ -112,6 +112,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	roster.load_from_start_packet(start_pkt);
 
 	array<player_task> my_tasks;
+	array<string> my_task_object_ids;
 	json_array@ tasks_json = start_pkt.get_array("tasks");
 	if (@tasks_json != null) {
 		for (uint i = 0; i < tasks_json.length(); i++) {
@@ -120,13 +121,14 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			pt.object_id = string(tj["object_id"]);
 			pt.task_type = string(tj["task_type"]);
 			my_tasks.insert_last(pt);
+			my_task_object_ids.insert_last(pt.object_id);
 		}
 	}
 
 	audio.play_start_game();
 	audio.start_ship_ambience();
 	audio.start_room_ambience(map);
-	audio.start_landmark_beacons(map);
+	audio.start_landmark_beacons(map, my_task_object_ids);
 	speak(tr(is_impostor ? "role.assigned_impostor" : "role.assigned_crewmate"));
 	audio.update_listener(my_x, my_y);
 
@@ -224,8 +226,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 						bool success = run_task_minigame(obj.task_type);
 						client.send_task_input(obj.id, success);
 					} else if (obj.obj_type == OBJ_VENT) {
+						audio.play_object_interact(obj);
 						imp.use_vent(obj.id);
 					} else if (obj.obj_type == OBJ_SABOTAGE_PANEL) {
+						audio.play_object_interact(obj);
 						imp.fix_sabotage_panel(obj.id);
 					} else if (obj.obj_type == OBJ_EMERGENCY_BUTTON) {
 						crew.call_emergency_meeting();

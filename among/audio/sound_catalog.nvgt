@@ -49,14 +49,19 @@ const string SND_OPEN_PANEL = "sounds/openPanel.wav";
 const string SND_RADAR_BEEP = "sounds/sonar.ogg";
 
 // --- Beacons (som CONTÍNUO posicionado, tocando a partida inteira, pra achar o objeto de longe) ---
-// Um arquivo por objeto - cada local precisa soar diferente pra dar pra distinguir por ouvido.
+// Identidade por TIPO de objeto, não por sala (a mesma lógica dos passos por piso e do alarme de
+// sabotagem) - a ambientação da própria sala já diferencia onde você está.
 const string SND_BUTTON_BEACON = "sounds/button.ogg";
-const string SND_PANEL_BEACON_LIGHTS_ELECTRICAL = "sounds/panel_lights_electrical.ogg";
-const string SND_PANEL_BEACON_OXYGEN_ADMIN = "sounds/panel_oxygen_admin.ogg";
-const string SND_PANEL_BEACON_OXYGEN_ELECTRICAL = "sounds/panel_oxygen_electrical.ogg";
-const string SND_VENT_BEACON_REACTOR = "sounds/vent_reactor.ogg";
-const string SND_VENT_BEACON_ELECTRICAL = "sounds/vent_electrical.ogg";
-const string SND_VENT_BEACON_MEDBAY = "sounds/vent_medbay.ogg";
+const string SND_PANEL_BEACON_LIGHTS = "sounds/panel_lights.ogg";
+const string SND_PANEL_BEACON_OXYGEN = "sounds/panel_oxygen.ogg";
+const string SND_VENT_BEACON = "sounds/vent.ogg";
+
+// Um beacon por TIPO de task (não por sala) - mesma lógica de cima.
+const string SND_TASK_BEACON_FIX_WIRING = "sounds/fix_wiring_pannel.ogg";
+const string SND_TASK_BEACON_DOWNLOAD_DATA = "sounds/download_data_pannel.ogg";
+const string SND_TASK_BEACON_EMPTY_GARBAGE = "sounds/empty_garbage_pannel.ogg";
+const string SND_TASK_BEACON_ALIGN_ENGINE = "sounds/align_engine_pannel.ogg";
+const string SND_TASK_BEACON_SWIPE_CARD = "sounds/swipe_card_pannel.wav";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 const string SND_BEEP = "beep.wav";
@@ -100,12 +105,14 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_WALL_BUMP);
 	list.insert_last(SND_BODY_ON_FLOOR);
 	list.insert_last(SND_BUTTON_BEACON);
-	list.insert_last(SND_PANEL_BEACON_LIGHTS_ELECTRICAL);
-	list.insert_last(SND_PANEL_BEACON_OXYGEN_ADMIN);
-	list.insert_last(SND_PANEL_BEACON_OXYGEN_ELECTRICAL);
-	list.insert_last(SND_VENT_BEACON_REACTOR);
-	list.insert_last(SND_VENT_BEACON_ELECTRICAL);
-	list.insert_last(SND_VENT_BEACON_MEDBAY);
+	list.insert_last(SND_PANEL_BEACON_LIGHTS);
+	list.insert_last(SND_PANEL_BEACON_OXYGEN);
+	list.insert_last(SND_VENT_BEACON);
+	list.insert_last(SND_TASK_BEACON_FIX_WIRING);
+	list.insert_last(SND_TASK_BEACON_DOWNLOAD_DATA);
+	list.insert_last(SND_TASK_BEACON_EMPTY_GARBAGE);
+	list.insert_last(SND_TASK_BEACON_ALIGN_ENGINE);
+	list.insert_last(SND_TASK_BEACON_SWIPE_CARD);
 	list.insert_last(SND_AMBIENT_CAFETERIA);
 	list.insert_last(SND_AMBIENT_WEAPONS);
 	list.insert_last(SND_AMBIENT_NAVIGATION);

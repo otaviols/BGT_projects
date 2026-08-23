@@ -112,16 +112,27 @@ class audio_manager {
 		decoration_ambient_slots.resize(0);
 	}
 
-	// --- Marcos do mapa (ex.: botão de emergência) ---
+	// --- Marcos do mapa (botão de emergência, vents, painéis de sabotagem, tasks) ---
 	// Beacon posicionado (não de área) que fica mais alto quanto mais perto - diferente do ambiente
-	// de sala, aqui o objetivo é justamente conseguir "seguir o som" até achar o objeto.
-	void start_landmark_beacons(game_map@ map) {
+	// de sala, aqui o objetivo é justamente conseguir "seguir o som" até achar o objeto. Qualquer
+	// objeto do mapa com beacon_sound_path preenchido entra automaticamente (ver map.nvgt), EXCETO
+	// tasks: essas só tocam se o object_id estiver em my_task_object_ids - senão todo mundo ouviria
+	// beacon de toda task do mapa o jogo inteiro (ruído inútil pro impostor, spoiler pro tripulante).
+	void start_landmark_beacons(game_map@ map, array<string>@ my_task_object_ids = null) {
 		stop_landmark_beacons();
-		array<map_object@>@ buttons = map.objects_by_type(OBJ_EMERGENCY_BUTTON);
-		for (uint i = 0; i < buttons.length(); i++) {
-			map_object@ obj = buttons[i];
-			if (obj.sound_path == "") continue;
-			int slot = spatial.play_looping(obj.sound_path, obj.x, obj.y);
+		for (uint i = 0; i < map.objects.length(); i++) {
+			map_object@ obj = map.objects[i];
+			if (obj.beacon_sound_path == "") continue;
+			if (obj.obj_type == OBJ_TASK_SPOT) {
+				bool mine = false;
+				if (@my_task_object_ids != null) {
+					for (uint t = 0; t < my_task_object_ids.length(); t++) {
+						if (my_task_object_ids[t] == obj.id) { mine = true; break; }
+					}
+				}
+				if (!mine) continue;
+			}
+			int slot = spatial.play_looping(obj.beacon_sound_path, obj.x, obj.y);
 			if (slot != -1) landmark_beacon_slots.insert_last(slot);
 		}
 	}
