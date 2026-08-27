@@ -100,6 +100,7 @@ class game_state {
 		game_player@ p = find_player(peer_id);
 		if (@p == null) return false;
 		if (state != "in_progress") return false; // movimento travado durante reunião/votação
+		if (p.vented) return false; // escondido num vent - só sai/viaja pela rede (ver on_vent_travel)
 		if (!map.is_walkable(x, y)) return false; // fora de qualquer sala/corredor - anti-cheat
 		float delta = elapsed_time - p.last_move_time;
 		if (delta <= 0.0) delta = 1.0 / NETWORK_TICKS_PER_SECOND;
@@ -138,6 +139,7 @@ class game_state {
 
 		@out_event = net_packet(S_PLAYER_KILLED);
 		out_event.set_uint64("peer_id", target.peer_id);
+		out_event.set_uint64("killer_peer", killer.peer_id);
 		out_event.set_int("killer_color", killer.color);
 		out_event.set_float("x", target.x);
 		out_event.set_float("y", target.y);
@@ -286,7 +288,12 @@ class game_state {
 		return sabotage_id == "oxygen" ? 2 : 1;
 	}
 
-	bool try_fix_sabotage_panel(uint64 peer_id, const string&in object_id, net_packet@&out out_event) {
+	// panels_fixed/panels_required saem preenchidos mesmo quando ainda falta painel (pra dar feedback
+	// de progresso pra quem consertou parcialmente - ver network/server.on_interact) - só quando o
+	// ÚLTIMO painel necessário é consertado é que out_event vem preenchido e o retorno é true.
+	bool try_fix_sabotage_panel(uint64 peer_id, const string&in object_id, net_packet@&out out_event, int&out panels_fixed, int&out panels_required) {
+		panels_fixed = 0;
+		panels_required = 0;
 		if (active_sabotage == "") return false;
 		game_player@ p = find_player(peer_id);
 		if (@p == null || !p.alive) return false;
@@ -297,7 +304,9 @@ class game_state {
 		if (distance_2d(p.x, p.y, obj.x, obj.y) > PLAYER_INTERACT_RANGE) return false;
 
 		if (sabotage_fixed_panels.find(object_id) == -1) sabotage_fixed_panels.insert_last(object_id);
-		if (int(sabotage_fixed_panels.length()) < required_panels_for(active_sabotage)) return false;
+		panels_fixed = int(sabotage_fixed_panels.length());
+		panels_required = required_panels_for(active_sabotage);
+		if (panels_fixed < panels_required) return false;
 
 		@out_event = net_packet(S_SABOTAGE_FIXED);
 		out_event.set_string("sabotage_id", active_sabotage);

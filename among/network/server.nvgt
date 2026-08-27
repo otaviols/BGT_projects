@@ -201,6 +201,7 @@ class game_server {
 		else if (t == C_CALL_MEETING) on_call_meeting(peer_id, pkt);
 		else if (t == C_CAST_VOTE) on_cast_vote(peer_id, pkt);
 		else if (t == C_USE_VENT) on_use_vent(peer_id, pkt);
+		else if (t == C_VENT_TRAVEL) on_vent_travel(peer_id, pkt);
 		else if (t == C_RADAR_SCAN) on_radar_scan(peer_id, pkt);
 		else if (t == C_TRIGGER_SABOTAGE) on_trigger_sabotage(peer_id, pkt);
 		else if (t == C_INTERACT) on_interact(peer_id, pkt);
@@ -270,6 +271,8 @@ class game_server {
 		lobby.lobby_id = "lobby_" + (++g_lobby_counter);
 		lobby.lobby_name = pkt.get_string("lobby_name", "Partida de " + conn.username);
 		@lobby.config = get_preset(pkt.get_string("preset", "classic"));
+		float cooldown_override = pkt.get_float("kill_cooldown_override", -1.0);
+		if (cooldown_override > 0.0) lobby.config.kill_cooldown_seconds = cooldown_override;
 		lobby.config.validate();
 		lobby.host_peer_id = peer_id;
 		@lobby.map = build_the_hub_map();
@@ -380,6 +383,7 @@ class game_server {
 			p.color = color_ids[i % color_ids.length()];
 			p.alive = true;
 			p.vented = false;
+			p.current_vent_id = "";
 			p.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
 			p.meetings_called = 0;
 			p.radar_index = -1;
@@ -429,6 +433,7 @@ class game_server {
 			start.set_int("your_color", p.color);
 			start.set_float("your_x", p.x);
 			start.set_float("your_y", p.y);
+			start.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
 			start.set_array("players", roster);
 
 			json_array@ tasks_json = json_array();
@@ -596,31 +601,73 @@ class game_server {
 		}
 	}
 
+	// Entra num vent perto (achado por proximidade, igual qualquer outro objeto interativo). Uma vez
+	// dentro, sair ou viajar pra outro vent da mesma rede usa on_vent_travel (tecla V no cliente) -
+	// esses não dependem de proximidade porque a rede inteira conta como "dentro do vent".
 	void on_use_vent(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
 		game_player@ p = lobby.find_player(peer_id);
-		if (@p == null || !p.alive || !p.is_impostor) return;
+		if (@p == null || !p.alive || !p.is_impostor || p.vented) return;
 
 		string vent_id = pkt.get_string("vent_id");
 		map_object@ vent = lobby.map.find_object(vent_id);
 		if (@vent == null || vent.obj_type != OBJ_VENT) return;
+		if (distance_2d(p.x, p.y, vent.x, vent.y) > PLAYER_INTERACT_RANGE) return;
 
-		if (!p.vented) {
-			if (distance_2d(p.x, p.y, vent.x, vent.y) > PLAYER_INTERACT_RANGE) return;
-			map_object@ dest = lobby.map.find_object(vent.linked_object_id);
-			if (@dest == null) return;
-			p.x = dest.x;
-			p.y = dest.y;
-			p.vented = true;
-		} else {
+		p.x = vent.x;
+		p.y = vent.y;
+		p.vented = true;
+		p.current_vent_id = vent_id;
+
+		net_packet@ result = net_packet(S_VENT_STATE);
+		result.set_bool("vented", true);
+		result.set_float("x", p.x);
+		result.set_float("y", p.y);
+		send_to(peer_id, result);
+	}
+
+	// Sair do vent (target_vent_id == "") ou viajar pra outro vent CONECTADO ao atual, permanecendo
+	// escondido - só chamado enquanto já vented (ver tecla V / menu de vent no cliente).
+	void on_vent_travel(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive || !p.vented) return;
+
+		string target_id = pkt.get_string("target_vent_id");
+
+		if (target_id == "") {
 			p.vented = false;
+			p.current_vent_id = "";
 			net_packet@ moved = net_packet(S_PLAYER_MOVED);
 			moved.set_uint64("peer_id", peer_id);
 			moved.set_float("x", p.x);
 			moved.set_float("y", p.y);
 			broadcast_to_lobby(lobby, moved, peer_id, false);
+
+			net_packet@ result = net_packet(S_VENT_STATE);
+			result.set_bool("vented", false);
+			result.set_float("x", p.x);
+			result.set_float("y", p.y);
+			send_to(peer_id, result);
+			return;
 		}
+
+		map_object@ current_vent = lobby.map.find_object(p.current_vent_id);
+		map_object@ target_vent = lobby.map.find_object(target_id);
+		if (@current_vent == null || @target_vent == null || target_vent.obj_type != OBJ_VENT) return;
+		if (lobby.map.vent_connections(current_vent).find(target_id) == -1) return; // não conectado
+
+		p.x = target_vent.x;
+		p.y = target_vent.y;
+		p.current_vent_id = target_id;
+
+		net_packet@ result = net_packet(S_VENT_STATE);
+		result.set_bool("vented", true);
+		result.set_float("x", p.x);
+		result.set_float("y", p.y);
+		send_to(peer_id, result);
 	}
 
 	void on_radar_scan(uint64 peer_id, net_packet@ pkt) {
@@ -697,7 +744,19 @@ class game_server {
 		string object_id = pkt.get_string("object_id");
 
 		net_packet@ event;
-		if (lobby.try_fix_sabotage_panel(peer_id, object_id, event)) broadcast_to_lobby(lobby, event);
+		int panels_fixed, panels_required;
+		if (lobby.try_fix_sabotage_panel(peer_id, object_id, event, panels_fixed, panels_required)) {
+			broadcast_to_lobby(lobby, event);
+		} else if (panels_required > 0) {
+			// Painel certo, mas ainda falta consertar outro(s) - sem isso parecia que o painel "não
+			// funcionava" quando na verdade só precisava de mais um conserto em outro lugar.
+			net_packet@ progress = net_packet(S_ERROR);
+			dictionary@ p = dictionary();
+			p.set("fixed", "" + panels_fixed);
+			p.set("required", "" + panels_required);
+			progress.set_string("message", tr("sabotage.panel_progress", p));
+			send_to(peer_id, progress);
+		}
 	}
 
 	// --- Tick geral ---

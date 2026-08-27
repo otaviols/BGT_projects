@@ -19,6 +19,10 @@ class impostor_controller {
 		client.send_use_vent(vent_id);
 	}
 
+	void vent_travel(const string&in target_vent_id) {
+		client.send_vent_travel(target_vent_id);
+	}
+
 	void trigger_sabotage(const string&in sabotage_id) {
 		client.send_trigger_sabotage(sabotage_id);
 	}

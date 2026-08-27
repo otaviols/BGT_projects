@@ -107,6 +107,16 @@ class game_map {
 		return null;
 	}
 
+	// IDs de todo vent conectado a este (mesma rede) - ver linked_object_id, que guarda vários IDs
+	// separados por vírgula em vez de um destino fixo só.
+	array<string>@ vent_connections(map_object@ vent) const {
+		array<string> result;
+		if (@vent == null || vent.linked_object_id == "") return result;
+		string[]@ parts = vent.linked_object_id.split(",");
+		for (uint i = 0; i < parts.length(); i++) result.insert_last(parts[i]);
+		return result;
+	}
+
 	array<map_object@>@ objects_in_room(const string&in room_id) const {
 		array<map_object@> result;
 		for (uint i = 0; i < objects.length(); i++) {
@@ -150,13 +160,15 @@ game_map@ build_the_hub_map() {
 	m.zones.insert_last(map_zone("corridor_storage_electrical", "corridor", -16, -50, 6, 3, "EarthTile", true));
 	m.zones.insert_last(map_zone("corridor_electrical_reactor", "corridor", -30, -62.5, 3, 4.5, "MetalTile", true));
 
-	// Vents (tríade clássica: reactor <-> electrical <-> medbay), só usável pelo impostor
+	// Vents (tríade clássica: reactor <-> electrical <-> medbay, totalmente conectados entre si -
+	// não é uma corrente de um sentido só), só usável pelo impostor. linked_object_id guarda TODOS
+	// os vents conectados, separados por vírgula (ver vent_connections()).
 	m.objects.insert_last(map_object("vent_reactor", "object.vent", -30, -71, "reactor", OBJ_VENT,
-		SND_VENT_DOOR_1, "", "vent_electrical", SND_VENT_BEACON));
+		SND_VENT_DOOR_1, "", "vent_electrical,vent_medbay", SND_VENT_BEACON));
 	m.objects.insert_last(map_object("vent_electrical", "object.vent", -30, -46, "electrical", OBJ_VENT,
-		SND_VENT_DOOR_1, "", "vent_medbay", SND_VENT_BEACON));
+		SND_VENT_DOOR_1, "", "vent_reactor,vent_medbay", SND_VENT_BEACON));
 	m.objects.insert_last(map_object("vent_medbay", "object.vent", -30, -21, "medbay", OBJ_VENT,
-		SND_VENT_DOOR_2, "", "vent_reactor", SND_VENT_BEACON));
+		SND_VENT_DOOR_2, "", "vent_reactor,vent_electrical", SND_VENT_BEACON));
 
 	// Tasks (espalhadas por várias salas, jogador recebe um subconjunto aleatório). O beacon é por
 	// TIPO de task, não por sala - a mesma task em salas diferentes soa igual de propósito.

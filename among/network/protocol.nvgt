@@ -10,7 +10,7 @@ const uint8 CHANNEL_UNRELIABLE = 1;
 const string C_LOGIN = "c_login";                 // {username, password}
 const string C_REGISTER = "c_register";           // {username, password}
 const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
-const string C_CREATE_LOBBY = "c_create_lobby";   // {lobby_name, preset}
+const string C_CREATE_LOBBY = "c_create_lobby";   // {lobby_name, preset, kill_cooldown_override} (-1 = usa o preset)
 const string C_JOIN_LOBBY = "c_join_lobby";       // {lobby_id}
 const string C_LEAVE_LOBBY = "c_leave_lobby";     // {}
 const string C_SET_READY = "c_set_ready";         // {ready}
@@ -23,7 +23,8 @@ const string C_KILL = "c_kill";                   // {target_peer}
 const string C_REPORT_BODY = "c_report_body";     // {body_id}
 const string C_CALL_MEETING = "c_call_meeting";   // {}
 const string C_CAST_VOTE = "c_cast_vote";         // {target_peer}  (target_peer = -1 para pular)
-const string C_USE_VENT = "c_use_vent";           // {vent_id}
+const string C_USE_VENT = "c_use_vent";           // {vent_id} - entrar num vent perto (só quando não vented)
+const string C_VENT_TRAVEL = "c_vent_travel";     // {target_vent_id} - "" = sair, senão viaja pra outro vent da rede (só quando já vented)
 const string C_RADAR_SCAN = "c_radar_scan";       // {direction} (1 = próximo, -1 = anterior)
 const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("lights" | "oxygen"), só impostor
 const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
@@ -35,13 +36,13 @@ const string S_REGISTER_RESULT = "s_register_result";     // {ok, message}
 const string S_LOBBY_LIST = "s_lobby_list";               // {lobbies: [...]}
 const string S_LOBBY_STATE = "s_lobby_state";             // {lobby_id, players: [...], config}
 const string S_JOIN_RESULT = "s_join_result";             // {ok, message}
-const string S_GAME_START = "s_game_start";                // {map_name, your_role, your_color, players, tasks}
+const string S_GAME_START = "s_game_start";                // {map_name, your_role, your_color, players, tasks, kill_cooldown_seconds}
 const string S_PLAYER_MOVED = "s_player_moved";           // {peer_id, x, y, seq}
 const string S_PLAYER_JOINED = "s_player_joined";         // {peer_id, name, color}
 const string S_PLAYER_LEFT = "s_player_left";             // {peer_id}
 const string S_TASK_RESULT = "s_task_result";             // {task_id, ok, progress}
 const string S_TASK_ASSIGNED = "s_task_assigned";         // {tasks: [...]}
-const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, killer_color, x, y}
+const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, killer_peer, killer_color, x, y}
 const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer}
 const string S_MEETING_STARTED = "s_meeting_started";     // {reason, caller_peer, discussion_time}
 const string S_VOTING_STARTED = "s_voting_started";       // {voting_time, candidates: [...]}
@@ -54,3 +55,4 @@ const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, 
 const string S_ERROR = "s_error";                          // {message}
 const string S_PONG = "s_pong";                             // {} - resposta a C_PING, cliente mede o round-trip
 const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, text}
+const string S_VENT_STATE = "s_vent_state";                 // {vented, x, y} - resposta privada (só pra quem usou o vent)

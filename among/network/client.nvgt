@@ -74,10 +74,11 @@ class game_client {
 		send(net_packet(C_LIST_LOBBIES));
 	}
 
-	void send_create_lobby(const string&in lobby_name, const string&in preset) {
+	void send_create_lobby(const string&in lobby_name, const string&in preset, float kill_cooldown_override = -1.0) {
 		net_packet@ p = net_packet(C_CREATE_LOBBY);
 		p.set_string("lobby_name", lobby_name);
 		p.set_string("preset", preset);
+		p.set_float("kill_cooldown_override", kill_cooldown_override); // -1 = usa o valor padrão do preset
 		send(p);
 	}
 
@@ -152,6 +153,14 @@ class game_client {
 	void send_use_vent(const string&in vent_id) {
 		net_packet@ p = net_packet(C_USE_VENT);
 		p.set_string("vent_id", vent_id);
+		send(p);
+	}
+
+	// target_vent_id == "" pede pra sair do vent; qualquer outro valor pede pra viajar (escondido)
+	// até esse vent, se ele for conectado ao vent atual.
+	void send_vent_travel(const string&in target_vent_id) {
+		net_packet@ p = net_packet(C_VENT_TRAVEL);
+		p.set_string("target_vent_id", target_vent_id);
 		send(p);
 	}
 

@@ -127,9 +127,11 @@ bool run_create_lobby_screen(game_client@ client) {
 	f.create_window(tr("menu.create_lobby"), false); // não sobrescreve o título da janela (nome do jogo)
 	int f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
 	int f_preset = f.create_list(tr("menu.settings"));
-	f.add_list_item(f_preset, tr("lobby.preset.classic"), "classic");
-	f.add_list_item(f_preset, tr("lobby.preset.quick"), "quick");
-	f.add_list_item(f_preset, tr("lobby.preset.chaos"), "chaos");
+	f.add_list_item(f_preset, tr("lobby.preset.classic_desc"), "classic");
+	f.add_list_item(f_preset, tr("lobby.preset.quick_desc"), "quick");
+	f.add_list_item(f_preset, tr("lobby.preset.chaos_desc"), "chaos");
+	// Em branco = usa o cooldown padrão do preset escolhido acima.
+	int f_kill_cooldown = f.create_input_box(tr("lobby.kill_cooldown_override"), "");
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 
@@ -142,7 +144,9 @@ bool run_create_lobby_screen(game_client@ client) {
 			string lobby_name = f.get_text(f_name);
 			int preset_index = f.get_list_position(f_preset);
 			string preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";
-			client.send_create_lobby(lobby_name, preset_id);
+			string cooldown_text = f.get_text(f_kill_cooldown);
+			float cooldown_override = cooldown_text == "" ? -1.0 : parse_float(cooldown_text);
+			client.send_create_lobby(lobby_name, preset_id, cooldown_override);
 			return wait_for_join_result_after_create(client);
 		}
 	}
