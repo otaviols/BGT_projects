@@ -15,6 +15,7 @@ class roster_entry {
 	bool ready = false;
 	float x = 0.0;
 	float y = 0.0;
+	timer footstep_clock; // usado pra não tocar passo dele a cada pacote de posição, só de vez em quando
 }
 
 class client_roster {
@@ -85,7 +86,9 @@ class client_roster {
 		for (uint i = 0; i < players.length(); i++) {
 			json_object@ p = players.get_object(i);
 			if (@p == null) continue;
-			add(uint64(p["peer_id"]), string(p["name"]), int(p["color"]), float(p["x"]), float(p["y"]));
+			var@ vx = p["x"];
+			var@ vy = p["y"];
+			add(uint64(p["peer_id"]), string(p["name"]), int(p["color"]), safe_var_to_float(vx), safe_var_to_float(vy));
 		}
 	}
 }

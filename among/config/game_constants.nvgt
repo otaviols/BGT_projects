@@ -8,7 +8,7 @@ const uint MAX_PACKET_CHANNELS = 4;
 const uint NETWORK_TICKS_PER_SECOND = 20;
 
 // Jogadores
-const uint MIN_PLAYERS = 4;
+const uint MIN_PLAYERS = 3; // temporário, pra facilitar teste - Among Us de verdade usa 4
 const uint MAX_PLAYERS = 10;
 
 // Movimento (mundo absoluto: W=norte, S=sul, A=oeste, D=leste, sem rotação)
@@ -30,6 +30,9 @@ const uint DEFAULT_EMERGENCY_MEETINGS_PER_PLAYER = 1;
 // Reunião / votação
 const float DISCUSSION_TIME_SECONDS = 45.0;
 const float VOTING_TIME_SECONDS = 30.0;
+// Ponto onde todo mundo (vivo) é teleportado quando uma reunião começa - centro da cafeteria.
+const float MEETING_GATHER_X = 0.0;
+const float MEETING_GATHER_Y = 0.0;
 
 // Sabotagens
 const float SABOTAGE_LIGHTS_DURATION_SECONDS = 40.0;

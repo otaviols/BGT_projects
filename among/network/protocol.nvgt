@@ -26,6 +26,8 @@ const string C_CAST_VOTE = "c_cast_vote";         // {target_peer}  (target_peer
 const string C_USE_VENT = "c_use_vent";           // {vent_id}
 const string C_RADAR_SCAN = "c_radar_scan";       // {direction} (1 = próximo, -1 = anterior)
 const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("lights" | "oxygen"), só impostor
+const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
+const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
 
 // Servidor -> Cliente
 const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username}
@@ -43,9 +45,12 @@ const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, killer_co
 const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer}
 const string S_MEETING_STARTED = "s_meeting_started";     // {reason, caller_peer, discussion_time}
 const string S_VOTING_STARTED = "s_voting_started";       // {voting_time, candidates: [...]}
-const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejected_name, was_impostor, tie}
+const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejected_name, was_impostor, tie, vote_breakdown: [{voter_name, target_name, skipped}]}
+const string S_VOTE_CAST = "s_vote_cast";                 // {voter_peer, voter_name} - só avisa QUE votou, nunca em quem
 const string S_SABOTAGE_STARTED = "s_sabotage_started";   // {sabotage_id, timer}
 const string S_SABOTAGE_FIXED = "s_sabotage_fixed";       // {sabotage_id}
-const string S_GAME_OVER = "s_game_over";                 // {winner, reason}
+const string S_GAME_OVER = "s_game_over";                 // {winner, reason, crewmates_alive, crewmates_total, impostors_alive, impostors_total}
 const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, y, distance} ou {empty: true}
 const string S_ERROR = "s_error";                          // {message}
+const string S_PONG = "s_pong";                             // {} - resposta a C_PING, cliente mede o round-trip
+const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, text}

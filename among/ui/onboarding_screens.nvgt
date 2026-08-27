@@ -4,18 +4,99 @@
 // campos, Enter confirma, Esc cancela) e totalmente falados pelo leitor de tela.
 
 #include "form.nvgt"
+#include "menu.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../database/models.nvgt"
 #include "../lang/i18n.nvgt"
 #include "../config/game_constants.nvgt"
+#include "../audio/sound_catalog.nvgt"
 
-// Pede endereço/porta do servidor e conecta. Retorna true se a conexão foi estabelecida.
+// Menu inicial (antes de conectar): conectar, aprender os sons do jogo, ou sair.
+// Retorna true se o jogador escolheu conectar (main.nvgt segue o fluxo normal); false = saiu.
+bool run_main_menu() {
+	while (true) {
+		menu m;
+		m.intro_text = tr("app.title");
+		m.click_sound = "menuclick.wav";
+		m.select_sound = "menuconfirm.wav";
+		m.sounds_prefix = "sounds/";
+		m.add_item(tr("menu.connect"), "connect");
+		m.add_item(tr("menu.learn_sounds"), "learn_sounds");
+		m.add_item(tr("menu.exit"), "exit");
+		m.run();
+		string id = m.selected_item_id;
+
+		if (id == "connect") return true;
+		if (id == "learn_sounds") { run_learn_sounds_screen(); continue; }
+		return false; // "exit", ESC ou fechou sem escolher
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}
+
+// Monta o catálogo de sons pra aprender (audio/sound_catalog.nvgt) e mostra o menu de preview
+// pronto do NVGT (menu.nvgt: learn_game_sounds_menu) - setas navegam, Enter toca o som selecionado.
+void run_learn_sounds_screen() {
+	name_value_collection sfx;
+
+	sfx.add(tr("learn.footstep_tile"), "sounds/Tile{1...2}.wav");
+	sfx.add(tr("learn.footstep_metal"), "sounds/MetalTile{1...3}.wav");
+	sfx.add(tr("learn.footstep_earth"), "sounds/EarthTile{1...5}.ogg");
+
+	sfx.add(tr("learn.ambient_prefix") + tr("room.cafeteria"), SND_AMBIENT_CAFETERIA);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.weapons"), SND_AMBIENT_WEAPONS);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.navigation"), SND_AMBIENT_NAVIGATION);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.admin"), SND_AMBIENT_ADMIN);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.medbay"), SND_AMBIENT_MEDBAY);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.storage"), SND_AMBIENT_STORAGE);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.electrical"), SND_AMBIENT_ELECTRICAL);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.reactor"), SND_AMBIENT_REACTOR);
+	sfx.add(tr("learn.passage"), SND_PASSAGE);
+
+	sfx.add(tr("learn.button_beacon"), SND_BUTTON_BEACON);
+	sfx.add(tr("learn.panel_lights_beacon"), SND_PANEL_BEACON_LIGHTS);
+	sfx.add(tr("learn.panel_oxygen_beacon"), SND_PANEL_BEACON_OXYGEN);
+	sfx.add(tr("learn.vent_beacon"), SND_VENT_BEACON);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.fix_wiring.name"), SND_TASK_BEACON_FIX_WIRING);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.download_data.name"), SND_TASK_BEACON_DOWNLOAD_DATA);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.empty_garbage.name"), SND_TASK_BEACON_EMPTY_GARBAGE);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.align_engine.name"), SND_TASK_BEACON_ALIGN_ENGINE);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.swipe_card.name"), SND_TASK_BEACON_SWIPE_CARD);
+
+	sfx.add(tr("learn.sabotage_alarm"), SND_SABOTAGE_ALARM);
+	sfx.add(tr("learn.body_on_floor"), SND_BODY_ON_FLOOR);
+	sfx.add(tr("learn.body_reported"), SND_BODY_REPORTED);
+	sfx.add(tr("learn.death"), "sounds/killed{1...4}.wav");
+	sfx.add(tr("learn.kill"), SND_KILL);
+	sfx.add(tr("learn.wall_bump"), SND_WALL_BUMP);
+
+	sfx.add(tr("learn.ship_ambience"), SND_SHIP_AMBIENCE);
+	sfx.add(tr("learn.start_game"), SND_START_GAME);
+	sfx.add(tr("learn.win"), SND_WIN);
+	sfx.add(tr("learn.defeat"), SND_DEFEAT);
+	sfx.add(tr("learn.player_enter"), SND_PLAYER_ENTER);
+	sfx.add(tr("learn.player_leave"), SND_PLAYER_LEAVE);
+	sfx.add(tr("learn.menu_click"), SND_MENU_CLICK);
+	sfx.add(tr("learn.menu_confirm"), SND_MENU_CONFIRM);
+	sfx.add(tr("learn.dialog_open"), SND_DIALOG_OPEN);
+	sfx.add(tr("learn.dialog_close"), SND_DIALOG_CLOSE);
+	sfx.add(tr("learn.radar_beep"), SND_RADAR_BEEP);
+	sfx.add(tr("learn.vote_confirm"), SND_VOTE_CONFIRM);
+	sfx.add(tr("learn.meeting_result"), SND_MEETING_RESULT);
+	sfx.add(tr("learn.intro"), SND_INTRO);
+
+	menu m;
+	m.intro_text = tr("learn.menu_hint");
+	m.sounds_prefix = "sounds/";
+	learn_game_sounds_menu(sfx, "", @m, tr("menu.back"));
+}
+
+// Pede o endereço do servidor e conecta (porta é sempre DEFAULT_SERVER_PORT, fixa por enquanto).
+// Retorna true se a conexão foi estabelecida.
 bool run_connect_screen(game_client@ client) {
 	audio_form f;
 	f.create_window(tr("menu.connect"), false); // não sobrescreve o título da janela (nome do jogo)
 	int f_host = f.create_input_box(tr("menu.server_address"), "localhost");
-	int f_port = f.create_input_box(tr("menu.server_port"), "" + DEFAULT_SERVER_PORT);
 	int f_ok = f.create_button(tr("menu.connect"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 
@@ -25,9 +106,8 @@ bool run_connect_screen(game_client@ client) {
 		if (f.is_pressed(f_cancel)) return false;
 		if (f.is_pressed(f_ok)) {
 			string host = f.get_text(f_host);
-			uint16 port = uint16(parse_int(f.get_text(f_port)));
 			if (host.empty()) continue;
-			if (!client.connect_to(host, port)) {
+			if (!client.connect_to(host, DEFAULT_SERVER_PORT)) {
 				speak(tr("menu.connect_failed"));
 				continue;
 			}

@@ -1,0 +1,100 @@
+// chat_log.nvgt
+// Container navegável de linhas (mensagens de chat OU eventos do jogo) - usado duas vezes:
+// um container de "mensagens" (chat de verdade) e um de "eventos" (anúncios do jogo: quem
+// entrou/saiu, corpo reportado, sabotagem, etc.). Navegação: vírgula/ponto andam entre linhas,
+// Shift+ponto/vírgula pulam pro fim/começo (ver game/game_loop.nvgt e ui/lobby_screens.nvgt).
+
+#include "form.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../lang/i18n.nvgt"
+
+const int KEY_CHAT = KEY_Y;
+const int KEY_CHAT_PREV = KEY_COMMA;
+const int KEY_CHAT_NEXT = KEY_PERIOD;
+const int KEY_CHAT_SWITCH_CONTAINER = KEY_PAGEUP;
+const int KEY_CHAT_SWITCH_CONTAINER_ALT = KEY_PAGEDOWN;
+const int KEY_VOTE = KEY_B; // abre o menu de votação (só faz algo se uma votação estiver rolando)
+
+class chat_line {
+	string speaker_name; // "" = linha de evento/sistema, sem autor
+	string text;
+}
+
+class chat_log {
+	array<chat_line> lines;
+	int cursor = -1;
+
+	// Adiciona uma linha e já deixa o cursor nela (é a mais recente).
+	void add(const string&in speaker_name, const string&in text) {
+		chat_line line;
+		line.speaker_name = speaker_name;
+		line.text = text;
+		lines.insert_last(line);
+		cursor = int(lines.length()) - 1;
+	}
+
+	bool get_empty() const property {
+		return lines.length() == 0;
+	}
+
+	string format_line(uint index) const {
+		if (index >= lines.length()) return "";
+		if (lines[index].speaker_name == "") return lines[index].text;
+		return lines[index].speaker_name + ": " + lines[index].text;
+	}
+
+	string current() const {
+		if (get_empty()) return "";
+		return format_line(uint(cursor));
+	}
+
+	string move_previous() {
+		if (get_empty()) return "";
+		if (cursor > 0) cursor--;
+		return current();
+	}
+
+	string move_next() {
+		if (get_empty()) return "";
+		if (cursor < int(lines.length()) - 1) cursor++;
+		return current();
+	}
+
+	string move_first() {
+		if (get_empty()) return "";
+		cursor = 0;
+		return current();
+	}
+
+	string move_last() {
+		if (get_empty()) return "";
+		cursor = int(lines.length()) - 1;
+		return current();
+	}
+}
+
+// Caixa de texto simples pra escrever e mandar uma mensagem de chat. O servidor decide quem recebe
+// (facção durante a partida, todo mundo na lobby/reunião/votação - ver network/server.nvgt).
+void run_chat_compose(game_client@ client) {
+	audio_form f;
+	f.create_window(tr("chat.compose_title"), false);
+	int f_text = f.create_input_box(tr("chat.compose_label"));
+	int f_send = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		if (f.is_pressed(f_cancel)) return;
+		if (f.is_pressed(f_send)) {
+			string text = f.get_text(f_text);
+			if (text != "") {
+				client.send_chat_message(text);
+				speak(tr("chat.sent"));
+			}
+			return;
+		}
+	}
+}

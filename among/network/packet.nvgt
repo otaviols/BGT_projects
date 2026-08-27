@@ -2,6 +2,17 @@
 // Envelope de mensagem trocada pela rede. Encapsula um json_object com um campo "type"
 // obrigatório e demais campos livres. Serializa para string (formato usado por network.send).
 
+// Um valor de ponto flutuante sem casas decimais (ex: -3.0) é serializado como inteiro no JSON
+// ("-3") e reanalisado como int64. Converter int64 -> float (ou -> double) direto dispara
+// "Lost precision" na engine (Poco::Var), que compara só a largura declarada dos tipos (63 bits vs
+// 53/24) e não o valor real - mesmo -3 sofre esse erro. Extrair como int64 e deixar o AngelScript
+// fazer a conversão numérica evita esse caminho. Use isso (não `float(valor_json)` direto) em
+// qualquer lugar que ler um campo numérico de um json_object/var vindo da rede.
+float safe_var_to_float(var@ v) {
+	if (v.is_integer) return float(int64(v));
+	return float(v);
+}
+
 class net_packet {
 	json_object@ obj;
 
@@ -52,13 +63,7 @@ class net_packet {
 	float get_float(const string&in key, float default_value = 0.0) const {
 		if (!obj.exists(key)) return default_value;
 		var@ v = obj[key];
-		// Um valor de ponto flutuante sem casas decimais (ex: -3.0) é serializado como inteiro no
-		// JSON ("-3") e reanalisado como int64. Converter int64 -> float (ou -> double) dispara
-		// "Lost precision" na engine (Poco::Var), que compara só a largura declarada dos tipos
-		// (63 bits vs 53/24) e não o valor real - mesmo -3 sofre esse erro. Extrair como int64 e
-		// deixar o AngelScript fazer a conversão numérica evita esse caminho da engine.
-		if (v.is_integer) return float(int64(v));
-		return float(v);
+		return safe_var_to_float(v);
 	}
 
 	bool get_bool(const string&in key, bool default_value = false) const {

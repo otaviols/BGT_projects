@@ -1,46 +1,52 @@
 // align_engine.nvgt
-// Task de alinhamento do motor: um "ponteiro" invisível se move e o jogador usa as setas
-// esquerda/direita para centralizá-lo. Um bipe fica mais agudo quanto mais perto do centro -
-// pressionar Enter quando o tom estiver no ponto mais alto tranca o alinhamento.
+// Task de alinhamento do motor: um bipe toca em loop contínuo, alternando entre o ouvido esquerdo
+// e direito conforme a posição atual. Segurar/apertar as setas move a posição, e cada aperto na
+// direção do centro traz o som de volta pro meio (ambos os ouvidos iguais) - pressionar Enter com o
+// som centralizado tranca o alinhamento.
 
 #include "task_common.nvgt"
 
-bool run_align_engine_task() {
+bool run_align_engine_task(game_client@ client) {
 	const float TRACK_HALF_WIDTH = 50.0; // -50..50, 0 = centro
 	const float STEP = 3.0;
 	const float SUCCESS_TOLERANCE = 6.0;
-	const float BEEP_INTERVAL_SECONDS = 0.25;
 
 	speak(tr("task.align_engine.instructions"));
 
 	float position = float(random(-40, 40));
-	timer beep_clock;
-	beep_clock.restart();
+
+	// beep.wav é ESTÉREO de verdade (2 canais, conferido no cabeçalho do arquivo), então o modo
+	// padrão AUDIO_PAN_MODE_BALANCE (atenua o canal oposto ao valor de pan) é o certo aqui. O bug de
+	// verdade era a ESCALA: sound.pan vai de -100 (esquerda) a 100 (direita), não de -1 a 1 - ver
+	// exemplo oficial em async/!async.nvgt ("pan += random(-2,2); if (pan < -100) ...; s.pan = pan;").
+	// Alimentar valores -1..1 deixava o som sempre a 1% do centro, praticamente inaudível.
+	sound engine_beep;
+	engine_beep.load("sounds/" + SND_BEEP);
+	engine_beep.pan = (position / TRACK_HALF_WIDTH) * 100.0;
+	engine_beep.play_looped();
 
 	while (true) {
 		wait(5);
-		if (task_cancel_requested()) return false;
+		client.update();
+		if (task_cancel_requested()) {
+			engine_beep.stop();
+			return false;
+		}
 
 		if (key_pressed(KEY_LEFT)) position -= STEP;
 		if (key_pressed(KEY_RIGHT)) position += STEP;
 		if (position < -TRACK_HALF_WIDTH) position = -TRACK_HALF_WIDTH;
 		if (position > TRACK_HALF_WIDTH) position = TRACK_HALF_WIDTH;
-
-		if (float(beep_clock.elapsed) / 1000.0 >= BEEP_INTERVAL_SECONDS) {
-			beep_clock.restart();
-			float distance_ratio = absf(position) / TRACK_HALF_WIDTH; // 0 = centro, 1 = extremo
-			float pitch = 200.0 - (distance_ratio * 120.0); // mais agudo perto do centro
-			float pan = position / TRACK_HALF_WIDTH; // ajuda quem ouve em estéreo, mas não é obrigatório
-			sound_play("sounds/" + SND_BEEP, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, pan, pitch);
-		}
+		engine_beep.pan = (position / TRACK_HALF_WIDTH) * 100.0; // -100 = extremo esquerdo, 0 = centro, 100 = extremo direito
 
 		if (key_pressed(KEY_RETURN)) {
 			if (absf(position) <= SUCCESS_TOLERANCE) {
+				engine_beep.stop();
 				task_sound(SND_BEEP_COMPLETE);
 				speak(tr("task.completed"));
 				return true;
 			} else {
-				task_sound(SND_CARD_ERROR);
+				task_sound(SND_CARD_ERROR); // erra e o loop continua tocando pra tentar de novo
 			}
 		}
 	}

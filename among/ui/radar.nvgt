@@ -35,11 +35,12 @@ class radar_ui {
 		float x = pkt.get_float("x");
 		float y = pkt.get_float("y");
 		string name = pkt.get_string("name");
-		float distance = pkt.get_float("distance");
 		audio.play_radar_beep(x, y);
+		// A contagem de "passos" (distância em unidades de mundo) não tinha uma correspondência
+		// confiável com o que se ouve andando - em vez de reportar um número que engana, só fala o
+		// nome; o som posicionado do beep já dá a noção de direção/proximidade.
 		dictionary@ params = dictionary();
 		params.set("name", name);
-		params.set("steps", "" + int(distance + 0.5)); // passos ~ unidades de mundo, arredondado
-		speak(tr("radar.player_at_steps", params));
+		speak(tr("radar.player_at", params));
 	}
 }

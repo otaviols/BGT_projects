@@ -94,14 +94,25 @@ class game_state {
 
 	// Move validado usando o relógio interno da partida (elapsed_time) para calcular o delta desde
 	// o último movimento aceito deste jogador - evita depender de relógio de rede não confiável.
+	// Jogador morto (morto ou expulso) PODE se mover - vira fantasma, como no Among Us original -
+	// quem trata a visibilidade/silêncio disso é on_move() (só retransmite pra outros mortos).
 	bool try_move_player(uint64 peer_id, float x, float y) {
 		game_player@ p = find_player(peer_id);
-		if (@p == null || !p.alive) return false;
+		if (@p == null) return false;
+		if (state != "in_progress") return false; // movimento travado durante reunião/votação
 		if (!map.is_walkable(x, y)) return false; // fora de qualquer sala/corredor - anti-cheat
 		float delta = elapsed_time - p.last_move_time;
 		if (delta <= 0.0) delta = 1.0 / NETWORK_TICKS_PER_SECOND;
 		bool ok = p.try_move(x, y, delta);
-		p.last_move_time = elapsed_time;
+		// SÓ avança o relógio de referência quando o movimento é ACEITO. Antes avançava sempre,
+		// mesmo numa rejeição - aí a janela de tempo pro próximo pacote ficava minúscula (só o
+		// intervalo entre pacotes, não desde a última posição CONFIRMADA), enquanto o cliente
+		// continuava andando localmente e se afastando cada vez mais da posição travada no servidor.
+		// Resultado: depois de UM pacote rejeitado (ex.: um soluço de rede), o jogador ficava preso
+		// pro resto da partida sem NUNCA mais conseguir um movimento aceito - exatamente o que
+		// "curava" ao entrar numa reunião, porque lá a posição de todo mundo é resincronizada à
+		// força (ver start_meeting).
+		if (ok) p.last_move_time = elapsed_time;
 		return ok;
 	}
 
@@ -141,6 +152,9 @@ class game_state {
 	}
 
 	// --- Reunião / votação ---
+	// Vai direto pra votação (sem uma fase de "discussão" separada travando o menu) - todo mundo
+	// vivo é teleportado pra cafeteria, o movimento trava (ver try_move_player), e o chat abre geral
+	// pra todos (ver server.on_chat_message) durante o tempo combinado de discussão+votação.
 	bool start_meeting(uint64 caller_peer, const string&in reason, net_packet@&out out_event) {
 		if (state != "in_progress") return false;
 		game_player@ caller = find_player(caller_peer);
@@ -149,8 +163,15 @@ class game_state {
 
 		if (reason == "button") caller.meetings_called++;
 
-		state = "meeting";
-		meeting_timer = config.discussion_time_seconds;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].alive) {
+				players[i].x = MEETING_GATHER_X;
+				players[i].y = MEETING_GATHER_Y;
+			}
+		}
+
+		state = "voting";
+		voting_timer = config.discussion_time_seconds + config.voting_time_seconds;
 		meeting_caller = caller_peer;
 		meeting_reason = reason;
 		votes.resize(0);
@@ -158,7 +179,8 @@ class game_state {
 		@out_event = net_packet(S_MEETING_STARTED);
 		out_event.set_uint64("caller_peer", caller_peer);
 		out_event.set_string("reason", reason);
-		out_event.set_float("discussion_time", meeting_timer);
+		out_event.set_float("gather_x", MEETING_GATHER_X);
+		out_event.set_float("gather_y", MEETING_GATHER_Y);
 		return true;
 	}
 
@@ -184,6 +206,7 @@ class game_state {
 	net_packet@ tally_votes() {
 		dictionary counts;
 		array<int64> targets;
+		json_array@ breakdown = json_array(); // quem votou em quem, pra anunciar no cliente antes do resultado
 		for (uint i = 0; i < votes.length(); i++) {
 			int64 t = votes[i].target_peer_id;
 			int64 c = 0;
@@ -192,6 +215,19 @@ class game_state {
 			c++;
 			counts.set(key, c);
 			if (targets.find(t) == -1) targets.insert_last(t);
+
+			game_player@ voter = find_player(votes[i].voter_peer_id);
+			json_object@ entry = json_object();
+			entry.set("voter_name", @voter != null ? voter.username : "");
+			if (t == -1) {
+				entry.set("skipped", true);
+				entry.set("target_name", "");
+			} else {
+				game_player@ target = find_player(uint64(t));
+				entry.set("skipped", false);
+				entry.set("target_name", @target != null ? target.username : "");
+			}
+			breakdown.add(entry);
 		}
 
 		int64 best_target = -1;
@@ -207,6 +243,7 @@ class game_state {
 		}
 
 		net_packet@ result = net_packet(S_VOTE_RESULT);
+		result.set_array("vote_breakdown", breakdown);
 		if (best_target != -1 && !tie && best_count > 0) {
 			game_player@ ejected = find_player(uint64(best_target));
 			if (@ejected != null) {
@@ -294,16 +331,9 @@ class game_state {
 			}
 		}
 
-		if (state == "meeting") {
-			meeting_timer -= delta_seconds;
-			if (meeting_timer <= 0.0) {
-				state = "voting";
-				voting_timer = config.voting_time_seconds;
-				net_packet@ vs = net_packet(S_VOTING_STARTED);
-				vs.set_float("voting_time", voting_timer);
-				events.insert_last(vs);
-			}
-		} else if (state == "voting") {
+		// "meeting" não existe mais como fase separada - start_meeting() já deixa o estado em
+		// "voting" direto (ver lá). Só falta contar o tempo até acabar ou até todo mundo votar.
+		if (state == "voting") {
 			voting_timer -= delta_seconds;
 			if (voting_timer <= 0.0 || all_alive_voted()) {
 				events.insert_last(tally_votes());
@@ -325,9 +355,19 @@ class game_state {
 
 		if (winner != "" && state != "ended") {
 			state = "ended";
+			uint crewmates_total = 0;
+			uint impostors_total = 0;
+			for (uint i = 0; i < players.length(); i++) {
+				if (players[i].is_impostor) impostors_total++;
+				else crewmates_total++;
+			}
 			net_packet@ go = net_packet(S_GAME_OVER);
 			go.set_string("winner", winner);
 			go.set_string("reason", win_reason);
+			go.set_int("crewmates_alive", int(alive_crewmate_count()));
+			go.set_int("crewmates_total", int(crewmates_total));
+			go.set_int("impostors_alive", int(alive_impostor_count()));
+			go.set_int("impostors_total", int(impostors_total));
 			events.insert_last(go);
 		}
 

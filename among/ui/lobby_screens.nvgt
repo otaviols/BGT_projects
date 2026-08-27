@@ -6,9 +6,11 @@
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../core/client_state.nvgt"
+#include "../core/chat_log.nvgt"
 #include "../lang/i18n.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../audio/audio_manager.nvgt"
+// KEY_CHAT* vêm de core/chat_log.nvgt (compartilhado com game/game_loop.nvgt)
 
 // Resultado do navegador de lobbies: o jogador criou uma partida, entrou em uma existente, ou
 // voltou ao menu anterior.
@@ -188,6 +190,10 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 	audio_manager@ audio = audio_manager();
 	uint64 host_peer_id = 0; // 0 = ainda não recebemos nenhum S_LOBBY_STATE
 
+	chat_log@ messages_log = chat_log();
+	chat_log@ events_log = chat_log();
+	bool viewing_events_container = false; // false = mensagens, true = eventos
+
 	speak(tr("lobby.waiting_for_host"));
 
 	while (true) {
@@ -198,12 +204,16 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 			if (pkt.type == S_PLAYER_JOINED) {
 				dictionary@ p = dictionary();
 				p.set("name", pkt.get_string("name"));
-				speak(tr("lobby.player_joined", p));
+				string joined_text = tr("lobby.player_joined", p);
+				speak(joined_text);
+				events_log.add("", joined_text);
 				audio.play_player_enter();
 			} else if (pkt.type == S_PLAYER_LEFT) {
 				dictionary@ p = dictionary();
 				p.set("name", pkt.get_string("name", "?"));
-				speak(tr("lobby.player_left", p));
+				string left_text = tr("lobby.player_left", p);
+				speak(left_text);
+				events_log.add("", left_text);
 				audio.play_player_leave();
 				apply_host_change(client, host_peer_id, is_host, pkt.get_uint64("host_peer_id"), "");
 			} else if (pkt.type == S_LOBBY_STATE) {
@@ -217,6 +227,13 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 					}
 				}
 				apply_host_change(client, host_peer_id, is_host, new_host_id, new_host_name);
+			} else if (pkt.type == S_CHAT_MESSAGE) {
+				string chat_name = pkt.get_string("name");
+				string chat_text = pkt.get_string("text");
+				messages_log.add(chat_name, chat_text);
+				speak(chat_name + ": " + chat_text);
+				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
+				else audio.play_message_received();
 			} else if (pkt.type == S_ERROR) {
 				speak(pkt.get_string("message"));
 			} else if (pkt.type == S_GAME_START) {
@@ -233,6 +250,25 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 		if (is_host && key_pressed(KEY_RETURN)) {
 			client.send_start_game();
 		}
+
+		if (key_pressed(KEY_CHAT)) run_chat_compose(client);
+
+		if (key_pressed(KEY_CHAT_SWITCH_CONTAINER) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
+			viewing_events_container = !viewing_events_container;
+			speak(tr(viewing_events_container ? "chat.events_container" : "chat.messages_container"));
+		}
+
+		bool chat_prev_pressed = key_pressed(KEY_CHAT_PREV);
+		bool chat_next_pressed = key_pressed(KEY_CHAT_NEXT);
+		if (chat_prev_pressed || chat_next_pressed) {
+			chat_log@ active_log = viewing_events_container ? events_log : messages_log;
+			bool shift_held = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);
+			string line;
+			if (chat_prev_pressed) line = shift_held ? active_log.move_first() : active_log.move_previous();
+			else line = shift_held ? active_log.move_last() : active_log.move_next();
+			speak(line != "" ? line : tr("chat.empty"));
+		}
+
 		if (key_pressed(KEY_ESCAPE)) {
 			client.send_leave_lobby();
 			return null;

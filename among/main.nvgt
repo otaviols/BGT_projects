@@ -2,6 +2,13 @@
 // Ponto de entrada do cliente. Fluxo: conectar ao servidor -> login/cadastro -> navegador de
 // lobby (criar/entrar) -> sala de espera -> partida -> volta ao navegador de lobby ao terminar.
 
+// Sem isso as pastas sounds/ e lang/ não são copiadas pro pacote compilado (nvgt -c) - só inclui
+// assets quando avisado explicitamente. Sem lang/, tr() não acha nenhuma chave (o .json nunca
+// carrega) e cai no fallback de retornar a própria chave crua - por isso o jogo compilado "falava"
+// os nomes das chaves de i18n em vez do texto traduzido.
+#pragma asset sounds
+#pragma asset lang
+
 #include "network/client.nvgt"
 #include "ui/onboarding_screens.nvgt"
 #include "ui/lobby_screens.nvgt"
@@ -13,24 +20,27 @@ void main() {
 	g_i18n.load_language("pt_BR");
 	show_window(tr("app.title"));
 
-	game_client client;
+	// Menu inicial (conectar / aprender os sons / sair) - cancelar conexão ou login volta pra cá em
+	// vez de fechar o jogo direto.
+	while (run_main_menu()) {
+		game_client client;
+		if (!run_connect_screen(client)) continue;
 
-	if (!run_connect_screen(client)) return;
+		login_result login = run_login_screen(client);
+		if (!login.ok) { client.disconnect(); continue; }
 
-	login_result login = run_login_screen(client);
-	if (!login.ok) return;
+		while (true) {
+			lobby_browser_result browse = run_lobby_browser_screen(client);
+			if (browse.go_back || !browse.joined) break;
 
-	while (true) {
-		lobby_browser_result browse = run_lobby_browser_screen(client);
-		if (browse.go_back || !browse.joined) break;
+			net_packet@ start_pkt = run_waiting_room_screen(client, browse.is_host);
+			if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador
 
-		net_packet@ start_pkt = run_waiting_room_screen(client, browse.is_host);
-		if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador
+			run_game(client, start_pkt);
+			// ao fim da partida (S_GAME_OVER), o servidor volta a lobby pro estado "waiting";
+			// o jogador retorna ao navegador de lobbies.
+		}
 
-		run_game(client, start_pkt);
-		// ao fim da partida (S_GAME_OVER), o servidor volta a lobby pro estado "waiting";
-		// o jogador retorna ao navegador de lobbies.
+		client.disconnect();
 	}
-
-	client.disconnect();
 }

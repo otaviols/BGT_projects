@@ -36,14 +36,15 @@ class spatial_audio {
 	// retangular (half_width/half_height a partir de x,y) - só passa a atenuar por distância depois
 	// que o jogador sai dessa área. Usado pro ambiente de cada sala (ver map_zone em map.nvgt): sem
 	// isso o som só ficava audível perto do centro da sala, como um play_looping normal.
-	int play_room_ambience(const string&in path, float x, float y, int half_width, int half_height) {
+	int play_room_ambience(const string&in path, float x, float y, int half_width, int half_height, float volume_db = 0.0) {
 		return pool.play_extended_2d(path, listener_x, listener_y, x, y, half_width, half_width,
-			half_height, half_height, true, 0, 0.0, 0.0, 100.0, true);
+			half_height, half_height, true, 0, 0.0, volume_db, 100.0, true);
 	}
 
 	// Som sem posição (UI/menu, notificações do sistema) - sempre audível, sem espacialização.
-	int play_ui(const string&in path, bool looping = false) {
-		return pool.play_stationary(path, looping);
+	int play_ui(const string&in path, bool looping = false, float volume_db = 0.0) {
+		if (volume_db == 0.0) return pool.play_stationary(path, looping);
+		return pool.play_stationary_extended(path, looping, 0, 0.0, volume_db, 100.0, true);
 	}
 
 	// Reposiciona um som já em reprodução (ex.: outro jogador andando, corpo carregado - não usado

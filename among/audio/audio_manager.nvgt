@@ -10,6 +10,10 @@
 #include "../config/colors.nvgt"
 #include "../game/map.nvgt"
 
+// Redução de volume (em dB, negativo = mais baixo) só pro "ambiente de fundo" (nave, sala,
+// corredor) - beacons/alarmes ficam no volume normal porque carregam informação de jogo.
+const float AMBIENCE_VOLUME_DB = -10.0;
+
 class audio_manager {
 	spatial_audio@ spatial;
 	int ambient_body_slot = -1;
@@ -78,10 +82,14 @@ class audio_manager {
 	// Toca uma vez pra nave inteira quando um corpo é reportado (chamada de reunião por corpo).
 	void play_body_reported_sound() { spatial.play_ui(SND_BODY_REPORTED); }
 
+	// --- Chat ---
+	void play_message_sent() { spatial.play_ui(SND_MESSAGE_SENT); }
+	void play_message_received() { spatial.play_ui(SND_MESSAGE_RECEIVED); }
+
 	// --- Ambiente da nave (toca durante toda a partida) ---
 	void start_ship_ambience() {
 		stop_ship_ambience();
-		ambient_ship_slot = spatial.play_ui(SND_SHIP_AMBIENCE, true);
+		ambient_ship_slot = spatial.play_ui(SND_SHIP_AMBIENCE, true, AMBIENCE_VOLUME_DB);
 	}
 
 	void stop_ship_ambience() {
@@ -102,7 +110,7 @@ class audio_manager {
 			map_zone@ zone = map.find_zone(obj.room_id);
 			int half_w = @zone != null ? int(zone.half_w) : 8; // fallback caso a sala não seja encontrada
 			int half_h = @zone != null ? int(zone.half_h) : 8;
-			int slot = spatial.play_room_ambience(obj.sound_path, obj.x, obj.y, half_w, half_h);
+			int slot = spatial.play_room_ambience(obj.sound_path, obj.x, obj.y, half_w, half_h, AMBIENCE_VOLUME_DB);
 			if (slot != -1) decoration_ambient_slots.insert_last(slot);
 		}
 	}
@@ -158,9 +166,7 @@ class audio_manager {
 	}
 
 	// Toca uma vez pra nave inteira quando alguém aperta o botão de emergência (reunião chamada).
-	// TODO: ainda não existe um arquivo de som próprio pra isso - quando tiver, cria a constante
-	// SND_MEETING_ALARM em sound_catalog.nvgt e usa aqui.
-	void play_meeting_alarm() { }
+	void play_meeting_alarm() { spatial.play_ui(SND_MEETING_ALARM); }
 
 	// Sabotagem de luzes reduz o alcance de audição ambiente (decisão de design).
 	void apply_lights_out(bool active, int normal_max_distance) {
@@ -182,6 +188,7 @@ class audio_manager {
 	void play_win() { spatial.play_ui(SND_WIN); }
 	void play_defeat() { spatial.play_ui(SND_DEFEAT); }
 	void play_meeting_result() { spatial.play_ui(SND_MEETING_RESULT); }
+	void play_ejected() { spatial.play_ui(SND_EJECTED); }
 	void play_vote_confirm() { spatial.play_ui(SND_VOTE_CONFIRM); }
 
 	// --- Radar ---

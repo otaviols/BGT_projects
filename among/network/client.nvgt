@@ -167,6 +167,16 @@ class game_client {
 		send(p);
 	}
 
+	void send_ping() {
+		send(net_packet(C_PING));
+	}
+
+	void send_chat_message(const string&in text) {
+		net_packet@ p = net_packet(C_CHAT_MESSAGE);
+		p.set_string("text", text);
+		send(p);
+	}
+
 	private void send(net_packet@ pkt, bool reliable = true) {
 		if (@net == null) return;
 		if (reliable) net.send_reliable(my_peer_id, pkt.to_wire(), CHANNEL_RELIABLE);

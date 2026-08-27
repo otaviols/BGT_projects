@@ -17,9 +17,13 @@ const string SND_PLAYER_LEAVE = "sounds/PlayerLeave.wav";
 const string SND_START_GAME = "sounds/startGame.wav";
 const string SND_WIN = "sounds/Win.wav";
 const string SND_DEFEAT = "sounds/defeat.wav";
-const string SND_MEETING_RESULT = "sounds/meetingResult.wav"; // ainda sem call site - ver audio_manager.play_meeting_result()
+const string SND_MEETING_RESULT = "sounds/meetingResult.wav"; // toca assim que o resultado da votação chega, antes de saber quem foi expulso
+const string SND_EJECTED = "sounds/ejected.wav"; // toca 1x pra nave inteira logo depois, só quando alguém É expulso (arquivo ainda a ser adicionado em sounds/)
+const string SND_MEETING_ALARM = "sounds/emergence_button_alarm.ogg"; // toca (ship-wide) quando o botão de emergência chama a reunião
 const string SND_VOTE_CONFIRM = "sounds/voteConfirm.wav";
 const string SND_BODY_REPORTED = "sounds/bodyReport.wav"; // toca 1x pra nave inteira quando o corpo é reportado
+const string SND_MESSAGE_SENT = "sounds/MessageSent.wav";       // toca pra quem manda uma msg no chat
+const string SND_MESSAGE_RECEIVED = "sounds/MessageReceived.wav"; // toca pra quem recebe uma msg de outro jogador
 
 // --- Diálogos (abrir/fechar tasks, paineis, votação) ---
 const string SND_DIALOG_OPEN = "sounds/openDialog.wav";
@@ -61,7 +65,7 @@ const string SND_TASK_BEACON_FIX_WIRING = "sounds/fix_wiring_pannel.ogg";
 const string SND_TASK_BEACON_DOWNLOAD_DATA = "sounds/download_data_pannel.ogg";
 const string SND_TASK_BEACON_EMPTY_GARBAGE = "sounds/empty_garbage_pannel.ogg";
 const string SND_TASK_BEACON_ALIGN_ENGINE = "sounds/align_engine_pannel.ogg";
-const string SND_TASK_BEACON_SWIPE_CARD = "sounds/swipe_card_pannel.wav";
+const string SND_TASK_BEACON_SWIPE_CARD = "sounds/swipe_card_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 const string SND_BEEP = "beep.wav";
@@ -69,6 +73,7 @@ const string SND_BEEP_COMPLETE = "BeepComplet.wav";
 const string SND_CARD_ERROR = "CardError.wav";
 const string SND_CARD_COMPLETE = "CardComplet.wav";
 const string SND_GET_CARD = "GetCard.wav";
+const string SND_PULLING_GARBAGE_LEVER = "pulling_garbage_lever.wav"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
 
 // fix_wiring usa 3 variantes numeradas - ver electrical_string_sound() abaixo.
 const uint ELECTRICAL_STRING_VARIANT_COUNT = 3;
@@ -95,8 +100,12 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_WIN);
 	list.insert_last(SND_DEFEAT);
 	list.insert_last(SND_MEETING_RESULT);
+	list.insert_last(SND_EJECTED);
+	list.insert_last(SND_MEETING_ALARM);
 	list.insert_last(SND_VOTE_CONFIRM);
 	list.insert_last(SND_BODY_REPORTED);
+	list.insert_last(SND_MESSAGE_SENT);
+	list.insert_last(SND_MESSAGE_RECEIVED);
 	list.insert_last(SND_DIALOG_OPEN);
 	list.insert_last(SND_DIALOG_CLOSE);
 	list.insert_last(SND_SHIP_AMBIENCE);
@@ -130,6 +139,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_CARD_ERROR);
 	list.insert_last("sounds/" + SND_CARD_COMPLETE);
 	list.insert_last("sounds/" + SND_GET_CARD);
+	list.insert_last("sounds/" + SND_PULLING_GARBAGE_LEVER);
 	list.insert_last(SND_KILL);
 
 	for (int i = 1; i <= int(ELECTRICAL_STRING_VARIANT_COUNT); i++) {

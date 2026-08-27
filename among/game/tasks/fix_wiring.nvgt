@@ -6,7 +6,7 @@
 
 #include "task_common.nvgt"
 
-bool run_fix_wiring_task() {
+bool run_fix_wiring_task(game_client@ client) {
 	array<int> left_order = {0, 1, 2};
 	array<int> right_order = {0, 1, 2};
 	shuffle_int_list(left_order);
@@ -21,6 +21,7 @@ bool run_fix_wiring_task() {
 
 	while (true) {
 		wait(5);
+		client.update();
 		if (task_cancel_requested()) return false;
 
 		if (key_pressed(KEY_UP)) {

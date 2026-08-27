@@ -184,7 +184,7 @@ game_map@ build_the_hub_map() {
 	// Sabotagens
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -27, -53, "electrical",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights", "", SND_PANEL_BEACON_LIGHTS));
-	m.objects.insert_last(map_object("panel_oxygen_admin", "sabotage.oxygen.name", 3, -22, "admin",
+	m.objects.insert_last(map_object("panel_oxygen_admin", "sabotage.oxygen.name", 6, -20, "admin",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen", "", SND_PANEL_BEACON_OXYGEN));
 	m.objects.insert_last(map_object("panel_oxygen_electrical", "sabotage.oxygen.name", -33, -53, "electrical",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen", "", SND_PANEL_BEACON_OXYGEN));
