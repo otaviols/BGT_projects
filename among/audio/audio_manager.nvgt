@@ -125,12 +125,15 @@ class audio_manager {
 	// de sala, aqui o objetivo é justamente conseguir "seguir o som" até achar o objeto. Qualquer
 	// objeto do mapa com beacon_sound_path preenchido entra automaticamente (ver map.nvgt), EXCETO
 	// tasks: essas só tocam se o object_id estiver em my_task_object_ids - senão todo mundo ouviria
-	// beacon de toda task do mapa o jogo inteiro (ruído inútil pro impostor, spoiler pro tripulante).
-	void start_landmark_beacons(game_map@ map, array<string>@ my_task_object_ids = null) {
+	// beacon de toda task do mapa o jogo inteiro (ruído inútil pro impostor, spoiler pro tripulante) -
+	// e EXCETO painéis de reparo, que só apitam enquanto a sabotagem deles está acontecendo (é aí que
+	// seguir o som até o painel serve pra alguma coisa; fora disso é só barulho constante).
+	void start_landmark_beacons(game_map@ map, array<string>@ my_task_object_ids = null, const string&in active_sabotage_id = "") {
 		stop_landmark_beacons();
 		for (uint i = 0; i < map.objects.length(); i++) {
 			map_object@ obj = map.objects[i];
 			if (obj.beacon_sound_path == "") continue;
+			if (obj.obj_type == OBJ_SABOTAGE_PANEL && obj.task_type != active_sabotage_id) continue;
 			if (obj.obj_type == OBJ_TASK_SPOT) {
 				bool mine = false;
 				if (@my_task_object_ids != null) {

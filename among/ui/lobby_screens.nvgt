@@ -178,7 +178,7 @@ void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inou
 	is_host = client.my_peer_id == host_peer_id;
 	if (!changed) return;
 	if (is_host) {
-		speak(tr("lobby.you_are_host"));
+		speak(tr("lobby.you_are_host") + " " + tr("lobby.host_start_hint"));
 	} else if (new_host_name != "") {
 		dictionary@ p = dictionary();
 		p.set("name", new_host_name);
@@ -186,11 +186,12 @@ void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inou
 	}
 }
 
-// Sala de espera: fala entradas/saídas, permite alternar "pronto" (R), o anfitrião inicia a
-// partida (Enter) e qualquer um pode sair (ESC). Retorna o pacote S_GAME_START quando a partida
-// começa, ou null se o jogador saiu antes disso.
+// Sala de espera: fala entradas/saídas, o anfitrião inicia a partida (Enter) e qualquer um pode
+// sair (ESC). Retorna o pacote S_GAME_START quando a partida começa, ou null se o jogador saiu
+// antes disso.
+// Não existe mais "marcar pronto": ninguém usava pra nada (o servidor nunca exigiu que todos
+// estivessem prontos pra começar), era só um passo a mais antes de jogar.
 net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
-	bool ready = false;
 	audio_manager@ audio = audio_manager();
 	uint64 host_peer_id = 0; // 0 = ainda não recebemos nenhum S_LOBBY_STATE
 
@@ -198,7 +199,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 	chat_log@ events_log = chat_log();
 	bool viewing_events_container = false; // false = mensagens, true = eventos
 
-	speak(tr("lobby.waiting_for_host"));
+	speak(tr(is_host ? "lobby.host_start_hint" : "lobby.waiting_for_host"));
 
 	while (true) {
 		wait(10);
@@ -246,11 +247,6 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 			@pkt = client.poll_message();
 		}
 
-		if (key_pressed(KEY_R)) {
-			ready = !ready;
-			client.send_set_ready(ready);
-			speak(tr(ready ? "lobby.ready" : "lobby.not_ready"));
-		}
 		if (is_host && key_pressed(KEY_RETURN)) {
 			client.send_start_game();
 		}

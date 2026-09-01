@@ -94,8 +94,7 @@ bool setup_bot(bot@ b) {
 	}
 
 	b.joined_lobby = true;
-	b.client.send_set_ready(true);
-	println(b.name + ": entrou na lobby " + lobby_id + " e ficou pronto.");
+	println(b.name + ": entrou na lobby " + lobby_id + ".");
 	return true;
 }
 
@@ -114,10 +113,21 @@ void main() {
 	if (ok_count > 0) println("Deixe esta janela aberta enquanto testa. Feche quando terminar.");
 
 	// Mantém as conexões vivas (sem isso o servidor derruba os bots por inatividade - ver o bug
-	// de menu.run() sem client.update() que já corrigimos no client de verdade).
+	// de menu.run() sem client.update() que já corrigimos no client de verdade) e esvazia a fila de
+	// pacotes recebidos - só chamar update() deixava tudo acumulando na memória pra sempre.
 	while (true) {
 		for (uint i = 0; i < bots.length(); i++) {
-			if (bots[i].joined_lobby) bots[i].client.update();
+			bot@ b = bots[i];
+			if (!b.joined_lobby) continue;
+			b.client.update();
+			net_packet@ pkt = b.client.poll_message();
+			while (@pkt != null) {
+				// Bot vota "pular" assim que a votação abre: a votação só termina quando TODO mundo vivo
+				// votou (ou o tempo acabar), então um bot que nunca vota faria toda reunião de teste
+				// esperar o timer inteiro à toa.
+				if (pkt.type == S_VOTING_STARTED) b.client.send_cast_vote(-1);
+				@pkt = b.client.poll_message();
+			}
 		}
 		wait(20);
 	}

@@ -38,8 +38,10 @@ const float FOOTSTEP_INTERVAL_SECONDS = 0.35;
 const float WALL_BUMP_INTERVAL_SECONDS = 0.3;
 
 // Retorna o objeto interativo mais próximo dentro do alcance com o qual o jogador pode agir
-// agora (task pendente própria, vent se impostor, painel de sabotagem, botão de emergência).
-map_object@ find_interactable(game_map@ map, float x, float y, array<player_task>@ my_tasks, bool is_impostor) {
+// agora (task pendente própria, vent se impostor, painel da sabotagem ATIVA, botão de emergência).
+// active_sabotage_id == "" significa "nenhuma sabotagem rolando" - aí nenhum painel é interativo.
+map_object@ find_interactable(game_map@ map, float x, float y, array<player_task>@ my_tasks, bool is_impostor,
+		const string&in active_sabotage_id) {
 	map_object@ best = null;
 	float best_dist = PLAYER_INTERACT_RANGE;
 	for (uint i = 0; i < map.objects.length(); i++) {
@@ -53,6 +55,10 @@ map_object@ find_interactable(game_map@ map, float x, float y, array<player_task
 			if (!mine) continue;
 		}
 		if (o.obj_type == OBJ_VENT && !is_impostor) continue;
+		// Painel de sabotagem sem sabotagem ativa (ou de OUTRA sabotagem) não faz nada no servidor -
+		// deixá-lo "interativo" só servia pra ele roubar o Enter de uma task/vent que estivesse no
+		// mesmo alcance e pra ser anunciado como se desse pra usar.
+		if (o.obj_type == OBJ_SABOTAGE_PANEL && o.task_type != active_sabotage_id) continue;
 		float dist = distance_2d(x, y, o.x, o.y);
 		if (dist <= best_dist) {
 			best_dist = dist;
@@ -111,7 +117,7 @@ void run_sabotage_menu(impostor_controller@ imp) {
 
 // Menu de "dentro do vent": sair aqui, ou viajar (escondido) pra outro vent da mesma rede - a rede
 // inteira conta como "dentro do vent", então não é achado por proximidade que nem outros objetos.
-void run_vent_menu(impostor_controller@ imp, game_map@ map, string&inout current_vent_id) {
+void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio, string&inout current_vent_id) {
 	map_object@ current_vent = map.find_object(current_vent_id);
 	if (@current_vent == null) return;
 
@@ -140,9 +146,20 @@ void run_vent_menu(impostor_controller@ imp, game_map@ map, string&inout current
 	sound_play(SND_DIALOG_CLOSE);
 	// ESC/nada selecionado (id == "") não faz nada - só "Sair" (__exit__) ou um vent de verdade agem.
 	if (selected_id == "__exit__") {
+		// Sair faz o mesmo barulho de porta de vent que entrar - antes só entrar tocava, e sair era
+		// completamente silencioso (nem pra quem sai, nem pra quem está do lado).
+		audio.play_object_interact(current_vent);
 		imp.vent_travel("");
 		current_vent_id = "";
 	} else if (selected_id != "") {
+		map_object@ dest = map.find_object(selected_id);
+		if (@dest != null) {
+			// Passo no chão do destino: viajar pela rede de vents também é andar, e sem nenhum som a
+			// viagem não dava nenhuma pista de que tinha acontecido além da fala.
+			map_zone@ dest_zone = map.zone_at(dest.x, dest.y);
+			string prefix = @dest_zone != null ? dest_zone.floor_sound_prefix : "Tile";
+			audio.play_footstep(prefix, footstep_variant_count(prefix), dest.x, dest.y, footstep_variant_extension(prefix));
+		}
 		imp.vent_travel(selected_id);
 		current_vent_id = selected_id;
 	}
@@ -237,6 +254,12 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	crewmate_controller@ crew = crewmate_controller(client);
 	impostor_controller@ imp = impostor_controller(client);
 
+	// Redundante com o que o login já guardou, mas barato: se por algum motivo esse valor estiver
+	// zerado aqui, TODA comparação de peer_id da partida (voto, chat, kill, nome de quem está perto)
+	// aponta pra pessoa errada.
+	uint64 my_peer_id = start_pkt.get_uint64("your_peer_id", client.my_peer_id);
+	if (my_peer_id != 0) client.my_peer_id = my_peer_id;
+
 	bool is_impostor = start_pkt.get_bool("your_role_impostor");
 	float my_x = start_pkt.get_float("your_x");
 	float my_y = start_pkt.get_float("your_y");
@@ -248,10 +271,11 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	float kill_cooldown_config = start_pkt.get_float("kill_cooldown_seconds");
 	float my_kill_cooldown_remaining = kill_cooldown_config;
 
-	// Cooldown de sabotagem acompanhado do mesmo jeito - SABOTAGE_COOLDOWN_SECONDS é uma constante
-	// fixa (não configurável por lobby, diferente do kill), então não precisa vir do servidor.
-	float my_sabotage_cooldown_remaining = 0.0;
-	bool sabotage_currently_active = false;
+	// Cooldown de sabotagem acompanhado do mesmo jeito. A partida já começa com ele contando (ver
+	// SABOTAGE_INITIAL_COOLDOWN_SECONDS) - quem manda o valor é o servidor, que é quem de fato
+	// recusa a sabotagem cedo demais.
+	float my_sabotage_cooldown_remaining = start_pkt.get_float("sabotage_cooldown_seconds");
+	string active_sabotage_id = ""; // "" = nenhuma sabotagem em andamento
 	bool is_vented = false;
 	string current_vent_id = "";
 
@@ -285,8 +309,33 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	audio.play_start_game();
 	audio.start_ship_ambience();
 	audio.start_room_ambience(map);
-	audio.start_landmark_beacons(map, my_task_object_ids);
-	speak(tr(is_impostor ? "role.assigned_impostor" : "role.assigned_crewmate"));
+	audio.start_landmark_beacons(map, my_task_object_ids, active_sabotage_id);
+	// Papel + (pro impostor) quem mais é impostor, numa fala só: speak() interrompe a fala anterior
+	// por padrão, então dois speak() seguidos aqui comeriam o anúncio do papel.
+	// A lista de parceiros só existe no pacote de quem é impostor (ver network/server.on_start_game) -
+	// sem ela, dois impostores passavam a partida inteira sem saber que estavam no mesmo time.
+	string role_text = tr(is_impostor ? "role.assigned_impostor" : "role.assigned_crewmate");
+	if (is_impostor) {
+		array<string> partner_names;
+		json_array@ partners_json = start_pkt.get_array("impostor_partners");
+		if (@partners_json != null) {
+			for (uint i = 0; i < partners_json.length(); i++) {
+				string partner_name = string(partners_json[i]);
+				if (partner_name != "") partner_names.insert_last(partner_name);
+			}
+		}
+		if (partner_names.length() == 0) {
+			role_text += " " + tr("role.impostor_alone");
+		} else {
+			string joined_partners = partner_names[0];
+			for (uint i = 1; i < partner_names.length(); i++) joined_partners += ", " + partner_names[i];
+			dictionary@ partner_params = dictionary();
+			partner_params.set("names", joined_partners);
+			role_text += " " + tr("role.impostor_partners", partner_params);
+		}
+	}
+	speak(role_text);
+	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
 	audio.update_listener(my_x, my_y);
 
 	// Anúncio automático de sala/objeto - guarda o que foi anunciado por último pra só falar de novo
@@ -344,7 +393,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				// de ainda não estar marcada quando essa confirmação do servidor chega.
 				string task_id = pkt.get_string("task_id");
 				if (pkt.get_bool("ok") && !is_task_completed(my_tasks, task_id)) {
-					mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, task_id);
+					mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, task_id, active_sabotage_id);
 					if (my_tasks_all_completed(my_tasks)) {
 						string all_done_text = tr("task.all_completed");
 						speak(all_done_text);
@@ -395,6 +444,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				// sentido andando pelo mapa. Volta quando a votação termina (ver S_VOTE_RESULT).
 				audio.stop_room_ambience();
 				audio.stop_landmark_beacons();
+				// O alarme de sabotagem tocando por cima da discussão inteira era insuportável (e não
+				// dá pra consertar painel nenhum durante a reunião mesmo - o servidor até congela o
+				// tempo da sabotagem, ver game_state.tick). Volta a tocar quando a votação acaba.
+				audio.stop_sabotage_alarm();
 				mui.on_meeting_started(pkt);
 			} else if (t == S_VOTING_STARTED) {
 				mui.on_voting_started(pkt);
@@ -405,14 +458,18 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				movement_frozen = false;
 				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) alive = false; // virou fantasma
 				audio.start_room_ambience(map);
-				audio.start_landmark_beacons(map, my_task_object_ids);
+				audio.start_landmark_beacons(map, my_task_object_ids, active_sabotage_id);
+				if (active_sabotage_id != "") audio.start_sabotage_alarm(); // sabotagem continua de pé depois da reunião
 			} else if (t == S_SABOTAGE_STARTED) {
 				mui.on_sabotage_started(pkt);
-				sabotage_currently_active = true;
+				string sabotage_id = pkt.get_string("sabotage_id");
+				active_sabotage_id = sabotage_id;
+				// Liga o beacon dos painéis dessa sabotagem (ver start_landmark_beacons): fora de
+				// sabotagem eles ficam calados, senão o mapa inteiro apita painel o tempo todo.
+				audio.start_landmark_beacons(map, my_task_object_ids, active_sabotage_id);
 
 				// Dica de conserto: fala em qual(is) sala(s) fica o painel certo pra essa sabotagem -
 				// sem isso o anúncio só dizia QUAL sabotagem, não pra ONDE ir consertar.
-				string sabotage_id = pkt.get_string("sabotage_id");
 				array<string> fix_room_names;
 				for (uint i = 0; i < map.objects.length(); i++) {
 					map_object@ o = map.objects[i];
@@ -432,7 +489,8 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				}
 			} else if (t == S_SABOTAGE_FIXED) {
 				mui.on_sabotage_fixed(pkt);
-				sabotage_currently_active = false;
+				active_sabotage_id = "";
+				audio.start_landmark_beacons(map, my_task_object_ids, active_sabotage_id);
 				if (is_impostor) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 			} else if (t == S_VENT_STATE) {
 				bool was_vented = is_vented;
@@ -513,6 +571,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					my_x = new_x;
 					my_y = new_y;
 					client.send_move(my_x, my_y);
+					// O servidor não devolve a MINHA posição pra mim, então sem isto a minha entrada no
+					// elenco local fica congelada no ponto onde nasci - e o aviso de "jogador por perto"
+					// (nearest_alive) passava a me anunciar a mim mesmo toda vez que eu voltava pra lá.
+					roster.update_position(client.my_peer_id, my_x, my_y);
 					audio.update_listener(my_x, my_y);
 
 					map_zone@ zone = map.zone_at(my_x, my_y);
@@ -525,7 +587,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 						last_zone_id = zone_id;
 						if (@zone != null) speak(tr(zone.name_key));
 					}
-					map_object@ nearby = find_interactable(map, my_x, my_y, my_tasks, is_impostor);
+					map_object@ nearby = find_interactable(map, my_x, my_y, my_tasks, is_impostor, active_sabotage_id);
 					string nearby_id = @nearby != null ? nearby.id : "";
 					if (nearby_id != last_interactable_id) {
 						last_interactable_id = nearby_id;
@@ -579,7 +641,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 
 		if (alive && !movement_frozen && !is_vented) {
 			if (key_pressed(KEY_INTERACT)) {
-				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, is_impostor);
+				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, is_impostor, active_sabotage_id);
 				if (@obj != null) {
 					speak(object_name(obj));
 					if (obj.obj_type == OBJ_TASK_SPOT) {
@@ -589,7 +651,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 							// jogador apertar Enter de novo rápido, a task ainda apareceria "aberta"
 							// (find_interactable só ignora task já com completed=true) até o round-trip
 							// da rede voltar, dando pra abrir ela de novo por engano.
-							mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id);
+							mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id);
 							if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
 						}
 						client.send_task_input(obj.id, success);
@@ -636,7 +698,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					}
 				}
 				if (key_pressed(KEY_SABOTAGE_MENU)) {
-					if (sabotage_currently_active) {
+					if (active_sabotage_id != "") {
 						speak(tr("game.sabotage_already_active"));
 					} else if (my_sabotage_cooldown_remaining > 0.0) {
 						dictionary@ cd = dictionary();
@@ -652,7 +714,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// Ações de dentro do vent (sair ou viajar) - só fazem sentido enquanto vented, por isso ficam
 		// FORA do bloco acima (que exige !is_vented).
 		if (is_impostor && alive && !movement_frozen && is_vented && key_pressed(KEY_VENT)) {
-			run_vent_menu(imp, map, current_vent_id);
+			run_vent_menu(imp, map, audio, current_vent_id);
 		}
 
 		if (key_pressed(KEY_PING) && !ping_pending) {
@@ -662,9 +724,12 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		}
 
 		if (key_pressed(KEY_CHAT)) {
-			// Morto só lê o chat (servidor também recusa, isso aqui só evita a viagem de rede à toa
-			// e já avisa na hora).
-			if (!alive) speak(tr("chat.dead_cannot_send"));
+			// Chat agora só existe em reunião (movement_frozen == true é exatamente o período de
+			// reunião/votação) - ver network/server.on_chat_message pro porquê. Morto só lê.
+			// O servidor também recusa os dois casos; isto aqui só evita a viagem de rede à toa e
+			// responde na hora.
+			if (!movement_frozen) speak(tr("chat.only_in_meeting"));
+			else if (!alive) speak(tr("chat.dead_cannot_send"));
 			else run_chat_compose(client);
 		}
 
@@ -722,12 +787,12 @@ bool is_task_completed(array<player_task>@ tasks, const string&in object_id) {
 // Marca a task como feita localmente (pra find_interactable parar de oferecer ela de novo) e tira
 // o beacon dela do mapa.
 void mark_task_completed_locally(game_map@ map, audio_manager@ audio, array<player_task>@ my_tasks,
-		array<string>@ my_task_object_ids, const string&in object_id) {
+		array<string>@ my_task_object_ids, const string&in object_id, const string&in active_sabotage_id) {
 	for (uint i = 0; i < my_tasks.length(); i++) {
 		if (my_tasks[i].object_id == object_id) my_tasks[i].completed = true;
 	}
 	for (uint i = 0; i < my_task_object_ids.length(); i++) {
 		if (my_task_object_ids[i] == object_id) { my_task_object_ids.remove_at(i); break; }
 	}
-	audio.start_landmark_beacons(map, my_task_object_ids);
+	audio.start_landmark_beacons(map, my_task_object_ids, active_sabotage_id);
 }

@@ -189,6 +189,9 @@ bool wait_for_auth_result(game_client@ client, bool was_register, const string&i
 					return false;
 				}
 				speak(tr("login.success"));
+				// A partir daqui o cliente sabe com que id o servidor o identifica - tudo que compara
+				// peer_id vindo de pacote (anfitrião, voto, chat, radar) depende disso estar certo.
+				client.my_peer_id = pkt.get_uint64("peer_id");
 				result.ok = true;
 				result.username = pkt.get_string("username", username);
 				return true;

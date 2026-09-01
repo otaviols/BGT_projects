@@ -9,6 +9,16 @@
 
 class game_client {
 	network@ net;
+	// Dois ids DIFERENTES, e confundir os dois já causou bug feio (ver abaixo):
+	// - local_peer_id: o id que o ENet daqui devolveu pra ESTA conexão. Só serve pra mandar pacote
+	//   (net.send_*), é um handle local.
+	// - my_peer_id: o id que o SERVIDOR usa pra me identificar. É esse que aparece dentro dos
+	//   pacotes (peer_id, voter_peer, host_peer_id, ...) e o único que pode ser comparado com eles.
+	// Os dois quase nunca batem: cada host numera seus peers do próprio jeito. Como os dois
+	// costumam começar em 1, comparar o local com um peer_id de pacote dava "falso positivo" no
+	// primeiro jogador conectado - eu ouvia o meu nome no lugar do dele, achava que já tinha votado
+	// quando ele votava, e o anfitrião não se reconhecia como anfitrião (Enter não iniciava nada).
+	uint64 local_peer_id = 0;
 	uint64 my_peer_id = 0;
 	bool connected = false;
 	array<net_packet@> incoming;
@@ -16,8 +26,8 @@ class game_client {
 	bool connect_to(const string&in host, uint16 port) {
 		@net = network();
 		if (!net.setup_client(MAX_PACKET_CHANNELS, 1)) return false;
-		my_peer_id = net.connect(host, port);
-		return my_peer_id != 0;
+		local_peer_id = net.connect(host, port);
+		return local_peer_id != 0;
 	}
 
 	// Deve ser chamado a cada quadro/loop do jogo. Processa eventos de rede pendentes e enfileira
@@ -50,7 +60,7 @@ class game_client {
 	}
 
 	void disconnect() {
-		if (@net != null) net.disconnect_peer(my_peer_id);
+		if (@net != null) net.disconnect_peer(local_peer_id);
 		connected = false;
 	}
 
@@ -90,12 +100,6 @@ class game_client {
 
 	void send_leave_lobby() {
 		send(net_packet(C_LEAVE_LOBBY));
-	}
-
-	void send_set_ready(bool ready) {
-		net_packet@ p = net_packet(C_SET_READY);
-		p.set_bool("ready", ready);
-		send(p);
 	}
 
 	void send_start_game() {
@@ -188,7 +192,7 @@ class game_client {
 
 	private void send(net_packet@ pkt, bool reliable = true) {
 		if (@net == null) return;
-		if (reliable) net.send_reliable(my_peer_id, pkt.to_wire(), CHANNEL_RELIABLE);
-		else net.send_unreliable(my_peer_id, pkt.to_wire(), CHANNEL_UNRELIABLE);
+		if (reliable) net.send_reliable(local_peer_id, pkt.to_wire(), CHANNEL_RELIABLE);
+		else net.send_unreliable(local_peer_id, pkt.to_wire(), CHANNEL_UNRELIABLE);
 	}
 }

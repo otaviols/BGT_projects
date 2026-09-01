@@ -145,7 +145,8 @@ class meeting_ui {
 	}
 
 	void on_sabotage_fixed(net_packet@ pkt) {
-		announce(tr("sabotage.fixed"));
+		// "expired" = a sabotagem acabou sozinha no tempo dela (luzes), ninguém consertou nada.
+		announce(tr(pkt.get_bool("expired") ? "sabotage.expired" : "sabotage.fixed"));
 		audio.stop_sabotage_alarm();
 		audio.apply_lights_out(false, 40);
 	}
@@ -171,7 +172,10 @@ class meeting_ui {
 		else audio.play_defeat();
 	}
 
-	// Menu de votação: lista jogadores vivos + opção de pular. ESC também pula.
+	// Menu de votação: lista jogadores vivos + opção de pular. ESC/fechar sem escolher NÃO vota
+	// (nem pula): o menu só fecha e dá pra abrir de novo com a tecla de votar enquanto a votação
+	// estiver aberta. Antes ESC mandava "pular" - quem fechasse o menu sem querer perdia o voto
+	// daquela reunião inteira sem nem saber.
 	private void run_voting_menu() {
 		sound_play(SND_DIALOG_OPEN);
 		menu vote_menu;
@@ -192,7 +196,12 @@ class meeting_ui {
 		string selected_id = vote_menu.selected_item_id;
 		sound_play(SND_DIALOG_CLOSE);
 
-		if (selected_id == "" || selected_id == "skip") client.send_cast_vote(-1);
+		if (selected_id == "") {
+			speak(tr("game.vote_cancelled"));
+			return;
+		}
+
+		if (selected_id == "skip") client.send_cast_vote(-1);
 		else client.send_cast_vote(parse_int(selected_id));
 
 		has_voted = true; // não espera o S_VOTE_CAST voltar da rede pra já bloquear reabrir o menu

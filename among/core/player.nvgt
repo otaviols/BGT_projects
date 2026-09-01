@@ -25,7 +25,6 @@ class game_player {
 	bool is_impostor = false;
 	bool vented = false;
 	string current_vent_id = ""; // qual vent ele está "dentro" agora, só relevante enquanto vented
-	bool ready = false;
 	float kill_cooldown_remaining = 0.0;
 	uint meetings_called = 0;
 	int radar_index = -1;

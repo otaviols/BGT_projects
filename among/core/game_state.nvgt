@@ -271,6 +271,8 @@ class game_state {
 	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event) {
 		game_player@ impostor = find_player(impostor_peer);
 		if (@impostor == null || !impostor.is_impostor || !impostor.alive) return false;
+		if (!config.sabotages_enabled) return false; // preset "rápido" desliga sabotagem (ver config/presets.nvgt)
+		if (sabotage_id != "lights" && sabotage_id != "oxygen") return false;
 		if (active_sabotage != "") return false;
 		if (sabotage_cooldown_remaining > 0.0) return false;
 
@@ -291,17 +293,24 @@ class game_state {
 	// panels_fixed/panels_required saem preenchidos mesmo quando ainda falta painel (pra dar feedback
 	// de progresso pra quem consertou parcialmente - ver network/server.on_interact) - só quando o
 	// ÚLTIMO painel necessário é consertado é que out_event vem preenchido e o retorno é true.
-	bool try_fix_sabotage_panel(uint64 peer_id, const string&in object_id, net_packet@&out out_event, int&out panels_fixed, int&out panels_required) {
+	bool try_fix_sabotage_panel(uint64 peer_id, const string&in object_id, net_packet@&out out_event, int&out panels_fixed, int&out panels_required, string&out fail_key) {
 		panels_fixed = 0;
 		panels_required = 0;
-		if (active_sabotage == "") return false;
+		fail_key = "";
 		game_player@ p = find_player(peer_id);
 		if (@p == null || !p.alive) return false;
 
 		map_object@ obj = map.find_object(object_id);
-		if (@obj == null || obj.obj_type != OBJ_SABOTAGE_PANEL) return false;
-		if (obj.task_type != active_sabotage) return false;
-		if (distance_2d(p.x, p.y, obj.x, obj.y) > PLAYER_INTERACT_RANGE) return false;
+		if (@obj == null || obj.obj_type != OBJ_SABOTAGE_PANEL) return false; // nem é painel: nada a explicar
+		// Daqui pra baixo o jogador REALMENTE tentou consertar um painel, então toda saída sai com um
+		// motivo - antes qualquer um desses casos falhava calado e o painel parecia simplesmente
+		// quebrado (o cliente até tocava o som de abrir o painel e nada acontecia).
+		if (active_sabotage == "") { fail_key = "sabotage.no_active"; return false; }
+		if (obj.task_type != active_sabotage) { fail_key = "sabotage.wrong_panel"; return false; }
+		// A posição que o servidor tem vem do canal não confiável e vive um pouco atrasada, então
+		// aqui a distância é conferida com folga - conferir com o valor exato fazia o conserto falhar
+		// de forma aleatória mesmo com o jogador colado no painel (mesmo motivo do botão de reunião).
+		if (distance_2d(p.x, p.y, obj.x, obj.y) > PLAYER_INTERACT_RANGE * 2.0) { fail_key = "sabotage.too_far"; return false; }
 
 		if (sabotage_fixed_panels.find(object_id) == -1) sabotage_fixed_panels.insert_last(object_id);
 		panels_fixed = int(sabotage_fixed_panels.length());
@@ -328,15 +337,29 @@ class game_state {
 			if (sabotage_cooldown_remaining < 0.0) sabotage_cooldown_remaining = 0.0;
 		}
 
-		if (active_sabotage != "") {
+		// O relógio da sabotagem só corre com a partida realmente rolando: durante uma reunião todo
+		// mundo está congelado na cafeteria e ninguém CONSEGUE consertar painel nenhum, então deixar
+		// ele correndo fazia o oxigênio acabar (e os impostores ganharem) no meio da votação, e a
+		// sabotagem de luzes expirar sem ninguém ter chance de fazer nada.
+		if (active_sabotage != "" && state == "in_progress") {
 			sabotage_timer -= delta_seconds;
 			if (sabotage_timer <= 0.0) {
 				if (active_sabotage == "oxygen") {
 					winner = "impostors";
 					win_reason = "oxygen_depleted";
+				} else {
+					// Luzes voltam sozinhas quando o tempo acaba. Sem avisar o cliente disso, ele ficava
+					// achando que a sabotagem nunca terminou: alarme tocando pra sempre, alcance de
+					// audição reduzido pra sempre, e o impostor sem conseguir sabotar de novo porque o
+					// cliente respondia "já tem uma sabotagem em andamento" pro resto da partida.
+					net_packet@ expired = net_packet(S_SABOTAGE_FIXED);
+					expired.set_string("sabotage_id", active_sabotage);
+					expired.set_bool("expired", true); // acabou o tempo, ninguém consertou - o cliente fala diferente
+					events.insert_last(expired);
 				}
 				active_sabotage = "";
 				sabotage_fixed_panels.resize(0);
+				sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 			}
 		}
 

@@ -38,6 +38,9 @@ const float MEETING_GATHER_Y = 0.0;
 const float SABOTAGE_LIGHTS_DURATION_SECONDS = 40.0;
 const float SABOTAGE_OXYGEN_TIMER_SECONDS = 45.0; // tempo até crewmates perderem se não repararem
 const float SABOTAGE_COOLDOWN_SECONDS = 30.0;
+// Cooldown já contando no começo da partida: sem isso o impostor podia sabotar no primeiro segundo,
+// antes de qualquer um ter tido tempo de sair da cafeteria ou começar uma task.
+const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
 
 // Tasks

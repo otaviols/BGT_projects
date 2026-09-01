@@ -12,7 +12,6 @@ class roster_entry {
 	string name;
 	int color;
 	bool alive = true;
-	bool ready = false;
 	float x = 0.0;
 	float y = 0.0;
 	timer footstep_clock; // usado pra não tocar passo dele a cada pacote de posição, só de vez em quando

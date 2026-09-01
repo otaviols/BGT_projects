@@ -13,7 +13,6 @@ const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
 const string C_CREATE_LOBBY = "c_create_lobby";   // {lobby_name, preset, kill_cooldown_override} (-1 = usa o preset)
 const string C_JOIN_LOBBY = "c_join_lobby";       // {lobby_id}
 const string C_LEAVE_LOBBY = "c_leave_lobby";     // {}
-const string C_SET_READY = "c_set_ready";         // {ready}
 const string C_START_GAME = "c_start_game";       // {} (só host)
 const string C_MOVE = "c_move";                   // {x, y, seq}
 const string C_INTERACT = "c_interact";           // {object_id}
@@ -31,12 +30,12 @@ const string C_PING = "c_ping";                   // {} - servidor responde na h
 const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
 
 // Servidor -> Cliente
-const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username}
+const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id} - peer_id = como o SERVIDOR me identifica
 const string S_REGISTER_RESULT = "s_register_result";     // {ok, message}
 const string S_LOBBY_LIST = "s_lobby_list";               // {lobbies: [...]}
 const string S_LOBBY_STATE = "s_lobby_state";             // {lobby_id, players: [...], config}
 const string S_JOIN_RESULT = "s_join_result";             // {ok, message}
-const string S_GAME_START = "s_game_start";                // {map_name, your_role, your_color, players, tasks, kill_cooldown_seconds}
+const string S_GAME_START = "s_game_start";                // {map_name, your_role, your_color, your_peer_id, players, tasks, kill_cooldown_seconds}
 const string S_PLAYER_MOVED = "s_player_moved";           // {peer_id, x, y, seq}
 const string S_PLAYER_JOINED = "s_player_joined";         // {peer_id, name, color}
 const string S_PLAYER_LEFT = "s_player_left";             // {peer_id}
