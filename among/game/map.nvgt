@@ -74,6 +74,63 @@ class game_map {
 	array<map_zone@> zones;
 	array<map_object@> objects;
 
+	// --- Portas ---
+	// Uma "porta" é um CORREDOR fechado: enquanto está fechado, ninguém vivo atravessa aquele
+	// corredor (é a única passagem entre duas salas). Os ids ficam aqui, junto do mapa, porque
+	// servidor e cliente têm cada um a sua instância e os dois precisam da mesma resposta em
+	// is_walkable. Quem manda no tempo é sempre o servidor: no cliente os timers ficam zerados e as
+	// portas só abrem quando chega o pacote dizendo que abriram (assim os dois lados nunca discordam
+	// sobre uma porta estar aberta ou não).
+	array<string> closed_door_zones;
+	array<float> closed_door_timers;
+
+	bool is_door_closed(const string&in zone_id) const {
+		return closed_door_zones.find(zone_id) != -1;
+	}
+
+	void close_doors(array<string>@ zone_ids, float seconds) {
+		for (uint i = 0; i < zone_ids.length(); i++) {
+			int existing = closed_door_zones.find(zone_ids[i]);
+			if (existing != -1) {
+				closed_door_timers[existing] = seconds;
+				continue;
+			}
+			closed_door_zones.insert_last(zone_ids[i]);
+			closed_door_timers.insert_last(seconds);
+		}
+	}
+
+	// Abre TODAS as portas de uma vez e devolve quais estavam fechadas (pra avisar quem precisa).
+	array<string>@ open_all_doors() {
+		array<string> opened = closed_door_zones;
+		closed_door_zones.resize(0);
+		closed_door_timers.resize(0);
+		return opened;
+	}
+
+	void open_doors(array<string>@ zone_ids) {
+		for (uint i = 0; i < zone_ids.length(); i++) {
+			int index = closed_door_zones.find(zone_ids[i]);
+			if (index == -1) continue;
+			closed_door_zones.remove_at(index);
+			closed_door_timers.remove_at(index);
+		}
+	}
+
+	// Só o servidor chama isto (no cliente os timers são 0). Devolve as portas que acabaram de abrir.
+	array<string>@ tick_doors(float delta_seconds) {
+		array<string> opened;
+		for (int i = int(closed_door_zones.length()) - 1; i >= 0; i--) {
+			if (closed_door_timers[i] <= 0.0) continue;
+			closed_door_timers[i] -= delta_seconds;
+			if (closed_door_timers[i] > 0.0) continue;
+			opened.insert_last(closed_door_zones[i]);
+			closed_door_zones.remove_at(i);
+			closed_door_timers.remove_at(i);
+		}
+		return opened;
+	}
+
 	map_zone@ zone_at(float x, float y) const {
 		for (uint i = 0; i < zones.length(); i++) {
 			if (zones[i].contains(x, y)) return zones[i];
@@ -97,6 +154,14 @@ class game_map {
 	// parede/vazio. Usado tanto pelo cliente (som de bater na parede) quanto pelo servidor
 	// (anti-cheat: rejeita posições fora de qualquer sala/corredor).
 	bool is_walkable(float x, float y) const {
+		map_zone@ zone = zone_at(x, y);
+		return @zone != null && !is_door_closed(zone.id);
+	}
+
+	// Fantasma atravessa porta fechada (parede continua sendo parede) - igual ao jogo original, onde
+	// morto passa por tudo. Também é o que garante que ele nunca fica preso longe das tasks dele.
+	bool is_walkable_for(float x, float y, bool alive) const {
+		if (alive) return is_walkable(x, y);
 		return @zone_at(x, y) != null;
 	}
 
@@ -114,6 +179,73 @@ class game_map {
 		if (@vent == null || vent.linked_object_id == "") return result;
 		string[]@ parts = vent.linked_object_id.split(",");
 		for (uint i = 0; i < parts.length(); i++) result.insert_last(parts[i]);
+		return result;
+	}
+
+	// --- Grafo de zonas (usado pela IA dos bots pra andar de sala em sala) ---
+	// A ligação entre salas não está escrita em lugar nenhum: ela sai do ID de cada corredor, que
+	// por convenção é "corridor_<sala_a>_<sala_b>" (ver build_the_hub_map). Como todo id de sala é
+	// uma palavra só, dá pra recuperar as duas pontas com um split.
+	array<string>@ zone_neighbors(const string&in zone_id) const {
+		array<string> result;
+		for (uint i = 0; i < zones.length(); i++) {
+			map_zone@ z = zones[i];
+			if (!z.is_corridor) continue;
+			array<string>@ parts = z.id.split("_");
+			if (parts.length() != 3) continue;
+			if (z.id == zone_id) {
+				result.insert_last(parts[1]);
+				result.insert_last(parts[2]);
+			} else if (parts[1] == zone_id || parts[2] == zone_id) {
+				result.insert_last(z.id);
+			}
+		}
+		return result;
+	}
+
+	// Menor caminho (em número de zonas) de from_zone até to_zone, já SEM a zona de origem e COM a
+	// de destino. Devolve lista vazia se já estiver lá ou se não houver caminho. Andar em linha reta
+	// do centro de uma zona até o centro da zona vizinha sempre passa por dentro das duas (as salas
+	// e corredores deste mapa são retângulos alinhados), então o centro de cada zona do caminho serve
+	// como waypoint sem precisar de nada mais esperto que isso.
+	array<string>@ zone_path(const string&in from_zone, const string&in to_zone) const {
+		array<string> path;
+		if (from_zone == "" || to_zone == "" || from_zone == to_zone) return path;
+
+		array<string> queue = {from_zone};
+		dictionary came_from; // zona -> zona anterior no caminho
+		came_from.set(from_zone, string(""));
+		bool found = false;
+
+		for (uint head = 0; head < queue.length() && !found; head++) {
+			string current = queue[head];
+			array<string>@ neighbors = zone_neighbors(current);
+			for (uint i = 0; i < neighbors.length(); i++) {
+				string next = neighbors[i];
+				if (came_from.exists(next)) continue;
+				came_from.set(next, current);
+				if (next == to_zone) { found = true; break; }
+				queue.insert_last(next);
+			}
+		}
+		if (!found) return path;
+
+		string step = to_zone;
+		while (step != "" && step != from_zone) {
+			path.insert_at(0, step);
+			string previous;
+			came_from.get(step, previous);
+			step = previous;
+		}
+		return path;
+	}
+
+	// Salas de verdade (sem corredores) - a IA dos bots usa pra sortear pra onde passear.
+	array<map_zone@>@ room_zones() const {
+		array<map_zone@> result;
+		for (uint i = 0; i < zones.length(); i++) {
+			if (!zones[i].is_corridor) result.insert_last(zones[i]);
+		}
 		return result;
 	}
 
@@ -140,12 +272,12 @@ game_map@ build_the_hub_map() {
 	m.name = "the_hub";
 
 	// Salas
-	m.zones.insert_last(map_zone("cafeteria", "room.cafeteria", 0, 0, 12, 8, "Tile"));
+	m.zones.insert_last(map_zone("cafeteria", "room.cafeteria", 0, 0, 12, 8, "WoodTile"));
 	m.zones.insert_last(map_zone("weapons", "room.weapons", -30, 0, 8, 8, "Tile"));
 	m.zones.insert_last(map_zone("navigation", "room.navigation", 35, 0, 8, 8, "MetalTile"));
 	m.zones.insert_last(map_zone("admin", "room.admin", 0, -25, 8, 8, "Tile"));
 	m.zones.insert_last(map_zone("medbay", "room.medbay", -30, -25, 8, 8, "Tile"));
-	m.zones.insert_last(map_zone("storage", "room.storage", 0, -50, 10, 8, "EarthTile"));
+	m.zones.insert_last(map_zone("storage", "room.storage", 0, -50, 10, 8, "MetalBeltTile"));
 	m.zones.insert_last(map_zone("electrical", "room.electrical", -30, -50, 8, 8, "MetalTile"));
 	m.zones.insert_last(map_zone("reactor", "room.reactor", -30, -75, 8, 8, "MetalTile"));
 
@@ -192,6 +324,18 @@ game_map@ build_the_hub_map() {
 		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "align_engine", "", SND_TASK_BEACON_ALIGN_ENGINE));
 	m.objects.insert_last(map_object("task_card_admin", "task.swipe_card.name", -3, -22, "admin",
 		OBJ_TASK_SPOT, "sounds/" + SND_GET_CARD, "swipe_card", "", SND_TASK_BEACON_SWIPE_CARD));
+	m.objects.insert_last(map_object("task_manifolds_reactor", "task.unlock_manifolds.name", -33, -78, "reactor",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "unlock_manifolds", "", SND_TASK_BEACON_UNLOCK_MANIFOLDS));
+	m.objects.insert_last(map_object("task_manifolds_medbay", "task.unlock_manifolds.name", -33, -28, "medbay",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "unlock_manifolds", "", SND_TASK_BEACON_UNLOCK_MANIFOLDS));
+	m.objects.insert_last(map_object("task_fuel_storage", "task.fuel_engines.name", -3, -53, "storage",
+		OBJ_TASK_SPOT, "sounds/" + SND_PULLING_GARBAGE_LEVER, "fuel_engines", "", SND_TASK_BEACON_FUEL_ENGINES));
+	m.objects.insert_last(map_object("task_fuel_reactor", "task.fuel_engines.name", -27, -78, "reactor",
+		OBJ_TASK_SPOT, "sounds/" + SND_PULLING_GARBAGE_LEVER, "fuel_engines", "", SND_TASK_BEACON_FUEL_ENGINES));
+	m.objects.insert_last(map_object("task_asteroids_weapons", "task.clear_asteroids.name", -27, -3, "weapons",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "clear_asteroids", "", SND_TASK_BEACON_CLEAR_ASTEROIDS));
+	m.objects.insert_last(map_object("task_asteroids_navigation", "task.clear_asteroids.name", 32, 3, "navigation",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "clear_asteroids", "", SND_TASK_BEACON_CLEAR_ASTEROIDS));
 
 	// Sabotagens
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -27, -53, "electrical",
@@ -200,6 +344,8 @@ game_map@ build_the_hub_map() {
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen", "", SND_PANEL_BEACON_OXYGEN));
 	m.objects.insert_last(map_object("panel_oxygen_electrical", "sabotage.oxygen.name", -33, -53, "electrical",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen", "", SND_PANEL_BEACON_OXYGEN));
+	m.objects.insert_last(map_object("panel_comms_navigation", "sabotage.comms.name", 38, -6, "navigation",
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "comms", "", SND_PANEL_BEACON_COMMS));
 
 	// Botão de emergência - sound_path toca ao interagir (hoje nenhum, ver nota abaixo);
 	// beacon_sound_path é o som contínuo pra achar o botão de longe.

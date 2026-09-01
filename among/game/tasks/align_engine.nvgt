@@ -28,7 +28,7 @@ bool run_align_engine_task(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested()) {
+		if (task_cancel_requested(client)) {
 			engine_beep.stop();
 			return false;
 		}

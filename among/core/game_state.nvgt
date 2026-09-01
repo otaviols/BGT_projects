@@ -37,8 +37,14 @@ class game_state {
 	float voting_timer = 0.0;
 	uint64 meeting_caller = 0;
 	string meeting_reason = ""; // "body" | "button"
+	// Quem estava escondido num vent quando a última reunião começou. O servidor precisa avisar
+	// essas pessoas de que elas saíram do vent (ver broadcast_meeting_and_voting).
+	array<uint64> meeting_unvented_peers;
+	array<string> meeting_doors_opened; // portas que a reunião abriu, pra avisar os clientes
 
-	string active_sabotage = ""; // "" | "lights" | "oxygen"
+	float doors_cooldown_remaining = 0.0; // recarga da ação de fechar portas (separada da sabotagem)
+	string active_sabotage = ""; // "" | "lights" | "oxygen" | "comms"
+	string last_sabotage_id = ""; // pra não deixar repetir a mesma sabotagem duas vezes seguidas
 	float sabotage_timer = 0.0;
 	float sabotage_cooldown_remaining = 0.0;
 	array<string> sabotage_fixed_panels;
@@ -46,6 +52,18 @@ class game_state {
 	string winner = ""; // "" | "crewmates" | "impostors"
 	string win_reason = "";
 	float elapsed_time = 0.0;
+
+	uint bot_count() const {
+		uint count = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].is_bot) count++;
+		}
+		return count;
+	}
+
+	uint human_count() const {
+		return players.length() - bot_count();
+	}
 
 	game_player@ find_player(uint64 peer_id) const {
 		for (uint i = 0; i < players.length(); i++) {
@@ -60,6 +78,35 @@ class game_state {
 			if (players[i].alive) result.insert_last(players[i]);
 		}
 		return result;
+	}
+
+	// Progresso de tasks da EQUIPE (todos os tripulantes, vivos e fantasmas - fantasma continua
+	// fazendo task, ver network/server.on_task_input). É o mesmo número que decide a vitória por
+	// tasks lá embaixo no tick.
+	uint crew_task_total() const {
+		uint total = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (!players[i].is_impostor) total += players[i].task_count();
+		}
+		return total;
+	}
+
+	uint crew_task_completed() const {
+		uint done = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (!players[i].is_impostor) done += players[i].completed_task_count();
+		}
+		return done;
+	}
+
+	net_packet@ build_task_progress_packet() const {
+		uint total = crew_task_total();
+		uint done = crew_task_completed();
+		net_packet@ pkt = net_packet(S_TASK_PROGRESS);
+		pkt.set_int("completed", int(done));
+		pkt.set_int("total", int(total));
+		pkt.set_int("percent", total == 0 ? 100 : int((done * 100) / total));
+		return pkt;
 	}
 
 	uint alive_crewmate_count() const {
@@ -101,7 +148,7 @@ class game_state {
 		if (@p == null) return false;
 		if (state != "in_progress") return false; // movimento travado durante reunião/votação
 		if (p.vented) return false; // escondido num vent - só sai/viaja pela rede (ver on_vent_travel)
-		if (!map.is_walkable(x, y)) return false; // fora de qualquer sala/corredor - anti-cheat
+		if (!map.is_walkable_for(x, y, p.alive)) return false; // parede, ou porta fechada pra quem está vivo
 		float delta = elapsed_time - p.last_move_time;
 		if (delta <= 0.0) delta = 1.0 / NETWORK_TICKS_PER_SECOND;
 		bool ok = p.try_move(x, y, delta);
@@ -153,6 +200,39 @@ class game_state {
 		return null;
 	}
 
+	// --- Portas ---
+	// Fecha TODOS os corredores que dão pra uma sala, prendendo quem está lá dentro (e quem está
+	// fora, do lado de fora). Não tem conserto: reabrem sozinhas quando o tempo acaba. É de
+	// propósito que isso não passe pelo sistema de sabotagem - poder fechar a porta da elétrica E
+	// apagar a luz ao mesmo tempo é justamente o que torna a jogada interessante.
+	bool close_doors_of_room(uint64 impostor_peer, const string&in room_id, array<string>@&out closed_zones) {
+		@closed_zones = array<string>();
+		if (state != "in_progress") return false;
+		game_player@ impostor = find_player(impostor_peer);
+		if (@impostor == null || !impostor.is_impostor || !impostor.alive) return false;
+		if (doors_cooldown_remaining > 0.0) return false;
+
+		map_zone@ room = map.find_zone(room_id);
+		if (@room == null || room.is_corridor) return false;
+
+		array<string>@ neighbors = map.zone_neighbors(room_id); // pra uma sala, vizinhos = os corredores dela
+		if (neighbors.length() == 0) return false;
+
+		map.close_doors(neighbors, DOORS_CLOSED_SECONDS);
+		doors_cooldown_remaining = DOORS_COOLDOWN_SECONDS;
+		@closed_zones = neighbors;
+		return true;
+	}
+
+	net_packet@ build_doors_packet(array<string>@ zones, bool closed) const {
+		json_array@ list = json_array();
+		for (uint i = 0; i < zones.length(); i++) list.add(zones[i]);
+		net_packet@ pkt = net_packet(S_DOORS_STATE);
+		pkt.set_bool("closed", closed);
+		pkt.set_array("zones", list);
+		return pkt;
+	}
+
 	// --- Reunião / votação ---
 	// Vai direto pra votação (sem uma fase de "discussão" separada travando o menu) - todo mundo
 	// vivo é teleportado pra cafeteria, o movimento trava (ver try_move_player), e o chat abre geral
@@ -165,11 +245,32 @@ class game_state {
 
 		if (reason == "button") caller.meetings_called++;
 
+		// Reunião abre tudo: todo mundo é teleportado pra cafeteria de qualquer jeito, e voltar da
+		// votação preso atrás de uma porta que fechou antes da reunião não faria sentido nenhum.
+		meeting_doors_opened = map.open_all_doors();
+
+		meeting_unvented_peers.resize(0);
 		for (uint i = 0; i < players.length(); i++) {
-			if (players[i].alive) {
-				players[i].x = MEETING_GATHER_X;
-				players[i].y = MEETING_GATHER_Y;
-			}
+			if (!players[i].alive) continue;
+			players[i].x = MEETING_GATHER_X;
+			players[i].y = MEETING_GATHER_Y;
+			// Reunião TIRA do vent quem estava escondido: o jogador é teleportado pra cafeteria de
+			// qualquer jeito, e deixar a flag ligada era uma armadilha sem saída. Quem continuasse
+			// "vented" não conseguia mais andar (try_move_player recusa quem está no vent) e só sairia
+			// pelo menu do vent, que exige estar vivo - ou seja, quem fosse EXPULSO nessa reunião
+			// ficava travado no lugar pelo resto da partida, sem andar e sem conseguir sair do vent.
+			if (!players[i].vented) continue;
+			players[i].vented = false;
+			players[i].current_vent_id = "";
+			meeting_unvented_peers.insert_last(players[i].peer_id);
+		}
+
+		// Cada bot já sai da reunião com a hora dele de votar marcada - sem isso a votação sempre
+		// esperaria o timer inteiro numa partida com bot (ninguém vota por eles).
+		for (uint i = 0; i < players.length(); i++) {
+			if (!players[i].is_bot) continue;
+			players[i].bot_voted = false;
+			players[i].bot_action_timer = random_range(BOT_VOTE_MIN_SECONDS, BOT_VOTE_MAX_SECONDS);
 		}
 
 		state = "voting";
@@ -268,26 +369,47 @@ class game_state {
 	}
 
 	// --- Sabotagem ---
-	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event) {
+	// Sabotagem crítica = tem relógio e é derrota dos tripulantes se o tempo acabar. As outras duram
+	// até alguém consertar o painel.
+	bool is_critical_sabotage(const string&in sabotage_id) const {
+		return sabotage_id == "oxygen";
+	}
+
+	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event, string&out fail_key) {
+		fail_key = "game.sabotage_unavailable";
 		game_player@ impostor = find_player(impostor_peer);
 		if (@impostor == null || !impostor.is_impostor || !impostor.alive) return false;
 		if (!config.sabotages_enabled) return false; // preset "rápido" desliga sabotagem (ver config/presets.nvgt)
-		if (sabotage_id != "lights" && sabotage_id != "oxygen") return false;
+		if (sabotage_id != "lights" && sabotage_id != "oxygen" && sabotage_id != "comms") return false;
+		if (state != "in_progress") return false;
 		if (active_sabotage != "") return false;
 		if (sabotage_cooldown_remaining > 0.0) return false;
+		// Sem isto o impostor martelava a MESMA sabotagem a partida inteira, que é o jeito mais
+		// chato de jogar: a tripulação decora o caminho de um painel só e nada mais acontece.
+		if (sabotage_id == last_sabotage_id) { fail_key = "game.sabotage_repeat"; return false; }
 
 		active_sabotage = sabotage_id;
+		last_sabotage_id = sabotage_id;
 		sabotage_fixed_panels.resize(0);
-		sabotage_timer = sabotage_id == "oxygen" ? SABOTAGE_OXYGEN_TIMER_SECONDS : SABOTAGE_LIGHTS_DURATION_SECONDS;
+		sabotage_timer = is_critical_sabotage(sabotage_id) ? SABOTAGE_OXYGEN_TIMER_SECONDS : 0.0;
 
+		fail_key = "";
 		@out_event = net_packet(S_SABOTAGE_STARTED);
 		out_event.set_string("sabotage_id", sabotage_id);
 		out_event.set_float("timer", sabotage_timer);
+		out_event.set_bool("critical", is_critical_sabotage(sabotage_id));
 		return true;
 	}
 
 	int required_panels_for(const string&in sabotage_id) const {
 		return sabotage_id == "oxygen" ? 2 : 1;
+	}
+
+	// Reunião (botão ou reporte de corpo) fica bloqueada enquanto uma sabotagem crítica está de pé -
+	// é assim no Among Us original, e é o que impede o caso em que a reunião come todo o tempo do
+	// oxigênio e a tripulação volta pra partida já sem chance de chegar nos painéis.
+	bool meetings_blocked_by_sabotage() const {
+		return active_sabotage != "" && is_critical_sabotage(active_sabotage);
 	}
 
 	// panels_fixed/panels_required saem preenchidos mesmo quando ainda falta painel (pra dar feedback
@@ -325,12 +447,241 @@ class game_state {
 		return true;
 	}
 
+	// --- IA dos bots ---
+	// Bot vivo faz três coisas: anda até a próxima task dele, "faz" a task parado por alguns
+	// segundos, e quando não tem mais task passeia entre as salas. Em reunião ele vota pular depois
+	// de um tempinho. Nada disso é esperto de propósito: o objetivo é dar movimento (som de passos,
+	// gente aparecendo no radar) e completar tasks pra encher a partida, não jogar bem.
+	private void pick_bot_destination(game_player@ b) {
+		b.bot_target_object_id = "";
+		b.bot_has_target = false;
+
+		// 1) Primeira task pendente dele.
+		for (uint i = 0; i < b.tasks.length(); i++) {
+			if (b.tasks[i].completed) continue;
+			map_object@ spot = map.find_object(b.tasks[i].object_id);
+			if (@spot == null) continue;
+			b.bot_target_object_id = spot.id;
+			b.bot_target_x = spot.x;
+			b.bot_target_y = spot.y;
+			b.bot_has_target = true;
+			break;
+		}
+
+		// 2) Sem task pendente (ou é impostor, que não tem task nenhuma): passeia até uma sala
+		// sorteada, senão o bot fica plantado no mesmo canto o resto da partida.
+		if (!b.bot_has_target) {
+			array<map_zone@>@ rooms = map.room_zones();
+			if (rooms.length() == 0) return;
+			map_zone@ destination = rooms[random(0, int(rooms.length()) - 1)];
+			b.bot_target_x = destination.center_x;
+			b.bot_target_y = destination.center_y;
+			b.bot_has_target = true;
+		}
+
+		set_bot_path_to(b, b.bot_target_x, b.bot_target_y);
+	}
+
+	// Traça a rota até (x, y) e deixa o bot pronto pra andar.
+	private void set_bot_path_to(game_player@ b, float x, float y) {
+		string current_zone = map.room_id_at(b.x, b.y);
+		b.bot_path = map.zone_path(current_zone, map.room_id_at(x, y));
+		// O primeiro waypoint é o centro da PRÓPRIA zona onde o bot está. Sem isso ele saía de onde
+		// estivesse (um canto da sala, por exemplo) reto na diagonal até o centro do corredor
+		// seguinte, e essa diagonal atravessa a parede: o bot encostava na quina e ficava travado
+		// lá pra sempre. Sala e corredor são retângulos, então centro-a-centro (e "qualquer ponto
+		// da sala até o centro dela") nunca sai de dentro.
+		if (b.bot_path.length() > 0 && current_zone != "") b.bot_path.insert_at(0, current_zone);
+	}
+
+	// --- Bot impostor ---
+	// Caça o tripulante vivo mais próximo e mata quando dá: dentro do alcance, sem cooldown e sem
+	// ninguém por perto pra ver. Também solta uma sabotagem de vez em quando. Não usa vent nem
+	// reporta corpo - e não vira "melhor que gente" de propósito, a graça é ele ser um adversário
+	// previsível o bastante pra ser descoberto numa reunião.
+	private game_player@ nearest_prey(game_player@ hunter) const {
+		game_player@ best = null;
+		float best_dist = 0.0;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.is_impostor || !p.alive || p.peer_id == hunter.peer_id) continue;
+			float dist = distance_2d(hunter.x, hunter.y, p.x, p.y);
+			if (@best == null || dist < best_dist) {
+				best_dist = dist;
+				@best = p;
+			}
+		}
+		return best;
+	}
+
+	// Alguém vivo (que não seja o assassino nem a vítima) perto o bastante pra testemunhar.
+	private bool kill_has_witness(game_player@ killer, game_player@ victim) const {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (!p.alive || p.peer_id == killer.peer_id || p.peer_id == victim.peer_id) continue;
+			if (distance_2d(killer.x, killer.y, p.x, p.y) <= BOT_KILL_WITNESS_RANGE) return true;
+		}
+		return false;
+	}
+
+	// Devolve false quando não há nada a perseguir neste tick (o bot fica parado).
+	private bool update_bot_impostor(game_player@ b, float delta_seconds, array<net_packet@>@ events) {
+		game_player@ prey = nearest_prey(b);
+		if (@prey == null) return false;
+
+		if (b.can_kill() && distance_2d(b.x, b.y, prey.x, prey.y) <= PLAYER_KILL_RANGE && !kill_has_witness(b, prey)) {
+			net_packet@ kill_event;
+			if (try_kill(b.peer_id, prey.peer_id, kill_event)) {
+				events.insert_last(kill_event);
+				b.bot_has_target = false;
+				b.bot_action_timer = random_range(BOT_POST_KILL_MIN_SECONDS, BOT_POST_KILL_MAX_SECONDS); // se afasta do corpo
+				return false;
+			}
+		}
+
+		if (config.sabotages_enabled && active_sabotage == "" && sabotage_cooldown_remaining <= 0.0 &&
+				random_range(0.0, 1.0) < BOT_SABOTAGE_CHANCE_PER_SECOND * delta_seconds) {
+			// Nunca a mesma da vez passada (trigger_sabotage recusaria de qualquer jeito).
+			string sabotage_id = last_sabotage_id == "lights" ? "comms" : "lights";
+			net_packet@ sabotage_event;
+			string fail_key;
+			if (trigger_sabotage(b.peer_id, sabotage_id, sabotage_event, fail_key)) events.insert_last(sabotage_event);
+		}
+
+		// A presa anda, então o ponto final é atualizado sempre - mas a ROTA só é refeita quando a
+		// presa muda de sala. Refazer a rota a cada instante travava o bot: toda rota nova começa
+		// pelo centro da zona onde ele está (ver set_bot_path_to), então ele dava dois passos rumo à
+		// saída, recalculava, voltava pro centro, e ficava balançando ali pra sempre sem sair da sala.
+		b.bot_repath_timer -= delta_seconds;
+		string prey_zone = map.room_id_at(prey.x, prey.y);
+		b.bot_target_object_id = "";
+		b.bot_target_x = prey.x;
+		b.bot_target_y = prey.y;
+		if (!b.bot_has_target || (b.bot_repath_timer <= 0.0 && prey_zone != b.bot_target_zone)) {
+			b.bot_repath_timer = BOT_REPATH_INTERVAL_SECONDS;
+			b.bot_target_zone = prey_zone;
+			b.bot_has_target = true;
+			set_bot_path_to(b, prey.x, prey.y);
+		}
+		return true;
+	}
+
+	// Um passo de movimento. Devolve true se a posição mudou.
+	private bool step_bot_towards(game_player@ b, float target_x, float target_y, float delta_seconds) {
+		float dx = target_x - b.x;
+		float dy = target_y - b.y;
+		float dist = sqrt(dx * dx + dy * dy);
+		if (dist <= 0.001) return false;
+		float step = BOT_MOVE_SPEED * delta_seconds;
+		if (step > dist) step = dist;
+		float new_x = b.x + dx / dist * step;
+		float new_y = b.y + dy / dist * step;
+		// Bot fora de qualquer sala/corredor seria exatamente o que o servidor rejeita num jogador
+		// de verdade (ver try_move_player). Se acontecer, o destino é recalculado do zero em vez de
+		// empurrar o bot pra dentro da parede.
+		if (!map.is_walkable(new_x, new_y)) {
+			b.bot_has_target = false;
+			b.bot_path.resize(0);
+			b.bot_action_timer = 1.0;
+			return false;
+		}
+		b.x = new_x;
+		b.y = new_y;
+		return true;
+	}
+
+	private void tick_bots(float delta_seconds, array<net_packet@>@ events) {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ b = players[i];
+			if (!b.is_bot || !b.alive) continue; // bot morto vira fantasma parado, sem som nenhum
+
+			if (state == "voting") {
+				if (b.bot_voted) continue;
+				b.bot_action_timer -= delta_seconds;
+				if (b.bot_action_timer > 0.0) continue;
+				if (!cast_vote(b.peer_id, -1)) { b.bot_voted = true; continue; }
+				b.bot_voted = true;
+				net_packet@ cast_pkt = net_packet(S_VOTE_CAST);
+				cast_pkt.set_uint64("voter_peer", b.peer_id);
+				cast_pkt.set_string("voter_name", b.username);
+				events.insert_last(cast_pkt);
+				continue;
+			}
+			if (state != "in_progress") continue;
+
+			if (b.bot_action_timer > 0.0) { // parado fazendo alguma coisa
+				b.bot_action_timer -= delta_seconds;
+				continue;
+			}
+			if (b.is_impostor) {
+				if (!update_bot_impostor(b, delta_seconds, events)) continue;
+			} else if (!b.bot_has_target) {
+				pick_bot_destination(b);
+				if (!b.bot_has_target) continue;
+			}
+
+			// Chegou no destino final: se era uma task, conclui (conta pra vitória dos tripulantes
+			// igual a de qualquer jogador) e descansa antes de escolher o próximo destino.
+			if (b.bot_path.length() == 0 && distance_2d(b.x, b.y, b.bot_target_x, b.bot_target_y) <= PLAYER_INTERACT_RANGE) {
+				if (b.bot_target_object_id != "") {
+					if (b.complete_task(b.bot_target_object_id)) events.insert_last(build_task_progress_packet());
+					b.bot_action_timer = random_range(BOT_TASK_MIN_SECONDS, BOT_TASK_MAX_SECONDS);
+				} else if (b.is_impostor) {
+					b.bot_repath_timer = 0.0; // chegou onde a presa estava: recalcula na hora, sem pausa
+				} else {
+					b.bot_action_timer = random_range(BOT_IDLE_MIN_SECONDS, BOT_IDLE_MAX_SECONDS);
+				}
+				b.bot_has_target = false;
+				b.bot_target_object_id = "";
+				continue;
+			}
+
+			// Próximo waypoint: o centro da próxima zona do caminho, ou o destino em si quando já
+			// está na zona certa.
+			float waypoint_x = b.bot_target_x;
+			float waypoint_y = b.bot_target_y;
+			if (b.bot_path.length() > 0) {
+				map_zone@ next_zone = map.find_zone(b.bot_path[0]);
+				// Só conta como waypoint alcançado quando o bot chega no CENTRO da zona - entrar nela
+				// não basta (ver a nota sobre a diagonal em pick_bot_destination).
+				if (@next_zone == null || distance_2d(b.x, b.y, next_zone.center_x, next_zone.center_y) <= BOT_WAYPOINT_REACHED_DISTANCE) {
+					b.bot_path.remove_at(0);
+					continue;
+				}
+				waypoint_x = next_zone.center_x;
+				waypoint_y = next_zone.center_y;
+			}
+
+			if (!step_bot_towards(b, waypoint_x, waypoint_y, delta_seconds)) continue;
+
+			b.bot_broadcast_timer -= delta_seconds;
+			if (b.bot_broadcast_timer > 0.0) continue;
+			b.bot_broadcast_timer = BOT_MOVE_BROADCAST_INTERVAL;
+			net_packet@ moved = net_packet(S_PLAYER_MOVED);
+			moved.set_uint64("peer_id", b.peer_id);
+			moved.set_float("x", b.x);
+			moved.set_float("y", b.y);
+			events.insert_last(moved);
+		}
+	}
+
 	// --- Tick: avança timers, retorna eventos que o servidor precisa transmitir. ---
 	array<net_packet@>@ tick(float delta_seconds) {
 		array<net_packet@> events;
 		elapsed_time += delta_seconds;
 
 		for (uint i = 0; i < players.length(); i++) players[i].tick_cooldowns(delta_seconds);
+		tick_bots(delta_seconds, events);
+
+		if (doors_cooldown_remaining > 0.0) {
+			doors_cooldown_remaining -= delta_seconds;
+			if (doors_cooldown_remaining < 0.0) doors_cooldown_remaining = 0.0;
+		}
+
+		if (state == "in_progress") {
+			array<string>@ reopened = map.tick_doors(delta_seconds);
+			if (reopened.length() > 0) events.insert_last(build_doors_packet(reopened, false));
+		}
 
 		if (sabotage_cooldown_remaining > 0.0) {
 			sabotage_cooldown_remaining -= delta_seconds;
@@ -341,22 +692,15 @@ class game_state {
 		// mundo está congelado na cafeteria e ninguém CONSEGUE consertar painel nenhum, então deixar
 		// ele correndo fazia o oxigênio acabar (e os impostores ganharem) no meio da votação, e a
 		// sabotagem de luzes expirar sem ninguém ter chance de fazer nada.
-		if (active_sabotage != "" && state == "in_progress") {
+		// Só sabotagem crítica tem relógio, e ele só corre com a partida rolando de verdade: durante
+		// uma reunião todo mundo está congelado na cafeteria e ninguém CONSEGUE chegar num painel.
+		// Luzes e comunicações não têm relógio nenhum - ficam de pé até alguém consertar, que é o que
+		// dá peso a elas (antes as luzes se resolviam sozinhas em 40s e viravam só um susto).
+		if (active_sabotage != "" && is_critical_sabotage(active_sabotage) && state == "in_progress") {
 			sabotage_timer -= delta_seconds;
 			if (sabotage_timer <= 0.0) {
-				if (active_sabotage == "oxygen") {
-					winner = "impostors";
-					win_reason = "oxygen_depleted";
-				} else {
-					// Luzes voltam sozinhas quando o tempo acaba. Sem avisar o cliente disso, ele ficava
-					// achando que a sabotagem nunca terminou: alarme tocando pra sempre, alcance de
-					// audição reduzido pra sempre, e o impostor sem conseguir sabotar de novo porque o
-					// cliente respondia "já tem uma sabotagem em andamento" pro resto da partida.
-					net_packet@ expired = net_packet(S_SABOTAGE_FIXED);
-					expired.set_string("sabotage_id", active_sabotage);
-					expired.set_bool("expired", true); // acabou o tempo, ninguém consertou - o cliente fala diferente
-					events.insert_last(expired);
-				}
+				winner = "impostors";
+				win_reason = "oxygen_depleted";
 				active_sabotage = "";
 				sabotage_fixed_panels.resize(0);
 				sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;

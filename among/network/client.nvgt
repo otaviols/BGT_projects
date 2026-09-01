@@ -106,6 +106,14 @@ class game_client {
 		send(net_packet(C_START_GAME));
 	}
 
+	void send_add_bot() {
+		send(net_packet(C_ADD_BOT));
+	}
+
+	void send_remove_bot() {
+		send(net_packet(C_REMOVE_BOT));
+	}
+
 	void send_move(float x, float y) {
 		net_packet@ p = net_packet(C_MOVE);
 		p.set_float("x", x);
@@ -172,6 +180,12 @@ class game_client {
 		net_packet@ p = net_packet(C_RADAR_SCAN);
 		p.set_int("direction", direction);
 		send(p, false);
+	}
+
+	void send_close_doors(const string&in room_id) {
+		net_packet@ p = net_packet(C_CLOSE_DOORS);
+		p.set_string("room_id", room_id);
+		send(p);
 	}
 
 	void send_trigger_sabotage(const string&in sabotage_id) {

@@ -14,6 +14,8 @@ const string C_CREATE_LOBBY = "c_create_lobby";   // {lobby_name, preset, kill_c
 const string C_JOIN_LOBBY = "c_join_lobby";       // {lobby_id}
 const string C_LEAVE_LOBBY = "c_leave_lobby";     // {}
 const string C_START_GAME = "c_start_game";       // {} (só host)
+const string C_ADD_BOT = "c_add_bot";             // {} (só host, só na sala de espera)
+const string C_REMOVE_BOT = "c_remove_bot";       // {} (só host, tira o último bot adicionado)
 const string C_MOVE = "c_move";                   // {x, y, seq}
 const string C_INTERACT = "c_interact";           // {object_id}
 const string C_START_TASK = "c_start_task";       // {task_id}
@@ -25,7 +27,8 @@ const string C_CAST_VOTE = "c_cast_vote";         // {target_peer}  (target_peer
 const string C_USE_VENT = "c_use_vent";           // {vent_id} - entrar num vent perto (só quando não vented)
 const string C_VENT_TRAVEL = "c_vent_travel";     // {target_vent_id} - "" = sair, senão viaja pra outro vent da rede (só quando já vented)
 const string C_RADAR_SCAN = "c_radar_scan";       // {direction} (1 = próximo, -1 = anterior)
-const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("lights" | "oxygen"), só impostor
+const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("lights" | "oxygen" | "comms"), só impostor
+const string C_CLOSE_DOORS = "c_close_doors";     // {room_id} - fecha os corredores daquela sala, só impostor
 const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
 const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
 
@@ -41,6 +44,7 @@ const string S_PLAYER_JOINED = "s_player_joined";         // {peer_id, name, col
 const string S_PLAYER_LEFT = "s_player_left";             // {peer_id}
 const string S_TASK_RESULT = "s_task_result";             // {task_id, ok, progress}
 const string S_TASK_ASSIGNED = "s_task_assigned";         // {tasks: [...]}
+const string S_TASK_PROGRESS = "s_task_progress";         // {completed, total, percent} - progresso da EQUIPE, vai pra todo mundo (impostor incluído)
 const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, killer_peer, killer_color, x, y}
 const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer}
 const string S_MEETING_STARTED = "s_meeting_started";     // {reason, caller_peer, discussion_time}
@@ -55,3 +59,4 @@ const string S_ERROR = "s_error";                          // {message}
 const string S_PONG = "s_pong";                             // {} - resposta a C_PING, cliente mede o round-trip
 const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, text}
 const string S_VENT_STATE = "s_vent_state";                 // {vented, x, y} - resposta privada (só pra quem usou o vent)
+const string S_DOORS_STATE = "s_doors_state";               // {closed, zones: [ids de corredor]} - portas fechando ou abrindo

@@ -56,12 +56,16 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.button_beacon"), SND_BUTTON_BEACON);
 	sfx.add(tr("learn.panel_lights_beacon"), SND_PANEL_BEACON_LIGHTS);
 	sfx.add(tr("learn.panel_oxygen_beacon"), SND_PANEL_BEACON_OXYGEN);
+	sfx.add(tr("learn.panel_comms_beacon"), SND_PANEL_BEACON_COMMS);
 	sfx.add(tr("learn.vent_beacon"), SND_VENT_BEACON);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.fix_wiring.name"), SND_TASK_BEACON_FIX_WIRING);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.download_data.name"), SND_TASK_BEACON_DOWNLOAD_DATA);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.empty_garbage.name"), SND_TASK_BEACON_EMPTY_GARBAGE);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.align_engine.name"), SND_TASK_BEACON_ALIGN_ENGINE);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.swipe_card.name"), SND_TASK_BEACON_SWIPE_CARD);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.unlock_manifolds.name"), SND_TASK_BEACON_UNLOCK_MANIFOLDS);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.fuel_engines.name"), SND_TASK_BEACON_FUEL_ENGINES);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.clear_asteroids.name"), SND_TASK_BEACON_CLEAR_ASTEROIDS);
 
 	sfx.add(tr("learn.sabotage_alarm"), SND_SABOTAGE_ALARM);
 	sfx.add(tr("learn.body_on_floor"), SND_BODY_ON_FLOOR);
@@ -69,6 +73,7 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.death"), "sounds/killed{1...4}.wav");
 	sfx.add(tr("learn.kill"), SND_KILL);
 	sfx.add(tr("learn.wall_bump"), SND_WALL_BUMP);
+	sfx.add(tr("learn.door_bump"), SND_DOOR_BUMP);
 
 	sfx.add(tr("learn.ship_ambience"), SND_SHIP_AMBIENCE);
 	sfx.add(tr("learn.start_game"), SND_START_GAME);

@@ -139,14 +139,22 @@ class meeting_ui {
 
 	void on_sabotage_started(net_packet@ pkt) {
 		string sabotage_id = pkt.get_string("sabotage_id");
-		announce(tr(sabotage_id == "lights" ? "sabotage.lights.name" : "sabotage.oxygen.name"));
+		string text = tr("sabotage." + sabotage_id + ".name"); // nome vem da própria chave, sem lista fixa aqui
+		// Sabotagem crítica (oxigênio) tem relógio e é derrota se ninguém consertar - dizer quanto
+		// tempo existe é a diferença entre correr pro painel certo e não fazer ideia do que fazer.
+		// Tudo numa fala só porque speak() interrompe a anterior.
+		if (pkt.get_bool("critical")) {
+			dictionary@ p = dictionary();
+			p.set("seconds", "" + int(pkt.get_float("timer")));
+			text += " " + tr("sabotage.critical_warning", p);
+		}
+		announce(text);
 		audio.start_sabotage_alarm();
 		if (sabotage_id == "lights") audio.apply_lights_out(true, 40);
 	}
 
 	void on_sabotage_fixed(net_packet@ pkt) {
-		// "expired" = a sabotagem acabou sozinha no tempo dela (luzes), ninguém consertou nada.
-		announce(tr(pkt.get_bool("expired") ? "sabotage.expired" : "sabotage.fixed"));
+		announce(tr("sabotage.fixed"));
 		audio.stop_sabotage_alarm();
 		audio.apply_lights_out(false, 40);
 	}

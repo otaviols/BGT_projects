@@ -1,0 +1,57 @@
+// unlock_manifolds.nvgt
+// Task de destravar os coletores: o painel toca uma sequência de tons e o jogador repete ela nas
+// teclas 1 a 4. Cada tecla tem o seu próprio tom (grave até agudo), então dá pra conferir "de
+// ouvido" o que se está digitando - a task inteira é memória sonora, sem nada visual por trás.
+
+#include "task_common.nvgt"
+
+// Tom de cada coletor, em porcentagem de pitch (100 = som original). Índice 0 = tecla 1.
+const array<float> MANIFOLD_PITCHES = {75.0, 100.0, 130.0, 170.0};
+const uint MANIFOLD_SEQUENCE_LENGTH = 4;
+
+void play_manifold_tone(int index) {
+	if (index < 0 || index >= int(MANIFOLD_PITCHES.length())) return;
+	sound tone;
+	if (!tone.load("sounds/" + SND_BEEP)) return;
+	tone.pitch = MANIFOLD_PITCHES[index];
+	tone.play_wait(); // play_wait pra sequência sair uma nota DEPOIS da outra, não todas juntas
+}
+
+bool run_unlock_manifolds_task(game_client@ client) {
+	speak(tr("task.unlock_manifolds.instructions"));
+
+	array<int> sequence;
+	for (uint i = 0; i < MANIFOLD_SEQUENCE_LENGTH; i++) sequence.insert_last(random(0, int(MANIFOLD_PITCHES.length()) - 1));
+
+	wait(600); // respiro antes de começar a tocar, senão a sequência atropela a instrução falada
+	for (uint i = 0; i < sequence.length(); i++) {
+		play_manifold_tone(sequence[i]);
+		wait(150);
+	}
+
+	uint typed = 0;
+	while (typed < sequence.length()) {
+		wait(5);
+		client.update();
+		if (task_cancel_requested(client)) return false;
+
+		int pressed = -1;
+		if (key_pressed(KEY_1)) pressed = 0;
+		else if (key_pressed(KEY_2)) pressed = 1;
+		else if (key_pressed(KEY_3)) pressed = 2;
+		else if (key_pressed(KEY_4)) pressed = 3;
+		if (pressed == -1) continue;
+
+		play_manifold_tone(pressed); // ecoa a tecla apertada pro jogador conferir o que digitou
+		if (pressed != sequence[typed]) {
+			task_sound(SND_CARD_ERROR);
+			speak(tr("task.failed"));
+			return false;
+		}
+		typed++;
+	}
+
+	task_sound(SND_BEEP_COMPLETE);
+	speak(tr("task.completed"));
+	return true;
+}

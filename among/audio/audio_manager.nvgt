@@ -46,10 +46,21 @@ class audio_manager {
 		spatial.play_once(SND_WALL_BUMP, x, y);
 	}
 
+	// Esbarrão numa porta trancada. Som próprio (não o de parede) porque as duas coisas pedem reações
+	// diferentes: parede é caminho errado, porta é só esperar ela abrir.
+	void play_door_bump(float x, float y) {
+		spatial.play_once(SND_DOOR_BUMP, x, y);
+	}
+
 	// --- Objetos do mapa ---
 	void play_object_interact(map_object@ obj) {
 		if (@obj == null || obj.sound_path == "") return;
 		spatial.play_once(obj.sound_path, obj.x, obj.y);
+	}
+
+	// Porta fechando/abrindo, no lugar do corredor afetado.
+	void play_door(float x, float y, bool closing) {
+		spatial.play_once(closing ? SND_DOOR_CLOSE : SND_DOOR_OPEN, x, y);
 	}
 
 	int play_object_ambient(map_object@ obj) {

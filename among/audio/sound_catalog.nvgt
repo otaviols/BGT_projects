@@ -34,6 +34,7 @@ const string SND_SHIP_AMBIENCE = "sounds/ambience.wav";     // loop, nave inteir
 const string SND_SABOTAGE_ALARM = "sounds/emergence.wav";   // loop, nave inteira, enquanto sabotagem ativa
 const string SND_PASSAGE = "sounds/passage.ogg";            // loop, um arquivo só, em todo corredor
 const string SND_WALL_BUMP = "sounds/wall_bump.ogg";        // toca ao esbarrar fora de sala/corredor
+const string SND_DOOR_BUMP = "sounds/door_bump.ogg";        // esbarrão numa PORTA trancada (não é parede: abre sozinha daqui a pouco)
 const string SND_BODY_ON_FLOOR = "sounds/body.ogg";         // loop no local do corpo até ser reportado
 const string SND_AMBIENT_CAFETERIA = "sounds/ambient_cafeteria.wav";
 const string SND_AMBIENT_WEAPONS = "sounds/ambient_weapons.wav";
@@ -48,6 +49,10 @@ const string SND_AMBIENT_REACTOR = "sounds/ambient_reactor.wav";
 const string SND_VENT_DOOR_1 = "sounds/ventDoor1.wav";
 const string SND_VENT_DOOR_2 = "sounds/ventDoor2.wav";
 const string SND_OPEN_PANEL = "sounds/openPanel.wav";
+// Portas fechando/abrindo: tocam posicionados no corredor afetado, então quem está por perto ouve
+// exatamente qual passagem foi trancada.
+const string SND_DOOR_CLOSE = "sounds/CloseDoor.wav";
+const string SND_DOOR_OPEN = "sounds/OpenDoor.wav";
 
 // --- Radar ---
 const string SND_RADAR_BEEP = "sounds/sonar.ogg";
@@ -58,6 +63,7 @@ const string SND_RADAR_BEEP = "sounds/sonar.ogg";
 const string SND_BUTTON_BEACON = "sounds/button.ogg";
 const string SND_PANEL_BEACON_LIGHTS = "sounds/panel_lights.ogg";
 const string SND_PANEL_BEACON_OXYGEN = "sounds/panel_oxygen.ogg";
+const string SND_PANEL_BEACON_COMMS = "sounds/comunication_pannel.mp3";
 const string SND_VENT_BEACON = "sounds/vent.ogg";
 
 // Um beacon por TIPO de task (não por sala) - mesma lógica de cima.
@@ -66,6 +72,9 @@ const string SND_TASK_BEACON_DOWNLOAD_DATA = "sounds/download_data_pannel.ogg";
 const string SND_TASK_BEACON_EMPTY_GARBAGE = "sounds/empty_garbage_pannel.ogg";
 const string SND_TASK_BEACON_ALIGN_ENGINE = "sounds/align_engine_pannel.ogg";
 const string SND_TASK_BEACON_SWIPE_CARD = "sounds/swipe_card_pannel.ogg";
+const string SND_TASK_BEACON_UNLOCK_MANIFOLDS = "sounds/unlock_collectors_pannel.ogg";
+const string SND_TASK_BEACON_FUEL_ENGINES = "sounds/fuel_pannel.ogg";
+const string SND_TASK_BEACON_CLEAR_ASTEROIDS = "sounds/asteroid_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 const string SND_BEEP = "beep.wav";
@@ -74,6 +83,7 @@ const string SND_CARD_ERROR = "CardError.wav";
 const string SND_CARD_COMPLETE = "CardComplet.wav";
 const string SND_GET_CARD = "GetCard.wav";
 const string SND_PULLING_GARBAGE_LEVER = "pulling_garbage_lever.wav"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
+const string SND_GUN_FIRE = "gun_fire.ogg"; // cada tiro na task de limpar asteroides
 
 // fix_wiring usa 3 variantes numeradas - ver electrical_string_sound() abaixo.
 const uint ELECTRICAL_STRING_VARIANT_COUNT = 3;
@@ -112,6 +122,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_SABOTAGE_ALARM);
 	list.insert_last(SND_PASSAGE);
 	list.insert_last(SND_WALL_BUMP);
+	list.insert_last(SND_DOOR_BUMP);
 	list.insert_last(SND_BODY_ON_FLOOR);
 	list.insert_last(SND_BUTTON_BEACON);
 	list.insert_last(SND_PANEL_BEACON_LIGHTS);
@@ -122,6 +133,10 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_TASK_BEACON_EMPTY_GARBAGE);
 	list.insert_last(SND_TASK_BEACON_ALIGN_ENGINE);
 	list.insert_last(SND_TASK_BEACON_SWIPE_CARD);
+	list.insert_last(SND_PANEL_BEACON_COMMS);
+	list.insert_last(SND_TASK_BEACON_UNLOCK_MANIFOLDS);
+	list.insert_last(SND_TASK_BEACON_FUEL_ENGINES);
+	list.insert_last(SND_TASK_BEACON_CLEAR_ASTEROIDS);
 	list.insert_last(SND_AMBIENT_CAFETERIA);
 	list.insert_last(SND_AMBIENT_WEAPONS);
 	list.insert_last(SND_AMBIENT_NAVIGATION);
@@ -133,6 +148,8 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_VENT_DOOR_1);
 	list.insert_last(SND_VENT_DOOR_2);
 	list.insert_last(SND_OPEN_PANEL);
+	list.insert_last(SND_DOOR_CLOSE);
+	list.insert_last(SND_DOOR_OPEN);
 	list.insert_last(SND_RADAR_BEEP);
 	list.insert_last("sounds/" + SND_BEEP);
 	list.insert_last("sounds/" + SND_BEEP_COMPLETE);
@@ -140,6 +157,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_CARD_COMPLETE);
 	list.insert_last("sounds/" + SND_GET_CARD);
 	list.insert_last("sounds/" + SND_PULLING_GARBAGE_LEVER);
+	list.insert_last("sounds/" + SND_GUN_FIRE);
 	list.insert_last(SND_KILL);
 
 	for (int i = 1; i <= int(ELECTRICAL_STRING_VARIANT_COUNT); i++) {
@@ -150,14 +168,14 @@ array<string>@ all_sound_paths() {
 	}
 
 	// Passos por piso - ver footstep_variant_count()/footstep_variant_extension() em game_loop.nvgt.
-	list.insert_last("sounds/Tile1.wav");
-	list.insert_last("sounds/Tile2.wav");
-	list.insert_last("sounds/MetalTile1.wav");
-	list.insert_last("sounds/MetalTile2.wav");
-	list.insert_last("sounds/MetalTile3.wav");
+	for (uint i = 1; i <= 6; i++) list.insert_last("sounds/Tile" + i + ".wav");
+	for (uint i = 1; i <= 3; i++) list.insert_last("sounds/MetalTile" + i + ".wav");
+	for (uint i = 1; i <= 6; i++) list.insert_last("sounds/MetalBeltTile" + i + ".wav");
+	for (uint i = 1; i <= 6; i++) list.insert_last("sounds/WoodTile" + i + ".wav");
 	for (uint i = 1; i <= 5; i++) list.insert_last("sounds/EarthTile" + i + ".ogg");
-	// VentTile1-4.wav existem em sounds/ mas nenhuma sala/corredor usa esse prefixo hoje - não
-	// entram na checagem porque não são "esperados", ver game/the_hub.md.
+	// VentTile é o piso de DENTRO do duto: nenhuma sala usa esse prefixo, ele toca só quando o
+	// impostor viaja de um vent pra outro (ver run_vent_menu em game/game_loop.nvgt).
+	for (uint i = 1; i <= 4; i++) list.insert_last("sounds/VentTile" + i + ".wav");
 
 	return list;
 }

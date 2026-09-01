@@ -7,6 +7,9 @@
 #include "tasks/empty_garbage.nvgt"
 #include "tasks/align_engine.nvgt"
 #include "tasks/swipe_card.nvgt"
+#include "tasks/unlock_manifolds.nvgt"
+#include "tasks/fuel_engines.nvgt"
+#include "tasks/clear_asteroids.nvgt"
 #include "../audio/sound_catalog.nvgt"
 
 // Roda a minigame correspondente a task_type e retorna true em caso de sucesso, false se falhou
@@ -15,6 +18,8 @@
 // durante minigames mais longos, e a task às vezes não completava (o pacote de sucesso se perdia
 // numa conexão que o servidor já tinha considerado inativa).
 bool run_task_minigame(game_client@ client, const string&in task_type) {
+	// Reunião chamada no exato instante em que a task abriu: nem começa (ver task_cancel_requested).
+	if (task_cancel_requested(client)) return false;
 	sound_play(SND_DIALOG_OPEN);
 	bool result = false;
 	if (task_type == "fix_wiring") result = run_fix_wiring_task(client);
@@ -22,6 +27,9 @@ bool run_task_minigame(game_client@ client, const string&in task_type) {
 	else if (task_type == "empty_garbage") result = run_empty_garbage_task(client);
 	else if (task_type == "align_engine") result = run_align_engine_task(client);
 	else if (task_type == "swipe_card") result = run_swipe_card_task(client);
+	else if (task_type == "unlock_manifolds") result = run_unlock_manifolds_task(client);
+	else if (task_type == "fuel_engines") result = run_fuel_engines_task(client);
+	else if (task_type == "clear_asteroids") result = run_clear_asteroids_task(client);
 	sound_play(SND_DIALOG_CLOSE);
 	return result;
 }

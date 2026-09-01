@@ -11,9 +11,24 @@
 
 const int TASK_CANCEL_KEY = KEY_ESCAPE;
 
-// true se o jogador pediu para cancelar a task (ESC).
-bool task_cancel_requested() {
-	return key_pressed(KEY_ESCAPE);
+// true se a minigame deve parar agora: o jogador pediu pra cancelar (ESC), OU chegou um evento que
+// interrompe a partida (reunião, corpo reportado, fim de jogo).
+//
+// A minigame roda num laço bloqueante que chama client.update() mas não LÊ os pacotes recebidos -
+// eles ficam na fila esperando o laço principal do jogo. Sem espiar essa fila aqui, quem estivesse
+// no meio de uma task quando uma reunião começasse continuava preso na minigame durante a discussão
+// inteira, e no fim mandava o resultado pro servidor - que recusa qualquer task fora do estado
+// "in_progress". A task ficava marcada como feita SÓ no cliente: sumia da lista dele, nunca contava
+// pro time, e não dava pra refazer. Agora a minigame simplesmente é abortada (nada é marcado, nada
+// é enviado) e a task continua pendente pra ele voltar lá depois da reunião.
+bool task_cancel_requested(game_client@ client) {
+	if (key_pressed(KEY_ESCAPE)) return true;
+	if (@client == null) return false;
+	for (uint i = 0; i < client.incoming.length(); i++) {
+		string type = client.incoming[i].type;
+		if (type == S_MEETING_STARTED || type == S_BODY_REPORTED || type == S_GAME_OVER) return true;
+	}
+	return false;
 }
 
 // Embaralha uma lista pequena de inteiros (Fisher-Yates). Usado para sortear tons/posições.

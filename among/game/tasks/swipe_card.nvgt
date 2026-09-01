@@ -22,7 +22,7 @@ bool run_swipe_card_task(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested()) return false;
+		if (task_cancel_requested(client)) return false;
 
 		float elapsed = float(clock.elapsed) / 1000.0;
 

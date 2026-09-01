@@ -251,6 +251,15 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 			client.send_start_game();
 		}
 
+		// B adiciona um bot, Shift+B tira o último - só o anfitrião, e o servidor confere de novo
+		// (ver on_add_bot). Entrada e saída de bot são anunciadas pelo caminho normal de
+		// S_PLAYER_JOINED / S_PLAYER_LEFT, então não precisa falar nada aqui.
+		if (key_pressed(KEY_B)) {
+			if (!is_host) speak(tr("lobby.bot_host_only"));
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) client.send_remove_bot();
+			else client.send_add_bot();
+		}
+
 		if (key_pressed(KEY_CHAT)) run_chat_compose(client);
 
 		if (key_pressed(KEY_CHAT_SWITCH_CONTAINER) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {

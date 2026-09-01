@@ -31,6 +31,22 @@ class game_player {
 	float last_move_time = 0.0;
 	array<player_task> tasks;
 
+	// --- Bot ---
+	// Bots são game_player normais em tudo (entram na contagem, recebem tasks, podem ser mortos,
+	// expulsos e reportados); a diferença é que ninguém manda C_MOVE por eles e nenhum pacote é
+	// enviado pra eles. Quem os move é game_state.tick_bots().
+	bool is_bot = false;
+	array<string> bot_path;          // ids de zona que ainda faltam percorrer até o destino
+	string bot_target_object_id = ""; // objeto do destino atual ("" = está só passeando)
+	float bot_target_x = 0.0;
+	float bot_target_y = 0.0;
+	bool bot_has_target = false;
+	float bot_action_timer = 0.0;    // > 0: parado (fazendo uma task, pensando, ou esperando pra votar)
+	bool bot_voted = false;
+	float bot_broadcast_timer = 0.0;
+	float bot_repath_timer = 0.0;   // só bot impostor: a presa se move, a rota tem que ser refeita
+	string bot_target_zone = "";    // zona do destino atual, pra saber quando a rota realmente mudou
+
 	game_player(uint64 peer_id, const string&in username) {
 		this.peer_id = peer_id;
 		this.username = username;

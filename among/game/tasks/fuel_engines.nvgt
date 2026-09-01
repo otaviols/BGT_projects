@@ -1,0 +1,75 @@
+// fuel_engines.nvgt
+// Task de abastecer os motores: o tanque enche enquanto Espaço fica segurado, e o som do
+// enchimento vai ficando mais agudo. Antes de começar, o painel toca o tom EXATO de "tanque cheio";
+// soltar antes disso é pouco combustível, passar do ponto transborda. É toda de ouvido: o acerto é
+// reconhecer que o tom que está subindo chegou no tom que foi tocado como referência.
+
+#include "task_common.nvgt"
+
+bool run_fuel_engines_task(game_client@ client) {
+	const float START_PITCH = 70.0;
+	const float PITCH_PER_SECOND = 25.0;
+	const float PITCH_TOLERANCE = 9.0;
+	const float OVERFLOW_MARGIN = 25.0; // passou muito do alvo: transbordou, falhou na hora
+
+	speak(tr("task.fuel_engines.instructions"));
+
+	float target_pitch = float(random(110, 165));
+
+	sound reference;
+	if (reference.load("sounds/" + SND_BEEP)) {
+		reference.pitch = target_pitch;
+		reference.play_wait();
+	}
+	wait(400);
+
+	sound filling;
+	if (!filling.load("sounds/" + SND_BEEP)) return false;
+	filling.pitch = START_PITCH;
+
+	float current_pitch = START_PITCH;
+	bool holding = false;
+	timer frame_clock;
+	frame_clock.restart();
+
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_cancel_requested(client)) {
+			filling.stop();
+			return false;
+		}
+		float delta = float(frame_clock.elapsed) / 1000.0;
+		frame_clock.restart();
+
+		if (key_down(KEY_SPACE)) {
+			if (!holding) {
+				holding = true;
+				filling.play_looped();
+			}
+			current_pitch += PITCH_PER_SECOND * delta;
+			filling.pitch = current_pitch;
+			if (current_pitch > target_pitch + OVERFLOW_MARGIN) {
+				filling.stop();
+				task_sound(SND_CARD_ERROR);
+				speak(tr("task.fuel_engines.overflow"));
+				return false;
+			}
+			continue;
+		}
+
+		if (!holding) continue; // ainda nem começou a segurar
+
+		// Soltou: o tanque para onde parou.
+		filling.stop();
+		if (absf(current_pitch - target_pitch) <= PITCH_TOLERANCE) {
+			task_sound(SND_BEEP_COMPLETE);
+			speak(tr("task.completed"));
+			return true;
+		}
+		task_sound(SND_CARD_ERROR);
+		speak(tr(current_pitch < target_pitch ? "task.fuel_engines.too_little" : "task.fuel_engines.overflow"));
+		return false;
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}

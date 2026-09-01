@@ -23,6 +23,12 @@ class impostor_controller {
 		client.send_vent_travel(target_vent_id);
 	}
 
+	// Fecha os corredores de uma sala por alguns segundos (recarga própria, ver DOORS_* em
+	// config/game_constants.nvgt). Não é sabotagem: não tem conserto e não ocupa o slot de sabotagem.
+	void close_doors(const string&in room_id) {
+		client.send_close_doors(room_id);
+	}
+
 	void trigger_sabotage(const string&in sabotage_id) {
 		client.send_trigger_sabotage(sabotage_id);
 	}

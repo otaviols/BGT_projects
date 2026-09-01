@@ -1,0 +1,56 @@
+// clear_asteroids.nvgt
+// Task de limpar asteroides: cada asteroide chega por um lado (o bipe toca só naquele ouvido) e o
+// jogador atira apontando pro lado certo com a seta esquerda ou direita, antes do tempo acabar.
+// Errar o lado ou demorar demais perde a task - é a task mais de reflexo do jogo.
+
+#include "task_common.nvgt"
+
+bool run_clear_asteroids_task(game_client@ client) {
+	const uint ASTEROID_COUNT = 5;
+	const float REACTION_SECONDS = 1.6;
+
+	speak(tr("task.clear_asteroids.instructions"));
+	wait(600);
+
+	for (uint i = 0; i < ASTEROID_COUNT; i++) {
+		wait(random(300, 1200)); // intervalo irregular: sem isso dá pra acertar no ritmo, sem ouvir
+		bool from_left = random_bool();
+
+		sound asteroid;
+		if (!asteroid.load("sounds/" + SND_BEEP)) return false;
+		asteroid.pan = from_left ? -100.0 : 100.0; // -100 = só no ouvido esquerdo, 100 = só no direito
+		asteroid.play();
+
+		timer reaction_clock;
+		reaction_clock.restart();
+		bool answered = false;
+		while (float(reaction_clock.elapsed) / 1000.0 < REACTION_SECONDS) {
+			wait(5);
+			client.update();
+			if (task_cancel_requested(client)) return false;
+
+			bool shot_left = key_pressed(KEY_LEFT);
+			bool shot_right = key_pressed(KEY_RIGHT);
+			if (!shot_left && !shot_right) continue;
+
+			answered = true;
+			task_sound(SND_GUN_FIRE); // o tiro sai sempre, acertando ou não
+			if (shot_left != from_left) { // atirou pro lado errado
+				task_sound(SND_CARD_ERROR);
+				speak(tr("task.failed"));
+				return false;
+			}
+			task_sound(SND_BEEP_COMPLETE);
+			break;
+		}
+		if (!answered) {
+			task_sound(SND_CARD_ERROR);
+			speak(tr("task.clear_asteroids.too_slow"));
+			return false;
+		}
+	}
+
+	task_sound(SND_CARD_COMPLETE);
+	speak(tr("task.completed"));
+	return true;
+}

@@ -20,7 +20,7 @@ bool run_empty_garbage_task(game_client@ client) {
 	while (held < HOLD_SECONDS_REQUIRED) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested()) return false;
+		if (task_cancel_requested(client)) return false;
 		float delta = float(frame_clock.elapsed) / 1000.0;
 		frame_clock.restart();
 		if (key_down(KEY_SPACE)) {
@@ -42,7 +42,7 @@ bool run_empty_garbage_task(game_client@ client) {
 	while (waited < uint(wait_ms)) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested()) return false;
+		if (task_cancel_requested(client)) return false;
 		waited += 5;
 	}
 
@@ -52,7 +52,7 @@ bool run_empty_garbage_task(game_client@ client) {
 	while (float(reaction_clock.elapsed) / 1000.0 <= REACTION_WINDOW_SECONDS) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested()) return false;
+		if (task_cancel_requested(client)) return false;
 		if (key_pressed(KEY_SPACE)) {
 			task_sound(SND_BEEP_COMPLETE);
 			speak(tr("task.completed"));
