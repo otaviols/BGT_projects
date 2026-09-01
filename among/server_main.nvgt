@@ -5,7 +5,11 @@
 // Sem isso a pasta lang/ não vai pro pacote compilado - o servidor usa tr() pra montar mensagens
 // que manda aos clientes (ex.: aviso de reunião falhou, mínimo de jogadores), e sem o .json ele
 // cairia no fallback de mandar a própria chave crua em vez do texto.
-#pragma asset lang
+// São os .json um a um, e não a pasta inteira: lang/ também guarda o i18n.nvgt, que é CÓDIGO - a
+// pasta inteira empacotava o fonte junto do produto. As aspas são obrigatórias, senão o
+// pré-processador quebra o nome no ponto (vira "lang/pt_BR . json").
+#pragma asset "lang/pt_BR.json"
+#pragma asset "lang/en_US.json"
 
 #include "network/server.nvgt"
 

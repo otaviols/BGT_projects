@@ -51,6 +51,7 @@
 	"learn.meeting_result": "Resultado da reunião",
 	"learn.intro": "Som de abertura do menu",
 	"menu.connect_failed": "Não foi possível conectar ao servidor.",
+	"error.sounds_missing": "Os sons do jogo não foram encontrados: falta o arquivo sounds.dat (ou a pasta sounds). O jogo vai rodar sem som nenhum.",
 	"menu.quit_confirm": "Tem certeza que deseja sair?",
 
 	"login.username": "Usuário",

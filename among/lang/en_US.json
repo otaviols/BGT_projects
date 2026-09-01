@@ -51,6 +51,7 @@
 	"learn.meeting_result": "Meeting result",
 	"learn.intro": "Menu opening sound",
 	"menu.connect_failed": "Could not connect to the server.",
+	"error.sounds_missing": "The game sounds were not found: sounds.dat (or the sounds folder) is missing. The game will run with no sound at all.",
 	"menu.quit_confirm": "Are you sure you want to quit?",
 
 	"login.username": "Username",

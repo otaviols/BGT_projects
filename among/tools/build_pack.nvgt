@@ -1,0 +1,73 @@
+// tools/build_pack.nvgt
+// Ferramenta de desenvolvimento: empacota tudo que está em sounds/ dentro de um único sounds.dat,
+// que é o que vai pro produto compilado (ver #pragma asset "sounds.dat" em AmongUs.nvgt).
+//
+// Rode com `nvgt tools/build_pack.nvgt` SEMPRE que adicionar, trocar ou renomear um som, e antes de
+// compilar o jogo - a compilação exige que o sounds.dat exista, e um pacote velho significa jogo
+// compilado com sons velhos. A pasta sounds/ continua sendo a fonte da verdade: rodando do fonte
+// (`nvgt AmongUs.nvgt`) o jogo lê os arquivos soltos e ignora o pacote, então dá pra trocar um som
+// e ouvir o resultado na hora, sem passar por aqui.
+//
+// O nome de cada arquivo DENTRO do pacote é o mesmo caminho que o código usa pra carregar
+// ("sounds/beep.wav"), então nada no jogo precisa saber se o som veio do pacote ou do disco - quem
+// resolve isso é o sound_default_pack (ver load_sound_pack() em AmongUs.nvgt).
+
+#pragma console
+#include "../audio/sound_catalog.nvgt"
+
+const string PACK_PATH = "sounds.dat";
+const string SOUNDS_DIR = "sounds";
+
+int main() {
+	// NVGT roda o script a partir da pasta dele (tools/); os caminhos do catálogo assumem a raiz do
+	// projeto, que é de onde o jogo roda de verdade. Mesmo ajuste do tools/check_sounds.nvgt.
+	chdir("..");
+
+	array<string>@ files = find_files(SOUNDS_DIR + "/*");
+	if (files.length() == 0) {
+		println("ERRO: nenhum arquivo encontrado em " + SOUNDS_DIR + "/ - o pacote nao foi gerado.");
+		return 1;
+	}
+
+	pack_file pack;
+	if (!pack.create(PACK_PATH)) {
+		println("ERRO: nao foi possivel criar " + PACK_PATH + " (arquivo aberto em outro programa?).");
+		return 1;
+	}
+
+	uint added = 0;
+	for (uint i = 0; i < files.length(); i++) {
+		string internal_name = SOUNDS_DIR + "/" + files[i]; // igual ao caminho usado no jogo
+		if (pack.add_file(internal_name, internal_name)) {
+			added++;
+			continue;
+		}
+		println("ERRO: falhou ao adicionar " + internal_name + " - o pacote nao foi gerado.");
+		pack.close();
+		return 1;
+	}
+
+	// Confere o pacote contra o catálogo central. Som que falta aqui não impede a geração (o jogo
+	// simplesmente não toca aquele som, igual acontece hoje com os arquivos soltos), mas tem que
+	// aparecer bem visível - um som faltando no pacote é um som que some do jogo compilado.
+	array<string>@ expected = all_sound_paths();
+	array<string> missing;
+	for (uint i = 0; i < expected.length(); i++) {
+		if (!pack.file_exists(expected[i])) missing.insert_last(expected[i]);
+	}
+
+	int64 file_count = pack.file_count;
+	pack.close();
+
+	println("Pacote gerado: " + PACK_PATH + " (" + added + " arquivos, " + file_count + " no indice).");
+	if (missing.length() == 0) {
+		println("Todos os sons do catalogo estao no pacote.");
+		return 0;
+	}
+
+	println("");
+	println("ATENCAO: " + missing.length() + " som(ns) do catalogo NAO entraram no pacote (nao existem em " + SOUNDS_DIR + "/):");
+	for (uint i = 0; i < missing.length(); i++) println("  " + missing[i]);
+	println("O jogo compilado vai ficar sem esses sons. Veja tools/check_sounds.nvgt.");
+	return 0;
+}

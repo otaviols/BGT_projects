@@ -1,0 +1,13 @@
+# Pacote de sons gerado por tools/build_pack.nvgt a partir de sounds/.
+# A pasta sounds/ é a fonte da verdade e vai pro repositório; o .dat é derivado dela e tem dezenas
+# de megabytes - versioná-lo só encheria o histórico com cópias do mesmo áudio.
+sounds.dat
+
+# Saída da compilação (nvgt -c).
+*.zip
+*.exe
+
+# Banco de dados de contas, criado pelo servidor na primeira execução (database/user_db.nvgt).
+# É estado de execução - contas, senhas e estatísticas de quem jogou nesta máquina - e muda a cada
+# partida. O servidor recria o arquivo sozinho se ele não existir.
+among_users.db

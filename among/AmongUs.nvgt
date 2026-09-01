@@ -2,12 +2,19 @@
 // Ponto de entrada do cliente. Fluxo: conectar ao servidor -> login/cadastro -> navegador de
 // lobby (criar/entrar) -> sala de espera -> partida -> volta ao navegador de lobby ao terminar.
 
-// Sem isso as pastas sounds/ e lang/ não são copiadas pro pacote compilado (nvgt -c) - só inclui
-// assets quando avisado explicitamente. Sem lang/, tr() não acha nenhuma chave (o .json nunca
-// carrega) e cai no fallback de retornar a própria chave crua - por isso o jogo compilado "falava"
-// os nomes das chaves de i18n em vez do texto traduzido.
-#pragma asset sounds
-#pragma asset lang
+// Nada é copiado pro pacote compilado (nvgt -c) sem ser avisado aqui. Sem lang/, por exemplo, tr()
+// não acha chave nenhuma e o jogo compilado "fala" os nomes das chaves em vez do texto traduzido.
+//
+// Os sons vão num pacote único (sounds.dat) em vez da pasta sounds/ inteira - ver load_sound_pack()
+// abaixo. O pacote precisa EXISTIR na hora de compilar: gere com `nvgt tools/build_pack.nvgt` toda
+// vez que um som mudar, senão a compilação para com "File not found: sounds.dat" (o que é melhor do
+// que compilar calado com sons velhos).
+#pragma asset "sounds.dat"
+// Os .json um a um, e não a pasta lang/ inteira: ela também guarda o i18n.nvgt, que é CÓDIGO, e
+// empacotar a pasta toda mandava o fonte junto pro produto final. As aspas são obrigatórias, senão
+// o pré-processador quebra o nome no ponto (vira "lang/pt_BR . json").
+#pragma asset "lang/pt_BR.json"
+#pragma asset "lang/en_US.json"
 // LEIAME.txt entra como DOCUMENTO, não como asset: documento é o que o NVGT trata como arquivo pro
 // JOGADOR abrir (em alguns sistemas ele fica fora da pasta interna do aplicativo, justamente pra
 // ser fácil de achar), enquanto asset é arquivo que o jogo carrega sozinho.
@@ -22,8 +29,32 @@
 #include "lang/i18n.nvgt"
 #include "config/game_constants.nvgt"
 
+const string SOUND_PACK_PATH = "sounds.dat";
+
+// O pacote precisa continuar vivo enquanto o jogo roda: os sons são lidos de dentro dele sob
+// demanda, não carregados todos de uma vez no começo.
+pack_file@ g_sound_pack;
+
+// Liga o pacote de sons, se ele existir. Com ele aberto, sound_default_pack faz TODO carregamento de
+// som (sound_pool via spatial_audio, sound_play dos menus, minigames de task) ler de dentro do
+// sounds.dat sem que nenhuma dessas chamadas precise saber disso.
+// Sem o pacote, o jogo lê os arquivos soltos de sounds/ - é assim que se roda direto do fonte
+// durante o desenvolvimento, trocando um som e ouvindo o resultado na hora, sem regerar nada.
+void load_sound_pack() {
+	pack_file@ pack = pack_file();
+	if (pack.open(SOUND_PACK_PATH)) {
+		@g_sound_pack = pack;
+		@sound_default_pack = pack;
+		return;
+	}
+	// Sem pacote E sem a pasta, o jogo rodaria completamente mudo sem dizer por quê - o pior tipo de
+	// falha num jogo que é só som.
+	if (!directory_exists("sounds")) alert(tr("app.title"), tr("error.sounds_missing"));
+}
+
 void main() {
 	g_i18n.load_language("pt_BR");
+	load_sound_pack();
 	show_window(tr("app.title"));
 
 	// Menu inicial (conectar / aprender os sons / sair) - cancelar conexão ou login volta pra cá em
