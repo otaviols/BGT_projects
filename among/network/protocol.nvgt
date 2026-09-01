@@ -46,7 +46,7 @@ const string S_TASK_RESULT = "s_task_result";             // {task_id, ok, progr
 const string S_TASK_ASSIGNED = "s_task_assigned";         // {tasks: [...]}
 const string S_TASK_PROGRESS = "s_task_progress";         // {completed, total, percent} - progresso da EQUIPE, vai pra todo mundo (impostor incluído)
 const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, killer_peer, killer_color, x, y}
-const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer}
+const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer, room_key} - room_key = chave i18n da sala onde o corpo estava
 const string S_MEETING_STARTED = "s_meeting_started";     // {reason, caller_peer, discussion_time}
 const string S_VOTING_STARTED = "s_voting_started";       // {voting_time, candidates: [...]}
 const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejected_name, was_impostor, tie, vote_breakdown: [{voter_name, target_name, skipped}]}

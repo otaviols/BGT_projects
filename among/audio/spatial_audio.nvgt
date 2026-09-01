@@ -4,6 +4,7 @@
 // atualizado a cada quadro; sons individuais são posicionados/movidos por slot.
 
 #include "sound_pool.nvgt"
+#include "../config/game_constants.nvgt"
 
 class spatial_audio {
 	sound_pool@ pool;
@@ -12,24 +13,37 @@ class spatial_audio {
 
 	spatial_audio(int max_sounds = 64) {
 		@pool = sound_pool(max_sounds);
+		// O pool baixa o pitch do que está "atrás" do ouvinte (o eixo negativo dele). Como aqui não
+		// existe direção de personagem - anda-se em coordenadas absolutas, W sempre é norte - a gente
+		// trata NORTE como "à frente" invertendo o sinal de y ao falar com o pool (ver world_to_pool_y).
+		// Assim "atrás" vira "ao sul", que é uma informação constante e aprendível.
+		// O padrão do pool é 0.25%, ou seja, inaudível na prática - por isso isto nunca soou.
+		pool.behind_pitch_decrease = SPATIAL_SOUTH_PITCH_DECREASE;
+	}
+
+	// O mundo cresce em y pro SUL (W = norte = y menor, ver game_loop). O pool entende +y como "à
+	// frente", então o sinal é invertido em toda conversa com ele - e SÓ ali dentro: pro resto do
+	// jogo as coordenadas continuam sendo as do mundo.
+	private float world_to_pool_y(float world_y) const {
+		return -world_y;
 	}
 
 	// Chamar uma vez por quadro com a posição atual do jogador local.
 	void update_listener(float x, float y) {
 		listener_x = x;
 		listener_y = y;
-		pool.update_listener_2d(x, y);
+		pool.update_listener_2d(x, world_to_pool_y(y));
 	}
 
 	// Som posicionado que toca uma vez e se limpa sozinho (passos, efeitos de interação, mortes, etc.).
 	int play_once(const string&in path, float x, float y) {
-		return pool.play_2d(path, listener_x, listener_y, x, y, false, false);
+		return pool.play_2d(path, listener_x, world_to_pool_y(listener_y), x, world_to_pool_y(y), false, false);
 	}
 
 	// Som posicionado contínuo (alarme de sabotagem, corpo no chão). `persistent` mantém o slot vivo
 	// mesmo fora do alcance de audição, retomando quando o jogador se aproximar.
 	int play_looping(const string&in path, float x, float y, bool persistent = true) {
-		return pool.play_2d(path, listener_x, listener_y, x, y, true, persistent);
+		return pool.play_2d(path, listener_x, world_to_pool_y(listener_y), x, world_to_pool_y(y), true, persistent);
 	}
 
 	// Som posicionado contínuo que toca em volume constante em qualquer ponto dentro de uma área
@@ -37,8 +51,9 @@ class spatial_audio {
 	// que o jogador sai dessa área. Usado pro ambiente de cada sala (ver map_zone em map.nvgt): sem
 	// isso o som só ficava audível perto do centro da sala, como um play_looping normal.
 	int play_room_ambience(const string&in path, float x, float y, int half_width, int half_height, float volume_db = 0.0) {
-		return pool.play_extended_2d(path, listener_x, listener_y, x, y, half_width, half_width,
-			half_height, half_height, true, 0, 0.0, volume_db, 100.0, true);
+		// As faixas são simétricas (half_height pros dois lados), então a inversão de y não muda a área.
+		return pool.play_extended_2d(path, listener_x, world_to_pool_y(listener_y), x, world_to_pool_y(y),
+			half_width, half_width, half_height, half_height, true, 0, 0.0, volume_db, 100.0, true);
 	}
 
 	// Som sem posição (UI/menu, notificações do sistema) - sempre audível, sem espacialização.
@@ -52,8 +67,8 @@ class spatial_audio {
 	void move_sound(int slot, float x, float y) {
 		if (slot < 0 or slot >= int(pool.items.length())) return;
 		pool.items[slot].x = x;
-		pool.items[slot].y = y;
-		pool.update_listener_2d(listener_x, listener_y);
+		pool.items[slot].y = world_to_pool_y(y);
+		pool.update_listener_2d(listener_x, world_to_pool_y(listener_y));
 	}
 
 	void stop_sound(int slot) {

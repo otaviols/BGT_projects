@@ -622,6 +622,11 @@ class game_server {
 		net_packet@ reported = net_packet(S_BODY_REPORTED);
 		reported.set_uint64("reporter_peer", peer_id);
 		reported.set_uint64("body_peer", body.victim_peer_id);
+		// ONDE o corpo foi achado é metade da informação de uma reunião - sem isso a discussão
+		// começava sem ninguém saber de que sala se está falando. Vai a chave de i18n da sala (o
+		// servidor é quem tem o mapa aqui), o cliente só traduz.
+		map_zone@ body_zone = lobby.map.find_zone(body.room_id);
+		reported.set_string("room_key", @body_zone != null ? body_zone.name_key : "");
 		broadcast_to_lobby(lobby, reported);
 
 		for (uint i = 0; i < lobby.bodies.length(); i++) {
@@ -666,7 +671,8 @@ class game_server {
 		}
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p == null || !p.alive) return;
-		if (lobby.meetings_blocked_by_sabotage()) { send_error(peer_id, tr("sabotage.blocks_meeting")); return; }
+		string button_block_reason = lobby.emergency_button_block_reason();
+		if (button_block_reason != "") { send_error(peer_id, tr(button_block_reason)); return; }
 
 		// Não valida distância até o botão aqui: a posição que o servidor tem vem do canal de
 		// movimento não confiável e pode estar sempre um pouco atrás da posição real (o cliente já
@@ -788,6 +794,16 @@ class game_server {
 		if (lobby.active_sabotage == "comms") { send_error(peer_id, tr("sabotage.comms.radar_down")); return; }
 
 		array<game_player@>@ nearby = lobby.players_in_same_room(peer_id);
+		// Luzes apagadas: o radar vira quase um tato - só sente quem está bem colado, mesmo estando
+		// todo mundo na mesma sala.
+		if (lobby.active_sabotage == "lights") {
+			array<game_player@> in_reach;
+			for (uint i = 0; i < nearby.length(); i++) {
+				if (distance_2d(me.x, me.y, nearby[i].x, nearby[i].y) <= RADAR_LIGHTS_OUT_RANGE) in_reach.insert_last(nearby[i]);
+			}
+			nearby = in_reach;
+		}
+
 		net_packet@ result = net_packet(S_RADAR_RESULT);
 		if (nearby.length() == 0) {
 			result.set_bool("empty", true);

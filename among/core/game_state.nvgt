@@ -412,6 +412,18 @@ class game_state {
 		return active_sabotage != "" && is_critical_sabotage(active_sabotage);
 	}
 
+	// Motivo pelo qual o botão de emergência não pode ser usado agora ("" = pode).
+	// Além da sabotagem crítica, as LUZES também derrubam o botão: no escuro ninguém acha o botão
+	// pra chamar reunião, e poder chamar uma reunião no apagão anulava a sabotagem inteira (todo
+	// mundo era teleportado pra cafeteria em segurança). Reportar corpo continua valendo no escuro -
+	// quem tropeçou num corpo tropeçou nele de verdade.
+	string emergency_button_block_reason() const {
+		if (active_sabotage == "") return "";
+		if (is_critical_sabotage(active_sabotage)) return "sabotage.blocks_meeting";
+		if (active_sabotage == "lights") return "sabotage.lights.blocks_button";
+		return "";
+	}
+
 	// panels_fixed/panels_required saem preenchidos mesmo quando ainda falta painel (pra dar feedback
 	// de progresso pra quem consertou parcialmente - ver network/server.on_interact) - só quando o
 	// ÚLTIMO painel necessário é consertado é que out_event vem preenchido e o retorno é true.

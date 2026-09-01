@@ -6,6 +6,7 @@
 
 #include "../config/game_constants.nvgt"
 #include "../audio/sound_catalog.nvgt"
+#include "../lang/i18n.nvgt"
 
 class map_zone {
 	string id;
@@ -264,6 +265,33 @@ class game_map {
 		}
 		return result;
 	}
+}
+
+// Nome falado de um objeto do mapa. Botão e painel têm nome genérico (o name_key deles guarda outra
+// coisa: o texto do evento e o nome da sabotagem), o resto usa a própria chave. Fica aqui, junto do
+// mapa, porque tanto o laço do jogo quanto o radar de objetos falam nome de objeto.
+string object_name(map_object@ o) {
+	if (@o == null) return "";
+	if (o.obj_type == OBJ_EMERGENCY_BUTTON) return tr("object.emergency_button");
+	if (o.obj_type == OBJ_SABOTAGE_PANEL) return tr("object.sabotage_panel");
+	return tr(o.name_key);
+}
+
+// Objetos com os quais dá pra fazer alguma coisa (tudo menos a decoração, que é só som ambiente).
+// É o que o radar no modo "objetos" lista pra você conhecer a sala.
+// Os painéis de reparo entram sempre, mesmo sem sabotagem rolando: saber onde ficam É o objetivo
+// deste radar. O botão de emergência é a exceção - com as luzes apagadas ele não funciona, então
+// também não é listado (ver emergency_button_block_reason em core/game_state.nvgt).
+array<map_object@>@ interactables_in_room(game_map@ map, const string&in room_id,
+		const string&in active_sabotage_id = "") {
+	array<map_object@> result;
+	array<map_object@>@ all = map.objects_in_room(room_id);
+	for (uint i = 0; i < all.length(); i++) {
+		if (all[i].obj_type == OBJ_DECORATION) continue;
+		if (all[i].obj_type == OBJ_EMERGENCY_BUTTON && active_sabotage_id == "lights") continue;
+		result.insert_last(all[i]);
+	}
+	return result;
 }
 
 // Mapa padrão do MVP: layout simplificado inspirado no Skeld clássico, 8 salas + corredores.

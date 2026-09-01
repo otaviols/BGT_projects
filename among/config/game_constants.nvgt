@@ -21,6 +21,9 @@ const float PLAYER_REPORT_RANGE = 2.0;
 // Radar (Tab / Shift+Tab)
 const float RADAR_BEEP_VOLUME = 0.0; // dB, ajustado por distância em tempo de execução
 const uint RADAR_SAME_ROOM_ONLY = 1; // 1 = só jogadores da mesma sala/área (decisão do usuário)
+// Com as luzes apagadas o radar enxerga bem menos: mesmo na mesma sala, só pega quem estiver a esta
+// distância. Sem isso, apagar a luz não mudava nada pra quem só apertava Tab.
+const float RADAR_LIGHTS_OUT_RANGE = 6.0;
 
 // Impostor
 const float KILL_COOLDOWN_SECONDS = 25.0;
@@ -45,6 +48,13 @@ const float SABOTAGE_COOLDOWN_SECONDS = 30.0;
 // antes de qualquer um ter tido tempo de sair da cafeteria ou começar uma task.
 const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
+
+// Áudio posicionado: quanto o pitch cai (em %, 100 = som original) pra tudo que está ao SUL de você.
+// O estéreo só resolve esquerda/direita - norte e sul soam idênticos, e num mapa em que se anda nos
+// quatro sentidos essa é justamente a ambiguidade que mais atrapalha. Com isso, som mais grave =
+// está pro sul. 6% é cerca de um semitom: dá pra perceber sem virar efeito sonoro.
+// 0.0 desliga o recurso.
+const float SPATIAL_SOUTH_PITCH_DECREASE = 6.0;
 
 // Bots (jogadores controlados pelo próprio servidor, adicionados pelo anfitrião na sala de espera
 // com B / Shift+B). Não são clientes de verdade: não têm conexão, então nada é ENVIADO pra eles.

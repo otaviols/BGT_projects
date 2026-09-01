@@ -63,6 +63,10 @@ map_object@ find_interactable(game_map@ map, float x, float y, array<player_task
 		// deixá-lo "interativo" só servia pra ele roubar o Enter de uma task/vent que estivesse no
 		// mesmo alcance e pra ser anunciado como se desse pra usar.
 		if (o.obj_type == OBJ_SABOTAGE_PANEL && o.task_type != active_sabotage_id) continue;
+		// Com as luzes apagadas o botão de emergência simplesmente não existe: não é anunciado, não
+		// responde ao Enter e não aparece no radar de objetos (o servidor recusa de qualquer jeito,
+		// ver emergency_button_block_reason).
+		if (o.obj_type == OBJ_EMERGENCY_BUTTON && active_sabotage_id == "lights") continue;
 		float dist = distance_2d(x, y, o.x, o.y);
 		if (dist <= best_dist) {
 			best_dist = dist;
@@ -70,12 +74,6 @@ map_object@ find_interactable(game_map@ map, float x, float y, array<player_task
 		}
 	}
 	return best;
-}
-
-string object_name(map_object@ o) {
-	if (o.obj_type == OBJ_EMERGENCY_BUTTON) return tr("object.emergency_button");
-	if (o.obj_type == OBJ_SABOTAGE_PANEL) return tr("object.sabotage_panel");
-	return tr(o.name_key);
 }
 
 // Quantidade de variantes de som disponíveis em sounds/ para cada prefixo de piso (ex: Tile1.wav,
@@ -102,6 +100,20 @@ string footstep_variant_extension(const string&in floor_prefix) {
 game_client@ g_game_menu_pump_client;
 void pump_client_during_game_menu(menu@ m, string data) {
 	if (@g_game_menu_pump_client != null) g_game_menu_pump_client.update();
+}
+
+// Liga/desliga o som dos corpos no chão conforme a sabotagem de LUZES. São dois canais diferentes
+// de "achar um corpo", e cada sabotagem derruba um: as luzes tiram o som contínuo do corpo (você
+// não vê o corpo no escuro, então também não o ouve de longe), e as comunicações tiram o aviso
+// falado de quem é a vítima quando você chega perto (é informação, igual ao radar). Uma sabotagem
+// nunca derruba as duas: sempre sobra um jeito de descobrir o corpo.
+void refresh_body_beacons(audio_manager@ audio, array<uint64>@ body_peers, array<vector>@ body_positions,
+		bool lights_out) {
+	audio.stop_all_body_beacons();
+	if (lights_out) return;
+	for (uint i = 0; i < body_peers.length() && i < body_positions.length(); i++) {
+		audio.start_body_beacon(body_peers[i], body_positions[i].x, body_positions[i].y);
+	}
 }
 
 // Religa os beacons do mapa respeitando a sabotagem em curso: com "comunicações" sabotadas o
@@ -451,7 +463,18 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				mui.on_player_killed(pkt);
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) {
 					alive = false;
-					string killed_text = tr("game.you_were_killed");
+					// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
+					// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
+					// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
+					roster_entry@ killer = roster.find(pkt.get_uint64("killer_peer"));
+					string killed_text;
+					if (@killer != null && killer.name != "") {
+						dictionary@ killer_params = dictionary();
+						killer_params.set("name", killer.name);
+						killed_text = tr("game.you_were_killed_by", killer_params);
+					} else {
+						killed_text = tr("game.you_were_killed"); // não deveria acontecer, mas não fica mudo
+					}
 					speak(killed_text);
 					events_log.add("", killed_text);
 				}
@@ -511,6 +534,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				mui.on_sabotage_started(pkt);
 				string sabotage_id = pkt.get_string("sabotage_id");
 				active_sabotage_id = sabotage_id;
+				// Luzes apagadas calam os corpos já caídos, e mui.body_sounds_enabled cuida dos que
+				// caírem durante o apagão.
+				mui.body_sounds_enabled = sabotage_id != "lights";
+				if (sabotage_id == "lights") refresh_body_beacons(audio, known_body_peers, known_body_positions, true);
 				// Liga o beacon dos painéis dessa sabotagem (ver start_landmark_beacons): fora de
 				// sabotagem eles ficam calados, senão o mapa inteiro apita painel o tempo todo.
 				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
@@ -537,6 +564,8 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			} else if (t == S_SABOTAGE_FIXED) {
 				mui.on_sabotage_fixed(pkt);
 				active_sabotage_id = "";
+				mui.body_sounds_enabled = true;
+				refresh_body_beacons(audio, known_body_peers, known_body_positions, false); // luz de volta, corpos voltam a soar
 				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
 				if (is_impostor) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 			} else if (t == S_VENT_STATE) {
@@ -583,7 +612,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				audio.stop_room_ambience();
 				audio.stop_landmark_beacons();
 				audio.stop_sabotage_alarm();
-				audio.stop_body_beacon();
+				audio.stop_all_body_beacons();
 				mui.on_game_over(pkt);
 				run_game_over_screen(client, pkt);
 				game_over = true;
@@ -674,11 +703,16 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 
 					// Anúncio de corpo por perto (diz de quem é - reportar continua sendo a tecla R,
 					// separado do simples aviso de proximidade).
+					// Com as comunicações sabotadas esse aviso some junto com o radar e os beacons de task:
+					// é o mesmo tipo de informação (quem é a vítima, sem precisar procurar). O som do
+					// corpo no chão continua tocando, então dar de cara com ele e reportar continua
+					// funcionando - o que a sabotagem tira é saber DE QUEM é o corpo de longe.
+					bool comms_down = active_sabotage_id == "comms";
 					bool near_body_now = false;
 					for (uint b = 0; b < known_body_positions.length(); b++) {
 						if (distance_2d(my_x, my_y, known_body_positions[b].x, known_body_positions[b].y) <= PLAYER_REPORT_RANGE) {
 							near_body_now = true;
-							if (!near_body_last_frame) {
+							if (!near_body_last_frame && !comms_down) {
 								roster_entry@ victim = roster.find(known_body_peers[b]);
 								dictionary@ bp = dictionary();
 								bp.set("name", @victim != null ? victim.name : "");
@@ -687,7 +721,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 							break;
 						}
 					}
-					near_body_last_frame = near_body_now;
+					// Fica em false enquanto as comunicações estão fora: assim, no instante em que o painel
+					// for consertado, quem estiver parado do lado do corpo ouve o aviso na hora.
+					near_body_last_frame = near_body_now && !comms_down;
 
 					if (alive && float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
 						footstep_clock.restart();
@@ -713,8 +749,13 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		if (!movement_frozen && key_pressed(KEY_TAB)) {
 			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -
 			// igual o Among Us original, onde mortos continuam observando a partida.
-			if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous();
-			else radar.scan_next();
+			// Ctrl+Tab troca o modo do radar (jogadores <-> objetos da sala).
+			// Comunicações sabotadas derrubam os DOIS modos: o de jogadores o servidor já recusa, e o
+			// de objetos é resolvido aqui no cliente, então tem que ser barrado aqui.
+			if (active_sabotage_id == "comms") speak(tr("sabotage.comms.radar_down"));
+			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, active_sabotage_id);
+			else radar.scan_next(map, my_x, my_y, active_sabotage_id);
 		}
 
 		// Fantasma (morto ou expulso) entra aqui junto com os vivos porque ele PRECISA conseguir

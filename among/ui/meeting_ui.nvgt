@@ -29,6 +29,9 @@ class meeting_ui {
 	client_roster@ roster;
 	chat_log@ events_log;
 	bool is_impostor;
+	// Com as luzes sabotadas os corpos ficam mudos (ver refresh_body_beacons em game/game_loop.nvgt) -
+	// inclusive os que caírem DURANTE o apagão, que é o caso que mais importa.
+	bool body_sounds_enabled = true;
 	bool voting_active = false;
 	bool has_voted = false; // reseta a cada reunião nova (ver on_voting_started)
 
@@ -53,11 +56,13 @@ class meeting_ui {
 	}
 
 	void on_body_reported(net_packet@ pkt) {
-		audio.stop_body_beacon();
+		audio.stop_body_beacon(pkt.get_uint64("body_peer"));
 		audio.play_body_reported_sound();
 		dictionary@ params = dictionary();
 		params.set("reporter", name_of(pkt.get_uint64("reporter_peer")));
 		params.set("victim", name_of(pkt.get_uint64("body_peer")));
+		string room_key = pkt.get_string("room_key");
+		params.set("room", room_key != "" ? tr(room_key) : tr("game.unknown_room"));
 		announce(tr("game.body_reported", params));
 	}
 
@@ -167,7 +172,7 @@ class meeting_ui {
 		int killer_color = pkt.get_int("killer_color");
 		audio.play_death(killer_color, x, y);
 		audio.play_kill_laugh(killer_color, x, y);
-		audio.start_body_beacon(x, y);
+		if (body_sounds_enabled) audio.start_body_beacon(peer_id, x, y);
 	}
 
 	void on_game_over(net_packet@ pkt) {

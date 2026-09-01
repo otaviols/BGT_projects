@@ -16,7 +16,10 @@ const float AMBIENCE_VOLUME_DB = -10.0;
 
 class audio_manager {
 	spatial_audio@ spatial;
-	int ambient_body_slot = -1;
+	// Um beacon por corpo. Antes era um slot só: com dois corpos no chão, o mais novo calava o som
+	// do anterior e aquele corpo virava mudo pro resto da partida.
+	array<uint64> body_beacon_peers;
+	array<int> body_beacon_slots;
 	int ambient_sabotage_slot = -1;
 	int ambient_ship_slot = -1;
 	array<int> decoration_ambient_slots;
@@ -77,17 +80,27 @@ class audio_manager {
 		spatial.play_once(color_kill_sound_path(color_id), x, y);
 	}
 
-	// --- Corpo no chão ---
-	void start_body_beacon(float x, float y) {
-		stop_body_beacon();
-		ambient_body_slot = spatial.play_looping(SND_BODY_ON_FLOOR, x, y, false);
+	// --- Corpos no chão ---
+	void start_body_beacon(uint64 victim_peer, float x, float y) {
+		stop_body_beacon(victim_peer); // mesmo corpo duas vezes não empilha som
+		int slot = spatial.play_looping(SND_BODY_ON_FLOOR, x, y, false);
+		if (slot == -1) return;
+		body_beacon_peers.insert_last(victim_peer);
+		body_beacon_slots.insert_last(slot);
 	}
 
-	void stop_body_beacon() {
-		if (ambient_body_slot != -1) {
-			spatial.stop_sound(ambient_body_slot);
-			ambient_body_slot = -1;
-		}
+	void stop_body_beacon(uint64 victim_peer) {
+		int index = body_beacon_peers.find(victim_peer);
+		if (index == -1) return;
+		spatial.stop_sound(body_beacon_slots[index]);
+		body_beacon_peers.remove_at(index);
+		body_beacon_slots.remove_at(index);
+	}
+
+	void stop_all_body_beacons() {
+		for (uint i = 0; i < body_beacon_slots.length(); i++) spatial.stop_sound(body_beacon_slots[i]);
+		body_beacon_peers.resize(0);
+		body_beacon_slots.resize(0);
 	}
 
 	// Toca uma vez pra nave inteira quando um corpo é reportado (chamada de reunião por corpo).
@@ -145,6 +158,10 @@ class audio_manager {
 			map_object@ obj = map.objects[i];
 			if (obj.beacon_sound_path == "") continue;
 			if (obj.obj_type == OBJ_SABOTAGE_PANEL && obj.task_type != active_sabotage_id) continue;
+			// Luzes apagadas: o botão de emergência fica inutilizável (ver game_loop.find_interactable),
+			// então o beacon dele também cala - continuar chamando pra um botão que não responde seria
+			// só uma pista falsa no escuro.
+			if (obj.obj_type == OBJ_EMERGENCY_BUTTON && active_sabotage_id == "lights") continue;
 			if (obj.obj_type == OBJ_TASK_SPOT) {
 				bool mine = false;
 				if (@my_task_object_ids != null) {

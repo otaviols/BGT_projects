@@ -8,6 +8,12 @@
 // os nomes das chaves de i18n em vez do texto traduzido.
 #pragma asset sounds
 #pragma asset lang
+// LEIAME.txt entra como DOCUMENTO, não como asset: documento é o que o NVGT trata como arquivo pro
+// JOGADOR abrir (em alguns sistemas ele fica fora da pasta interna do aplicativo, justamente pra
+// ser fácil de achar), enquanto asset é arquivo que o jogo carrega sozinho.
+// O valor vai entre aspas de propósito: sem elas o pré-processador quebra o nome no ponto e
+// procura por "LEIAME . txt", que não existe.
+#pragma document "LEIAME.txt"
 
 #include "network/client.nvgt"
 #include "ui/onboarding_screens.nvgt"

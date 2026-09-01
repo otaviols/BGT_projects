@@ -108,7 +108,7 @@
 	"role.impostor_alone": "You are the only impostor.",
 
 	"game.emergency_meeting_called": "{name} called an emergency meeting.",
-	"game.body_reported": "{reporter} found {victim}'s body.",
+	"game.body_reported": "{reporter} found {victim}'s body in: {room}.",
 	"game.meeting_discussion": "Discussion in progress.",
 	"game.meeting_voting": "Time to vote. Chat with Y and press B whenever you're ready to vote.",
 	"game.vote_skip": "Skip vote",
@@ -129,10 +129,12 @@
 	"game.reason_majority": "Impostors reached parity or outnumbered crewmates.",
 	"game.reason_oxygen_depleted": "The ship ran out of oxygen.",
 	"game.you_were_killed": "You were killed.",
+	"game.you_were_killed_by": "You were killed by {name}.",
 	"game.kill_on_cooldown": "Kill is still on cooldown.",
 	"game.kill_cooldown_remaining": "Kill cooldown: {seconds} seconds.",
 	"game.kill_no_target_nearby": "No one nearby to kill.",
 	"game.body_nearby": "You found {name}'s body.",
+	"game.unknown_room": "somewhere on the ship",
 	"game.sabotage_already_active": "There's already a sabotage in progress.",
 	"game.sabotage_cooldown_remaining": "Sabotage on cooldown: {seconds} seconds.",
 	"game.sabotage_unavailable": "You cannot sabotage right now.",
@@ -180,6 +182,7 @@
 	"task.list_item": "{name}, in {room}: {status}.",
 
 	"sabotage.lights.name": "Sabotage: Lights",
+	"sabotage.lights.blocks_button": "You cannot use the emergency button with the lights out.",
 	"sabotage.oxygen.name": "Sabotage: Oxygen",
 	"sabotage.comms.name": "Sabotage: Communications",
 	"sabotage.comms.radar_down": "Communications are sabotaged: the radar does not answer.",
@@ -189,6 +192,9 @@
 	"sabotage.critical_warning": "Critical warning: oxygen runs out in {seconds} seconds.",
 
 	"radar.no_players_nearby": "No players nearby.",
+	"radar.mode_players": "Radar: players.",
+	"radar.mode_objects": "Radar: objects in the room.",
+	"radar.no_objects_here": "Nothing of interest in this room.",
 	"radar.player_at": "{name}",
 	"radar.player_at_steps": "{name}, {steps} steps away.",
 
