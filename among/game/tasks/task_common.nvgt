@@ -42,6 +42,8 @@ void shuffle_int_list(array<int>@ arr) {
 }
 
 // Toca um som de feedback simples, sem posicionamento (a minigame não conhece a posição do jogador).
-void task_sound(const string&in filename) {
-	sound_play("sounds/" + filename);
+// pan opcional pra minigames que trabalham com lados: -100 = só no ouvido esquerdo, 0 = no meio,
+// 100 = só no direito (a mesma escala de sound.pan).
+void task_sound(const string&in filename, float pan = 0.0) {
+	sound_play("sounds/" + filename, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, pan);
 }

@@ -61,7 +61,7 @@ void main() {
 	// vez de fechar o jogo direto.
 	while (run_main_menu()) {
 		game_client client;
-		if (!run_connect_screen(client)) continue;
+		if (!connect_to_server(client)) continue;
 
 		login_result login = run_login_screen(client);
 		if (!login.ok) { client.disconnect(); continue; }

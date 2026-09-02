@@ -34,13 +34,16 @@ bool run_clear_asteroids_task(game_client@ client) {
 			if (!shot_left && !shot_right) continue;
 
 			answered = true;
-			task_sound(SND_GUN_FIRE); // o tiro sai sempre, acertando ou não
+			// O tiro sai sempre, acertando ou não, e sai PELO LADO pra onde se atirou: esta task
+			// inteira é sobre lados, então nada nela deve soar no meio. Um som centralizado aqui (era
+			// o caso do bipe de acerto que existia antes) confunde a leitura de quem está contando com
+			// o ouvido pra saber de onde veio o asteroide.
+			task_sound(SND_GUN_FIRE, shot_left ? -100.0 : 100.0);
 			if (shot_left != from_left) { // atirou pro lado errado
 				task_sound(SND_CARD_ERROR);
 				speak(tr("task.failed"));
 				return false;
 			}
-			task_sound(SND_BEEP_COMPLETE);
 			break;
 		}
 		if (!answered) {

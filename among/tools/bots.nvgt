@@ -10,11 +10,14 @@
 
 #include "../network/client.nvgt"
 #include "../config/game_constants.nvgt"
+#include "../config/server_address.nvgt"
 
 const uint BOT_COUNT = 3;
 const string BOT_PASSWORD = "botpass123";
-const string BOT_HOST = "127.0.0.1";
-const uint16 BOT_PORT = DEFAULT_SERVER_PORT;
+// Mesmo endereço que o cliente de verdade usaria (server.txt se existir, senão o servidor oficial) -
+// se os dois não seguissem a mesma regra, dava pra passar um bom tempo tentando entender por que os
+// bots não aparecem na sua lobby: eles estariam em outro servidor.
+const server_address BOT_SERVER = resolve_server_address();
 
 class bot {
 	game_client@ client;
@@ -43,8 +46,8 @@ net_packet@ wait_for_type(game_client@ client, const string&in type, float timeo
 }
 
 bool setup_bot(bot@ b) {
-	println(b.name + ": conectando em " + BOT_HOST + ":" + BOT_PORT + "...");
-	if (!b.client.connect_to(BOT_HOST, BOT_PORT)) {
+	println(b.name + ": conectando em " + BOT_SERVER.display + "...");
+	if (!b.client.connect_to(BOT_SERVER.host, BOT_SERVER.port)) {
 		println(b.name + ": connect_to falhou.");
 		return false;
 	}

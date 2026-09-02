@@ -62,12 +62,16 @@ class client_roster {
 
 	// Jogador vivo mais próximo de (x,y), excluindo exclude_peer. Retorna null se ninguém dentro
 	// de max_range estiver rastreado (posições só são conhecidas se S_PLAYER_MOVED já chegou).
-	roster_entry@ nearest_alive(float x, float y, uint64 exclude_peer, float max_range) const {
+	// also_exclude serve pra tirar um grupo inteiro da busca - hoje, os parceiros de impostor na
+	// hora de escolher quem matar (ver game/game_loop.nvgt).
+	roster_entry@ nearest_alive(float x, float y, uint64 exclude_peer, float max_range,
+			const array<uint64>@ also_exclude = null) const {
 		roster_entry@ best = null;
 		float best_dist = max_range;
 		for (uint i = 0; i < entries.length(); i++) {
 			roster_entry@ e = entries[i];
 			if (!e.alive || e.peer_id == exclude_peer) continue;
+			if (@also_exclude != null && also_exclude.find(e.peer_id) != -1) continue;
 			float dist = distance_2d(x, y, e.x, e.y);
 			if (dist <= best_dist) {
 				best_dist = dist;

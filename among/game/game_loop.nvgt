@@ -225,8 +225,22 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 	team_params.set("percent", "" + team_percent);
 	string team_line = tr("task.team_progress", team_params);
 
+	// Task já feita sai da lista: ela é uma lista de PENDÊNCIAS, e manter as concluídas nela obrigava
+	// o jogador a percorrer tudo de novo pra achar o que ainda falta - justo no fim da partida, que é
+	// quando ele mais consulta. O quanto já foi feito continua sendo dito pela porcentagem abaixo.
+	uint done = 0;
+	array<player_task> pending;
+	for (uint i = 0; i < my_tasks.length(); i++) {
+		if (my_tasks[i].completed) done++;
+		else pending.insert_last(my_tasks[i]);
+	}
+
 	if (my_tasks.length() == 0) {
 		speak(tr("task.list_empty") + " " + team_line); // impostor cai sempre aqui: ele não tem tasks
+		return;
+	}
+	if (pending.length() == 0) {
+		speak(tr("task.all_completed") + " " + team_line);
 		return;
 	}
 
@@ -239,16 +253,13 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 	@g_game_menu_pump_client = client;
 	@m.background_callback = @pump_client_during_game_menu;
 
-	uint done = 0;
-	for (uint i = 0; i < my_tasks.length(); i++) {
-		if (my_tasks[i].completed) done++;
-		map_object@ obj = map.find_object(my_tasks[i].object_id);
+	for (uint i = 0; i < pending.length(); i++) {
+		map_object@ obj = map.find_object(pending[i].object_id);
 		map_zone@ zone = @obj != null ? map.find_zone(obj.room_id) : null;
 		dictionary@ item = dictionary();
-		item.set("name", @obj != null ? tr(obj.name_key) : tr(my_tasks[i].task_type + ".name"));
+		item.set("name", @obj != null ? tr(obj.name_key) : tr(pending[i].task_type + ".name"));
 		item.set("room", @zone != null ? tr(zone.name_key) : "");
-		item.set("status", tr(my_tasks[i].completed ? "task.status_done" : "task.status_pending"));
-		m.add_item(tr("task.list_item", item), my_tasks[i].object_id);
+		m.add_item(tr("task.list_item", item), pending[i].object_id);
 	}
 
 	dictionary@ p = dictionary();
@@ -374,13 +385,18 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	// A lista de parceiros só existe no pacote de quem é impostor (ver network/server.on_start_game) -
 	// sem ela, dois impostores passavam a partida inteira sem saber que estavam no mesmo time.
 	string role_text = tr(is_impostor ? "role.assigned_impostor" : "role.assigned_crewmate");
+	// Peers dos parceiros de impostor: usados pra nunca mirar um deles ao matar (ver KEY_KILL).
+	array<uint64> impostor_partner_peers;
 	if (is_impostor) {
 		array<string> partner_names;
 		json_array@ partners_json = start_pkt.get_array("impostor_partners");
 		if (@partners_json != null) {
 			for (uint i = 0; i < partners_json.length(); i++) {
-				string partner_name = string(partners_json[i]);
+				json_object@ partner = partners_json.get_object(i);
+				if (@partner == null) continue;
+				string partner_name = string(partner["name"]);
 				if (partner_name != "") partner_names.insert_last(partner_name);
+				impostor_partner_peers.insert_last(uint64(partner["peer_id"]));
 			}
 		}
 		if (partner_names.length() == 0) {
@@ -392,6 +408,13 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			partner_params.set("names", joined_partners);
 			role_text += " " + tr("role.impostor_partners", partner_params);
 		}
+	} else {
+		// Quantos impostores estão a bordo. O tripulante não sabe QUEM são, mas saber se procura um
+		// ou três muda toda a leitura de uma reunião - sem isso a discussão começa no chute.
+		int impostor_count = start_pkt.get_int("impostor_count", 1);
+		dictionary@ count_params = dictionary();
+		count_params.set("count", "" + impostor_count);
+		role_text += " " + tr(impostor_count == 1 ? "role.impostor_count_one" : "role.impostor_count_many", count_params);
 	}
 	speak(role_text);
 	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
@@ -490,13 +513,16 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				else audio.play_message_received();
 			} else if (t == S_BODY_REPORTED) {
 				mui.on_body_reported(pkt);
-				uint64 reported_victim = pkt.get_uint64("body_peer");
-				int found_idx = known_body_peers.find(reported_victim);
-				if (found_idx != -1) {
-					known_body_peers.remove_at(found_idx);
-					known_body_positions.remove_at(found_idx);
-				}
+				// A limpeza dos corpos não é feita aqui e sim no S_MEETING_STARTED logo abaixo, que
+				// chega em seguida: lá TODOS somem de uma vez, não só o que foi reportado.
 			} else if (t == S_MEETING_STARTED) {
+				// Todo corpo some do mapa quando a reunião começa - é o que o servidor faz com a lista
+				// dele (ver start_meeting). Sem isto o cliente continuava ouvindo o som de um corpo que
+				// não existe mais e anunciando "você encontrou o corpo de fulano" em cima dele.
+				known_body_peers.resize(0);
+				known_body_positions.resize(0);
+				near_body_last_frame = false;
+				audio.stop_all_body_beacons();
 				// Todo mundo (vivo) é teleportado pra cafeteria e o movimento trava até o resultado
 				// da votação chegar (S_VOTE_RESULT, abaixo) - sem isso os jogadores continuavam
 				// espalhados pelo mapa sem nenhum sinal físico de que uma reunião estava rolando.
@@ -527,6 +553,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				mui.on_vote_result(pkt);
 				movement_frozen = false;
 				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) alive = false; // virou fantasma
+				// O servidor rearma o cooldown de kill de todo impostor ao fim da votação (ver
+				// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
+				// falharia calada.
+				if (is_impostor) my_kill_cooldown_remaining = kill_cooldown_config;
 				audio.start_room_ambience(map);
 				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
 				if (active_sabotage_id != "") audio.start_sabotage_alarm(); // sabotagem continua de pé depois da reunião
@@ -665,7 +695,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				float new_x = my_x + dx * PLAYER_MOVE_SPEED * delta;
 				float new_y = my_y + dy * PLAYER_MOVE_SPEED * delta;
 
-				if (map.is_walkable_for(new_x, new_y, alive)) {
+				if (map.can_move(my_x, my_y, new_x, new_y, alive)) {
 					my_x = new_x;
 					my_y = new_y;
 					client.send_move(my_x, my_y);
@@ -751,8 +781,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			// igual o Among Us original, onde mortos continuam observando a partida.
 			// Ctrl+Tab troca o modo do radar (jogadores <-> objetos da sala).
 			// Comunicações sabotadas derrubam os DOIS modos: o de jogadores o servidor já recusa, e o
-			// de objetos é resolvido aqui no cliente, então tem que ser barrado aqui.
-			if (active_sabotage_id == "comms") speak(tr("sabotage.comms.radar_down"));
+			// de objetos é resolvido aqui no cliente, então tem que ser barrado aqui. O impostor é
+			// imune à própria sabotagem e continua com o radar inteiro (ver on_radar_scan no servidor).
+			if (active_sabotage_id == "comms" && !is_impostor) speak(tr("sabotage.comms.radar_down"));
 			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
 			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, active_sabotage_id);
 			else radar.scan_next(map, my_x, my_y, active_sabotage_id);
@@ -817,7 +848,11 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 						cd.set("seconds", "" + int(my_kill_cooldown_remaining + 0.5));
 						speak(tr("game.kill_cooldown_remaining", cd));
 					} else {
-						roster_entry@ target = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE);
+						// Parceiro de impostor nunca é alvo: o servidor recusaria (ver try_kill), e além
+						// disso, ignorando ele aqui, estar colado no parceiro não impede mais de matar o
+						// tripulante que está logo atrás dele.
+						roster_entry@ target = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE,
+							impostor_partner_peers);
 						if (@target != null) imp.kill(target.peer_id);
 						else speak(tr("game.kill_no_target_nearby"));
 					}

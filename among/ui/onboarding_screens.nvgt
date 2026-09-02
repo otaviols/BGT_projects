@@ -10,6 +10,7 @@
 #include "../database/models.nvgt"
 #include "../lang/i18n.nvgt"
 #include "../config/game_constants.nvgt"
+#include "../config/server_address.nvgt"
 #include "../audio/sound_catalog.nvgt"
 
 // Menu inicial (antes de conectar): conectar, aprender os sons do jogo, ou sair.
@@ -96,38 +97,27 @@ void run_learn_sounds_screen() {
 	learn_game_sounds_menu(sfx, "", @m, tr("menu.back"));
 }
 
-// Pede o endereço do servidor e conecta (porta é sempre DEFAULT_SERVER_PORT, fixa por enquanto).
-// Retorna true se a conexão foi estabelecida.
-bool run_connect_screen(game_client@ client) {
-	audio_form f;
-	f.create_window(tr("menu.connect"), false); // não sobrescreve o título da janela (nome do jogo)
-	int f_host = f.create_input_box(tr("menu.server_address"), "localhost");
-	int f_ok = f.create_button(tr("menu.connect"), true);
-	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+// Conecta ao servidor e retorna true se a conexão foi estabelecida.
+// Não existe mais tela pedindo o endereço: o jogo vai direto pro servidor oficial, e quem precisa
+// de outro (testar contra um server_main local) usa o server.txt - ver config/server_address.nvgt.
+bool connect_to_server(game_client@ client) {
+	server_address address = resolve_server_address();
+	speak(tr("menu.connecting")); // sem isto ficam alguns segundos de silêncio total até dar certo ou falhar
 
-	while (true) {
-		wait(5);
-		f.monitor();
-		if (f.is_pressed(f_cancel)) return false;
-		if (f.is_pressed(f_ok)) {
-			string host = f.get_text(f_host);
-			if (host.empty()) continue;
-			if (!client.connect_to(host, DEFAULT_SERVER_PORT)) {
-				speak(tr("menu.connect_failed"));
-				continue;
-			}
-
-			// Espera a confirmação de conexão do ENet (evento event_connect) por alguns segundos.
-			timer@ wait_clock = timer();
-			while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
-				wait(20);
-				client.update();
-				if (client.connected) return true;
-			}
-			speak(tr("menu.connect_failed"));
-		}
+	if (!client.connect_to(address.host, address.port)) {
+		speak(tr("menu.connect_failed"));
+		return false;
 	}
-	return false; // inalcançável - o laço só termina via return acima
+
+	// Espera a confirmação de conexão do ENet (evento event_connect) por alguns segundos.
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		if (client.connected) return true;
+	}
+	speak(tr("menu.connect_failed"));
+	return false;
 }
 
 // Tela combinada de login/cadastro. Envia C_LOGIN ou C_REGISTER e espera a resposta do servidor.

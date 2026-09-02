@@ -44,13 +44,16 @@ jogador toca `wall_bump.wav` e não se move ao tentar entrar nessa área.
 
 ## Objetos interativos
 
-**Vents** (só o impostor usa, tríade clássica reactor ↔ electrical ↔ medbay):
+**Vents** (só o impostor usa): uma rede só, com as três bocas totalmente conectadas entre si. Elas
+ficam nos três cantos do mapa, e nenhum par é ligado por corredor direto — é isso que faz do vent um
+atalho impossível de fazer a pé. (Antes ficavam empilhadas na coluna oeste, paralelas ao corredor que
+já ligava as três salas, e por isso não serviam pra quase nada.)
 
 | Vent | Sala | Posição | Liga com |
 |---|---|---|---|
-| `vent_reactor` | reactor | -30, -71 | vent_electrical |
-| `vent_electrical` | electrical | -30, -46 | vent_medbay |
-| `vent_medbay` | medbay | -30, -21 | vent_reactor |
+| `vent_navigation` | navigation | 35, 6 | vent_weapons, vent_reactor |
+| `vent_weapons` | weapons | -30, 6 | vent_navigation, vent_reactor |
+| `vent_reactor` | reactor | -30, -71 | vent_navigation, vent_weapons |
 
 **Tasks** (10 no total, cada jogador recebe um subconjunto aleatório - ver `config/lobby_config.nvgt`):
 

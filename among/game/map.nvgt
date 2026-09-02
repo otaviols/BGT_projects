@@ -159,11 +159,24 @@ class game_map {
 		return @zone != null && !is_door_closed(zone.id);
 	}
 
-	// Fantasma atravessa porta fechada (parede continua sendo parede) - igual ao jogo original, onde
-	// morto passa por tudo. Também é o que garante que ele nunca fica preso longe das tasks dele.
-	bool is_walkable_for(float x, float y, bool alive) const {
-		if (alive) return is_walkable(x, y);
-		return @zone_at(x, y) != null;
+	// Um passo de (from) para (to) é permitido?
+	//
+	// Parede é parede para todo mundo. Porta fechada barra só quem está FORA dela: quem já estava
+	// dentro do corredor na hora em que a porta fechou continua andando normalmente e consegue sair
+	// pelo outro lado. Sem essa distinção, o jogador pego dentro do corredor ficava congelado no
+	// lugar até a porta reabrir - qualquer passo que ele tentasse caía dentro do mesmo corredor
+	// fechado e era recusado, como se ele estivesse entalado na porta.
+	//
+	// Fantasma atravessa porta fechada de qualquer jeito, igual ao jogo original, onde morto passa
+	// por tudo - é também o que garante que ele nunca fica preso longe das tasks dele.
+	bool can_move(float from_x, float from_y, float to_x, float to_y, bool alive) const {
+		map_zone@ destination = zone_at(to_x, to_y);
+		if (@destination == null) return false; // fora de qualquer sala ou corredor
+		if (!is_door_closed(destination.id)) return true;
+		if (!alive) return true;
+
+		map_zone@ origin = zone_at(from_x, from_y);
+		return @origin != null && origin.id == destination.id;
 	}
 
 	map_object@ find_object(const string&in id) const {
@@ -309,26 +322,44 @@ game_map@ build_the_hub_map() {
 	m.zones.insert_last(map_zone("electrical", "room.electrical", -30, -50, 8, 8, "MetalTile"));
 	m.zones.insert_last(map_zone("reactor", "room.reactor", -30, -75, 8, 8, "MetalTile"));
 
-	// Corredores (ligam as salas acima)
-	m.zones.insert_last(map_zone("corridor_cafeteria_weapons", "corridor", -17, 0, 5, 3, "Tile", true));
-	m.zones.insert_last(map_zone("corridor_cafeteria_navigation", "corridor", 19.5, 0, 7.5, 3, "Tile", true));
-	m.zones.insert_last(map_zone("corridor_cafeteria_admin", "corridor", 0, -12.5, 3, 4.5, "Tile", true));
-	m.zones.insert_last(map_zone("corridor_weapons_medbay", "corridor", -30, -12.5, 3, 4.5, "Tile", true));
-	m.zones.insert_last(map_zone("corridor_admin_medbay", "corridor", -15, -25, 7, 3, "Tile", true));
-	m.zones.insert_last(map_zone("corridor_admin_storage", "corridor", 0, -37.5, 3, 4.5, "Tile", true));
-	m.zones.insert_last(map_zone("corridor_medbay_electrical", "corridor", -30, -37.5, 3, 4.5, "Tile", true));
-	m.zones.insert_last(map_zone("corridor_storage_electrical", "corridor", -16, -50, 6, 3, "EarthTile", true));
-	m.zones.insert_last(map_zone("corridor_electrical_reactor", "corridor", -30, -62.5, 3, 4.5, "MetalTile", true));
+	// Corredores (ligam as salas acima). Cada um tem NOME PRÓPRIO: o jogo anuncia o nome da zona toda
+	// vez que se entra nela, na tecla C, e no aviso de corpo encontrado - com todos chamados
+	// "Corredor" (como era antes), saber que o corpo estava "no corredor" não dizia nada, porque são
+	// nove. O nome é o do lugar pra onde o corredor leva saindo do centro do mapa; quando dois
+	// corredores disputam o mesmo destino, o segundo fica com o nome da região.
+	m.zones.insert_last(map_zone("corridor_cafeteria_weapons", "corridor.weapons", -17, 0, 5, 3, "Tile", true));
+	m.zones.insert_last(map_zone("corridor_cafeteria_navigation", "corridor.navigation", 19.5, 0, 7.5, 3, "Tile", true));
+	m.zones.insert_last(map_zone("corridor_cafeteria_admin", "corridor.admin", 0, -12.5, 3, 4.5, "Tile", true));
+	// Liga armas e enfermaria: os dois nomes já são de outros corredores, e este é o trecho mais a
+	// oeste do mapa - daí o nome pela região.
+	m.zones.insert_last(map_zone("corridor_weapons_medbay", "corridor.west", -30, -12.5, 3, 4.5, "Tile", true));
+	m.zones.insert_last(map_zone("corridor_admin_medbay", "corridor.medbay", -15, -25, 7, 3, "Tile", true));
+	m.zones.insert_last(map_zone("corridor_admin_storage", "corridor.storage", 0, -37.5, 3, 4.5, "Tile", true));
+	m.zones.insert_last(map_zone("corridor_medbay_electrical", "corridor.electrical", -30, -37.5, 3, 4.5, "Tile", true));
+	// Único corredor com piso de terra, o que já dá identidade própria a ele de ouvido.
+	m.zones.insert_last(map_zone("corridor_storage_electrical", "corridor.cargo", -16, -50, 6, 3, "EarthTile", true));
+	m.zones.insert_last(map_zone("corridor_electrical_reactor", "corridor.reactor", -30, -62.5, 3, 4.5, "MetalTile", true));
 
-	// Vents (tríade clássica: reactor <-> electrical <-> medbay, totalmente conectados entre si -
-	// não é uma corrente de um sentido só), só usável pelo impostor. linked_object_id guarda TODOS
-	// os vents conectados, separados por vírgula (ver vent_connections()).
+	// Vents: uma rede só, com as três bocas totalmente conectadas entre si (não é uma corrente de um
+	// sentido só). Só o impostor usa. linked_object_id guarda TODOS os vents conectados, separados
+	// por vírgula (ver vent_connections()).
+	//
+	// As bocas ficam nos TRÊS CANTOS do mapa - navegação (extremo leste), armas (sudoeste) e reator
+	// (extremo norte) - e nenhum par delas é ligado por corredor direto. Isso é o ponto todo do vent:
+	// antes as três ficavam empilhadas na coluna oeste (reator, elétrica, enfermaria), ou seja,
+	// paralelas ao corredor que já ligava as três a pé - viajar pelo duto economizava alguns segundos
+	// e não criava álibi nenhum. Agora sumir na navegação e reaparecer no reator é uma travessia que
+	// NÃO existe a pé em tempo nenhum, que é o que torna o vent uma arma de verdade.
+	//
+	// A navegação é de propósito a sala com mais tasks do mapa (fiação, download, alinhar motor,
+	// asteroides e o painel de comunicações): é onde o tripulante fica mais tempo sozinho, e agora é
+	// de onde o impostor some.
+	m.objects.insert_last(map_object("vent_navigation", "object.vent", 35, 6, "navigation", OBJ_VENT,
+		SND_VENT_DOOR_1, "", "vent_weapons,vent_reactor", SND_VENT_BEACON));
+	m.objects.insert_last(map_object("vent_weapons", "object.vent", -30, 6, "weapons", OBJ_VENT,
+		SND_VENT_DOOR_2, "", "vent_navigation,vent_reactor", SND_VENT_BEACON));
 	m.objects.insert_last(map_object("vent_reactor", "object.vent", -30, -71, "reactor", OBJ_VENT,
-		SND_VENT_DOOR_1, "", "vent_electrical,vent_medbay", SND_VENT_BEACON));
-	m.objects.insert_last(map_object("vent_electrical", "object.vent", -30, -46, "electrical", OBJ_VENT,
-		SND_VENT_DOOR_1, "", "vent_reactor,vent_medbay", SND_VENT_BEACON));
-	m.objects.insert_last(map_object("vent_medbay", "object.vent", -30, -21, "medbay", OBJ_VENT,
-		SND_VENT_DOOR_2, "", "vent_reactor,vent_electrical", SND_VENT_BEACON));
+		SND_VENT_DOOR_1, "", "vent_navigation,vent_weapons", SND_VENT_BEACON));
 
 	// Tasks (espalhadas por várias salas, jogador recebe um subconjunto aleatório). O beacon é por
 	// TIPO de task, não por sala - a mesma task em salas diferentes soa igual de propósito.

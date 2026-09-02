@@ -1,0 +1,62 @@
+// server_address.nvgt
+// Descobre a qual servidor conectar. O jogo não pergunta mais o endereço ao jogador: conecta direto
+// no servidor oficial (DEFAULT_SERVER_HOST em game_constants.nvgt).
+//
+// Para desenvolvimento existe uma saída: se houver um arquivo server.txt na pasta do jogo, o
+// endereço dele manda. É assim que se testa contra o server_main rodando na própria máquina sem
+// recompilar nada, e é invisível pro jogador comum - o arquivo não vai no pacote distribuído (não
+// está no #pragma asset), quem quiser um cria.
+//
+// Formato do server.txt: uma linha só, "host" ou "host:porta". Linhas começando com ; ou # são
+// ignoradas, pra dar pra deixar um lembrete dentro do arquivo.
+//
+// O mesmo resolvedor é usado pelo cliente (ui/onboarding_screens.nvgt) e pela ferramenta de bots
+// (tools/bots.nvgt), pra os dois nunca acabarem em servidores diferentes durante um teste.
+
+#include "game_constants.nvgt"
+
+const string SERVER_OVERRIDE_FILE = "server.txt";
+
+class server_address {
+	string host = DEFAULT_SERVER_HOST;
+	uint16 port = DEFAULT_SERVER_PORT;
+	bool from_override = false; // true = veio do server.txt (útil pra avisar em log/fala de debug)
+
+	string get_display() const property {
+		return host + ":" + port;
+	}
+}
+
+// Lê o override, se existir. Qualquer problema no arquivo (não existe, vazio, só comentário) cai
+// silenciosamente no endereço padrão - um servidor inalcançável já avisa sozinho ao conectar, e
+// nesse ponto do jogo ainda não existe fala configurada pra erro de arquivo.
+server_address resolve_server_address() {
+	server_address result;
+	if (!file_exists(SERVER_OVERRIDE_FILE)) return result;
+
+	string contents = file_get_contents(SERVER_OVERRIDE_FILE);
+	if (contents.empty()) return result;
+
+	array<string>@ lines = contents.split("\n");
+	for (uint i = 0; i < lines.length(); i++) {
+		string line = lines[i].replace("\r", "", true).trim_whitespace();
+		if (line.empty() || line.starts_with(";") || line.starts_with("#")) continue;
+
+		int separator = line.find_last(":");
+		if (separator > 0) {
+			string port_text = line.substr(separator + 1);
+			int parsed_port = parse_int(port_text);
+			// Porta inválida (ex.: um IPv6 colado sem porta) não invalida o host - só mantém a padrão.
+			if (parsed_port > 0 && parsed_port <= 65535) {
+				result.port = uint16(parsed_port);
+				line = line.substr(0, separator);
+			}
+		}
+
+		if (line.empty()) break;
+		result.host = line;
+		result.from_override = true;
+		break; // primeira linha válida ganha
+	}
+	return result;
+}

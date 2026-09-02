@@ -2,7 +2,12 @@
 // Constantes globais do jogo. Nada aqui deve depender de estado de partida.
 
 // Rede
-const string DEFAULT_SERVER_HOST = "127.0.0.1";
+// Servidor oficial. O jogo conecta direto aqui, sem perguntar nada ao jogador - quem precisa de
+// outro endereço (testar contra um server_main local, por exemplo) cria um server.txt, ver
+// config/server_address.nvgt.
+// Este é um IP residencial: se ele mudar, o server.txt resolve pra quem testa, mas os jogadores só
+// voltam a conectar com um build novo.
+const string DEFAULT_SERVER_HOST = "178.92.163.235";
 const uint16 DEFAULT_SERVER_PORT = 8934;
 const uint MAX_PACKET_CHANNELS = 4;
 const uint NETWORK_TICKS_PER_SECOND = 20;

@@ -7,6 +7,10 @@ sounds.dat
 *.zip
 *.exe
 
+# Endereço de servidor alternativo (config/server_address.nvgt). É override de máquina - cada um
+# aponta pra onde precisa testar, e o jogo distribuído não leva arquivo nenhum desses.
+server.txt
+
 # Banco de dados de contas, criado pelo servidor na primeira execução (database/user_db.nvgt).
 # É estado de execução - contas, senhas e estatísticas de quem jogou nesta máquina - e muda a cada
 # partida. O servidor recria o arquivo sozinho se ele não existir.

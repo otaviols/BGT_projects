@@ -475,6 +475,7 @@ class game_server {
 		lobby.votes.resize(0);
 		lobby.active_sabotage = "";
 		lobby.last_sabotage_id = "";
+		lobby.meeting_cooldown_remaining = 0.0;
 		lobby.doors_cooldown_remaining = 0.0;
 		lobby.map.open_all_doors();
 		lobby.sabotage_fixed_panels.resize(0);
@@ -507,14 +508,24 @@ class game_server {
 			start.set_float("your_y", p.y);
 			start.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
 			start.set_float("sabotage_cooldown_seconds", lobby.sabotage_cooldown_remaining);
-			// Nomes dos OUTROS impostores, mandados só pra quem é impostor - cada um precisa saber quem
-			// é do time dele pra não matar o parceiro nem se denunciar sozinho na reunião. A lista sai
-			// montada por destinatário justamente pra nunca sair daqui pra um tripulante.
+			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
+			// um ou três, senão a discussão da reunião é chute puro.
+			start.set_int("impostor_count", impostor_count);
+
+			// Os OUTROS impostores, mandados só pra quem é impostor - cada um precisa saber quem é do
+			// time dele pra não se denunciar sozinho na reunião. A lista sai montada por destinatário
+			// justamente pra nunca sair daqui pra um tripulante.
+			// Vai peer_id junto com o nome porque o cliente usa os ids pra nunca mirar um parceiro na
+			// hora de matar (ver a tecla de kill em game/game_loop.nvgt).
 			if (p.is_impostor) {
 				json_array@ partners = json_array();
 				for (uint j = 0; j < lobby.players.length(); j++) {
 					game_player@ other = lobby.players[j];
-					if (other.is_impostor && other.peer_id != p.peer_id) partners.add(other.username);
+					if (!other.is_impostor || other.peer_id == p.peer_id) continue;
+					json_object@ entry = json_object();
+					entry.set("peer_id", other.peer_id);
+					entry.set("name", other.username);
+					partners.add(entry);
 				}
 				start.set_array("impostor_partners", partners);
 			}
@@ -674,6 +685,14 @@ class game_server {
 		string button_block_reason = lobby.emergency_button_block_reason();
 		if (button_block_reason != "") { send_error(peer_id, tr(button_block_reason)); return; }
 
+		// Recarga depois da última reunião: diz quanto falta, em vez do genérico "não deu certo".
+		if (lobby.emergency_button_cooldown_reason() != "") {
+			dictionary@ cd = dictionary();
+			cd.set("seconds", "" + int(lobby.meeting_cooldown_remaining + 0.5));
+			send_error(peer_id, tr(lobby.emergency_button_cooldown_reason(), cd));
+			return;
+		}
+
 		// Não valida distância até o botão aqui: a posição que o servidor tem vem do canal de
 		// movimento não confiável e pode estar sempre um pouco atrás da posição real (o cliente já
 		// só deixa chamar isso quando o jogador está perto o bastante, via find_interactable) -
@@ -789,14 +808,22 @@ class game_server {
 		game_player@ me = lobby.find_player(peer_id);
 		if (@me == null) return; // fantasma (morto/expulso) também pode usar o radar - só não aparece nele
 
+		// Sabotagem não atrapalha quem sabota: o impostor mantém o radar inteiro nos dois casos abaixo.
+		// É a mesma lógica do jogo original, onde o apagão não cega o impostor - a sabotagem é uma
+		// arma dele, e uma arma que atinge o próprio dono deixa de ser usada.
+		bool blinded_by_sabotage = !me.is_impostor;
+
 		// Sabotagem de comunicações derruba o radar: é o equivalente aqui ao "esconder as tasks" do
 		// jogo original - tira a ferramenta principal de saber quem está perto de você.
-		if (lobby.active_sabotage == "comms") { send_error(peer_id, tr("sabotage.comms.radar_down")); return; }
+		if (blinded_by_sabotage && lobby.active_sabotage == "comms") {
+			send_error(peer_id, tr("sabotage.comms.radar_down"));
+			return;
+		}
 
 		array<game_player@>@ nearby = lobby.players_in_same_room(peer_id);
 		// Luzes apagadas: o radar vira quase um tato - só sente quem está bem colado, mesmo estando
 		// todo mundo na mesma sala.
-		if (lobby.active_sabotage == "lights") {
+		if (blinded_by_sabotage && lobby.active_sabotage == "lights") {
 			array<game_player@> in_reach;
 			for (uint i = 0; i < nearby.length(); i++) {
 				if (distance_2d(me.x, me.y, nearby[i].x, nearby[i].y) <= RADAR_LIGHTS_OUT_RANGE) in_reach.insert_last(nearby[i]);

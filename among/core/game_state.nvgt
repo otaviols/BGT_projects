@@ -42,6 +42,9 @@ class game_state {
 	array<uint64> meeting_unvented_peers;
 	array<string> meeting_doors_opened; // portas que a reunião abriu, pra avisar os clientes
 
+	// Recarga do botão de emergência depois de uma reunião. Sem ela, o botão podia ser apertado de
+	// novo no instante em que a votação terminava, com todo mundo ainda parado na cafeteria.
+	float meeting_cooldown_remaining = 0.0;
 	float doors_cooldown_remaining = 0.0; // recarga da ação de fechar portas (separada da sabotagem)
 	string active_sabotage = ""; // "" | "lights" | "oxygen" | "comms"
 	string last_sabotage_id = ""; // pra não deixar repetir a mesma sabotagem duas vezes seguidas
@@ -148,7 +151,9 @@ class game_state {
 		if (@p == null) return false;
 		if (state != "in_progress") return false; // movimento travado durante reunião/votação
 		if (p.vented) return false; // escondido num vent - só sai/viaja pela rede (ver on_vent_travel)
-		if (!map.is_walkable_for(x, y, p.alive)) return false; // parede, ou porta fechada pra quem está vivo
+		// De onde ele está pra onde quer ir: parede barra sempre, porta fechada só barra quem está do
+		// lado de fora dela (ver game_map.can_move).
+		if (!map.can_move(p.x, p.y, x, y, p.alive)) return false;
 		float delta = elapsed_time - p.last_move_time;
 		if (delta <= 0.0) delta = 1.0 / NETWORK_TICKS_PER_SECOND;
 		bool ok = p.try_move(x, y, delta);
@@ -171,6 +176,10 @@ class game_state {
 		if (@killer == null || @target == null) return false;
 		if (!killer.can_kill()) return false;
 		if (!target.alive || target.peer_id == killer.peer_id) return false;
+		// Impostor não mata impostor. Além de não fazer sentido (são do mesmo time e se conhecem
+		// desde o começo da partida), um mata-mata entre parceiros por engano entregava a rodada
+		// inteira: some um impostor e a tripulação ganha de graça.
+		if (target.is_impostor) return false;
 		if (distance_2d(killer.x, killer.y, target.x, target.y) > PLAYER_KILL_RANGE) return false;
 
 		target.alive = false;
@@ -237,17 +246,30 @@ class game_state {
 	// Vai direto pra votação (sem uma fase de "discussão" separada travando o menu) - todo mundo
 	// vivo é teleportado pra cafeteria, o movimento trava (ver try_move_player), e o chat abre geral
 	// pra todos (ver server.on_chat_message) durante o tempo combinado de discussão+votação.
+	// Motivo pelo qual o botão de emergência não pode ser apertado agora ("" = pode). Reportar corpo
+	// não passa por aqui: quem achou um corpo sempre pode reportar, como no jogo original.
+	string emergency_button_cooldown_reason() const {
+		if (meeting_cooldown_remaining > 0.0) return "game.meeting_cooldown_remaining";
+		return "";
+	}
+
 	bool start_meeting(uint64 caller_peer, const string&in reason, net_packet@&out out_event) {
 		if (state != "in_progress") return false;
 		game_player@ caller = find_player(caller_peer);
 		if (@caller == null || !caller.alive) return false;
 		if (reason == "button" && caller.meetings_called >= config.emergency_meetings_per_player) return false;
+		if (reason == "button" && meeting_cooldown_remaining > 0.0) return false;
 
 		if (reason == "button") caller.meetings_called++;
 
 		// Reunião abre tudo: todo mundo é teleportado pra cafeteria de qualquer jeito, e voltar da
 		// votação preso atrás de uma porta que fechou antes da reunião não faria sentido nenhum.
 		meeting_doors_opened = map.open_all_doors();
+
+		// TODOS os corpos somem, não só o que foi reportado. A reunião já revela quem morreu (a lista
+		// de vivos na votação diz), então um corpo esquecido no chão depois disso só serve pra ser
+		// "reportado" de novo e gerar uma reunião repetida pela mesma morte.
+		bodies.resize(0);
 
 		meeting_unvented_peers.resize(0);
 		for (uint i = 0; i < players.length(); i++) {
@@ -365,6 +387,16 @@ class game_state {
 
 		state = "in_progress";
 		votes.resize(0);
+
+		// A partida recomeça com todo mundo junto na cafeteria. Sem zerar nada disso, a reunião virava
+		// a melhor jogada do impostor: o cooldown de kill corria durante a discussão inteira e ele
+		// saía da votação com a faca pronta, ao lado de todo mundo - bastava apertar matar. E o botão
+		// de emergência podia ser apertado de novo no mesmo instante.
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].is_impostor) players[i].kill_cooldown_remaining = config.kill_cooldown_seconds;
+		}
+		meeting_cooldown_remaining = EMERGENCY_MEETING_COOLDOWN_SECONDS;
+
 		return result;
 	}
 
@@ -589,9 +621,9 @@ class game_state {
 		float new_x = b.x + dx / dist * step;
 		float new_y = b.y + dy / dist * step;
 		// Bot fora de qualquer sala/corredor seria exatamente o que o servidor rejeita num jogador
-		// de verdade (ver try_move_player). Se acontecer, o destino é recalculado do zero em vez de
-		// empurrar o bot pra dentro da parede.
-		if (!map.is_walkable(new_x, new_y)) {
+		// de verdade (ver try_move_player). Se acontecer - inclusive por uma porta fechada na cara
+		// dele -, o destino é recalculado do zero em vez de empurrar o bot pra dentro da parede.
+		if (!map.can_move(b.x, b.y, new_x, new_y, b.alive)) {
 			b.bot_has_target = false;
 			b.bot_path.resize(0);
 			b.bot_action_timer = 1.0;
@@ -688,6 +720,11 @@ class game_state {
 		if (doors_cooldown_remaining > 0.0) {
 			doors_cooldown_remaining -= delta_seconds;
 			if (doors_cooldown_remaining < 0.0) doors_cooldown_remaining = 0.0;
+		}
+
+		if (meeting_cooldown_remaining > 0.0) {
+			meeting_cooldown_remaining -= delta_seconds;
+			if (meeting_cooldown_remaining < 0.0) meeting_cooldown_remaining = 0.0;
 		}
 
 		if (state == "in_progress") {

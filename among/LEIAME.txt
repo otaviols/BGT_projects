@@ -165,8 +165,10 @@ sabotagem, então dá para trancar uma sala E sabotar ao mesmo tempo. Fantasmas
 atravessam portas trancadas.
 
 Dutos (tecla V): só o impostor usa. Entrar num duto some com você do mapa; dentro
-dele dá para viajar até outro duto da mesma rede. A rede liga Reator, Elétrica e
-Enfermaria.
+dele dá para viajar até outro duto da mesma rede. A rede liga Navegação, Sala de
+armas e Reator - os três cantos opostos da nave, sem nenhum corredor direto entre
+eles. Some de um canto e apareça no outro em segundos: é um trajeto que ninguém
+consegue fazer a pé, e é justamente por isso que serve de álibi.
 
 
 COMO SE VENCE
