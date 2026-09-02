@@ -131,7 +131,10 @@ class meeting_ui {
 		audio.play_ejected(); // só toca quando alguém É expulso, depois do som geral de resultado
 		dictionary@ params = dictionary();
 		params.set("name", pkt.get_string("ejected_name"));
-		announce(tr("game.vote_result_ejected", params));
+		// O papel de quem foi expulso é a informação mais importante da reunião inteira: é o que diz
+		// se a tripulação acertou ou linchou um inocente. O servidor já mandava isso desde sempre
+		// (was_impostor no S_VOTE_RESULT) e o cliente estava jogando fora.
+		announce(tr(pkt.get_bool("was_impostor") ? "game.vote_result_ejected_impostor" : "game.vote_result_ejected_crewmate", params));
 	}
 
 	// Chamado quando o jogador aperta a tecla de votar - só faz algo se a votação estiver mesmo

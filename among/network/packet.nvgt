@@ -89,7 +89,16 @@ class net_packet {
 // Constrói um net_packet a partir dos bytes recebidos pela rede (network_event.message).
 // Retorna null se a mensagem não for um JSON válido com campo "type".
 net_packet@ packet_from_wire(const string&in wire) {
-	var@ parsed = parse_json(wire);
+	// parse_json LANÇA exceção em JSON malformado, e todo pacote da rede passa por aqui: sem este
+	// try, uma única mensagem estranha (truncada, corrompida, de uma versão diferente do jogo)
+	// derrubava o cliente inteiro. Pacote que não dá pra ler é pacote descartado, e o jogo segue.
+	var@ parsed = null;
+	try {
+		@parsed = parse_json(wire);
+	}
+	catch {
+		return null;
+	}
 	if (@parsed == null) return null;
 
 	json_object@ o = cast<json_object@>(parsed);

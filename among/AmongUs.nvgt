@@ -23,6 +23,7 @@
 #pragma document "LEIAME.txt"
 
 #include "network/client.nvgt"
+#include "core/crash_log.nvgt"
 #include "ui/onboarding_screens.nvgt"
 #include "ui/lobby_screens.nvgt"
 #include "game/game_loop.nvgt"
@@ -59,25 +60,42 @@ void main() {
 
 	// Menu inicial (conectar / aprender os sons / sair) - cancelar conexão ou login volta pra cá em
 	// vez de fechar o jogo direto.
+	//
+	// A sessão inteira roda dentro de um try: qualquer exceção que escape daqui pra dentro mataria o
+	// script e a janela sumiria da tela sem dizer nada (era assim que o jogo "fechava sozinho"). Com
+	// o catch, o erro vai pro crash.log, o jogador é avisado e volta pro menu inicial - a partida
+	// daquele momento se perde, mas o jogo continua de pé e sobra evidência do que aconteceu.
 	while (run_main_menu()) {
-		game_client client;
-		if (!connect_to_server(client)) continue;
-
-		login_result login = run_login_screen(client);
-		if (!login.ok) { client.disconnect(); continue; }
-
-		while (true) {
-			lobby_browser_result browse = run_lobby_browser_screen(client);
-			if (browse.go_back || !browse.joined) break;
-
-			net_packet@ start_pkt = run_waiting_room_screen(client, browse.is_host);
-			if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador
-
-			run_game(client, start_pkt);
-			// ao fim da partida (S_GAME_OVER), o servidor volta a lobby pro estado "waiting";
-			// o jogador retorna ao navegador de lobbies.
+		try {
+			run_session();
 		}
-
-		client.disconnect();
+		catch {
+			log_crash("sessao");
+			speak(tr("error.unexpected"));
+			wait(2000); // tempo do leitor de tela terminar a frase antes de voltar pro menu
+		}
 	}
+}
+
+// Uma sessão completa: conectar, logar, e ficar entrando em partidas até o jogador sair.
+void run_session() {
+	game_client client;
+	if (!connect_to_server(client)) return;
+
+	login_result login = run_login_screen(client);
+	if (!login.ok) { client.disconnect(); return; }
+
+	while (true) {
+		lobby_browser_result browse = run_lobby_browser_screen(client);
+		if (browse.go_back || !browse.joined) break;
+
+		net_packet@ start_pkt = run_waiting_room_screen(client, browse.is_host);
+		if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador
+
+		run_game(client, start_pkt);
+		// ao fim da partida (S_GAME_OVER), o servidor volta a lobby pro estado "waiting";
+		// o jogador retorna ao navegador de lobbies.
+	}
+
+	client.disconnect();
 }

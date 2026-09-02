@@ -31,6 +31,12 @@ class game_player {
 	float last_move_time = 0.0;
 	array<player_task> tasks;
 
+	// Caiu no meio da partida. Ele continua no elenco (tirar quebraria a contagem de vivos que decide
+	// quem venceu), mas para de contar pra tudo que depende de alguém estar jogando de verdade - as
+	// tasks dele, principalmente: sem isso a vitória por tasks nunca acontecia, porque o jogo ficava
+	// esperando pra sempre as tasks de quem não está mais lá.
+	bool left_match = false;
+
 	// --- Bot ---
 	// Bots são game_player normais em tudo (entram na contagem, recebem tasks, podem ser mortos,
 	// expulsos e reportados); a diferença é que ninguém manda C_MOVE por eles e nenhum pacote é

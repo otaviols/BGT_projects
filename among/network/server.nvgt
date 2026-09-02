@@ -165,7 +165,13 @@ class game_server {
 		// mantém no array; a limpeza de verdade só acontece com a lobby ainda em "waiting".
 		bool match_active = lobby.state != "waiting" && lobby.state != "ended";
 		if (match_active) {
-			if (@p != null) p.alive = false;
+			if (@p != null) {
+				p.alive = false;
+				// Marca que ele CAIU (não que morreu em jogo): as tasks dele param de contar pra
+				// vitória da tripulação na hora, senão o jogo esperava pra sempre por tasks de alguém
+				// que não está mais conectado. Ver counts_for_task_win.
+				p.left_match = true;
+			}
 		} else {
 			for (uint i = 0; i < lobby.players.length(); i++) {
 				if (lobby.players[i].peer_id == peer_id) { lobby.players.remove_at(i); break; }
@@ -447,6 +453,7 @@ class game_server {
 			p.is_impostor = int(i) < impostor_count;
 			p.color = color_ids[i % color_ids.length()];
 			p.alive = true;
+			p.left_match = false;
 			p.vented = false;
 			p.current_vent_id = "";
 			p.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
@@ -757,6 +764,20 @@ class game_server {
 		result.set_float("x", p.x);
 		result.set_float("y", p.y);
 		send_to(peer_id, result);
+		broadcast_vent_sound(lobby, peer_id, vent_id);
+	}
+
+	// A tampa do vent abrindo é ouvida por quem está por perto - é o que equilibra o vent, que não
+	// tem recarga nenhuma (igual ao jogo original, onde entrar e sair é livre, mas visível e audível
+	// pra quem estiver na sala). Vai pra todo mundo MENOS quem usou: esse já toca o som no próprio
+	// cliente, na hora, sem esperar a rede.
+	// Viajar de um vent pro outro NÃO faz som pra ninguém de fora: a tampa não abre, o impostor segue
+	// escondido - também como no original.
+	void broadcast_vent_sound(game_state@ lobby, uint64 user_peer, const string&in vent_id) {
+		if (vent_id == "") return;
+		net_packet@ vent_sound = net_packet(S_VENT_SOUND);
+		vent_sound.set_string("vent_id", vent_id);
+		broadcast_to_lobby(lobby, vent_sound, user_peer);
 	}
 
 	// Sair do vent (target_vent_id == "") ou viajar pra outro vent CONECTADO ao atual, permanecendo
@@ -770,8 +791,10 @@ class game_server {
 		string target_id = pkt.get_string("target_vent_id");
 
 		if (target_id == "") {
+			string exited_vent_id = p.current_vent_id;
 			p.vented = false;
 			p.current_vent_id = "";
+			broadcast_vent_sound(lobby, peer_id, exited_vent_id); // a tampa abrindo, ouvida por quem está perto
 			net_packet@ moved = net_packet(S_PLAYER_MOVED);
 			moved.set_uint64("peer_id", peer_id);
 			moved.set_float("x", p.x);

@@ -29,6 +29,10 @@ const uint RADAR_SAME_ROOM_ONLY = 1; // 1 = só jogadores da mesma sala/área (d
 // Com as luzes apagadas o radar enxerga bem menos: mesmo na mesma sala, só pega quem estiver a esta
 // distância. Sem isso, apagar a luz não mudava nada pra quem só apertava Tab.
 const float RADAR_LIGHTS_OUT_RANGE = 6.0;
+// Alcance do radar no modo "objetos" (Ctrl+Tab). O modo de jogadores é limitado pela sala; este
+// precisa de um raio próprio porque uma sala tem até 24 unidades de ponta a ponta, e listar um
+// objeto no canto oposto dava a impressão de que ele estava logo ali.
+const float RADAR_OBJECT_RANGE = 12.0;
 
 // Impostor
 const float KILL_COOLDOWN_SECONDS = 25.0;

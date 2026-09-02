@@ -7,6 +7,9 @@ sounds.dat
 *.zip
 *.exe
 
+# Caixa-preta do cliente (core/crash_log.nvgt): é o registro do que quebrou NAQUELA máquina.
+crash.log
+
 # Endereço de servidor alternativo (config/server_address.nvgt). É override de máquina - cada um
 # aponta pra onde precisa testar, e o jogo distribuído não leva arquivo nenhum desses.
 server.txt

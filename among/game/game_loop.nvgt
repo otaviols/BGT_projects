@@ -201,14 +201,9 @@ void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio
 		imp.vent_travel("");
 		current_vent_id = "";
 	} else if (selected_id != "") {
-		map_object@ dest = map.find_object(selected_id);
-		if (@dest != null) {
-			// Passo no destino: viajar pela rede de vents também é andar, e sem nenhum som a viagem
-			// não dava nenhuma pista de que tinha acontecido além da fala. O piso é o do DUTO
-			// (VentTile), não o da sala onde o vent desemboca - quem está viajando está lá dentro.
-			audio.play_footstep("VentTile", footstep_variant_count("VentTile"), dest.x, dest.y,
-				footstep_variant_extension("VentTile"));
-		}
+		// O passo da viagem NÃO é tocado aqui: neste instante o jogador ainda está no vent de origem,
+		// e o som sairia lá no destino, longe demais pra ser ouvido (as bocas ficam em cantos opostos
+		// do mapa). Quem toca é o S_VENT_STATE, depois que a posição do ouvinte muda - ver run_game.
 		imp.vent_travel(selected_id);
 		current_vent_id = selected_id;
 	}
@@ -310,6 +305,17 @@ void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 	ip.set("i_total", "" + pkt.get_int("impostors_total"));
 	m.add_item(tr("game.impostors_survived", ip), "imp");
 
+	// Quem eram os impostores. É o fechamento da partida: sem isso, quem passou a rodada inteira
+	// desconfiando da pessoa errada nunca fica sabendo que estava errado.
+	json_array@ impostors_json = pkt.get_array("impostors");
+	if (@impostors_json != null && impostors_json.length() > 0) {
+		string names = string(impostors_json[0]);
+		for (uint i = 1; i < impostors_json.length(); i++) names += ", " + string(impostors_json[i]);
+		dictionary@ names_params = dictionary();
+		names_params.set("names", names);
+		m.add_item(tr(impostors_json.length() == 1 ? "game.impostor_was" : "game.impostors_were", names_params), "impostor_names");
+	}
+
 	m.run();
 }
 
@@ -368,6 +374,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	if (@tasks_json != null) {
 		for (uint i = 0; i < tasks_json.length(); i++) {
 			json_object@ tj = tasks_json.get_object(i);
+			if (@tj == null) continue; // task malformada não pode derrubar a entrada na partida
 			player_task pt;
 			pt.object_id = string(tj["object_id"]);
 			pt.task_type = string(tj["task_type"]);
@@ -443,6 +450,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
 			string t = pkt.type;
+			// Um pacote que exploda no meio do tratamento não pode levar a partida junto: o erro é
+			// registrado com o TIPO do pacote (a informação que mais importa pra achar o culpado
+			// depois) e o jogo segue no pacote seguinte. Ver core/crash_log.nvgt.
+			try {
 			if (t == S_PLAYER_MOVED) {
 				uint64 moved_peer = pkt.get_uint64("peer_id");
 				float moved_x = pkt.get_float("x");
@@ -607,10 +618,22 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				if (is_vented) {
 					// Entrando de fora, ou viajando pra outro vent da rede - os dois casos chegam como
 					// "vented=true", o que muda é só a posição (já atualizada acima).
+					// O passo da viagem é tocado AQUI, depois que o ouvinte já foi movido: tocando antes,
+					// o som saía no destino enquanto os ouvidos ainda estavam na origem, e ficava mudo.
+					// O piso é o do DUTO, não o da sala onde o vent desemboca - quem viaja está lá dentro.
+					if (was_vented) {
+						audio.play_footstep("VentTile", footstep_variant_count("VentTile"), my_x, my_y,
+							footstep_variant_extension("VentTile"));
+					}
 					speak(tr(was_vented ? "game.vent_traveled" : "game.vent_entered"));
 				} else {
 					speak(tr("game.vent_exited"));
 				}
+			} else if (t == S_VENT_SOUND) {
+				// Alguém entrou ou saiu de um vent perto de você. Não diz QUEM - o som posicionado da
+				// tampa é a informação, e é ela que dá ao vent o preço que ele não tem em recarga.
+				map_object@ used_vent = map.find_object(pkt.get_string("vent_id"));
+				if (@used_vent != null) audio.play_object_interact(used_vent);
 			} else if (t == S_DOORS_STATE) {
 				// O servidor é quem manda: aqui as portas fecham e abrem SÓ por pacote (sem relógio
 				// local), então cliente e servidor nunca discordam sobre uma porta estar aberta.
@@ -653,6 +676,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				dictionary@ ping_params = dictionary();
 				ping_params.set("ms", "" + int(ping_clock.elapsed));
 				speak(tr("game.ping_result", ping_params));
+			}
+			}
+			catch {
+				log_crash("pacote " + t);
 			}
 			@pkt = client.poll_message();
 		}
@@ -785,8 +812,8 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			// imune à própria sabotagem e continua com o radar inteiro (ver on_radar_scan no servidor).
 			if (active_sabotage_id == "comms" && !is_impostor) speak(tr("sabotage.comms.radar_down"));
 			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
-			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, active_sabotage_id);
-			else radar.scan_next(map, my_x, my_y, active_sabotage_id);
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
+			else radar.scan_next(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
 		}
 
 		// Fantasma (morto ou expulso) entra aqui junto com os vivos porque ele PRECISA conseguir

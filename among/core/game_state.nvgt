@@ -83,13 +83,19 @@ class game_state {
 		return result;
 	}
 
+	// Um jogador conta pra vitória por tasks? Impostor não tem task, e quem caiu da partida não vai
+	// terminar as dele nunca - deixar os dois de fora é o que faz a conta fechar.
+	bool counts_for_task_win(game_player@ p) const {
+		return !p.is_impostor && !p.left_match;
+	}
+
 	// Progresso de tasks da EQUIPE (todos os tripulantes, vivos e fantasmas - fantasma continua
 	// fazendo task, ver network/server.on_task_input). É o mesmo número que decide a vitória por
-	// tasks lá embaixo no tick.
+	// tasks lá embaixo no tick, e por isso usa exatamente o mesmo critério de quem entra na conta.
 	uint crew_task_total() const {
 		uint total = 0;
 		for (uint i = 0; i < players.length(); i++) {
-			if (!players[i].is_impostor) total += players[i].task_count();
+			if (counts_for_task_win(players[i])) total += players[i].task_count();
 		}
 		return total;
 	}
@@ -97,7 +103,7 @@ class game_state {
 	uint crew_task_completed() const {
 		uint done = 0;
 		for (uint i = 0; i < players.length(); i++) {
-			if (!players[i].is_impostor) done += players[i].completed_task_count();
+			if (counts_for_task_win(players[i])) done += players[i].completed_task_count();
 		}
 		return done;
 	}
@@ -709,6 +715,56 @@ class game_state {
 		}
 	}
 
+	// Devolve a lobby ao estado de sala de espera assim que a partida termina.
+	//
+	// Sem isto a lobby ficava presa em "ended" pra sempre, com efeitos que só apareciam DEPOIS: quem
+	// tinha morrido continuava marcado como morto e o servidor recusava as mensagens de chat dele na
+	// sala de espera (morto não fala), e a lobby sumia do navegador de partidas, que só lista as que
+	// estão em "waiting" - ou seja, ninguém de fora conseguia mais entrar naquela sala.
+	void reset_after_match() {
+		state = "waiting";
+		winner = "";
+		win_reason = "";
+		elapsed_time = 0.0;
+
+		bodies.resize(0);
+		votes.resize(0);
+		active_sabotage = "";
+		last_sabotage_id = "";
+		sabotage_timer = 0.0;
+		sabotage_cooldown_remaining = 0.0;
+		sabotage_fixed_panels.resize(0);
+		meeting_cooldown_remaining = 0.0;
+		doors_cooldown_remaining = 0.0;
+		meeting_unvented_peers.resize(0);
+		meeting_doors_opened.resize(0);
+		map.open_all_doors();
+
+		// Quem caiu durante a partida só ficou no elenco pra não bagunçar a contagem de vivos. Com a
+		// partida encerrada, ele sai de vez - senão apareceria como um jogador presente na sala de
+		// espera, e contaria pro mínimo de jogadores da próxima partida.
+		for (int i = int(players.length()) - 1; i >= 0; i--) {
+			if (players[i].left_match) players.remove_at(i);
+		}
+
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			p.alive = true;
+			p.is_impostor = false;
+			p.vented = false;
+			p.current_vent_id = "";
+			p.tasks.resize(0);
+			p.kill_cooldown_remaining = 0.0;
+			p.meetings_called = 0;
+			p.radar_index = -1;
+			p.last_move_time = 0.0;
+			p.bot_has_target = false;
+			p.bot_path.resize(0);
+			p.bot_action_timer = 0.0;
+			p.bot_voted = false;
+		}
+	}
+
 	// --- Tick: avança timers, retorna eventos que o servidor precisa transmitir. ---
 	array<net_packet@>@ tick(float delta_seconds) {
 		array<net_packet@> events;
@@ -771,7 +827,7 @@ class game_state {
 			else {
 				bool all_done = true;
 				for (uint i = 0; i < players.length(); i++) {
-					if (players[i].is_impostor) continue;
+					if (!counts_for_task_win(players[i])) continue;
 					if (!players[i].all_tasks_completed()) { all_done = false; break; }
 				}
 				if (all_done && players.length() > 0) { winner = "crewmates"; win_reason = "tasks_completed"; }
@@ -793,7 +849,16 @@ class game_state {
 			go.set_int("crewmates_total", int(crewmates_total));
 			go.set_int("impostors_alive", int(alive_impostor_count()));
 			go.set_int("impostors_total", int(impostors_total));
+			// Quem era impostor, agora que a partida acabou: é o fechamento da história pra todo mundo
+			// que passou a partida inteira desconfiando da pessoa errada.
+			json_array@ impostor_names = json_array();
+			for (uint i = 0; i < players.length(); i++) {
+				if (players[i].is_impostor) impostor_names.add(players[i].username);
+			}
+			go.set_array("impostors", impostor_names);
 			events.insert_last(go);
+
+			reset_after_match();
 		}
 
 		return events;

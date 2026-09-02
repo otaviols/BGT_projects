@@ -11,7 +11,11 @@ class spatial_audio {
 	float listener_x = 0.0;
 	float listener_y = 0.0;
 
-	spatial_audio(int max_sounds = 64) {
+	// 192 slots, não 64: uma partida cheia tem ambiente de 8 salas + 9 corredores + beacons de todo
+	// marco do mapa + alarme + corpos, e ainda um passo AVULSO por jogador a cada 0.35s, cada um
+	// ocupando um slot até terminar. Com o pool lotado, play_2d devolve -1 e o som simplesmente não
+	// toca - num jogo de áudio isso é o jogador ficando cego, e era silencioso pra quem programa.
+	spatial_audio(int max_sounds = 192) {
 		@pool = sound_pool(max_sounds);
 		// O pool baixa o pitch do que está "atrás" do ouvinte (o eixo negativo dele). Como aqui não
 		// existe direção de personagem - anda-se em coordenadas absolutas, W sempre é norte - a gente

@@ -37,22 +37,23 @@ class radar_ui {
 		speak(tr(mode == RADAR_MODE_PLAYERS ? "radar.mode_players" : "radar.mode_objects"));
 	}
 
-	void scan_next(game_map@ map, float x, float y, const string&in active_sabotage_id) {
-		scan(1, map, x, y, active_sabotage_id);
+	void scan_next(game_map@ map, float x, float y, array<string>@ my_task_object_ids, const string&in active_sabotage_id) {
+		scan(1, map, x, y, my_task_object_ids, active_sabotage_id);
 	}
 
-	void scan_previous(game_map@ map, float x, float y, const string&in active_sabotage_id) {
-		scan(-1, map, x, y, active_sabotage_id);
+	void scan_previous(game_map@ map, float x, float y, array<string>@ my_task_object_ids, const string&in active_sabotage_id) {
+		scan(-1, map, x, y, my_task_object_ids, active_sabotage_id);
 	}
 
-	private void scan(int direction, game_map@ map, float x, float y, const string&in active_sabotage_id) {
+	private void scan(int direction, game_map@ map, float x, float y, array<string>@ my_task_object_ids,
+			const string&in active_sabotage_id) {
 		if (mode == RADAR_MODE_PLAYERS) {
 			client.send_radar_scan(direction);
 			return;
 		}
 
 		string room_id = map.room_id_at(x, y);
-		array<map_object@>@ objects = interactables_in_room(map, room_id, active_sabotage_id);
+		array<map_object@>@ objects = interactables_in_room(map, room_id, x, y, my_task_object_ids, active_sabotage_id);
 		if (objects.length() == 0) {
 			speak(tr("radar.no_objects_here"));
 			return;

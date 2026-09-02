@@ -290,19 +290,29 @@ string object_name(map_object@ o) {
 	return tr(o.name_key);
 }
 
-// Objetos com os quais dá pra fazer alguma coisa (tudo menos a decoração, que é só som ambiente).
-// É o que o radar no modo "objetos" lista pra você conhecer a sala.
-// Os painéis de reparo entram sempre, mesmo sem sabotagem rolando: saber onde ficam É o objetivo
-// deste radar. O botão de emergência é a exceção - com as luzes apagadas ele não funciona, então
-// também não é listado (ver emergency_button_block_reason em core/game_state.nvgt).
-array<map_object@>@ interactables_in_room(game_map@ map, const string&in room_id,
-		const string&in active_sabotage_id = "") {
+// O que o radar no modo "objetos" enxerga a partir de (x, y): o que existe na sala, dentro do
+// alcance do radar, e que faça sentido pra ESTE jogador.
+//
+// Task só entra se for SUA e ainda estiver pendente. Antes o radar listava as tasks de todo mundo,
+// o que é ruído puro - você não pode fazer a task dos outros - e ainda entregava o mapa de tarefas
+// alheio. Painéis, vents e botão continuam entrando pra qualquer um: são pontos de referência da
+// nave, não segredo de ninguém.
+//
+// O botão de emergência é a exceção: com as luzes apagadas ele não funciona, então some do radar
+// também (ver emergency_button_block_reason em core/game_state.nvgt).
+array<map_object@>@ interactables_in_room(game_map@ map, const string&in room_id, float from_x, float from_y,
+		array<string>@ my_task_object_ids, const string&in active_sabotage_id = "") {
 	array<map_object@> result;
 	array<map_object@>@ all = map.objects_in_room(room_id);
 	for (uint i = 0; i < all.length(); i++) {
-		if (all[i].obj_type == OBJ_DECORATION) continue;
-		if (all[i].obj_type == OBJ_EMERGENCY_BUTTON && active_sabotage_id == "lights") continue;
-		result.insert_last(all[i]);
+		map_object@ o = all[i];
+		if (o.obj_type == OBJ_DECORATION) continue;
+		if (o.obj_type == OBJ_EMERGENCY_BUTTON && active_sabotage_id == "lights") continue;
+		if (o.obj_type == OBJ_TASK_SPOT) {
+			if (@my_task_object_ids == null || my_task_object_ids.find(o.id) == -1) continue;
+		}
+		if (distance_2d(from_x, from_y, o.x, o.y) > RADAR_OBJECT_RANGE) continue;
+		result.insert_last(o);
 	}
 	return result;
 }

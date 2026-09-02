@@ -59,4 +59,5 @@ const string S_ERROR = "s_error";                          // {message}
 const string S_PONG = "s_pong";                             // {} - resposta a C_PING, cliente mede o round-trip
 const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, text}
 const string S_VENT_STATE = "s_vent_state";                 // {vented, x, y} - resposta privada (só pra quem usou o vent)
+const string S_VENT_SOUND = "s_vent_sound";                 // {vent_id} - tampa do vent abrindo, ouvida por QUEM ESTÁ PERTO (não vai pra quem usou)
 const string S_DOORS_STATE = "s_doors_state";               // {closed, zones: [ids de corredor]} - portas fechando ou abrindo
