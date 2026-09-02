@@ -331,6 +331,11 @@ game_map@ build_the_hub_map() {
 	m.zones.insert_last(map_zone("storage", "room.storage", 0, -50, 10, 8, "MetalBeltTile"));
 	m.zones.insert_last(map_zone("electrical", "room.electrical", -30, -50, 8, 8, "MetalTile"));
 	m.zones.insert_last(map_zone("reactor", "room.reactor", -30, -75, 8, 8, "MetalTile"));
+	// Ala sul: as três salas novas. Elas fecham um circuito (cafeteria -> jogos -> estufa ->
+	// navegação -> cafeteria) em vez de serem becos sem saída - dá rota de fuga e de perseguição.
+	m.zones.insert_last(map_zone("games", "room.games", 0, 25, 10, 8, "Tile"));
+	m.zones.insert_last(map_zone("greenhouse", "room.greenhouse", 35, 25, 8, 8, "EarthTile"));
+	m.zones.insert_last(map_zone("security", "room.security", 25, -25, 8, 8, "MetalTile"));
 
 	// Corredores (ligam as salas acima). Cada um tem NOME PRÓPRIO: o jogo anuncia o nome da zona toda
 	// vez que se entra nela, na tecla C, e no aviso de corpo encontrado - com todos chamados
@@ -349,6 +354,12 @@ game_map@ build_the_hub_map() {
 	// Único corredor com piso de terra, o que já dá identidade própria a ele de ouvido.
 	m.zones.insert_last(map_zone("corridor_storage_electrical", "corridor.cargo", -16, -50, 6, 3, "EarthTile", true));
 	m.zones.insert_last(map_zone("corridor_electrical_reactor", "corridor.reactor", -30, -62.5, 3, 4.5, "MetalTile", true));
+	// Corredores da ala sul. O id segue a convenção "corridor_<sala_a>_<sala_b>", que é de onde a IA
+	// dos bots tira o grafo de navegação (ver zone_neighbors) - fugir dela deixaria os bots parados.
+	m.zones.insert_last(map_zone("corridor_cafeteria_games", "corridor.games", 0, 12.5, 3, 4.5, "Tile", true));
+	m.zones.insert_last(map_zone("corridor_navigation_greenhouse", "corridor.greenhouse", 35, 12.5, 3, 4.5, "MetalTile", true));
+	m.zones.insert_last(map_zone("corridor_games_greenhouse", "corridor.south", 18.5, 25, 8.5, 3, "EarthTile", true));
+	m.zones.insert_last(map_zone("corridor_admin_security", "corridor.security", 12.5, -25, 4.5, 3, "Tile", true));
 
 	// Vents: uma rede só, com as três bocas totalmente conectadas entre si (não é uma corrente de um
 	// sentido só). Só o impostor usa. linked_object_id guarda TODOS os vents conectados, separados
@@ -406,6 +417,25 @@ game_map@ build_the_hub_map() {
 	m.objects.insert_last(map_object("task_asteroids_navigation", "task.clear_asteroids.name", 32, 3, "navigation",
 		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "clear_asteroids", "", SND_TASK_BEACON_CLEAR_ASTEROIDS));
 
+	// Ala sul. Cada sala nova ganha a task própria dela E uma task comum: uma sala com um só motivo
+	// pra existir vira sala que ninguém visita, e sala que ninguém visita não serve de esconderijo
+	// nem de álibi.
+	m.objects.insert_last(map_object("task_dice_games", "task.roll_dice.name", -4, 27, "games",
+		OBJ_TASK_SPOT, "sounds/" + SND_DICE, "roll_dice", "", SND_TASK_BEACON_ROLL_DICE));
+	m.objects.insert_last(map_object("task_download_games", "task.download_data.name", 5, 22, "games",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
+	m.objects.insert_last(map_object("task_plants_greenhouse", "task.water_plants.name", 33, 27, "greenhouse",
+		OBJ_TASK_SPOT, "sounds/" + SND_WATER_FLOW, "water_plants", "", SND_TASK_BEACON_WATER_PLANTS));
+	m.objects.insert_last(map_object("task_garbage_greenhouse", "task.empty_garbage.name", 38, 22, "greenhouse",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP_COMPLETE, "empty_garbage", "", SND_TASK_BEACON_EMPTY_GARBAGE));
+	m.objects.insert_last(map_object("task_records_security", "task.review_records.name", 23, -27, "security",
+		OBJ_TASK_SPOT, "sounds/" + SND_VIDEO_OPENING, "review_records", "", SND_TASK_BEACON_REVIEW_RECORDS));
+	// Segurança leva fiação, não cartão: passar cartão é TASK COMUM (ver COMMON_TASK_TYPES em
+	// config/game_constants.nvgt) e task comum existe num lugar só do mapa. Se houvesse dois leitores
+	// de cartão, "eu fiz o cartão" deixaria de ser uma afirmação verificável na reunião.
+	m.objects.insert_last(map_object("task_wiring_security", "task.fix_wiring.name", 28, -22, "security",
+		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
+
 	// Sabotagens
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -27, -53, "electrical",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights", "", SND_PANEL_BEACON_LIGHTS));
@@ -439,6 +469,12 @@ game_map@ build_the_hub_map() {
 		OBJ_DECORATION, SND_AMBIENT_ELECTRICAL));
 	m.objects.insert_last(map_object("ambient_reactor", "room.reactor", -30, -75, "reactor",
 		OBJ_DECORATION, SND_AMBIENT_REACTOR));
+	m.objects.insert_last(map_object("ambient_games", "room.games", 0, 25, "games",
+		OBJ_DECORATION, SND_AMBIENT_GAMES));
+	m.objects.insert_last(map_object("ambient_greenhouse", "room.greenhouse", 35, 25, "greenhouse",
+		OBJ_DECORATION, SND_AMBIENT_GREENHOUSE));
+	m.objects.insert_last(map_object("ambient_security", "room.security", 25, -25, "security",
+		OBJ_DECORATION, SND_AMBIENT_SECURITY));
 
 	// Som de passagem: toca nos corredores (mesmo mecanismo de ambiente por sala acima), pra dar uma
 	// pista sonora de "você está numa passagem entre salas". Um arquivo só, compartilhado por todos.
@@ -460,6 +496,14 @@ game_map@ build_the_hub_map() {
 		"corridor_storage_electrical", OBJ_DECORATION, SND_PASSAGE));
 	m.objects.insert_last(map_object("passage_electrical_reactor", "corridor", -30, -62.5,
 		"corridor_electrical_reactor", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_cafeteria_games", "corridor", 0, 12.5,
+		"corridor_cafeteria_games", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_navigation_greenhouse", "corridor", 35, 12.5,
+		"corridor_navigation_greenhouse", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_games_greenhouse", "corridor", 18.5, 25,
+		"corridor_games_greenhouse", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_admin_security", "corridor", 12.5, -25,
+		"corridor_admin_security", OBJ_DECORATION, SND_PASSAGE));
 
 	return m;
 }

@@ -44,6 +44,9 @@ const string SND_AMBIENT_MEDBAY = "sounds/ambient_medbay.wav";
 const string SND_AMBIENT_STORAGE = "sounds/ambient_storage.wav";
 const string SND_AMBIENT_ELECTRICAL = "sounds/ambient_electrical.wav";
 const string SND_AMBIENT_REACTOR = "sounds/ambient_reactor.wav";
+const string SND_AMBIENT_GAMES = "sounds/ambient_games.ogg";
+const string SND_AMBIENT_GREENHOUSE = "sounds/ambient_greenhouse.ogg";
+const string SND_AMBIENT_SECURITY = "sounds/ambient_security.ogg";
 
 // --- Objetos do mapa (som de UMA VEZ ao usar - abrir painel, entrar/sair do vent) ---
 const string SND_VENT_DOOR_1 = "sounds/ventDoor1.wav";
@@ -75,6 +78,9 @@ const string SND_TASK_BEACON_SWIPE_CARD = "sounds/swipe_card_pannel.ogg";
 const string SND_TASK_BEACON_UNLOCK_MANIFOLDS = "sounds/unlock_collectors_pannel.ogg";
 const string SND_TASK_BEACON_FUEL_ENGINES = "sounds/fuel_pannel.ogg";
 const string SND_TASK_BEACON_CLEAR_ASTEROIDS = "sounds/asteroid_pannel.ogg";
+const string SND_TASK_BEACON_ROLL_DICE = "sounds/games_pannel.ogg";
+const string SND_TASK_BEACON_WATER_PLANTS = "sounds/plants_pannel.ogg";
+const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/records_pannel.wav";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 const string SND_BEEP = "beep.wav";
@@ -84,6 +90,19 @@ const string SND_CARD_COMPLETE = "CardComplet.wav";
 const string SND_GET_CARD = "GetCard.wav";
 const string SND_PULLING_GARBAGE_LEVER = "pulling_garbage_lever.wav"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
 const string SND_GUN_FIRE = "gun_fire.ogg"; // cada tiro na task de limpar asteroides
+const string SND_DICE = "dice.wav";                       // dado rolando na sala de jogos
+const string SND_WATER_FLOW = "waterflow.ogg";            // loop: água correndo enquanto se rega uma muda
+const string SND_FILLING = "filling.wav";                 // começou a regar este canteiro
+const string SND_FILLING_COMPLETE = "filling_complet.wav"; // o canteiro encheu: é a hora de soltar
+
+// Goles de água: marcam cada etapa do canteiro enchendo. São variantes justamente pra não virar um
+// bipe repetido - mesma ideia dos passos por piso.
+const uint LIQUID_VARIANT_COUNT = 4;
+string liquid_sound(int variant_1_based) {
+	return "liquid" + variant_1_based + ".wav";
+}
+const string SND_VIDEO_OPENING = "opening_video_image.ogg"; // abre a gravação na sala de segurança
+const string SND_TAPE_REWIND = "rewinding_tape.mp3";      // rebobina a fita antes de tocar o trecho
 
 // fix_wiring usa 3 variantes numeradas - ver electrical_string_sound() abaixo.
 const uint ELECTRICAL_STRING_VARIANT_COUNT = 3;
@@ -137,6 +156,19 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_TASK_BEACON_UNLOCK_MANIFOLDS);
 	list.insert_last(SND_TASK_BEACON_FUEL_ENGINES);
 	list.insert_last(SND_TASK_BEACON_CLEAR_ASTEROIDS);
+	list.insert_last(SND_TASK_BEACON_ROLL_DICE);
+	list.insert_last(SND_TASK_BEACON_WATER_PLANTS);
+	list.insert_last(SND_TASK_BEACON_REVIEW_RECORDS);
+	list.insert_last(SND_AMBIENT_GAMES);
+	list.insert_last(SND_AMBIENT_GREENHOUSE);
+	list.insert_last(SND_AMBIENT_SECURITY);
+	list.insert_last("sounds/" + SND_DICE);
+	list.insert_last("sounds/" + SND_WATER_FLOW);
+	list.insert_last("sounds/" + SND_FILLING);
+	list.insert_last("sounds/" + SND_FILLING_COMPLETE);
+	list.insert_last("sounds/" + SND_VIDEO_OPENING);
+	list.insert_last("sounds/" + SND_TAPE_REWIND);
+	for (int i = 1; i <= int(LIQUID_VARIANT_COUNT); i++) list.insert_last("sounds/" + liquid_sound(i));
 	list.insert_last(SND_AMBIENT_CAFETERIA);
 	list.insert_last(SND_AMBIENT_WEAPONS);
 	list.insert_last(SND_AMBIENT_NAVIGATION);

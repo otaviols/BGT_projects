@@ -12,13 +12,11 @@ onde está cada pessoa, cada objeto e cada corpo só pelo som.
 COMO COMEÇAR
 ------------
 
-1. Alguém precisa hospedar o servidor: execute o servidor (server_main) em um
-   computador. Ele fica escutando na porta 8934.
-2. Abra o jogo. No menu inicial escolha "Conectar" e digite o endereço do
-   servidor (localhost se ele estiver rodando no seu próprio computador).
-3. Crie uma conta (usuário e senha) ou entre com uma que já tenha.
-4. Escolha uma partida na lista, ou crie a sua.
-5. Na sala de espera, o anfitrião aperta Enter para começar. São necessários pelo
+1. Abra o jogo e escolha "Conectar" no menu inicial. Ele já sabe o endereço do
+   servidor; não há nada para digitar.
+2. Crie uma conta (usuário e senha) ou entre com uma que já tenha.
+3. Escolha uma partida na lista, ou crie a sua.
+4. Na sala de espera, o anfitrião aperta Enter para começar. São necessários pelo
    menos 3 jogadores; o máximo é 10.
 
 ANTES DE JOGAR: no menu inicial existe a opção "Aprender os sons do jogo". Ela
@@ -34,8 +32,9 @@ COMO O SOM FUNCIONA
   Som agudo = ao norte, som grave = ao sul.
 - Quanto mais perto, mais alto.
 - Cada tipo de piso tem um som de passo diferente (a cafeteria é de madeira, o
-  armazém é de esteira metálica, e assim por diante). Dá pra saber em que sala
-  você está só pelo som dos seus próprios passos.
+  armazém é de esteira metálica, a estufa é de terra, e assim por diante). Dá pra
+  saber em que sala você está só pelo som dos seus próprios passos - e o menu
+  "Aprender os sons do jogo" tem todos eles separados, vale conhecer antes.
 - Cada tipo de objeto tem o seu marcador: um som contínuo no lugar dele, que fica
   mais alto conforme você se aproxima. É assim que se acha as coisas.
 - Um corpo caído emite um som contínuo até alguém reportar.
@@ -109,7 +108,7 @@ Cada tripulante recebe algumas tarefas (5 no preset Clássico). Quando TODAS as
 tarefas de TODOS os tripulantes estiverem prontas, a tripulação vence. Aperte T a
 qualquer momento para ouvir o seu progresso e o do time.
 
-As oito tarefas:
+As onze tarefas:
 
 - Conectar fiação: ligue os pares de fios com o mesmo tom.
 - Baixar dados: segure Espaço até terminar.
@@ -117,12 +116,24 @@ As oito tarefas:
 - Alinhar motor: use as setas para trazer o som até o centro e Enter para travar.
 - Passar cartão: aperte Enter entre os dois bipes, no ritmo certo.
 - Destravar coletores: ouça a sequência de tons e repita nas teclas 1 a 4.
-- Abastecer motores: segure Espaço até o som chegar no tom que foi tocado antes.
-  Passar do ponto transborda.
+- Abastecer motores: segure Espaço; um bipe grave marca o tanque enchendo. Quando
+  o bipe mudar, solte. Segurar demais transborda.
 - Limpar asteroides: atire com a seta do lado de onde vier cada asteroide.
+- Rolar o dado (sala de jogos): o painel pede um número e você rola até tirar
+  ele. O dado soa mais agudo quanto maior o resultado.
+- Regar as mudas (estufa): três canteiros, um à esquerda, um à frente e um à
+  direita. Segure Espaço e solte quando ouvir que o canteiro encheu.
+- Revisar as gravações (segurança): ouça o trecho gravado do corredor e conte
+  quantas pessoas passaram. Cada uma atravessa por um lado, com o piso e o ritmo
+  dela. Responda nas teclas 1 a 4.
 
 ESC cancela qualquer tarefa; ela continua pendente e você pode voltar depois. Se
 uma reunião começar no meio de uma tarefa, ela fecha sozinha e nada se perde.
+
+TAREFAS COMUNS: passar cartão é uma tarefa comum. Ou TODOS os tripulantes a
+recebem naquela partida, ou NENHUM recebe - nunca só alguns, e ela existe num
+lugar só da nave. Guarde isso: se alguém disser que estava passando o cartão numa
+partida em que o cartão não saiu na sua lista, essa pessoa está mentindo.
 
 MORREU? CONTINUE FAZENDO AS SUAS TAREFAS. Fantasmas continuam contando para a
 vitória da tripulação, atravessam portas trancadas, e são a melhor arma do time

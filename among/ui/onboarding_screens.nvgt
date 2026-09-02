@@ -40,9 +40,13 @@ bool run_main_menu() {
 void run_learn_sounds_screen() {
 	name_value_collection sfx;
 
-	sfx.add(tr("learn.footstep_tile"), "sounds/Tile{1...2}.wav");
+	// Um piso por som: reconhecer o chão é como se sabe em que sala se está sem perguntar nada.
+	sfx.add(tr("learn.footstep_tile"), "sounds/Tile{1...6}.wav");
 	sfx.add(tr("learn.footstep_metal"), "sounds/MetalTile{1...3}.wav");
 	sfx.add(tr("learn.footstep_earth"), "sounds/EarthTile{1...5}.ogg");
+	sfx.add(tr("learn.footstep_wood"), "sounds/WoodTile{1...6}.wav");
+	sfx.add(tr("learn.footstep_belt"), "sounds/MetalBeltTile{1...6}.wav");
+	sfx.add(tr("learn.footstep_vent"), "sounds/VentTile{1...4}.wav");
 
 	sfx.add(tr("learn.ambient_prefix") + tr("room.cafeteria"), SND_AMBIENT_CAFETERIA);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.weapons"), SND_AMBIENT_WEAPONS);
@@ -52,6 +56,9 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.ambient_prefix") + tr("room.storage"), SND_AMBIENT_STORAGE);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.electrical"), SND_AMBIENT_ELECTRICAL);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.reactor"), SND_AMBIENT_REACTOR);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.games"), SND_AMBIENT_GAMES);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.greenhouse"), SND_AMBIENT_GREENHOUSE);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.security"), SND_AMBIENT_SECURITY);
 	sfx.add(tr("learn.passage"), SND_PASSAGE);
 
 	sfx.add(tr("learn.button_beacon"), SND_BUTTON_BEACON);
@@ -67,6 +74,9 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.unlock_manifolds.name"), SND_TASK_BEACON_UNLOCK_MANIFOLDS);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.fuel_engines.name"), SND_TASK_BEACON_FUEL_ENGINES);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.clear_asteroids.name"), SND_TASK_BEACON_CLEAR_ASTEROIDS);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.roll_dice.name"), SND_TASK_BEACON_ROLL_DICE);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.water_plants.name"), SND_TASK_BEACON_WATER_PLANTS);
+	sfx.add(tr("learn.task_beacon_prefix") + tr("task.review_records.name"), SND_TASK_BEACON_REVIEW_RECORDS);
 
 	sfx.add(tr("learn.sabotage_alarm"), SND_SABOTAGE_ALARM);
 	sfx.add(tr("learn.body_on_floor"), SND_BODY_ON_FLOOR);

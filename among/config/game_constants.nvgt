@@ -95,6 +95,21 @@ const float DOORS_COOLDOWN_SECONDS = 25.0;
 // Tasks
 const uint DEFAULT_TASK_COUNT_PER_CREWMATE = 5;
 
+// TASKS COMUNS: ou TODO tripulante recebe, ou NENHUM recebe - nunca só alguns.
+//
+// Essa regra é o que transforma a task num instrumento de dedução. Se o cartão está na partida, todo
+// mundo tem que fazê-lo; se não está, ninguém tem. Então "eu estava passando o cartão" é uma frase
+// que a mesa inteira consegue verificar: ou combina com o que todos viram na própria lista, ou é
+// mentira de impostor. Sem essa garantia, dar a task a uns e não a outros deixaria a desculpa
+// impossível de checar, que é o pior dos dois mundos.
+//
+// Por isso também: uma task comum tem UM ponto só no mapa inteiro (ver game/map.nvgt), senão "fui no
+// outro" viraria escapatória.
+const array<string> COMMON_TASK_TYPES = {"swipe_card"};
+// Chance de CADA task comum entrar na partida. Não é 100% de propósito: a graça está justamente em
+// não saber de antemão, senão a desculpa nunca seria testável.
+const float COMMON_TASK_CHANCE = 0.5;
+
 // Body
 const float BODY_SOUND_INTERVAL_SECONDS = 2.5;
 

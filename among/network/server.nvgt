@@ -446,7 +446,26 @@ class game_server {
 		array<int>@ color_ids = all_color_ids();
 		shuffle_int_array(color_ids);
 
-		array<map_object@>@ task_spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		// Tasks comuns desta partida: sorteadas UMA vez, aqui, e entregues iguais a todo tripulante
+		// (ver COMMON_TASK_TYPES). O resto do sorteio, mais abaixo, é individual e usa só as tasks
+		// não-comuns - senão uma task comum poderia sair duas vezes pra mesma pessoa.
+		array<map_object@> common_spots;
+		array<map_object@> personal_spots;
+		array<map_object@>@ all_spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		array<string> chosen_common_types;
+		for (uint i = 0; i < COMMON_TASK_TYPES.length(); i++) {
+			if (random_range(0.0, 1.0) <= COMMON_TASK_CHANCE) chosen_common_types.insert_last(COMMON_TASK_TYPES[i]);
+		}
+		for (uint i = 0; i < all_spots.length(); i++) {
+			map_object@ spot = all_spots[i];
+			bool is_common_type = COMMON_TASK_TYPES.find(spot.task_type) != -1;
+			if (!is_common_type) {
+				personal_spots.insert_last(spot);
+				continue;
+			}
+			// Task comum que não foi sorteada nesta partida não existe pra ninguém.
+			if (chosen_common_types.find(spot.task_type) != -1) common_spots.insert_last(spot);
+		}
 
 		for (uint i = 0; i < shuffled.length(); i++) {
 			game_player@ p = shuffled[i];
@@ -465,9 +484,18 @@ class game_server {
 			p.y = float(random(-30, 30)) / 10.0;
 
 			if (!p.is_impostor) {
-				array<map_object@> pool = task_spots;
+				// Primeiro as comuns, IGUAIS pra todo mundo (mesmo ponto do mapa, inclusive).
+				for (uint c = 0; c < common_spots.length(); c++) {
+					player_task pt;
+					pt.object_id = common_spots[c].id;
+					pt.task_type = common_spots[c].task_type;
+					p.tasks.insert_last(pt);
+				}
+				// Depois as individuais, completando até o total configurado.
+				array<map_object@> pool = personal_spots;
 				shuffle_object_array(pool);
 				uint count = lobby.config.task_count_per_crewmate;
+				count = count > p.tasks.length() ? count - p.tasks.length() : 0;
 				if (count > pool.length()) count = pool.length();
 				for (uint t = 0; t < count; t++) {
 					player_task pt;

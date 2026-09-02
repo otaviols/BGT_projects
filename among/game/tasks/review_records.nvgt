@@ -1,0 +1,78 @@
+// review_records.nvgt
+// Task da sala de segurança: rever a gravação do corredor e dizer QUANTAS pessoas passaram por ali.
+// A gravação é feita dos mesmos sons de passo do mapa - cada pessoa atravessa de um lado, com o seu
+// piso e o seu ritmo, e as pessoas são separadas por silêncio. Você responde nas teclas 1 a 4.
+//
+// É a única task do jogo que não é reflexo nem memória de sequência: é contar coisas que se
+// sobrepõem no tempo. E ela treina exatamente a habilidade que salva a sua vida no resto da partida,
+// que é reconhecer passos alheios.
+
+#include "task_common.nvgt"
+
+// Pisos usados na gravação. São os mesmos arquivos que o jogador ouve andando pela nave, de
+// propósito: o ouvido já foi treinado neles.
+const array<string> RECORD_FLOORS = {"Tile", "MetalTile", "WoodTile", "MetalBeltTile"};
+const array<int> RECORD_FLOOR_VARIANTS = {6, 3, 6, 6};
+
+bool run_review_records_task(game_client@ client) {
+	const uint MIN_PEOPLE = 1;
+	const uint MAX_PEOPLE = 4;
+	const uint STEPS_PER_PERSON_MIN = 3;
+	const uint STEPS_PER_PERSON_MAX = 5;
+
+	speak(tr("task.review_records.instructions"));
+
+	task_sound(SND_VIDEO_OPENING);
+	wait(600);
+	task_sound(SND_TAPE_REWIND);
+	wait(1200);
+
+	uint people = uint(random(int(MIN_PEOPLE), int(MAX_PEOPLE)));
+
+	// Cada pessoa: um piso e um lado próprios, passos num ritmo próprio. Pisos e lados diferentes são
+	// o que permite separar duas pessoas seguidas - sem isso viraria uma fila de passos iguais.
+	for (uint person = 0; person < people; person++) {
+		uint floor_index = uint(random(0, int(RECORD_FLOORS.length()) - 1));
+		string floor = RECORD_FLOORS[floor_index];
+		int variants = RECORD_FLOOR_VARIANTS[floor_index];
+		float pan = float(random(-100, 100));
+		uint steps = uint(random(int(STEPS_PER_PERSON_MIN), int(STEPS_PER_PERSON_MAX)));
+		int step_interval = random(280, 420); // o passo de cada pessoa tem o ritmo dela
+
+		for (uint step = 0; step < steps; step++) {
+			task_sound(floor + (random(1, variants)) + ".wav", pan);
+			wait(step_interval);
+			client.update();
+			if (task_cancel_requested(client)) return false;
+		}
+		wait(random(700, 1100)); // silêncio entre uma pessoa e a próxima
+	}
+
+	speak(tr("task.review_records.how_many"));
+
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_cancel_requested(client)) return false;
+
+		int answer = 0;
+		if (key_pressed(KEY_1)) answer = 1;
+		else if (key_pressed(KEY_2)) answer = 2;
+		else if (key_pressed(KEY_3)) answer = 3;
+		else if (key_pressed(KEY_4)) answer = 4;
+		if (answer == 0) continue;
+
+		if (uint(answer) != people) {
+			task_sound(SND_CARD_ERROR);
+			dictionary@ p = dictionary();
+			p.set("count", "" + people);
+			speak(tr("task.review_records.wrong", p));
+			return false;
+		}
+
+		task_sound(SND_BEEP_COMPLETE);
+		speak(tr("task.completed"));
+		return true;
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}

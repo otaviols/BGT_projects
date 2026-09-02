@@ -1,0 +1,47 @@
+// roll_dice.nvgt
+// Task da sala de jogos: o painel sorteia um número e você rola o dado até tirar exatamente ele.
+// Não tem habilidade envolvida de propósito - é a task "de descanso" do jogo, a que você faz
+// enquanto conversa. O que ela custa é TEMPO parado num lugar só, que é justamente o que interessa
+// pro impostor que estiver de olho.
+//
+// Cada resultado também é ouvido antes de ser falado: o dado rola com um pitch proporcional ao
+// número que saiu (grave = 1, agudo = 6), então dá pra saber se acertou meio segundo antes da fala.
+
+#include "task_common.nvgt"
+
+bool run_roll_dice_task(game_client@ client) {
+	const int DICE_SIDES = 6;
+
+	int target = random(1, DICE_SIDES);
+	dictionary@ target_params = dictionary();
+	target_params.set("number", "" + target);
+	speak(tr("task.roll_dice.instructions", target_params));
+
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_cancel_requested(client)) return false;
+		if (!key_pressed(KEY_SPACE)) continue;
+
+		int result = random(1, DICE_SIDES);
+
+		sound roll;
+		if (roll.load("sounds/" + SND_DICE)) {
+			// 85% no 1 até 145% no 6 - diferença suficiente pra reconhecer de ouvido sem soar quebrado.
+			roll.pitch = 85.0 + (float(result - 1) / float(DICE_SIDES - 1)) * 60.0;
+			roll.play_wait(); // espera o dado parar antes de anunciar: falar por cima estraga a graça
+		}
+
+		dictionary@ result_params = dictionary();
+		result_params.set("number", "" + result);
+		if (result != target) {
+			speak(tr("task.roll_dice.rolled", result_params));
+			continue;
+		}
+
+		task_sound(SND_BEEP_COMPLETE);
+		speak(tr("task.roll_dice.rolled", result_params) + " " + tr("task.completed"));
+		return true;
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}

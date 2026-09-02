@@ -5,7 +5,7 @@ Coordenadas em "unidades de mundo" (ver `PLAYER_MOVE_SPEED` em `config/game_cons
 rotação de personagem. Compartilhado entre cliente e servidor: o servidor usa pra validar posição e
 alcance de interação, o cliente usa pra tocar os sons posicionados certos.
 
-## Salas (8)
+## Salas (11)
 
 | Sala (id) | Nome (i18n) | Centro (x, y) | Metade largura/altura | Piso |
 |---|---|---|---|---|
@@ -17,12 +17,19 @@ alcance de interação, o cliente usa pra tocar os sons posicionados certos.
 | `storage` | Armazém | 0, -50 | 10 x 8 | EarthTile |
 | `electrical` | Elétrica | -30, -50 | 8 x 8 | MetalTile |
 | `reactor` | Reator | -30, -75 | 8 x 8 | MetalTile |
+| `games` | Sala de jogos | 0, 25 | 10 x 8 | Tile |
+| `greenhouse` | Estufa | 35, 25 | 8 x 8 | EarthTile |
+| `security` | Segurança | 25, -25 | 8 x 8 | MetalTile |
 
-Cafeteria é o centro/hub: dela saem corredores pra weapons, navigation e admin. As demais salas
-formam uma cadeia vertical do lado esquerdo: weapons → medbay → electrical → reactor, com um ramal
-de admin → storage → electrical.
+Cafeteria é o centro/hub: dela saem corredores pra weapons, navigation, admin e games. As salas mais
+antigas formam uma cadeia vertical do lado esquerdo: weapons → medbay → electrical → reactor, com um
+ramal de admin → storage → electrical.
 
-## Corredores (9)
+A ala sul (games, greenhouse) fecha um **circuito**: cafeteria → games → greenhouse → navigation →
+cafeteria. É a única parte do mapa onde se pode dar a volta sem refazer o caminho, o que muda como
+perseguição e fuga funcionam por ali. Security é um ramal de admin, sem saída.
+
+## Corredores (13)
 
 Cada corredor liga duas salas adjacentes; as bordas dos retângulos encostam exatamente (sem gap),
 então dá pra andar de uma sala pra outra sem "buraco" no meio.
@@ -38,8 +45,16 @@ então dá pra andar de uma sala pra outra sem "buraco" no meio.
 | `corridor_medbay_electrical` | medbay ↔ electrical | -30, -37.5 | 3 x 4.5 |
 | `corridor_storage_electrical` | storage ↔ electrical | -16, -50 | 6 x 3 |
 | `corridor_electrical_reactor` | electrical ↔ reactor | -30, -62.5 | 3 x 4.5 |
+| `corridor_cafeteria_games` | cafeteria ↔ games | 0, 12.5 | 3 x 4.5 |
+| `corridor_navigation_greenhouse` | navigation ↔ greenhouse | 35, 12.5 | 3 x 4.5 |
+| `corridor_games_greenhouse` | games ↔ greenhouse | 18.5, 25 | 8.5 x 3 |
+| `corridor_admin_security` | admin ↔ security | 12.5, -25 | 4.5 x 3 |
 
-Fora dessas 8 salas + 9 corredores não existe chão (`game_map.is_walkable()` retorna falso) - o
+O id do corredor **não é decorativo**: a IA dos bots monta o grafo de navegação a partir dele (ver
+`zone_neighbors`), então um corredor fora da convenção `corridor_<sala_a>_<sala_b>` deixa os bots
+parados sem nenhum erro visível.
+
+Fora dessas 11 salas + 13 corredores não existe chão (`game_map.is_walkable()` retorna falso) - o
 jogador toca `wall_bump.wav` e não se move ao tentar entrar nessa área.
 
 ## Objetos interativos
@@ -55,7 +70,7 @@ já ligava as três salas, e por isso não serviam pra quase nada.)
 | `vent_weapons` | weapons | -30, 6 | vent_navigation, vent_reactor |
 | `vent_reactor` | reactor | -30, -71 | vent_navigation, vent_weapons |
 
-**Tasks** (10 no total, cada jogador recebe um subconjunto aleatório - ver `config/lobby_config.nvgt`):
+**Tasks** (22 pontos, 11 tipos; cada jogador recebe um subconjunto aleatório - ver `config/lobby_config.nvgt`):
 
 | Task | Sala | Posição | Tipo |
 |---|---|---|---|
@@ -69,6 +84,27 @@ já ligava as três salas, e por isso não serviam pra quase nada.)
 | `task_garbage_storage` | storage | 3, -53 | empty_garbage |
 | `task_align_navigation` | navigation | 35, -3 | align_engine |
 | `task_card_admin` | admin | -3, -22 | swipe_card |
+| `task_manifolds_reactor` | reactor | -33, -78 | unlock_manifolds |
+| `task_manifolds_medbay` | medbay | -33, -28 | unlock_manifolds |
+| `task_fuel_storage` | storage | -3, -53 | fuel_engines |
+| `task_fuel_reactor` | reactor | -27, -78 | fuel_engines |
+| `task_asteroids_weapons` | weapons | -27, -3 | clear_asteroids |
+| `task_asteroids_navigation` | navigation | 32, 3 | clear_asteroids |
+| `task_dice_games` | games | -4, 27 | roll_dice |
+| `task_download_games` | games | 5, 22 | download_data |
+| `task_plants_greenhouse` | greenhouse | 33, 27 | water_plants |
+| `task_garbage_greenhouse` | greenhouse | 38, 22 | empty_garbage |
+| `task_records_security` | security | 23, -27 | review_records |
+| `task_wiring_security` | security | 28, -22 | fix_wiring |
+
+Cada sala da ala sul tem a task exclusiva dela **e** uma task corriqueira: sala com um motivo só
+pra existir vira sala que ninguém visita, e sala que ninguém visita não serve nem de esconderijo nem
+de álibi.
+
+**Tasks comuns** (`COMMON_TASK_TYPES` em `config/game_constants.nvgt`): hoje só `swipe_card`. Regra:
+ou TODO tripulante recebe, ou NENHUM recebe — sorteado uma vez por partida, no `on_start_game`. Por
+isso o cartão tem **um único ponto no mapa inteiro** (admin): é o que faz de "eu estava passando o
+cartão" uma frase que a mesa consegue verificar contra a própria lista de tarefas.
 
 **Painéis de sabotagem:**
 
