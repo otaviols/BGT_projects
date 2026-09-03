@@ -260,15 +260,15 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 			else client.send_add_bot();
 		}
 
-		if (key_pressed(KEY_CHAT)) run_chat_compose(client);
+		if (action_pressed(ACTION_CHAT)) run_chat_compose(client);
 
-		if (key_pressed(KEY_CHAT_SWITCH_CONTAINER) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
+		if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
 			viewing_events_container = !viewing_events_container;
 			speak(tr(viewing_events_container ? "chat.events_container" : "chat.messages_container"));
 		}
 
-		bool chat_prev_pressed = key_pressed(KEY_CHAT_PREV);
-		bool chat_next_pressed = key_pressed(KEY_CHAT_NEXT);
+		bool chat_prev_pressed = action_pressed(ACTION_CHAT_PREV);
+		bool chat_next_pressed = action_pressed(ACTION_CHAT_NEXT);
 		if (chat_prev_pressed || chat_next_pressed) {
 			chat_log@ active_log = viewing_events_container ? events_log : messages_log;
 			bool shift_held = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);

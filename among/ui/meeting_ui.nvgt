@@ -83,7 +83,7 @@ class meeting_ui {
 		has_voted = false;
 		// Não abre o menu de votação sozinho - isso travava o jogador lá dentro sem conseguir usar
 		// o chat pra discutir antes de votar. Agora é só um aviso; o jogador abre o menu quando
-		// quiser com a tecla de votar (ver KEY_VOTE em game/game_loop.nvgt).
+		// quiser com a tecla de votar (ver ACTION_VOTE em config/keybindings.nvgt).
 		announce(tr("game.meeting_voting"));
 	}
 
@@ -193,7 +193,7 @@ class meeting_ui {
 	// estiver aberta. Antes ESC mandava "pular" - quem fechasse o menu sem querer perdia o voto
 	// daquela reunião inteira sem nem saber.
 	private void run_voting_menu() {
-		sound_play(SND_DIALOG_OPEN);
+		ui_sound(SND_DIALOG_OPEN);
 		menu vote_menu;
 		vote_menu.intro_text = tr("game.meeting_voting");
 		vote_menu.click_sound = "menuclick.wav";
@@ -210,7 +210,7 @@ class meeting_ui {
 
 		vote_menu.run();
 		string selected_id = vote_menu.selected_item_id;
-		sound_play(SND_DIALOG_CLOSE);
+		ui_sound(SND_DIALOG_CLOSE);
 
 		if (selected_id == "") {
 			speak(tr("game.vote_cancelled"));

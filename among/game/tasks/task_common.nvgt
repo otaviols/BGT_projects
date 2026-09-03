@@ -7,6 +7,7 @@
 #include "speech.nvgt"
 #include "../../lang/i18n.nvgt"
 #include "../../audio/sound_catalog.nvgt"
+#include "../../config/game_settings.nvgt"
 #include "../../network/client.nvgt"
 
 const int TASK_CANCEL_KEY = KEY_ESCAPE;
@@ -45,5 +46,6 @@ void shuffle_int_list(array<int>@ arr) {
 // pan opcional pra minigames que trabalham com lados: -100 = só no ouvido esquerdo, 0 = no meio,
 // 100 = só no direito (a mesma escala de sound.pan).
 void task_sound(const string&in filename, float pan = 0.0) {
-	sound_play("sounds/" + filename, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), 0.0, pan);
+	sound_play("sounds/" + filename, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX),
+		g_settings.volume_db(SOUND_FAMILY_TASKS), pan);
 }

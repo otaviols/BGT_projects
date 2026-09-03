@@ -51,6 +51,13 @@ class game_client {
 		}
 	}
 
+	// Joga fora tudo que ainda estava na fila. Chamado ao sair de uma partida: o que sobrou lá é
+	// notícia de uma partida que não é mais a sua (posição de gente, corpo reportado, fim de jogo), e
+	// a tela seguinte processaria esses pacotes como se fossem da partida nova.
+	void clear_incoming() {
+		incoming.resize(0);
+	}
+
 	// Retira a próxima mensagem recebida da fila, ou null se não houver nenhuma.
 	net_packet@ poll_message() {
 		if (incoming.length() == 0) return null;

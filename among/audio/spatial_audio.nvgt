@@ -40,14 +40,17 @@ class spatial_audio {
 	}
 
 	// Som posicionado que toca uma vez e se limpa sozinho (passos, efeitos de interação, mortes, etc.).
-	int play_once(const string&in path, float x, float y) {
-		return pool.play_2d(path, listener_x, world_to_pool_y(listener_y), x, world_to_pool_y(y), false, false);
+	// volume_db vem da família de som a que ele pertence (ver audio_manager) - 0 = volume original.
+	int play_once(const string&in path, float x, float y, float volume_db = 0.0) {
+		return pool.play_extended_2d(path, listener_x, world_to_pool_y(listener_y), x, world_to_pool_y(y),
+			0, 0, 0, 0, false, 0, 0.0, volume_db, 100.0, false);
 	}
 
 	// Som posicionado contínuo (alarme de sabotagem, corpo no chão). `persistent` mantém o slot vivo
 	// mesmo fora do alcance de audição, retomando quando o jogador se aproximar.
-	int play_looping(const string&in path, float x, float y, bool persistent = true) {
-		return pool.play_2d(path, listener_x, world_to_pool_y(listener_y), x, world_to_pool_y(y), true, persistent);
+	int play_looping(const string&in path, float x, float y, bool persistent = true, float volume_db = 0.0) {
+		return pool.play_extended_2d(path, listener_x, world_to_pool_y(listener_y), x, world_to_pool_y(y),
+			0, 0, 0, 0, true, 0, 0.0, volume_db, 100.0, persistent);
 	}
 
 	// Som posicionado contínuo que toca em volume constante em qualquer ponto dentro de uma área

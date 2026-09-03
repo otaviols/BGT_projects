@@ -14,7 +14,8 @@ COMO COMEÇAR
 
 1. Abra o jogo e escolha "Conectar" no menu inicial. Ele já sabe o endereço do
    servidor; não há nada para digitar.
-2. Crie uma conta (usuário e senha) ou entre com uma que já tenha.
+2. Crie uma conta (usuário e senha) ou entre com uma que já tenha. O jogo lembra
+   o último usuário que entrou nesta máquina e já deixa o cursor na senha.
 3. Escolha uma partida na lista, ou crie a sua.
 4. Na sala de espera, o anfitrião aperta Enter para começar. São necessários pelo
    menos 3 jogadores; o máximo é 10.
@@ -22,6 +23,30 @@ COMO COMEÇAR
 ANTES DE JOGAR: no menu inicial existe a opção "Aprender os sons do jogo". Ela
 toca cada som do jogo com o nome dele. Vale muito a pena passar por ela uma vez -
 o jogo inteiro depende de reconhecer esses sons.
+
+
+CONFIGURAÇÕES
+-------------
+
+No menu inicial, em "Configurações":
+
+VOLUMES: um controle para cada família de som - volume geral, ambiente da nave,
+passos, marcadores de objetos e radar, tarefas, mortes e alarmes, e menus. Ao
+mexer num controle você ouve uma amostra daquela família no volume novo, então dá
+para ajustar tudo de ouvido sem entrar numa partida. Se os passos alheios estão
+sumindo no meio do ambiente, é aqui que se resolve.
+
+TECLAS: todas as teclas de jogo podem ser trocadas. Escolha a ação, aperte Enter
+e depois aperte a tecla nova. Se a tecla já estiver em uso, o jogo avisa de quem
+ela é em vez de deixar duas ações brigando. Há também "Restaurar teclas padrão".
+As teclas listadas neste manual são as de fábrica.
+
+VOZ E LEITOR DE TELA: escolha a voz do sistema, a velocidade e o volume dela, e
+se o jogo deve usar o leitor de tela quando houver um. É o que resolve para quem
+joga sem NVDA: desmarque "usar leitor de tela" e acelere a voz do sistema ao seu
+gosto.
+
+Tudo é salvo na hora e vale já na próxima partida.
 
 
 COMO O SOM FUNCIONA

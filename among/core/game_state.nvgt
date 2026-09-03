@@ -715,54 +715,15 @@ class game_state {
 		}
 	}
 
-	// Devolve a lobby ao estado de sala de espera assim que a partida termina.
+	// Limpa o estado de PARTIDA de cada jogador. A lobby em si morre junto com a partida (ver
+	// tick_lobbies em network/server.nvgt), mas os game_player NÃO morrem: eles são os objetos de
+	// CONEXÃO, e a mesma pessoa vai entrar na próxima lobby carregando este objeto.
 	//
-	// Sem isto a lobby ficava presa em "ended" pra sempre, com efeitos que só apareciam DEPOIS: quem
-	// tinha morrido continuava marcado como morto e o servidor recusava as mensagens de chat dele na
-	// sala de espera (morto não fala), e a lobby sumia do navegador de partidas, que só lista as que
-	// estão em "waiting" - ou seja, ninguém de fora conseguia mais entrar naquela sala.
-	void reset_after_match() {
-		state = "waiting";
-		winner = "";
-		win_reason = "";
-		elapsed_time = 0.0;
-
-		bodies.resize(0);
-		votes.resize(0);
-		active_sabotage = "";
-		last_sabotage_id = "";
-		sabotage_timer = 0.0;
-		sabotage_cooldown_remaining = 0.0;
-		sabotage_fixed_panels.resize(0);
-		meeting_cooldown_remaining = 0.0;
-		doors_cooldown_remaining = 0.0;
-		meeting_unvented_peers.resize(0);
-		meeting_doors_opened.resize(0);
-		map.open_all_doors();
-
-		// Quem caiu durante a partida só ficou no elenco pra não bagunçar a contagem de vivos. Com a
-		// partida encerrada, ele sai de vez - senão apareceria como um jogador presente na sala de
-		// espera, e contaria pro mínimo de jogadores da próxima partida.
-		for (int i = int(players.length()) - 1; i >= 0; i--) {
-			if (players[i].left_match) players.remove_at(i);
-		}
-
-		for (uint i = 0; i < players.length(); i++) {
-			game_player@ p = players[i];
-			p.alive = true;
-			p.is_impostor = false;
-			p.vented = false;
-			p.current_vent_id = "";
-			p.tasks.resize(0);
-			p.kill_cooldown_remaining = 0.0;
-			p.meetings_called = 0;
-			p.radar_index = -1;
-			p.last_move_time = 0.0;
-			p.bot_has_target = false;
-			p.bot_path.resize(0);
-			p.bot_action_timer = 0.0;
-			p.bot_voted = false;
-		}
+	// Sem esta limpeza, quem morreu na partida anterior continuava marcado como morto na lobby
+	// seguinte - e o servidor recusa mensagem de chat de morto, então a pessoa ficava muda sem
+	// entender por quê. O mesmo valia pro papel de impostor, pras tasks e pros cooldowns.
+	void reset_players_after_match() {
+		for (uint i = 0; i < players.length(); i++) players[i].reset_match_state();
 	}
 
 	// --- Tick: avança timers, retorna eventos que o servidor precisa transmitir. ---
@@ -857,8 +818,8 @@ class game_state {
 			}
 			go.set_array("impostors", impostor_names);
 			events.insert_last(go);
-
-			reset_after_match();
+			// A lobby não volta pra sala de espera: ela ACABA aqui. Quem faz o enterro é o servidor,
+			// assim que terminar de transmitir este pacote (ver tick_lobbies).
 		}
 
 		return events;

@@ -56,6 +56,8 @@ void load_sound_pack() {
 void main() {
 	g_i18n.load_language("pt_BR");
 	load_sound_pack();
+	// Preferências do jogador (volumes, teclas, voz) antes de qualquer som tocar ou tecla ser lida.
+	g_settings.load();
 	show_window(tr("app.title"));
 
 	// Menu inicial (conectar / aprender os sons / sair) - cancelar conexão ou login volta pra cá em
@@ -86,6 +88,10 @@ void run_session() {
 	if (!login.ok) { client.disconnect(); return; }
 
 	while (true) {
+		// Começo limpo a cada volta: o que sobrou na fila é de uma partida ou sala que ficou pra trás.
+		// Sem isto, sair de uma partida e entrar noutra fazia a tela nova processar eventos da antiga.
+		client.clear_incoming();
+
 		lobby_browser_result browse = run_lobby_browser_screen(client);
 		if (browse.go_back || !browse.joined) break;
 

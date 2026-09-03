@@ -12,6 +12,7 @@
 #include "../config/game_constants.nvgt"
 #include "../config/server_address.nvgt"
 #include "../audio/sound_catalog.nvgt"
+#include "settings_screens.nvgt"
 
 // Menu inicial (antes de conectar): conectar, aprender os sons do jogo, ou sair.
 // Retorna true se o jogador escolheu conectar (main.nvgt segue o fluxo normal); false = saiu.
@@ -24,12 +25,14 @@ bool run_main_menu() {
 		m.sounds_prefix = "sounds/";
 		m.add_item(tr("menu.connect"), "connect");
 		m.add_item(tr("menu.learn_sounds"), "learn_sounds");
+		m.add_item(tr("menu.settings"), "settings");
 		m.add_item(tr("menu.exit"), "exit");
 		m.run();
 		string id = m.selected_item_id;
 
 		if (id == "connect") return true;
 		if (id == "learn_sounds") { run_learn_sounds_screen(); continue; }
+		if (id == "settings") { run_settings_menu(); continue; }
 		return false; // "exit", ESC ou fechou sem escolher
 	}
 	return false; // inalcançável - o laço só termina via return acima
@@ -139,11 +142,14 @@ login_result run_login_screen(game_client@ client) {
 
 	audio_form f;
 	f.create_window(tr("menu.login"), false); // não sobrescreve o título da janela (nome do jogo)
-	int f_user = f.create_input_box(tr("login.username"));
+	// Já vem com o último usuário que entrou nesta máquina; se houver um, o foco pula direto pra
+	// senha, que é o único campo que ainda precisa ser digitado.
+	int f_user = f.create_input_box(tr("login.username"), g_settings.last_username);
 	int f_pass = f.create_input_box(tr("login.password"), "", "*");
 	int f_login = f.create_button(tr("menu.login"), true);
 	int f_register = f.create_button(tr("menu.register"));
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	if (g_settings.last_username != "") f.focus(f_pass);
 
 	while (true) {
 		wait(5);
@@ -199,6 +205,10 @@ bool wait_for_auth_result(game_client@ client, bool was_register, const string&i
 				client.my_peer_id = pkt.get_uint64("peer_id");
 				result.ok = true;
 				result.username = pkt.get_string("username", username);
+				// Guarda pra próxima vez. Só depois do login DAR CERTO: gravar antes deixaria um nome
+				// errado esperando o jogador na abertura seguinte.
+				g_settings.last_username = result.username;
+				g_settings.save();
 				return true;
 			}
 			@pkt = client.poll_message();

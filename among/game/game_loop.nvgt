@@ -21,20 +21,9 @@
 #include "../lang/i18n.nvgt"
 #include "../config/game_constants.nvgt"
 
-const int KEY_MOVE_NORTH = KEY_W;
-const int KEY_MOVE_SOUTH = KEY_S;
-const int KEY_MOVE_WEST = KEY_A;
-const int KEY_MOVE_EAST = KEY_D;
-const int KEY_INTERACT = KEY_RETURN;
-const int KEY_REPORT = KEY_R;
-const int KEY_KILL = KEY_K;
-const int KEY_VENT = KEY_V;
-const int KEY_SABOTAGE_MENU = KEY_G;
-const int KEY_DOORS_MENU = KEY_F; // impostor: fechar as portas de uma sala
-const int KEY_TASK_LIST = KEY_T;
-const int KEY_ROOM_INFO = KEY_C;
-const int KEY_PING = KEY_F1;
-// KEY_CHAT* ficam em core/chat_log.nvgt (compartilhado com a sala de espera em ui/lobby_screens.nvgt)
+// As teclas do jogo não são mais constantes: vêm do mapa remapeável do jogador, em
+// config/keybindings.nvgt. Aqui se pergunta pela AÇÃO (action_pressed(ACTION_KILL)), nunca pela
+// tecla - é o que permite trocar o teclado inteiro em Configurações sem tocar em nada disto.
 const float FOOTSTEP_INTERVAL_SECONDS = 0.35;
 const float WALL_BUMP_INTERVAL_SECONDS = 0.3;
 
@@ -128,7 +117,7 @@ void refresh_landmark_beacons(audio_manager@ audio, game_map@ map, array<string>
 // Menu de fechar portas: lista as SALAS (corredor não entra - a porta é justamente o corredor que
 // dá pra sala escolhida). Fechar prende quem está dentro e barra quem está fora, por alguns segundos.
 void run_doors_menu(impostor_controller@ imp, game_map@ map) {
-	sound_play(SND_DIALOG_OPEN);
+	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.doors_menu_hint");
 	m.click_sound = "menuclick.wav";
@@ -142,12 +131,12 @@ void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 
 	m.run();
 	string room_id = m.selected_item_id;
-	sound_play(SND_DIALOG_CLOSE);
+	ui_sound(SND_DIALOG_CLOSE);
 	if (room_id != "") imp.close_doors(room_id);
 }
 
 void run_sabotage_menu(impostor_controller@ imp) {
-	sound_play(SND_DIALOG_OPEN);
+	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.sabotage_menu_hint");
 	m.click_sound = "menuclick.wav";
@@ -160,7 +149,7 @@ void run_sabotage_menu(impostor_controller@ imp) {
 	m.add_item(tr("sabotage.comms.name"), "comms");
 	m.run();
 	string id = m.selected_item_id;
-	sound_play(SND_DIALOG_CLOSE);
+	ui_sound(SND_DIALOG_CLOSE);
 	if (id != "") imp.trigger_sabotage(id);
 }
 
@@ -170,7 +159,7 @@ void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio
 	map_object@ current_vent = map.find_object(current_vent_id);
 	if (@current_vent == null) return;
 
-	sound_play(SND_DIALOG_OPEN);
+	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.vent_menu_hint");
 	m.click_sound = "menuclick.wav";
@@ -192,7 +181,7 @@ void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio
 
 	m.run();
 	string selected_id = m.selected_item_id;
-	sound_play(SND_DIALOG_CLOSE);
+	ui_sound(SND_DIALOG_CLOSE);
 	// ESC/nada selecionado (id == "") não faz nada - só "Sair" (__exit__) ou um vent de verdade agem.
 	if (selected_id == "__exit__") {
 		// Sair faz o mesmo barulho de porta de vent que entrar - antes só entrar tocava, e sair era
@@ -239,7 +228,7 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 		return;
 	}
 
-	sound_play(SND_DIALOG_OPEN);
+	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.tasks_menu_hint");
 	m.click_sound = "menuclick.wav";
@@ -264,7 +253,7 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 	m.add_item(tr("menu.back"), "__back__");
 
 	m.run();
-	sound_play(SND_DIALOG_CLOSE);
+	ui_sound(SND_DIALOG_CLOSE);
 }
 
 string game_over_reason_text(const string&in reason) {
@@ -482,7 +471,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				}
 			} else if (t == S_TASK_RESULT) {
 				// Rede de segurança: o caminho normal já marca a task como feita na hora, otimista,
-				// assim que a minigame termina (ver KEY_INTERACT abaixo) - aqui só cobre o caso raro
+				// assim que a minigame termina (ver a tecla de interagir abaixo) - aqui só cobre o caso raro
 				// de ainda não estar marcada quando essa confirmação do servidor chega.
 				string task_id = pkt.get_string("task_id");
 				if (pkt.get_bool("ok") && !is_task_completed(my_tasks, task_id)) {
@@ -710,10 +699,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			// retransmite a posição dele pra outros fantasmas, ver network/server.nvgt on_move).
 			// Escondido no vent também não anda por fora - só sai ou viaja pela rede (tecla V).
 			float dx = 0.0, dy = 0.0;
-			if (key_down(KEY_MOVE_NORTH)) dy -= 1.0;
-			if (key_down(KEY_MOVE_SOUTH)) dy += 1.0;
-			if (key_down(KEY_MOVE_WEST)) dx -= 1.0;
-			if (key_down(KEY_MOVE_EAST)) dx += 1.0;
+			if (action_down(ACTION_MOVE_NORTH)) dy -= 1.0;
+			if (action_down(ACTION_MOVE_SOUTH)) dy += 1.0;
+			if (action_down(ACTION_MOVE_WEST)) dx -= 1.0;
+			if (action_down(ACTION_MOVE_EAST)) dx += 1.0;
 
 			if (dx != 0.0 || dy != 0.0) {
 				float len = sqrt(dx * dx + dy * dy);
@@ -803,7 +792,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			}
 		}
 
-		if (!movement_frozen && key_pressed(KEY_TAB)) {
+		if (!movement_frozen && action_pressed(ACTION_RADAR)) {
 			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -
 			// igual o Among Us original, onde mortos continuam observando a partida.
 			// Ctrl+Tab troca o modo do radar (jogadores <-> objetos da sala).
@@ -820,7 +809,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// terminar as tasks dele - é o que mantém viva a chance de vitória dos tripulantes depois de
 		// perder gente. Tudo que não é task fica só pros vivos (ver os testes de "alive" abaixo).
 		if (!movement_frozen && !is_vented) {
-			if (key_pressed(KEY_INTERACT)) {
+			if (action_pressed(ACTION_INTERACT)) {
 				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, is_impostor, active_sabotage_id, alive);
 				if (@obj != null) {
 					speak(object_name(obj));
@@ -850,14 +839,14 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				}
 			}
 
-			if (key_pressed(KEY_REPORT)) {
+			if (action_pressed(ACTION_REPORT)) {
 				if (alive) crew.report_body();
 				else speak(tr("game.ghost_cannot_interact")); // fantasma não reporta corpo, só faz task
 			}
 
-			if (key_pressed(KEY_TASK_LIST)) run_task_list_menu(client, map, my_tasks, team_task_percent);
+			if (action_pressed(ACTION_TASK_LIST)) run_task_list_menu(client, map, my_tasks, team_task_percent);
 
-			if (key_pressed(KEY_ROOM_INFO)) {
+			if (action_pressed(ACTION_ROOM_INFO)) {
 				map_zone@ zone = map.zone_at(my_x, my_y);
 				dictionary@ p = dictionary();
 				p.set("room", @zone != null ? tr(zone.name_key) : tr("game.nothing_nearby"));
@@ -867,7 +856,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			}
 
 			if (is_impostor && alive) {
-				if (key_pressed(KEY_KILL)) {
+				if (action_pressed(ACTION_KILL)) {
 					// Antes só avisava do cooldown quando já tinha um alvo no alcance - agora sempre diz
 					// o que está impedindo o kill (cooldown, ou ninguém por perto).
 					if (my_kill_cooldown_remaining > 0.0) {
@@ -884,9 +873,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 						else speak(tr("game.kill_no_target_nearby"));
 					}
 				}
-				if (key_pressed(KEY_DOORS_MENU)) run_doors_menu(imp, map);
+				if (action_pressed(ACTION_DOORS)) run_doors_menu(imp, map);
 
-				if (key_pressed(KEY_SABOTAGE_MENU)) {
+				if (action_pressed(ACTION_SABOTAGE)) {
 					if (active_sabotage_id != "") {
 						speak(tr("game.sabotage_already_active"));
 					} else if (my_sabotage_cooldown_remaining > 0.0) {
@@ -902,17 +891,17 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 
 		// Ações de dentro do vent (sair ou viajar) - só fazem sentido enquanto vented, por isso ficam
 		// FORA do bloco acima (que exige !is_vented).
-		if (is_impostor && alive && !movement_frozen && is_vented && key_pressed(KEY_VENT)) {
+		if (is_impostor && alive && !movement_frozen && is_vented && action_pressed(ACTION_VENT)) {
 			run_vent_menu(imp, map, audio, current_vent_id);
 		}
 
-		if (key_pressed(KEY_PING) && !ping_pending) {
+		if (action_pressed(ACTION_PING) && !ping_pending) {
 			ping_pending = true;
 			ping_clock.restart();
 			client.send_ping();
 		}
 
-		if (key_pressed(KEY_CHAT)) {
+		if (action_pressed(ACTION_CHAT)) {
 			// Chat agora só existe em reunião (movement_frozen == true é exatamente o período de
 			// reunião/votação) - ver network/server.on_chat_message pro porquê. Morto só lê.
 			// O servidor também recusa os dois casos; isto aqui só evita a viagem de rede à toa e
@@ -922,15 +911,15 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			else run_chat_compose(client);
 		}
 
-		if (alive && key_pressed(KEY_VOTE)) mui.open_vote_menu_if_active();
+		if (alive && action_pressed(ACTION_VOTE)) mui.open_vote_menu_if_active();
 
-		if (key_pressed(KEY_CHAT_SWITCH_CONTAINER) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
+		if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
 			viewing_events_container = !viewing_events_container;
 			speak(tr(viewing_events_container ? "chat.events_container" : "chat.messages_container"));
 		}
 
-		bool chat_prev_pressed = key_pressed(KEY_CHAT_PREV);
-		bool chat_next_pressed = key_pressed(KEY_CHAT_NEXT);
+		bool chat_prev_pressed = action_pressed(ACTION_CHAT_PREV);
+		bool chat_next_pressed = action_pressed(ACTION_CHAT_NEXT);
 		if (chat_prev_pressed || chat_next_pressed) {
 			// Chamar key_pressed() de novo dentro do if (em vez de reusar o resultado já lido)
 			// fazia vírgula e ponto sempre caírem no mesmo caminho - por isso só lia a última

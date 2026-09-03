@@ -1,0 +1,105 @@
+// keybindings.nvgt
+// Mapa de teclas do jogo. Cada AÇÃO tem um id estável (usado pra salvar em disco), um nome falado,
+// e a tecla atual - que o jogador pode trocar em Configurações > Teclas.
+//
+// O código nunca compara com KEY_W direto: pergunta "qual é a tecla da ação andar pro norte?".
+// É o que permite remapear sem caçar constante espalhada por arquivo nenhum.
+//
+// Teclas de menu (Enter, ESC, setas) NÃO entram aqui de propósito: elas são a convenção que o
+// jogador de leitor de tela já traz de outros programas, e remapeá-las quebraria a navegação da
+// própria tela de configuração.
+
+#include "game_constants.nvgt"
+
+// Índice de cada ação no array de teclas. A ORDEM define o id salvo, então acrescente no fim.
+const int ACTION_MOVE_NORTH = 0;
+const int ACTION_MOVE_SOUTH = 1;
+const int ACTION_MOVE_WEST = 2;
+const int ACTION_MOVE_EAST = 3;
+const int ACTION_INTERACT = 4;
+const int ACTION_REPORT = 5;
+const int ACTION_KILL = 6;
+const int ACTION_VENT = 7;
+const int ACTION_SABOTAGE = 8;
+const int ACTION_DOORS = 9;
+const int ACTION_TASK_LIST = 10;
+const int ACTION_ROOM_INFO = 11;
+const int ACTION_RADAR = 12;
+const int ACTION_PING = 13;
+const int ACTION_VOTE = 14;
+const int ACTION_CHAT = 15;
+const int ACTION_CHAT_PREV = 16;
+const int ACTION_CHAT_NEXT = 17;
+const int ACTION_CHAT_SWITCH = 18;
+
+class key_binding {
+	string id;        // usado no arquivo de configuração - não mude depois de publicado
+	string name_key;  // chave de i18n do nome falado da ação
+	int key;          // tecla atual
+	int default_key;  // pra "restaurar padrão"
+
+	key_binding(const string&in id, const string&in name_key, int default_key) {
+		this.id = id;
+		this.name_key = name_key;
+		this.key = default_key;
+		this.default_key = default_key;
+	}
+}
+
+class keybinding_table {
+	array<key_binding@> bindings;
+
+	keybinding_table() {
+		bindings.insert_last(key_binding("move_north", "keys.move_north", KEY_W));
+		bindings.insert_last(key_binding("move_south", "keys.move_south", KEY_S));
+		bindings.insert_last(key_binding("move_west", "keys.move_west", KEY_A));
+		bindings.insert_last(key_binding("move_east", "keys.move_east", KEY_D));
+		bindings.insert_last(key_binding("interact", "keys.interact", KEY_RETURN));
+		bindings.insert_last(key_binding("report", "keys.report", KEY_R));
+		bindings.insert_last(key_binding("kill", "keys.kill", KEY_K));
+		bindings.insert_last(key_binding("vent", "keys.vent", KEY_V));
+		bindings.insert_last(key_binding("sabotage", "keys.sabotage", KEY_G));
+		bindings.insert_last(key_binding("doors", "keys.doors", KEY_F));
+		bindings.insert_last(key_binding("task_list", "keys.task_list", KEY_T));
+		bindings.insert_last(key_binding("room_info", "keys.room_info", KEY_C));
+		bindings.insert_last(key_binding("radar", "keys.radar", KEY_TAB));
+		bindings.insert_last(key_binding("ping", "keys.ping", KEY_F1));
+		bindings.insert_last(key_binding("vote", "keys.vote", KEY_B));
+		bindings.insert_last(key_binding("chat", "keys.chat", KEY_Y));
+		bindings.insert_last(key_binding("chat_prev", "keys.chat_prev", KEY_COMMA));
+		bindings.insert_last(key_binding("chat_next", "keys.chat_next", KEY_PERIOD));
+		bindings.insert_last(key_binding("chat_switch", "keys.chat_switch", KEY_PAGEUP));
+	}
+
+	int key(int action) const {
+		if (action < 0 || action >= int(bindings.length())) return -1;
+		return bindings[action].key;
+	}
+
+	// Qual ação já usa esta tecla ("" = nenhuma). Duas ações na mesma tecla fariam uma delas nunca
+	// acontecer, e descobrir isso no meio de uma partida seria péssimo.
+	int action_using(int key_code, int ignore_action = -1) const {
+		for (uint i = 0; i < bindings.length(); i++) {
+			if (int(i) == ignore_action) continue;
+			if (bindings[i].key == key_code) return int(i);
+		}
+		return -1;
+	}
+
+	void restore_defaults() {
+		for (uint i = 0; i < bindings.length(); i++) bindings[i].key = bindings[i].default_key;
+	}
+}
+
+keybinding_table g_keys;
+
+// Atalho: a tecla desta ação foi apertada neste quadro?
+bool action_pressed(int action) {
+	int k = g_keys.key(action);
+	return k != -1 && key_pressed(k);
+}
+
+bool action_down(int action) {
+	int k = g_keys.key(action);
+	return k != -1 && key_down(k);
+}

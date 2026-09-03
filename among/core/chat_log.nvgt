@@ -8,13 +8,13 @@
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../lang/i18n.nvgt"
+#include "../config/keybindings.nvgt"
 
-const int KEY_CHAT = KEY_Y;
-const int KEY_CHAT_PREV = KEY_COMMA;
-const int KEY_CHAT_NEXT = KEY_PERIOD;
-const int KEY_CHAT_SWITCH_CONTAINER = KEY_PAGEUP;
+// As teclas de chat e de voto agora vêm do mapa de teclas do jogador (config/keybindings.nvgt):
+// ACTION_CHAT, ACTION_CHAT_PREV, ACTION_CHAT_NEXT, ACTION_CHAT_SWITCH e ACTION_VOTE.
+// PageDown continua funcionando como segunda tecla de trocar de container, fixa, porque a dupla
+// PageUp/PageDown é o gesto natural pra quem usa leitor de tela.
 const int KEY_CHAT_SWITCH_CONTAINER_ALT = KEY_PAGEDOWN;
-const int KEY_VOTE = KEY_B; // abre o menu de votação (só faz algo se uma votação estiver rolando)
 
 class chat_line {
 	string speaker_name; // "" = linha de evento/sistema, sem autor

@@ -111,4 +111,25 @@ class game_player {
 	bool can_kill() const {
 		return is_impostor && alive && kill_cooldown_remaining <= 0.0;
 	}
+
+	// Apaga tudo que é de UMA partida, deixando o objeto pronto pra próxima. Isto existe porque o
+	// game_player é o objeto de CONEXÃO: ele sobrevive à partida, à lobby, e vai junto com o jogador
+	// pra sala seguinte. Qualquer coisa que ficar aqui vira herança indevida - já foi assim que quem
+	// morria numa partida continuava "morto" (e mudo no chat) na lobby seguinte.
+	void reset_match_state() {
+		alive = true;
+		left_match = false;
+		is_impostor = false;
+		vented = false;
+		current_vent_id = "";
+		tasks.resize(0);
+		kill_cooldown_remaining = 0.0;
+		meetings_called = 0;
+		radar_index = -1;
+		last_move_time = 0.0;
+		bot_has_target = false;
+		bot_path.resize(0);
+		bot_action_timer = 0.0;
+		bot_voted = false;
+	}
 }

@@ -161,16 +161,28 @@ class game_server {
 		// Durante uma partida em andamento, remover o jogador do array quebraria a contagem de
 		// vivos (alive_crewmate_count()/alive_impostor_count()) usada pra decidir quem venceu -
 		// um crewmate saindo faria parecer que os impostores têm maioria na hora, por exemplo,
-		// terminando o jogo do nada pros que ficaram. Em vez disso só marca como não-vivo e
-		// mantém no array; a limpeza de verdade só acontece com a lobby ainda em "waiting".
+		// terminando o jogo do nada pros que ficaram.
+		//
+		// A saída é deixar na partida um REGISTRO do jogador (morto, marcado como "caiu") e devolver
+		// o objeto de CONEXÃO limpo pra ele. Os dois não podem ser a mesma coisa: quem sai vai entrar
+		// noutra lobby ainda com essa partida rolando, e se a partida antiga continuasse segurando o
+		// objeto dele, o fim daquela partida ia mexer no jogador no meio da partida NOVA - zerando
+		// papel e tasks, e tirando ele da lobby em que ele está agora.
 		bool match_active = lobby.state != "waiting" && lobby.state != "ended";
 		if (match_active) {
 			if (@p != null) {
-				p.alive = false;
-				// Marca que ele CAIU (não que morreu em jogo): as tasks dele param de contar pra
-				// vitória da tripulação na hora, senão o jogo esperava pra sempre por tasks de alguém
-				// que não está mais conectado. Ver counts_for_task_win.
-				p.left_match = true;
+				game_player@ record = game_player(p.peer_id, p.username);
+				record.color = p.color;
+				record.is_impostor = p.is_impostor;
+				record.tasks = p.tasks;
+				record.x = p.x;
+				record.y = p.y;
+				record.alive = false;
+				record.left_match = true; // as tasks dele param de contar já (ver counts_for_task_win)
+				for (uint i = 0; i < lobby.players.length(); i++) {
+					if (lobby.players[i].peer_id == peer_id) { @lobby.players[i] = record; break; }
+				}
+				p.reset_match_state(); // a conexão sai daqui sem nenhuma herança da partida
 			}
 		} else {
 			for (uint i = 0; i < lobby.players.length(); i++) {
@@ -293,6 +305,7 @@ class game_server {
 	void on_create_lobby(uint64 peer_id, net_packet@ pkt) {
 		game_player@ conn = find_connection(peer_id);
 		if (@conn == null || !conn.authenticated) return;
+		leave_current_lobby(peer_id); // ninguém entra numa lobby estando em outra
 
 		game_state@ lobby = game_state();
 		lobby.lobby_id = "lobby_" + (++g_lobby_counter);
@@ -326,6 +339,7 @@ class game_server {
 			return;
 		}
 
+		leave_current_lobby(peer_id); // ninguém entra numa lobby estando em outra
 		conn.lobby_id = lobby.lobby_id;
 		lobby.players.insert_last(conn);
 
@@ -341,6 +355,13 @@ class game_server {
 	}
 
 	void on_leave_lobby(uint64 peer_id, net_packet@ pkt) {
+		leave_current_lobby(peer_id);
+	}
+
+	// Tira o jogador da lobby em que ele estiver, se estiver em alguma. Usado ao sair de propósito e
+	// como garantia antes de entrar em outra: estar em duas lobbies ao mesmo tempo mandaria pacote
+	// pro lugar errado e contaria o jogador duas vezes.
+	void leave_current_lobby(uint64 peer_id) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null) return;
 		remove_from_lobby(lobby, peer_id);
@@ -999,7 +1020,10 @@ class game_server {
 	// --- Tick geral ---
 
 	void tick_lobbies(float delta) {
-		for (uint i = 0; i < lobbies.length(); i++) {
+		// De trás pra frente porque uma lobby pode sair da lista aqui dentro (ver o fim da partida
+		// logo abaixo) - percorrer de frente pulando índices é o jeito clássico de deixar uma lobby
+		// sem tick por um quadro.
+		for (int i = int(lobbies.length()) - 1; i >= 0; i--) {
 			game_state@ lobby = lobbies[i];
 			if (lobby.state == "waiting" || lobby.state == "ended") continue;
 			array<net_packet@>@ events = lobby.tick(delta);
@@ -1009,6 +1033,31 @@ class game_server {
 				bool reliable = events[e].type != S_PLAYER_MOVED;
 				broadcast_to_lobby(lobby, events[e], 0, reliable);
 			}
+			// A partida acabou (o S_GAME_OVER acabou de sair): a lobby FECHA.
+			if (lobby.state == "ended") close_lobby(i);
 		}
+	}
+
+	// Encerra e apaga a lobby de índice `index`. Toda partida termina assim.
+	//
+	// A lobby não sobrevive à partida de propósito. Todo cliente volta pro navegador de partidas
+	// quando a tela de fim de jogo fecha (ver AmongUs.nvgt), então uma lobby que continuasse de pé
+	// seria uma sala sem ninguém dentro que ainda acha que tem gente: os jogadores continuariam
+	// marcados como membros dela, entrariam numa segunda lobby estando em duas ao mesmo tempo, e os
+	// pacotes iriam pro lugar errado. Fechar aqui é o que garante que a partida seguinte começa do
+	// zero, sem herança nenhuma.
+	void close_lobby(int index) {
+		game_state@ lobby = lobbies[index];
+		// Os game_player são objetos de CONEXÃO e continuam vivos depois da lobby - limpar o estado
+		// de partida deles é o que impede a próxima sala de herdar morte, papel e tasks da anterior.
+		lobby.reset_players_after_match();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ conn = find_connection(lobby.players[i].peer_id);
+			if (@conn == null) continue; // bot: some junto com a lobby
+			// Só solta quem AINDA está nesta lobby. Quem saiu no meio da partida já pode estar em
+			// outra sala a esta altura, e limpar o lobby_id dele aqui o expulsaria de lá.
+			if (conn.lobby_id == lobby.lobby_id) conn.lobby_id = "";
+		}
+		lobbies.remove_at(index);
 	}
 }

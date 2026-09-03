@@ -23,7 +23,7 @@
 bool run_task_minigame(game_client@ client, const string&in task_type) {
 	// Reunião chamada no exato instante em que a task abriu: nem começa (ver task_cancel_requested).
 	if (task_cancel_requested(client)) return false;
-	sound_play(SND_DIALOG_OPEN);
+	ui_sound(SND_DIALOG_OPEN);
 	bool result = false;
 	if (task_type == "fix_wiring") result = run_fix_wiring_task(client);
 	else if (task_type == "download_data") result = run_download_data_task(client);
@@ -36,6 +36,6 @@ bool run_task_minigame(game_client@ client, const string&in task_type) {
 	else if (task_type == "roll_dice") result = run_roll_dice_task(client);
 	else if (task_type == "water_plants") result = run_water_plants_task(client);
 	else if (task_type == "review_records") result = run_review_records_task(client);
-	sound_play(SND_DIALOG_CLOSE);
+	ui_sound(SND_DIALOG_CLOSE);
 	return result;
 }
