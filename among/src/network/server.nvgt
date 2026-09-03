@@ -1,0 +1,1081 @@
+// server.nvgt
+// Servidor dedicado: aceita conexões, gerencia lobbies e delega a lógica de partida para
+// core/game_state.nvgt. Mantém-se sempre de pé; jogadores criam/entram em partidas.
+
+#include "protocol.nvgt"
+#include "packet.nvgt"
+#include "../config/game_constants.nvgt"
+#include "../config/colors.nvgt"
+#include "../config/lobby_config.nvgt"
+#include "../config/presets.nvgt"
+#include "../core/player.nvgt"
+#include "../core/game_state.nvgt"
+#include "../game/map.nvgt"
+#include "../database/user_db.nvgt"
+#include "../i18n.nvgt"
+
+uint g_lobby_counter = 0;
+// Ids de bot vivem bem longe da faixa que o ENet usa pra peers de verdade (que vão de 0 até o
+// max_peers do setup_server), então nunca colidem com o id de um jogador conectado.
+uint64 g_bot_peer_counter = 1000000;
+
+void shuffle_int_array(array<int>@ arr) {
+	for (int i = int(arr.length()) - 1; i > 0; i--) {
+		int j = random(0, i);
+		int tmp = arr[i];
+		arr[i] = arr[j];
+		arr[j] = tmp;
+	}
+}
+
+void shuffle_player_array(array<game_player@>@ arr) {
+	for (int i = int(arr.length()) - 1; i > 0; i--) {
+		int j = random(0, i);
+		game_player@ tmp = @arr[i];
+		@arr[i] = @arr[j];
+		@arr[j] = @tmp;
+	}
+}
+
+void shuffle_object_array(array<map_object@>@ arr) {
+	for (int i = int(arr.length()) - 1; i > 0; i--) {
+		int j = random(0, i);
+		map_object@ tmp = @arr[i];
+		@arr[i] = @arr[j];
+		@arr[j] = @tmp;
+	}
+}
+
+class game_server {
+	network@ net;
+	array<game_player@> connections;
+	array<game_state@> lobbies;
+	timer@ clock;
+
+	// As duas falhas possíveis aqui têm causas e consertos completamente diferentes - porta ocupada
+	// de um lado, permissão de arquivo do outro - e uma mensagem única ("Falha ao iniciar") obriga
+	// quem administra o servidor a adivinhar qual das duas foi. Cada uma diz o que aconteceu.
+	//
+	// O caminho do banco aparece na mensagem de propósito: o NVGT resolve caminho relativo pelo
+	// diretório do EXECUTÁVEL, não pelo diretório de trabalho, então o arquivo quase nunca está
+	// onde quem procura espera - e sem o caminho impresso não há como saber onde ele tentou.
+	bool start(uint16 port) {
+		@net = network();
+		if (!net.setup_server(port, MAX_PACKET_CHANNELS, MAX_PLAYERS * 30)) {
+			println("Não consegui abrir a porta " + port + "/UDP. Ela já está em uso por outro processo?");
+			return false;
+		}
+
+		@g_user_db = user_database();
+		const string db_path = "among_users.db";
+		if (!g_user_db.open(db_path)) {
+			println("Não consegui abrir o banco de contas (" + db_path + ").");
+			println("Ele fica na pasta do executável, não na pasta de onde o servidor foi chamado.");
+			println("Verifique se essa pasta existe e se o usuário do servidor pode escrever nela.");
+			return false;
+		}
+
+		g_i18n.load_language(language_default());
+		@clock = timer();
+		return true;
+	}
+
+	void run() {
+		// Processar só 1 evento por volta (jeito antigo) deixava a fila crescer sem parar com
+		// vários jogadores reais se movendo ao mesmo tempo. Drenar TUDO sem limite (o que tentamos
+		// antes) troca um problema por outro: sob carga alta e contínua, o laço interno pode nunca
+		// esvaziar de vez (sempre chega gente nova enquanto processa), e o servidor fica preso ali
+		// sem nunca chegar no wait(5) - isso atrasa o tick_lobbies() e pode fazer o ENet achar que
+		// um peer sumiu (kickando gente do nada) só por falta de round-trip a tempo. O meio-termo:
+		// processa até um limite por volta, garantindo que sempre volta pro wait(5) regularmente.
+		const uint MAX_EVENTS_PER_TICK = 200;
+		while (true) {
+			for (uint processed = 0; processed < MAX_EVENTS_PER_TICK; processed++) {
+				const network_event@ ev = net.request(0);
+				if (@ev == null || ev.type == event_none) break;
+				handle_event(ev);
+			}
+
+			float delta = float(clock.elapsed) / 1000.0;
+			clock.restart();
+			tick_lobbies(delta);
+			wait(5);
+		}
+	}
+
+	// --- Infra de conexão ---
+
+	game_player@ find_connection(uint64 peer_id) const {
+		for (uint i = 0; i < connections.length(); i++) {
+			if (connections[i].peer_id == peer_id) return connections[i];
+		}
+		return null;
+	}
+
+	game_state@ find_lobby(const string&in lobby_id) const {
+		for (uint i = 0; i < lobbies.length(); i++) {
+			if (lobbies[i].lobby_id == lobby_id) return lobbies[i];
+		}
+		return null;
+	}
+
+	game_state@ find_lobby_of_peer(uint64 peer_id) const {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.lobby_id == "") return null;
+		return find_lobby(conn.lobby_id);
+	}
+
+	void send_to(uint64 peer_id, net_packet@ pkt, bool reliable = true) {
+		if (reliable) net.send_reliable(peer_id, pkt.to_wire(), CHANNEL_RELIABLE);
+		else net.send_unreliable(peer_id, pkt.to_wire(), CHANNEL_UNRELIABLE);
+	}
+
+	// Bot não tem conexão: mandar pacote pro "peer" dele seria jogar no lixo (ou pior, mirar um peer
+	// que não existe), então todo envio em massa pula bot.
+	void broadcast_to_lobby(game_state@ lobby, net_packet@ pkt, uint64 exclude_peer = 0, bool reliable = true) {
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].is_bot) continue;
+			if (lobby.players[i].peer_id == exclude_peer) continue;
+			send_to(lobby.players[i].peer_id, pkt, reliable);
+		}
+	}
+
+	// Fantasma (morto/expulso) só é visto/ouvido por outros fantasmas - vivos nunca recebem a posição
+	// dele (ver on_move).
+	void broadcast_to_dead_players(game_state@ lobby, net_packet@ pkt, uint64 exclude_peer = 0) {
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].is_bot) continue;
+			if (lobby.players[i].peer_id == exclude_peer || lobby.players[i].alive) continue;
+			send_to(lobby.players[i].peer_id, pkt, false);
+		}
+	}
+
+	void handle_event(const network_event@ ev) {
+		if (ev.type == event_connect) {
+			game_player@ conn = game_player(ev.peer_id, "");
+			connections.insert_last(conn);
+		} else if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) {
+			on_disconnect(ev.peer_id);
+		} else if (ev.type == event_receive) {
+			net_packet@ pkt = packet_from_wire(ev.message);
+			if (@pkt != null) route_packet(ev.peer_id, pkt);
+		}
+	}
+
+	void on_disconnect(uint64 peer_id) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby != null) remove_from_lobby(lobby, peer_id);
+
+		for (uint i = 0; i < connections.length(); i++) {
+			if (connections[i].peer_id == peer_id) { connections.remove_at(i); break; }
+		}
+	}
+
+	void remove_from_lobby(game_state@ lobby, uint64 peer_id) {
+		string left_name = "";
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p != null) left_name = p.username;
+
+		// Durante uma partida em andamento, remover o jogador do array quebraria a contagem de
+		// vivos (alive_crewmate_count()/alive_impostor_count()) usada pra decidir quem venceu -
+		// um crewmate saindo faria parecer que os impostores têm maioria na hora, por exemplo,
+		// terminando o jogo do nada pros que ficaram.
+		//
+		// A saída é deixar na partida um REGISTRO do jogador (morto, marcado como "caiu") e devolver
+		// o objeto de CONEXÃO limpo pra ele. Os dois não podem ser a mesma coisa: quem sai vai entrar
+		// noutra lobby ainda com essa partida rolando, e se a partida antiga continuasse segurando o
+		// objeto dele, o fim daquela partida ia mexer no jogador no meio da partida NOVA - zerando
+		// papel e tasks, e tirando ele da lobby em que ele está agora.
+		bool match_active = lobby.state != "waiting" && lobby.state != "ended";
+		if (match_active) {
+			if (@p != null) {
+				game_player@ record = game_player(p.peer_id, p.username);
+				record.color = p.color;
+				record.is_impostor = p.is_impostor;
+				record.tasks = p.tasks;
+				record.x = p.x;
+				record.y = p.y;
+				record.alive = false;
+				record.left_match = true; // as tasks dele param de contar já (ver counts_for_task_win)
+				for (uint i = 0; i < lobby.players.length(); i++) {
+					if (lobby.players[i].peer_id == peer_id) { @lobby.players[i] = record; break; }
+				}
+				p.reset_match_state(); // a conexão sai daqui sem nenhuma herança da partida
+			}
+		} else {
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				if (lobby.players[i].peer_id == peer_id) { lobby.players.remove_at(i); break; }
+			}
+			// Sobrar só bot não é "lobby com gente": eles não conseguem iniciar partida nem sair
+			// sozinhos, então a lobby seria um fantasma na lista de partidas pra sempre.
+			if (lobby.human_count() == 0) {
+				for (uint i = 0; i < lobbies.length(); i++) {
+					if (lobbies[i].lobby_id == lobby.lobby_id) { lobbies.remove_at(i); break; }
+				}
+				return;
+			}
+			if (lobby.host_peer_id == peer_id) {
+				for (uint i = 0; i < lobby.players.length(); i++) {
+					if (lobby.players[i].is_bot) continue; // bot não pode ser anfitrião: não aperta Enter
+					lobby.host_peer_id = lobby.players[i].peer_id;
+					break;
+				}
+			}
+		}
+
+		// Inclui nome e o anfitrião atual (pode ter mudado nesta mesma saída) pra que o cliente
+		// consiga anunciar quem saiu e quem é o novo anfitrião sem precisar de outro pacote.
+		net_packet@ left = net_packet(S_PLAYER_LEFT);
+		left.set_uint64("peer_id", peer_id);
+		left.set_string("name", left_name);
+		left.set_uint64("host_peer_id", lobby.host_peer_id);
+		broadcast_to_lobby(lobby, left);
+	}
+
+	// --- Roteamento ---
+
+	void route_packet(uint64 peer_id, net_packet@ pkt) {
+		string t = pkt.type;
+		if (t == C_LOGIN) on_login(peer_id, pkt);
+		else if (t == C_REGISTER) on_register(peer_id, pkt);
+		else if (t == C_LIST_LOBBIES) on_list_lobbies(peer_id, pkt);
+		else if (t == C_CREATE_LOBBY) on_create_lobby(peer_id, pkt);
+		else if (t == C_JOIN_LOBBY) on_join_lobby(peer_id, pkt);
+		else if (t == C_LEAVE_LOBBY) on_leave_lobby(peer_id, pkt);
+		else if (t == C_START_GAME) on_start_game(peer_id, pkt);
+		else if (t == C_ADD_BOT) on_add_bot(peer_id, pkt);
+		else if (t == C_REMOVE_BOT) on_remove_bot(peer_id, pkt);
+		else if (t == C_MOVE) on_move(peer_id, pkt);
+		else if (t == C_START_TASK) on_start_task(peer_id, pkt);
+		else if (t == C_TASK_INPUT) on_task_input(peer_id, pkt);
+		else if (t == C_KILL) on_kill(peer_id, pkt);
+		else if (t == C_REPORT_BODY) on_report_body(peer_id, pkt);
+		else if (t == C_CALL_MEETING) on_call_meeting(peer_id, pkt);
+		else if (t == C_CAST_VOTE) on_cast_vote(peer_id, pkt);
+		else if (t == C_USE_VENT) on_use_vent(peer_id, pkt);
+		else if (t == C_VENT_TRAVEL) on_vent_travel(peer_id, pkt);
+		else if (t == C_RADAR_SCAN) on_radar_scan(peer_id, pkt);
+		else if (t == C_TRIGGER_SABOTAGE) on_trigger_sabotage(peer_id, pkt);
+		else if (t == C_CLOSE_DOORS) on_close_doors(peer_id, pkt);
+		else if (t == C_INTERACT) on_interact(peer_id, pkt);
+		else if (t == C_PING) on_ping(peer_id, pkt);
+		else if (t == C_CHAT_MESSAGE) on_chat_message(peer_id, pkt);
+	}
+
+	// --- Autenticação ---
+
+	void on_login(uint64 peer_id, net_packet@ pkt) {
+		string username = pkt.get_string("username");
+		string password = pkt.get_string("password");
+		net_packet@ result = net_packet(S_LOGIN_RESULT);
+
+		if (g_user_db.verify_login(username, password)) {
+			game_player@ conn = find_connection(peer_id);
+			if (@conn != null) {
+				conn.username = username;
+				conn.authenticated = true;
+			}
+			result.set_bool("ok", true);
+			result.set_string("message", "login.success");
+			result.set_string("username", username);
+			// O cliente não tem como descobrir sozinho com que id o servidor o identifica (o id que
+			// o ENet dele devolve é só um handle local) - sem isso ele compara maçã com laranja em
+			// todo peer_id que chega e às vezes "acerta" o de outro jogador (ver game_client).
+			result.set_uint64("peer_id", peer_id);
+		} else {
+			result.set_bool("ok", false);
+			result.set_string("message", "login.invalid_credentials");
+		}
+		send_to(peer_id, result);
+	}
+
+	void on_register(uint64 peer_id, net_packet@ pkt) {
+		string username = pkt.get_string("username");
+		string password = pkt.get_string("password");
+		string err;
+		bool ok = g_user_db.create_user(username, password, err);
+
+		net_packet@ result = net_packet(S_REGISTER_RESULT);
+		result.set_bool("ok", ok);
+		result.set_string("message", ok ? "login.register_success" : ("login." + err));
+		send_to(peer_id, result);
+	}
+
+	// --- Lobbies ---
+
+	void on_list_lobbies(uint64 peer_id, net_packet@ pkt) {
+		json_array@ list = json_array();
+		for (uint i = 0; i < lobbies.length(); i++) {
+			game_state@ lobby = lobbies[i];
+			if (lobby.state != "waiting") continue;
+			json_object@ entry = json_object();
+			entry.set("id", lobby.lobby_id);
+			entry.set("name", lobby.lobby_name);
+			entry.set("current", int(lobby.players.length()));
+			entry.set("max", int(lobby.config.max_players));
+			list.add(entry);
+		}
+		net_packet@ result = net_packet(S_LOBBY_LIST);
+		result.set_array("lobbies", list);
+		send_to(peer_id, result);
+	}
+
+	void on_create_lobby(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+		leave_current_lobby(peer_id); // ninguém entra numa lobby estando em outra
+
+		game_state@ lobby = game_state();
+		lobby.lobby_id = "lobby_" + (++g_lobby_counter);
+		lobby.lobby_name = pkt.get_string("lobby_name", "Partida de " + conn.username);
+		@lobby.config = get_preset(pkt.get_string("preset", "classic"));
+		float cooldown_override = pkt.get_float("kill_cooldown_override", -1.0);
+		if (cooldown_override > 0.0) lobby.config.kill_cooldown_seconds = cooldown_override;
+		lobby.config.validate();
+		lobby.host_peer_id = peer_id;
+		@lobby.map = build_the_hub_map();
+
+		conn.lobby_id = lobby.lobby_id;
+		lobby.players.insert_last(conn);
+		lobbies.insert_last(lobby);
+
+		send_lobby_state(lobby, peer_id);
+	}
+
+	void on_join_lobby(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+
+		string lobby_id = pkt.get_string("lobby_id");
+		game_state@ lobby = find_lobby(lobby_id);
+		net_packet@ result = net_packet(S_JOIN_RESULT);
+
+		if (@lobby == null || lobby.state != "waiting" || lobby.players.length() >= lobby.config.max_players) {
+			result.set_bool("ok", false);
+			result.set_string("message", "lobby_unavailable");
+			send_to(peer_id, result);
+			return;
+		}
+
+		leave_current_lobby(peer_id); // ninguém entra numa lobby estando em outra
+		conn.lobby_id = lobby.lobby_id;
+		lobby.players.insert_last(conn);
+
+		result.set_bool("ok", true);
+		send_to(peer_id, result);
+
+		net_packet@ joined = net_packet(S_PLAYER_JOINED);
+		joined.set_uint64("peer_id", peer_id);
+		joined.set_string("name", conn.username);
+		broadcast_to_lobby(lobby, joined, peer_id);
+
+		send_lobby_state(lobby, 0);
+	}
+
+	void on_leave_lobby(uint64 peer_id, net_packet@ pkt) {
+		leave_current_lobby(peer_id);
+	}
+
+	// Tira o jogador da lobby em que ele estiver, se estiver em alguma. Usado ao sair de propósito e
+	// como garantia antes de entrar em outra: estar em duas lobbies ao mesmo tempo mandaria pacote
+	// pro lugar errado e contaria o jogador duas vezes.
+	void leave_current_lobby(uint64 peer_id) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		remove_from_lobby(lobby, peer_id);
+		game_player@ conn = find_connection(peer_id);
+		if (@conn != null) conn.lobby_id = "";
+	}
+
+	// --- Bots (jogadores controlados pelo servidor) ---
+	// Só o anfitrião mexe nisso, e só na sala de espera: adicionar/tirar jogador no meio da partida
+	// bagunçaria a contagem de vivos que decide quem venceu.
+	void on_add_bot(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) return;
+		if (lobby.state != "waiting") { send_error(peer_id, tr("lobby.bot_only_in_waiting")); return; }
+		if (lobby.players.length() >= lobby.config.max_players) { send_error(peer_id, tr("lobby.bot_lobby_full")); return; }
+		if (lobby.bot_count() >= MAX_BOTS_PER_LOBBY) { send_error(peer_id, tr("lobby.bot_limit_reached")); return; }
+
+		game_player@ bot = game_player(++g_bot_peer_counter, "");
+		bot.username = tr("lobby.bot_name") + " " + (lobby.bot_count() + 1);
+		bot.is_bot = true;
+		bot.authenticated = true;
+		bot.lobby_id = lobby.lobby_id;
+		lobby.players.insert_last(bot);
+
+		net_packet@ joined = net_packet(S_PLAYER_JOINED);
+		joined.set_uint64("peer_id", bot.peer_id);
+		joined.set_string("name", bot.username);
+		broadcast_to_lobby(lobby, joined);
+		send_lobby_state(lobby, 0);
+	}
+
+	void on_remove_bot(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) return;
+		if (lobby.state != "waiting") { send_error(peer_id, tr("lobby.bot_only_in_waiting")); return; }
+
+		// Tira o último adicionado (é o que a tecla sugere: adiciona com B, desfaz com Shift+B).
+		for (int i = int(lobby.players.length()) - 1; i >= 0; i--) {
+			if (!lobby.players[i].is_bot) continue;
+			string bot_name = lobby.players[i].username;
+			uint64 bot_peer = lobby.players[i].peer_id;
+			lobby.players.remove_at(i);
+
+			net_packet@ left = net_packet(S_PLAYER_LEFT);
+			left.set_uint64("peer_id", bot_peer);
+			left.set_string("name", bot_name);
+			left.set_uint64("host_peer_id", lobby.host_peer_id);
+			broadcast_to_lobby(lobby, left);
+			send_lobby_state(lobby, 0);
+			return;
+		}
+		send_error(peer_id, tr("lobby.bot_none_to_remove"));
+	}
+
+	void send_error(uint64 peer_id, const string&in message) {
+		net_packet@ err = net_packet(S_ERROR);
+		err.set_string("message", message);
+		send_to(peer_id, err);
+	}
+
+	// Envia o estado da lobby. Se target_peer for 0, transmite para todos os membros.
+	void send_lobby_state(game_state@ lobby, uint64 target_peer) {
+		net_packet@ pkt = net_packet(S_LOBBY_STATE);
+		pkt.set_string("lobby_id", lobby.lobby_id);
+		pkt.set_string("lobby_name", lobby.lobby_name);
+		pkt.set_int("max_players", int(lobby.config.max_players));
+		pkt.set_uint64("host_peer_id", lobby.host_peer_id);
+
+		json_array@ players_json = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			json_object@ pj = json_object();
+			pj.set("peer_id", lobby.players[i].peer_id);
+			pj.set("name", lobby.players[i].username);
+			players_json.add(pj);
+		}
+		pkt.set_array("players", players_json);
+
+		if (target_peer != 0) send_to(target_peer, pkt);
+		else broadcast_to_lobby(lobby, pkt);
+	}
+
+	// --- Início de partida ---
+
+	void on_start_game(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) return;
+		if (lobby.players.length() < MIN_PLAYERS) {
+			dictionary@ p = dictionary();
+			p.set("min", "" + MIN_PLAYERS);
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr("lobby.min_players_warning", p));
+			send_to(peer_id, err);
+			return;
+		}
+
+		// Sorteio dos papéis, bot e gente no mesmo bolo: a IA de impostor caça, mata quando ninguém
+		// está vendo e sabota (ver game_state.update_bot_impostor), então um bot impostor é uma
+		// partida de verdade - e do outro lado, um humano sozinho contra bots tem quem o cace.
+		array<game_player@> shuffled = lobby.players;
+		shuffle_player_array(shuffled);
+
+		int impostor_count = lobby.config.resolved_impostor_count(shuffled.length());
+		array<int>@ color_ids = all_color_ids();
+		shuffle_int_array(color_ids);
+
+		// Tasks comuns desta partida: sorteadas UMA vez, aqui, e entregues iguais a todo tripulante
+		// (ver COMMON_TASK_TYPES). O resto do sorteio, mais abaixo, é individual e usa só as tasks
+		// não-comuns - senão uma task comum poderia sair duas vezes pra mesma pessoa.
+		array<map_object@> common_spots;
+		array<map_object@> personal_spots;
+		array<map_object@>@ all_spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		array<string> chosen_common_types;
+		for (uint i = 0; i < COMMON_TASK_TYPES.length(); i++) {
+			if (random_range(0.0, 1.0) <= COMMON_TASK_CHANCE) chosen_common_types.insert_last(COMMON_TASK_TYPES[i]);
+		}
+		for (uint i = 0; i < all_spots.length(); i++) {
+			map_object@ spot = all_spots[i];
+			bool is_common_type = COMMON_TASK_TYPES.find(spot.task_type) != -1;
+			if (!is_common_type) {
+				personal_spots.insert_last(spot);
+				continue;
+			}
+			// Task comum que não foi sorteada nesta partida não existe pra ninguém.
+			if (chosen_common_types.find(spot.task_type) != -1) common_spots.insert_last(spot);
+		}
+
+		for (uint i = 0; i < shuffled.length(); i++) {
+			game_player@ p = shuffled[i];
+			p.is_impostor = int(i) < impostor_count;
+			p.color = color_ids[i % color_ids.length()];
+			p.alive = true;
+			p.left_match = false;
+			p.vented = false;
+			p.current_vent_id = "";
+			p.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
+			p.meetings_called = 0;
+			p.radar_index = -1;
+			p.last_move_time = 0.0;
+			p.tasks.resize(0);
+			p.x = float(random(-30, 30)) / 10.0;
+			p.y = float(random(-30, 30)) / 10.0;
+
+			if (!p.is_impostor) {
+				// Primeiro as comuns, IGUAIS pra todo mundo (mesmo ponto do mapa, inclusive).
+				for (uint c = 0; c < common_spots.length(); c++) {
+					player_task pt;
+					pt.object_id = common_spots[c].id;
+					pt.task_type = common_spots[c].task_type;
+					p.tasks.insert_last(pt);
+				}
+				// Depois as individuais, completando até o total configurado.
+				array<map_object@> pool = personal_spots;
+				shuffle_object_array(pool);
+				uint count = lobby.config.task_count_per_crewmate;
+				count = count > p.tasks.length() ? count - p.tasks.length() : 0;
+				if (count > pool.length()) count = pool.length();
+				for (uint t = 0; t < count; t++) {
+					player_task pt;
+					pt.object_id = pool[t].id;
+					pt.task_type = pool[t].task_type;
+					p.tasks.insert_last(pt);
+				}
+			}
+		}
+
+		lobby.bodies.resize(0);
+		lobby.votes.resize(0);
+		lobby.active_sabotage = "";
+		lobby.last_sabotage_id = "";
+		lobby.meeting_cooldown_remaining = 0.0;
+		lobby.doors_cooldown_remaining = 0.0;
+		lobby.map.open_all_doors();
+		lobby.sabotage_fixed_panels.resize(0);
+		lobby.winner = "";
+		lobby.elapsed_time = 0.0;
+		// Zerar isto era esquecido: o valor sobrava da partida ANTERIOR nessa mesma lobby.
+		lobby.sabotage_cooldown_remaining = SABOTAGE_INITIAL_COOLDOWN_SECONDS;
+		lobby.state = "in_progress";
+
+		json_array@ roster = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			json_object@ rj = json_object();
+			rj.set("peer_id", lobby.players[i].peer_id);
+			rj.set("name", lobby.players[i].username);
+			rj.set("color", lobby.players[i].color);
+			rj.set("x", lobby.players[i].x);
+			rj.set("y", lobby.players[i].y);
+			roster.add(rj);
+		}
+
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (p.is_bot) continue; // não tem pra quem mandar
+			net_packet@ start = net_packet(S_GAME_START);
+			start.set_string("map_name", lobby.map.name);
+			start.set_bool("your_role_impostor", p.is_impostor);
+			start.set_int("your_color", p.color);
+			start.set_uint64("your_peer_id", p.peer_id);
+			start.set_float("your_x", p.x);
+			start.set_float("your_y", p.y);
+			start.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
+			start.set_float("sabotage_cooldown_seconds", lobby.sabotage_cooldown_remaining);
+			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
+			// um ou três, senão a discussão da reunião é chute puro.
+			start.set_int("impostor_count", impostor_count);
+
+			// Os OUTROS impostores, mandados só pra quem é impostor - cada um precisa saber quem é do
+			// time dele pra não se denunciar sozinho na reunião. A lista sai montada por destinatário
+			// justamente pra nunca sair daqui pra um tripulante.
+			// Vai peer_id junto com o nome porque o cliente usa os ids pra nunca mirar um parceiro na
+			// hora de matar (ver a tecla de kill em game/game_loop.nvgt).
+			if (p.is_impostor) {
+				json_array@ partners = json_array();
+				for (uint j = 0; j < lobby.players.length(); j++) {
+					game_player@ other = lobby.players[j];
+					if (!other.is_impostor || other.peer_id == p.peer_id) continue;
+					json_object@ entry = json_object();
+					entry.set("peer_id", other.peer_id);
+					entry.set("name", other.username);
+					partners.add(entry);
+				}
+				start.set_array("impostor_partners", partners);
+			}
+			start.set_array("players", roster);
+
+			json_array@ tasks_json = json_array();
+			for (uint t = 0; t < p.tasks.length(); t++) {
+				json_object@ tj = json_object();
+				tj.set("object_id", p.tasks[t].object_id);
+				tj.set("task_type", p.tasks[t].task_type);
+				tasks_json.add(tj);
+			}
+			start.set_array("tasks", tasks_json);
+
+			send_to(p.peer_id, start);
+		}
+
+		broadcast_to_lobby(lobby, lobby.build_task_progress_packet()); // placar zerado, pra todo mundo já começar sabendo o total
+	}
+
+	// --- Jogo em andamento ---
+
+	void on_move(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		float x = pkt.get_float("x");
+		float y = pkt.get_float("y");
+		if (!lobby.try_move_player(peer_id, x, y)) return;
+
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || p.vented) return; // jogador escondido no vent não transmite posição
+
+		net_packet@ moved = net_packet(S_PLAYER_MOVED);
+		moved.set_uint64("peer_id", peer_id);
+		moved.set_float("x", x);
+		moved.set_float("y", y);
+		if (p.alive) broadcast_to_lobby(lobby, moved, peer_id, false);
+		else broadcast_to_dead_players(lobby, moved, peer_id); // fantasma: invisível pra quem tá vivo
+	}
+
+	void on_start_task(uint64 peer_id, net_packet@ pkt) {
+		// O minigame roda inteiramente no cliente; nada a validar aqui além de existir a task.
+		// Reservado para uso futuro (ex.: bloquear duas pessoas na mesma task ao mesmo tempo).
+	}
+
+	void on_task_input(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		// Fantasma (morto ou expulso) CONTINUA fazendo task, e isso é essencial: é o que dá aos
+		// tripulantes chance de ganhar pelas tasks depois de perder gente. Ele só não interage com
+		// mais nada (botão, painel, vent - ver game/game_loop.nvgt).
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null) return;
+
+		string task_id = pkt.get_string("task_id");
+		bool success = pkt.get_bool("success");
+		if (!success) return;
+		if (!p.complete_task(task_id)) return;
+
+		g_user_db.increment_stat(p.username, "tasks_completed", 1);
+
+		net_packet@ result = net_packet(S_TASK_RESULT);
+		result.set_string("task_id", task_id);
+		result.set_bool("ok", true);
+		result.set_int("progress", p.task_progress_percent());
+		send_to(peer_id, result);
+
+		// Placar da equipe vai pra TODO mundo, impostor incluído: pro tripulante é saber quanto falta,
+		// pro impostor é o relógio correndo contra ele (ver run_task_list_menu no cliente).
+		broadcast_to_lobby(lobby, lobby.build_task_progress_packet());
+	}
+
+	void on_kill(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		uint64 target_peer = pkt.get_uint64("target_peer");
+
+		// Antes falhava em silêncio (o impostor apertava matar, nada acontecia, e não tinha como
+		// saber se foi cooldown, alcance, ou alvo já morto) - agora pelo menos o caso mais comum
+		// (cooldown) avisa por quê.
+		game_player@ killer = lobby.find_player(peer_id);
+		if (@killer != null && killer.is_impostor && killer.alive && killer.kill_cooldown_remaining > 0.0) {
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr("game.kill_on_cooldown"));
+			send_to(peer_id, err);
+			return;
+		}
+
+		net_packet@ event;
+		if (lobby.try_kill(peer_id, target_peer, event)) {
+			broadcast_to_lobby(lobby, event);
+		}
+	}
+
+	void on_report_body(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive) return;
+
+		body_info@ body = lobby.find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
+		if (@body == null) return;
+		if (lobby.meetings_blocked_by_sabotage()) { send_error(peer_id, tr("sabotage.blocks_meeting")); return; }
+
+		net_packet@ reported = net_packet(S_BODY_REPORTED);
+		reported.set_uint64("reporter_peer", peer_id);
+		reported.set_uint64("body_peer", body.victim_peer_id);
+		// ONDE o corpo foi achado é metade da informação de uma reunião - sem isso a discussão
+		// começava sem ninguém saber de que sala se está falando. Vai a chave de i18n da sala (o
+		// servidor é quem tem o mapa aqui), o cliente só traduz.
+		map_zone@ body_zone = lobby.map.find_zone(body.room_id);
+		reported.set_string("room_key", @body_zone != null ? body_zone.name_key : "");
+		broadcast_to_lobby(lobby, reported);
+
+		for (uint i = 0; i < lobby.bodies.length(); i++) {
+			if (lobby.bodies[i].id == body.id) { lobby.bodies.remove_at(i); break; }
+		}
+
+		net_packet@ event;
+		if (lobby.start_meeting(peer_id, "body", event)) broadcast_meeting_and_voting(lobby, event);
+	}
+
+	// Manda o aviso de reunião (com a posição de teleporte) e, na sequência, já abre a votação - não
+	// existe mais uma fase de discussão separada esperando um timer (ver game_state.start_meeting()).
+	void broadcast_meeting_and_voting(game_state@ lobby, net_packet@ meeting_event) {
+		broadcast_to_lobby(lobby, meeting_event);
+		// Quem foi tirado do vent pela reunião (ver game_state.start_meeting) precisa saber - senão o
+		// cliente segue achando que está escondido e continua bloqueando o movimento sozinho.
+		if (lobby.meeting_doors_opened.length() > 0) {
+			broadcast_to_lobby(lobby, lobby.build_doors_packet(lobby.meeting_doors_opened, false));
+		}
+		for (uint i = 0; i < lobby.meeting_unvented_peers.length(); i++) {
+			net_packet@ vent_state = net_packet(S_VENT_STATE);
+			vent_state.set_bool("vented", false);
+			vent_state.set_float("x", MEETING_GATHER_X);
+			vent_state.set_float("y", MEETING_GATHER_Y);
+			send_to(lobby.meeting_unvented_peers[i], vent_state);
+		}
+		net_packet@ vs = net_packet(S_VOTING_STARTED);
+		vs.set_float("voting_time", lobby.voting_timer);
+		broadcast_to_lobby(lobby, vs);
+	}
+
+	void on_call_meeting(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		if (lobby.state != "in_progress") {
+			// Já tem reunião/votação rolando, ou a partida acabou - sem isso o botão parecia
+			// simplesmente não fazer nada quando apertado de novo nesse meio tempo.
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr("game.meeting_call_failed"));
+			send_to(peer_id, err);
+			return;
+		}
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive) return;
+		string button_block_reason = lobby.emergency_button_block_reason();
+		if (button_block_reason != "") { send_error(peer_id, tr(button_block_reason)); return; }
+
+		// Recarga depois da última reunião: diz quanto falta, em vez do genérico "não deu certo".
+		if (lobby.emergency_button_cooldown_reason() != "") {
+			dictionary@ cd = dictionary();
+			cd.set("seconds", "" + int(lobby.meeting_cooldown_remaining + 0.5));
+			send_error(peer_id, tr(lobby.emergency_button_cooldown_reason(), cd));
+			return;
+		}
+
+		// Não valida distância até o botão aqui: a posição que o servidor tem vem do canal de
+		// movimento não confiável e pode estar sempre um pouco atrás da posição real (o cliente já
+		// só deixa chamar isso quando o jogador está perto o bastante, via find_interactable) -
+		// checar de novo aqui só causava falha na primeira tentativa (posição ainda desatualizada)
+		// e sucesso na segunda, de forma inconsistente. Chamar reunião não tem risco sério de ser
+		// abusado à distância (o limite de reuniões por jogador já existe), então confiamos no
+		// cliente pra essa validação específica.
+		net_packet@ event;
+		if (lobby.start_meeting(peer_id, "button", event)) {
+			broadcast_meeting_and_voting(lobby, event);
+		} else {
+			// Sem isso o jogador aperta o botão e não acontece nada nem fala nada - ex.: já gastou
+			// as reuniões de emergência permitidas, ou uma reunião/votação já está em andamento.
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr("game.meeting_call_failed"));
+			send_to(peer_id, err);
+		}
+	}
+
+	void on_cast_vote(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		int64 target = pkt.get_int64("target_peer", -1);
+		if (!lobby.cast_vote(peer_id, target)) {
+			// Antes o cliente não sabia se o voto foi mesmo aceito - dava pra abrir o menu de novo e
+			// "votar" outra vez sem nenhum aviso, mesmo o servidor já ignorando o segundo voto.
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr("game.already_voted"));
+			send_to(peer_id, err);
+			return;
+		}
+		game_player@ voter = lobby.find_player(peer_id);
+		if (@voter != null) {
+			net_packet@ cast_pkt = net_packet(S_VOTE_CAST);
+			cast_pkt.set_uint64("voter_peer", peer_id);
+			cast_pkt.set_string("voter_name", voter.username);
+			broadcast_to_lobby(lobby, cast_pkt);
+		}
+	}
+
+	// Entra num vent perto (achado por proximidade, igual qualquer outro objeto interativo). Uma vez
+	// dentro, sair ou viajar pra outro vent da mesma rede usa on_vent_travel (tecla V no cliente) -
+	// esses não dependem de proximidade porque a rede inteira conta como "dentro do vent".
+	void on_use_vent(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive || !p.is_impostor || p.vented) return;
+
+		string vent_id = pkt.get_string("vent_id");
+		map_object@ vent = lobby.map.find_object(vent_id);
+		if (@vent == null || vent.obj_type != OBJ_VENT) return;
+		if (distance_2d(p.x, p.y, vent.x, vent.y) > PLAYER_INTERACT_RANGE) return;
+
+		p.x = vent.x;
+		p.y = vent.y;
+		p.vented = true;
+		p.current_vent_id = vent_id;
+
+		net_packet@ result = net_packet(S_VENT_STATE);
+		result.set_bool("vented", true);
+		result.set_float("x", p.x);
+		result.set_float("y", p.y);
+		send_to(peer_id, result);
+		broadcast_vent_sound(lobby, peer_id, vent_id);
+	}
+
+	// A tampa do vent abrindo é ouvida por quem está por perto - é o que equilibra o vent, que não
+	// tem recarga nenhuma (igual ao jogo original, onde entrar e sair é livre, mas visível e audível
+	// pra quem estiver na sala). Vai pra todo mundo MENOS quem usou: esse já toca o som no próprio
+	// cliente, na hora, sem esperar a rede.
+	// Viajar de um vent pro outro NÃO faz som pra ninguém de fora: a tampa não abre, o impostor segue
+	// escondido - também como no original.
+	void broadcast_vent_sound(game_state@ lobby, uint64 user_peer, const string&in vent_id) {
+		if (vent_id == "") return;
+		net_packet@ vent_sound = net_packet(S_VENT_SOUND);
+		vent_sound.set_string("vent_id", vent_id);
+		broadcast_to_lobby(lobby, vent_sound, user_peer);
+	}
+
+	// Sair do vent (target_vent_id == "") ou viajar pra outro vent CONECTADO ao atual, permanecendo
+	// escondido - só chamado enquanto já vented (ver tecla V / menu de vent no cliente).
+	void on_vent_travel(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive || !p.vented) return;
+
+		string target_id = pkt.get_string("target_vent_id");
+
+		if (target_id == "") {
+			string exited_vent_id = p.current_vent_id;
+			p.vented = false;
+			p.current_vent_id = "";
+			broadcast_vent_sound(lobby, peer_id, exited_vent_id); // a tampa abrindo, ouvida por quem está perto
+			net_packet@ moved = net_packet(S_PLAYER_MOVED);
+			moved.set_uint64("peer_id", peer_id);
+			moved.set_float("x", p.x);
+			moved.set_float("y", p.y);
+			broadcast_to_lobby(lobby, moved, peer_id, false);
+
+			net_packet@ result = net_packet(S_VENT_STATE);
+			result.set_bool("vented", false);
+			result.set_float("x", p.x);
+			result.set_float("y", p.y);
+			send_to(peer_id, result);
+			return;
+		}
+
+		map_object@ current_vent = lobby.map.find_object(p.current_vent_id);
+		map_object@ target_vent = lobby.map.find_object(target_id);
+		if (@current_vent == null || @target_vent == null || target_vent.obj_type != OBJ_VENT) return;
+		if (lobby.map.vent_connections(current_vent).find(target_id) == -1) return; // não conectado
+
+		p.x = target_vent.x;
+		p.y = target_vent.y;
+		p.current_vent_id = target_id;
+
+		net_packet@ result = net_packet(S_VENT_STATE);
+		result.set_bool("vented", true);
+		result.set_float("x", p.x);
+		result.set_float("y", p.y);
+		send_to(peer_id, result);
+	}
+
+	void on_radar_scan(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ me = lobby.find_player(peer_id);
+		if (@me == null) return; // fantasma (morto/expulso) também pode usar o radar - só não aparece nele
+
+		// Sabotagem não atrapalha quem sabota: o impostor mantém o radar inteiro nos dois casos abaixo.
+		// É a mesma lógica do jogo original, onde o apagão não cega o impostor - a sabotagem é uma
+		// arma dele, e uma arma que atinge o próprio dono deixa de ser usada.
+		bool blinded_by_sabotage = !me.is_impostor;
+
+		// Sabotagem de comunicações derruba o radar: é o equivalente aqui ao "esconder as tasks" do
+		// jogo original - tira a ferramenta principal de saber quem está perto de você.
+		if (blinded_by_sabotage && lobby.active_sabotage == "comms") {
+			send_error(peer_id, tr("sabotage.comms.radar_down"));
+			return;
+		}
+
+		array<game_player@>@ nearby = lobby.players_in_same_room(peer_id);
+		// Luzes apagadas: o radar vira quase um tato - só sente quem está bem colado, mesmo estando
+		// todo mundo na mesma sala.
+		if (blinded_by_sabotage && lobby.active_sabotage == "lights") {
+			array<game_player@> in_reach;
+			for (uint i = 0; i < nearby.length(); i++) {
+				if (distance_2d(me.x, me.y, nearby[i].x, nearby[i].y) <= RADAR_LIGHTS_OUT_RANGE) in_reach.insert_last(nearby[i]);
+			}
+			nearby = in_reach;
+		}
+
+		net_packet@ result = net_packet(S_RADAR_RESULT);
+		if (nearby.length() == 0) {
+			result.set_bool("empty", true);
+			send_to(peer_id, result);
+			return;
+		}
+
+		int direction = pkt.get_int("direction", 1);
+		me.radar_index = (me.radar_index + direction) % int(nearby.length());
+		if (me.radar_index < 0) me.radar_index += int(nearby.length());
+
+		game_player@ target = nearby[me.radar_index];
+		result.set_bool("empty", false);
+		result.set_uint64("peer_id", target.peer_id);
+		result.set_string("name", target.username);
+		result.set_float("x", target.x);
+		result.set_float("y", target.y);
+		result.set_float("distance", distance_2d(me.x, me.y, target.x, target.y));
+		send_to(peer_id, result);
+	}
+
+	void on_trigger_sabotage(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		string sabotage_id = pkt.get_string("sabotage_id");
+
+		net_packet@ event;
+		string fail_key;
+		if (lobby.trigger_sabotage(peer_id, sabotage_id, event, fail_key)) {
+			broadcast_to_lobby(lobby, event);
+		} else {
+			// Antes falhava calado - o impostor escolhia a sabotagem no menu e não acontecia nada,
+			// sem nenhuma pista de que a lobby simplesmente não permite sabotagem (preset "rápido"),
+			// de que ainda está em recarga, ou de que é a mesma da vez passada.
+			send_error(peer_id, tr(fail_key));
+		}
+	}
+
+	void on_close_doors(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		array<string>@ closed_zones;
+		if (!lobby.close_doors_of_room(peer_id, pkt.get_string("room_id"), closed_zones)) {
+			send_error(peer_id, tr("game.doors_unavailable"));
+			return;
+		}
+		broadcast_to_lobby(lobby, lobby.build_doors_packet(closed_zones, true));
+	}
+
+	// Responde na hora, sem checar lobby/estado - o cliente usa isso só pra medir o round-trip de rede.
+	void on_ping(uint64 peer_id, net_packet@ pkt) {
+		send_to(peer_id, net_packet(S_PONG));
+	}
+
+	// Roteamento do chat: só existe chat na lobby (waiting) e durante reunião/votação, e nesses dois
+	// casos ele é aberto pra todo mundo.
+	// Não existe mais chat durante a partida em andamento. O que existia era um chat por facção
+	// (impostores conversando entre si), e isso entregava o jogo: quem NÃO recebia aquelas mensagens
+	// sabia na hora que os outros eram impostores - e o impostor sabia quem era o parceiro sem
+	// precisar descobrir. Conversa é na reunião, com todo mundo junto, que é onde ela vale.
+	void on_chat_message(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		game_player@ sender = lobby.find_player(peer_id);
+		if (@sender == null) return;
+
+		if (lobby.state == "in_progress") {
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr("chat.only_in_meeting"));
+			send_to(peer_id, err);
+			return;
+		}
+		if (!sender.alive) { // morto só lê o chat, não manda mensagem
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr("chat.dead_cannot_send"));
+			send_to(peer_id, err);
+			return;
+		}
+		string text = pkt.get_string("text");
+		if (text == "") return;
+
+		net_packet@ msg = net_packet(S_CHAT_MESSAGE);
+		msg.set_uint64("peer_id", peer_id);
+		msg.set_string("name", sender.username);
+		msg.set_string("text", text);
+		broadcast_to_lobby(lobby, msg);
+	}
+
+	void on_interact(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		string object_id = pkt.get_string("object_id");
+
+		net_packet@ event;
+		int panels_fixed, panels_required;
+		string fail_key;
+		if (lobby.try_fix_sabotage_panel(peer_id, object_id, event, panels_fixed, panels_required, fail_key)) {
+			broadcast_to_lobby(lobby, event);
+		} else if (fail_key != "") {
+			net_packet@ err = net_packet(S_ERROR);
+			err.set_string("message", tr(fail_key));
+			send_to(peer_id, err);
+		} else if (panels_required > 0) {
+			// Painel certo, mas ainda falta consertar outro(s) - sem isso parecia que o painel "não
+			// funcionava" quando na verdade só precisava de mais um conserto em outro lugar.
+			net_packet@ progress = net_packet(S_ERROR);
+			dictionary@ p = dictionary();
+			p.set("fixed", "" + panels_fixed);
+			p.set("required", "" + panels_required);
+			progress.set_string("message", tr("sabotage.panel_progress", p));
+			send_to(peer_id, progress);
+		}
+	}
+
+	// --- Tick geral ---
+
+	void tick_lobbies(float delta) {
+		// De trás pra frente porque uma lobby pode sair da lista aqui dentro (ver o fim da partida
+		// logo abaixo) - percorrer de frente pulando índices é o jeito clássico de deixar uma lobby
+		// sem tick por um quadro.
+		for (int i = int(lobbies.length()) - 1; i >= 0; i--) {
+			game_state@ lobby = lobbies[i];
+			if (lobby.state == "waiting" || lobby.state == "ended") continue;
+			array<net_packet@>@ events = lobby.tick(delta);
+			for (uint e = 0; e < events.length(); e++) {
+				// Movimento (hoje só de bot) vai pelo canal não confiável, igual o dos jogadores de
+				// verdade: chega muitas vezes por segundo e perder um pacote não custa nada.
+				bool reliable = events[e].type != S_PLAYER_MOVED;
+				broadcast_to_lobby(lobby, events[e], 0, reliable);
+			}
+			// A partida acabou (o S_GAME_OVER acabou de sair): a lobby FECHA.
+			if (lobby.state == "ended") close_lobby(i);
+		}
+	}
+
+	// Encerra e apaga a lobby de índice `index`. Toda partida termina assim.
+	//
+	// A lobby não sobrevive à partida de propósito. Todo cliente volta pro navegador de partidas
+	// quando a tela de fim de jogo fecha (ver AmongUs.nvgt), então uma lobby que continuasse de pé
+	// seria uma sala sem ninguém dentro que ainda acha que tem gente: os jogadores continuariam
+	// marcados como membros dela, entrariam numa segunda lobby estando em duas ao mesmo tempo, e os
+	// pacotes iriam pro lugar errado. Fechar aqui é o que garante que a partida seguinte começa do
+	// zero, sem herança nenhuma.
+	void close_lobby(int index) {
+		game_state@ lobby = lobbies[index];
+		// Os game_player são objetos de CONEXÃO e continuam vivos depois da lobby - limpar o estado
+		// de partida deles é o que impede a próxima sala de herdar morte, papel e tasks da anterior.
+		lobby.reset_players_after_match();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ conn = find_connection(lobby.players[i].peer_id);
+			if (@conn == null) continue; // bot: some junto com a lobby
+			// Só solta quem AINDA está nesta lobby. Quem saiu no meio da partida já pode estar em
+			// outra sala a esta altura, e limpar o lobby_id dele aqui o expulsaria de lá.
+			if (conn.lobby_id == lobby.lobby_id) conn.lobby_id = "";
+		}
+		lobbies.remove_at(index);
+	}
+}

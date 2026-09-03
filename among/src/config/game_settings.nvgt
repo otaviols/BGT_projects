@@ -1,0 +1,117 @@
+// game_settings.nvgt
+// Preferências do JOGADOR (não da partida): volume por família de som, mapa de teclas e voz.
+// Ficam na pasta de dados do usuário, então sobrevivem a atualizações do jogo e não dependem de a
+// pasta de instalação ser gravável.
+//
+// Volume é guardado em PORCENTAGEM (0 a 100) porque é isso que faz sentido pra quem ajusta; quem
+// toca o som converte pra decibéis na hora, que é o que a engine entende (ver volume_db()).
+
+#include "settings.nvgt"
+#include "speech.nvgt"
+#include "keybindings.nvgt"
+
+// Famílias de som. Cada som do jogo pertence a exatamente uma - ver audio/audio_manager.nvgt, que é
+// o único lugar que decide isso.
+const int SOUND_FAMILY_MASTER = 0;    // multiplica todas as outras
+const int SOUND_FAMILY_AMBIENCE = 1;  // nave, salas, corredores
+const int SOUND_FAMILY_STEPS = 2;     // passos (seus e dos outros), esbarrões
+const int SOUND_FAMILY_BEACONS = 3;   // marcadores de objeto, radar, corpo no chão
+const int SOUND_FAMILY_TASKS = 4;     // minigames de task e interação com objetos
+const int SOUND_FAMILY_EVENTS = 5;    // mortes, alarmes, reunião, vitória e derrota
+const int SOUND_FAMILY_UI = 6;        // menus, diálogos, chat
+const int SOUND_FAMILY_COUNT = 7;
+
+const array<string> SOUND_FAMILY_IDS = {"master", "ambience", "steps", "beacons", "tasks", "events", "ui"};
+const array<string> SOUND_FAMILY_NAME_KEYS = {"volume.master", "volume.ambience", "volume.steps",
+	"volume.beacons", "volume.tasks", "volume.events", "volume.ui"};
+
+class game_settings {
+	private settings store;
+	array<int> volumes; // porcentagem por família, 0 a 100
+	// Último usuário que entrou NESTA máquina. Só o nome: a senha não é guardada de propósito - ela
+	// ficaria em texto puro num arquivo do computador, e "não redigitar o nome" já é o incômodo que
+	// se queria resolver.
+	string last_username = "";
+	// Idioma escolhido pelo jogador, no formato do nome do arquivo em lang/ (ex.: "pt_BR").
+	// O padrão é pt_BR porque é o idioma em que o jogo foi escrito e o único garantidamente completo;
+	// quem preferir outro troca uma vez e a escolha fica.
+	string language = DEFAULT_LANGUAGE;
+
+	game_settings() {
+		volumes.resize(SOUND_FAMILY_COUNT);
+		for (uint i = 0; i < volumes.length(); i++) volumes[i] = 100;
+	}
+
+	// Porcentagem -> decibéis. 100% = 0 dB (som original), 0% = silêncio na prática.
+	// A conversão é logarítmica porque a percepção de volume é: 50% tem que SOAR metade, e não ser
+	// metade da amplitude (que soaria quase igual).
+	float percent_to_db(int percent) const {
+		if (percent <= 0) return -100.0;
+		if (percent >= 100) return 0.0;
+		return 20.0 * log10(float(percent) / 100.0);
+	}
+
+	// Volume de uma família, em dB, pra passar na chamada de play. NÃO inclui o volume geral: esse é
+	// aplicado pela própria engine (ver apply_master), e assim ele vale também pros sons que não
+	// passam pelo nosso audio_manager - os cliques dos menus do NVGT, por exemplo.
+	float volume_db(int family) const {
+		if (family < 0 || family >= SOUND_FAMILY_COUNT) return 0.0;
+		return percent_to_db(volumes[family]);
+	}
+
+	// O volume geral é o volume mestre da engine: pega TODO som que o jogo tocar, venha de onde vier.
+	void apply_master() {
+		sound_master_volume = percent_to_db(volumes[SOUND_FAMILY_MASTER]);
+	}
+
+	// Abre o arquivo de configuração uma única vez. Tanto load() quanto save() passam por aqui: sem
+	// isso, um save() antes do primeiro load() não gravava nada e falhava calado.
+	private bool ensure_open() {
+		if (store.active) return true;
+		return store.setup("BGT", "AmongUsAudiogame", false);
+	}
+
+	void load() {
+		if (!ensure_open()) return;
+		for (uint i = 0; i < SOUND_FAMILY_IDS.length(); i++) {
+			volumes[i] = int(store.read_number("volume_" + SOUND_FAMILY_IDS[i], 100));
+			if (volumes[i] < 0) volumes[i] = 0;
+			if (volumes[i] > 100) volumes[i] = 100;
+		}
+		for (uint i = 0; i < g_keys.bindings.length(); i++) {
+			key_binding@ b = g_keys.bindings[i];
+			b.key = int(store.read_number("key_" + b.id, b.default_key));
+		}
+		// Voz: o próprio speech.nvgt sabe serializar e restaurar a configuração dele (voz escolhida,
+		// velocidade, volume e se deve usar o leitor de tela quando existir).
+		last_username = store.read_string("last_username", "");
+		language = store.read_string("language", DEFAULT_LANGUAGE);
+		if (language == "") language = DEFAULT_LANGUAGE;
+		string voice_config = store.read_string("tts", "");
+		if (voice_config != "") tts_load_config(voice_config, tts);
+
+		apply_master();
+	}
+
+	void save() {
+		if (!ensure_open()) return;
+		for (uint i = 0; i < SOUND_FAMILY_IDS.length(); i++) {
+			store.write_number("volume_" + SOUND_FAMILY_IDS[i], volumes[i]);
+		}
+		for (uint i = 0; i < g_keys.bindings.length(); i++) {
+			key_binding@ b = g_keys.bindings[i];
+			store.write_number("key_" + b.id, b.key);
+		}
+		store.write_string("last_username", last_username);
+		store.write_string("language", language);
+		store.write_string("tts", tts_dump_config(tts, true));
+	}
+}
+
+game_settings g_settings;
+
+// Som de interface (abrir/fechar diálogo, avisos de menu). Fica aqui e não no audio_manager porque
+// quem toca isso são as telas, que não têm um audio_manager por perto.
+void ui_sound(const string&in path) {
+	sound_play(path, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), g_settings.volume_db(SOUND_FAMILY_UI), 0.0);
+}

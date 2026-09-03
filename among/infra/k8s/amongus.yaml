@@ -1,0 +1,123 @@
+# Servidor dedicado do Among Us Audiogame no cluster AKS.
+#
+# Este cluster não é exclusivo deste jogo: ele já hospeda o fallen-realms, e o nó tem 2 vCPUs. Os
+# limites daqui foram escolhidos com isso em mente - ver o comentário em `resources` abaixo.
+#
+# Aplicar com:  kubectl apply -f infra/k8s/amongus.yaml
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: amongus
+
+---
+# O banco de contas (among_users.db) é a ÚNICA coisa que precisa sobreviver a um deploy: a imagem
+# inteira é substituída a cada versão, e sem este volume as contas e estatísticas de todo mundo iam
+# junto. 1Gi é exagero folgado para um SQLite de contas, mas é o menor disco que compensa pedir.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: amongus-data
+  namespace: amongus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amongus-server
+  namespace: amongus
+  labels:
+    app: amongus-server
+spec:
+  # UMA réplica, e não é para aumentar. O estado das partidas vive na memória do processo
+  # (src/core/game_state.nvgt): uma segunda réplica não dividiria a carga, ela criaria um segundo
+  # servidor com outras partidas, e quem entrasse pelo balanceador cairia num dos dois ao acaso.
+  replicas: 1
+  # O volume é ReadWriteOnce: dois pods não conseguem montá-lo ao mesmo tempo. Com a estratégia
+  # padrão (RollingUpdate) o pod novo ficaria travado esperando um volume que o pod velho ainda
+  # segura, e o deploy nunca terminaria. Recreate derruba o velho primeiro - há alguns segundos de
+  # indisponibilidade a cada deploy, e para um jogo em beta isso é aceitável.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: amongus-server
+  template:
+    metadata:
+      labels:
+        app: amongus-server
+    spec:
+      # O binário escreve no volume, e o volume nasce como root. Sem isto o servidor sobe, tenta
+      # criar o banco e morre com "unable to open database file" - que não deixa nada óbvio sobre
+      # permissão de diretório.
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: server
+          # A tag é preenchida pelo deploy.ps1 a cada publicação. `latest` seria mais cômodo e bem
+          # pior: o Kubernetes não teria como saber que a imagem mudou, e `kubectl rollout` não
+          # reiniciaria nada.
+          image: ghcr.io/otaviols/amongus-server:PLACEHOLDER
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: game
+              containerPort: 8934
+              protocol: UDP
+          # O nó tem 2 vCPUs e o fallen-realms já reserva 500m. As RESERVAS aqui são baixas de
+          # propósito (é o que o agendador tira do nó de forma permanente) e o teto é folgado: o
+          # servidor só valida movimento e retransmite pacotes pequenos para no máximo 10 jogadores,
+          # então ele fica muito abaixo da reserva quase o tempo todo e só usa o teto em picos.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      # Sem probes de propósito: o jogo só fala UDP, e o Kubernetes não sabe sondar UDP - um
+      # readinessProbe TCP na 8934 daria "não pronto" para sempre e o balanceador nunca mandaria
+      # tráfego. O reinício em caso de queda fica por conta do restartPolicy padrão, que é o mesmo
+      # papel que o `Restart=always` do systemd fazia na VM.
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: amongus-data
+
+---
+# O endereço do servidor vai COMPILADO dentro do cliente (DEFAULT_SERVER_HOST em
+# src/config/game_constants.nvgt), então ele não pode mudar: um IP novo obrigaria a redistribuir o jogo
+# para todo mundo que já baixou.
+#
+# Por isso o balanceador é amarrado ao IP estático que o Terraform já criou (amongus-ip), em vez de
+# deixar o Azure sortear um. Como esse IP mora noutro grupo de recursos, são necessárias as DUAS
+# anotações abaixo - e a permissão para o cluster manipulá-lo, que o main.tf concede.
+apiVersion: v1
+kind: Service
+metadata:
+  name: amongus-server
+  namespace: amongus
+  labels:
+    app: amongus-server
+  annotations:
+    service.beta.kubernetes.io/azure-pip-name: amongus-ip
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: amongus-rg
+spec:
+  type: LoadBalancer
+  # O jogo fala por ENet, que é UDP. Expor TCP aqui é o erro clássico: a porta parece aberta em
+  # qualquer teste e mesmo assim ninguém conecta.
+  ports:
+    - name: game
+      port: 8934
+      targetPort: 8934
+      protocol: UDP
+  selector:
+    app: amongus-server

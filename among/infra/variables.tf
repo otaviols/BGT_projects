@@ -10,38 +10,29 @@ variable "prefix" {
 }
 
 variable "location" {
-  description = "Região do Azure. Latência importa num jogo em tempo real: escolha a mais perto de quem vai jogar."
+  description = "Região do Azure. Latência importa num jogo em tempo real: escolha a mais perto de quem vai jogar. Vale manter na mesma região do cluster - o IP e o balanceador precisam estar juntos."
   type        = string
   default     = "brazilsouth"
 }
 
-variable "vm_size" {
-  description = "Tamanho da VM. B1s (1 vCPU, 1 GB) dá conta de sobra: o servidor só valida movimento e retransmite pacotes pequenos para no máximo 10 jogadores."
+# --- Cluster que hospeda o servidor -------------------------------------------
+# O servidor roda no AKS em vez de numa VM própria (ver o comentário no main.tf). O cluster NÃO é
+# criado aqui: ele já existia, é compartilhado com outro jogo, e apagá-lo por causa deste projeto
+# derrubaria o outro junto. Aqui ele é só consultado, para conceder a permissão do IP.
+
+variable "aks_cluster_name" {
+  description = "Nome do cluster AKS que hospeda o servidor."
   type        = string
-  default     = "Standard_B1s"
+  default     = "aks-fallenrealms-alpha"
 }
 
-variable "admin_username" {
-  description = "Usuário administrador da VM (acesso por SSH)."
+variable "aks_resource_group_name" {
+  description = "Grupo de recursos do cluster AKS. É o grupo do cluster em si, não o MC_... que o Azure cria sozinho para os nós."
   type        = string
-  default     = "azureuser"
+  default     = "rg-fallenrealms-alpha"
 }
 
-variable "ssh_public_key" {
-  description = "Conteúdo da sua chave pública SSH (o arquivo .pub inteiro). Gere com: ssh-keygen -t ed25519"
-  type        = string
-}
-
-variable "admin_source_ip" {
-  description = "De onde o SSH pode entrar. Use o seu IP público (ex.: \"189.10.20.30\") ou uma faixa CIDR. Evite \"*\": isso abre a porta 22 pra internet inteira."
-  type        = string
-}
-
-variable "game_port" {
-  description = "Porta UDP do servidor do jogo. Precisa bater com DEFAULT_SERVER_PORT em config/game_constants.nvgt."
-  type        = number
-  default     = 8934
-}
+# --- Site de download ---------------------------------------------------------
 
 variable "storage_account_name" {
   description = "Nome do Storage Account do site de download. Precisa ser único no Azure inteiro, só letras minúsculas e números, 3 a 24 caracteres."

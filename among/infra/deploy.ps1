@@ -1,18 +1,20 @@
 # deploy.ps1
-# Publica uma versão: manda o servidor pra VM e o cliente pro site de download.
+# Publica uma versão: manda o servidor pro cluster e o cliente pro site de download.
 #
 # Rode da raiz do projeto (a pasta among), depois de ter gerado os pacotes:
 #   nvgt tools/build_pack.nvgt
 #   nvgt -c -plinux server_main.nvgt
 #   nvgt -c AmongUs.nvgt
-#   infra\deploy.ps1 -StorageAccount <nome> -ServerIp <ip>
+#   infra\deploy.ps1 -StorageAccount <nome>
 #
-# Os dois valores saem do `terraform output` depois do apply.
+# O nome do storage sai do `terraform output`. O servidor não precisa mais de -ServerIp: ele deixou
+# de ser uma VM alcançada por SSH e virou um contêiner no cluster, então quem sabe onde ele fica é o
+# kubectl.
 
 param(
 	[Parameter(Mandatory = $true)][string]$StorageAccount,
-	[Parameter(Mandatory = $true)][string]$ServerIp,
-	[string]$AdminUser = "azureuser",
+	# Onde a imagem do servidor é publicada. O padrão é o mesmo registro que o outro jogo já usa.
+	[string]$Image = "ghcr.io/otaviols/amongus-server",
 	# Pular uma das partes é útil quando só o cliente mudou (ou só o servidor).
 	[switch]$SkipServer,
 	[switch]$SkipSite
@@ -27,23 +29,47 @@ if (-not $SkipServer) {
 		throw "Não achei $serverZip. Gere com: nvgt -c -plinux server_main.nvgt"
 	}
 
-	Write-Host "Enviando o servidor para $ServerIp..."
-	scp $serverZip "${AdminUser}@${ServerIp}:/tmp/server_main.zip"
+	# A tag é o commit atual, e não `latest`, por dois motivos: dá para saber exatamente qual código
+	# está no ar olhando o pod, e o Kubernetes só reinicia o servidor quando a tag MUDA - com
+	# `latest` fixo, `kubectl apply` não veria diferença nenhuma e o deploy não faria nada.
+	$tag = (git -C $root rev-parse --short HEAD).Trim()
+	if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($tag)) {
+		throw "Não consegui descobrir o commit atual para etiquetar a imagem."
+	}
+	$fullImage = "${Image}:${tag}"
 
-	# O unzip sobrescreve o binário e as bibliotecas, mas NÃO toca no among_users.db: ele não está
-	# no pacote, então as contas dos jogadores sobrevivem a todo deploy.
-	$remote = @"
-set -e
-sudo unzip -o /tmp/server_main.zip -d /opt/amongus
-sudo chown -R amongus:amongus /opt/amongus
-sudo chmod +x /opt/amongus/server_main
-sudo systemctl restart amongus.service
-rm -f /tmp/server_main.zip
-sleep 2
-systemctl is-active amongus.service
-"@
-	ssh "${AdminUser}@${ServerIp}" $remote
-	Write-Host "Servidor no ar."
+	Write-Host "Construindo $fullImage..."
+	# O contexto é a RAIZ do projeto porque o Dockerfile precisa do server_main.zip, que fica lá.
+	docker build -f (Join-Path $PSScriptRoot "Dockerfile") -t $fullImage $root
+	if ($LASTEXITCODE -ne 0) { throw "docker build falhou." }
+
+	Write-Host "Enviando a imagem..."
+	docker push $fullImage
+	if ($LASTEXITCODE -ne 0) {
+		throw "docker push falhou. Se for erro de autenticação: docker login ghcr.io -u <usuario>"
+	}
+
+	Write-Host "Atualizando o servidor no cluster..."
+	kubectl apply -f (Join-Path $PSScriptRoot "k8s/amongus.yaml")
+	if ($LASTEXITCODE -ne 0) { throw "kubectl apply falhou." }
+
+	# O YAML tem um PLACEHOLDER na tag: quem resolve qual versão sobe é este comando, não o arquivo.
+	# Assim o manifesto continua igual entre versões e o histórico não vira uma sequência de commits
+	# que só trocam um número.
+	kubectl set image -n amongus deployment/amongus-server server=$fullImage
+	if ($LASTEXITCODE -ne 0) { throw "kubectl set image falhou." }
+
+	# Sem --timeout o comando espera para sempre se o pod não subir, e o deploy trava sem dizer por
+	# quê. Com ele, a falha aparece e os logs abaixo mostram a causa.
+	kubectl rollout status -n amongus deployment/amongus-server --timeout=180s
+	if ($LASTEXITCODE -ne 0) {
+		Write-Warning "O servidor não subiu. Últimas linhas do log:"
+		kubectl logs -n amongus deployment/amongus-server --tail=50
+		throw "rollout falhou."
+	}
+
+	$serverIp = kubectl get svc -n amongus amongus-server -o jsonpath="{.status.loadBalancer.ingress[0].ip}"
+	Write-Host "Servidor no ar em ${serverIp}:8934/udp"
 }
 
 if (-not $SkipSite) {

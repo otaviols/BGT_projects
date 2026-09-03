@@ -1,0 +1,287 @@
+// lobby_screens.nvgt
+// Telas de lobby: navegador de partidas (listar/criar/entrar) e sala de espera (pronto/iniciar).
+
+#include "menu.nvgt"
+#include "form.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../core/client_state.nvgt"
+#include "../core/chat_log.nvgt"
+#include "../i18n.nvgt"
+#include "../config/game_constants.nvgt"
+#include "../audio/audio_manager.nvgt"
+// KEY_CHAT* vêm de core/chat_log.nvgt (compartilhado com game/game_loop.nvgt)
+
+// Resultado do navegador de lobbies: o jogador criou uma partida, entrou em uma existente, ou
+// voltou ao menu anterior.
+class lobby_browser_result {
+	bool joined = false;
+	bool go_back = false;
+	bool is_host = false;
+}
+
+// menu.run() e o monitor() de audio_form bloqueiam localmente enquanto o jogador decide (às vezes
+// dezenas de segundos, alternando entre janelas ao testar com vários clientes) sem nunca chamar
+// client.update(). Sem isso a conexão para de ser "servida" (nada de keepalive/ack via ENet) e o
+// servidor pode considerá-la caída, fazendo a lista de lobbies parecer travada/vazia mesmo com o
+// servidor funcionando. background_callback do menu.nvgt roda a cada iteração do monitor() interno,
+// então usamos ele pra manter a rede viva enquanto o menu está aberto.
+game_client@ g_lobby_pump_client;
+void pump_client_during_menu(menu@ m, string data) {
+	if (@g_lobby_pump_client != null) g_lobby_pump_client.update();
+}
+
+// Busca a lista de lobbies em espera no servidor e monta um menu navegável: cada partida existente
+// + "Criar partida" + "Atualizar lista" + "Voltar".
+lobby_browser_result run_lobby_browser_screen(game_client@ client) {
+	lobby_browser_result result;
+	audio_manager@ audio = audio_manager();
+	audio.play_intro();
+
+	while (true) {
+		client.send_list_lobbies();
+		json_array@ lobbies = wait_for_lobby_list(client);
+
+		menu m;
+		m.click_sound = "menuclick.wav";
+		m.select_sound = "menuconfirm.wav";
+		m.sounds_prefix = "sounds/";
+		m.intro_text = @lobbies == null || lobbies.length() == 0 ? tr("lobby.no_lobbies") : tr("menu.join_lobby");
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
+
+		if (@lobbies != null) {
+			for (uint i = 0; i < lobbies.length(); i++) {
+				json_object@ entry = lobbies.get_object(i);
+				if (@entry == null) continue;
+				dictionary@ p = dictionary();
+				p.set("current", "" + int(entry["current"]));
+				p.set("max", "" + int(entry["max"]));
+				string label = string(entry["name"]) + " - " + tr("lobby.players", p);
+				m.add_item(label, string(entry["id"]));
+			}
+		}
+		m.add_item(tr("menu.create_lobby"), "__create__");
+		m.add_item(tr("lobby.refresh"), "__refresh__");
+		m.add_item(tr("menu.back"), "__back__");
+
+		m.run();
+		string id = m.selected_item_id;
+
+		if (id == "" || id == "__back__") {
+			result.go_back = true;
+			return result;
+		}
+		if (id == "__refresh__") continue;
+		if (id == "__create__") {
+			if (run_create_lobby_screen(client)) {
+				result.joined = true;
+				result.is_host = true;
+				return result;
+			}
+			continue;
+		}
+
+		client.send_join_lobby(id);
+		if (wait_for_join_result(client)) {
+			result.joined = true;
+			result.is_host = false;
+			return result;
+		}
+		speak(tr("lobby.join_failed"));
+	}
+	return result; // inalcançável - o laço só termina via return acima
+}
+
+json_array@ wait_for_lobby_list(game_client@ client) {
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_LOBBY_LIST) return pkt.get_array("lobbies");
+			@pkt = client.poll_message();
+		}
+	}
+	return null;
+}
+
+bool wait_for_join_result(game_client@ client) {
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_JOIN_RESULT) return pkt.get_bool("ok");
+			@pkt = client.poll_message();
+		}
+	}
+	return false;
+}
+
+// Tela simples de criação de partida: nome + preset (clássico/rápido/caos).
+bool run_create_lobby_screen(game_client@ client) {
+	audio_form f;
+	f.create_window(tr("menu.create_lobby"), false); // não sobrescreve o título da janela (nome do jogo)
+	int f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
+	int f_preset = f.create_list(tr("menu.settings"));
+	f.add_list_item(f_preset, tr("lobby.preset.classic_desc"), "classic");
+	f.add_list_item(f_preset, tr("lobby.preset.quick_desc"), "quick");
+	f.add_list_item(f_preset, tr("lobby.preset.chaos_desc"), "chaos");
+	// Em branco = usa o cooldown padrão do preset escolhido acima.
+	int f_kill_cooldown = f.create_input_box(tr("lobby.kill_cooldown_override"), "");
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+
+	while (true) {
+		wait(5);
+		client.update(); // mantém a conexão viva enquanto o jogador preenche o formulário
+		f.monitor();
+		if (f.is_pressed(f_cancel)) return false;
+		if (f.is_pressed(f_ok)) {
+			string lobby_name = f.get_text(f_name);
+			int preset_index = f.get_list_position(f_preset);
+			string preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";
+			string cooldown_text = f.get_text(f_kill_cooldown);
+			float cooldown_override = cooldown_text == "" ? -1.0 : parse_float(cooldown_text);
+			client.send_create_lobby(lobby_name, preset_id, cooldown_override);
+			return wait_for_join_result_after_create(client);
+		}
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}
+
+bool wait_for_join_result_after_create(game_client@ client) {
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_LOBBY_STATE) return true;
+			@pkt = client.poll_message();
+		}
+	}
+	return false;
+}
+
+// Atualiza is_host/host_peer_id a partir de um novo valor vindo do servidor (S_LOBBY_STATE ou
+// S_PLAYER_LEFT) e anuncia a troca de anfitrião - só quando já sabíamos quem era antes (host_peer_id
+// != 0), pra não anunciar nada na entrada na sala.
+void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inout is_host,
+		uint64 new_host_peer_id, const string&in new_host_name) {
+	bool was_known = host_peer_id != 0;
+	bool changed = was_known && new_host_peer_id != host_peer_id;
+	host_peer_id = new_host_peer_id;
+	is_host = client.my_peer_id == host_peer_id;
+	if (!changed) return;
+	if (is_host) {
+		speak(tr("lobby.you_are_host") + " " + tr("lobby.host_start_hint"));
+	} else if (new_host_name != "") {
+		dictionary@ p = dictionary();
+		p.set("name", new_host_name);
+		speak(tr("lobby.new_host", p));
+	}
+}
+
+// Sala de espera: fala entradas/saídas, o anfitrião inicia a partida (Enter) e qualquer um pode
+// sair (ESC). Retorna o pacote S_GAME_START quando a partida começa, ou null se o jogador saiu
+// antes disso.
+// Não existe mais "marcar pronto": ninguém usava pra nada (o servidor nunca exigiu que todos
+// estivessem prontos pra começar), era só um passo a mais antes de jogar.
+net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
+	audio_manager@ audio = audio_manager();
+	uint64 host_peer_id = 0; // 0 = ainda não recebemos nenhum S_LOBBY_STATE
+
+	chat_log@ messages_log = chat_log();
+	chat_log@ events_log = chat_log();
+	bool viewing_events_container = false; // false = mensagens, true = eventos
+
+	speak(tr(is_host ? "lobby.host_start_hint" : "lobby.waiting_for_host"));
+
+	while (true) {
+		wait(10);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_PLAYER_JOINED) {
+				dictionary@ p = dictionary();
+				p.set("name", pkt.get_string("name"));
+				string joined_text = tr("lobby.player_joined", p);
+				speak(joined_text);
+				events_log.add("", joined_text);
+				audio.play_player_enter();
+			} else if (pkt.type == S_PLAYER_LEFT) {
+				dictionary@ p = dictionary();
+				p.set("name", pkt.get_string("name", "?"));
+				string left_text = tr("lobby.player_left", p);
+				speak(left_text);
+				events_log.add("", left_text);
+				audio.play_player_leave();
+				apply_host_change(client, host_peer_id, is_host, pkt.get_uint64("host_peer_id"), "");
+			} else if (pkt.type == S_LOBBY_STATE) {
+				string new_host_name = "";
+				json_array@ players = pkt.get_array("players");
+				uint64 new_host_id = pkt.get_uint64("host_peer_id");
+				if (@players != null) {
+					for (uint i = 0; i < players.length(); i++) {
+						json_object@ pj = players.get_object(i);
+						if (@pj != null && uint64(pj["peer_id"]) == new_host_id) { new_host_name = string(pj["name"]); break; }
+					}
+				}
+				apply_host_change(client, host_peer_id, is_host, new_host_id, new_host_name);
+			} else if (pkt.type == S_CHAT_MESSAGE) {
+				string chat_name = pkt.get_string("name");
+				string chat_text = pkt.get_string("text");
+				messages_log.add(chat_name, chat_text);
+				speak(chat_name + ": " + chat_text);
+				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
+				else audio.play_message_received();
+			} else if (pkt.type == S_ERROR) {
+				speak(pkt.get_string("message"));
+			} else if (pkt.type == S_GAME_START) {
+				return pkt;
+			}
+			@pkt = client.poll_message();
+		}
+
+		if (is_host && key_pressed(KEY_RETURN)) {
+			client.send_start_game();
+		}
+
+		// B adiciona um bot, Shift+B tira o último - só o anfitrião, e o servidor confere de novo
+		// (ver on_add_bot). Entrada e saída de bot são anunciadas pelo caminho normal de
+		// S_PLAYER_JOINED / S_PLAYER_LEFT, então não precisa falar nada aqui.
+		if (key_pressed(KEY_B)) {
+			if (!is_host) speak(tr("lobby.bot_host_only"));
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) client.send_remove_bot();
+			else client.send_add_bot();
+		}
+
+		if (action_pressed(ACTION_CHAT)) run_chat_compose(client);
+
+		if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
+			viewing_events_container = !viewing_events_container;
+			speak(tr(viewing_events_container ? "chat.events_container" : "chat.messages_container"));
+		}
+
+		bool chat_prev_pressed = action_pressed(ACTION_CHAT_PREV);
+		bool chat_next_pressed = action_pressed(ACTION_CHAT_NEXT);
+		if (chat_prev_pressed || chat_next_pressed) {
+			chat_log@ active_log = viewing_events_container ? events_log : messages_log;
+			bool shift_held = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);
+			string line;
+			if (chat_prev_pressed) line = shift_held ? active_log.move_first() : active_log.move_previous();
+			else line = shift_held ? active_log.move_last() : active_log.move_next();
+			speak(line != "" ? line : tr("chat.empty"));
+		}
+
+		if (key_pressed(KEY_ESCAPE)) {
+			client.send_leave_lobby();
+			return null;
+		}
+	}
+	return null; // inalcançável - o laço só termina via return acima
+}

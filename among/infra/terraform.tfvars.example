@@ -3,19 +3,15 @@
 # az account show --query id -o tsv
 subscription_id = "00000000-0000-0000-0000-000000000000"
 
-# O conteúdo do seu arquivo .pub inteiro (ssh-keygen -t ed25519 gera um).
-ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... voce@sua-maquina"
-
-# Seu IP público, pra liberar SSH só pra você (veja em https://ifconfig.me).
-# Aceita CIDR também: "189.10.20.0/24".
-admin_source_ip = "189.10.20.30"
-
 # Único no Azure inteiro, só minúsculas e números - vira o endereço do site.
 storage_account_name = "amongusaudiogame"
 
+# O servidor roda num cluster AKS que já existe (ver o comentário no main.tf); o Terraform não o
+# cria, só o consulta para dar a ele permissão de usar o IP estático. Se o seu cluster tiver outro
+# nome, descomente e ajuste.
+# aks_cluster_name        = "aks-fallenrealms-alpha"
+# aks_resource_group_name = "rg-fallenrealms-alpha"
+
 # Opcionais (estes são os padrões):
-# prefix         = "amongus"
-# location       = "brazilsouth"
-# vm_size        = "Standard_B1s"
-# admin_username = "azureuser"
-# game_port      = 8934
+# prefix   = "amongus"
+# location = "brazilsouth"

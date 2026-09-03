@@ -26,3 +26,11 @@ infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.*
 infra/*.tfvars
+# O arquivo de plano (`terraform plan -out`) é binário, vale só para o estado do momento em que foi
+# gerado e vira lixo assim que alguém aplica qualquer coisa - aplicar um plano velho é justamente o
+# tipo de acidente que não se quer versionado.
+infra/tfplan
+infra/*.tfplan
+# Arquivo de trava deixado para trás quando um apply é interrompido. É estado de execução, e um
+# arquivo desses versionado faria o Terraform recusar comandos na máquina de outra pessoa.
+infra/.terraform.tfstate.lock.info

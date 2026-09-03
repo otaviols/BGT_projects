@@ -1,0 +1,140 @@
+// game_constants.nvgt
+// Constantes globais do jogo. Nada aqui deve depender de estado de partida.
+
+// Versão deste build. É ela que o updater compara com o version.json publicado no site
+// (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
+// trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
+// O formato é "maior.menor.correção", comparado número a número.
+const string GAME_VERSION = "0.9.0";
+
+// Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
+// O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.
+const string DOWNLOAD_PAGE_URL = "https://amongusaudiogame.z15.web.core.windows.net/";
+const string UPDATE_CHECK_URL = DOWNLOAD_PAGE_URL + "version.json";
+
+// Rede
+// Servidor oficial. O jogo conecta direto aqui, sem perguntar nada ao jogador - quem precisa de
+// outro endereço (testar contra um server_main local, por exemplo) cria um server.txt, ver
+// config/server_address.nvgt.
+// É o IP estático do balanceador do servidor no Azure (infra/main.tf o mantém fora do cluster
+// justamente pra ele nunca mudar). Se um dia ele mudar mesmo assim, o server.txt resolve pra quem
+// testa, mas os jogadores só voltam a conectar com um build novo.
+const string DEFAULT_SERVER_HOST = "20.206.112.223";
+const uint16 DEFAULT_SERVER_PORT = 8934;
+const uint MAX_PACKET_CHANNELS = 4;
+const uint NETWORK_TICKS_PER_SECOND = 20;
+
+// Jogadores
+const uint MIN_PLAYERS = 3; // temporário, pra facilitar teste - Among Us de verdade usa 4
+const uint MAX_PLAYERS = 10;
+
+// Movimento (mundo absoluto: W=norte, S=sul, A=oeste, D=leste, sem rotação)
+const float PLAYER_MOVE_SPEED = 2.2; // unidades de mundo por segundo
+const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servidor (anti-cheat simples)
+const float PLAYER_INTERACT_RANGE = 1.4; // distância máxima para usar objetos/tasks/vents
+const float PLAYER_KILL_RANGE = 1.2;
+const float PLAYER_REPORT_RANGE = 2.0;
+
+// Radar (Tab / Shift+Tab)
+const float RADAR_BEEP_VOLUME = 0.0; // dB, ajustado por distância em tempo de execução
+const uint RADAR_SAME_ROOM_ONLY = 1; // 1 = só jogadores da mesma sala/área (decisão do usuário)
+// Com as luzes apagadas o radar enxerga bem menos: mesmo na mesma sala, só pega quem estiver a esta
+// distância. Sem isso, apagar a luz não mudava nada pra quem só apertava Tab.
+const float RADAR_LIGHTS_OUT_RANGE = 6.0;
+// Alcance do radar no modo "objetos" (Ctrl+Tab). O modo de jogadores é limitado pela sala; este
+// precisa de um raio próprio porque uma sala tem até 24 unidades de ponta a ponta, e listar um
+// objeto no canto oposto dava a impressão de que ele estava logo ali.
+const float RADAR_OBJECT_RANGE = 12.0;
+
+// Impostor
+const float KILL_COOLDOWN_SECONDS = 25.0;
+const float EMERGENCY_MEETING_COOLDOWN_SECONDS = 15.0;
+const uint DEFAULT_EMERGENCY_MEETINGS_PER_PLAYER = 1;
+
+// Reunião / votação
+const float DISCUSSION_TIME_SECONDS = 45.0;
+const float VOTING_TIME_SECONDS = 30.0;
+// Ponto onde todo mundo (vivo) é teleportado quando uma reunião começa - centro da cafeteria.
+const float MEETING_GATHER_X = 0.0;
+const float MEETING_GATHER_Y = 0.0;
+
+// Sabotagens
+// Só sabotagem CRÍTICA tem relógio (é derrota se o tempo acabar). Luzes e comunicações duram até
+// alguém consertar o painel - é o que dá peso a elas.
+// 90s: os dois painéis de oxigênio ficam em salas opostas da nave (admin e elétrica), e só a
+// caminhada de uma até a outra já leva uns 25 segundos.
+const float SABOTAGE_OXYGEN_TIMER_SECONDS = 90.0;
+const float SABOTAGE_COOLDOWN_SECONDS = 30.0;
+// Cooldown já contando no começo da partida: sem isso o impostor podia sabotar no primeiro segundo,
+// antes de qualquer um ter tido tempo de sair da cafeteria ou começar uma task.
+const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
+const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
+
+// Áudio posicionado: quanto o pitch cai (em %, 100 = som original) pra tudo que está ao SUL de você.
+// O estéreo só resolve esquerda/direita - norte e sul soam idênticos, e num mapa em que se anda nos
+// quatro sentidos essa é justamente a ambiguidade que mais atrapalha. Com isso, som mais grave =
+// está pro sul. 6% é cerca de um semitom: dá pra perceber sem virar efeito sonoro.
+// 0.0 desliga o recurso.
+const float SPATIAL_SOUTH_PITCH_DECREASE = 6.0;
+
+// Bots (jogadores controlados pelo próprio servidor, adicionados pelo anfitrião na sala de espera
+// com B / Shift+B). Não são clientes de verdade: não têm conexão, então nada é ENVIADO pra eles.
+const uint MAX_BOTS_PER_LOBBY = 8;
+const float BOT_MOVE_SPEED = PLAYER_MOVE_SPEED * 0.85; // um tico mais devagar que gente
+// Posição de bot só vai pra rede nesse intervalo: o laço do servidor roda a cada ~5ms e mandar
+// pacote de movimento nessa frequência entupiria a rede à toa (o cliente só usa isso pra som).
+const float BOT_MOVE_BROADCAST_INTERVAL = 0.25;
+const float BOT_TASK_MIN_SECONDS = 4.0;  // tempo "fazendo" uma task, parado no lugar
+const float BOT_TASK_MAX_SECONDS = 9.0;
+const float BOT_IDLE_MIN_SECONDS = 2.0;  // pausa entre um destino e outro
+const float BOT_IDLE_MAX_SECONDS = 6.0;
+const float BOT_VOTE_MIN_SECONDS = 5.0;  // demora até o bot votar (sempre "pular")
+const float BOT_VOTE_MAX_SECONDS = 15.0;
+const float BOT_WAYPOINT_REACHED_DISTANCE = 0.6;
+// Bot impostor: caça o tripulante vivo mais próximo, mas só mata se ninguém estiver por perto pra
+// ver - a chance de sabotagem é por segundo (a ~2% ele sabota umas poucas vezes por partida).
+const float BOT_KILL_WITNESS_RANGE = 6.0;
+const float BOT_REPATH_INTERVAL_SECONDS = 1.5;
+const float BOT_POST_KILL_MIN_SECONDS = 2.0;
+const float BOT_POST_KILL_MAX_SECONDS = 5.0;
+const float BOT_SABOTAGE_CHANCE_PER_SECOND = 0.02;
+
+// Portas (ação de impostor, com recarga própria - não é "sabotagem", não ocupa o slot de sabotagem
+// ativa e não pode ser consertada: as portas reabrem sozinhas quando o tempo acaba).
+const float DOORS_CLOSED_SECONDS = 12.0;
+const float DOORS_COOLDOWN_SECONDS = 25.0;
+
+// Tasks
+const uint DEFAULT_TASK_COUNT_PER_CREWMATE = 5;
+
+// TASKS COMUNS: ou TODO tripulante recebe, ou NENHUM recebe - nunca só alguns.
+//
+// Essa regra é o que transforma a task num instrumento de dedução. Se o cartão está na partida, todo
+// mundo tem que fazê-lo; se não está, ninguém tem. Então "eu estava passando o cartão" é uma frase
+// que a mesa inteira consegue verificar: ou combina com o que todos viram na própria lista, ou é
+// mentira de impostor. Sem essa garantia, dar a task a uns e não a outros deixaria a desculpa
+// impossível de checar, que é o pior dos dois mundos.
+//
+// Por isso também: uma task comum tem UM ponto só no mapa inteiro (ver game/map.nvgt), senão "fui no
+// outro" viraria escapatória.
+const array<string> COMMON_TASK_TYPES = {"swipe_card"};
+// Chance de CADA task comum entrar na partida. Não é 100% de propósito: a graça está justamente em
+// não saber de antemão, senão a desculpa nunca seria testável.
+const float COMMON_TASK_CHANCE = 0.5;
+
+// Body
+const float BODY_SOUND_INTERVAL_SECONDS = 2.5;
+
+string language_default() {
+	return "pt_BR";
+}
+
+float random_range(float min_value, float max_value) {
+	return min_value + random_float() * (max_value - min_value);
+}
+
+float distance_2d(float x1, float y1, float x2, float y2) {
+	float dx = x2 - x1;
+	float dy = y2 - y1;
+	return sqrt(dx * dx + dy * dy);
+}

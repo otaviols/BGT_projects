@@ -1,0 +1,90 @@
+// radar.nvgt
+// Radar de jogadores próximos: Tab / Shift+Tab. Servidor decide quem está por perto (mesma
+// sala/área - decisão de design) e devolve um alvo por vez; aqui só tocamos o beep posicionado
+// e falamos o nome via TTS.
+
+#include "../game/map.nvgt"
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../audio/audio_manager.nvgt"
+#include "../i18n.nvgt"
+#include "speech.nvgt"
+
+// Dois modos, alternados com Ctrl+Tab:
+// - JOGADORES: quem está na mesma sala que você. Quem responde é o servidor (só ele sabe onde os
+//   outros estão), um alvo por vez.
+// - OBJETOS: o que existe na sala onde você está (tasks, vents, painéis, botão). Isso é mapa, não
+//   estado de partida, então é resolvido aqui mesmo no cliente, sem ida e volta de rede.
+// Nos dois casos o retorno é o mesmo: um beep posicionado no alvo mais o nome falado.
+const int RADAR_MODE_PLAYERS = 0;
+const int RADAR_MODE_OBJECTS = 1;
+
+class radar_ui {
+	game_client@ client;
+	audio_manager@ audio;
+	int mode = RADAR_MODE_PLAYERS;
+	private string object_room_id = ""; // sala do último ciclo de objetos, pra reiniciar ao trocar de sala
+	private int object_index = -1;
+
+	radar_ui(game_client@ client, audio_manager@ audio) {
+		@this.client = client;
+		@this.audio = audio;
+	}
+
+	void toggle_mode() {
+		mode = mode == RADAR_MODE_PLAYERS ? RADAR_MODE_OBJECTS : RADAR_MODE_PLAYERS;
+		object_index = -1;
+		speak(tr(mode == RADAR_MODE_PLAYERS ? "radar.mode_players" : "radar.mode_objects"));
+	}
+
+	void scan_next(game_map@ map, float x, float y, array<string>@ my_task_object_ids, const string&in active_sabotage_id) {
+		scan(1, map, x, y, my_task_object_ids, active_sabotage_id);
+	}
+
+	void scan_previous(game_map@ map, float x, float y, array<string>@ my_task_object_ids, const string&in active_sabotage_id) {
+		scan(-1, map, x, y, my_task_object_ids, active_sabotage_id);
+	}
+
+	private void scan(int direction, game_map@ map, float x, float y, array<string>@ my_task_object_ids,
+			const string&in active_sabotage_id) {
+		if (mode == RADAR_MODE_PLAYERS) {
+			client.send_radar_scan(direction);
+			return;
+		}
+
+		string room_id = map.room_id_at(x, y);
+		array<map_object@>@ objects = interactables_in_room(map, room_id, x, y, my_task_object_ids, active_sabotage_id);
+		if (objects.length() == 0) {
+			speak(tr("radar.no_objects_here"));
+			return;
+		}
+		if (room_id != object_room_id) { // mudou de sala: começa a lista do zero
+			object_room_id = room_id;
+			object_index = -1;
+		}
+		object_index = (object_index + direction) % int(objects.length());
+		if (object_index < 0) object_index += int(objects.length());
+
+		map_object@ target = objects[object_index];
+		audio.play_radar_beep(target.x, target.y);
+		speak(object_name(target));
+	}
+
+	// Chamar quando o loop principal receber um pacote do tipo S_RADAR_RESULT.
+	void handle_result(net_packet@ pkt) {
+		if (pkt.get_bool("empty", true)) {
+			speak(tr("radar.no_players_nearby"));
+			return;
+		}
+		float x = pkt.get_float("x");
+		float y = pkt.get_float("y");
+		string name = pkt.get_string("name");
+		audio.play_radar_beep(x, y);
+		// A contagem de "passos" (distância em unidades de mundo) não tinha uma correspondência
+		// confiável com o que se ouve andando - em vez de reportar um número que engana, só fala o
+		// nome; o som posicionado do beep já dá a noção de direção/proximidade.
+		dictionary@ params = dictionary();
+		params.set("name", name);
+		speak(tr("radar.player_at", params));
+	}
+}

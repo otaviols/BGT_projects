@@ -1,0 +1,110 @@
+// water_plants.nvgt
+// Task da estufa: três canteiros - um à esquerda, um à frente e um à direita. O regador começa no
+// canteiro do meio, e o jogador precisa LEVÁ-LO até o canteiro da vez com as setas esquerda/direita
+// antes de apertar Espaço. Regar no lugar errado não rega nada.
+//
+// A ordem é sempre esquerda, meio, direita: o jogador sai do centro, vai uma casa pra esquerda, rega,
+// volta pro meio, rega, e segue pra direita. Cada canteiro exige um movimento diferente, então
+// nenhum dos três é resolvido pelo mesmo gesto do anterior.
+//
+// Uma versão anterior era só segurar Espaço até ouvir o canteiro encher. Não havia nada pra decidir:
+// o jogador segurava, ouvia, soltava - três vezes seguidas o mesmo gesto, e igual ao que a task de
+// baixar dados já pedia. Aqui a pergunta que o jogador responde é ONDE o regador está, e isso ele só
+// sabe de ouvido: cada movimento toca a água balançando no lado pra onde o regador foi.
+
+#include "task_common.nvgt"
+
+// Pan de cada posição: esquerda, centro, direita. O índice é a posição do regador.
+const array<float> PLANT_PANS = {-100.0, 0.0, 100.0};
+
+// Em que ordem os canteiros precisam ser regados. Começando o regador no meio (índice 1), esta
+// ordem obriga a sequência esquerda -> volta ao meio -> direita.
+const array<uint> WATERING_ORDER = {0, 1, 2};
+
+// Onde o regador começa: o canteiro do meio.
+const uint WATERING_CAN_START = 1;
+
+// A frase que anuncia cada canteiro, na ordem dos índices de PLANT_PANS. É um array, e não uma
+// chave montada com o índice concatenado, pra que uma chave faltando apareça como texto errado na
+// hora de traduzir e não como uma chave inexistente descoberta só quando a task roda.
+const array<string> PLANT_PROMPT_KEYS = {
+	"task.water_plants.next_bed_0",
+	"task.water_plants.next_bed_1",
+	"task.water_plants.next_bed_2"
+};
+
+bool run_water_plants_task(game_client@ client) {
+	const uint FILL_TICKS = 3;           // quantos goles até o canteiro encher
+	const float TICK_SECONDS = 0.28;     // intervalo entre um gole e outro
+
+	speak(tr("task.water_plants.instructions"));
+	wait(500);
+
+	uint can_position = WATERING_CAN_START;
+
+	for (uint step = 0; step < WATERING_ORDER.length(); step++) {
+		uint target = WATERING_ORDER[step];
+		speak(tr(PLANT_PROMPT_KEYS[target]));
+
+		bool watered = false;
+		while (!watered) {
+			wait(5);
+			client.update();
+			if (task_cancel_requested(client)) return false;
+
+			// Mover o regador. O som do movimento sai no lado PRA ONDE ele foi - é o único jeito de
+			// o jogador saber onde o regador está, já que não há nada na tela pra conferir.
+			if (key_pressed(KEY_LEFT) && can_position > 0) {
+				can_position--;
+				task_sound(liquid_sound(random(1, int(LIQUID_VARIANT_COUNT))), PLANT_PANS[can_position]);
+			}
+			if (key_pressed(KEY_RIGHT) && can_position < PLANT_PANS.length() - 1) {
+				can_position++;
+				task_sound(liquid_sound(random(1, int(LIQUID_VARIANT_COUNT))), PLANT_PANS[can_position]);
+			}
+
+			if (!key_pressed(KEY_SPACE)) continue;
+
+			// Regou fora do lugar: nada acontece com o canteiro, só o aviso de erro. Não é derrota -
+			// errar a posição é informação, e a task continua esperando o acerto.
+			if (can_position != target) {
+				task_sound(SND_CARD_ERROR, PLANT_PANS[can_position]);
+				speak(tr("task.water_plants.wrong_spot"));
+				continue;
+			}
+
+			// Posição certa: rega. Os goles são espaçados no tempo pra dar a sensação do canteiro
+			// enchendo aos poucos, em vez de um som único que resolveria tudo instantaneamente.
+			float pan = PLANT_PANS[target];
+			sound water;
+			if (!water.load("sounds/" + SND_WATER_FLOW)) return false;
+			water.pan = pan;
+			water.play_looped();
+			task_sound(SND_FILLING, pan);
+
+			for (uint tick = 0; tick < FILL_TICKS; tick++) {
+				timer gap;
+				gap.restart();
+				while (float(gap.elapsed) / 1000.0 < TICK_SECONDS) {
+					wait(5);
+					client.update();
+					if (task_cancel_requested(client)) {
+						water.stop();
+						return false;
+					}
+				}
+				task_sound(liquid_sound(random(1, int(LIQUID_VARIANT_COUNT))), pan);
+			}
+
+			water.stop();
+			task_sound(SND_FILLING_COMPLETE, pan);
+			watered = true;
+		}
+
+		wait(300); // respiro entre um canteiro e outro
+	}
+
+	task_sound(SND_CARD_COMPLETE); // som de "task inteira concluída", diferente do de canteiro cheio
+	speak(tr("task.completed"));
+	return true;
+}

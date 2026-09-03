@@ -1,0 +1,211 @@
+// updater.nvgt
+// Verifica se saiu uma versão nova do jogo, baixa e instala.
+//
+// O jogo NÃO consegue se atualizar sozinho de dentro do próprio processo, e isso não é escolha: no
+// Windows um executável em execução fica travado pelo sistema, e nada consegue escrever por cima
+// dele enquanto ele roda. Quem faz a troca é um script auxiliar, que o jogo escreve, dispara e
+// abandona - o jogo então se fecha, e o script assume a partir daí:
+//
+//   1. espera o executável ser liberado (é assim que ele sabe que o jogo fechou de verdade);
+//   2. baixa o pacote novo para uma pasta temporária;
+//   3. confere que o pacote é válido ANTES de encostar na instalação;
+//   4. copia por cima e relança o jogo.
+//
+// A ordem dos passos 2, 3 e 4 é o que protege o jogador: enquanto o download não terminar e for
+// verificado, a instalação atual continua intacta. Uma queda de internet no meio da atualização
+// deixa o jogador com o jogo que ele já tinha, e não com uma pasta pela metade.
+//
+// Toda falha na VERIFICAÇÃO é silenciosa de propósito. Sem internet, servidor fora do ar, JSON
+// malformado - nada disso é problema do jogador, que só quer jogar.
+
+#include "../config/game_constants.nvgt"
+#include "../i18n.nvgt"
+#include "speech.nvgt"
+
+class update_info {
+	bool available = false;
+	string version = "";
+	string notes = "";
+	string package_url = "";
+}
+
+// Quebra "1.2.3" em números. Partes não numéricas viram 0, o que é o bastante: o objetivo é comparar
+// versões nossas, e o formato delas é decidido aqui mesmo (ver GAME_VERSION).
+array<int>@ parse_version(const string&in text) {
+	array<int> parts;
+	array<string>@ chunks = text.split(".");
+	for (uint i = 0; i < chunks.length(); i++) parts.insert_last(parse_int(chunks[i]));
+	return parts;
+}
+
+// true se `remote` é maior que `local`. Compara número a número, e não como texto: por texto,
+// "0.10.0" seria MENOR que "0.9.0" (porque "1" < "9"), e o jogo esconderia justamente as
+// atualizações mais novas depois da nona.
+bool is_newer(const string&in remote, const string&in local) {
+	array<int>@ r = parse_version(remote);
+	array<int>@ l = parse_version(local);
+	uint count = r.length() > l.length() ? r.length() : l.length();
+	for (uint i = 0; i < count; i++) {
+		// Uma versão com menos partes que a outra ("1.2" contra "1.2.1") conta como zero na parte que
+		// falta, que é o que "1.2" significa.
+		int rv = i < r.length() ? r[i] : 0;
+		int lv = i < l.length() ? l[i] : 0;
+		if (rv > lv) return true;
+		if (rv < lv) return false;
+	}
+	return false; // iguais
+}
+
+// Busca o version.json publicado junto com o site de download e diz se há novidade.
+update_info@ check_for_update() {
+	update_info info;
+
+	http_response response;
+	string body = url_get(UPDATE_CHECK_URL, response);
+	// 200 e nada mais: um 404 devolve uma página de erro em HTML, e tentar interpretar isso como
+	// JSON só geraria lixo. O site responde 404 enquanto nenhuma versão foi publicada ainda.
+	if (response.status != 200 || body.empty()) return info;
+
+	var@ parsed = parse_json(body);
+	if (@parsed == null) return info;
+	json_object@ data = cast<json_object@>(parsed);
+	if (@data == null) return info;
+
+	string remote_version = data.exists("version") ? string(data["version"]) : "";
+	if (remote_version == "") return info;
+	if (!is_newer(remote_version, GAME_VERSION)) return info;
+
+	info.available = true;
+	info.version = remote_version;
+	info.notes = data.exists("notes") ? string(data["notes"]) : "";
+
+	// A url no JSON é relativa ao site (ex.: "AmongUs.zip") pra que trocar o endereço do site não
+	// exija republicar o jogo inteiro. Uma url absoluta também é aceita, caso um dia o pacote passe
+	// a morar noutro lugar.
+	string package = data.exists("url") ? string(data["url"]) : "AmongUs.zip";
+	if (package.starts_with("http://") || package.starts_with("https://")) info.package_url = package;
+	else info.package_url = DOWNLOAD_PAGE_URL + package;
+
+	return info;
+}
+
+// Pasta onde o jogo está instalado, deduzida do caminho do executável. É ela que vai ser
+// substituída, então é o que o script precisa saber.
+string game_directory() {
+	string exe = SCRIPT_EXECUTABLE;
+	int slash = exe.find_last("\\");
+	if (slash == -1) slash = exe.find_last("/");
+	if (slash == -1) return cwdir();
+	return exe.substr(0, slash);
+}
+
+// Escreve o script que faz a troca e o dispara. Devolve false se nem sequer conseguiu gravar o
+// script - caso em que nada foi alterado e o jogo pode seguir normalmente.
+//
+// O script é PowerShell porque tudo que ele precisa já vem com o Windows: baixar por HTTPS
+// (Invoke-WebRequest) e descompactar (Expand-Archive). Nada de ferramenta extra pro jogador
+// instalar.
+bool launch_updater_script(const string&in package_url) {
+	string exe = SCRIPT_EXECUTABLE;
+	string dir = game_directory();
+	string script_path = DIRECTORY_TEMP + "\\amongus_update.ps1";
+	string work_dir = DIRECTORY_TEMP + "\\amongus_update";
+
+	string script =
+		"$ErrorActionPreference = 'Stop'\n"
+		"$exe = '" + exe + "'\n"
+		"$dir = '" + dir + "'\n"
+		"$work = '" + work_dir + "'\n"
+		"$url = '" + package_url + "'\n"
+		"\n"
+		"# Espera o jogo fechar de verdade. Testar se o arquivo pode ser aberto para ESCRITA é o\n"
+		"# jeito exato de saber: enquanto o processo viver, o Windows mantém o executável travado.\n"
+		"# Sem esse laço, a cópia falharia com 'arquivo em uso' e a atualização morreria aqui.\n"
+		"$deadline = (Get-Date).AddSeconds(60)\n"
+		"while ((Get-Date) -lt $deadline) {\n"
+		"  try { $fs = [IO.File]::Open($exe, 'Open', 'Write'); $fs.Close(); break }\n"
+		"  catch { Start-Sleep -Milliseconds 300 }\n"
+		"}\n"
+		"\n"
+		"try {\n"
+		"  if (Test-Path $work) { Remove-Item -Recurse -Force $work }\n"
+		"  New-Item -ItemType Directory -Force $work | Out-Null\n"
+		"  $zip = Join-Path $work 'update.zip'\n"
+		"\n"
+		"  # Barra de progresso desligada: num download grande ela custa mais tempo do que o próprio\n"
+		"  # download numa janela oculta.\n"
+		"  $ProgressPreference = 'SilentlyContinue'\n"
+		"  Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing\n"
+		"\n"
+		"  $unpacked = Join-Path $work 'unpacked'\n"
+		"  Expand-Archive -Path $zip -DestinationPath $unpacked -Force\n"
+		"\n"
+		"  # Só encosta na instalação DEPOIS de confirmar que o que chegou é um jogo de verdade. Um\n"
+		"  # download interrompido ou uma página de erro salva como .zip não passam daqui, e o\n"
+		"  # jogador continua com a versão que já tinha funcionando.\n"
+		"  $newExe = Join-Path $unpacked (Split-Path $exe -Leaf)\n"
+		"  if (-not (Test-Path $newExe)) { throw 'pacote invalido' }\n"
+		"\n"
+		"  Copy-Item -Path (Join-Path $unpacked '*') -Destination $dir -Recurse -Force\n"
+		"  Start-Process -FilePath $exe -WorkingDirectory $dir\n"
+		"}\n"
+		"catch {\n"
+		"  # Deu errado: relança a versão antiga, que continua intacta, e conta o que houve. Sair\n"
+		"  # calado deixaria o jogador olhando para um jogo que simplesmente não voltou.\n"
+		"  Start-Process -FilePath $exe -WorkingDirectory $dir\n"
+		"  Add-Type -AssemblyName System.Windows.Forms\n"
+		"  [System.Windows.Forms.MessageBox]::Show(\n"
+		"    'A atualizacao nao pode ser concluida: ' + $_.Exception.Message + \"`n`n\" +\n"
+		"    'O jogo foi reaberto na versao anterior. Voce pode baixar a nova manualmente em " + DOWNLOAD_PAGE_URL + "',\n"
+		"    'Among Us Audiogame') | Out-Null\n"
+		"}\n"
+		"finally {\n"
+		"  if (Test-Path $work) { Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue }\n"
+		"  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n"
+		"}\n";
+
+	if (!file_put_contents(script_path, script)) return false;
+
+	// background=true e wait_for_completion=false: o script PRECISA sobreviver ao jogo, porque a
+	// primeira coisa que ele faz é esperar o jogo morrer. Esperar por ele aqui seria um bloqueio
+	// mútuo - cada um parado esperando o outro terminar.
+	// -ExecutionPolicy Bypass porque a política padrão do Windows recusa scripts não assinados, e
+	// este acabou de ser gerado na máquina do próprio jogador.
+	return run("powershell.exe",
+		"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + script_path + "\"",
+		false, true);
+}
+
+// Verifica e, havendo versão nova, oferece atualizar. Chamada na abertura do jogo; se não houver
+// novidade (ou não houver internet), não diz nada e o jogador nem percebe que passou por aqui.
+//
+// Devolve true se a atualização começou - e nesse caso quem chamou deve ENCERRAR o jogo, porque o
+// script está lá fora esperando exatamente isso para poder trocar os arquivos.
+bool run_update_check() {
+	update_info@ info = check_for_update();
+	if (!info.available) return false;
+
+	dictionary@ p = dictionary();
+	p.set("version", info.version);
+	p.set("notes", info.notes);
+	speak(tr("update.available", p));
+
+	// Perguntar, e não atualizar à força: quem entrou para jogar uma partida com os amigos não quer
+	// esperar um download de dezenas de megabytes agora. Dizer não continua na versão atual, e a
+	// pergunta volta na próxima abertura.
+	if (question(tr("app.title"), tr("update.confirm")) != 1) return false;
+
+	if (!launch_updater_script(info.package_url)) {
+		// Não deu nem para preparar a atualização (pasta temporária sem permissão, por exemplo).
+		// Em vez de deixar o jogador sem saída, cai no caminho manual: abre a página de download.
+		speak(tr("update.failed"));
+		urlopen(DOWNLOAD_PAGE_URL);
+		return false;
+	}
+
+	speak(tr("update.installing"));
+	// Tempo do leitor de tela terminar a frase antes de a janela sumir - sem isto o jogo fecha no
+	// meio da fala e o jogador fica sem saber se algo aconteceu.
+	wait(3500);
+	return true;
+}

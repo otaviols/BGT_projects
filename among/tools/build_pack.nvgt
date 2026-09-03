@@ -13,7 +13,7 @@
 // resolve isso é o sound_default_pack (ver load_sound_pack() em AmongUs.nvgt).
 
 #pragma console
-#include "../audio/sound_catalog.nvgt"
+#include "../src/audio/sound_catalog.nvgt"
 
 const string PACK_PATH = "sounds.dat";
 const string SOUNDS_DIR = "sounds";

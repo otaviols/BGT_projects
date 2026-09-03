@@ -1,0 +1,5 @@
+# Referência da skill do NVGT (documentação do próprio NVGT, baixada para consulta local).
+# São ~990 arquivos e 3 MB de material de TERCEIROS: não é código deste repositório, muda ao sabor
+# de quem gerou a cópia e chegava a responder por 85% dos arquivos versionados aqui. Quem clonar o
+# repo não precisa dela para compilar nada - a documentação oficial vive no site do NVGT.
+.github/skills/

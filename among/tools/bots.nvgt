@@ -8,9 +8,9 @@
 // script (`nvgt tools/bots.nvgt`). Ele entra nos bots na primeira lobby em espera. Deixe a janela
 // aberta - ela mantém as conexões vivas até você fechar.
 
-#include "../network/client.nvgt"
-#include "../config/game_constants.nvgt"
-#include "../config/server_address.nvgt"
+#include "../src/network/client.nvgt"
+#include "../src/config/game_constants.nvgt"
+#include "../src/config/server_address.nvgt"
 
 const uint BOT_COUNT = 3;
 const string BOT_PASSWORD = "botpass123";

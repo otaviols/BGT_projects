@@ -10,25 +10,30 @@
 // vez que um som mudar, senão a compilação para com "File not found: sounds.dat" (o que é melhor do
 // que compilar calado com sons velhos).
 #pragma asset "sounds.dat"
-// Os .json um a um, e não a pasta lang/ inteira: ela também guarda o i18n.nvgt, que é CÓDIGO, e
-// empacotar a pasta toda mandava o fonte junto pro produto final. As aspas são obrigatórias, senão
-// o pré-processador quebra o nome no ponto (vira "lang/pt_BR . json").
-#pragma asset "lang/pt_BR.json"
-#pragma asset "lang/en_US.json"
-// LEIAME.txt entra como DOCUMENTO, não como asset: documento é o que o NVGT trata como arquivo pro
+// lang/ guarda só os DADOS de tradução; o código do i18n mora em src/. Foi por isso que os dois
+// foram separados: assim a pasta inteira pode ser empacotada sem mandar fonte junto pro produto
+// final, e o caminho "lang/" continua o mesmo rodando do fonte ou do jogo compilado - que é o que a
+// troca de idioma usa pra listar o que existe (find_files em src/i18n.nvgt).
+// As aspas são obrigatórias, senão o pré-processador quebra o nome no ponto.
+#pragma asset "lang"
+// Os manuais entram como DOCUMENTO, não como asset: documento é o que o NVGT trata como arquivo pro
 // JOGADOR abrir (em alguns sistemas ele fica fora da pasta interna do aplicativo, justamente pra
 // ser fácil de achar), enquanto asset é arquivo que o jogo carrega sozinho.
+// Os dois idiomas vão juntos porque o jogo tem os dois (ver a configuração de idioma): distribuir
+// só o manual em português deixaria quem joga em inglês sem manual nenhum.
 // O valor vai entre aspas de propósito: sem elas o pré-processador quebra o nome no ponto e
-// procura por "LEIAME . txt", que não existe.
-#pragma document "LEIAME.txt"
+// procura por "LEIAME . md", que não existe.
+#pragma document "LEIAME.md"
+#pragma document "README.md"
 
-#include "network/client.nvgt"
-#include "core/crash_log.nvgt"
-#include "ui/onboarding_screens.nvgt"
-#include "ui/lobby_screens.nvgt"
-#include "game/game_loop.nvgt"
-#include "lang/i18n.nvgt"
-#include "config/game_constants.nvgt"
+#include "src/network/client.nvgt"
+#include "src/core/crash_log.nvgt"
+#include "src/core/updater.nvgt"
+#include "src/ui/onboarding_screens.nvgt"
+#include "src/ui/lobby_screens.nvgt"
+#include "src/game/game_loop.nvgt"
+#include "src/i18n.nvgt"
+#include "src/config/game_constants.nvgt"
 
 const string SOUND_PACK_PATH = "sounds.dat";
 
@@ -54,11 +59,25 @@ void load_sound_pack() {
 }
 
 void main() {
-	g_i18n.load_language("pt_BR");
-	load_sound_pack();
-	// Preferências do jogador (volumes, teclas, voz) antes de qualquer som tocar ou tecla ser lida.
+	// Preferências do jogador (volumes, teclas, voz, idioma) antes de qualquer som tocar, tecla ser
+	// lida ou texto ser dito. O idioma vem daqui, então carregar as preferências tem que vir ANTES
+	// de carregar o idioma - o contrário faria o jogo abrir sempre em português e só respeitar a
+	// escolha do jogador na segunda tela.
 	g_settings.load();
+	// Se o idioma salvo não carregar (arquivo removido de um build pra outro, por exemplo), cai no
+	// padrão em vez de deixar o jogo inteiro falando por chaves cruas.
+	if (!g_i18n.load_language(g_settings.language)) g_i18n.load_language(DEFAULT_LANGUAGE);
+	load_sound_pack();
 	show_window(tr("app.title"));
+
+	// Depois da janela existir, pra que o aviso de versão nova tenha onde aparecer, e antes do menu,
+	// que é onde o jogador fica. Sem internet ou com o site fora do ar isto não diz nada e não
+	// atrasa nada perceptível - ver src/core/updater.nvgt.
+	//
+	// Se a atualização começou, o jogo TEM que sair agora: o script que vai trocar os arquivos está
+	// esperando este processo morrer pra conseguir escrever por cima do executável. Continuar aqui
+	// deixaria os dois travados, um esperando o outro.
+	if (run_update_check()) return;
 
 	// Menu inicial (conectar / aprender os sons / sair) - cancelar conexão ou login volta pra cá em
 	// vez de fechar o jogo direto.

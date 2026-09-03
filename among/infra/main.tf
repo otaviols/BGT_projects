@@ -18,117 +18,56 @@ resource "azurerm_resource_group" "game" {
   location = var.location
 }
 
-# --- Rede ---------------------------------------------------------------------
+# --- O servidor ---------------------------------------------------------------
+#
+# Não há VM aqui, e isso é deliberado. O servidor roda como um contêiner no cluster AKS que já
+# existe nesta assinatura (ver infra/k8s/amongus.yaml), pelos dois motivos abaixo:
+#
+# 1. CUSTO. O nó do cluster já está pago e tem folga de sobra para um servidor que só valida
+#    movimento e retransmite pacotes pequenos para no máximo 10 jogadores. Uma VM dedicada seria uma
+#    segunda máquina cobrada integralmente para fazer muito menos do que o nó já faz.
+#
+# 2. ESTA ASSINATURA NÃO CONSEGUE CRIAR A VM. Todas as SKUs baratas (família B, Dv3/v5, F2s_v2,
+#    A_v2) estão marcadas "NotAvailableForSubscription" - em TODAS as regiões testadas, então não é
+#    questão de escolher outra. As únicas SKUs sem restrição em brazilsouth são as de computação
+#    confidencial (DCasv6/ECasv6), e essas têm cota ZERO (`az vm list-usage` mostra limite 0), o que
+#    não aparece na lista de SKUs disponíveis e fazia o apply falhar sempre no mesmo ponto: com toda
+#    a rede já criada e só a VM faltando.
+#
+#    O AKS escapa disso porque cria os nós por um caminho diferente (VMSS gerenciado) - o nó atual é
+#    justamente uma D2als_v6, que a criação direta de VM recusa.
+#
+# Se um dia esta infra voltar a ter uma VM própria, o histórico do git tem a versão anterior deste
+# arquivo com a VM, o cloud-init e o serviço systemd prontos.
 
-resource "azurerm_virtual_network" "game" {
-  name                = "${var.prefix}-vnet"
-  address_space       = ["10.20.0.0/16"]
-  location            = azurerm_resource_group.game.location
-  resource_group_name = azurerm_resource_group.game.name
-}
-
-resource "azurerm_subnet" "game" {
-  name                 = "${var.prefix}-subnet"
-  resource_group_name  = azurerm_resource_group.game.name
-  virtual_network_name = azurerm_virtual_network.game.name
-  address_prefixes     = ["10.20.1.0/24"]
-}
-
-# O IP é ESTÁTICO de propósito: o endereço do servidor vai compilado dentro do cliente
-# (DEFAULT_SERVER_HOST em config/game_constants.nvgt). Um IP que muda obrigaria a redistribuir o
-# jogo para todo mundo.
+# O endereço do servidor vai COMPILADO dentro do cliente (DEFAULT_SERVER_HOST em
+# src/config/game_constants.nvgt). Um IP que muda obrigaria a redistribuir o jogo para todo mundo, então
+# ele é estático e vive aqui - fora do cluster - de propósito: assim ele sobrevive a apagar o
+# Service, recriar o balanceador ou até trocar de cluster.
 resource "azurerm_public_ip" "game" {
   name                = "${var.prefix}-ip"
   location            = azurerm_resource_group.game.location
   resource_group_name = azurerm_resource_group.game.name
   allocation_method   = "Static"
-  sku                 = "Standard"
+  # Standard porque é o que o balanceador do AKS usa. Um IP Basic aqui é recusado na hora de
+  # associar, com um erro que fala de SKU e não deixa claro qual dos dois lados está errado.
+  sku = "Standard"
 }
 
-resource "azurerm_network_security_group" "game" {
-  name                = "${var.prefix}-nsg"
-  location            = azurerm_resource_group.game.location
-  resource_group_name = azurerm_resource_group.game.name
-
-  # O jogo fala por ENet, que é UDP. Liberar só TCP aqui é o erro clássico: a porta parece aberta
-  # em qualquer teste de porta e mesmo assim ninguém conecta.
-  security_rule {
-    name                       = "game-udp"
-    priority                   = 100
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
-    source_port_range          = "*"
-    destination_port_range     = tostring(var.game_port)
-    source_address_prefix      = "Internet"
-    destination_address_prefix = "*"
-  }
-
-  # SSH só de onde você administra. "*" aqui deixaria o mundo inteiro batendo na porta.
-  security_rule {
-    name                       = "ssh"
-    priority                   = 200
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = var.admin_source_ip
-    destination_address_prefix = "*"
-  }
+# O cluster mora noutro grupo de recursos, e por padrão ele só enxerga o próprio. Sem esta
+# permissão, o Service do jogo fica eternamente em "pending": o balanceador tenta pegar o IP acima,
+# recebe um 403 e continua tentando, sem nada no `kubectl get svc` que explique o motivo.
+# O escopo é o grupo de recursos, e não o IP: o balanceador precisa consultar o grupo para achá-lo
+# pelo nome (é o que a anotação azure-load-balancer-resource-group faz).
+data "azurerm_kubernetes_cluster" "host" {
+  name                = var.aks_cluster_name
+  resource_group_name = var.aks_resource_group_name
 }
 
-resource "azurerm_network_interface" "game" {
-  name                = "${var.prefix}-nic"
-  location            = azurerm_resource_group.game.location
-  resource_group_name = azurerm_resource_group.game.name
-
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.game.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.game.id
-  }
-}
-
-resource "azurerm_network_interface_security_group_association" "game" {
-  network_interface_id      = azurerm_network_interface.game.id
-  network_security_group_id = azurerm_network_security_group.game.id
-}
-
-# --- A máquina do servidor ----------------------------------------------------
-
-resource "azurerm_linux_virtual_machine" "game" {
-  name                            = "${var.prefix}-vm"
-  resource_group_name             = azurerm_resource_group.game.name
-  location                        = azurerm_resource_group.game.location
-  size                            = var.vm_size
-  admin_username                  = var.admin_username
-  network_interface_ids           = [azurerm_network_interface.game.id]
-  disable_password_authentication = true
-
-  admin_ssh_key {
-    username   = var.admin_username
-    public_key = var.ssh_public_key
-  }
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts-gen2"
-    version   = "latest"
-  }
-
-  # Prepara a máquina e instala o serviço, mas sem o jogo ainda: o binário sobe depois com o
-  # deploy.ps1. O serviço fica reiniciando até o binário chegar, e aí sobe sozinho.
-  custom_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
-    admin_username = var.admin_username
-  }))
+resource "azurerm_role_assignment" "aks_can_use_ip" {
+  scope                = azurerm_resource_group.game.id
+  role_definition_name = "Network Contributor"
+  principal_id         = data.azurerm_kubernetes_cluster.host.identity[0].principal_id
 }
 
 # --- Site de download ---------------------------------------------------------

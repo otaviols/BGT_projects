@@ -1,0 +1,976 @@
+// game_loop.nvgt
+// Laço principal de uma partida em andamento (após receber S_GAME_START). Cuida de: movimento
+// absoluto (W/A/S/D = N/S/O/L), interação contextual com o objeto mais próximo (Enter), tasks,
+// radar (Tab/Shift+Tab), reporte de corpo (R), ações de impostor (K = matar, V = ventilar,
+// G = sabotagem), leitura da lista de tasks (T) e reação a todos os eventos de servidor.
+
+#include "menu.nvgt"
+#include "form.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../audio/audio_manager.nvgt"
+#include "../ui/radar.nvgt"
+#include "../ui/meeting_ui.nvgt"
+#include "../core/client_state.nvgt"
+#include "../core/chat_log.nvgt"
+#include "../core/player.nvgt"
+#include "../game/roles/crewmate.nvgt"
+#include "../game/roles/impostor.nvgt"
+#include "../game/task_manager.nvgt"
+#include "../game/map.nvgt"
+#include "../i18n.nvgt"
+#include "../config/game_constants.nvgt"
+
+// As teclas do jogo não são mais constantes: vêm do mapa remapeável do jogador, em
+// config/keybindings.nvgt. Aqui se pergunta pela AÇÃO (action_pressed(ACTION_KILL)), nunca pela
+// tecla - é o que permite trocar o teclado inteiro em Configurações sem tocar em nada disto.
+const float FOOTSTEP_INTERVAL_SECONDS = 0.35;
+const float WALL_BUMP_INTERVAL_SECONDS = 0.3;
+
+// Retorna o objeto interativo mais próximo dentro do alcance com o qual o jogador pode agir
+// agora (task pendente própria, vent se impostor, painel da sabotagem ATIVA, botão de emergência).
+// active_sabotage_id == "" significa "nenhuma sabotagem rolando" - aí nenhum painel é interativo.
+map_object@ find_interactable(game_map@ map, float x, float y, array<player_task>@ my_tasks, bool is_impostor,
+		const string&in active_sabotage_id, bool alive = true) {
+	map_object@ best = null;
+	float best_dist = PLAYER_INTERACT_RANGE;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type == OBJ_DECORATION) continue;
+		// Fantasma só interage com as próprias tasks - deixar botão/painel/vent na busca fazia o
+		// objeto mais perto "roubar" a vez da task que ele veio terminar.
+		if (!alive && o.obj_type != OBJ_TASK_SPOT) continue;
+		if (o.obj_type == OBJ_TASK_SPOT) {
+			bool mine = false;
+			for (uint t = 0; t < my_tasks.length(); t++) {
+				if (my_tasks[t].object_id == o.id && !my_tasks[t].completed) { mine = true; break; }
+			}
+			if (!mine) continue;
+		}
+		if (o.obj_type == OBJ_VENT && !is_impostor) continue;
+		// Painel de sabotagem sem sabotagem ativa (ou de OUTRA sabotagem) não faz nada no servidor -
+		// deixá-lo "interativo" só servia pra ele roubar o Enter de uma task/vent que estivesse no
+		// mesmo alcance e pra ser anunciado como se desse pra usar.
+		if (o.obj_type == OBJ_SABOTAGE_PANEL && o.task_type != active_sabotage_id) continue;
+		// Com as luzes apagadas o botão de emergência simplesmente não existe: não é anunciado, não
+		// responde ao Enter e não aparece no radar de objetos (o servidor recusa de qualquer jeito,
+		// ver emergency_button_block_reason).
+		if (o.obj_type == OBJ_EMERGENCY_BUTTON && active_sabotage_id == "lights") continue;
+		float dist = distance_2d(x, y, o.x, o.y);
+		if (dist <= best_dist) {
+			best_dist = dist;
+			@best = o;
+		}
+	}
+	return best;
+}
+
+// Quantidade de variantes de som disponíveis em sounds/ para cada prefixo de piso (ex: Tile1.wav,
+// Tile2.wav). Usado para não pedir uma variante que não existe como arquivo.
+int footstep_variant_count(const string&in floor_prefix) {
+	if (floor_prefix == "Tile") return 6;
+	if (floor_prefix == "MetalTile") return 3;
+	if (floor_prefix == "MetalBeltTile") return 6;
+	if (floor_prefix == "WoodTile") return 6;
+	if (floor_prefix == "EarthTile") return 5;
+	if (floor_prefix == "VentTile") return 4;
+	return 2;
+}
+
+// Extensão do arquivo de passo de cada piso - a maioria é .wav, mas nem todos (ex.: EarthTile é .ogg).
+string footstep_variant_extension(const string&in floor_prefix) {
+	if (floor_prefix == "EarthTile") return "ogg";
+	return "wav";
+}
+
+// menu.run() bloqueia sem chamar client.update() - mesmo problema já resolvido no navegador de
+// lobbies (ver ui/lobby_screens.nvgt) e no menu de votação (ver ui/meeting_ui.nvgt). Nome próprio
+// aqui só pra não colidir com os globais dos outros arquivos.
+game_client@ g_game_menu_pump_client;
+void pump_client_during_game_menu(menu@ m, string data) {
+	if (@g_game_menu_pump_client != null) g_game_menu_pump_client.update();
+}
+
+// Liga/desliga o som dos corpos no chão conforme a sabotagem de LUZES. São dois canais diferentes
+// de "achar um corpo", e cada sabotagem derruba um: as luzes tiram o som contínuo do corpo (você
+// não vê o corpo no escuro, então também não o ouve de longe), e as comunicações tiram o aviso
+// falado de quem é a vítima quando você chega perto (é informação, igual ao radar). Uma sabotagem
+// nunca derruba as duas: sempre sobra um jeito de descobrir o corpo.
+void refresh_body_beacons(audio_manager@ audio, array<uint64>@ body_peers, array<vector>@ body_positions,
+		bool lights_out) {
+	audio.stop_all_body_beacons();
+	if (lights_out) return;
+	for (uint i = 0; i < body_peers.length() && i < body_positions.length(); i++) {
+		audio.start_body_beacon(body_peers[i], body_positions[i].x, body_positions[i].y);
+	}
+}
+
+// Religa os beacons do mapa respeitando a sabotagem em curso: com "comunicações" sabotadas o
+// jogador perde os beacons das PRÓPRIAS tasks (além do radar, que o servidor recusa) - é o
+// equivalente daqui ao "esconder as tasks" do jogo original.
+void refresh_landmark_beacons(audio_manager@ audio, game_map@ map, array<string>@ my_task_object_ids,
+		const string&in active_sabotage_id) {
+	array<string>@ task_ids = active_sabotage_id == "comms" ? null : my_task_object_ids;
+	audio.start_landmark_beacons(map, task_ids, active_sabotage_id);
+}
+
+// Menu de fechar portas: lista as SALAS (corredor não entra - a porta é justamente o corredor que
+// dá pra sala escolhida). Fechar prende quem está dentro e barra quem está fora, por alguns segundos.
+void run_doors_menu(impostor_controller@ imp, game_map@ map) {
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("game.doors_menu_hint");
+	m.click_sound = "menuclick.wav";
+	m.select_sound = "menuconfirm.wav";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = imp.client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	array<map_zone@>@ rooms = map.room_zones();
+	for (uint i = 0; i < rooms.length(); i++) m.add_item(tr(rooms[i].name_key), rooms[i].id);
+
+	m.run();
+	string room_id = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (room_id != "") imp.close_doors(room_id);
+}
+
+void run_sabotage_menu(impostor_controller@ imp) {
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("game.sabotage_menu_hint");
+	m.click_sound = "menuclick.wav";
+	m.select_sound = "menuconfirm.wav";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = imp.client;
+	@m.background_callback = @pump_client_during_game_menu;
+	m.add_item(tr("sabotage.lights.name"), "lights");
+	m.add_item(tr("sabotage.oxygen.name"), "oxygen");
+	m.add_item(tr("sabotage.comms.name"), "comms");
+	m.run();
+	string id = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (id != "") imp.trigger_sabotage(id);
+}
+
+// Menu de "dentro do vent": sair aqui, ou viajar (escondido) pra outro vent da mesma rede - a rede
+// inteira conta como "dentro do vent", então não é achado por proximidade que nem outros objetos.
+void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio, string&inout current_vent_id) {
+	map_object@ current_vent = map.find_object(current_vent_id);
+	if (@current_vent == null) return;
+
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("game.vent_menu_hint");
+	m.click_sound = "menuclick.wav";
+	m.select_sound = "menuconfirm.wav";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = imp.client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	m.add_item(tr("game.vent_exit"), "__exit__");
+	array<string>@ connections = map.vent_connections(current_vent);
+	for (uint i = 0; i < connections.length(); i++) {
+		map_object@ dest = map.find_object(connections[i]);
+		if (@dest == null) continue;
+		map_zone@ zone = map.find_zone(dest.room_id);
+		dictionary@ p = dictionary();
+		p.set("room", @zone != null ? tr(zone.name_key) : tr(dest.name_key));
+		m.add_item(tr("game.vent_destination", p), dest.id);
+	}
+
+	m.run();
+	string selected_id = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	// ESC/nada selecionado (id == "") não faz nada - só "Sair" (__exit__) ou um vent de verdade agem.
+	if (selected_id == "__exit__") {
+		// Sair faz o mesmo barulho de porta de vent que entrar - antes só entrar tocava, e sair era
+		// completamente silencioso (nem pra quem sai, nem pra quem está do lado).
+		audio.play_object_interact(current_vent);
+		imp.vent_travel("");
+		current_vent_id = "";
+	} else if (selected_id != "") {
+		// O passo da viagem NÃO é tocado aqui: neste instante o jogador ainda está no vent de origem,
+		// e o som sairia lá no destino, longe demais pra ser ouvido (as bocas ficam em cantos opostos
+		// do mapa). Quem toca é o S_VENT_STATE, depois que a posição do ouvinte muda - ver run_game.
+		imp.vent_travel(selected_id);
+		current_vent_id = selected_id;
+	}
+}
+
+// Menu navegável (setas + Enter/ESC pra fechar) com a lista de tasks do jogador - nome, sala e se já
+// foi feita. Não faz nada ao selecionar um item, é só pra dar pra navegar/ouvir a lista com calma.
+// team_percent é o andamento das tasks de TODA a tripulação (vem do servidor via S_TASK_PROGRESS).
+// Aparece no fim da lista pro tripulante saber quanto falta pra vitória por tasks - e é a única
+// coisa que o impostor vê aqui, porque pra ele isso é o relógio correndo contra: quando chegar em
+// 100% a partida acabou e ele perdeu.
+void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ my_tasks, int team_percent) {
+	dictionary@ team_params = dictionary();
+	team_params.set("percent", "" + team_percent);
+	string team_line = tr("task.team_progress", team_params);
+
+	// Task já feita sai da lista: ela é uma lista de PENDÊNCIAS, e manter as concluídas nela obrigava
+	// o jogador a percorrer tudo de novo pra achar o que ainda falta - justo no fim da partida, que é
+	// quando ele mais consulta. O quanto já foi feito continua sendo dito pela porcentagem abaixo.
+	uint done = 0;
+	array<player_task> pending;
+	for (uint i = 0; i < my_tasks.length(); i++) {
+		if (my_tasks[i].completed) done++;
+		else pending.insert_last(my_tasks[i]);
+	}
+
+	if (my_tasks.length() == 0) {
+		speak(tr("task.list_empty") + " " + team_line); // impostor cai sempre aqui: ele não tem tasks
+		return;
+	}
+	if (pending.length() == 0) {
+		speak(tr("task.all_completed") + " " + team_line);
+		return;
+	}
+
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("game.tasks_menu_hint");
+	m.click_sound = "menuclick.wav";
+	m.select_sound = "menuconfirm.wav";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	for (uint i = 0; i < pending.length(); i++) {
+		map_object@ obj = map.find_object(pending[i].object_id);
+		map_zone@ zone = @obj != null ? map.find_zone(obj.room_id) : null;
+		dictionary@ item = dictionary();
+		item.set("name", @obj != null ? tr(obj.name_key) : tr(pending[i].task_type + ".name"));
+		item.set("room", @zone != null ? tr(zone.name_key) : "");
+		m.add_item(tr("task.list_item", item), pending[i].object_id);
+	}
+
+	dictionary@ p = dictionary();
+	p.set("percent", "" + (done * 100 / my_tasks.length()));
+	m.add_item(tr("task.progress", p), "__progress__");
+	m.add_item(team_line, "__team_progress__");
+	m.add_item(tr("menu.back"), "__back__");
+
+	m.run();
+	ui_sound(SND_DIALOG_CLOSE);
+}
+
+string game_over_reason_text(const string&in reason) {
+	if (reason == "tasks_completed") return tr("game.reason_tasks_completed");
+	if (reason == "impostors_ejected") return tr("game.reason_impostors_ejected");
+	if (reason == "majority") return tr("game.reason_majority");
+	if (reason == "oxygen_depleted") return tr("game.reason_oxygen_depleted");
+	return "";
+}
+
+// Tela de fim de partida: lista navegável (setas pra percorrer, Enter/ESC pra fechar) com o
+// resultado, o motivo e o placar - não é uma escolha, é só pra dar pra reler com calma. Sem isso o
+// jogo voltava direto pro navegador de lobbies assim que S_GAME_OVER chegava, cortando o som de
+// vitória/derrota e o anúncio no meio (o run_game() encerra e destrói o audio_manager local quase
+// na hora, então o som mal começava a tocar antes de sumir).
+void run_game_over_screen(game_client@ client, net_packet@ pkt) {
+	bool crewmates_won = pkt.get_string("winner") == "crewmates";
+
+	menu m;
+	m.intro_text = tr(crewmates_won ? "game.crewmates_win" : "game.impostors_win");
+	m.click_sound = "menuclick.wav";
+	m.select_sound = "menuconfirm.wav";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	m.add_item(tr(crewmates_won ? "game.crewmates_win" : "game.impostors_win"), "winner");
+	string reason_text = game_over_reason_text(pkt.get_string("reason"));
+	if (reason_text != "") m.add_item(reason_text, "reason");
+
+	dictionary@ p = dictionary();
+	p.set("c_alive", "" + pkt.get_int("crewmates_alive"));
+	p.set("c_total", "" + pkt.get_int("crewmates_total"));
+	m.add_item(tr("game.crewmates_survived", p), "crew");
+
+	dictionary@ ip = dictionary();
+	ip.set("i_alive", "" + pkt.get_int("impostors_alive"));
+	ip.set("i_total", "" + pkt.get_int("impostors_total"));
+	m.add_item(tr("game.impostors_survived", ip), "imp");
+
+	// Quem eram os impostores. É o fechamento da partida: sem isso, quem passou a rodada inteira
+	// desconfiando da pessoa errada nunca fica sabendo que estava errado.
+	json_array@ impostors_json = pkt.get_array("impostors");
+	if (@impostors_json != null && impostors_json.length() > 0) {
+		string names = string(impostors_json[0]);
+		for (uint i = 1; i < impostors_json.length(); i++) names += ", " + string(impostors_json[i]);
+		dictionary@ names_params = dictionary();
+		names_params.set("names", names);
+		m.add_item(tr(impostors_json.length() == 1 ? "game.impostor_was" : "game.impostors_were", names_params), "impostor_names");
+	}
+
+	m.run();
+}
+
+// Executa uma partida inteira a partir do pacote S_GAME_START. Bloqueia até o fim da partida
+// (S_GAME_OVER) ou até o jogador escolher sair (ESC + confirmação).
+void run_game(game_client@ client, net_packet@ start_pkt) {
+	game_map@ map = build_the_hub_map();
+	audio_manager@ audio = audio_manager();
+	client_roster@ roster = client_roster();
+	radar_ui@ radar = radar_ui(client, audio);
+	crewmate_controller@ crew = crewmate_controller(client);
+	impostor_controller@ imp = impostor_controller(client);
+
+	// Redundante com o que o login já guardou, mas barato: se por algum motivo esse valor estiver
+	// zerado aqui, TODA comparação de peer_id da partida (voto, chat, kill, nome de quem está perto)
+	// aponta pra pessoa errada.
+	uint64 my_peer_id = start_pkt.get_uint64("your_peer_id", client.my_peer_id);
+	if (my_peer_id != 0) client.my_peer_id = my_peer_id;
+
+	bool is_impostor = start_pkt.get_bool("your_role_impostor");
+	float my_x = start_pkt.get_float("your_x");
+	float my_y = start_pkt.get_float("your_y");
+	roster.load_from_start_packet(start_pkt);
+
+	// Cooldown de kill acompanhado localmente (só é preciso de verdade pro impostor) - o servidor
+	// continua sendo quem decide de fato se o kill vale (ver network/server.on_kill), isso aqui é só
+	// pra dar feedback na hora sem precisar de um round-trip toda vez que aperta a tecla.
+	float kill_cooldown_config = start_pkt.get_float("kill_cooldown_seconds");
+	float my_kill_cooldown_remaining = kill_cooldown_config;
+
+	// Cooldown de sabotagem acompanhado do mesmo jeito. A partida já começa com ele contando (ver
+	// SABOTAGE_INITIAL_COOLDOWN_SECONDS) - quem manda o valor é o servidor, que é quem de fato
+	// recusa a sabotagem cedo demais.
+	float my_sabotage_cooldown_remaining = start_pkt.get_float("sabotage_cooldown_seconds");
+	string active_sabotage_id = ""; // "" = nenhuma sabotagem em andamento
+	int team_task_percent = 0; // andamento das tasks da equipe inteira, atualizado por S_TASK_PROGRESS
+	bool is_vented = false;
+	string current_vent_id = "";
+
+	// Corpos conhecidos (pra anunciar "corpo aqui" ao chegar perto) - somem da lista quando alguém
+	// reporta (ver S_BODY_REPORTED abaixo). Arrays paralelos: known_body_peers[i] é a vítima do
+	// corpo em known_body_positions[i].
+	array<uint64> known_body_peers;
+	array<vector> known_body_positions;
+	bool near_body_last_frame = false;
+
+	chat_log@ messages_log = chat_log();
+	chat_log@ events_log = chat_log();
+	bool viewing_events_container = false; // false = mensagens, true = eventos
+
+	meeting_ui@ mui = meeting_ui(client, audio, roster, events_log, is_impostor);
+
+	array<player_task> my_tasks;
+	array<string> my_task_object_ids;
+	json_array@ tasks_json = start_pkt.get_array("tasks");
+	if (@tasks_json != null) {
+		for (uint i = 0; i < tasks_json.length(); i++) {
+			json_object@ tj = tasks_json.get_object(i);
+			if (@tj == null) continue; // task malformada não pode derrubar a entrada na partida
+			player_task pt;
+			pt.object_id = string(tj["object_id"]);
+			pt.task_type = string(tj["task_type"]);
+			my_tasks.insert_last(pt);
+			my_task_object_ids.insert_last(pt.object_id);
+		}
+	}
+
+	audio.play_start_game();
+	audio.start_ship_ambience();
+	audio.start_room_ambience(map);
+	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+	// Papel + (pro impostor) quem mais é impostor, numa fala só: speak() interrompe a fala anterior
+	// por padrão, então dois speak() seguidos aqui comeriam o anúncio do papel.
+	// A lista de parceiros só existe no pacote de quem é impostor (ver network/server.on_start_game) -
+	// sem ela, dois impostores passavam a partida inteira sem saber que estavam no mesmo time.
+	string role_text = tr(is_impostor ? "role.assigned_impostor" : "role.assigned_crewmate");
+	// Peers dos parceiros de impostor: usados pra nunca mirar um deles ao matar (ver KEY_KILL).
+	array<uint64> impostor_partner_peers;
+	if (is_impostor) {
+		array<string> partner_names;
+		json_array@ partners_json = start_pkt.get_array("impostor_partners");
+		if (@partners_json != null) {
+			for (uint i = 0; i < partners_json.length(); i++) {
+				json_object@ partner = partners_json.get_object(i);
+				if (@partner == null) continue;
+				string partner_name = string(partner["name"]);
+				if (partner_name != "") partner_names.insert_last(partner_name);
+				impostor_partner_peers.insert_last(uint64(partner["peer_id"]));
+			}
+		}
+		if (partner_names.length() == 0) {
+			role_text += " " + tr("role.impostor_alone");
+		} else {
+			string joined_partners = partner_names[0];
+			for (uint i = 1; i < partner_names.length(); i++) joined_partners += ", " + partner_names[i];
+			dictionary@ partner_params = dictionary();
+			partner_params.set("names", joined_partners);
+			role_text += " " + tr("role.impostor_partners", partner_params);
+		}
+	} else {
+		// Quantos impostores estão a bordo. O tripulante não sabe QUEM são, mas saber se procura um
+		// ou três muda toda a leitura de uma reunião - sem isso a discussão começa no chute.
+		int impostor_count = start_pkt.get_int("impostor_count", 1);
+		dictionary@ count_params = dictionary();
+		count_params.set("count", "" + impostor_count);
+		role_text += " " + tr(impostor_count == 1 ? "role.impostor_count_one" : "role.impostor_count_many", count_params);
+	}
+	speak(role_text);
+	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
+	audio.update_listener(my_x, my_y);
+
+	// Anúncio automático de sala/objeto - guarda o que foi anunciado por último pra só falar de novo
+	// quando muda (entrar/sair de uma sala, entrar/sair do alcance de um objeto interativo).
+	map_zone@ start_zone = map.zone_at(my_x, my_y);
+	string last_zone_id = @start_zone != null ? start_zone.id : "";
+	string last_interactable_id = "";
+	uint64 last_nearby_player_id = 0;
+
+	timer@ frame_clock = timer();
+	timer@ footstep_clock = timer();
+	timer@ wall_bump_clock = timer();
+	timer@ ping_clock = timer();
+	bool ping_pending = false;
+	bool game_over = false;
+	bool alive = true;
+	bool movement_frozen = false; // true durante reunião/votação - todo mundo parado na cafeteria
+
+	while (!game_over) {
+		wait(5);
+		client.update();
+
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			string t = pkt.type;
+			// Um pacote que exploda no meio do tratamento não pode levar a partida junto: o erro é
+			// registrado com o TIPO do pacote (a informação que mais importa pra achar o culpado
+			// depois) e o jogo segue no pacote seguinte. Ver core/crash_log.nvgt.
+			try {
+			if (t == S_PLAYER_MOVED) {
+				uint64 moved_peer = pkt.get_uint64("peer_id");
+				float moved_x = pkt.get_float("x");
+				float moved_y = pkt.get_float("y");
+				roster.update_position(moved_peer, moved_x, moved_y);
+
+				// Passos de outros jogadores - throttled por jogador, senão tocaria a cada pacote
+				// de posição (várias vezes por segundo).
+				roster_entry@ moved_entry = roster.find(moved_peer);
+				if (@moved_entry != null && moved_entry.alive && float(moved_entry.footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
+					moved_entry.footstep_clock.restart();
+					map_zone@ moved_zone = map.zone_at(moved_x, moved_y);
+					string moved_prefix = @moved_zone != null ? moved_zone.floor_sound_prefix : "Tile";
+					audio.play_footstep(moved_prefix, footstep_variant_count(moved_prefix), moved_x, moved_y, footstep_variant_extension(moved_prefix));
+				}
+			} else if (t == S_PLAYER_LEFT) {
+				uint64 left_peer = pkt.get_uint64("peer_id");
+				roster.mark_dead(left_peer);
+				string left_name = pkt.get_string("name", "");
+				if (left_name != "") {
+					dictionary@ left_params = dictionary();
+					left_params.set("name", left_name);
+					string left_text = tr("lobby.player_left", left_params);
+					speak(left_text);
+					events_log.add("", left_text);
+				}
+			} else if (t == S_TASK_RESULT) {
+				// Rede de segurança: o caminho normal já marca a task como feita na hora, otimista,
+				// assim que a minigame termina (ver a tecla de interagir abaixo) - aqui só cobre o caso raro
+				// de ainda não estar marcada quando essa confirmação do servidor chega.
+				string task_id = pkt.get_string("task_id");
+				if (pkt.get_bool("ok") && !is_task_completed(my_tasks, task_id)) {
+					mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, task_id, active_sabotage_id);
+					if (my_tasks_all_completed(my_tasks)) {
+						string all_done_text = tr("task.all_completed");
+						speak(all_done_text);
+						events_log.add("", all_done_text);
+					}
+				}
+			} else if (t == S_PLAYER_KILLED) {
+				mui.on_player_killed(pkt);
+				if (pkt.get_uint64("peer_id") == client.my_peer_id) {
+					alive = false;
+					// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
+					// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
+					// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
+					roster_entry@ killer = roster.find(pkt.get_uint64("killer_peer"));
+					string killed_text;
+					if (@killer != null && killer.name != "") {
+						dictionary@ killer_params = dictionary();
+						killer_params.set("name", killer.name);
+						killed_text = tr("game.you_were_killed_by", killer_params);
+					} else {
+						killed_text = tr("game.you_were_killed"); // não deveria acontecer, mas não fica mudo
+					}
+					speak(killed_text);
+					events_log.add("", killed_text);
+				}
+				if (pkt.get_uint64("killer_peer") == client.my_peer_id) my_kill_cooldown_remaining = kill_cooldown_config;
+				known_body_peers.insert_last(pkt.get_uint64("peer_id"));
+				known_body_positions.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0.0));
+			} else if (t == S_CHAT_MESSAGE) {
+				string chat_name = pkt.get_string("name");
+				string chat_text = pkt.get_string("text");
+				messages_log.add(chat_name, chat_text);
+				speak(chat_name + ": " + chat_text);
+				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
+				else audio.play_message_received();
+			} else if (t == S_BODY_REPORTED) {
+				mui.on_body_reported(pkt);
+				// A limpeza dos corpos não é feita aqui e sim no S_MEETING_STARTED logo abaixo, que
+				// chega em seguida: lá TODOS somem de uma vez, não só o que foi reportado.
+			} else if (t == S_MEETING_STARTED) {
+				// Todo corpo some do mapa quando a reunião começa - é o que o servidor faz com a lista
+				// dele (ver start_meeting). Sem isto o cliente continuava ouvindo o som de um corpo que
+				// não existe mais e anunciando "você encontrou o corpo de fulano" em cima dele.
+				known_body_peers.resize(0);
+				known_body_positions.resize(0);
+				near_body_last_frame = false;
+				audio.stop_all_body_beacons();
+				// Todo mundo (vivo) é teleportado pra cafeteria e o movimento trava até o resultado
+				// da votação chegar (S_VOTE_RESULT, abaixo) - sem isso os jogadores continuavam
+				// espalhados pelo mapa sem nenhum sinal físico de que uma reunião estava rolando.
+				movement_frozen = true;
+				float gather_x = pkt.get_float("gather_x");
+				float gather_y = pkt.get_float("gather_y");
+				my_x = gather_x;
+				my_y = gather_y;
+				audio.update_listener(my_x, my_y);
+				for (uint i = 0; i < roster.entries.length(); i++) {
+					if (roster.entries[i].alive) roster.update_position(roster.entries[i].peer_id, gather_x, gather_y);
+				}
+				// Todo mundo parado na cafeteria discutindo não devia continuar ouvindo o ambiente de
+				// TODA a nave (beacons de botão/painel/vent, ambiente de cada sala) - isso só faz
+				// sentido andando pelo mapa. Volta quando a votação termina (ver S_VOTE_RESULT).
+				audio.stop_room_ambience();
+				audio.stop_landmark_beacons();
+				// O alarme de sabotagem tocando por cima da discussão inteira era insuportável (e não
+				// dá pra consertar painel nenhum durante a reunião mesmo - o servidor até congela o
+				// tempo da sabotagem, ver game_state.tick). Volta a tocar quando a votação acaba.
+				audio.stop_sabotage_alarm();
+				mui.on_meeting_started(pkt);
+			} else if (t == S_VOTING_STARTED) {
+				mui.on_voting_started(pkt);
+			} else if (t == S_VOTE_CAST) {
+				mui.on_vote_cast(pkt);
+			} else if (t == S_VOTE_RESULT) {
+				mui.on_vote_result(pkt);
+				movement_frozen = false;
+				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) alive = false; // virou fantasma
+				// O servidor rearma o cooldown de kill de todo impostor ao fim da votação (ver
+				// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
+				// falharia calada.
+				if (is_impostor) my_kill_cooldown_remaining = kill_cooldown_config;
+				audio.start_room_ambience(map);
+				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+				if (active_sabotage_id != "") audio.start_sabotage_alarm(); // sabotagem continua de pé depois da reunião
+			} else if (t == S_SABOTAGE_STARTED) {
+				mui.on_sabotage_started(pkt);
+				string sabotage_id = pkt.get_string("sabotage_id");
+				active_sabotage_id = sabotage_id;
+				// Luzes apagadas calam os corpos já caídos, e mui.body_sounds_enabled cuida dos que
+				// caírem durante o apagão.
+				mui.body_sounds_enabled = sabotage_id != "lights";
+				if (sabotage_id == "lights") refresh_body_beacons(audio, known_body_peers, known_body_positions, true);
+				// Liga o beacon dos painéis dessa sabotagem (ver start_landmark_beacons): fora de
+				// sabotagem eles ficam calados, senão o mapa inteiro apita painel o tempo todo.
+				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+
+				// Dica de conserto: fala em qual(is) sala(s) fica o painel certo pra essa sabotagem -
+				// sem isso o anúncio só dizia QUAL sabotagem, não pra ONDE ir consertar.
+				array<string> fix_room_names;
+				for (uint i = 0; i < map.objects.length(); i++) {
+					map_object@ o = map.objects[i];
+					if (o.obj_type != OBJ_SABOTAGE_PANEL || o.task_type != sabotage_id) continue;
+					map_zone@ z = map.find_zone(o.room_id);
+					string room_name = @z != null ? tr(z.name_key) : "";
+					if (room_name != "" && fix_room_names.find(room_name) == -1) fix_room_names.insert_last(room_name);
+				}
+				if (fix_room_names.length() > 0) {
+					string joined_rooms = fix_room_names[0];
+					for (uint i = 1; i < fix_room_names.length(); i++) joined_rooms += ", " + fix_room_names[i];
+					dictionary@ hint_params = dictionary();
+					hint_params.set("rooms", joined_rooms);
+					string hint_text = tr("sabotage.fix_hint", hint_params);
+					speak(hint_text);
+					events_log.add("", hint_text);
+				}
+			} else if (t == S_SABOTAGE_FIXED) {
+				mui.on_sabotage_fixed(pkt);
+				active_sabotage_id = "";
+				mui.body_sounds_enabled = true;
+				refresh_body_beacons(audio, known_body_peers, known_body_positions, false); // luz de volta, corpos voltam a soar
+				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+				if (is_impostor) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
+			} else if (t == S_VENT_STATE) {
+				bool was_vented = is_vented;
+				is_vented = pkt.get_bool("vented");
+				my_x = pkt.get_float("x");
+				my_y = pkt.get_float("y");
+				audio.update_listener(my_x, my_y);
+				if (is_vented) {
+					// Entrando de fora, ou viajando pra outro vent da rede - os dois casos chegam como
+					// "vented=true", o que muda é só a posição (já atualizada acima).
+					// O passo da viagem é tocado AQUI, depois que o ouvinte já foi movido: tocando antes,
+					// o som saía no destino enquanto os ouvidos ainda estavam na origem, e ficava mudo.
+					// O piso é o do DUTO, não o da sala onde o vent desemboca - quem viaja está lá dentro.
+					if (was_vented) {
+						audio.play_footstep("VentTile", footstep_variant_count("VentTile"), my_x, my_y,
+							footstep_variant_extension("VentTile"));
+					}
+					speak(tr(was_vented ? "game.vent_traveled" : "game.vent_entered"));
+				} else {
+					speak(tr("game.vent_exited"));
+				}
+			} else if (t == S_VENT_SOUND) {
+				// Alguém entrou ou saiu de um vent perto de você. Não diz QUEM - o som posicionado da
+				// tampa é a informação, e é ela que dá ao vent o preço que ele não tem em recarga.
+				map_object@ used_vent = map.find_object(pkt.get_string("vent_id"));
+				if (@used_vent != null) audio.play_object_interact(used_vent);
+			} else if (t == S_DOORS_STATE) {
+				// O servidor é quem manda: aqui as portas fecham e abrem SÓ por pacote (sem relógio
+				// local), então cliente e servidor nunca discordam sobre uma porta estar aberta.
+				bool closing = pkt.get_bool("closed");
+				array<string> door_zones;
+				json_array@ zones_json = pkt.get_array("zones");
+				if (@zones_json != null) {
+					for (uint i = 0; i < zones_json.length(); i++) door_zones.insert_last(string(zones_json[i]));
+				}
+				if (closing) map.close_doors(door_zones, 0.0);
+				else map.open_doors(door_zones);
+				for (uint i = 0; i < door_zones.length(); i++) {
+					map_zone@ door_zone = map.find_zone(door_zones[i]);
+					if (@door_zone != null) audio.play_door(door_zone.center_x, door_zone.center_y, closing);
+				}
+				if (closing) {
+					string doors_text = tr("game.doors_closed");
+					speak(doors_text);
+					events_log.add("", doors_text);
+				}
+			} else if (t == S_TASK_PROGRESS) {
+				team_task_percent = pkt.get_int("percent");
+			} else if (t == S_RADAR_RESULT) {
+				radar.handle_result(pkt);
+			} else if (t == S_GAME_OVER) {
+				// A partida acabou - corta todo som ambiente/contínuo antes da tela de resultado, senão
+				// parecia que a partida ainda tava rolando (ambiente da nave, beacons, alarme, corpo).
+				audio.stop_ship_ambience();
+				audio.stop_room_ambience();
+				audio.stop_landmark_beacons();
+				audio.stop_sabotage_alarm();
+				audio.stop_all_body_beacons();
+				mui.on_game_over(pkt);
+				run_game_over_screen(client, pkt);
+				game_over = true;
+			} else if (t == S_ERROR) {
+				speak(pkt.get_string("message"));
+			} else if (t == S_PONG && ping_pending) {
+				ping_pending = false;
+				dictionary@ ping_params = dictionary();
+				ping_params.set("ms", "" + int(ping_clock.elapsed));
+				speak(tr("game.ping_result", ping_params));
+			}
+			}
+			catch {
+				log_crash("pacote " + t);
+			}
+			@pkt = client.poll_message();
+		}
+		if (game_over) break;
+
+		float delta = float(frame_clock.elapsed) / 1000.0;
+		frame_clock.restart();
+		// Depois de qualquer menu/tela bloqueante (task, lista de tasks, sabotagem, chat, votação -
+		// que usa as MESMAS setas do movimento), frame_clock não é resetado durante a espera, então
+		// o primeiro frame ao voltar tem um delta gigante. Sem esse teto, se uma seta de movimento
+		// ficasse "presa" bem na hora de fechar o menu, o jogador podia ser arremessado pra fora de
+		// qualquer sala (fora do alcance de is_walkable) e ficar preso lá, sem nunca mais tocar som
+		// de passo (só esbarrão, ou nada).
+		if (delta > 0.1) delta = 0.1;
+
+		if (is_impostor && my_kill_cooldown_remaining > 0.0) {
+			my_kill_cooldown_remaining -= delta;
+			if (my_kill_cooldown_remaining < 0.0) my_kill_cooldown_remaining = 0.0;
+		}
+		if (is_impostor && my_sabotage_cooldown_remaining > 0.0) {
+			my_sabotage_cooldown_remaining -= delta;
+			if (my_sabotage_cooldown_remaining < 0.0) my_sabotage_cooldown_remaining = 0.0;
+		}
+
+		if (!movement_frozen && !is_vented) {
+			// Jogador morto (morto ou expulso) ainda se move como fantasma, igual o Among Us original -
+			// só que em silêncio (sem passos/esbarrão) e invisível pra quem tá vivo (o servidor só
+			// retransmite a posição dele pra outros fantasmas, ver network/server.nvgt on_move).
+			// Escondido no vent também não anda por fora - só sai ou viaja pela rede (tecla V).
+			float dx = 0.0, dy = 0.0;
+			if (action_down(ACTION_MOVE_NORTH)) dy -= 1.0;
+			if (action_down(ACTION_MOVE_SOUTH)) dy += 1.0;
+			if (action_down(ACTION_MOVE_WEST)) dx -= 1.0;
+			if (action_down(ACTION_MOVE_EAST)) dx += 1.0;
+
+			if (dx != 0.0 || dy != 0.0) {
+				float len = sqrt(dx * dx + dy * dy);
+				dx /= len;
+				dy /= len;
+				float new_x = my_x + dx * PLAYER_MOVE_SPEED * delta;
+				float new_y = my_y + dy * PLAYER_MOVE_SPEED * delta;
+
+				if (map.can_move(my_x, my_y, new_x, new_y, alive)) {
+					my_x = new_x;
+					my_y = new_y;
+					client.send_move(my_x, my_y);
+					// O servidor não devolve a MINHA posição pra mim, então sem isto a minha entrada no
+					// elenco local fica congelada no ponto onde nasci - e o aviso de "jogador por perto"
+					// (nearest_alive) passava a me anunciar a mim mesmo toda vez que eu voltava pra lá.
+					roster.update_position(client.my_peer_id, my_x, my_y);
+					audio.update_listener(my_x, my_y);
+
+					map_zone@ zone = map.zone_at(my_x, my_y);
+
+					// Anúncio automático: sala mudou (ex.: saiu da cafeteria pro corredor) ou entrou/saiu
+					// do alcance de um objeto interativo (botão, painel, vent, task). Só fala na
+					// TRANSIÇÃO, não fica repetindo enquanto parado ou andando dentro da mesma área.
+					string zone_id = @zone != null ? zone.id : "";
+					if (zone_id != last_zone_id) {
+						last_zone_id = zone_id;
+						if (@zone != null) speak(tr(zone.name_key));
+					}
+					map_object@ nearby = find_interactable(map, my_x, my_y, my_tasks, is_impostor, active_sabotage_id, alive);
+					string nearby_id = @nearby != null ? nearby.id : "";
+					if (nearby_id != last_interactable_id) {
+						last_interactable_id = nearby_id;
+						if (@nearby != null) speak(object_name(nearby));
+					}
+
+					// Anúncio de jogador por perto - hoje só o impostor interage com outro jogador (kill),
+					// mas isso pode mudar, e é bom saber que chegou perto de alguém de qualquer forma.
+					roster_entry@ nearby_player = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_INTERACT_RANGE);
+					uint64 nearby_player_id = @nearby_player != null ? nearby_player.peer_id : 0;
+					if (nearby_player_id != last_nearby_player_id) {
+						last_nearby_player_id = nearby_player_id;
+						if (@nearby_player != null) speak(nearby_player.name);
+					}
+
+					// Anúncio de corpo por perto (diz de quem é - reportar continua sendo a tecla R,
+					// separado do simples aviso de proximidade).
+					// Com as comunicações sabotadas esse aviso some junto com o radar e os beacons de task:
+					// é o mesmo tipo de informação (quem é a vítima, sem precisar procurar). O som do
+					// corpo no chão continua tocando, então dar de cara com ele e reportar continua
+					// funcionando - o que a sabotagem tira é saber DE QUEM é o corpo de longe.
+					bool comms_down = active_sabotage_id == "comms";
+					bool near_body_now = false;
+					for (uint b = 0; b < known_body_positions.length(); b++) {
+						if (distance_2d(my_x, my_y, known_body_positions[b].x, known_body_positions[b].y) <= PLAYER_REPORT_RANGE) {
+							near_body_now = true;
+							if (!near_body_last_frame && !comms_down) {
+								roster_entry@ victim = roster.find(known_body_peers[b]);
+								dictionary@ bp = dictionary();
+								bp.set("name", @victim != null ? victim.name : "");
+								speak(tr("game.body_nearby", bp));
+							}
+							break;
+						}
+					}
+					// Fica em false enquanto as comunicações estão fora: assim, no instante em que o painel
+					// for consertado, quem estiver parado do lado do corpo ouve o aviso na hora.
+					near_body_last_frame = near_body_now && !comms_down;
+
+					if (alive && float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
+						footstep_clock.restart();
+						string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
+						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y, footstep_variant_extension(prefix));
+					}
+				} else if (alive && float(wall_bump_clock.elapsed) / 1000.0 >= WALL_BUMP_INTERVAL_SECONDS) {
+					wall_bump_clock.restart();
+					// Barrado por uma PORTA é diferente de barrado por parede: a porta abre sozinha daqui a
+					// pouco, e saber disso muda o que o jogador faz (esperar em vez de procurar outro
+					// caminho). Por isso a porta tem som próprio e ainda fala.
+					map_zone@ blocked_zone = map.zone_at(new_x, new_y);
+					if (@blocked_zone != null && map.is_door_closed(blocked_zone.id)) {
+						speak(tr("game.door_closed"));
+						audio.play_door_bump(my_x, my_y);
+					} else {
+						audio.play_wall_bump(my_x, my_y);
+					}
+				}
+			}
+		}
+
+		if (!movement_frozen && action_pressed(ACTION_RADAR)) {
+			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -
+			// igual o Among Us original, onde mortos continuam observando a partida.
+			// Ctrl+Tab troca o modo do radar (jogadores <-> objetos da sala).
+			// Comunicações sabotadas derrubam os DOIS modos: o de jogadores o servidor já recusa, e o
+			// de objetos é resolvido aqui no cliente, então tem que ser barrado aqui. O impostor é
+			// imune à própria sabotagem e continua com o radar inteiro (ver on_radar_scan no servidor).
+			if (active_sabotage_id == "comms" && !is_impostor) speak(tr("sabotage.comms.radar_down"));
+			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
+			else radar.scan_next(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
+		}
+
+		// Fantasma (morto ou expulso) entra aqui junto com os vivos porque ele PRECISA conseguir
+		// terminar as tasks dele - é o que mantém viva a chance de vitória dos tripulantes depois de
+		// perder gente. Tudo que não é task fica só pros vivos (ver os testes de "alive" abaixo).
+		if (!movement_frozen && !is_vented) {
+			if (action_pressed(ACTION_INTERACT)) {
+				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, is_impostor, active_sabotage_id, alive);
+				if (@obj != null) {
+					speak(object_name(obj));
+					if (obj.obj_type == OBJ_TASK_SPOT) {
+						bool success = run_task_minigame(client, obj.task_type);
+						if (success) {
+							// Marca como feita já aqui, sem esperar o servidor confirmar - senão, se o
+							// jogador apertar Enter de novo rápido, a task ainda apareceria "aberta"
+							// (find_interactable só ignora task já com completed=true) até o round-trip
+							// da rede voltar, dando pra abrir ela de novo por engano.
+							mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id);
+							if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
+						}
+						client.send_task_input(obj.id, success);
+					} else if (obj.obj_type == OBJ_VENT) {
+						audio.play_object_interact(obj);
+						imp.use_vent(obj.id);
+						current_vent_id = obj.id;
+					} else if (obj.obj_type == OBJ_SABOTAGE_PANEL) {
+						audio.play_object_interact(obj);
+						imp.fix_sabotage_panel(obj.id);
+					} else if (obj.obj_type == OBJ_EMERGENCY_BUTTON) {
+						crew.call_emergency_meeting();
+					}
+				} else {
+					speak(tr("game.nothing_nearby"));
+				}
+			}
+
+			if (action_pressed(ACTION_REPORT)) {
+				if (alive) crew.report_body();
+				else speak(tr("game.ghost_cannot_interact")); // fantasma não reporta corpo, só faz task
+			}
+
+			if (action_pressed(ACTION_TASK_LIST)) run_task_list_menu(client, map, my_tasks, team_task_percent);
+
+			if (action_pressed(ACTION_ROOM_INFO)) {
+				map_zone@ zone = map.zone_at(my_x, my_y);
+				dictionary@ p = dictionary();
+				p.set("room", @zone != null ? tr(zone.name_key) : tr("game.nothing_nearby"));
+				p.set("x", "" + int(my_x));
+				p.set("y", "" + int(my_y));
+				speak(tr("game.location_info", p));
+			}
+
+			if (is_impostor && alive) {
+				if (action_pressed(ACTION_KILL)) {
+					// Antes só avisava do cooldown quando já tinha um alvo no alcance - agora sempre diz
+					// o que está impedindo o kill (cooldown, ou ninguém por perto).
+					if (my_kill_cooldown_remaining > 0.0) {
+						dictionary@ cd = dictionary();
+						cd.set("seconds", "" + int(my_kill_cooldown_remaining + 0.5));
+						speak(tr("game.kill_cooldown_remaining", cd));
+					} else {
+						// Parceiro de impostor nunca é alvo: o servidor recusaria (ver try_kill), e além
+						// disso, ignorando ele aqui, estar colado no parceiro não impede mais de matar o
+						// tripulante que está logo atrás dele.
+						roster_entry@ target = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE,
+							impostor_partner_peers);
+						if (@target != null) imp.kill(target.peer_id);
+						else speak(tr("game.kill_no_target_nearby"));
+					}
+				}
+				if (action_pressed(ACTION_DOORS)) run_doors_menu(imp, map);
+
+				if (action_pressed(ACTION_SABOTAGE)) {
+					if (active_sabotage_id != "") {
+						speak(tr("game.sabotage_already_active"));
+					} else if (my_sabotage_cooldown_remaining > 0.0) {
+						dictionary@ cd = dictionary();
+						cd.set("seconds", "" + int(my_sabotage_cooldown_remaining + 0.5));
+						speak(tr("game.sabotage_cooldown_remaining", cd));
+					} else {
+						run_sabotage_menu(imp);
+					}
+				}
+			}
+		}
+
+		// Ações de dentro do vent (sair ou viajar) - só fazem sentido enquanto vented, por isso ficam
+		// FORA do bloco acima (que exige !is_vented).
+		if (is_impostor && alive && !movement_frozen && is_vented && action_pressed(ACTION_VENT)) {
+			run_vent_menu(imp, map, audio, current_vent_id);
+		}
+
+		if (action_pressed(ACTION_PING) && !ping_pending) {
+			ping_pending = true;
+			ping_clock.restart();
+			client.send_ping();
+		}
+
+		if (action_pressed(ACTION_CHAT)) {
+			// Chat agora só existe em reunião (movement_frozen == true é exatamente o período de
+			// reunião/votação) - ver network/server.on_chat_message pro porquê. Morto só lê.
+			// O servidor também recusa os dois casos; isto aqui só evita a viagem de rede à toa e
+			// responde na hora.
+			if (!movement_frozen) speak(tr("chat.only_in_meeting"));
+			else if (!alive) speak(tr("chat.dead_cannot_send"));
+			else run_chat_compose(client);
+		}
+
+		if (alive && action_pressed(ACTION_VOTE)) mui.open_vote_menu_if_active();
+
+		if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
+			viewing_events_container = !viewing_events_container;
+			speak(tr(viewing_events_container ? "chat.events_container" : "chat.messages_container"));
+		}
+
+		bool chat_prev_pressed = action_pressed(ACTION_CHAT_PREV);
+		bool chat_next_pressed = action_pressed(ACTION_CHAT_NEXT);
+		if (chat_prev_pressed || chat_next_pressed) {
+			// Chamar key_pressed() de novo dentro do if (em vez de reusar o resultado já lido)
+			// fazia vírgula e ponto sempre caírem no mesmo caminho - por isso só lia a última
+			// mensagem não importa a tecla.
+			chat_log@ active_log = viewing_events_container ? events_log : messages_log;
+			bool shift_held = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);
+			string line;
+			if (chat_prev_pressed) line = shift_held ? active_log.move_first() : active_log.move_previous();
+			else line = shift_held ? active_log.move_last() : active_log.move_next();
+			speak(line != "" ? line : tr("chat.empty"));
+		}
+
+		if (key_pressed(KEY_ESCAPE)) {
+			if (yes_no(tr("menu.quit_confirm"), null, tr("menu.yes"), tr("menu.no"))) {
+				client.send_leave_lobby();
+				audio.stop_ship_ambience();
+				audio.stop_room_ambience();
+				audio.stop_landmark_beacons();
+				return;
+			}
+		}
+	}
+	audio.stop_ship_ambience();
+	audio.stop_room_ambience();
+	audio.stop_landmark_beacons();
+}
+
+bool my_tasks_all_completed(array<player_task>@ tasks) {
+	if (tasks.length() == 0) return false;
+	for (uint i = 0; i < tasks.length(); i++) {
+		if (!tasks[i].completed) return false;
+	}
+	return true;
+}
+
+bool is_task_completed(array<player_task>@ tasks, const string&in object_id) {
+	for (uint i = 0; i < tasks.length(); i++) {
+		if (tasks[i].object_id == object_id) return tasks[i].completed;
+	}
+	return false;
+}
+
+// Marca a task como feita localmente (pra find_interactable parar de oferecer ela de novo) e tira
+// o beacon dela do mapa.
+void mark_task_completed_locally(game_map@ map, audio_manager@ audio, array<player_task>@ my_tasks,
+		array<string>@ my_task_object_ids, const string&in object_id, const string&in active_sabotage_id) {
+	for (uint i = 0; i < my_tasks.length(); i++) {
+		if (my_tasks[i].object_id == object_id) my_tasks[i].completed = true;
+	}
+	for (uint i = 0; i < my_task_object_ids.length(); i++) {
+		if (my_task_object_ids[i] == object_id) { my_task_object_ids.remove_at(i); break; }
+	}
+	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+}
