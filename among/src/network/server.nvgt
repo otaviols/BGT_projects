@@ -314,6 +314,10 @@ class game_server {
 			entry.set("name", lobby.lobby_name);
 			entry.set("current", int(lobby.players.length()));
 			entry.set("max", int(lobby.config.max_players));
+			// A configuração vai junto na LISTA, e não só depois de entrar: escolher uma sala sem
+			// saber quantos impostores tem e se a sabotagem está ligada é escolher no escuro, e o
+			// preço de descobrir é entrar, olhar e sair.
+			entry.set("config", lobby.config.to_json(lobby.players.length()));
 			list.add(entry);
 		}
 		net_packet@ result = net_packet(S_LOBBY_LIST);
@@ -330,8 +334,14 @@ class game_server {
 		lobby.lobby_id = "lobby_" + (++g_lobby_counter);
 		lobby.lobby_name = pkt.get_string("lobby_name", "Partida de " + conn.username);
 		@lobby.config = get_preset(pkt.get_string("preset", "classic"));
-		float cooldown_override = pkt.get_float("kill_cooldown_override", -1.0);
-		if (cooldown_override > 0.0) lobby.config.kill_cooldown_seconds = cooldown_override;
+		// Os ajustes do anfitrião entram por cima do preset; o que ele não mexeu chega como -1 e é
+		// ignorado. Clientes antigos, que só mandavam o cooldown, continuam funcionando: os campos
+		// que eles não enviam viram -1 aqui pelo valor padrão da leitura.
+		lobby_overrides overrides;
+		overrides.read_from_packet(pkt);
+		overrides.apply_to(lobby.config);
+		// validate() DEPOIS de aplicar, e não antes: estes números vieram da máquina do jogador, e é
+		// aqui que um "1000 jogadores" ou um cooldown de meio segundo voltam para dentro dos limites.
 		lobby.config.validate();
 		lobby.host_peer_id = peer_id;
 		@lobby.map = build_the_hub_map();
@@ -464,12 +474,16 @@ class game_server {
 		pkt.set_string("lobby_name", lobby.lobby_name);
 		pkt.set_int("max_players", int(lobby.config.max_players));
 		pkt.set_uint64("host_peer_id", lobby.host_peer_id);
+		pkt.set_object("config", lobby.config.to_json(lobby.players.length()));
 
 		json_array@ players_json = json_array();
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			json_object@ pj = json_object();
 			pj.set("peer_id", lobby.players[i].peer_id);
 			pj.set("name", lobby.players[i].username);
+			// Quem é bot vai marcado: numa sala com bots, saber quantos dos "jogadores" são de
+			// verdade muda a leitura de quanta gente falta para começar.
+			pj.set("is_bot", lobby.players[i].is_bot);
 			players_json.add(pj);
 		}
 		pkt.set_array("players", players_json);

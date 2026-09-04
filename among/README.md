@@ -119,6 +119,8 @@ your file and English — worth sending a message about it.
 | Key | Action |
 |---|---|
 | Enter | start the match (host only) |
+| P | who is in the lobby (with the count, and which are bots) |
+| C | this match's rules (impostors, cooldowns, timers, sabotage) |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
 | Y | write in chat |
@@ -288,7 +290,13 @@ hunt, kill when nobody is around, and sabotage. Useful to fill out a match or to
 | Fast | up to 6 | 1 | 3 each | 15 s | off |
 | Chaos | up to 10 | 3 | 4 each | 12 s | on |
 
-When creating a match you can override the kill cooldown.
+**You can adjust the preset when creating the lobby.** Besides the preset, the creation screen has
+fields for maximum players, number of impostors, tasks per crewmate, kill cooldown, discussion time,
+voting time, emergency meetings per player, and whether sabotage is in play.
+
+**Every field may be left blank**, and blank means "use what the preset says" — so if you just want
+to play, pick a preset, confirm and go. Anyone joining can hear what you changed by pressing **C**,
+and anyone browsing the list already sees the summary.
 
 ---
 

@@ -11,6 +11,8 @@
 #include "../config/game_constants.nvgt"
 #include "../audio/audio_manager.nvgt"
 #include "feedback_screen.nvgt"
+#include "lobby_info.nvgt"
+#include "../config/lobby_config.nvgt"
 // KEY_CHAT* vêm de core/chat_log.nvgt (compartilhado com game/game_loop.nvgt)
 
 // Resultado do navegador de lobbies: o jogador criou uma partida, entrou em uma existente, ou
@@ -55,11 +57,7 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			for (uint i = 0; i < lobbies.length(); i++) {
 				json_object@ entry = lobbies.get_object(i);
 				if (@entry == null) continue;
-				dictionary@ p = dictionary();
-				p.set("current", "" + int(entry["current"]));
-				p.set("max", "" + int(entry["max"]));
-				string label = string(entry["name"]) + " - " + tr("lobby.players", p);
-				m.add_item(label, string(entry["id"]));
+				m.add_item(lobby_summary_text(entry), string(entry["id"]));
 			}
 		}
 		m.add_item(tr("menu.create_lobby"), "__create__");
@@ -140,8 +138,21 @@ bool run_create_lobby_screen(game_client@ client) {
 	f.add_list_item(f_preset, tr("lobby.preset.classic_desc"), "classic");
 	f.add_list_item(f_preset, tr("lobby.preset.quick_desc"), "quick");
 	f.add_list_item(f_preset, tr("lobby.preset.chaos_desc"), "chaos");
-	// Em branco = usa o cooldown padrão do preset escolhido acima.
+	// Ajustes finos sobre o preset. TODOS aceitam vazio, e vazio significa "usa o que o preset diz" -
+	// é o que mantém a tela utilizável para quem só quer criar uma sala e jogar, enquanto abre a
+	// porta para quem quer mexer. Um formulário que exigisse todos os campos transformaria a criação
+	// de partida numa lição de casa.
 	int f_kill_cooldown = f.create_input_box(tr("lobby.kill_cooldown_override"), "");
+	int f_max_players = f.create_input_box(tr("lobby.max_players_override"), "");
+	int f_impostors = f.create_input_box(tr("lobby.impostor_count_override"), "");
+	int f_tasks = f.create_input_box(tr("lobby.task_count_override"), "");
+	int f_discussion = f.create_input_box(tr("lobby.discussion_time_override"), "");
+	int f_voting = f.create_input_box(tr("lobby.voting_time_override"), "");
+	int f_meetings = f.create_input_box(tr("lobby.emergency_meetings_override"), "");
+	int f_sabotages = f.create_list(tr("lobby.sabotages_override"));
+	f.add_list_item(f_sabotages, tr("lobby.override.preset_default"), "");
+	f.add_list_item(f_sabotages, tr("lobby.override.enabled"), "on");
+	f.add_list_item(f_sabotages, tr("lobby.override.disabled"), "off");
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 
@@ -154,13 +165,41 @@ bool run_create_lobby_screen(game_client@ client) {
 			string lobby_name = f.get_text(f_name);
 			int preset_index = f.get_list_position(f_preset);
 			string preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";
-			string cooldown_text = f.get_text(f_kill_cooldown);
-			float cooldown_override = cooldown_text == "" ? -1.0 : parse_float(cooldown_text);
-			client.send_create_lobby(lobby_name, preset_id, cooldown_override);
+
+			lobby_overrides ov;
+			// -1 em número e "" em texto significam "não mexi nisto": é o servidor que decide o
+			// valor final, partindo do preset. Mandar 0 no lugar seria pedir uma partida com zero
+			// tarefas por engano.
+			ov.kill_cooldown_seconds = text_to_float_or_default(f.get_text(f_kill_cooldown));
+			ov.max_players = text_to_int_or_default(f.get_text(f_max_players));
+			ov.impostor_count = text_to_int_or_default(f.get_text(f_impostors));
+			ov.task_count_per_crewmate = text_to_int_or_default(f.get_text(f_tasks));
+			ov.discussion_time_seconds = text_to_float_or_default(f.get_text(f_discussion));
+			ov.voting_time_seconds = text_to_float_or_default(f.get_text(f_voting));
+			ov.emergency_meetings_per_player = text_to_int_or_default(f.get_text(f_meetings));
+			int sab_index = f.get_list_position(f_sabotages);
+			ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
+
+			client.send_create_lobby(lobby_name, preset_id, ov);
 			return wait_for_join_result_after_create(client);
 		}
 	}
 	return false; // inalcançável - o laço só termina via return acima
+}
+
+// Campo vazio (ou lixo digitado) vira -1 = "não mexi nisto, use o preset". Aceitar lixo como -1 em
+// vez de recusar é deliberado: quem digitou "vinte" no lugar de "20" recebe a partida do preset em
+// vez de um formulário travado que ele não consegue enxergar para descobrir onde errou.
+float text_to_float_or_default(const string&in text) {
+	if (text == "") return -1.0;
+	float value = parse_float(text);
+	return value > 0.0 ? value : -1.0;
+}
+
+int text_to_int_or_default(const string&in text) {
+	if (text == "") return -1;
+	int value = parse_int(text);
+	return value > 0 ? value : -1;
 }
 
 bool wait_for_join_result_after_create(game_client@ client) {
@@ -209,7 +248,16 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 	chat_log@ events_log = chat_log();
 	bool viewing_events_container = false; // false = mensagens, true = eventos
 
-	speak(tr(is_host ? "lobby.host_start_hint" : "lobby.waiting_for_host"));
+	// Último retrato da sala que o servidor mandou. É guardado porque as teclas de "quem está aqui"
+	// e "quais as regras" respondem na hora, sem ir perguntar ao servidor - o estado já chega
+	// sozinho a cada entrada e saída de gente (S_LOBBY_STATE).
+	json_array@ lobby_players = null;
+	json_object@ lobby_config_json = null;
+	uint lobby_max_players = MAX_PLAYERS;
+
+	// A dica das teclas vem junto do aviso de entrada: numa sala de espera ninguém vai descobrir
+	// sozinho que P e C fazem alguma coisa, e é justamente ali que essas duas respostas importam.
+	speak(tr(is_host ? "lobby.host_start_hint" : "lobby.waiting_for_host") + " " + tr("lobby.info.keys_hint"));
 
 	while (true) {
 		wait(10);
@@ -234,6 +282,9 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 			} else if (pkt.type == S_LOBBY_STATE) {
 				string new_host_name = "";
 				json_array@ players = pkt.get_array("players");
+				@lobby_players = players;
+				@lobby_config_json = pkt.get_object("config");
+				lobby_max_players = uint(pkt.get_int("max_players", int(MAX_PLAYERS)));
 				uint64 new_host_id = pkt.get_uint64("host_peer_id");
 				if (@players != null) {
 					for (uint i = 0; i < players.length(); i++) {
@@ -269,6 +320,13 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) client.send_remove_bot();
 			else client.send_add_bot();
 		}
+
+		// P: quem está na sala. C: quais são as regras desta partida.
+		//
+		// As duas respondem do último estado recebido, sem pedir nada ao servidor: a resposta é
+		// imediata, e numa sala de espera o estado já chega sozinho a cada pessoa que entra ou sai.
+		if (key_pressed(KEY_P)) speak(lobby_players_text(lobby_players, lobby_max_players));
+		if (key_pressed(KEY_C)) speak(lobby_config_text(lobby_config_json));
 
 		if (action_pressed(ACTION_CHAT)) run_chat_compose(client);
 

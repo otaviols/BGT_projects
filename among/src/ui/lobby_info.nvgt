@@ -1,0 +1,113 @@
+// lobby_info.nvgt
+// Transforma o que o servidor manda sobre uma sala (configuração e lista de jogadores) em frases
+// para o jogador ouvir.
+//
+// Fica separado das telas porque as MESMAS informações aparecem em três lugares com níveis de
+// detalhe diferentes: o resumo curto em cada item da lista de salas, a leitura completa da
+// configuração na sala de espera, e a lista de quem está presente. Escrever isso três vezes seria
+// garantir que um dia elas passassem a discordar entre si.
+
+#include "../i18n.nvgt"
+#include "../network/packet.nvgt"
+
+// Formata segundos sem casa decimal inútil: "25 segundos", nunca "25.0 segundos".
+string seconds_text(float value) {
+	return "" + int(value + 0.5);
+}
+
+// Resumo CURTO, para cada item da lista de salas.
+//
+// Curto de propósito: o jogador percorre a lista item por item com o leitor de tela, e cada palavra
+// a mais é tempo esperando para chegar na sala seguinte. Aqui entra só o que decide se vale entrar
+// - quantos impostores, quão rápido é o kill, e se há sabotagem. O resto ele ouve dentro da sala,
+// com a tecla de configurações.
+string lobby_summary_text(json_object@ entry) {
+	if (@entry == null) return "";
+	dictionary@ p = dictionary();
+	p.set("current", "" + int(entry["current"]));
+	p.set("max", "" + int(entry["max"]));
+	string text = string(entry["name"]) + " - " + tr("lobby.players", p);
+
+	json_object@ cfg = entry.get_object("config");
+	if (@cfg == null) return text; // servidor antigo: sem configuração, o nome e a lotação bastam
+
+	dictionary@ ip = dictionary();
+	ip.set("count", "" + int(cfg["impostor_count"]));
+	text += " - " + tr(int(cfg["impostor_count"]) == 1 ? "lobby.info.impostors_one" : "lobby.info.impostors_many", ip);
+
+	dictionary@ kp = dictionary();
+	kp.set("seconds", seconds_text(float(cfg["kill_cooldown_seconds"])));
+	text += " - " + tr("lobby.info.kill_short", kp);
+
+	text += " - " + tr(bool(cfg["sabotages_enabled"]) ? "lobby.info.sabotage_on" : "lobby.info.sabotage_off");
+	return text;
+}
+
+// Leitura COMPLETA da configuração, para a tecla de configurações na sala de espera.
+//
+// Aqui vale ser detalhado: o jogador pediu esta informação explicitamente, está parado esperando a
+// partida começar, e é a única chance de saber as regras antes de estar valendo.
+string lobby_config_text(json_object@ cfg) {
+	if (@cfg == null) return tr("lobby.info.unavailable");
+	array<string> partes;
+
+	dictionary@ ip = dictionary();
+	ip.set("count", "" + int(cfg["impostor_count"]));
+	string impostores = tr(int(cfg["impostor_count"]) == 1 ? "lobby.info.impostors_one" : "lobby.info.impostors_many", ip);
+	// "automático" explica por que o número pode mudar até a partida começar: ele depende de quanta
+	// gente estiver na sala na hora do início.
+	if (bool(cfg["impostors_automatic"])) impostores += " " + tr("lobby.info.impostors_automatic");
+	partes.insert_last(impostores);
+
+	dictionary@ mp = dictionary();
+	mp.set("count", "" + int(cfg["max_players"]));
+	partes.insert_last(tr("lobby.info.max_players", mp));
+
+	dictionary@ tp = dictionary();
+	tp.set("count", "" + int(cfg["task_count_per_crewmate"]));
+	partes.insert_last(tr("lobby.info.tasks", tp));
+
+	dictionary@ kp = dictionary();
+	kp.set("seconds", seconds_text(float(cfg["kill_cooldown_seconds"])));
+	partes.insert_last(tr("lobby.info.kill_cooldown", kp));
+
+	dictionary@ dp = dictionary();
+	dp.set("seconds", seconds_text(float(cfg["discussion_time_seconds"])));
+	partes.insert_last(tr("lobby.info.discussion", dp));
+
+	dictionary@ vp = dictionary();
+	vp.set("seconds", seconds_text(float(cfg["voting_time_seconds"])));
+	partes.insert_last(tr("lobby.info.voting", vp));
+
+	dictionary@ ep = dictionary();
+	ep.set("count", "" + int(cfg["emergency_meetings_per_player"]));
+	partes.insert_last(tr("lobby.info.emergency_meetings", ep));
+
+	partes.insert_last(tr(bool(cfg["sabotages_enabled"]) ? "lobby.info.sabotage_on" : "lobby.info.sabotage_off"));
+
+	return join(partes, ". ") + ".";
+}
+
+// Quem está na sala agora, com quantos são e quais são bots.
+//
+// O total vem primeiro: numa sala com sete pessoas, o jogador quer saber "quantos somos" sem ter de
+// contar nomes enquanto o leitor de tela fala.
+string lobby_players_text(json_array@ players, uint max_players) {
+	if (@players == null || players.length() == 0) return tr("lobby.info.no_players");
+
+	array<string> nomes;
+	for (uint i = 0; i < players.length(); i++) {
+		json_object@ pj = players.get_object(i);
+		if (@pj == null) continue;
+		string nome = string(pj["name"]);
+		// O bot é anunciado como tal: ele conta para a lotação e joga, mas saber que aquele "jogador"
+		// é um bot muda completamente o peso do que ele fizer numa votação.
+		if (pj.exists("is_bot") && bool(pj["is_bot"])) nome += " " + tr("lobby.info.bot_suffix");
+		nomes.insert_last(nome);
+	}
+
+	dictionary@ p = dictionary();
+	p.set("current", "" + nomes.length());
+	p.set("max", "" + max_players);
+	return tr("lobby.players", p) + ". " + join(nomes, ", ") + ".";
+}

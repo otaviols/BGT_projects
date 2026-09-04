@@ -6,6 +6,10 @@
 #include "protocol.nvgt"
 #include "packet.nvgt"
 #include "../config/game_constants.nvgt"
+// send_create_lobby recebe um lobby_overrides. Antes isto vinha por tabela - quem incluía o cliente
+// já tinha incluído a configuração de lobby antes - e compilava por ordem, não por dependência
+// declarada. Bastava alguém incluir só o cliente para quebrar.
+#include "../config/lobby_config.nvgt"
 
 class game_client {
 	network@ net;
@@ -103,6 +107,16 @@ class game_client {
 		p.set_string("role", role);
 		p.set_string("room", room);
 		p.set_string("crash_log", crash_log);
+		send(p);
+	}
+
+	// Ajustes do anfitrião sobre o preset. O que ele não preencheu vai como -1 e o servidor mantém o
+	// valor do preset - ver lobby_overrides em config/lobby_config.nvgt.
+	void send_create_lobby(const string&in lobby_name, const string&in preset, const lobby_overrides&in overrides) {
+		net_packet@ p = net_packet(C_CREATE_LOBBY);
+		p.set_string("lobby_name", lobby_name);
+		p.set_string("preset", preset);
+		overrides.write_to_packet(p);
 		send(p);
 	}
 

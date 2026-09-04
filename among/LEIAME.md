@@ -113,6 +113,8 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | Tecla | Ação |
 |---|---|
 | Enter | iniciar a partida (só o anfitrião) |
+| P | quem está na sala (com o total e quais são bots) |
+| C | as regras desta partida (impostores, recargas, tempos, sabotagem) |
 | B | adicionar um bot (só o anfitrião, até 8) |
 | Shift + B | remover o último bot |
 | Y | escrever no chat |
@@ -284,4 +286,10 @@ ou para treinar sozinho.
 | Rápido | até 6 | 1 | 3 cada | 15 s | desligada |
 | Caos | até 10 | 3 | 4 cada | 12 s | ligada |
 
-Ao criar a partida dá para sobrescrever o tempo de recarga do kill.
+**Dá para ajustar o preset na hora de criar a sala.** Além do preset, a tela de criação tem campos
+para máximo de jogadores, número de impostores, tarefas por tripulante, recarga do kill, tempo de
+discussão, tempo de votação, reuniões de emergência por jogador e se a sabotagem entra.
+
+**Todos os campos aceitam ficar em branco**, e em branco quer dizer "use o que o preset manda" —
+então quem só quer jogar escolhe o preset, confirma e pronto. Quem entrar na sala consegue ver o que
+você mudou apertando **C**, e quem estiver escolhendo na lista já vê o resumo.

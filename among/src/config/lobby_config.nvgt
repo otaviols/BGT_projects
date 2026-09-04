@@ -2,6 +2,7 @@
 // Configuração de uma partida (lobby). Host escolhe/ajusta antes do início.
 
 #include "game_constants.nvgt"
+#include "../network/packet.nvgt"
 
 // Impostores recomendados por quantidade de jogadores.
 //
@@ -17,6 +18,63 @@ int default_impostor_count(uint player_count) {
 	if (player_count <= 6) return 1;
 	if (player_count <= 14) return 2;
 	return 3;
+}
+
+// Ajustes que o anfitrião faz POR CIMA de um preset ao criar a sala.
+//
+// Existe como classe própria, e não como um lobby_config já preenchido, por causa do "não mexi
+// nisto": um lobby_config tem sempre um valor em cada campo, então não haveria como distinguir
+// "quero 10 jogadores" de "deixa como o preset manda". Aqui -1 (e "" para a sabotagem) é justamente
+// essa ausência, e é o servidor que resolve o valor final.
+class lobby_overrides {
+	int max_players = -1;
+	int impostor_count = -1;
+	int task_count_per_crewmate = -1;
+	float kill_cooldown_seconds = -1.0;
+	float discussion_time_seconds = -1.0;
+	float voting_time_seconds = -1.0;
+	int emergency_meetings_per_player = -1;
+	string sabotages = ""; // "" = preset, "on" = ligadas, "off" = desligadas
+
+	// Aplica o que foi preenchido sobre uma configuração vinda do preset. O que ficou de fora não é
+	// tocado. A validação continua sendo feita depois, por lobby_config.validate(): estes valores
+	// vêm da máquina do jogador e não podem ser confiados só porque passaram por uma tela.
+	void apply_to(lobby_config@ cfg) const {
+		if (@cfg == null) return;
+		if (max_players > 0) cfg.max_players = uint(max_players);
+		if (impostor_count > 0) cfg.impostor_count = impostor_count;
+		if (task_count_per_crewmate > 0) cfg.task_count_per_crewmate = uint(task_count_per_crewmate);
+		if (kill_cooldown_seconds > 0.0) cfg.kill_cooldown_seconds = kill_cooldown_seconds;
+		if (discussion_time_seconds > 0.0) cfg.discussion_time_seconds = discussion_time_seconds;
+		if (voting_time_seconds > 0.0) cfg.voting_time_seconds = voting_time_seconds;
+		if (emergency_meetings_per_player > 0) cfg.emergency_meetings_per_player = uint(emergency_meetings_per_player);
+		if (sabotages == "on") cfg.sabotages_enabled = true;
+		else if (sabotages == "off") cfg.sabotages_enabled = false;
+	}
+
+	void write_to_packet(net_packet@ pkt) const {
+		if (@pkt == null) return;
+		pkt.set_int("max_players", max_players);
+		pkt.set_int("impostor_count", impostor_count);
+		pkt.set_int("task_count_per_crewmate", task_count_per_crewmate);
+		pkt.set_float("kill_cooldown_override", kill_cooldown_seconds);
+		pkt.set_float("discussion_time_seconds", discussion_time_seconds);
+		pkt.set_float("voting_time_seconds", voting_time_seconds);
+		pkt.set_int("emergency_meetings_per_player", emergency_meetings_per_player);
+		pkt.set_string("sabotages", sabotages);
+	}
+
+	void read_from_packet(net_packet@ pkt) {
+		if (@pkt == null) return;
+		max_players = pkt.get_int("max_players", -1);
+		impostor_count = pkt.get_int("impostor_count", -1);
+		task_count_per_crewmate = pkt.get_int("task_count_per_crewmate", -1);
+		kill_cooldown_seconds = pkt.get_float("kill_cooldown_override", -1.0);
+		discussion_time_seconds = pkt.get_float("discussion_time_seconds", -1.0);
+		voting_time_seconds = pkt.get_float("voting_time_seconds", -1.0);
+		emergency_meetings_per_player = pkt.get_int("emergency_meetings_per_player", -1);
+		sabotages = pkt.get_string("sabotages", "");
+	}
 }
 
 class lobby_config {
@@ -50,5 +108,28 @@ class lobby_config {
 
 	int resolved_impostor_count(uint connected_players) {
 		return impostor_count == -1 ? default_impostor_count(connected_players) : impostor_count;
+	}
+
+	// Empacota a configuração para mandar ao cliente.
+	//
+	// Vai TUDO, e não só o que a tela de hoje mostra: quem entra numa sala criada por outra pessoa
+	// não tem outro jeito de saber em que partida está se metendo, e descobrir que o kill é de 12
+	// segundos só depois do primeiro corpo é tarde demais.
+	//
+	// A contagem de impostores vai já RESOLVIDA (o -1 do modo automático vira o número real): o
+	// cliente não tem como resolver isso sozinho, porque a regra depende de quanta gente está
+	// conectada e é do servidor.
+	json_object@ to_json(uint connected_players) const {
+		json_object@ o = json_object();
+		o.set("max_players", int(max_players));
+		o.set("impostor_count", resolved_impostor_count(connected_players));
+		o.set("impostors_automatic", impostor_count == -1);
+		o.set("task_count_per_crewmate", int(task_count_per_crewmate));
+		o.set("kill_cooldown_seconds", kill_cooldown_seconds);
+		o.set("discussion_time_seconds", discussion_time_seconds);
+		o.set("voting_time_seconds", voting_time_seconds);
+		o.set("emergency_meetings_per_player", int(emergency_meetings_per_player));
+		o.set("sabotages_enabled", sabotages_enabled);
+		return o;
 	}
 }

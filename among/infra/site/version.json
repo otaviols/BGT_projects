@@ -1,5 +1,5 @@
 {
-	"version": "0.12.0",
+	"version": "0.13.0",
 	"url": "AmongUs.zip",
-	"notes": "Idiomas agora são plugáveis: basta pôr um arquivo na pasta lang para o idioma aparecer no jogo, e o que não estiver traduzido cai no inglês. As mensagens que vêm do servidor passaram a ser traduzidas no idioma de cada jogador. Corrigidos os avisos de cadastro, que apareciam sem tradução."
+	"notes": "Na sala de espera, P diz quem está presente e C diz as regras da partida. A lista de salas passou a mostrar impostores, recarga do kill e sabotagem em cada item. E a criação de sala ganhou ajustes finos sobre o preset: jogadores, impostores, tarefas, tempos de reunião e sabotagem."
 }
