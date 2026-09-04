@@ -1,5 +1,5 @@
 {
-	"version": "0.9.3",
+	"version": "0.10.0",
 	"url": "AmongUs.zip",
-	"notes": "O título da janela agora mostra a versão do jogo."
+	"notes": "Dois impostores em vez de três em partidas de até 14 jogadores. Fantasma agora ouve quando esbarra na parede. Na reunião, a tecla T diz quanto tempo falta. A sabotagem de oxigênio avisa o tempo restante de 30 em 30 segundos e conta os 10 finais. A task dos asteroides agora tem asteroide vindo de frente, com a seta para cima."
 }

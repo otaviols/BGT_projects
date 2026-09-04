@@ -49,6 +49,9 @@ class game_state {
 	string active_sabotage = ""; // "" | "lights" | "oxygen" | "comms"
 	string last_sabotage_id = ""; // pra não deixar repetir a mesma sabotagem duas vezes seguidas
 	float sabotage_timer = 0.0;
+	// Último número já anunciado da contagem regressiva, para não repetir o mesmo segundo em ticks
+	// seguidos (o laço roda dezenas de vezes por segundo). -1 = nada anunciado ainda nesta sabotagem.
+	int last_sabotage_countdown = -1;
 	float sabotage_cooldown_remaining = 0.0;
 	array<string> sabotage_fixed_panels;
 
@@ -312,6 +315,11 @@ class game_state {
 		out_event.set_string("reason", reason);
 		out_event.set_float("gather_x", MEETING_GATHER_X);
 		out_event.set_float("gather_y", MEETING_GATHER_Y);
+		// A duração da discussão vai junto para o cliente conseguir dizer quanto falta sem perguntar
+		// nada ao servidor (ver announce_time_remaining em ui/meeting_ui.nvgt). O protocolo já
+		// previa este campo desde o começo; ele simplesmente nunca chegou a ser preenchido, e o
+		// cliente lia zero.
+		out_event.set_float("discussion_time", config.discussion_time_seconds);
 		return true;
 	}
 
@@ -430,6 +438,11 @@ class game_state {
 		last_sabotage_id = sabotage_id;
 		sabotage_fixed_panels.resize(0);
 		sabotage_timer = is_critical_sabotage(sabotage_id) ? SABOTAGE_OXYGEN_TIMER_SECONDS : 0.0;
+		// Começa marcando o próprio total como "já anunciado", por dois motivos: a segunda sabotagem
+		// crítica da partida não herda o número da primeira (o que faria ela pular avisos até passar
+		// por baixo dele), e o total não é repetido logo de cara - o aviso de sabotagem iniciada já
+		// diz "você tem 90 segundos", e o lembrete viria em cima, dizendo a mesma coisa duas vezes.
+		last_sabotage_countdown = int(sabotage_timer);
 
 		fail_key = "";
 		@out_event = net_packet(S_SABOTAGE_STARTED);
@@ -764,6 +777,31 @@ class game_state {
 		// dá peso a elas (antes as luzes se resolviam sozinhas em 40s e viravam só um susto).
 		if (active_sabotage != "" && is_critical_sabotage(active_sabotage) && state == "in_progress") {
 			sabotage_timer -= delta_seconds;
+
+			// Lembretes do relógio. Sem eles a sabotagem crítica era um silêncio de 90 segundos:
+			// o jogador ouvia o alarme no começo, corria pro painel e não fazia ideia se ainda dava
+			// tempo de tentar o segundo painel ou se já era. Num jogo sem tela, não existe um número
+			// no canto pra conferir - ou o jogo fala, ou a informação não existe.
+			//
+			// Arredonda pra CIMA: com 29,4 segundos restantes o certo é dizer "30", porque dizer "29"
+			// faria o aviso de 30 nunca acontecer em alguns ticks e a contagem pular números.
+			int seconds_left = int(sabotage_timer + 0.999);
+			if (seconds_left != last_sabotage_countdown && seconds_left > 0) {
+				// Nos 10 segundos finais é um por um: é a contagem que cria a urgência e diz, sem
+				// margem de dúvida, que não dá mais tempo de ir pro outro painel. Antes disso, marcos
+				// de 30 em 30 - avisar de 10 em 10 durante um minuto e meio viraria ruído e atrapalharia
+				// quem está tentando ouvir passos.
+				bool is_final = seconds_left <= SABOTAGE_FINAL_COUNTDOWN_SECONDS;
+				if (is_final || seconds_left % SABOTAGE_REMINDER_INTERVAL_SECONDS == 0) {
+					last_sabotage_countdown = seconds_left;
+					net_packet@ countdown = net_packet(S_SABOTAGE_COUNTDOWN);
+					countdown.set_string("sabotage_id", active_sabotage);
+					countdown.set_int("seconds", seconds_left);
+					countdown.set_bool("final", is_final);
+					events.insert_last(countdown);
+				}
+			}
+
 			if (sabotage_timer <= 0.0) {
 				winner = "impostors";
 				win_reason = "oxygen_depleted";

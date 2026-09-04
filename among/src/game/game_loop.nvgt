@@ -577,6 +577,8 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					speak(hint_text);
 					events_log.add("", hint_text);
 				}
+			} else if (t == S_SABOTAGE_COUNTDOWN) {
+				mui.on_sabotage_countdown(pkt);
 			} else if (t == S_SABOTAGE_FIXED) {
 				mui.on_sabotage_fixed(pkt);
 				active_sabotage_id = "";
@@ -762,7 +764,12 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 						string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
 						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y, footstep_variant_extension(prefix));
 					}
-				} else if (alive && float(wall_bump_clock.elapsed) / 1000.0 >= WALL_BUMP_INTERVAL_SECONDS) {
+				// Sem exigir estar vivo: o fantasma TAMBÉM é barrado por parede (can_move só o deixa
+				// atravessar PORTA fechada, ver game/map.nvgt), e sem este som ele empurrava contra a
+				// parede sem nenhum retorno - do lado de cá parecia que o jogo tinha travado, porque
+				// nada acontecia e nada era dito. Quem morreu continua tendo tarefas a fazer, então
+				// continua precisando se localizar.
+				} else if (float(wall_bump_clock.elapsed) / 1000.0 >= WALL_BUMP_INTERVAL_SECONDS) {
 					wall_bump_clock.restart();
 					// Barrado por uma PORTA é diferente de barrado por parede: a porta abre sozinha daqui a
 					// pouco, e saber disso muda o que o jogador faz (esperar em vez de procurar outro
@@ -830,7 +837,14 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				else speak(tr("game.ghost_cannot_interact")); // fantasma não reporta corpo, só faz task
 			}
 
-			if (action_pressed(ACTION_TASK_LIST)) run_task_list_menu(client, map, my_tasks, team_task_percent);
+			// Durante a reunião a mesma tecla responde outra coisa: quanto tempo falta. É a pergunta
+			// que importa ali - ninguém decide o que fazer com a lista de tarefas no meio de uma
+			// discussão, mas todo mundo precisa saber se dá tempo de argumentar ou se é hora de votar.
+			// Fora da reunião ela continua abrindo a lista de tarefas, como sempre.
+			if (action_pressed(ACTION_TASK_LIST)) {
+				if (movement_frozen) mui.announce_time_remaining();
+				else run_task_list_menu(client, map, my_tasks, team_task_percent);
+			}
 
 			if (action_pressed(ACTION_ROOM_INFO)) {
 				map_zone@ zone = map.zone_at(my_x, my_y);

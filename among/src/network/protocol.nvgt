@@ -53,6 +53,11 @@ const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejec
 const string S_VOTE_CAST = "s_vote_cast";                 // {voter_peer, voter_name} - só avisa QUE votou, nunca em quem
 const string S_SABOTAGE_STARTED = "s_sabotage_started";   // {sabotage_id, timer}
 const string S_SABOTAGE_FIXED = "s_sabotage_fixed";       // {sabotage_id}
+// Lembrete de quanto falta numa sabotagem crítica. Quem decide QUANDO avisar é o servidor (a cada
+// 30 segundos, e a cada segundo nos 10 finais), e não cada cliente com um relógio próprio: assim
+// todo mundo ouve o mesmo número no mesmo instante, que é o que permite combinar "vai você no de
+// cima que eu vou no de baixo" por voz e confiar no que o outro disse.
+const string S_SABOTAGE_COUNTDOWN = "s_sabotage_countdown"; // {sabotage_id, seconds, final}
 const string S_GAME_OVER = "s_game_over";                 // {winner, reason, crewmates_alive, crewmates_total, impostors_alive, impostors_total}
 const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, y, distance} ou {empty: true}
 const string S_ERROR = "s_error";                          // {message}

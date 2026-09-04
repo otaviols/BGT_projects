@@ -1,24 +1,40 @@
 // clear_asteroids.nvgt
-// Task de limpar asteroides: cada asteroide chega por um lado (o bipe toca só naquele ouvido) e o
-// jogador atira apontando pro lado certo com a seta esquerda ou direita, antes do tempo acabar.
-// Errar o lado ou demorar demais perde a task - é a task mais de reflexo do jogo.
+// Task de limpar asteroides: cada asteroide chega por uma direção (esquerda, frente ou direita) e o
+// jogador atira apontando pra lá com a seta correspondente, antes do tempo acabar. Errar a direção
+// ou demorar demais perde a task - é a task mais de reflexo do jogo.
+//
+// São TRÊS direções, e não duas: com só esquerda e direita, o jogador que não tivesse certeza
+// chutava e acertava metade das vezes. Com a frente no meio, o chute cai para um terço, e a
+// diferença entre "ouvi" e "adivinhei" passa a aparecer no resultado.
+//
+// A direção da frente é o som CENTRALIZADO (pan 0), que é a única leitura possível de "vem na minha
+// direção" em estéreo - por isso ela usa a seta pra cima, que é para onde se aponta olhando à frente.
 
 #include "task_common.nvgt"
 
+// As três direções de onde um asteroide pode vir, com o pan de cada uma.
+const int ASTEROID_FROM_LEFT = 0;
+const int ASTEROID_FROM_FRONT = 1;
+const int ASTEROID_FROM_RIGHT = 2;
+const array<float> ASTEROID_PANS = {-100.0, 0.0, 100.0};
+
 bool run_clear_asteroids_task(game_client@ client) {
 	const uint ASTEROID_COUNT = 5;
-	const float REACTION_SECONDS = 1.6;
+	// Um pouco mais de tempo que os 1.6s de quando eram só dois lados: agora há uma opção a mais para
+	// distinguir antes de apertar, e manter a janela antiga transformaria a direção nova em punição
+	// para quem está ouvindo com atenção.
+	const float REACTION_SECONDS = 1.9;
 
 	speak(tr("task.clear_asteroids.instructions"));
 	wait(600);
 
 	for (uint i = 0; i < ASTEROID_COUNT; i++) {
 		wait(random(300, 1200)); // intervalo irregular: sem isso dá pra acertar no ritmo, sem ouvir
-		bool from_left = random_bool();
+		int from = random(0, 2);
 
 		sound asteroid;
 		if (!asteroid.load("sounds/" + SND_BEEP)) return false;
-		asteroid.pan = from_left ? -100.0 : 100.0; // -100 = só no ouvido esquerdo, 100 = só no direito
+		asteroid.pan = ASTEROID_PANS[from]; // -100 = só no ouvido esquerdo, 0 = à frente, 100 = só no direito
 		asteroid.play();
 
 		timer reaction_clock;
@@ -29,17 +45,18 @@ bool run_clear_asteroids_task(game_client@ client) {
 			client.update();
 			if (task_cancel_requested(client)) return false;
 
-			bool shot_left = key_pressed(KEY_LEFT);
-			bool shot_right = key_pressed(KEY_RIGHT);
-			if (!shot_left && !shot_right) continue;
+			int shot = -1;
+			if (key_pressed(KEY_LEFT)) shot = ASTEROID_FROM_LEFT;
+			else if (key_pressed(KEY_UP)) shot = ASTEROID_FROM_FRONT;
+			else if (key_pressed(KEY_RIGHT)) shot = ASTEROID_FROM_RIGHT;
+			if (shot == -1) continue;
 
 			answered = true;
-			// O tiro sai sempre, acertando ou não, e sai PELO LADO pra onde se atirou: esta task
-			// inteira é sobre lados, então nada nela deve soar no meio. Um som centralizado aqui (era
-			// o caso do bipe de acerto que existia antes) confunde a leitura de quem está contando com
-			// o ouvido pra saber de onde veio o asteroide.
-			task_sound(SND_GUN_FIRE, shot_left ? -100.0 : 100.0);
-			if (shot_left != from_left) { // atirou pro lado errado
+			// O tiro sai sempre, acertando ou não, e sai PELA DIREÇÃO pra onde se atirou: esta task
+			// inteira é sobre direção, então o tiro tem que confirmar de ouvido para onde o jogador
+			// apontou - inclusive quando ele aponta para a frente, que agora é o som no meio.
+			task_sound(SND_GUN_FIRE, ASTEROID_PANS[shot]);
+			if (shot != from) { // atirou pra direção errada
 				task_sound(SND_CARD_ERROR);
 				speak(tr("task.failed"));
 				return false;

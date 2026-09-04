@@ -129,6 +129,7 @@ Everything is saved immediately and applies from the next match on.
 | Key | Action |
 |---|---|
 | B | open the voting menu |
+| T | how much time is left in this phase |
 | Y | write in chat (meetings only) |
 | Comma / Period | previous / next message |
 | Shift + Comma | first message |
@@ -163,7 +164,9 @@ The eleven tasks:
 - **Fuel engines** — the panel first plays the **tone of a full tank**. Then hold Space: the filling
   sound rises, and you release when it reaches that same tone. Releasing early means too little
   fuel; going past it overflows. The game does not signal the moment — you judge it.
-- **Clear asteroids** — shoot with the arrow matching the side each asteroid comes from.
+- **Clear asteroids** — each asteroid comes from one direction: left, **ahead** or right. The
+  sound centred between both ears is the one from ahead; shoot with the matching arrow (left, **up**
+  or right).
 - **Roll the dice** (games room) — the panel asks for a number and you roll until you get it. The
   higher the result, the higher the dice sounds.
 - **Water the seedlings** (greenhouse) — three beds: one on the left, one ahead and one on the
@@ -182,7 +185,8 @@ somebody claims they were swiping the card in a match where the card never showe
 that person is lying.
 
 **Died? Keep doing your tasks.** Ghosts still count towards the crew's victory, walk through locked
-doors, and are the team's best weapon once things start going wrong.
+doors, and are the team's best weapon once things start going wrong. A ghost passes through a closed
+door but **not** through a wall — and hears the bump against it, so it can still find its way.
 
 ## Meetings and voting
 
@@ -192,6 +196,9 @@ the cafeteria and movement locks.
 Press **Y** to talk and **B** to open the voting menu when you are ready. Closing the voting menu
 with ESC does **not** spend your vote: you can open it again. Voting ends as soon as everyone has
 voted, or when time runs out (75 seconds in the Classic preset).
+
+**During a meeting, T tells you how much time is left** — and which phase it is: still discussion,
+or voting already running. Outside a meeting, T is your task list as always.
 
 Chat only exists in the waiting room and during meetings. There is no chat during the match — not
 even between impostors.
@@ -206,7 +213,9 @@ cannot be repeated twice in a row.
   Electrical.
 - **Oxygen** — critical sabotage. The crew has 90 seconds to fix **two** panels, one in Admin and
   one in Electrical, or they lose the match. While it is active, nobody can call a meeting or report
-  a body.
+  a body. The game announces the time left every 30 seconds, and counts down one by one over the
+  **last 10** — if you hear the countdown start, there is no time to switch panels: finish the one
+  you began.
 - **Communications** — takes down the radar (both modes), your task beacons and the nearby-body
   warning. Lasts until someone fixes the panel in Navigation.
 

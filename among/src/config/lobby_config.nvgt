@@ -3,11 +3,20 @@
 
 #include "game_constants.nvgt"
 
-// Impostores recomendados por quantidade de jogadores (regra clássica do Among Us).
+// Impostores recomendados por quantidade de jogadores.
+//
+// Três impostores em dez jogadores é demais NESTE jogo, e o motivo é o áudio: sem visão, a
+// tripulação demora muito mais para cruzar informação do que num Among Us de tela, enquanto o
+// impostor não perde nada - ele mata pelo som igual. Com três, a partida acabava antes de a
+// tripulação conseguir organizar uma suspeita. Dois mantêm a dupla de impostores (que é o que torna
+// o jogo interessante para eles) sem afundar o outro lado.
+//
+// A faixa de três só começa em quinze jogadores, e hoje é inalcançável: MAX_PLAYERS é 10. Fica aqui
+// pronta para quando o limite subir, em vez de virar uma surpresa naquele dia.
 int default_impostor_count(uint player_count) {
 	if (player_count <= 6) return 1;
-	if (player_count <= 9) return 2;
-	return 3; // 10 jogadores
+	if (player_count <= 14) return 2;
+	return 3;
 }
 
 class lobby_config {

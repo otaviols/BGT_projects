@@ -124,6 +124,7 @@ Tudo é salvo na hora e vale já na próxima partida.
 | Tecla | Ação |
 |---|---|
 | B | abrir o menu de votação |
+| T | quanto tempo falta nesta fase |
 | Y | escrever no chat (só funciona durante reuniões) |
 | Vírgula / Ponto | mensagem anterior / próxima |
 | Shift + Vírgula | primeira mensagem |
@@ -159,7 +160,9 @@ As onze tarefas:
 - **Abastecer motores** — o painel toca primeiro o **tom do tanque cheio**. Depois segure Espaço: o
   som do enchimento vai subindo, e você solta quando ele chegar naquele mesmo tom. Soltar cedo é
   pouco combustível; passar do ponto transborda. O jogo não avisa a hora — quem julga é você.
-- **Limpar asteroides** — atire com a seta do lado de onde vier cada asteroide.
+- **Limpar asteroides** — cada asteroide vem de uma direção: esquerda, **frente** ou direita. O som
+  centralizado nos dois ouvidos é o que vem de frente; atire com a seta correspondente (esquerda,
+  **para cima** ou direita).
 - **Rolar o dado** (sala de jogos) — o painel pede um número e você rola até tirar ele. O dado soa
   mais agudo quanto maior o resultado.
 - **Regar as mudas** (estufa) — três canteiros: um à esquerda, um à frente e um à direita. O
@@ -179,7 +182,8 @@ pessoa está mentindo.
 
 **Morreu? Continue fazendo as suas tarefas.** Fantasmas continuam contando para a vitória da
 tripulação, atravessam portas trancadas, e são a melhor arma do time depois que a coisa começa a dar
-errado.
+errado. Fantasma atravessa porta fechada, mas **não** atravessa parede — e ouve o esbarrão nela
+normalmente, para conseguir se localizar.
 
 ## Reuniões e votação
 
@@ -189,6 +193,9 @@ levado para a cafeteria e o movimento trava.
 Aperte **Y** para conversar e **B** para abrir o menu de votação quando estiver pronto. Fechar o
 menu de votação com ESC **não** gasta o seu voto: você pode abrir de novo. A votação acaba assim que
 todo mundo votar, ou quando o tempo terminar (75 segundos no preset Clássico).
+
+**Durante a reunião, T diz quanto tempo falta** — e diz de qual fase: se ainda é discussão ou se a
+votação já está correndo. Fora da reunião, T continua sendo a sua lista de tarefas.
 
 O chat só existe na sala de espera e durante as reuniões. Não há chat durante a partida — nem entre
 impostores.
@@ -203,7 +210,9 @@ repetir a mesma duas vezes seguidas.
   Elétrica.
 - **Oxigênio** — sabotagem crítica. A tripulação tem 90 segundos para consertar **dois** painéis, um
   na Administração e outro na Elétrica, ou perde a partida. Enquanto ela estiver ativa, ninguém
-  consegue chamar reunião nem reportar corpo.
+  consegue chamar reunião nem reportar corpo. O jogo avisa quanto falta de 30 em 30 segundos, e nos
+  **10 segundos finais** conta um a um — se você ouvir a contagem começar, já não dá tempo de trocar
+  de painel: termine o que começou.
 - **Comunicações** — derruba o radar (nos dois modos), os marcadores das suas tarefas e o aviso de
   corpo por perto. Dura até alguém consertar o painel na Navegação.
 

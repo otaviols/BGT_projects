@@ -5,7 +5,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.9.3";
+const string GAME_VERSION = "0.10.0";
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.
@@ -64,6 +64,13 @@ const float MEETING_GATHER_Y = 0.0;
 // 90s: os dois painéis de oxigênio ficam em salas opostas da nave (admin e elétrica), e só a
 // caminhada de uma até a outra já leva uns 25 segundos.
 const float SABOTAGE_OXYGEN_TIMER_SECONDS = 90.0;
+// De quanto em quanto tempo o servidor lembra quantos segundos faltam numa sabotagem crítica, e a
+// partir de quanto tempo restante ele passa a contar segundo a segundo. 30 é frequente o bastante
+// para orientar quem está correndo entre os dois painéis, e raro o bastante para não atrapalhar
+// quem está tentando ouvir passos - e os 10 finais são a urgência, quando já não dá mais tempo de
+// mudar de painel e o que resta é terminar o que se começou.
+const int SABOTAGE_REMINDER_INTERVAL_SECONDS = 30;
+const int SABOTAGE_FINAL_COUNTDOWN_SECONDS = 10;
 const float SABOTAGE_COOLDOWN_SECONDS = 30.0;
 // Cooldown já contando no começo da partida: sem isso o impostor podia sabotar no primeiro segundo,
 // antes de qualquer um ter tido tempo de sair da cafeteria ou começar uma task.

@@ -35,6 +35,43 @@ class meeting_ui {
 	bool voting_active = false;
 	bool has_voted = false; // reseta a cada reunião nova (ver on_voting_started)
 
+	// Quanto tempo a fase atual (discussão ou votação) tinha, e desde quando ela começou. O servidor
+	// manda a duração junto com o evento de início; o relógio corre aqui no cliente.
+	//
+	// É contagem LOCAL, e não um valor que o servidor fica reenviando: mandar o tempo restante a cada
+	// segundo para todo mundo seria muito tráfego para uma informação que cada cliente consegue
+	// calcular sozinho. O preço é uma diferença de fração de segundo em relação ao servidor, que não
+	// muda nada para quem está decidindo em quem votar.
+	private float phase_duration_seconds = 0.0;
+	private timer@ phase_clock = null;
+
+	private void start_phase_clock(float duration_seconds) {
+		phase_duration_seconds = duration_seconds;
+		@phase_clock = timer();
+		phase_clock.restart();
+	}
+
+	// Segundos que faltam para a fase atual acabar, ou -1 se não há reunião em andamento.
+	float phase_seconds_remaining() const {
+		if (@phase_clock == null) return -1.0;
+		float left = phase_duration_seconds - float(phase_clock.elapsed) / 1000.0;
+		return left > 0.0 ? left : 0.0;
+	}
+
+	// Fala quanto falta para a fase atual terminar. É o que a tecla da lista de tarefas faz enquanto
+	// a reunião está acontecendo - ver game/game_loop.nvgt.
+	//
+	// Diz também QUAL fase é: "faltam 20 segundos" sem dizer de quê é ambíguo justamente no momento
+	// em que a diferença importa - o fim da discussão só abre a votação, o fim da votação encerra a
+	// reunião com o voto que estiver valendo.
+	void announce_time_remaining() {
+		float left = phase_seconds_remaining();
+		if (left < 0.0) return;
+		dictionary@ p = dictionary();
+		p.set("seconds", "" + int(left + 0.5)); // arredonda: "faltam 19,4 segundos" não ajuda ninguém
+		speak(tr(voting_active ? "game.meeting_time_voting" : "game.meeting_time_discussion", p));
+	}
+
 	meeting_ui(game_client@ client, audio_manager@ audio, client_roster@ roster, chat_log@ events_log, bool is_impostor) {
 		@this.client = client;
 		@this.audio = audio;
@@ -67,6 +104,8 @@ class meeting_ui {
 	}
 
 	void on_meeting_started(net_packet@ pkt) {
+		voting_active = false;
+		start_phase_clock(pkt.get_float("discussion_time"));
 		string reason = pkt.get_string("reason");
 		if (reason == "button") {
 			audio.play_meeting_alarm();
@@ -81,6 +120,7 @@ class meeting_ui {
 	void on_voting_started(net_packet@ pkt) {
 		voting_active = true;
 		has_voted = false;
+		start_phase_clock(pkt.get_float("voting_time"));
 		// Não abre o menu de votação sozinho - isso travava o jogador lá dentro sem conseguir usar
 		// o chat pra discutir antes de votar. Agora é só um aviso; o jogador abre o menu quando
 		// quiser com a tecla de votar (ver ACTION_VOTE em config/keybindings.nvgt).
@@ -99,6 +139,9 @@ class meeting_ui {
 
 	void on_vote_result(net_packet@ pkt) {
 		voting_active = false;
+		// A reunião acabou: sem isto o relógio continuaria "correndo" e a tecla de tempo responderia
+		// "faltam 0 segundos" no meio da partida seguinte, como se ainda houvesse reunião.
+		@phase_clock = null;
 
 		json_array@ breakdown = pkt.get_array("vote_breakdown");
 		if (@breakdown != null) {
@@ -159,6 +202,24 @@ class meeting_ui {
 		announce(text);
 		audio.start_sabotage_alarm();
 		if (sabotage_id == "lights") audio.apply_lights_out(true, 40);
+	}
+
+	// Lembrete de quanto falta na sabotagem crítica (marcos de 30 em 30) e a contagem dos 10 finais.
+	void on_sabotage_countdown(net_packet@ pkt) {
+		int seconds = pkt.get_int("seconds");
+		dictionary@ p = dictionary();
+		p.set("seconds", "" + seconds);
+
+		if (pkt.get_bool("final")) {
+			// speak() direto, sem passar pelo registro de eventos: dez números seguidos entupiriam o
+			// histórico que o jogador relê com PageUp/PageDown, empurrando pra fora justamente o que
+			// interessa reler (quem reportou, quem votou em quem).
+			// E sem esperar a fala anterior terminar - numa contagem, um número atrasado é pior do que
+			// um número interrompido.
+			speak(tr("sabotage.countdown_final", p));
+			return;
+		}
+		announce(tr("sabotage.countdown_remaining", p));
 	}
 
 	void on_sabotage_fixed(net_packet@ pkt) {
