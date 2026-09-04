@@ -43,6 +43,32 @@ if (-not $SkipServer) {
 	docker build -f (Join-Path $PSScriptRoot "Dockerfile") -t $fullImage $root
 	if ($LASTEXITCODE -ne 0) { throw "docker build falhou." }
 
+	# Sobe a imagem UMA VEZ aqui antes de publicar, e confere que o servidor realmente inicia.
+	#
+	# Isto existe por causa de um incidente real: uma compilação do NVGT produziu um binário
+	# defeituoso - mesmo código-fonte, build seguinte já saiu boa - que morria com segfault ao
+	# iniciar. Ele foi publicado, o rollout "deu certo" (a imagem baixa e o contêiner sobe), e o
+	# servidor entrou em ciclo de reinício com o jogo fora do ar. Nada no caminho tinha como perceber:
+	# compilar com sucesso não é a mesma coisa que o binário funcionar.
+	#
+	# O teste é o mais barato possível e pega exatamente essa classe de falha: rodar e ver se o
+	# processo continua vivo depois de alguns segundos.
+	Write-Host "Conferindo se o servidor sobe nesta imagem..."
+	docker rm -f amongus-smoketest 2>&1 | Out-Null
+	docker volume rm -f amongus-smoketest 2>&1 | Out-Null
+	docker run -d --name amongus-smoketest -v amongus-smoketest:/data $fullImage | Out-Null
+	Start-Sleep -Seconds 8
+	$running = docker inspect amongus-smoketest --format "{{.State.Running}}"
+	$smokeLog = docker logs amongus-smoketest 2>&1
+	docker rm -f amongus-smoketest 2>&1 | Out-Null
+	docker volume rm -f amongus-smoketest 2>&1 | Out-Null
+	if ($running -ne "true") {
+		Write-Host "--- o que o servidor disse ---"
+		Write-Host $smokeLog
+		throw "O servidor NÃO fica de pé nesta imagem - nada foi publicado. Recompile (nvgt -c -plinux server_main.nvgt) e tente de novo: uma build do NVGT pode sair defeituosa e a seguinte já sair boa."
+	}
+	Write-Host "Servidor sobe normalmente."
+
 	Write-Host "Enviando a imagem..."
 	docker push $fullImage
 	if ($LASTEXITCODE -ne 0) {

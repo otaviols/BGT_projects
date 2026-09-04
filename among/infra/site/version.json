@@ -1,5 +1,5 @@
 {
-	"version": "0.13.0",
+	"version": "0.14.1",
 	"url": "AmongUs.zip",
-	"notes": "Na sala de espera, P diz quem está presente e C diz as regras da partida. A lista de salas passou a mostrar impostores, recarga do kill e sabotagem em cada item. E a criação de sala ganhou ajustes finos sobre o preset: jogadores, impostores, tarefas, tempos de reunião e sabotagem."
+	"notes": "Partidas de até 15 jogadores (eram 10), com cinco cores novas. E a atualização automática deixou de falhar em máquinas onde a pasta temporária é bloqueada: o jogo agora procura um lugar onde realmente consiga escrever."
 }

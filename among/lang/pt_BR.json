@@ -351,5 +351,10 @@
 	"lobby.info.unavailable": "As configurações desta partida não estão disponíveis.",
 	"lobby.info.no_players": "Não há ninguém na sala.",
 	"lobby.info.bot_suffix": "(bot)",
-	"lobby.info.keys_hint": "P diz quem está na sala e C diz as configurações da partida."
+	"lobby.info.keys_hint": "P diz quem está na sala e C diz as configurações da partida.",
+	"color.cyan": "Ciano",
+	"color.lime": "Verde-limão",
+	"color.maroon": "Bordô",
+	"color.gray": "Cinza",
+	"color.tan": "Bege"
 }

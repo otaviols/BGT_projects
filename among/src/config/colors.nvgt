@@ -2,6 +2,9 @@
 // Cores de personagem disponíveis. Cada cor tem sons de morte/kill próprios quando existirem
 // em sounds/colors/<cor>/, com fallback para os sons genéricos do protótipo antigo.
 
+// Quantas cores existem é o teto de jogadores numa partida: a atribuição dá uma cor por pessoa e,
+// esgotadas as cores, passaria a repetir (ver o sorteio em network/server.nvgt). Por isso esta lista
+// tem 15 nomes e MAX_PLAYERS é 15 - mexer num sem mexer no outro volta a repetir cor.
 enum player_color {
 	COLOR_RED = 0,
 	COLOR_BLUE,
@@ -13,6 +16,11 @@ enum player_color {
 	COLOR_WHITE,
 	COLOR_PURPLE,
 	COLOR_BROWN,
+	COLOR_CYAN,
+	COLOR_LIME,
+	COLOR_MAROON,
+	COLOR_GRAY,
+	COLOR_TAN,
 	COLOR_COUNT
 }
 
@@ -29,6 +37,11 @@ string color_key(int color_id) {
 		case COLOR_WHITE: return "white";
 		case COLOR_PURPLE: return "purple";
 		case COLOR_BROWN: return "brown";
+		case COLOR_CYAN: return "cyan";
+		case COLOR_LIME: return "lime";
+		case COLOR_MAROON: return "maroon";
+		case COLOR_GRAY: return "gray";
+		case COLOR_TAN: return "tan";
 	}
 	return "unknown";
 }

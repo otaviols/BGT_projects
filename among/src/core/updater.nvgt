@@ -127,13 +127,51 @@ string powershell_path() {
 // O script é PowerShell porque tudo que ele precisa já vem com o Windows: baixar por HTTPS
 // (Invoke-WebRequest) e descompactar (Expand-Archive). Nada de ferramenta extra pro jogador
 // instalar.
+// Um lugar onde este computador realmente deixa escrever.
+//
+// Existe porque "usar a pasta temporária" não é garantido: em máquinas com antivírus mais agressivo,
+// perfil corporativo ou perfil de usuário danificado, criar pasta dentro do Temp é negado - e o
+// sintoma que chegava ao jogador era a atualização morrendo com "O acesso ao caminho 'Temp' foi
+// negado". A escrita é TESTADA de verdade (cria e apaga um arquivo), porque a pasta existir não
+// quer dizer que se pode escrever nela.
+//
+// A pasta do próprio jogo vem primeiro na fila de propósito: se não der para escrever nela, a
+// atualização não teria como acontecer de qualquer maneira, então ela é o melhor lugar para tentar
+// antes de qualquer outro.
+string writable_work_directory() {
+	array<string> candidatos = {
+		game_directory() + "\\update_tmp",
+		DIRECTORY_TEMP + "amongus_update",
+		read_environment_variable("LOCALAPPDATA", "") + "\\AmongUsAudiogame\\update_tmp"
+	};
+
+	for (uint i = 0; i < candidatos.length(); i++) {
+		string dir = candidatos[i];
+		if (dir.starts_with("\\") || dir.starts_with("/")) continue; // variável de ambiente vazia
+		if (!directory_exists(dir) && !directory_create(dir)) continue;
+		// Criar a pasta pode passar e escrever nela ainda falhar (é exatamente o caso de algumas
+		// pastas herdadas com permissão estranha), então o teste é gravar um arquivo de verdade.
+		string prova = dir + "\\.escrita";
+		if (!file_put_contents(prova, "ok", false)) continue;
+		file_delete(prova);
+		return dir;
+	}
+	return ""; // nenhum lugar serve: quem chama cai no caminho manual
+}
+
 bool launch_updater_script(const string&in package_url) {
 	string exe = SCRIPT_EXECUTABLE;
 	string dir = game_directory();
-	// DIRECTORY_TEMP já vem com a barra no fim - juntar outra criava caminhos com "\\" no meio.
-	// O PowerShell tolera, mas o próprio NVGT não enxerga esses caminhos de volta.
-	string script_path = DIRECTORY_TEMP + "amongus_update.ps1";
-	string work_dir = DIRECTORY_TEMP + "amongus_update";
+
+	string work_dir = writable_work_directory();
+	if (work_dir == "") return false; // sem lugar para trabalhar, nem começa
+
+	// O script fica ONDE se pode escrever, e não fixo na pasta temporária: numa máquina que nega o
+	// Temp, gravar o script lá falharia igual.
+	// A pasta escolhida já vem sem barra no fim (ver writable_work_directory), então a barra é posta
+	// aqui uma vez só - antes isto concatenava com DIRECTORY_TEMP, que JÁ termina em barra, e saíam
+	// caminhos com barra dupla no meio.
+	string script_path = work_dir + "\\amongus_update.ps1";
 
 	string script =
 		"$ErrorActionPreference = 'Stop'\n"
@@ -151,17 +189,25 @@ bool launch_updater_script(const string&in package_url) {
 		"  catch { Start-Sleep -Milliseconds 300 }\n"
 		"}\n"
 		"\n"
+		"# Definidos ANTES do try: o bloco finally lá embaixo apaga os dois, e ele roda mesmo quando o\n"
+		"# try falha na primeira linha - com as variáveis declaradas só lá dentro, a limpeza tentaria\n"
+		"# apagar caminhos vazios.\n"
+		"$zip = Join-Path $work 'update.zip'\n"
+		"$unpacked = Join-Path $work 'unpacked'\n"
+		"\n"
 		"try {\n"
-		"  if (Test-Path $work) { Remove-Item -Recurse -Force $work }\n"
-		"  New-Item -ItemType Directory -Force $work | Out-Null\n"
-		"  $zip = Join-Path $work 'update.zip'\n"
+		"  # A pasta de trabalho JÁ existe e já foi testada como gravável pelo jogo antes de gerar\n"
+		"  # este script (ver writable_work_directory). Aqui só se limpa o que possa ter sobrado de\n"
+		"  # uma tentativa anterior - e sem -ErrorAction Stop, porque um resto que não queira ser\n"
+		"  # apagado não é motivo para cancelar a atualização inteira.\n"
+		"  Remove-Item -Recurse -Force $unpacked -ErrorAction SilentlyContinue\n"
+		"  Remove-Item -Force $zip -ErrorAction SilentlyContinue\n"
 		"\n"
 		"  # Barra de progresso desligada: num download grande ela custa mais tempo do que o próprio\n"
 		"  # download numa janela oculta.\n"
 		"  $ProgressPreference = 'SilentlyContinue'\n"
 		"  Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing\n"
 		"\n"
-		"  $unpacked = Join-Path $work 'unpacked'\n"
 		"  Expand-Archive -Path $zip -DestinationPath $unpacked -Force\n"
 		"\n"
 		"  # Só encosta na instalação DEPOIS de confirmar que o que chegou é um jogo de verdade. Um\n"
@@ -176,15 +222,22 @@ bool launch_updater_script(const string&in package_url) {
 		"catch {\n"
 		"  # Deu errado: relança a versão antiga, que continua intacta, e conta o que houve. Sair\n"
 		"  # calado deixaria o jogador olhando para um jogo que simplesmente não voltou.\n"
+		"  # A pasta usada vai na mensagem: sem ela, um erro de permissão diz o que aconteceu mas não\n"
+		"  # ONDE, que é a única informação capaz de resolver o problema na máquina do jogador.\n"
 		"  Start-Process -FilePath $exe -WorkingDirectory $dir\n"
 		"  Add-Type -AssemblyName System.Windows.Forms\n"
 		"  [System.Windows.Forms.MessageBox]::Show(\n"
 		"    'A atualizacao nao pode ser concluida: ' + $_.Exception.Message + \"`n`n\" +\n"
+		"    'Pasta usada: ' + $work + \"`n`n\" +\n"
 		"    'O jogo foi reaberto na versao anterior. Voce pode baixar a nova manualmente em " + DOWNLOAD_PAGE_URL + "',\n"
 		"    'Among Us Audiogame') | Out-Null\n"
 		"}\n"
 		"finally {\n"
-		"  if (Test-Path $work) { Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue }\n"
+		"  # Apaga só o que ESTE script criou, nunca a pasta de trabalho inteira: ela pode ser uma\n"
+		"  # subpasta da instalação, e um caminho errado aqui apagaria o jogo do jogador em vez de\n"
+		"  # limpar um resto de download.\n"
+		"  Remove-Item -Recurse -Force $unpacked -ErrorAction SilentlyContinue\n"
+		"  Remove-Item -Force $zip -ErrorAction SilentlyContinue\n"
 		"  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n"
 		"}\n";
 

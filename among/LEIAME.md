@@ -17,7 +17,7 @@ pessoa, cada objeto e cada corpo só pelo som.
    que entrou nesta máquina e já deixa o cursor na senha.
 3. Escolha uma partida na lista, ou crie a sua.
 4. Na sala de espera, o anfitrião aperta Enter para começar. São necessários pelo menos 3 jogadores;
-   o máximo é 10.
+   o máximo é 15.
 
 **Antes de jogar:** no menu inicial existe a opção **Aprender os sons do jogo**. Ela toca cada som
 do jogo com o nome dele. Vale muito a pena passar por ela uma vez — o jogo inteiro depende de
@@ -285,6 +285,8 @@ ou para treinar sozinho.
 | Clássico | até 10 | automático | 5 cada | 25 s | ligada |
 | Rápido | até 6 | 1 | 3 cada | 15 s | desligada |
 | Caos | até 10 | 3 | 4 cada | 12 s | ligada |
+
+Os presets abaixo são o ponto de partida; o teto de uma partida é **15 jogadores**.
 
 **Dá para ajustar o preset na hora de criar a sala.** Além do preset, a tela de criação tem campos
 para máximo de jogadores, número de impostores, tarefas por tripulante, recarga do kill, tempo de

@@ -20,7 +20,7 @@ every object and every body is from sound alone.
    password.
 3. Pick a match from the list, or create your own.
 4. In the waiting room, the host presses Enter to start. At least 3 players are required; the
-   maximum is 10.
+   maximum is 15.
 
 **Before playing:** the main menu has a **Learn the game sounds** option. It plays every sound in
 the game along with its name. It is well worth going through it once — the whole game depends on
@@ -289,6 +289,8 @@ hunt, kill when nobody is around, and sabotage. Useful to fill out a match or to
 | Classic | up to 10 | automatic | 5 each | 25 s | on |
 | Fast | up to 6 | 1 | 3 each | 15 s | off |
 | Chaos | up to 10 | 3 | 4 each | 12 s | on |
+
+The presets below are the starting point; a match tops out at **15 players**.
 
 **You can adjust the preset when creating the lobby.** Besides the preset, the creation screen has
 fields for maximum players, number of impostors, tasks per crewmate, kill cooldown, discussion time,

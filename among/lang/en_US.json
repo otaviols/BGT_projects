@@ -351,5 +351,10 @@
 	"lobby.info.unavailable": "This lobby's settings are not available.",
 	"lobby.info.no_players": "There is nobody in the lobby.",
 	"lobby.info.bot_suffix": "(bot)",
-	"lobby.info.keys_hint": "P says who is in the lobby and C says the match settings."
+	"lobby.info.keys_hint": "P says who is in the lobby and C says the match settings.",
+	"color.cyan": "Cyan",
+	"color.lime": "Lime",
+	"color.maroon": "Maroon",
+	"color.gray": "Gray",
+	"color.tan": "Tan"
 }
