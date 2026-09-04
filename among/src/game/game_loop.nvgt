@@ -647,7 +647,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				run_game_over_screen(client, pkt);
 				game_over = true;
 			} else if (t == S_ERROR) {
-				speak(pkt.get_string("message"));
+				// Traduzido AQUI, no idioma deste jogador: o servidor manda a chave, não a frase
+				// (ver network/protocol.nvgt).
+				speak(tr_server_message(pkt));
 			} else if (t == S_PONG && ping_pending) {
 				ping_pending = false;
 				dictionary@ ping_params = dictionary();

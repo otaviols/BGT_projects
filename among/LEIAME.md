@@ -71,10 +71,29 @@ fábrica.
 usar o leitor de tela quando houver um. É o que resolve para quem joga sem NVDA: desmarque "usar
 leitor de tela" e acelere a voz do sistema ao seu gosto.
 
-**Idioma** — português do Brasil e inglês dos Estados Unidos. A troca vale na hora, e o jogo abre no
-idioma escolhido da próxima vez.
+**Idioma** — a lista mostra todos os idiomas instalados. A troca vale na hora, e o jogo abre no
+idioma escolhido da próxima vez. O jogo vem com português do Brasil e inglês dos Estados Unidos, e
+abre em inglês na primeira vez.
 
 Tudo é salvo na hora e vale já na próxima partida.
+
+## Traduzir o jogo para outro idioma
+
+Qualquer pessoa pode acrescentar um idioma, sem programar e sem esperar por uma versão nova:
+
+1. Na pasta `lang` do jogo, copie `en_US.json` para um arquivo novo com o código do seu idioma —
+   por exemplo `fr_FR.json`.
+2. Traduza os **valores** (o que está depois dos dois-pontos). As **chaves** (o que está antes) não
+   mudam nunca — são elas que o jogo procura.
+3. Na primeira linha, escreva o nome do idioma **no próprio idioma**, em `language.name`. É esse
+   nome que aparece na lista: quem procura o idioma dele reconhece "Français", não "Francês".
+4. Abra o jogo. O idioma já aparece em **Configurações → Idioma**.
+
+**Não precisa traduzir tudo de uma vez.** O que faltar aparece em inglês, então dá para traduzir aos
+poucos, e uma tradução antiga continua funcionando quando o jogo ganha textos novos.
+
+Se você vir uma chave crua na tela (algo como `menu.connect`), é sinal de que aquele texto não
+existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 
 ## Como o som funciona
 

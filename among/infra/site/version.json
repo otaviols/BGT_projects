@@ -1,5 +1,5 @@
 {
-	"version": "0.11.1",
+	"version": "0.12.0",
 	"url": "AmongUs.zip",
-	"notes": "O jogo agora abre em inglês por padrão; quem prefere português troca uma vez em Configurações e a escolha fica salva. Corrigido o manual sobre os dutos: entra-se com Enter no duto, e o V só serve para sair ou viajar quando já se está dentro."
+	"notes": "Idiomas agora são plugáveis: basta pôr um arquivo na pasta lang para o idioma aparecer no jogo, e o que não estiver traduzido cai no inglês. As mensagens que vêm do servidor passaram a ser traduzidas no idioma de cada jogador. Corrigidos os avisos de cadastro, que apareciam sem tradução."
 }

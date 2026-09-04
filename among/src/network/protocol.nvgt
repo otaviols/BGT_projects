@@ -71,6 +71,33 @@ const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, t
 // Confirmação de que o recado foi GRAVADO (não só recebido). O jogador precisa disto: sem resposta,
 // mandar feedback é falar no vácuo, e quem não tem certeza de que chegou manda de novo.
 const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}
+
+// --- Mensagens traduzíveis vindas do servidor -------------------------------
+//
+// Todo texto que o servidor manda para ser LIDO pelo jogador viaja como CHAVE de tradução mais os
+// valores que entram nela - nunca como frase pronta. Quem traduz é o cliente, no idioma que aquele
+// jogador escolheu.
+//
+// O motivo é simples: o servidor é um só e os jogadores de uma mesma partida podem estar em idiomas
+// diferentes. Traduzindo no servidor, todo mundo receberia o idioma DELE, e a escolha de idioma no
+// jogo viraria mentira para tudo que viesse da rede.
+//
+// Os pacotes levam também um campo `message` com o texto já traduzido no idioma padrão do servidor.
+// Ele existe SÓ para os clientes antigos (até a 0.11.1), que leem esse campo e não conhecem
+// `message_key`; sem ele, esses jogadores veriam avisos em branco. Pode ser removido quando não
+// houver mais ninguém nessas versões.
+const string MSG_KEY_FIELD = "message_key";      // chave de tradução, ex.: "chat.only_in_meeting"
+const string MSG_PARAMS_FIELD = "message_params"; // objeto {nome: valor} com as substituições
+const string MSG_LEGACY_TEXT_FIELD = "message";   // texto pronto, só para clientes até a 0.11.1
+
+// Traduz uma mensagem recebida do servidor no idioma DESTE cliente.
+// Cai no texto pronto se o pacote não trouxer chave (servidor mais antigo que o cliente).
+string tr_server_message(net_packet@ pkt) {
+	if (@pkt == null) return "";
+	string key = pkt.get_string(MSG_KEY_FIELD);
+	if (key == "") return pkt.get_string(MSG_LEGACY_TEXT_FIELD);
+	return tr(key, pkt.get_params(MSG_PARAMS_FIELD));
+}
 const string S_VENT_STATE = "s_vent_state";                 // {vented, x, y} - resposta privada (só pra quem usou o vent)
 const string S_VENT_SOUND = "s_vent_sound";                 // {vent_id} - tampa do vent abrindo, ouvida por QUEM ESTÁ PERTO (não vai pra quem usou)
 const string S_DOORS_STATE = "s_doors_state";               // {closed, zones: [ids de corredor]} - portas fechando ou abrindo

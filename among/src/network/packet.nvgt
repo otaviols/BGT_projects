@@ -40,6 +40,35 @@ class net_packet {
 	void set_array(const string&in key, json_array@ value) { obj.set(key, value); }
 	void set_object(const string&in key, json_object@ value) { obj.set(key, value); }
 
+	// Substituições de uma mensagem traduzível ({name}, {seconds}...), como um objeto aninhado.
+	//
+	// Existe porque o servidor manda CHAVE de tradução, não texto pronto (ver S_ERROR em
+	// network/protocol.nvgt): quem traduz é o cliente, no idioma DELE, e para isso os valores que
+	// entram no texto precisam viajar separados da frase.
+	// Tudo vira string: o outro lado só vai substituir isso dentro de um texto, e number de JSON
+	// voltaria como "5.0" onde se espera "5".
+	void set_params(const string&in key, dictionary@ params) {
+		if (@params == null) return;
+		json_object@ o = json_object();
+		array<string>@ names = params.get_keys();
+		for (uint i = 0; i < names.length(); i++) {
+			string value;
+			params.get(names[i], value);
+			o.set(names[i], value);
+		}
+		obj.set(key, o);
+	}
+
+	dictionary@ get_params(const string&in key) const {
+		dictionary@ result = dictionary();
+		if (!obj.exists(key)) return result;
+		json_object@ o = obj.get_object(key);
+		if (@o == null) return result;
+		array<string>@ names = o.get_keys();
+		for (uint i = 0; i < names.length(); i++) result.set(names[i], string(o[names[i]]));
+		return result;
+	}
+
 	string get_string(const string&in key, const string&in default_value = "") const {
 		if (!obj.exists(key)) return default_value;
 		return string(obj[key]);

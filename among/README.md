@@ -76,10 +76,30 @@ defaults.
 should use the screen reader when one is present. This is what makes the game work for people
 playing without NVDA: turn off "use screen reader" and speed the system voice up to taste.
 
-**Language** — Brazilian Portuguese and US English. The change takes effect immediately, and the
-game opens in the chosen language next time.
+**Language** — the list shows every installed language. The change takes effect immediately, and the
+game opens in the chosen language next time. The game ships with US English and Brazilian
+Portuguese, and opens in English the first time.
 
 Everything is saved immediately and applies from the next match on.
+
+## Translating the game
+
+Anyone can add a language, with no programming and without waiting for a new release:
+
+1. In the game's `lang` folder, copy `en_US.json` to a new file named after your language code —
+   `fr_FR.json`, for instance.
+2. Translate the **values** (what comes after the colon). The **keys** (what comes before) never
+   change — they are what the game looks up.
+3. On the first line, write the language's name **in that language itself**, in `language.name`.
+   That is what shows up in the list: someone looking for their language recognises "Français", not
+   "French".
+4. Open the game. The language is already there under **Settings → Language**.
+
+**You do not have to translate everything at once.** Anything missing falls back to English, so you
+can translate gradually, and an older translation keeps working when the game gains new text.
+
+If you ever see a raw key on screen (something like `menu.connect`), that text is missing from both
+your file and English — worth sending a message about it.
 
 ## How the sound works
 

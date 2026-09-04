@@ -1,17 +1,44 @@
 // i18n.nvgt
 // Sistema de internacionalização. Chaves são strings simples com notação por ponto
 // (ex: "menu.play", "color.red", "task.fix_wiring.name") armazenadas de forma plana no JSON.
+//
+// IDIOMAS SÃO PLUGÁVEIS: basta largar um arquivo em lang/ para ele aparecer na lista de idiomas do
+// jogo. Nada precisa ser recompilado e nada precisa ser registrado no código. Para acrescentar um
+// idioma novo:
+//
+//   1. copie lang/en_US.json para lang/<codigo>.json (ex.: lang/fr_FR.json);
+//   2. traduza os valores - as CHAVES não mudam nunca;
+//   3. dê a ele um nome na chave "language.name", escrito NO PRÓPRIO IDIOMA (ex.: "Français").
+//
+// Uma tradução PARCIAL é aceitável de propósito: o que faltar cai no inglês (ver FALLBACK abaixo).
+// Isso é o que permite alguém traduzir aos poucos, ou uma tradução da comunidade continuar
+// funcionando quando o jogo ganha textos novos, em vez de mostrar chaves cruas na tela.
+
+// Idioma usado quando não há escolha salva, e também de onde vem o que faltar em qualquer tradução.
+//
+// Inglês por alcance: é o idioma que a maior parte da comunidade de audiogames lê, e quem abre o
+// jogo sem entender o que está escrito não descobre sozinho que existe uma opção de idioma - ele
+// simplesmente fecha. Quem fala outra língua troca uma vez em Configurações e a escolha fica salva.
+const string DEFAULT_LANGUAGE = "en_US";
+
+// Chave que cada arquivo de idioma usa para dizer como ele se chama, no próprio idioma.
+const string LANGUAGE_NAME_KEY = "language.name";
 
 class i18n {
 	private dictionary strings;
+	// Textos do idioma de reserva (o inglês), carregados uma vez e mantidos à parte. É o que cobre
+	// as chaves que faltarem no idioma escolhido.
+	private dictionary fallback_strings;
 	private string _current_language;
 
 	i18n() {
 		_current_language = "";
 	}
 
-	// Carrega arquivo de idioma a partir de lang/<lang_code>.json
-	bool load_language(const string&in lang_code) {
+	// Lê um arquivo de idioma para um dicionário. Devolve false se o arquivo não existir ou não for
+	// um JSON de objeto - nos dois casos quem chama decide o que fazer, porque falhar ao carregar o
+	// idioma escolhido e falhar ao carregar a reserva têm consequências bem diferentes.
+	private bool load_into(const string&in lang_code, dictionary@ target) {
 		string file_path = "lang/" + lang_code + ".json";
 		if (!file_exists(file_path)) return false;
 
@@ -24,21 +51,42 @@ class i18n {
 		json_object@ lang_data = cast<json_object@>(parsed);
 		if (@lang_data == null) return false;
 
-		strings.delete_all();
+		target.delete_all();
 		array<string>@ keys = lang_data.get_keys();
 		for (uint i = 0; i < keys.length(); i++) {
-			strings.set(keys[i], string(lang_data[keys[i]]));
+			target.set(keys[i], string(lang_data[keys[i]]));
+		}
+		return true;
+	}
+
+	// Carrega arquivo de idioma a partir de lang/<lang_code>.json
+	bool load_language(const string&in lang_code) {
+		if (!load_into(lang_code, strings)) return false;
+
+		// A reserva é carregada uma vez só e nunca mais - carregar de novo a cada troca de idioma
+		// seria reler o mesmo arquivo à toa. Não é carregada quando o próprio idioma escolhido JÁ é
+		// o inglês: aí o dicionário principal já é a reserva, e ter duas cópias iguais na memória
+		// não ajuda ninguém.
+		if (lang_code != DEFAULT_LANGUAGE && fallback_strings.is_empty()) {
+			load_into(DEFAULT_LANGUAGE, fallback_strings);
 		}
 
 		_current_language = lang_code;
 		return true;
 	}
 
-	// Obtém string traduzida. Se a chave não existir, retorna a própria chave (facilita achar
-	// traduções faltando durante o desenvolvimento).
+	// Obtém string traduzida.
+	//
+	// Ordem: idioma escolhido -> inglês -> a própria chave.
+	//
+	// O passo do inglês é o que torna tradução parcial viável: uma tradução da comunidade que ainda
+	// não cobriu tudo (ou que ficou para trás quando o jogo ganhou textos novos) mostra inglês no
+	// que falta, em vez de despejar "menu.connect" na tela. Devolver a chave continua sendo o último
+	// recurso, e é útil: uma chave crua aparecendo é sinal de que ela não existe NEM no inglês.
 	string get(const string&in key) const {
 		string result;
 		if (strings.get(key, result)) return result;
+		if (fallback_strings.get(key, result)) return result;
 		return key;
 	}
 
@@ -74,25 +122,23 @@ class i18n {
 		}
 		return languages;
 	}
-}
 
-// Idioma usado quando não há escolha salva.
-//
-// Inglês por alcance: é o idioma que a maior parte da comunidade de audiogames lê, e quem abre o
-// jogo sem entender o que está escrito não descobre sozinho que existe uma opção de idioma - ele
-// simplesmente fecha. Quem fala português troca uma vez em Configurações e a escolha fica salva.
-//
-// Trocar isto exige que o outro idioma esteja COMPLETO: chave faltando aparece como a própria chave
-// crua na tela (ver get() acima), e quem cair no padrão é justamente quem ainda não escolheu nada.
-const string DEFAULT_LANGUAGE = "en_US";
-
-// Nome de cada idioma NO PRÓPRIO IDIOMA. É assim que se monta uma lista de idiomas útil: quem abre
-// o jogo num idioma que não entende precisa reconhecer o dele na lista, e "Inglês" não ajuda quem
-// só lê inglês. Um código sem nome aqui aparece como o próprio código - feio, mas nunca invisível.
-string language_display_name(const string&in code) {
-	if (code == "pt_BR") return "Português (Brasil)";
-	if (code == "en_US") return "English (United States)";
-	return code;
+	// Como um idioma se chama, lido do PRÓPRIO arquivo dele (chave "language.name").
+	//
+	// Vem do arquivo, e não de uma lista no código, justamente para que idiomas plugáveis funcionem:
+	// uma lista fixa aqui obrigaria a recompilar o jogo para cada tradução nova, e até lá ela
+	// apareceria como um código cru na tela.
+	//
+	// Lê o arquivo na hora em vez de guardar em cache: isto só é chamado ao abrir a tela de idiomas,
+	// com um punhado de arquivos, e um cache aqui só serviria para mostrar nome velho depois de
+	// alguém corrigir um arquivo.
+	string display_name_of(const string&in lang_code) {
+		dictionary temp;
+		if (!load_into(lang_code, temp)) return lang_code;
+		string name;
+		if (temp.get(LANGUAGE_NAME_KEY, name) && name != "") return name;
+		return lang_code; // sem nome declarado: o código cru é feio, mas nunca invisível
+	}
 }
 
 // Instância global usada pelo resto do jogo.
@@ -104,4 +150,10 @@ string tr(const string&in key) {
 
 string tr(const string&in key, dictionary@ params) {
 	return g_i18n.get_formatted(key, params);
+}
+
+// Nome de um idioma, no próprio idioma. Quem abre o jogo numa língua que não entende precisa
+// reconhecer a dele na lista, e "Inglês" não ajuda quem só lê inglês.
+string language_display_name(const string&in code) {
+	return g_i18n.display_name_of(code);
 }

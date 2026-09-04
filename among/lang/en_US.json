@@ -1,4 +1,5 @@
 {
+	"language.name": "English (United States)",
 	"app.title": "Among Us - Audiogame",
 	"menu.play": "Play",
 	"menu.create_lobby": "Create lobby",
@@ -321,5 +322,8 @@
 	"feedback.sending": "Sending...",
 	"feedback.sent": "Message sent. Thank you!",
 	"feedback.failed": "The server could not store your message. Please try again later.",
-	"feedback.no_answer": "The server did not answer in time. Your message may have arrived; avoid sending it again right now."
+	"feedback.no_answer": "The server did not answer in time. Your message may have arrived; avoid sending it again right now.",
+	"login.invalid_username_length": "The username must be between 3 and 20 characters.",
+	"login.invalid_password_length": "The password must be at least 6 characters.",
+	"login.db_error": "The account could not be created right now. Please try again shortly."
 }

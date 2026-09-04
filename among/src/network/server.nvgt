@@ -394,12 +394,16 @@ class game_server {
 	void on_add_bot(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.host_peer_id != peer_id) return;
-		if (lobby.state != "waiting") { send_error(peer_id, tr("lobby.bot_only_in_waiting")); return; }
-		if (lobby.players.length() >= lobby.config.max_players) { send_error(peer_id, tr("lobby.bot_lobby_full")); return; }
-		if (lobby.bot_count() >= MAX_BOTS_PER_LOBBY) { send_error(peer_id, tr("lobby.bot_limit_reached")); return; }
+		if (lobby.state != "waiting") { send_error(peer_id, "lobby.bot_only_in_waiting"); return; }
+		if (lobby.players.length() >= lobby.config.max_players) { send_error(peer_id, "lobby.bot_lobby_full"); return; }
+		if (lobby.bot_count() >= MAX_BOTS_PER_LOBBY) { send_error(peer_id, "lobby.bot_limit_reached"); return; }
 
 		game_player@ bot = game_player(++g_bot_peer_counter, "");
-		bot.username = tr("lobby.bot_name") + " " + (lobby.bot_count() + 1);
+		// Nome de bot NÃO é traduzido, e isso é de propósito: é um nome próprio, como o de qualquer
+		// jogador. Ele vai para o elenco, para o chat e para a tela de votação, onde é comparado com
+		// o que as pessoas falam entre si - se cada cliente o traduzisse para um idioma diferente,
+		// duas pessoas na mesma partida estariam acusando "nomes" diferentes pelo mesmo bot.
+		bot.username = "Bot " + (lobby.bot_count() + 1);
 		bot.is_bot = true;
 		bot.authenticated = true;
 		bot.lobby_id = lobby.lobby_id;
@@ -415,7 +419,7 @@ class game_server {
 	void on_remove_bot(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.host_peer_id != peer_id) return;
-		if (lobby.state != "waiting") { send_error(peer_id, tr("lobby.bot_only_in_waiting")); return; }
+		if (lobby.state != "waiting") { send_error(peer_id, "lobby.bot_only_in_waiting"); return; }
 
 		// Tira o último adicionado (é o que a tecla sugere: adiciona com B, desfaz com Shift+B).
 		for (int i = int(lobby.players.length()) - 1; i >= 0; i--) {
@@ -432,13 +436,25 @@ class game_server {
 			send_lobby_state(lobby, 0);
 			return;
 		}
-		send_error(peer_id, tr("lobby.bot_none_to_remove"));
+		send_error(peer_id, "lobby.bot_none_to_remove");
 	}
 
-	void send_error(uint64 peer_id, const string&in message) {
-		net_packet@ err = net_packet(S_ERROR);
-		err.set_string("message", message);
-		send_to(peer_id, err);
+	// Manda um aviso para o jogador como CHAVE de tradução, nunca como frase pronta: os jogadores de
+	// uma mesma partida podem estar em idiomas diferentes, e quem sabe o idioma de cada um é o
+	// cliente dele. Ver o bloco de mensagens traduzíveis em network/protocol.nvgt.
+	void send_error(uint64 peer_id, const string&in message_key, dictionary@ params = null) {
+		send_to(peer_id, build_message(S_ERROR, message_key, params));
+	}
+
+	// Monta um pacote de mensagem traduzível. Além da chave e das substituições, inclui o texto já
+	// traduzido no idioma do servidor - isso é só para os clientes até a 0.11.1, que não conhecem a
+	// chave e mostrariam um aviso em branco sem esse campo.
+	net_packet@ build_message(const string&in packet_type, const string&in message_key, dictionary@ params = null) {
+		net_packet@ pkt = net_packet(packet_type);
+		pkt.set_string(MSG_KEY_FIELD, message_key);
+		if (@params != null) pkt.set_params(MSG_PARAMS_FIELD, params);
+		pkt.set_string(MSG_LEGACY_TEXT_FIELD, @params != null ? tr(message_key, params) : tr(message_key));
+		return pkt;
 	}
 
 	// Envia o estado da lobby. Se target_peer for 0, transmite para todos os membros.
@@ -470,9 +486,7 @@ class game_server {
 		if (lobby.players.length() < MIN_PLAYERS) {
 			dictionary@ p = dictionary();
 			p.set("min", "" + MIN_PLAYERS);
-			net_packet@ err = net_packet(S_ERROR);
-			err.set_string("message", tr("lobby.min_players_warning", p));
-			send_to(peer_id, err);
+			send_error(peer_id, "lobby.min_players_warning", p);
 			return;
 		}
 
@@ -683,9 +697,7 @@ class game_server {
 		// (cooldown) avisa por quê.
 		game_player@ killer = lobby.find_player(peer_id);
 		if (@killer != null && killer.is_impostor && killer.alive && killer.kill_cooldown_remaining > 0.0) {
-			net_packet@ err = net_packet(S_ERROR);
-			err.set_string("message", tr("game.kill_on_cooldown"));
-			send_to(peer_id, err);
+			send_error(peer_id, "game.kill_on_cooldown");
 			return;
 		}
 
@@ -703,7 +715,7 @@ class game_server {
 
 		body_info@ body = lobby.find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
 		if (@body == null) return;
-		if (lobby.meetings_blocked_by_sabotage()) { send_error(peer_id, tr("sabotage.blocks_meeting")); return; }
+		if (lobby.meetings_blocked_by_sabotage()) { send_error(peer_id, "sabotage.blocks_meeting"); return; }
 
 		net_packet@ reported = net_packet(S_BODY_REPORTED);
 		reported.set_uint64("reporter_peer", peer_id);
@@ -750,21 +762,19 @@ class game_server {
 		if (lobby.state != "in_progress") {
 			// Já tem reunião/votação rolando, ou a partida acabou - sem isso o botão parecia
 			// simplesmente não fazer nada quando apertado de novo nesse meio tempo.
-			net_packet@ err = net_packet(S_ERROR);
-			err.set_string("message", tr("game.meeting_call_failed"));
-			send_to(peer_id, err);
+			send_error(peer_id, "game.meeting_call_failed");
 			return;
 		}
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p == null || !p.alive) return;
 		string button_block_reason = lobby.emergency_button_block_reason();
-		if (button_block_reason != "") { send_error(peer_id, tr(button_block_reason)); return; }
+		if (button_block_reason != "") { send_error(peer_id, button_block_reason); return; }
 
 		// Recarga depois da última reunião: diz quanto falta, em vez do genérico "não deu certo".
 		if (lobby.emergency_button_cooldown_reason() != "") {
 			dictionary@ cd = dictionary();
 			cd.set("seconds", "" + int(lobby.meeting_cooldown_remaining + 0.5));
-			send_error(peer_id, tr(lobby.emergency_button_cooldown_reason(), cd));
+			send_error(peer_id, lobby.emergency_button_cooldown_reason(), cd);
 			return;
 		}
 
@@ -781,9 +791,7 @@ class game_server {
 		} else {
 			// Sem isso o jogador aperta o botão e não acontece nada nem fala nada - ex.: já gastou
 			// as reuniões de emergência permitidas, ou uma reunião/votação já está em andamento.
-			net_packet@ err = net_packet(S_ERROR);
-			err.set_string("message", tr("game.meeting_call_failed"));
-			send_to(peer_id, err);
+			send_error(peer_id, "game.meeting_call_failed");
 		}
 	}
 
@@ -794,9 +802,7 @@ class game_server {
 		if (!lobby.cast_vote(peer_id, target)) {
 			// Antes o cliente não sabia se o voto foi mesmo aceito - dava pra abrir o menu de novo e
 			// "votar" outra vez sem nenhum aviso, mesmo o servidor já ignorando o segundo voto.
-			net_packet@ err = net_packet(S_ERROR);
-			err.set_string("message", tr("game.already_voted"));
-			send_to(peer_id, err);
+			send_error(peer_id, "game.already_voted");
 			return;
 		}
 		game_player@ voter = lobby.find_player(peer_id);
@@ -907,7 +913,7 @@ class game_server {
 		// Sabotagem de comunicações derruba o radar: é o equivalente aqui ao "esconder as tasks" do
 		// jogo original - tira a ferramenta principal de saber quem está perto de você.
 		if (blinded_by_sabotage && lobby.active_sabotage == "comms") {
-			send_error(peer_id, tr("sabotage.comms.radar_down"));
+			send_error(peer_id, "sabotage.comms.radar_down");
 			return;
 		}
 
@@ -956,7 +962,7 @@ class game_server {
 			// Antes falhava calado - o impostor escolhia a sabotagem no menu e não acontecia nada,
 			// sem nenhuma pista de que a lobby simplesmente não permite sabotagem (preset "rápido"),
 			// de que ainda está em recarga, ou de que é a mesma da vez passada.
-			send_error(peer_id, tr(fail_key));
+			send_error(peer_id, fail_key);
 		}
 	}
 
@@ -965,7 +971,7 @@ class game_server {
 		if (@lobby == null) return;
 		array<string>@ closed_zones;
 		if (!lobby.close_doors_of_room(peer_id, pkt.get_string("room_id"), closed_zones)) {
-			send_error(peer_id, tr("game.doors_unavailable"));
+			send_error(peer_id, "game.doors_unavailable");
 			return;
 		}
 		broadcast_to_lobby(lobby, lobby.build_doors_packet(closed_zones, true));
@@ -1035,15 +1041,11 @@ class game_server {
 		if (@sender == null) return;
 
 		if (lobby.state == "in_progress") {
-			net_packet@ err = net_packet(S_ERROR);
-			err.set_string("message", tr("chat.only_in_meeting"));
-			send_to(peer_id, err);
+			send_error(peer_id, "chat.only_in_meeting");
 			return;
 		}
 		if (!sender.alive) { // morto só lê o chat, não manda mensagem
-			net_packet@ err = net_packet(S_ERROR);
-			err.set_string("message", tr("chat.dead_cannot_send"));
-			send_to(peer_id, err);
+			send_error(peer_id, "chat.dead_cannot_send");
 			return;
 		}
 		string text = pkt.get_string("text");
@@ -1067,18 +1069,14 @@ class game_server {
 		if (lobby.try_fix_sabotage_panel(peer_id, object_id, event, panels_fixed, panels_required, fail_key)) {
 			broadcast_to_lobby(lobby, event);
 		} else if (fail_key != "") {
-			net_packet@ err = net_packet(S_ERROR);
-			err.set_string("message", tr(fail_key));
-			send_to(peer_id, err);
+			send_error(peer_id, fail_key);
 		} else if (panels_required > 0) {
 			// Painel certo, mas ainda falta consertar outro(s) - sem isso parecia que o painel "não
 			// funcionava" quando na verdade só precisava de mais um conserto em outro lugar.
-			net_packet@ progress = net_packet(S_ERROR);
 			dictionary@ p = dictionary();
 			p.set("fixed", "" + panels_fixed);
 			p.set("required", "" + panels_required);
-			progress.set_string("message", tr("sabotage.panel_progress", p));
-			send_to(peer_id, progress);
+			send_error(peer_id, "sabotage.panel_progress", p);
 		}
 	}
 

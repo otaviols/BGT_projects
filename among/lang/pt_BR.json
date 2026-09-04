@@ -1,4 +1,5 @@
 {
+	"language.name": "Português (Brasil)",
 	"app.title": "Among Us - Audiogame",
 	"menu.play": "Jogar",
 	"menu.create_lobby": "Criar partida",
@@ -321,5 +322,8 @@
 	"feedback.sending": "Enviando...",
 	"feedback.sent": "Recado enviado. Obrigado!",
 	"feedback.failed": "O servidor não conseguiu guardar o recado. Tente de novo mais tarde.",
-	"feedback.no_answer": "O servidor não respondeu a tempo. O recado pode ter chegado; evite mandar de novo agora."
+	"feedback.no_answer": "O servidor não respondeu a tempo. O recado pode ter chegado; evite mandar de novo agora.",
+	"login.invalid_username_length": "O nome de usuário precisa ter de 3 a 20 caracteres.",
+	"login.invalid_password_length": "A senha precisa ter pelo menos 6 caracteres.",
+	"login.db_error": "Não foi possível criar a conta agora. Tente de novo em instantes."
 }

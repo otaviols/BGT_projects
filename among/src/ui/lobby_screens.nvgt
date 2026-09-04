@@ -250,7 +250,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
 				else audio.play_message_received();
 			} else if (pkt.type == S_ERROR) {
-				speak(pkt.get_string("message"));
+				speak(tr_server_message(pkt));
 			} else if (pkt.type == S_GAME_START) {
 				return pkt;
 			}

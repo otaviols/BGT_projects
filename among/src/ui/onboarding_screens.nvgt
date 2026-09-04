@@ -193,7 +193,11 @@ bool wait_for_auth_result(game_client@ client, bool was_register, const string&i
 		while (@pkt != null) {
 			if (pkt.type == S_REGISTER_RESULT && was_register && !logging_in_after_register) {
 				if (!pkt.get_bool("ok")) {
-					speak(pkt.get_string("message") == "username_taken" ? tr("login.username_taken") : pkt.get_string("message"));
+					// O servidor manda a CHAVE do erro ("login.username_taken",
+					// "login.invalid_password_length"...), e quem traduz é este cliente, no idioma
+					// dele. Antes isto comparava com "username_taken" sem o prefixo - comparação que
+					// nunca batia - e no resto dos casos falava a própria chave crua na tela.
+					speak(tr(pkt.get_string("message")));
 					return false;
 				}
 				speak(tr("login.register_success"));
