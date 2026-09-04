@@ -133,7 +133,8 @@ Everything is saved immediately and applies from the next match on.
 | Key | Action |
 |---|---|
 | K | kill whoever is in range |
-| V | enter a vent; inside, leave or travel to another |
+| Enter (at a vent) | enter the vent |
+| V (inside a vent) | leave it or travel to another |
 | G | sabotage menu |
 | F | lock a room's doors |
 
@@ -236,8 +237,9 @@ cannot be repeated twice in a row.
 no fixing them: the doors reopen on their own. It is not a sabotage, so you can lock a room **and**
 sabotage at the same time. Ghosts walk through locked doors.
 
-**Vents (V)** — impostor only. Entering a vent removes you from the map; inside, you can travel to
-another vent on the same network. The network links Navigation, Weapons and Reactor — the three
+**Vents** — impostor only. To **get in**, stand next to a vent and press **Enter**, like any other
+object. Once **inside**, **V** opens the options: step out where you are, or travel to another vent
+on the network. Entering a vent removes you from the map. The network links Navigation, Weapons and Reactor — the three
 opposite corners of the ship, with no direct corridor between them. Vanish from one corner and
 appear in another within seconds: it is a trip nobody can make on foot, which is exactly why it
 works as an alibi.

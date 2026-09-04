@@ -56,7 +56,7 @@
 	"keys.interact": "Interact",
 	"keys.report": "Report body",
 	"keys.kill": "Kill",
-	"keys.vent": "Vent",
+	"keys.vent": "Vent: leave or travel (only while inside one)",
 	"keys.sabotage": "Sabotage menu",
 	"keys.doors": "Lock doors",
 	"keys.task_list": "Task list",

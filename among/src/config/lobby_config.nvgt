@@ -30,7 +30,7 @@ class lobby_config {
 	uint emergency_meetings_per_player = DEFAULT_EMERGENCY_MEETINGS_PER_PLAYER;
 	bool sabotages_enabled = true;
 	string map_name = "the_hub";
-	string language = "pt_BR";
+	string language = DEFAULT_LANGUAGE;
 
 	// Corrige valores fora dos limites aceitáveis. Retorna true se algo foi ajustado.
 	bool validate() {

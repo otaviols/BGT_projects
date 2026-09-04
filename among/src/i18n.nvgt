@@ -76,10 +76,15 @@ class i18n {
 	}
 }
 
-// Idioma usado quando não há escolha salva. É o idioma em que o jogo foi escrito e o único
-// garantidamente completo - qualquer outro pode ter chaves faltando, e chave faltando aparece como
-// a própria chave crua na tela (ver get() acima).
-const string DEFAULT_LANGUAGE = "pt_BR";
+// Idioma usado quando não há escolha salva.
+//
+// Inglês por alcance: é o idioma que a maior parte da comunidade de audiogames lê, e quem abre o
+// jogo sem entender o que está escrito não descobre sozinho que existe uma opção de idioma - ele
+// simplesmente fecha. Quem fala português troca uma vez em Configurações e a escolha fica salva.
+//
+// Trocar isto exige que o outro idioma esteja COMPLETO: chave faltando aparece como a própria chave
+// crua na tela (ver get() acima), e quem cair no padrão é justamente quem ainda não escolheu nada.
+const string DEFAULT_LANGUAGE = "en_US";
 
 // Nome de cada idioma NO PRÓPRIO IDIOMA. É assim que se monta uma lista de idiomas útil: quem abre
 // o jogo num idioma que não entende precisa reconhecer o dele na lista, e "Inglês" não ajuda quem

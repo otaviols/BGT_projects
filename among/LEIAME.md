@@ -128,7 +128,8 @@ Tudo é salvo na hora e vale já na próxima partida.
 | Tecla | Ação |
 |---|---|
 | K | matar quem estiver ao alcance |
-| V | entrar num duto; dentro dele, sair ou viajar para outro |
+| Enter (num duto) | entrar no duto |
+| V (dentro do duto) | sair dele ou viajar para outro |
 | G | menu de sabotagem |
 | F | trancar as portas de uma sala |
 
@@ -233,8 +234,9 @@ repetir a mesma duas vezes seguidas.
 segundos. Não tem conserto: as portas reabrem sozinhas. Não é sabotagem, então dá para trancar uma
 sala **e** sabotar ao mesmo tempo. Fantasmas atravessam portas trancadas.
 
-**Dutos (tecla V)** — só o impostor usa. Entrar num duto some com você do mapa; dentro dele dá para
-viajar até outro duto da mesma rede. A rede liga Navegação, Sala de armas e Reator — os três cantos
+**Dutos** — só o impostor usa. Para **entrar**, chegue perto de um duto e aperte **Enter**, como em
+qualquer outro objeto. Já **dentro** dele, o **V** abre as opções: sair ali mesmo ou viajar até outro
+duto da rede. Entrar num duto some com você do mapa. A rede liga Navegação, Sala de armas e Reator — os três cantos
 opostos da nave, sem nenhum corredor direto entre eles. Some de um canto e apareça no outro em
 segundos: é um trajeto que ninguém consegue fazer a pé, e é justamente por isso que serve de álibi.
 

@@ -1,5 +1,5 @@
 {
-	"version": "0.11.0",
+	"version": "0.11.1",
 	"url": "AmongUs.zip",
-	"notes": "Agora dá para mandar um recado para quem faz o jogo direto da lista de partidas: a versão, o que você estava fazendo e o registro de erros vão junto automaticamente."
+	"notes": "O jogo agora abre em inglês por padrão; quem prefere português troca uma vez em Configurações e a escolha fica salva. Corrigido o manual sobre os dutos: entra-se com Enter no duto, e o V só serve para sair ou viajar quando já se está dentro."
 }
