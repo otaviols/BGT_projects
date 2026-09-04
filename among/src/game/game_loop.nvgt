@@ -837,15 +837,6 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				else speak(tr("game.ghost_cannot_interact")); // fantasma não reporta corpo, só faz task
 			}
 
-			// Durante a reunião a mesma tecla responde outra coisa: quanto tempo falta. É a pergunta
-			// que importa ali - ninguém decide o que fazer com a lista de tarefas no meio de uma
-			// discussão, mas todo mundo precisa saber se dá tempo de argumentar ou se é hora de votar.
-			// Fora da reunião ela continua abrindo a lista de tarefas, como sempre.
-			if (action_pressed(ACTION_TASK_LIST)) {
-				if (movement_frozen) mui.announce_time_remaining();
-				else run_task_list_menu(client, map, my_tasks, team_task_percent);
-			}
-
 			if (action_pressed(ACTION_ROOM_INFO)) {
 				map_zone@ zone = map.zone_at(my_x, my_y);
 				dictionary@ p = dictionary();
@@ -893,6 +884,21 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// FORA do bloco acima (que exige !is_vented).
 		if (is_impostor && alive && !movement_frozen && is_vented && action_pressed(ACTION_VENT)) {
 			run_vent_menu(imp, map, audio, current_vent_id);
+		}
+
+		// Lista de tarefas / tempo da reunião.
+		//
+		// Fica FORA do bloco de ações acima de propósito: aquele bloco exige !movement_frozen, e
+		// durante a reunião é exatamente quando movement_frozen é true - lá dentro, a tecla nunca
+		// chegava a ser lida na reunião, que é justamente onde ela precisa responder.
+		//
+		// Durante a reunião ela diz quanto tempo falta: ninguém decide o que fazer com a lista de
+		// tarefas no meio de uma discussão, mas todo mundo precisa saber se dá tempo de argumentar ou
+		// se é hora de votar. Fora da reunião abre a lista, como sempre - menos dentro do vent, onde
+		// o bloco antigo também não abria.
+		if (action_pressed(ACTION_TASK_LIST)) {
+			if (movement_frozen) mui.announce_time_remaining();
+			else if (!is_vented) run_task_list_menu(client, map, my_tasks, team_task_percent);
 		}
 
 		if (action_pressed(ACTION_PING) && !ping_pending) {
