@@ -68,7 +68,15 @@ void main() {
 	// padrão em vez de deixar o jogo inteiro falando por chaves cruas.
 	if (!g_i18n.load_language(g_settings.language)) g_i18n.load_language(DEFAULT_LANGUAGE);
 	load_sound_pack();
-	show_window(tr("app.title"));
+	// A versão vai no TÍTULO DA JANELA, e só nele: é a pergunta que todo suporte faz primeiro, e o
+	// jogador consegue responder sem procurar em lugar nenhum - o leitor de tela fala o título ao
+	// entrar na janela. Os outros usos de app.title continuam sem versão de propósito: dois deles
+	// são títulos de diálogo, e um é o nome padrão de sala (ver ui/lobby_screens.nvgt), onde um
+	// número de versão não faria sentido nenhum.
+	dictionary@ title_params = dictionary();
+	title_params.set("title", tr("app.title"));
+	title_params.set("version", GAME_VERSION);
+	show_window(tr("app.window_title", title_params));
 
 	// Depois da janela existir, pra que o aviso de versão nova tenha onde aparecer, e antes do menu,
 	// que é onde o jogador fica. Sem internet ou com o site fora do ar isto não diz nada e não

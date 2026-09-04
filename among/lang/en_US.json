@@ -16,6 +16,7 @@
 	"menu.connect": "Connect",
 	"menu.connecting": "Connecting to the server...",
 	"menu.learn_sounds": "Learn the game's sounds",
+	"app.window_title": "{title} {version}",
 	"update.available": "Version {version} is out. What's new: {notes}",
 	"update.confirm": "Update now? The game will close, download the new version and reopen on its own.",
 	"update.installing": "Downloading and installing the update. The game will reopen when it finishes.",
