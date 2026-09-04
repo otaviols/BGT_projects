@@ -1,5 +1,5 @@
 {
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"url": "AmongUs.zip",
-	"notes": "Atualização automática, escolha de idioma nas configurações, task de combustível de volta ao formato antigo (soltar quando o tom do enchimento casar com o tom de referência) e task de regar refeita: agora é preciso levar o regador até o canteiro certo."
+	"notes": "Corrigido o menu de aprender os sons: os passos e o som de morte não tocavam nada no jogo instalado."
 }

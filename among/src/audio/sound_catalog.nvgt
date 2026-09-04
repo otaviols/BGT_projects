@@ -114,6 +114,56 @@ string electrical_string_sound(int variant_1_based) {
 const string SND_KILL = "sounds/kill.wav";                  // ouvido por quem tiver perto do assassinato
 const uint KILLED_VARIANT_COUNT_FOR_CATALOG = 4;            // ver colors.KILLED_SOUND_VARIANT_COUNT
 
+// --- Passos por piso ---------------------------------------------------------
+// Quantidade de variantes disponíveis em sounds/ para cada prefixo de piso (Tile1.wav, Tile2.wav,
+// ...). Serve para não pedir uma variante que não existe como arquivo.
+//
+// Moradia destas funções: aqui, e não no laço da partida, porque quem precisa delas não é só ele -
+// o menu de aprender os sons monta a lista de passos a partir das mesmas contagens, e ter dois
+// lugares dizendo quantos arquivos existem é garantia de que um dia um vai discordar do outro.
+int footstep_variant_count(const string&in floor_prefix) {
+	if (floor_prefix == "Tile") return 6;
+	if (floor_prefix == "MetalTile") return 3;
+	if (floor_prefix == "MetalBeltTile") return 6;
+	if (floor_prefix == "WoodTile") return 6;
+	if (floor_prefix == "EarthTile") return 5;
+	if (floor_prefix == "VentTile") return 4;
+	return 2;
+}
+
+// Extensão do arquivo de passo de cada piso - a maioria é .wav, mas nem todos (ex.: EarthTile é .ogg).
+string footstep_variant_extension(const string&in floor_prefix) {
+	if (floor_prefix == "EarthTile") return "ogg";
+	return "wav";
+}
+
+// Lista "sounds/X1.ext,sounds/X2.ext,..." das variantes de um som numerado, separada por VÍRGULA.
+//
+// A vírgula não é enfeite: é o formato que learn_game_sounds_menu (menu.nvgt) entende para "escolha
+// um destes ao acaso". Versões mais novas dessa função também aceitam a forma abreviada
+// "X{1...6}.ext", mas versões mais antigas NÃO - elas passam esse texto direto para o carregador de
+// som, que procura um arquivo com chaves no nome, não acha, e não toca nada. Falha silenciosa: sem
+// erro, sem aviso, só o item mudo.
+//
+// Era exatamente esse o bug dos passos e da morte no menu de aprender os sons. A lista por vírgula
+// funciona nas duas versões, então é ela que se usa aqui - o jogo não fica refém de qual NVGT
+// compilou o build.
+string sound_variants_list(const string&in prefix, int count, const string&in extension) {
+	string list = "";
+	for (int i = 1; i <= count; i++) {
+		if (i > 1) list += ",";
+		list += "sounds/" + prefix + i + "." + extension;
+	}
+	return list;
+}
+
+// Atalho para os passos, que são o caso mais comum: as contagens e a extensão saem das funções
+// acima, então acrescentar um arquivo de passo novo é mudar um número num lugar só.
+string footstep_variants_list(const string&in floor_prefix) {
+	return sound_variants_list(floor_prefix, footstep_variant_count(floor_prefix),
+		footstep_variant_extension(floor_prefix));
+}
+
 // Retorna TODO caminho de som que o jogo pode precisar tocar, já expandindo os construídos
 // dinamicamente (passos por piso, variantes de fix_wiring, variantes de morte) - é isso que
 // tools/check_sounds.nvgt varre pra dizer o que falta em sounds/.

@@ -65,23 +65,9 @@ map_object@ find_interactable(game_map@ map, float x, float y, array<player_task
 	return best;
 }
 
-// Quantidade de variantes de som disponíveis em sounds/ para cada prefixo de piso (ex: Tile1.wav,
-// Tile2.wav). Usado para não pedir uma variante que não existe como arquivo.
-int footstep_variant_count(const string&in floor_prefix) {
-	if (floor_prefix == "Tile") return 6;
-	if (floor_prefix == "MetalTile") return 3;
-	if (floor_prefix == "MetalBeltTile") return 6;
-	if (floor_prefix == "WoodTile") return 6;
-	if (floor_prefix == "EarthTile") return 5;
-	if (floor_prefix == "VentTile") return 4;
-	return 2;
-}
-
-// Extensão do arquivo de passo de cada piso - a maioria é .wav, mas nem todos (ex.: EarthTile é .ogg).
-string footstep_variant_extension(const string&in floor_prefix) {
-	if (floor_prefix == "EarthTile") return "ogg";
-	return "wav";
-}
+// footstep_variant_count() e footstep_variant_extension() moraram aqui e agora vivem em
+// audio/sound_catalog.nvgt, junto do resto do que sabe quais arquivos de som existem: o menu de
+// aprender os sons precisa das mesmas contagens, e duas listas separadas acabariam discordando.
 
 // menu.run() bloqueia sem chamar client.update() - mesmo problema já resolvido no navegador de
 // lobbies (ver ui/lobby_screens.nvgt) e no menu de votação (ver ui/meeting_ui.nvgt). Nome próprio

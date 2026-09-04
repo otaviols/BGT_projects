@@ -58,6 +58,23 @@ spec:
       # permissão de diretório.
       securityContext:
         fsGroup: 10001
+      # A imagem do servidor é um pacote PRIVADO no GHCR, então o cluster não consegue baixá-la
+      # anonimamente - a tentativa volta como 401 e o pod fica em ImagePullBackOff sem dizer que o
+      # problema é permissão. Este segredo é a credencial de leitura.
+      #
+      # Ele NÃO é criado por este arquivo (uma credencial não deve ser versionada). É criado à mão,
+      # uma vez, com um token do GitHub que tenha read:packages:
+      #
+      #   kubectl create secret docker-registry ghcr-pull \
+      #     --docker-server=ghcr.io --docker-username=<usuario> \
+      #     --docker-password=<token> -n amongus
+      #
+      # ATENÇÃO À VALIDADE: quando esse token for rotacionado ou expirar, o pull volta a falhar - e
+      # o sintoma é o mesmo ImagePullBackOff genérico, que não aponta para o token. Se um dia o
+      # pacote virar público, este bloco e o segredo podem ser removidos, e não há mais nada para
+      # manter.
+      imagePullSecrets:
+        - name: ghcr-pull
       containers:
         - name: server
           # A tag é preenchida pelo deploy.ps1 a cada publicação. `latest` seria mais cômodo e bem

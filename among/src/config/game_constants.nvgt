@@ -5,7 +5,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.9.0";
+const string GAME_VERSION = "0.9.1";
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.

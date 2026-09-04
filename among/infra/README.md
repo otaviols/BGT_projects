@@ -42,7 +42,16 @@ systemd, caso um dia valha a pena voltar atrás.
 2. `az login` e anote a assinatura: `az account show --query id -o tsv`.
 3. Credencial do cluster: `az aks get-credentials -g rg-fallenrealms-alpha -n aks-fallenrealms-alpha`.
 4. Login no registro de imagens: `docker login ghcr.io -u otaviols` (usa um token do GitHub com
-   `write:packages`).
+   `write:packages` — `repo` sozinho **não** basta, e o `docker login` passa mesmo assim: quem
+   recusa é o `push`, com "does not match expected scopes").
+5. Credencial de leitura do registro DENTRO do cluster, uma vez só (ver "O segredo do registro"
+   abaixo):
+
+   ```
+   kubectl create secret docker-registry ghcr-pull \
+     --docker-server=ghcr.io --docker-username=otaviols \
+     --docker-password=<token com read:packages> -n amongus
+   ```
 
 Não há mais chave SSH nem IP de administrador para configurar: o servidor deixou de ser uma máquina
 alcançada por SSH. Uma coisa a menos para vazar, e uma a menos para atualizar toda vez que o seu IP
@@ -129,6 +138,20 @@ velho ainda segura. São alguns segundos fora do ar a cada deploy.
 **As bibliotecas do NVGT ficam em `/opt/amongus/lib`** e o Linux não procura nelas sozinho — quem
 resolve é o `LD_LIBRARY_PATH` na imagem. Sem essa linha o servidor morre no start sem explicação
 decente.
+
+**O segredo do registro (`ghcr-pull`) tem prazo de validade.** O pacote `amongus-server` é privado
+no GHCR, então o cluster precisa de credencial para baixá-lo — é o `imagePullSecrets` do Deployment.
+Esse segredo guarda um token do GitHub, e **quando o token for rotacionado ou expirar, o servidor
+para de subir**. O sintoma engana: um `ImagePullBackOff` que não menciona token nenhum. Para
+confirmar que é isso:
+
+```
+kubectl describe pod -n amongus -l app=amongus-server | grep -A2 Failed
+```
+
+Um `401 Unauthorized` ao buscar o token anônimo é a assinatura do problema. A cura é recriar o
+segredo com um token novo. Se um dia o pacote virar público (como o do outro jogo neste mesmo
+cluster), o segredo e o bloco `imagePullSecrets` podem sumir, e não há mais nada para manter.
 
 **A imagem é etiquetada com o commit, nunca `latest`.** Além de dar para saber que código está no ar
 olhando o pod, o Kubernetes só reinicia o servidor quando a tag muda — com `latest` fixo, o

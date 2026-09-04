@@ -44,12 +44,17 @@ void run_learn_sounds_screen() {
 	name_value_collection sfx;
 
 	// Um piso por som: reconhecer o chão é como se sabe em que sala se está sem perguntar nada.
-	sfx.add(tr("learn.footstep_tile"), "sounds/Tile{1...6}.wav");
-	sfx.add(tr("learn.footstep_metal"), "sounds/MetalTile{1...3}.wav");
-	sfx.add(tr("learn.footstep_earth"), "sounds/EarthTile{1...5}.ogg");
-	sfx.add(tr("learn.footstep_wood"), "sounds/WoodTile{1...6}.wav");
-	sfx.add(tr("learn.footstep_belt"), "sounds/MetalBeltTile{1...6}.wav");
-	sfx.add(tr("learn.footstep_vent"), "sounds/VentTile{1...4}.wav");
+	//
+	// As variantes vão como lista separada por vírgula (ver sound_variants_list) e NÃO na forma
+	// abreviada "Tile{1...6}.wav". A forma abreviada só existe em versões recentes do menu.nvgt; nas
+	// mais antigas o texto com chaves é entregue direto ao carregador de som, que procura um arquivo
+	// chamado "Tile{1...6}.wav", não encontra, e fica mudo sem reclamar de nada.
+	sfx.add(tr("learn.footstep_tile"), footstep_variants_list("Tile"));
+	sfx.add(tr("learn.footstep_metal"), footstep_variants_list("MetalTile"));
+	sfx.add(tr("learn.footstep_earth"), footstep_variants_list("EarthTile"));
+	sfx.add(tr("learn.footstep_wood"), footstep_variants_list("WoodTile"));
+	sfx.add(tr("learn.footstep_belt"), footstep_variants_list("MetalBeltTile"));
+	sfx.add(tr("learn.footstep_vent"), footstep_variants_list("VentTile"));
 
 	sfx.add(tr("learn.ambient_prefix") + tr("room.cafeteria"), SND_AMBIENT_CAFETERIA);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.weapons"), SND_AMBIENT_WEAPONS);
@@ -84,7 +89,8 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.sabotage_alarm"), SND_SABOTAGE_ALARM);
 	sfx.add(tr("learn.body_on_floor"), SND_BODY_ON_FLOOR);
 	sfx.add(tr("learn.body_reported"), SND_BODY_REPORTED);
-	sfx.add(tr("learn.death"), "sounds/killed{1...4}.wav");
+	// Mesmo motivo dos passos: lista por vírgula, não a forma abreviada com chaves.
+	sfx.add(tr("learn.death"), sound_variants_list("killed", int(KILLED_VARIANT_COUNT_FOR_CATALOG), "wav"));
 	sfx.add(tr("learn.kill"), SND_KILL);
 	sfx.add(tr("learn.wall_bump"), SND_WALL_BUMP);
 	sfx.add(tr("learn.door_bump"), SND_DOOR_BUMP);
