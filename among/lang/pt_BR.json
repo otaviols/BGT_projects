@@ -1,6 +1,5 @@
 {
 	"app.title": "Among Us - Audiogame",
-
 	"menu.play": "Jogar",
 	"menu.create_lobby": "Criar partida",
 	"menu.join_lobby": "Entrar em partida",
@@ -109,7 +108,6 @@
 	"error.sounds_missing": "Os sons do jogo não foram encontrados: falta o arquivo sounds.dat (ou a pasta sounds). O jogo vai rodar sem som nenhum.",
 	"error.unexpected": "Aconteceu um erro inesperado e a partida foi encerrada. O que houve foi anotado no arquivo crash.log, na pasta do jogo.",
 	"menu.quit_confirm": "Tem certeza que deseja sair?",
-
 	"login.username": "Usuário",
 	"login.password": "Senha",
 	"login.submit": "Entrar",
@@ -117,7 +115,6 @@
 	"login.success": "Login realizado com sucesso.",
 	"login.username_taken": "Esse usuário já existe.",
 	"login.register_success": "Cadastro realizado com sucesso.",
-
 	"lobby.name": "Nome da partida",
 	"lobby.players": "Jogadores: {current}/{max}",
 	"lobby.min_players_warning": "É preciso pelo menos {min} jogadores para começar.",
@@ -145,7 +142,6 @@
 	"lobby.player_left": "{name} saiu da partida.",
 	"lobby.you_are_host": "Você agora é o anfitrião.",
 	"lobby.new_host": "{name} agora é o anfitrião.",
-
 	"color.red": "Vermelho",
 	"color.blue": "Azul",
 	"color.green": "Verde",
@@ -156,7 +152,6 @@
 	"color.white": "Branco",
 	"color.purple": "Roxo",
 	"color.brown": "Marrom",
-
 	"role.crewmate": "Tripulante",
 	"role.impostor": "Impostor",
 	"role.assigned_crewmate": "Você é Tripulante. Complete as tasks e descubra o impostor.",
@@ -165,7 +160,6 @@
 	"role.impostor_alone": "Você é o único impostor.",
 	"role.impostor_count_one": "Há um impostor a bordo.",
 	"role.impostor_count_many": "Há {count} impostores a bordo.",
-
 	"game.emergency_meeting_called": "{name} chamou uma reunião de emergência.",
 	"game.body_reported": "{reporter} encontrou o corpo de {victim} em: {room}.",
 	"game.meeting_discussion": "Discussão em andamento.",
@@ -214,7 +208,6 @@
 	"game.vent_traveled": "Você se moveu pela rede de vents, ainda escondido.",
 	"game.meeting_call_failed": "Não foi possível chamar uma reunião agora (talvez você já tenha usado as suas, ou já tem uma reunião em andamento).",
 	"game.meeting_cooldown_remaining": "O botão de emergência ainda está recarregando: {seconds} segundos.",
-
 	"task.fix_wiring.name": "Conectar fiação",
 	"task.download_data.name": "Baixar dados",
 	"task.empty_garbage.name": "Esvaziar lixo",
@@ -254,7 +247,6 @@
 	"task.review_records.instructions": "Ouça a gravação do corredor e conte quantas pessoas passaram. Cada pessoa atravessa por um lado, com o piso e o ritmo dela. ESC cancela.",
 	"task.review_records.how_many": "Quantas pessoas passaram? Responda nas teclas 1 a 4.",
 	"task.review_records.wrong": "Errado. Passaram {count}.",
-
 	"sabotage.lights.name": "Sabotagem: Luzes",
 	"sabotage.lights.blocks_button": "Com as luzes apagadas não dá pra usar o botão de emergência.",
 	"sabotage.oxygen.name": "Sabotagem: Oxigênio",
@@ -264,14 +256,12 @@
 	"sabotage.fixed": "Sabotagem reparada.",
 	"sabotage.triggered": "{name} foi sabotado!",
 	"sabotage.critical_warning": "Alerta crítico: oxigênio acabando em {seconds} segundos.",
-
 	"radar.no_players_nearby": "Nenhum jogador por perto.",
 	"radar.mode_players": "Radar: jogadores.",
 	"radar.mode_objects": "Radar: objetos da sala.",
 	"radar.no_objects_here": "Nada de interessante nesta sala.",
 	"radar.player_at": "{name}",
 	"radar.player_at_steps": "{name}, a {steps} passos.",
-
 	"room.cafeteria": "Cafeteria",
 	"room.weapons": "Sala de armas",
 	"room.navigation": "Navegação",
@@ -297,11 +287,9 @@
 	"corridor.greenhouse": "Corredor da Estufa",
 	"corridor.south": "Corredor Sul",
 	"corridor.security": "Corredor da Segurança",
-
 	"object.vent": "Duto de ventilação",
 	"object.sabotage_panel": "Painel de reparo",
 	"object.emergency_button": "Botão de emergência",
-
 	"game.nothing_nearby": "Nada por perto.",
 	"game.location_info": "{room}. Posição: {x}, {y}.",
 	"game.ping_result": "{ms} ms de latência.",
@@ -321,8 +309,17 @@
 	"game.doors_unavailable": "Não dá pra trancar portas agora.",
 	"game.doors_closed": "Portas se fechando em algum lugar da nave.",
 	"game.door_closed": "Porta trancada.",
-
 	"common.yes": "Sim",
 	"common.no": "Não",
-	"common.ok": "Ok"
+	"common.ok": "Ok",
+	"feedback.menu_item": "Enviar um recado para quem faz o jogo",
+	"feedback.title": "Enviar recado",
+	"feedback.hint": "Conte o que achou, o que quebrou ou o que faria diferente. A versão do jogo e o que você estava fazendo vão junto automaticamente.",
+	"feedback.your_message": "Sua mensagem",
+	"feedback.send": "Enviar",
+	"feedback.empty": "Escreva alguma coisa antes de enviar.",
+	"feedback.sending": "Enviando...",
+	"feedback.sent": "Recado enviado. Obrigado!",
+	"feedback.failed": "O servidor não conseguiu guardar o recado. Tente de novo mais tarde.",
+	"feedback.no_answer": "O servidor não respondeu a tempo. O recado pode ter chegado; evite mandar de novo agora."
 }

@@ -26,3 +26,13 @@ void log_crash(const string&in context) {
 	report += "linha: " + get_exception_line() + "\r\n\r\n";
 	file_put_contents(CRASH_LOG_FILE, report, true); // true = acrescenta ao que já existe
 }
+
+// Conteúdo do crash.log, ou "" se não houver nenhum.
+//
+// Serve para anexar o log a um recado do jogador (ver ui/feedback_screen.nvgt). Sem isto o arquivo
+// fica para sempre na máquina de quem jogou: é o registro de por que o jogo fechou, e justamente a
+// pessoa que o tem é a que não sabe que ele existe.
+string read_crash_log() {
+	if (!file_exists(CRASH_LOG_FILE)) return "";
+	return file_get_contents(CRASH_LOG_FILE);
+}

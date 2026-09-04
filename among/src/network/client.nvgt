@@ -91,6 +91,21 @@ class game_client {
 		send(net_packet(C_LIST_LOBBIES));
 	}
 
+	// Recado do jogador para quem faz o jogo. O contexto (versão, papel, sala, crash.log) é montado
+	// por quem chama - ver ui/feedback_screen.nvgt.
+	void send_feedback(const string&in text, const string&in version, const string&in language,
+		bool in_match, const string&in role, const string&in room, const string&in crash_log) {
+		net_packet@ p = net_packet(C_SEND_FEEDBACK);
+		p.set_string("text", text);
+		p.set_string("version", version);
+		p.set_string("language", language);
+		p.set_bool("in_match", in_match);
+		p.set_string("role", role);
+		p.set_string("room", room);
+		p.set_string("crash_log", crash_log);
+		send(p);
+	}
+
 	void send_create_lobby(const string&in lobby_name, const string&in preset, float kill_cooldown_override = -1.0) {
 		net_packet@ p = net_packet(C_CREATE_LOBBY);
 		p.set_string("lobby_name", lobby_name);

@@ -40,6 +40,19 @@ substituída depois que a nova chega inteira e é conferida.
 
 Sem internet, a verificação simplesmente não acontece e nada é dito.
 
+## Mandar um recado para quem faz o jogo
+
+Na lista de partidas existe a opção **Enviar um recado para quem faz o jogo**. Escreva o que achou,
+o que quebrou ou o que faria diferente — o jogo confirma quando o recado é guardado.
+
+Vai junto, automaticamente: a versão do jogo, o idioma, se você estava em partida, qual era o seu
+papel, em que sala estava, e o `crash.log` (o arquivo que registra por que o jogo fechou sozinho, se
+isso tiver acontecido). Você não precisa anotar nada disso — é justamente o que costuma faltar para
+conseguir consertar um problema.
+
+Como está em beta, esse é o canal mais útil: um relato com contexto vale mais do que dez "não
+funcionou".
+
 ## Configurações
 
 No menu inicial, em **Configurações**:

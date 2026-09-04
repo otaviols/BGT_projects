@@ -5,7 +5,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.10.1";
+const string GAME_VERSION = "0.11.0";
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.
@@ -131,6 +131,18 @@ const float COMMON_TASK_CHANCE = 0.5;
 
 // Body
 const float BODY_SOUND_INTERVAL_SECONDS = 2.5;
+
+// Feedback dos jogadores (ver network/protocol.nvgt: C_SEND_FEEDBACK).
+// Os cortes existem porque o que chega pela rede não passou necessariamente pela tela do jogo - e
+// sem limite um único cliente conseguiria encher o disco do servidor com um recado só.
+// 2000 caracteres dão um relato longo e detalhado; 8000 no crash.log cobrem vários crashes seguidos
+// sem transformar cada envio num pacote enorme.
+const uint MAX_FEEDBACK_TEXT_LENGTH = 2000;
+const uint MAX_FEEDBACK_CRASH_LOG_LENGTH = 8000;
+// Quanto o cliente espera pela confirmação de que o recado foi gravado antes de desistir. Generoso
+// de propósito: o envio pode levar junto um crash.log de vários KB, e dizer "não deu" para um
+// recado que na verdade chegou faz o jogador mandar tudo de novo.
+const float FEEDBACK_ACK_TIMEOUT_SECONDS = 10.0;
 
 string language_default() {
 	return "pt_BR";

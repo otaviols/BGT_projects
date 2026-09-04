@@ -1,6 +1,5 @@
 {
 	"app.title": "Among Us - Audiogame",
-
 	"menu.play": "Play",
 	"menu.create_lobby": "Create lobby",
 	"menu.join_lobby": "Join lobby",
@@ -109,7 +108,6 @@
 	"error.sounds_missing": "The game sounds were not found: sounds.dat (or the sounds folder) is missing. The game will run with no sound at all.",
 	"error.unexpected": "An unexpected error ended the match. What happened was written to crash.log, in the game folder.",
 	"menu.quit_confirm": "Are you sure you want to quit?",
-
 	"login.username": "Username",
 	"login.password": "Password",
 	"login.submit": "Log in",
@@ -117,7 +115,6 @@
 	"login.success": "Logged in successfully.",
 	"login.username_taken": "That username is already taken.",
 	"login.register_success": "Registered successfully.",
-
 	"lobby.name": "Lobby name",
 	"lobby.players": "Players: {current}/{max}",
 	"lobby.min_players_warning": "At least {min} players are needed to start.",
@@ -145,7 +142,6 @@
 	"lobby.player_left": "{name} left the lobby.",
 	"lobby.you_are_host": "You are now the host.",
 	"lobby.new_host": "{name} is now the host.",
-
 	"color.red": "Red",
 	"color.blue": "Blue",
 	"color.green": "Green",
@@ -156,7 +152,6 @@
 	"color.white": "White",
 	"color.purple": "Purple",
 	"color.brown": "Brown",
-
 	"role.crewmate": "Crewmate",
 	"role.impostor": "Impostor",
 	"role.assigned_crewmate": "You are a Crewmate. Complete tasks and find the impostor.",
@@ -165,7 +160,6 @@
 	"role.impostor_alone": "You are the only impostor.",
 	"role.impostor_count_one": "There is one impostor aboard.",
 	"role.impostor_count_many": "There are {count} impostors aboard.",
-
 	"game.emergency_meeting_called": "{name} called an emergency meeting.",
 	"game.body_reported": "{reporter} found {victim}'s body in: {room}.",
 	"game.meeting_discussion": "Discussion in progress.",
@@ -214,7 +208,6 @@
 	"game.vent_traveled": "You moved through the vent network, still hidden.",
 	"game.meeting_call_failed": "Couldn't call a meeting right now (you may have used all yours already, or a meeting is already happening).",
 	"game.meeting_cooldown_remaining": "The emergency button is still recharging: {seconds} seconds.",
-
 	"task.fix_wiring.name": "Fix wiring",
 	"task.download_data.name": "Download data",
 	"task.empty_garbage.name": "Empty garbage",
@@ -254,7 +247,6 @@
 	"task.list_empty": "You have no pending tasks.",
 	"task.all_completed": "All your tasks are complete.",
 	"task.list_item": "{name}, in {room}.",
-
 	"sabotage.lights.name": "Sabotage: Lights",
 	"sabotage.lights.blocks_button": "You cannot use the emergency button with the lights out.",
 	"sabotage.oxygen.name": "Sabotage: Oxygen",
@@ -264,14 +256,12 @@
 	"sabotage.fixed": "Sabotage fixed.",
 	"sabotage.triggered": "{name} was sabotaged!",
 	"sabotage.critical_warning": "Critical warning: oxygen runs out in {seconds} seconds.",
-
 	"radar.no_players_nearby": "No players nearby.",
 	"radar.mode_players": "Radar: players.",
 	"radar.mode_objects": "Radar: objects in the room.",
 	"radar.no_objects_here": "Nothing of interest in this room.",
 	"radar.player_at": "{name}",
 	"radar.player_at_steps": "{name}, {steps} steps away.",
-
 	"room.cafeteria": "Cafeteria",
 	"room.weapons": "Weapons",
 	"room.navigation": "Navigation",
@@ -297,11 +287,9 @@
 	"corridor.greenhouse": "Greenhouse Corridor",
 	"corridor.south": "South Corridor",
 	"corridor.security": "Security Corridor",
-
 	"object.vent": "Vent",
 	"object.sabotage_panel": "Repair panel",
 	"object.emergency_button": "Emergency button",
-
 	"game.nothing_nearby": "Nothing nearby.",
 	"game.location_info": "{room}. Position: {x}, {y}.",
 	"game.ping_result": "{ms} ms latency.",
@@ -321,8 +309,17 @@
 	"game.doors_unavailable": "You cannot lock doors right now.",
 	"game.doors_closed": "Doors closing somewhere on the ship.",
 	"game.door_closed": "Locked door.",
-
 	"common.yes": "Yes",
 	"common.no": "No",
-	"common.ok": "Ok"
+	"common.ok": "Ok",
+	"feedback.menu_item": "Send a message to the people who make the game",
+	"feedback.title": "Send a message",
+	"feedback.hint": "Tell us what you thought, what broke or what you would do differently. The game version and what you were doing are sent along automatically.",
+	"feedback.your_message": "Your message",
+	"feedback.send": "Send",
+	"feedback.empty": "Write something before sending.",
+	"feedback.sending": "Sending...",
+	"feedback.sent": "Message sent. Thank you!",
+	"feedback.failed": "The server could not store your message. Please try again later.",
+	"feedback.no_answer": "The server did not answer in time. Your message may have arrived; avoid sending it again right now."
 }

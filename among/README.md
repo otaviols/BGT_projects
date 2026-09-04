@@ -45,6 +45,19 @@ version is only replaced once the new one has arrived in full and been verified.
 
 With no internet the check simply does not happen and nothing is said.
 
+## Sending feedback
+
+The lobby list has a **Send a message to the people who make the game** option. Write what you
+thought, what broke or what you would do differently — the game confirms once the message is stored.
+
+Sent along automatically: the game version, the language, whether you were in a match, your role,
+which room you were in, and the `crash.log` (the file that records why the game closed on its own,
+if that happened). You do not have to note any of it down — that is exactly what usually goes
+missing when trying to fix a problem.
+
+While the game is in beta this is the most useful channel: one report with context is worth more
+than ten "it didn't work".
+
 ## Settings
 
 From the main menu, under **Settings**:

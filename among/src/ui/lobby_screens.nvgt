@@ -10,6 +10,7 @@
 #include "../i18n.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../audio/audio_manager.nvgt"
+#include "feedback_screen.nvgt"
 // KEY_CHAT* vêm de core/chat_log.nvgt (compartilhado com game/game_loop.nvgt)
 
 // Resultado do navegador de lobbies: o jogador criou uma partida, entrou em uma existente, ou
@@ -63,6 +64,11 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		}
 		m.add_item(tr("menu.create_lobby"), "__create__");
 		m.add_item(tr("lobby.refresh"), "__refresh__");
+		// O recado fica aqui, e não no menu inicial, por uma razão prática: o menu inicial vem ANTES
+		// do login, e sem sessão autenticada o servidor não teria como saber de quem é o recado. Aqui
+		// o jogador já entrou, e este é o lugar onde ele volta entre uma partida e outra - que é
+		// exatamente quando alguém lembra de contar o que achou estranho.
+		m.add_item(tr("feedback.menu_item"), "__feedback__");
 		m.add_item(tr("menu.back"), "__back__");
 
 		m.run();
@@ -73,6 +79,10 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			return result;
 		}
 		if (id == "__refresh__") continue;
+		if (id == "__feedback__") {
+			run_feedback_screen(client);
+			continue;
+		}
 		if (id == "__create__") {
 			if (run_create_lobby_screen(client)) {
 				result.joined = true;

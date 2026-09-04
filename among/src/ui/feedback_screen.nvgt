@@ -1,0 +1,102 @@
+// feedback_screen.nvgt
+// Tela para o jogador mandar um recado a quem faz o jogo, de dentro do próprio jogo.
+//
+// Vai pelo servidor da partida (C_SEND_FEEDBACK), e não para um serviço externo, por dois motivos:
+// a sessão já está autenticada, então o servidor sabe de quem veio sem perguntar nada; e nenhum
+// endereço ou senha de serviço de terceiro precisa viajar dentro do jogo distribuído, onde qualquer
+// um conseguiria extrair e usar por conta própria.
+//
+// Junto do texto vai o CONTEXTO que o jogo sabe sozinho - versão, idioma, se estava em partida, qual
+// era o papel, em que sala estava - e o crash.log, se existir. Isso é o que separa um relato
+// investigável de um "travou aqui": ninguém vai digitar "versão 0.10.1, eu era impostor, na estufa",
+// e o crash.log é justamente o arquivo que hoje morre na máquina do jogador sem nunca chegar aqui.
+
+#include "form.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../core/crash_log.nvgt"
+#include "../i18n.nvgt"
+#include "../config/game_constants.nvgt"
+#include "../config/game_settings.nvgt"
+
+// O que o jogo sabe sobre o momento em que o jogador resolveu escrever. Quem chama preenche o que
+// tiver: do navegador de lobbies não há partida em andamento, e tudo bem - o servidor grava vazio.
+class feedback_context {
+	bool in_match = false;
+	string role = "";   // "crewmate" | "impostor" | "ghost"
+	string room = "";   // chave i18n da sala, ex.: "room.greenhouse"
+}
+
+// Abre a tela, envia e espera a confirmação do servidor. Devolve true se o servidor confirmou que
+// GRAVOU - só isso conta como enviado.
+bool run_feedback_screen(game_client@ client, feedback_context@ context = null) {
+	// A dica é falada, e não escrita numa etiqueta na tela: quem joga isto não está lendo a tela, e
+	// um texto que ninguém ouve não explica nada. Dita antes da janela abrir, para não competir com
+	// o anúncio do primeiro campo.
+	speak(tr("feedback.hint"));
+
+	audio_form f;
+	f.create_window(tr("feedback.title"), false);
+	// Multilinha (o 6º parâmetro): um relato útil raramente cabe numa linha só, e uma caixa de uma
+	// linha desestimula o jogador a explicar o que aconteceu. O limite de tamanho é o mesmo que o
+	// servidor aplica, para o corte não acontecer só depois de enviado.
+	int f_text = f.create_input_box(tr("feedback.your_message"), "", "", MAX_FEEDBACK_TEXT_LENGTH, false, true);
+	int f_send = f.create_button(tr("feedback.send"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_text);
+
+	while (true) {
+		wait(5);
+		f.monitor();
+		// A conexão precisa continuar sendo servida enquanto a tela está aberta: o laço de um form
+		// não chama client.update() sozinho, e sem isso o ENet fica sem keepalive e o peer pode cair
+		// justamente enquanto o jogador escreve (mesmo problema já resolvido no navegador de lobbies
+		// e no menu de votação).
+		client.update();
+
+		if (f.is_pressed(f_cancel)) return false;
+		if (!f.is_pressed(f_send)) continue;
+
+		string text = f.get_text(f_text);
+		if (text == "") {
+			speak(tr("feedback.empty"));
+			f.focus(f_text);
+			continue;
+		}
+		if (text.length() > MAX_FEEDBACK_TEXT_LENGTH) text = text.substr(0, MAX_FEEDBACK_TEXT_LENGTH);
+
+		bool in_match = @context != null && context.in_match;
+		string role = @context != null ? context.role : "";
+		string room = @context != null ? context.room : "";
+		// O crash.log vai junto sem o jogador precisar saber que ele existe - é a informação mais
+		// valiosa e a que ele nunca saberia anexar.
+		client.send_feedback(text, GAME_VERSION, g_settings.language, in_match, role, room,
+			read_crash_log());
+		speak(tr("feedback.sending"));
+		return wait_for_feedback_ack(client);
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}
+
+// Espera o servidor confirmar que gravou. Sem confirmação o envio é "falar no vácuo": quem não tem
+// certeza de que chegou manda de novo, e aí o mesmo recado aparece três vezes na tabela.
+bool wait_for_feedback_ack(game_client@ client) {
+	timer clock;
+	clock.restart();
+	while (float(clock.elapsed) / 1000.0 < FEEDBACK_ACK_TIMEOUT_SECONDS) {
+		wait(5);
+		client.update();
+		for (uint i = 0; i < client.incoming.length(); i++) {
+			if (client.incoming[i].type != S_FEEDBACK_ACK) continue;
+			bool ok = client.incoming[i].get_bool("ok");
+			client.incoming.remove_at(i);
+			speak(tr(ok ? "feedback.sent" : "feedback.failed"));
+			return ok;
+		}
+	}
+	// Sem resposta a tempo: pode ter chegado e a confirmação ter se perdido, então a mensagem NÃO
+	// afirma que falhou - afirmar teria o mesmo efeito ruim do silêncio, com o jogador reenviando.
+	speak(tr("feedback.no_answer"));
+	return false;
+}

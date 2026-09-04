@@ -31,6 +31,11 @@ const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("light
 const string C_CLOSE_DOORS = "c_close_doors";     // {room_id} - fecha os corredores daquela sala, só impostor
 const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
 const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
+// Recado do jogador para quem faz o jogo. Vai pelo MESMO canal do resto: a sessão já está
+// autenticada, então o servidor sabe de quem veio sem o jogador digitar nada, e nenhum endereço ou
+// senha de serviço externo precisa viajar dentro do jogo distribuído.
+// {text, version, language, in_match, role, room, crash_log}
+const string C_SEND_FEEDBACK = "c_send_feedback";
 
 // Servidor -> Cliente
 const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id} - peer_id = como o SERVIDOR me identifica
@@ -63,6 +68,9 @@ const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, 
 const string S_ERROR = "s_error";                          // {message}
 const string S_PONG = "s_pong";                             // {} - resposta a C_PING, cliente mede o round-trip
 const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, text}
+// Confirmação de que o recado foi GRAVADO (não só recebido). O jogador precisa disto: sem resposta,
+// mandar feedback é falar no vácuo, e quem não tem certeza de que chegou manda de novo.
+const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}
 const string S_VENT_STATE = "s_vent_state";                 // {vented, x, y} - resposta privada (só pra quem usou o vent)
 const string S_VENT_SOUND = "s_vent_sound";                 // {vent_id} - tampa do vent abrindo, ouvida por QUEM ESTÁ PERTO (não vai pra quem usou)
 const string S_DOORS_STATE = "s_doors_state";               // {closed, zones: [ids de corredor]} - portas fechando ou abrindo

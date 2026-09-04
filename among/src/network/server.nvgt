@@ -260,6 +260,7 @@ class game_server {
 		else if (t == C_INTERACT) on_interact(peer_id, pkt);
 		else if (t == C_PING) on_ping(peer_id, pkt);
 		else if (t == C_CHAT_MESSAGE) on_chat_message(peer_id, pkt);
+		else if (t == C_SEND_FEEDBACK) on_send_feedback(peer_id, pkt);
 	}
 
 	// --- Autenticação ---
@@ -973,6 +974,52 @@ class game_server {
 	// Responde na hora, sem checar lobby/estado - o cliente usa isso só pra medir o round-trip de rede.
 	void on_ping(uint64 peer_id, net_packet@ pkt) {
 		send_to(peer_id, net_packet(S_PONG));
+	}
+
+	// Recado de um jogador para quem faz o jogo. Grava no banco e confirma.
+	//
+	// Exige estar autenticado: sem isso qualquer um que abrisse um socket na porta poderia encher a
+	// tabela, e o recado perderia justamente o que o torna útil - saber de quem veio para poder
+	// perguntar mais.
+	void on_send_feedback(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ ack = net_packet(S_FEEDBACK_ACK);
+
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.username == "") {
+			ack.set_bool("ok", false);
+			send_to(peer_id, ack);
+			return;
+		}
+
+		string text = pkt.get_string("text");
+		if (text == "") {
+			ack.set_bool("ok", false);
+			send_to(peer_id, ack);
+			return;
+		}
+
+		// Corte de tamanho no SERVIDOR, e não só na tela: o cliente é a máquina do jogador, e o que
+		// chega pela rede pode não ter passado pela tela nenhuma. O crash.log tem folga maior porque
+		// é ele que carrega o rastro do erro - cortar curto demais jogaria fora justamente o fim do
+		// arquivo, que é onde está o crash mais recente.
+		if (text.length() > MAX_FEEDBACK_TEXT_LENGTH) text = text.substr(0, MAX_FEEDBACK_TEXT_LENGTH);
+		string crash_log = pkt.get_string("crash_log");
+		if (crash_log.length() > MAX_FEEDBACK_CRASH_LOG_LENGTH) {
+			// Fica com o FINAL: num log que acumula (ver core/crash_log.nvgt), o que interessa é o
+			// último crash, não o primeiro.
+			crash_log = crash_log.substr(crash_log.length() - MAX_FEEDBACK_CRASH_LOG_LENGTH);
+		}
+
+		bool ok = @g_user_db != null && g_user_db.save_feedback(conn.username, text,
+			pkt.get_string("version"), pkt.get_string("language"), pkt.get_bool("in_match"),
+			pkt.get_string("role"), pkt.get_string("room"), crash_log);
+
+		// Também vai para o log do servidor: `kubectl logs` é o jeito mais rápido de ver um recado
+		// chegando ao vivo, sem abrir o banco.
+		if (ok) println("[feedback] " + conn.username + ": " + text);
+
+		ack.set_bool("ok", ok);
+		send_to(peer_id, ack);
 	}
 
 	// Roteamento do chat: só existe chat na lobby (waiting) e durante reunião/votação, e nesses dois

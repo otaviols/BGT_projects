@@ -1,5 +1,5 @@
 {
-	"version": "0.10.1",
+	"version": "0.11.0",
 	"url": "AmongUs.zip",
-	"notes": "Corrigida a tecla T na reunião: ela não respondia porque a leitura da tecla ficava num trecho que o jogo pula justamente enquanto a reunião acontece."
+	"notes": "Agora dá para mandar um recado para quem faz o jogo direto da lista de partidas: a versão, o que você estava fazendo e o registro de erros vão junto automaticamente."
 }

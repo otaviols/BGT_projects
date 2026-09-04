@@ -110,6 +110,31 @@ kubectl rollout restart -n amongus deploy/amongus-server
 
 O pod reinicia sozinho se cair — é o mesmo papel que o `Restart=always` do systemd fazia na VM.
 
+## Ler os recados dos jogadores
+
+O jogo tem uma opção de mandar recado para quem o faz (no navegador de partidas). Os recados chegam
+pelo próprio servidor, autenticados, e ficam na tabela `feedback` do mesmo SQLite das contas — no
+volume, então sobrevivem a deploy.
+
+```
+infra\read_feedback.ps1                 # os 20 mais recentes
+infra\read_feedback.ps1 -Limit 100
+infra\read_feedback.ps1 -WithCrashLog   # inclui o crash.log anexado
+```
+
+Cada recado vem com o que o jogo sabia na hora: versão, idioma, se estava em partida, papel, sala —
+e o `crash.log`, se existir. É isso que separa um relato investigável de um "travou aqui": ninguém
+digita a versão que está usando, e o `crash.log` é justamente o arquivo que o jogador tem e não sabe
+que existe.
+
+Para ver um recado chegando ao vivo, sem abrir o banco:
+
+```
+kubectl logs -n amongus deploy/amongus-server -f
+```
+
+Cada envio bem-sucedido também sai no log como `[feedback] usuario: texto`.
+
 ## Detalhes que não são óbvios
 
 **A porta do jogo é UDP.** O ENet não usa TCP. Expor só TCP é o erro clássico: qualquer teste de

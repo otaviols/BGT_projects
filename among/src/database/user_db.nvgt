@@ -49,8 +49,51 @@ class user_database {
 			"FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)"
 		) != SQLITE_OK) return false;
 
+		// Recados dos jogadores. Fica no MESMO banco das contas de propósito: ele já mora no volume
+		// persistente, então o feedback sobrevive a deploy pelo mesmo motivo que as contas sobrevivem,
+		// sem nenhuma peça de infraestrutura nova para manter.
+		//
+		// O usuário fica como TEXTO, e não como chave estrangeira para users(id): se um dia a conta
+		// for apagada, o recado continua legível em vez de virar um número órfão - e um recado sobre
+		// um bug vale independentemente de quem ainda joga.
+		if (db.execute(
+			"CREATE TABLE IF NOT EXISTS feedback (" +
+			"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+			"username TEXT, " +
+			"text TEXT NOT NULL, " +
+			"version TEXT, " +
+			"language TEXT, " +
+			"in_match INTEGER DEFAULT 0, " +
+			"role TEXT, " +
+			"room TEXT, " +
+			"crash_log TEXT, " +
+			"created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+		) != SQLITE_OK) return false;
+
 		db.execute("CREATE INDEX IF NOT EXISTS idx_username ON users(username)");
 		return true;
+	}
+
+	// Guarda um recado de jogador. Nada aqui é validado além do tamanho (quem chama já cortou): um
+	// recado meio estranho gravado é melhor do que um recado recusado, porque o recusado some para
+	// sempre e ninguém fica sabendo que existiu.
+	bool save_feedback(const string&in username, const string&in text, const string&in version,
+		const string&in language, bool in_match, const string&in role, const string&in room,
+		const string&in crash_log) {
+		if (@db == null) return false;
+		sqlite3statement@ st = db.prepare(
+			"INSERT INTO feedback (username, text, version, language, in_match, role, room, crash_log) " +
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+		if (@st == null) return false;
+		st.bind_text(1, username, false);
+		st.bind_text(2, text, false);
+		st.bind_text(3, version, false);
+		st.bind_text(4, language, false);
+		st.bind_int(5, in_match ? 1 : 0);
+		st.bind_text(6, role, false);
+		st.bind_text(7, room, false);
+		st.bind_text(8, crash_log, false);
+		return st.step() == SQLITE_DONE;
 	}
 
 	// Cria um novo usuário. Retorna mensagem de erro vazia em caso de sucesso.
