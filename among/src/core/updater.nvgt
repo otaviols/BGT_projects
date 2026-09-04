@@ -99,6 +99,28 @@ string game_directory() {
 	return exe.substr(0, slash);
 }
 
+// Troca "\" por "/" num caminho.
+//
+// Isto não é preferência de estilo: o NVGT só reconhece caminho absoluto com barra NORMAL. Com
+// barra invertida, file_exists("C:\Windows\System32\cmd.exe") responde false para um arquivo que
+// existe, e run() com esse mesmo caminho falha sem dizer por quê. As funções do sistema que
+// devolvem caminhos (SCRIPT_EXECUTABLE, DIRECTORY_TEMP) usam barra invertida, então tudo que vem
+// delas passa por aqui antes de ir para o run().
+string to_forward_slashes(const string&in path) {
+	return path.replace("\\", "/");
+}
+
+// Caminho completo do PowerShell.
+//
+// Completo porque run() NÃO procura no PATH: run("powershell.exe", ...) simplesmente devolve false,
+// e era esse o motivo de a atualização nunca começar - o jogo caía no plano B e só abria o site.
+// A pasta do Windows sai da variável de ambiente em vez de "C:/Windows" fixo, que estaria errado em
+// qualquer máquina com o Windows noutra unidade.
+string powershell_path() {
+	string root = read_environment_variable("SystemRoot", "C:\\Windows");
+	return to_forward_slashes(root) + "/System32/WindowsPowerShell/v1.0/powershell.exe";
+}
+
 // Escreve o script que faz a troca e o dispara. Devolve false se nem sequer conseguiu gravar o
 // script - caso em que nada foi alterado e o jogo pode seguir normalmente.
 //
@@ -108,8 +130,10 @@ string game_directory() {
 bool launch_updater_script(const string&in package_url) {
 	string exe = SCRIPT_EXECUTABLE;
 	string dir = game_directory();
-	string script_path = DIRECTORY_TEMP + "\\amongus_update.ps1";
-	string work_dir = DIRECTORY_TEMP + "\\amongus_update";
+	// DIRECTORY_TEMP já vem com a barra no fim - juntar outra criava caminhos com "\\" no meio.
+	// O PowerShell tolera, mas o próprio NVGT não enxerga esses caminhos de volta.
+	string script_path = DIRECTORY_TEMP + "amongus_update.ps1";
+	string work_dir = DIRECTORY_TEMP + "amongus_update";
 
 	string script =
 		"$ErrorActionPreference = 'Stop'\n"
@@ -171,8 +195,8 @@ bool launch_updater_script(const string&in package_url) {
 	// mútuo - cada um parado esperando o outro terminar.
 	// -ExecutionPolicy Bypass porque a política padrão do Windows recusa scripts não assinados, e
 	// este acabou de ser gerado na máquina do próprio jogador.
-	return run("powershell.exe",
-		"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + script_path + "\"",
+	return run(powershell_path(),
+		"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + to_forward_slashes(script_path) + "\"",
 		false, true);
 }
 

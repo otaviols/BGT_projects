@@ -1,5 +1,5 @@
 {
-	"version": "0.9.1",
+	"version": "0.9.2",
 	"url": "AmongUs.zip",
-	"notes": "Corrigido o menu de aprender os sons: os passos e o som de morte não tocavam nada no jogo instalado."
+	"notes": "A atualização automática agora funciona de verdade: antes ela só abria o site de download. Também corrigido o menu de aprender os sons, onde os passos e o som de morte não tocavam nada."
 }
