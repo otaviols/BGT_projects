@@ -1,5 +1,5 @@
 {
-	"version": "0.14.1",
+	"version": "0.14.2",
 	"url": "AmongUs.zip",
-	"notes": "Partidas de até 15 jogadores (eram 10), com cinco cores novas. E a atualização automática deixou de falhar em máquinas onde a pasta temporária é bloqueada: o jogo agora procura um lugar onde realmente consiga escrever."
+	"notes": "Som novo para o começo da rega, na tarefa da estufa."
 }
