@@ -220,6 +220,11 @@ tripulação, atravessam portas trancadas, e são a melhor arma do time depois q
 errado. Fantasma atravessa porta fechada, mas **não** atravessa parede — e ouve o esbarrão nela
 normalmente, para conseguir se localizar.
 
+**Sabotagem não atinge fantasma.** Com as luzes ou as comunicações fora, você continua com o radar,
+com os marcadores das suas tarefas e com o som dos corpos. Sabotagem existe para pressionar quem
+ainda pode perder alguma coisa — e você já perdeu; continuar terminando as tarefas é o que ainda
+ajuda o time.
+
 ## Reuniões e votação
 
 Uma reunião começa quando alguém reporta um corpo ou aperta o botão de emergência. Todo mundo é

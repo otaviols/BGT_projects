@@ -87,23 +87,42 @@ void main() {
 	// deixaria os dois travados, um esperando o outro.
 	if (run_update_check()) return;
 
+	// Se a verificação acima NÃO iniciou uma atualização, então nenhuma está em curso e é seguro
+	// varrer o que uma anterior possa ter deixado para trás na pasta do jogo.
+	clean_update_leftovers();
+
 	// Menu inicial (conectar / aprender os sons / sair) - cancelar conexão ou login volta pra cá em
 	// vez de fechar o jogo direto.
 	//
-	// A sessão inteira roda dentro de um try: qualquer exceção que escape daqui pra dentro mataria o
-	// script e a janela sumiria da tela sem dizer nada (era assim que o jogo "fechava sozinho"). Com
-	// o catch, o erro vai pro crash.log, o jogador é avisado e volta pro menu inicial - a partida
-	// daquele momento se perde, mas o jogo continua de pé e sobra evidência do que aconteceu.
-	while (run_main_menu()) {
+	// Tudo daqui pra dentro roda num try: qualquer exceção que escapasse mataria o script e a janela
+	// sumiria da tela sem dizer nada (era assim que o jogo "fechava sozinho"). Com o catch, o erro vai
+	// pro crash.log, o jogador é avisado e volta pro menu - o que estava em andamento se perde, mas o
+	// jogo continua de pé e sobra evidência do que aconteceu.
+	//
+	// O MENU também está dentro do try, e não só a partida. Antes só run_session() era protegido, e
+	// por isso um erro nas configurações, no menu de aprender os sons ou no envio de recado derrubava
+	// o jogo do mesmo jeito de antes, sem log nenhum. Quem está testando a beta passa boa parte do
+	// tempo justamente nessas telas, então era ali que o buraco doía mais.
+	while (true) {
 		try {
+			if (!run_main_menu()) break;
 			run_session();
 		}
 		catch {
-			log_crash("sessao");
-			speak(tr("error.unexpected"));
-			wait(2000); // tempo do leitor de tela terminar a frase antes de voltar pro menu
+			report_crash("sessao");
 		}
 	}
+}
+
+// Registra o que quebrou e avisa o jogador.
+//
+// A mensagem depende de o log ter sido gravado ou não: mandar alguém procurar um crash.log que não
+// existe faz a pessoa perder tempo e voltar dizendo que não achou nada. Quando não deu para gravar,
+// o jogo pede o que ainda é possível conseguir - o relato pelo próprio jogo.
+void report_crash(const string&in context) {
+	bool registrado = log_crash(context);
+	speak(tr(registrado ? "error.unexpected" : "error.unexpected_no_log"));
+	wait(2500); // tempo do leitor de tela terminar a frase antes de voltar pro menu
 }
 
 // Uma sessão completa: conectar, logar, e ficar entrando em partidas até o jogador sair.

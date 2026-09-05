@@ -159,6 +159,23 @@ string writable_work_directory() {
 	return ""; // nenhum lugar serve: quem chama cai no caminho manual
 }
 
+// Apaga restos de uma atualização anterior, se houver.
+//
+// Chamado na abertura do jogo. O script de atualização já limpa o que criou, mas ele pode ser
+// interrompido no meio (o antivírus segura um arquivo, a máquina é desligada, o PowerShell é morto)
+// e aí a pasta fica para trás DENTRO da instalação, onde o jogador a encontra e não sabe o que é -
+// foi exatamente assim que ela apareceu para um jogador.
+//
+// Limpar aqui é seguro por um motivo que não vale perder de vista: neste ponto o jogo acabou de
+// abrir, então nenhuma atualização está em curso. Se houvesse uma, este processo é justamente o que
+// ela estaria esperando morrer.
+void clean_update_leftovers() {
+	string dir = game_directory() + "\\update_tmp";
+	if (!directory_exists(dir)) return;
+	// Recursivo: pode ter sobrado a pasta 'unpacked' inteira de um download interrompido.
+	directory_delete(dir, true);
+}
+
 bool launch_updater_script(const string&in package_url) {
 	string exe = SCRIPT_EXECUTABLE;
 	string dir = game_directory();
@@ -233,12 +250,20 @@ bool launch_updater_script(const string&in package_url) {
 		"    'Among Us Audiogame') | Out-Null\n"
 		"}\n"
 		"finally {\n"
-		"  # Apaga só o que ESTE script criou, nunca a pasta de trabalho inteira: ela pode ser uma\n"
-		"  # subpasta da instalação, e um caminho errado aqui apagaria o jogo do jogador em vez de\n"
+		"  # Apaga o CONTEÚDO um a um, nunca a pasta de trabalho de uma vez com -Recurse: ela pode ser\n"
+		"  # uma subpasta da instalação, e um caminho errado aqui apagaria o jogo do jogador em vez de\n"
 		"  # limpar um resto de download.\n"
 		"  Remove-Item -Recurse -Force $unpacked -ErrorAction SilentlyContinue\n"
 		"  Remove-Item -Force $zip -ErrorAction SilentlyContinue\n"
 		"  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n"
+		"  # E então a própria pasta, SÓ se ela tiver ficado vazia. Vazia significa que tudo acima deu\n"
+		"  # certo; se sobrou qualquer coisa (um arquivo que o antivírus segurou, por exemplo), a pasta\n"
+		"  # fica e o jogo a limpa no próximo boot - ver clean_update_leftovers.\n"
+		"  # Sem esta parte a pasta ficava para trás vazia dentro da instalação depois de toda\n"
+		"  # atualização, e foi assim que ela apareceu para o jogador.\n"
+		"  if ((Test-Path $work) -and -not (Get-ChildItem -Force $work)) {\n"
+		"    Remove-Item -Force $work -ErrorAction SilentlyContinue\n"
+		"  }\n"
 		"}\n";
 
 	if (!file_put_contents(script_path, script)) return false;

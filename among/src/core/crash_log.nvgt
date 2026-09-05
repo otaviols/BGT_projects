@@ -9,22 +9,67 @@
 //
 // O log também serve como diagnóstico por ausência: se o cliente morrer e NÃO existir crash.log
 // novo, então não foi exceção de script - é falha nativa (áudio, rede, engine) e a investigação
-// tem que ir pra outro lado.
+// tem que ir pra outro lado. Para essa leitura valer, gravar precisa ser confiável: ver
+// crash_log_path() abaixo.
 
 #include "../i18n.nvgt"
 
 const string CRASH_LOG_FILE = "crash.log";
 
+// Onde o log pode ser gravado NESTA máquina, com o caminho já resolvido.
+//
+// Existe porque "gravar ao lado do executável" não é garantido. Um jogo instalado em Program Files,
+// num perfil corporativo ou numa pasta herdada com permissão estranha não deixa escrever ali - e o
+// resultado era o pior possível: o jogo quebrava, o log não era gravado, ninguém notava (o retorno
+// de file_put_contents era ignorado), e o jogador relatava "fechou e não tinha log na pasta". A
+// ausência do arquivo passava a significar duas coisas diferentes - "não foi exceção de script" ou
+// "não consegui escrever" - e isso destrói o diagnóstico por ausência.
+//
+// A pasta do jogo vem primeiro porque é onde o jogador consegue achar o arquivo para mandar. Se ela
+// não servir, cai na pasta de preferências do usuário, que é gravável até em instalação protegida.
+// O caminho é resolvido UMA vez e guardado: no meio de um crash não é hora de sair testando disco.
+string g_crash_log_path = "";
+bool g_crash_log_path_resolved = false;
+
+string crash_log_path() {
+	if (g_crash_log_path_resolved) return g_crash_log_path;
+	g_crash_log_path_resolved = true;
+
+	array<string> candidatos = {
+		CRASH_LOG_FILE, // ao lado do executável (relativo: o NVGT resolve pelo caminho do .exe)
+		DIRECTORY_PREFERENCES("BGT", "AmongUsAudiogame") + "/" + CRASH_LOG_FILE
+	};
+	for (uint i = 0; i < candidatos.length(); i++) {
+		// Teste de escrita de verdade: a pasta existir não quer dizer que se pode escrever nela.
+		// Escreve string vazia em modo append - não estraga um log que já exista.
+		if (file_put_contents(candidatos[i], "", true)) {
+			g_crash_log_path = candidatos[i];
+			return g_crash_log_path;
+		}
+	}
+	g_crash_log_path = ""; // nenhum lugar aceita: quem chama não tem o que fazer, mas não quebra
+	return g_crash_log_path;
+}
+
 // Chamar de dentro de um catch. context descreve o que o jogo estava fazendo ("partida",
 // "pacote s_player_moved", "sala de espera"...) - é a informação que a engine não tem como saber.
-void log_crash(const string&in context) {
+//
+// Devolve true se o registro foi mesmo gravado. Quem chama usa isso para avisar o jogador de forma
+// honesta: mandá-lo procurar um arquivo que não existe é pior do que não mencionar arquivo nenhum.
+bool log_crash(const string&in context) {
+	string path = crash_log_path();
+	if (path == "") return false;
+
 	datetime now;
 	string report = "=== " + now.format("%Y-%m-%d %H:%M:%S") + " ===\r\n";
+	// A versão vai no relatório: um log sem ela obriga a perguntar ao jogador qual versão ele tinha,
+	// e a resposta costuma ser "a última" mesmo quando não é.
+	report += "versao: " + GAME_VERSION + "\r\n";
 	report += "contexto: " + context + "\r\n";
 	report += "erro: " + get_exception_info() + "\r\n";
 	report += "funcao: " + get_exception_function() + "\r\n";
 	report += "linha: " + get_exception_line() + "\r\n\r\n";
-	file_put_contents(CRASH_LOG_FILE, report, true); // true = acrescenta ao que já existe
+	return file_put_contents(path, report, true); // true = acrescenta ao que já existe
 }
 
 // Conteúdo do crash.log, ou "" se não houver nenhum.
@@ -33,6 +78,7 @@ void log_crash(const string&in context) {
 // fica para sempre na máquina de quem jogou: é o registro de por que o jogo fechou, e justamente a
 // pessoa que o tem é a que não sabe que ele existe.
 string read_crash_log() {
-	if (!file_exists(CRASH_LOG_FILE)) return "";
-	return file_get_contents(CRASH_LOG_FILE);
+	string path = crash_log_path();
+	if (path == "" || !file_exists(path)) return "";
+	return file_get_contents(path);
 }

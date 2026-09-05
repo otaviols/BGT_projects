@@ -8,6 +8,7 @@
 #include "../network/packet.nvgt"
 #include "../network/client.nvgt"
 #include "../core/client_state.nvgt"
+#include "../core/sabotage_rules.nvgt"
 #include "../core/chat_log.nvgt"
 #include "../audio/audio_manager.nvgt"
 #include "../i18n.nvgt"
@@ -29,6 +30,9 @@ class meeting_ui {
 	client_roster@ roster;
 	chat_log@ events_log;
 	bool is_impostor;
+	// Se ESTE jogador ainda está vivo. O laço da partida mantém isto em dia (ver game/game_loop.nvgt)
+	// porque a sabotagem de luzes não deve cegar quem já morreu - ver core/sabotage_rules.nvgt.
+	bool alive = true;
 	// Com as luzes sabotadas os corpos ficam mudos (ver refresh_body_beacons em game/game_loop.nvgt) -
 	// inclusive os que caírem DURANTE o apagão, que é o caso que mais importa.
 	bool body_sounds_enabled = true;
@@ -201,7 +205,7 @@ class meeting_ui {
 		}
 		announce(text);
 		audio.start_sabotage_alarm();
-		if (sabotage_id == "lights") audio.apply_lights_out(true, 40);
+		if (lights_out_for(sabotage_id, is_impostor, alive)) audio.apply_lights_out(true, 40);
 	}
 
 	// Lembrete de quanto falta na sabotagem crítica (marcos de 30 em 30) e a contagem dos 10 finais.

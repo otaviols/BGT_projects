@@ -224,6 +224,10 @@ that person is lying.
 doors, and are the team's best weapon once things start going wrong. A ghost passes through a closed
 door but **not** through a wall — and hears the bump against it, so it can still find its way.
 
+**Sabotage does not affect ghosts.** With lights or communications down you keep the radar, your task
+markers and the body sounds. Sabotage exists to pressure those who still have something to lose — and
+you have already lost it; finishing your tasks is what still helps the team.
+
 ## Meetings and voting
 
 A meeting starts when someone reports a body or presses the emergency button. Everyone is moved to

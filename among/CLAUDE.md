@@ -136,6 +136,14 @@ mesma partida acusarem "nomes" diferentes pela mesma pessoa.
 **Valor vindo do cliente é validado no servidor.** As configurações de sala passam por
 `lobby_config.validate()` depois de aplicadas: elas vêm da máquina do jogador.
 
+**Regra de percepção fica em `src/core/sabotage_rules.nvgt`, nunca espalhada.** Quem é atrapalhado
+por qual sabotagem se decide num lugar só. Espalhada como `if` em cada ponto (marcadores, radar, som
+de corpo, alcance de audição), bastava esquecer um para o jogador ficar cego pela metade sem que nada
+denunciasse. É também onde papéis novos vão declarar o que enxergam.
+
+**Fantasma não é atingido por sabotagem.** Ele já perdeu o que tinha a perder, e continua fazendo
+tarefas pelo time — cegá-lo não cria tensão, só torna tedioso o que ainda ajuda.
+
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 
 **Fora do git:** `terraform.tfvars`, `*.tfstate`, `sounds.dat`, `*.zip`, `*.exe`, `crash.log`,

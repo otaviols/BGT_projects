@@ -356,5 +356,6 @@
 	"color.lime": "Verde-limão",
 	"color.maroon": "Bordô",
 	"color.gray": "Cinza",
-	"color.tan": "Bege"
+	"color.tan": "Bege",
+	"error.unexpected_no_log": "Aconteceu um erro inesperado e a partida foi encerrada. Não foi possível gravar o registro do erro nesta máquina, então use a opção de enviar um recado para contar o que estava fazendo quando isso aconteceu."
 }

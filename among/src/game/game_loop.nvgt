@@ -12,6 +12,7 @@
 #include "../ui/radar.nvgt"
 #include "../ui/meeting_ui.nvgt"
 #include "../core/client_state.nvgt"
+#include "../core/sabotage_rules.nvgt"
 #include "../core/chat_log.nvgt"
 #include "../core/player.nvgt"
 #include "../game/roles/crewmate.nvgt"
@@ -94,9 +95,12 @@ void refresh_body_beacons(audio_manager@ audio, array<uint64>@ body_peers, array
 // Religa os beacons do mapa respeitando a sabotagem em curso: com "comunicações" sabotadas o
 // jogador perde os beacons das PRÓPRIAS tasks (além do radar, que o servidor recusa) - é o
 // equivalente daqui ao "esconder as tasks" do jogo original.
+// Fantasma mantém os marcadores mesmo com as comunicações fora: ele continua fazendo tarefas pelo
+// time e não tem como consertar painel nenhum - ver core/sabotage_rules.nvgt.
 void refresh_landmark_beacons(audio_manager@ audio, game_map@ map, array<string>@ my_task_object_ids,
-		const string&in active_sabotage_id) {
-	array<string>@ task_ids = active_sabotage_id == "comms" ? null : my_task_object_ids;
+		const string&in active_sabotage_id, bool is_impostor, bool alive) {
+	bool comms_down = comms_down_for(active_sabotage_id, is_impostor, alive);
+	array<string>@ task_ids = comms_down ? null : my_task_object_ids;
 	audio.start_landmark_beacons(map, task_ids, active_sabotage_id);
 }
 
@@ -311,6 +315,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	if (my_peer_id != 0) client.my_peer_id = my_peer_id;
 
 	bool is_impostor = start_pkt.get_bool("your_role_impostor");
+	// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
+	// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
+	bool alive = true;
 	float my_x = start_pkt.get_float("your_x");
 	float my_y = start_pkt.get_float("your_y");
 	roster.load_from_start_packet(start_pkt);
@@ -361,7 +368,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	audio.play_start_game();
 	audio.start_ship_ambience();
 	audio.start_room_ambience(map);
-	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, is_impostor, alive);
 	// Papel + (pro impostor) quem mais é impostor, numa fala só: speak() interrompe a fala anterior
 	// por padrão, então dois speak() seguidos aqui comeriam o anúncio do papel.
 	// A lista de parceiros só existe no pacote de quem é impostor (ver network/server.on_start_game) -
@@ -415,7 +422,6 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	timer@ ping_clock = timer();
 	bool ping_pending = false;
 	bool game_over = false;
-	bool alive = true;
 	bool movement_frozen = false; // true durante reunião/votação - todo mundo parado na cafeteria
 
 	while (!game_over) {
@@ -461,7 +467,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				// de ainda não estar marcada quando essa confirmação do servidor chega.
 				string task_id = pkt.get_string("task_id");
 				if (pkt.get_bool("ok") && !is_task_completed(my_tasks, task_id)) {
-					mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, task_id, active_sabotage_id);
+					mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, task_id, active_sabotage_id, is_impostor, alive);
 					if (my_tasks_all_completed(my_tasks)) {
 						string all_done_text = tr("task.all_completed");
 						speak(all_done_text);
@@ -472,6 +478,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				mui.on_player_killed(pkt);
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) {
 					alive = false;
+					mui.alive = false;
 					// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
 					// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
 					// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
@@ -538,13 +545,13 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			} else if (t == S_VOTE_RESULT) {
 				mui.on_vote_result(pkt);
 				movement_frozen = false;
-				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) alive = false; // virou fantasma
+				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) { alive = false; mui.alive = false; } // virou fantasma
 				// O servidor rearma o cooldown de kill de todo impostor ao fim da votação (ver
 				// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
 				// falharia calada.
 				if (is_impostor) my_kill_cooldown_remaining = kill_cooldown_config;
 				audio.start_room_ambience(map);
-				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, is_impostor, alive);
 				if (active_sabotage_id != "") audio.start_sabotage_alarm(); // sabotagem continua de pé depois da reunião
 			} else if (t == S_SABOTAGE_STARTED) {
 				mui.on_sabotage_started(pkt);
@@ -553,10 +560,11 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				// Luzes apagadas calam os corpos já caídos, e mui.body_sounds_enabled cuida dos que
 				// caírem durante o apagão.
 				mui.body_sounds_enabled = sabotage_id != "lights";
-				if (sabotage_id == "lights") refresh_body_beacons(audio, known_body_peers, known_body_positions, true);
+				if (sabotage_id == "lights") refresh_body_beacons(audio, known_body_peers, known_body_positions,
+					lights_out_for(sabotage_id, is_impostor, alive));
 				// Liga o beacon dos painéis dessa sabotagem (ver start_landmark_beacons): fora de
 				// sabotagem eles ficam calados, senão o mapa inteiro apita painel o tempo todo.
-				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, is_impostor, alive);
 
 				// Dica de conserto: fala em qual(is) sala(s) fica o painel certo pra essa sabotagem -
 				// sem isso o anúncio só dizia QUAL sabotagem, não pra ONDE ir consertar.
@@ -584,7 +592,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				active_sabotage_id = "";
 				mui.body_sounds_enabled = true;
 				refresh_body_beacons(audio, known_body_peers, known_body_positions, false); // luz de volta, corpos voltam a soar
-				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, is_impostor, alive);
 				if (is_impostor) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 			} else if (t == S_VENT_STATE) {
 				bool was_vented = is_vented;
@@ -743,7 +751,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					// é o mesmo tipo de informação (quem é a vítima, sem precisar procurar). O som do
 					// corpo no chão continua tocando, então dar de cara com ele e reportar continua
 					// funcionando - o que a sabotagem tira é saber DE QUEM é o corpo de longe.
-					bool comms_down = active_sabotage_id == "comms";
+					bool comms_down = comms_down_for(active_sabotage_id, is_impostor, alive);
 					bool near_body_now = false;
 					for (uint b = 0; b < known_body_positions.length(); b++) {
 						if (distance_2d(my_x, my_y, known_body_positions[b].x, known_body_positions[b].y) <= PLAYER_REPORT_RANGE) {
@@ -794,7 +802,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			// Comunicações sabotadas derrubam os DOIS modos: o de jogadores o servidor já recusa, e o
 			// de objetos é resolvido aqui no cliente, então tem que ser barrado aqui. O impostor é
 			// imune à própria sabotagem e continua com o radar inteiro (ver on_radar_scan no servidor).
-			if (active_sabotage_id == "comms" && !is_impostor) speak(tr("sabotage.comms.radar_down"));
+			if (comms_down_for(active_sabotage_id, is_impostor, alive)) speak(tr("sabotage.comms.radar_down"));
 			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
 			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
 			else radar.scan_next(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
@@ -815,7 +823,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 							// jogador apertar Enter de novo rápido, a task ainda apareceria "aberta"
 							// (find_interactable só ignora task já com completed=true) até o round-trip
 							// da rede voltar, dando pra abrir ela de novo por engano.
-							mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id);
+							mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id, is_impostor, alive);
 							if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
 						}
 						client.send_task_input(obj.id, success);
@@ -973,12 +981,13 @@ bool is_task_completed(array<player_task>@ tasks, const string&in object_id) {
 // Marca a task como feita localmente (pra find_interactable parar de oferecer ela de novo) e tira
 // o beacon dela do mapa.
 void mark_task_completed_locally(game_map@ map, audio_manager@ audio, array<player_task>@ my_tasks,
-		array<string>@ my_task_object_ids, const string&in object_id, const string&in active_sabotage_id) {
+		array<string>@ my_task_object_ids, const string&in object_id, const string&in active_sabotage_id,
+		bool is_impostor, bool alive) {
 	for (uint i = 0; i < my_tasks.length(); i++) {
 		if (my_tasks[i].object_id == object_id) my_tasks[i].completed = true;
 	}
 	for (uint i = 0; i < my_task_object_ids.length(); i++) {
 		if (my_task_object_ids[i] == object_id) { my_task_object_ids.remove_at(i); break; }
 	}
-	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id);
+	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, is_impostor, alive);
 }

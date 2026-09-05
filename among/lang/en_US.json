@@ -356,5 +356,6 @@
 	"color.lime": "Lime",
 	"color.maroon": "Maroon",
 	"color.gray": "Gray",
-	"color.tan": "Tan"
+	"color.tan": "Tan",
+	"error.unexpected_no_log": "An unexpected error ended the match. The error log could not be written on this machine, so please use the send a message option to tell us what you were doing when it happened."
 }
