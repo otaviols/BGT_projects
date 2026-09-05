@@ -20,8 +20,8 @@ bool run_main_menu() {
 	while (true) {
 		menu m;
 		m.intro_text = tr("app.title");
-		m.click_sound = "menuclick.wav";
-		m.select_sound = "menuconfirm.wav";
+		m.click_sound = "ui/menuclick.wav";
+		m.select_sound = "ui/menuconfirm.wav";
 		m.sounds_prefix = "sounds/";
 		m.add_item(tr("menu.connect"), "connect");
 		m.add_item(tr("menu.learn_sounds"), "learn_sounds");
@@ -90,7 +90,7 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.body_on_floor"), SND_BODY_ON_FLOOR);
 	sfx.add(tr("learn.body_reported"), SND_BODY_REPORTED);
 	// Mesmo motivo dos passos: lista por vírgula, não a forma abreviada com chaves.
-	sfx.add(tr("learn.death"), sound_variants_list("killed", int(KILLED_VARIANT_COUNT_FOR_CATALOG), "wav"));
+	sfx.add(tr("learn.death"), sound_variants_list("killed", int(KILLED_VARIANT_COUNT_FOR_CATALOG), "wav", "events"));
 	sfx.add(tr("learn.kill"), SND_KILL);
 	sfx.add(tr("learn.wall_bump"), SND_WALL_BUMP);
 	sfx.add(tr("learn.door_bump"), SND_DOOR_BUMP);

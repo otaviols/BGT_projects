@@ -261,8 +261,8 @@ class meeting_ui {
 		ui_sound(SND_DIALOG_OPEN);
 		menu vote_menu;
 		vote_menu.intro_text = tr("game.meeting_voting");
-		vote_menu.click_sound = "menuclick.wav";
-		vote_menu.select_sound = "menuconfirm.wav";
+		vote_menu.click_sound = "ui/menuclick.wav";
+		vote_menu.select_sound = "ui/menuconfirm.wav";
 		vote_menu.sounds_prefix = "sounds/";
 		@g_vote_pump_client = client;
 		@vote_menu.background_callback = @pump_client_during_vote_menu;

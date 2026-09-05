@@ -49,7 +49,9 @@ class audio_manager {
 	void play_footstep(const string&in floor_prefix, int variant_count, float x, float y, const string&in ext = "wav") {
 		if (variant_count <= 0) return;
 		footstep_variant_seed = (footstep_variant_seed + 1) % uint(variant_count);
-		string path = "sounds/" + floor_prefix + (footstep_variant_seed + 1) + "." + ext;
+		// "steps/" faz parte do caminho porque os sons vivem em sounds/steps/ - ver a organização
+		// por categoria em sounds/. Sem a pasta, o arquivo não é encontrado e o passo some em silêncio.
+		string path = "sounds/steps/" + floor_prefix + (footstep_variant_seed + 1) + "." + ext;
 		spatial.play_once(path, x, y, family_db(SOUND_FAMILY_STEPS));
 	}
 

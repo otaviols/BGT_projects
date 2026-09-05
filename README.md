@@ -11,14 +11,14 @@ desenvolvimento deles.
 
 ### [among/](among/) — Among Us Audiogame
 
-Jogo de dedução social multijogador, jogado inteiramente por som posicional e leitor de tela. Até 10
+Jogo de dedução social multijogador, jogado inteiramente por som posicional e leitor de tela. Até 15
 jogadores, com servidor dedicado, contas persistentes, onze minigames de tarefa, sabotagens, dutos,
 reuniões com votação e bots.
 
 **Estado: beta.** Jogável do começo ao fim e em testes.
 
-- [Manual do jogador (português)](among/LEIAME.md)
-- [Player manual and developer docs (English)](among/README.md)
+- [Manual do jogador (português)](among/docs/README_ptBR.md)
+- [Player manual (English)](among/docs/README_enUS.md)
 - [Infraestrutura e publicação](among/infra/README.md)
 
 ## Como começar

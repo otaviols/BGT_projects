@@ -7,14 +7,25 @@
 #include "../src/audio/sound_catalog.nvgt"
 
 void main() {
-	// NVGT muda o diretório de trabalho para a pasta do script (tools/) ao rodar este arquivo
-	// diretamente. Os caminhos do catálogo (ex.: "sounds/x.wav") assumem a raiz do projeto (among/,
-	// de onde o jogo de verdade roda) - voltamos um nível pra bater com essa suposição.
-	chdir("..");
+	// Os caminhos do catálogo (ex.: "sounds/steps/x.wav") assumem a raiz do projeto (among/), que é
+	// de onde o jogo roda de verdade. Este script, porém, vive em tools/.
+	//
+	// Antes isto era um chdir("..") fixo, e quebrava conforme a forma de invocar: o NVGT põe o
+	// diretório de trabalho na pasta DO SCRIPT, então subir um nível dá certo vindo de tools/ e vai
+	// parar fora do projeto em outras situações - e o resultado era o checker dizer que TODO som
+	// sumiu, que é exatamente o alarme falso que faz uma ferramenta de verificação deixar de ser
+	// levada a sério. Agora ele procura a raiz em vez de supor onde está.
+	if (!directory_exists("sounds")) chdir("..");
+	if (!directory_exists("sounds")) {
+		println("Não achei a pasta sounds/. Rode este script de dentro do projeto (a pasta among).");
+		return;
+	}
 
 	array<string>@ expected = all_sound_paths();
 	array<string>@ optional = optional_sound_paths();
-	array<string>@ found_files = find_files("sounds/*");
+	// Recursivo: com os sons em subpastas, find_files sozinho devolve zero e o conferidor
+	// passa a acusar que TODO som sumiu - alarme falso que faz a ferramenta perder a serventia.
+	array<string>@ found_files = all_sound_files_on_disk("sounds");
 
 	dictionary found;
 	for (uint i = 0; i < found_files.length(); i++) found.set(found_files[i], true);
@@ -25,9 +36,11 @@ void main() {
 	uint missing_count = 0;
 	for (uint i = 0; i < expected.length(); i++) {
 		string path = expected[i];
-		string bare = path.find_last("/") >= 0 ? path.substr(path.find_last("/") + 1) : path;
-		if (found.exists(bare)) {
-			claimed.set(bare, true);
+		// Compara o CAMINHO inteiro, não só o nome do arquivo. Antes bastava existir um arquivo com
+		// aquele nome em qualquer lugar; agora que os sons vivem em subpastas por categoria, um som
+		// guardado na pasta errada passaria despercebido - e o jogo ficaria mudo naquele ponto.
+		if (found.exists(path)) {
+			claimed.set(path, true);
 		} else {
 			missing_count++;
 			println("FALTA: " + path);

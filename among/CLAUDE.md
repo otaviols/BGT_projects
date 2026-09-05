@@ -41,10 +41,15 @@ Antes de afirmar algo aqui, **verifique contra o código**, não contra a memór
 | `lang/` | **só dados** de tradução (`pt_BR.json`, `en_US.json`) — o motor de i18n fica em `src/` |
 | `sounds/` | áudio fonte; vira `sounds.dat` no build |
 | `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots` |
+| `docs/` | manuais do jogador (`README_ptBR.md`, `README_enUS.md`), distribuídos com o jogo |
 | `infra/` | Terraform, Dockerfile, manifests do Kubernetes, `deploy.ps1`, `read_feedback.ps1` |
 
 `lang/` fica fora de `src/` de propósito: é lido por caminho em tempo de execução, e esse caminho
 precisa ser o mesmo rodando do fonte ou do build compilado.
+
+Os manuais moram em `docs/` mas chegam ao jogador na RAIZ da pasta do jogo, como `LEIAME.md` e
+`README.md` — o `#pragma document` aceita `origem;destino`, e é isso que permite organizar o
+repositório sem esconder o manual de quem baixa.
 
 ## Compilar
 
@@ -109,6 +114,16 @@ erro. Use lista separada por vírgula, que funciona nas duas versões (ver `soun
 **Declare os `#include` de que o arquivo precisa.** Já houve código compilando por ordem de inclusão,
 não por dependência declarada — bastava alguém incluir só aquele arquivo para quebrar.
 
+**`find_files()` NÃO é recursivo.** Com os sons em subpastas, `find_files("sounds/*")` devolve
+**zero** arquivos. Isso derrubou de uma vez o gerador do pacote e o conferidor de sons — e o modo
+como falhou é o pior: o conferidor passou a acusar que *todos* os sons sumiram, com eles ali do lado.
+Para varrer subpasta, use `all_sound_files_on_disk()` (em `src/audio/sound_catalog.nvgt`), que desce
+com `find_directories`.
+
+**Em script de `tools/`, não use `chdir("..")` fixo.** O diretório de trabalho depende de como o
+script foi invocado, então subir um nível às vezes cai fora do projeto. Os dois utilitários agora
+PROCURAM a raiz (`if (!directory_exists("sounds")) chdir("..")`) em vez de supor onde estão.
+
 **Uma compilação do NVGT pode sair defeituosa.** Aconteceu: mesmo código-fonte, um build gerou binário
 com segfault na inicialização e o seguinte saiu bom. Compilar com sucesso **não** é o mesmo que o
 binário funcionar. Por isso o `deploy.ps1` testa a imagem antes de publicar; se algo assim aparecer de
@@ -143,6 +158,17 @@ denunciasse. É também onde papéis novos vão declarar o que enxergam.
 
 **Fantasma não é atingido por sabotagem.** Ele já perdeu o que tinha a perder, e continua fazendo
 tarefas pelo time — cegá-lo não cria tensão, só torna tedioso o que ainda ajuda.
+
+**Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
+define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
+com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a
+resposta virava um booleano em mais de sessenta pontos, e cada papel novo obrigava a revisitar todos.
+Um papel novo entra em três passos, descritos no topo daquele arquivo.
+
+**Som novo vai na subpasta certa de `sounds/`** (`steps`, `ambience`, `beacons`, `tasks`, `events`,
+`ui`, `world`) e o caminho no catálogo inclui a pasta. Depois de mexer em som, rode
+`nvgt tools/check_sounds.nvgt`: ele compara o catálogo com o disco **nos dois sentidos** e é a única
+coisa que pega um caminho errado — som que não carrega falha em silêncio, sem erro nenhum.
 
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 

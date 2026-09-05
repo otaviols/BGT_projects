@@ -9,7 +9,7 @@
 // e ouvir o resultado na hora, sem passar por aqui.
 //
 // O nome de cada arquivo DENTRO do pacote é o mesmo caminho que o código usa pra carregar
-// ("sounds/beep.wav"), então nada no jogo precisa saber se o som veio do pacote ou do disco - quem
+// ("sounds/tasks/beep.wav"), então nada no jogo precisa saber se o som veio do pacote ou do disco - quem
 // resolve isso é o sound_default_pack (ver load_sound_pack() em AmongUs.nvgt).
 
 #pragma console
@@ -19,11 +19,17 @@ const string PACK_PATH = "sounds.dat";
 const string SOUNDS_DIR = "sounds";
 
 int main() {
-	// NVGT roda o script a partir da pasta dele (tools/); os caminhos do catálogo assumem a raiz do
-	// projeto, que é de onde o jogo roda de verdade. Mesmo ajuste do tools/check_sounds.nvgt.
-	chdir("..");
+	// Procura a raiz do projeto em vez de supor que basta subir um nível: o diretório de trabalho
+	// depende de como o script foi invocado, e um chdir fixo mandava a busca para fora do projeto.
+	if (!directory_exists(SOUNDS_DIR)) chdir("..");
+	if (!directory_exists(SOUNDS_DIR)) {
+		println("ERRO: nao achei a pasta " + SOUNDS_DIR + "/. Rode este script de dentro do projeto.");
+		return 1;
+	}
 
-	array<string>@ files = find_files(SOUNDS_DIR + "/*");
+	// Recursivo: os sons estão organizados em subpastas (sounds/steps, sounds/ui...) e find_files
+	// sozinho NÃO desce nelas - devolveria zero arquivos e o pacote sairia sem som nenhum.
+	array<string>@ files = all_sound_files_on_disk(SOUNDS_DIR);
 	if (files.length() == 0) {
 		println("ERRO: nenhum arquivo encontrado em " + SOUNDS_DIR + "/ - o pacote nao foi gerado.");
 		return 1;
@@ -37,7 +43,7 @@ int main() {
 
 	uint added = 0;
 	for (uint i = 0; i < files.length(); i++) {
-		string internal_name = SOUNDS_DIR + "/" + files[i]; // igual ao caminho usado no jogo
+		string internal_name = files[i]; // já vem completo ("sounds/ui/x.wav"), igual ao usado no jogo
 		if (pack.add_file(internal_name, internal_name)) {
 			added++;
 			continue;

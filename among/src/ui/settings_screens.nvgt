@@ -15,7 +15,7 @@
 const array<string> FAMILY_PREVIEW_SOUNDS = {
 	SND_MENU_CONFIRM,       // geral
 	SND_AMBIENT_CAFETERIA,  // ambiente
-	"sounds/Tile1.wav",     // passos
+	"sounds/steps/Tile1.wav",     // passos
 	SND_VENT_BEACON,        // marcadores
 	"sounds/" + SND_BEEP,   // tasks
 	SND_BODY_REPORTED,      // eventos
@@ -26,8 +26,8 @@ void run_settings_menu() {
 	while (true) {
 		menu m;
 		m.intro_text = tr("menu.settings");
-		m.click_sound = "menuclick.wav";
-		m.select_sound = "menuconfirm.wav";
+		m.click_sound = "ui/menuclick.wav";
+		m.select_sound = "ui/menuconfirm.wav";
 		m.sounds_prefix = "sounds/";
 		m.add_item(tr("settings.volumes"), "volumes");
 		m.add_item(tr("settings.keys"), "keys");
@@ -106,8 +106,8 @@ void run_keys_screen() {
 	while (true) {
 		menu m;
 		m.intro_text = tr("settings.keys_hint");
-		m.click_sound = "menuclick.wav";
-		m.select_sound = "menuconfirm.wav";
+		m.click_sound = "ui/menuclick.wav";
+		m.select_sound = "ui/menuconfirm.wav";
 		m.sounds_prefix = "sounds/";
 
 		for (uint i = 0; i < g_keys.bindings.length(); i++) {
@@ -194,8 +194,8 @@ void run_language_screen() {
 
 	menu m;
 	m.intro_text = tr("settings.language_hint");
-	m.click_sound = "menuclick.wav";
-	m.select_sound = "menuconfirm.wav";
+	m.click_sound = "ui/menuclick.wav";
+	m.select_sound = "ui/menuconfirm.wav";
 	m.sounds_prefix = "sounds/";
 
 	for (uint i = 0; i < codes.length(); i++) {

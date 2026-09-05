@@ -1,0 +1,128 @@
+// role_traits.nvgt
+// O que cada papel PODE fazer e o que ele PERCEBE.
+//
+// Este arquivo existe para acabar com a pergunta "é impostor?" espalhada pelo código. Ela aparecia
+// em mais de sessenta lugares, e cada um a usava para decidir uma coisa diferente: pode ventilar,
+// pode matar, sofre a sabotagem de comunicações, aparece no radar dos outros, faz tarefas. Enquanto
+// a resposta for um booleano, cada papel novo obriga a revisitar todos esses pontos - e esquecer um
+// deles não quebra o build, só produz um papel que faz metade do que devia, em silêncio.
+//
+// Aqui o papel DECLARA o que é, e o resto do código pergunta pela CAPACIDADE ("posso ventilar?"),
+// nunca pela identidade. Acrescentar um papel passa a ser acrescentar uma entrada nesta lista.
+//
+// Um papel novo entra em três passos:
+//   1. uma função `role_traits@ role_<nome>()` abaixo, declarando o que ele pode;
+//   2. o id dele em role_for();
+//   3. as chaves de texto "role.<id>" e "role.assigned_<id>" nos arquivos de idioma.
+// Nada mais no cliente precisa saber que ele existe.
+
+#include "../../config/game_constants.nvgt"
+
+const string ROLE_CREWMATE = "crewmate";
+const string ROLE_IMPOSTOR = "impostor";
+
+class role_traits {
+	string id;
+
+	// --- O que pode fazer ---
+	bool can_kill = false;
+	bool can_vent = false;
+	bool can_sabotage = false;
+	bool can_close_doors = false;
+	bool can_report_bodies = true;
+	bool can_call_meeting = true;
+	// Se as tarefas deste papel contam para a vitória da tripulação. É o que separa "faz tarefa" de
+	// "finge fazer tarefa": o impostor pode ficar parado num painel para se passar por ocupado, mas
+	// isso não avança nada.
+	bool tasks_count_for_crew = true;
+
+	// --- O que percebe ---
+	// Imunidade à PRÓPRIA sabotagem. O impostor não é cegado pelas comunicações que ele mesmo
+	// derrubou; as luzes ele sofre igual, e é isso que impede apagar a nave de ser escolha sem custo.
+	bool immune_to_comms = false;
+	bool immune_to_lights = false;
+
+	// --- Time ---
+	bool wins_with_crew = true;
+	// Se descobre quem são os companheiros de papel no começo da partida.
+	bool knows_teammates = false;
+
+	// Chaves de texto derivadas do id, para não haver uma segunda lista para manter em sincronia.
+	string name_key() const { return "role." + id; }
+	string assignment_key() const { return "role.assigned_" + id; }
+}
+
+role_traits@ role_crewmate() {
+	role_traits t;
+	t.id = ROLE_CREWMATE;
+	return t; // os padrões da classe JÁ são o tripulante: ele é a linha de base
+}
+
+role_traits@ role_impostor() {
+	role_traits t;
+	t.id = ROLE_IMPOSTOR;
+	t.can_kill = true;
+	t.can_vent = true;
+	t.can_sabotage = true;
+	t.can_close_doors = true;
+	t.tasks_count_for_crew = false;
+	t.immune_to_comms = true;
+	t.wins_with_crew = false;
+	t.knows_teammates = true;
+	return t;
+}
+
+role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_IMPOSTOR) return role_impostor();
+	return role_crewmate(); // desconhecido cai em tripulante: o papel mais inofensivo dos dois
+}
+
+// Compatibilidade com o protocolo atual, que ainda manda um booleano ("your_role_impostor").
+// Quando ele passar a mandar o id do papel, só esta função muda.
+role_traits@ role_from_flag(bool is_impostor) {
+	return is_impostor ? role_impostor() : role_crewmate();
+}
+
+// O que ESTE jogador pode agora - o papel dele combinado com estar vivo ou não.
+//
+// Papel e estado são coisas separadas de propósito: um fantasma continua sendo tripulante ou
+// impostor (isso decide quem vence), mas para de poder agir sobre o mundo. Misturar os dois num
+// booleano só foi o que produziu os casos errados que apareceram na prática - o fantasma sendo
+// cegado por uma sabotagem que não o ameaça, por exemplo.
+class player_abilities {
+	role_traits@ role;
+	bool alive = true;
+
+	player_abilities(role_traits@ role, bool alive = true) {
+		@this.role = @role;
+		this.alive = alive;
+	}
+
+	// --- Ações: todas exigem estar vivo ---
+	bool can_kill() const { return alive && role.can_kill; }
+	bool can_vent() const { return alive && role.can_vent; }
+	bool can_sabotage() const { return alive && role.can_sabotage; }
+	bool can_close_doors() const { return alive && role.can_close_doors; }
+	bool can_report_bodies() const { return alive && role.can_report_bodies; }
+	bool can_call_meeting() const { return alive && role.can_call_meeting; }
+	// Votar é o único direito que a morte tira sem exceção, e por isso não olha o papel.
+	bool can_vote() const { return alive; }
+
+	// --- Tarefas ---
+	// NÃO exige estar vivo: fantasma continua fazendo tarefas, e elas continuam contando para a
+	// vitória da tripulação. É o que dá o que fazer a quem morreu cedo.
+	bool does_tasks() const { return role.tasks_count_for_crew; }
+
+	// --- Percepção ---
+	// Fantasma nunca é atrapalhado: sabotagem existe para pressionar quem ainda pode perder alguma
+	// coisa, e ele já perdeu. Cegá-lo não cria tensão - só torna tedioso o que ainda ajuda o time.
+	bool blinded_by_comms(const string&in active_sabotage) const {
+		if (active_sabotage != "comms") return false;
+		return alive && !role.immune_to_comms;
+	}
+
+	bool blinded_by_lights(const string&in active_sabotage) const {
+		if (active_sabotage != "lights") return false;
+		return alive && !role.immune_to_lights;
+	}
+}

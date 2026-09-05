@@ -23,8 +23,10 @@
 // só o manual em português deixaria quem joga em inglês sem manual nenhum.
 // O valor vai entre aspas de propósito: sem elas o pré-processador quebra o nome no ponto e
 // procura por "LEIAME . md", que não existe.
-#pragma document "LEIAME.md"
-#pragma document "README.md"
+// Origem em docs/ (organização do repositório), entregue na RAIZ da pasta do jogo (onde o jogador
+// acha). A forma "origem;destino" é o que permite as duas coisas ao mesmo tempo.
+#pragma document "docs/README_ptBR.md;LEIAME.md"
+#pragma document "docs/README_enUS.md;README.md"
 
 #include "src/network/client.nvgt"
 #include "src/core/crash_log.nvgt"

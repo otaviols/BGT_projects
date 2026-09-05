@@ -46,8 +46,8 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		json_array@ lobbies = wait_for_lobby_list(client);
 
 		menu m;
-		m.click_sound = "menuclick.wav";
-		m.select_sound = "menuconfirm.wav";
+		m.click_sound = "ui/menuclick.wav";
+		m.select_sound = "ui/menuconfirm.wav";
 		m.sounds_prefix = "sounds/";
 		m.intro_text = @lobbies == null || lobbies.length() == 0 ? tr("lobby.no_lobbies") : tr("menu.join_lobby");
 		@g_lobby_pump_client = client;

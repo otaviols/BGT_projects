@@ -1,38 +1,25 @@
 // sabotage_rules.nvgt
 // Quem é atrapalhado por uma sabotagem, e quem não é.
 //
-// A regra vive num lugar só porque ela aparece em muitos pontos do cliente - marcadores de tarefa,
-// som dos corpos, radar, aviso de corpo por perto, alcance de audição. Espalhada como `if` em cada
-// um desses lugares, bastava esquecer um para o jogador ficar cego em metade das coisas e enxergando
-// na outra metade, sem que nada denunciasse a inconsistência.
+// A regra em si mora nas capacidades do papel (game/roles/role_traits.nvgt); o que existe aqui são
+// só os atalhos usados no meio da lógica do cliente, onde se tem `is_impostor` e `alive` à mão e
+// escrever `player_abilities(...)` em cada linha deixaria a condição ilegível.
 //
-// É também o ponto de extensão para papéis novos: quando existir um papel que enxergue no escuro, ou
-// um que sofra mais com a sabotagem, é aqui que isso se decide - e não em quinze condições espalhadas.
+// A regra vive num lugar só porque ela aparece em muitos pontos - marcadores de tarefa, som dos
+// corpos, radar, aviso de corpo por perto, alcance de audição. Espalhada como `if` em cada um
+// desses lugares, bastava esquecer um para o jogador ficar cego em metade das coisas e enxergando
+// na outra metade, sem que nada denunciasse a inconsistência.
 
-#include "../config/game_constants.nvgt"
+#include "../game/roles/role_traits.nvgt"
 
 // Uma sabotagem atrapalha ESTE jogador agora?
-//
-// `which` é a sabotagem sobre a qual se pergunta ("lights", "comms"); `active` é a que está de pé.
-//
-// Duas isenções, por motivos diferentes:
-//
-// FANTASMA nunca é atrapalhado. Sabotagem existe para criar tensão em quem ainda pode perder alguma
-// coisa, e um fantasma já perdeu. Cegá-lo não acrescenta risco nenhum à partida - só torna tedioso
-// terminar as tarefas, que é justamente o que ele continua fazendo pelo time (fantasma contribui
-// para a vitória da tripulação). Antes ele ficava sem radar e sem marcador de tarefa por causa de uma
-// sabotagem que ele não tem como consertar e que não o ameaça em nada.
-//
-// IMPOSTOR é imune às COMUNICAÇÕES, e só a elas: é a sabotagem dele. As luzes ele também sofre - é o
-// preço de apagar a nave inteira, e é o que impede que apagar a luz seja escolha sem custo.
 bool sabotage_affects(const string&in which, const string&in active, bool is_impostor, bool alive) {
-	if (active != which) return false;
-	if (!alive) return false;
-	if (which == "comms" && is_impostor) return false;
-	return true;
+	player_abilities me(role_from_flag(is_impostor), alive);
+	if (which == "comms") return me.blinded_by_comms(active);
+	if (which == "lights") return me.blinded_by_lights(active);
+	return active == which && alive;
 }
 
-// Atalhos para os dois casos usados no jogo, que deixam a chamada legível no meio da lógica.
 bool comms_down_for(const string&in active, bool is_impostor, bool alive) {
 	return sabotage_affects("comms", active, is_impostor, alive);
 }

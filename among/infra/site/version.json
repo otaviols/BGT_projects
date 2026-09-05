@@ -1,5 +1,5 @@
 {
-	"version": "0.15.0",
+	"version": "0.16.0",
 	"url": "AmongUs.zip",
-	"notes": "Sabotagem não atinge mais fantasmas: você mantém radar, marcadores de tarefa e o som dos corpos depois de morrer. O registro de erros passou a cobrir também os menus e a ser gravado mesmo quando a pasta do jogo é protegida. E a pasta temporária deixada por uma atualização é limpa sozinha."
+	"notes": "Versão de arrumação: nada muda para quem joga. Por dentro, os papéis passaram a declarar o que podem fazer (preparo para papéis novos), os sons foram organizados em pastas por categoria e os manuais ganharam um lugar próprio."
 }

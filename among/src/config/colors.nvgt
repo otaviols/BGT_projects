@@ -54,7 +54,7 @@ string color_death_sound_path(int color_id) {
 	if (file_exists(specific)) return specific;
 	// Fallback: alterna entre as 4 variantes genéricas de morte já existentes.
 	uint variant = uint(color_id) % KILLED_SOUND_VARIANT_COUNT + 1;
-	return "sounds/killed" + variant + ".wav";
+	return "sounds/events/killed" + variant + ".wav";
 }
 
 // Caminho do som de kill (ouvido por quem está por perto do assassinato) para a cor, com fallback
@@ -63,7 +63,7 @@ string color_death_sound_path(int color_id) {
 string color_kill_sound_path(int color_id) {
 	string specific = "sounds/colors/" + color_key(color_id) + "/kill.wav";
 	if (file_exists(specific)) return specific;
-	return "sounds/kill.wav";
+	return "sounds/events/kill.wav";
 }
 
 array<int>@ all_color_ids() {
