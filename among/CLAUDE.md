@@ -8,6 +8,29 @@ Tudo que o jogador percebe passa por leitor de tela e áudio posicionado — **n
 visual**. Ao decidir qualquer coisa de interface, a pergunta certa é "como isso soa?", não "como isso
 aparece".
 
+## Mantenha este arquivo vivo
+
+**Aprendeu algo que teria economizado tempo se estivesse escrito aqui? Escreva aqui, na mesma
+sessão.** Isto não é opcional nem "se sobrar tempo": é parte de terminar o trabalho, junto com o
+commit. Cada armadilha listada abaixo custou horas a alguém; o que não for registrado será
+redescoberto do mesmo jeito caro.
+
+Vale registrar:
+
+- **Armadilha** que fez algo falhar de forma enganosa — sempre com o **sintoma**, não só a causa. O
+  sintoma é o que se vê primeiro, e é por ele que a pessoa vai procurar.
+- **Decisão** de projeto e a alternativa descartada, quando alguém possa querer desfazê-la sem saber
+  o que ela evitava.
+- **Passo que se esquece** e falha em silêncio.
+- **Pendência conhecida**, para não ser redescoberta como se fosse bug novo.
+
+E, com o mesmo peso: **se algo aqui deixou de ser verdade, corrija na hora**. Este arquivo é lido no
+começo de toda sessão e tratado como verdade — uma instrução errada aqui é pior do que instrução
+nenhuma, porque leva a decisões erradas com confiança. Ao mudar caminho de arquivo, comando de
+deploy, nome de recurso ou padrão, confira se este documento ainda descreve a realidade.
+
+Antes de afirmar algo aqui, **verifique contra o código**, não contra a memória da conversa.
+
 ## Estrutura
 
 | Caminho | O que é |
@@ -54,8 +77,13 @@ servidor fica de pé antes de publicar** — ver "compilação que sai defeituos
 
 ## Ao terminar uma feature
 
-**Commite.** O usuário autorizou commits ao fim de cada trabalho concluído. A mensagem deve dizer
-**por que**, não só o quê — o histórico é onde as decisões ficam explicadas.
+1. **Commite.** O usuário autorizou commits ao fim de cada trabalho concluído. A mensagem deve dizer
+   **por que**, não só o quê — o histórico é onde as decisões ficam explicadas.
+2. **Registre o que a feature ensinou** (ver "Mantenha este arquivo vivo", no começo). Se apareceu
+   uma armadilha, um passo que falha calado ou uma decisão que alguém possa querer desfazer sem
+   saber o motivo, isso entra aqui — no mesmo commit.
+
+Uma lição só descoberta e não escrita será paga de novo, inteira, na próxima vez.
 
 ## Armadilhas do NVGT (todas custaram caro)
 
