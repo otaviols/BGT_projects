@@ -479,7 +479,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					moved_entry.footstep_clock.restart();
 					map_zone@ moved_zone = map.zone_at(moved_x, moved_y);
 					string moved_prefix = @moved_zone != null ? moved_zone.floor_sound_prefix : "Tile";
-					audio.play_footstep(moved_prefix, footstep_variant_count(moved_prefix), moved_x, moved_y, footstep_variant_extension(moved_prefix));
+					audio.play_footstep(moved_prefix, footstep_variant_count(moved_prefix), moved_x, moved_y);
 				}
 			} else if (t == S_PLAYER_LEFT) {
 				uint64 left_peer = pkt.get_uint64("peer_id");
@@ -665,8 +665,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					// o som saía no destino enquanto os ouvidos ainda estavam na origem, e ficava mudo.
 					// O piso é o do DUTO, não o da sala onde o vent desemboca - quem viaja está lá dentro.
 					if (was_vented) {
-						audio.play_footstep("VentTile", footstep_variant_count("VentTile"), my_x, my_y,
-							footstep_variant_extension("VentTile"));
+						audio.play_footstep("VentTile", footstep_variant_count("VentTile"), my_x, my_y);
 					}
 					speak(tr(was_vented ? "game.vent_traveled" : "game.vent_entered"));
 				} else {
@@ -830,7 +829,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					if (alive && float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
 						footstep_clock.restart();
 						string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
-						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y, footstep_variant_extension(prefix));
+						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
 					}
 				// Sem exigir estar vivo: o fantasma TAMBÉM é barrado por parede (can_move só o deixa
 				// atravessar PORTA fechada, ver game/map.nvgt), e sem este som ele empurrava contra a

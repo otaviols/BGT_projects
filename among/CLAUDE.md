@@ -173,6 +173,19 @@ mesma partida acusarem "nomes" diferentes pela mesma pessoa.
 **Valor vindo do cliente é validado no servidor.** As configurações de sala passam por
 `lobby_config.validate()` depois de aplicadas: elas vêm da máquina do jogador.
 
+**Estado que existe nos dois lados tem que ser DESFEITO nos dois lados.** O servidor derrubava o posto
+de câmeras (sabotagem, reunião, morte) e avisava a partida inteira qual sala estava sob observação -
+menos a única pessoa que precisava saber, a que estava observando. O cliente dela continuava na
+câmera: parado, ouvindo outra sala, apertando ESC sem efeito porque para o servidor ele já tinha
+saído. Sintoma: jogador travado sem mensagem nenhuma. Por isso `release_cameras_any()` devolve QUEM
+foi liberado, e todo lugar que fecha o posto passa por `close_cameras()`.
+
+**Caminho de arquivo montado à mão é bomba-relógio.** Depois que os sons foram para subpastas, a task
+de rever a gravação continuou pedindo `sounds/Tile3.wav` - arquivo que não existe mais - e rodava
+MUDA: o NVGT não reclama de som que não existe, e o `check_sounds` não pega, porque só compara o
+catálogo com o disco e esse caminho era construído dentro da task. Todo caminho de som sai de uma
+função do catálogo (`footstep_sound_path()`, por exemplo), nunca de concatenação local.
+
 **Quem percebe QUEM se decide no servidor, não no cliente.** O cliente recebe a posição de todo mundo
 (é o que faz o áudio posicionado funcionar), então é tentador montar "quem está nesta sala" ali mesmo
 - e a câmera de segurança nasceu assim. Só que o cliente não sabe quem está dentro de um duto: isso é

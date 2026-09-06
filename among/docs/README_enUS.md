@@ -210,7 +210,7 @@ The eleven tasks:
   left and right arrows before pressing Space. Each move sloshes the water on the side the can went
   to — that is how you know where it is. Pressing Space at the wrong bed waters nothing.
 - **Review records** (security) — listen to the corridor recording and count how many people walked
-  past. Each one crosses from one side, with their own floor and rhythm. Answer with keys 1 to 4.
+  past. Each one crosses from one side, with their own floor and rhythm. Answer with keys 1 to 6.
 
 **ESC cancels any task**; it stays pending and you can come back later. If a meeting starts in the
 middle of a task, it closes on its own and nothing is lost.

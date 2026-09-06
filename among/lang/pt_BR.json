@@ -246,7 +246,7 @@
 	"task.water_plants.next_bed_2": "Agora o canteiro da direita.",
 	"task.water_plants.wrong_spot": "O regador não está nesse canteiro.",
 	"task.review_records.instructions": "Ouça a gravação do corredor e conte quantas pessoas passaram. Cada pessoa atravessa por um lado, com o piso e o ritmo dela. ESC cancela.",
-	"task.review_records.how_many": "Quantas pessoas passaram? Responda nas teclas 1 a 4.",
+	"task.review_records.how_many": "Quantas pessoas passaram? Responda nas teclas 1 a 6.",
 	"task.review_records.wrong": "Errado. Passaram {count}.",
 	"sabotage.lights.name": "Sabotagem: Luzes",
 	"sabotage.lights.blocks_button": "Com as luzes apagadas não dá pra usar o botão de emergência.",

@@ -1,9 +1,9 @@
 {
-	"version": "0.18.0",
+	"version": "0.18.1",
 	"url": "AmongUs.zip",
-	"notes": "Anyone inside a vent no longer shows up on the cameras. The list of who is in the watched room also counted the hidden impostor, which gave away for free exactly the deduction vents exist to deny: if the camera says someone is in an empty room, everybody knows what that means. The watched room now shows only the people actually walking through it.",
+	"notes": "Sabotaging communications now closes the cameras for whoever was watching. The station used to shut down on the server while the player stayed stuck in it: standing still, hearing another room, unable to walk. The security recording plays footsteps again. It had been running silent since 0.16.0, and without the footsteps there was nothing to count. The recording can now have one to six people walking past, answered with keys 1 to 6.",
 	"notes_by_language": {
-		"pt_BR": "Quem está dentro de um duto não aparece mais nas câmeras. A lista de quem está na sala observada contava também o impostor escondido, e isso entregava de graça exatamente a dedução que o duto existe para negar: se a câmera diz que tem gente numa sala vazia, todo mundo sabe o que aquilo significa. Agora a sala observada mostra só quem está de fato andando por ela.",
-		"en_US": "Anyone inside a vent no longer shows up on the cameras. The list of who is in the watched room also counted the hidden impostor, which gave away for free exactly the deduction vents exist to deny: if the camera says someone is in an empty room, everybody knows what that means. The watched room now shows only the people actually walking through it."
+		"pt_BR": "Sabotar as comunicações agora fecha a câmera de quem estava olhando. Antes o posto caía do lado do servidor mas o jogador continuava preso nele: parado, ouvindo outra sala, sem conseguir andar. A gravação da segurança voltou a tocar os passos. Ela rodava muda desde a 0.16.0, e sem os passos não havia nada para contar. Agora podem passar de uma a seis pessoas na gravação, e a resposta vai nas teclas 1 a 6.",
+		"en_US": "Sabotaging communications now closes the cameras for whoever was watching. The station used to shut down on the server while the player stayed stuck in it: standing still, hearing another room, unable to walk. The security recording plays footsteps again. It had been running silent since 0.16.0, and without the footsteps there was nothing to count. The recording can now have one to six people walking past, answered with keys 1 to 6."
 	}
 }

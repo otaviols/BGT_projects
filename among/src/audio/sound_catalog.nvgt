@@ -148,6 +148,17 @@ string footstep_variant_extension(const string&in floor_prefix) {
 	return "wav";
 }
 
+// Caminho de UMA variante de passo, contando a pasta. Todo lugar que toca passo passa por aqui.
+//
+// A pasta é o detalhe que já custou caro: os passos moram em sounds/steps/, e quem montava o caminho
+// à mão esquecia dela. Som que não existe não dá erro nenhum no NVGT - simplesmente não toca. Foi
+// assim que a task de rever a gravação ficou sem os passos que ela pede para CONTAR, silenciosamente,
+// depois que os sons foram organizados em pastas.
+string footstep_sound_path(const string&in floor_prefix, int variant_1_based) {
+	return "sounds/steps/" + floor_prefix + variant_1_based + "." +
+		footstep_variant_extension(floor_prefix);
+}
+
 // Lista "sounds/X1.ext,sounds/X2.ext,..." das variantes de um som numerado, separada por VÍRGULA.
 //
 // A vírgula não é enfeite: é o formato que learn_game_sounds_menu (menu.nvgt) entende para "escolha

@@ -205,7 +205,7 @@ As onze tarefas:
   antes de apertar Espaço. Cada movimento faz a água balançar no lado para onde o regador foi — é
   assim que você sabe onde ele está. Apertar Espaço no canteiro errado não rega nada.
 - **Revisar as gravações** (segurança) — ouça o trecho gravado do corredor e conte quantas pessoas
-  passaram. Cada uma atravessa por um lado, com o piso e o ritmo dela. Responda nas teclas 1 a 4.
+  passaram. Cada uma atravessa por um lado, com o piso e o ritmo dela. Responda nas teclas 1 a 6.
 
 **ESC cancela qualquer tarefa**; ela continua pendente e você pode voltar depois. Se uma reunião
 começar no meio de uma tarefa, ela fecha sozinha e nada se perde.

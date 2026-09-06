@@ -1,7 +1,7 @@
 // review_records.nvgt
 // Task da sala de segurança: rever a gravação do corredor e dizer QUANTAS pessoas passaram por ali.
 // A gravação é feita dos mesmos sons de passo do mapa - cada pessoa atravessa de um lado, com o seu
-// piso e o seu ritmo, e as pessoas são separadas por silêncio. Você responde nas teclas 1 a 4.
+// piso e o seu ritmo, e as pessoas são separadas por silêncio. Você responde nas teclas 1 a 6.
 //
 // É a única task do jogo que não é reflexo nem memória de sequência: é contar coisas que se
 // sobrepõem no tempo. E ela treina exatamente a habilidade que salva a sua vida no resto da partida,
@@ -11,12 +11,17 @@
 
 // Pisos usados na gravação. São os mesmos arquivos que o jogador ouve andando pela nave, de
 // propósito: o ouvido já foi treinado neles.
+//
+// Quantas variantes cada piso tem NÃO se escreve aqui: sai de footstep_variant_count(), a mesma
+// função que o resto do jogo usa. Uma segunda lista de contagens acaba discordando da primeira no
+// dia em que alguém acrescentar um arquivo.
 const array<string> RECORD_FLOORS = {"Tile", "MetalTile", "WoodTile", "MetalBeltTile"};
-const array<int> RECORD_FLOOR_VARIANTS = {6, 3, 6, 6};
 
 bool run_review_records_task(game_client@ client) {
 	const uint MIN_PEOPLE = 1;
-	const uint MAX_PEOPLE = 4;
+	// Até seis pessoas: contar até quatro vira reconhecimento de padrão depois de algumas partidas,
+	// e a task existe justamente para exigir contagem.
+	const uint MAX_PEOPLE = 6;
 	const uint STEPS_PER_PERSON_MIN = 3;
 	const uint STEPS_PER_PERSON_MAX = 5;
 
@@ -35,15 +40,17 @@ bool run_review_records_task(game_client@ client) {
 	// Cada pessoa: um piso e um lado próprios, passos num ritmo próprio. Pisos e lados diferentes são
 	// o que permite separar duas pessoas seguidas - sem isso viraria uma fila de passos iguais.
 	for (uint person = 0; person < people; person++) {
-		uint floor_index = uint(random(0, int(RECORD_FLOORS.length()) - 1));
-		string floor = RECORD_FLOORS[floor_index];
-		int variants = RECORD_FLOOR_VARIANTS[floor_index];
+		string floor = RECORD_FLOORS[uint(random(0, int(RECORD_FLOORS.length()) - 1))];
+		int variants = footstep_variant_count(floor);
 		float pan = float(random(-100, 100));
 		uint steps = uint(random(int(STEPS_PER_PERSON_MIN), int(STEPS_PER_PERSON_MAX)));
 		int step_interval = random(280, 420); // o passo de cada pessoa tem o ritmo dela
 
 		for (uint step = 0; step < steps; step++) {
-			task_sound(floor + (random(1, variants)) + ".wav", pan);
+			// O caminho sai de footstep_sound_path(), que sabe da pasta e da extensão. Montado à mão
+			// aqui, ficava "sounds/Tile3.wav" - arquivo que não existe desde que os sons foram para
+			// subpastas - e a gravação rodava MUDA: sem erro, sem passo, e sem como contar ninguém.
+			task_sound_path(footstep_sound_path(floor, random(1, variants)), pan);
 			wait(step_interval);
 			client.update();
 			if (task_cancel_requested(client)) return false;
@@ -63,6 +70,8 @@ bool run_review_records_task(game_client@ client) {
 		else if (key_pressed(KEY_2)) answer = 2;
 		else if (key_pressed(KEY_3)) answer = 3;
 		else if (key_pressed(KEY_4)) answer = 4;
+		else if (key_pressed(KEY_5)) answer = 5;
+		else if (key_pressed(KEY_6)) answer = 6;
 		if (answer == 0) continue;
 
 		if (uint(answer) != people) {

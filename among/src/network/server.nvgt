@@ -724,8 +724,12 @@ class game_server {
 		net_packet@ event;
 		if (lobby.try_kill(peer_id, target_peer, event)) {
 			// A vítima larga o posto: fantasma não opera equipamento, e um posto preso a quem morreu
-			// ficaria bloqueado para o resto da partida.
-			if (lobby.release_cameras(target_peer)) broadcast_camera_watching(lobby);
+			// ficaria bloqueado para o resto da partida. Ela também precisa ser AVISADA, ou o cliente
+			// dela continua na câmera, sem andar, agora como fantasma.
+			if (lobby.release_cameras(target_peer)) {
+				send_camera_state(target_peer, false, "");
+				broadcast_camera_watching(lobby);
+			}
 			broadcast_to_lobby(lobby, event);
 		}
 	}
@@ -756,8 +760,9 @@ class game_server {
 
 		net_packet@ event;
 		if (lobby.start_meeting(peer_id, "body", event)) {
-			// Reunião leva todo mundo para a cafeteria - ninguém fica operando câmera.
-			if (lobby.release_cameras_any()) broadcast_camera_watching(lobby);
+			// Reunião leva todo mundo para a cafeteria - ninguém fica operando câmera. Sem chave de
+			// aviso: o anúncio da reunião já explica o que aconteceu.
+			close_cameras(lobby);
 			broadcast_meeting_and_voting(lobby, event);
 		}
 	}
@@ -814,7 +819,7 @@ class game_server {
 		// cliente pra essa validação específica.
 		net_packet@ event;
 		if (lobby.start_meeting(peer_id, "button", event)) {
-			if (lobby.release_cameras_any()) broadcast_camera_watching(lobby);
+			close_cameras(lobby);
 			broadcast_meeting_and_voting(lobby, event);
 		} else {
 			// Sem isso o jogador aperta o botão e não acontece nada nem fala nada - ex.: já gastou
@@ -988,7 +993,7 @@ class game_server {
 			// Comunicações fora derrubam o posto de câmeras junto com o radar e os marcadores: é a
 			// resposta do impostor contra a segurança, e sem ela a câmera seria vigilância sem
 			// contrapartida.
-			if (sabotage_id == "comms" && lobby.release_cameras_any()) broadcast_camera_watching(lobby);
+			if (sabotage_id == "comms") close_cameras(lobby, "camera.comms_down");
 			broadcast_to_lobby(lobby, event);
 		} else {
 			// Antes falhava calado - o impostor escolhia a sabotagem no menu e não acontecia nada,
@@ -1011,6 +1016,18 @@ class game_server {
 
 	// Responde na hora, sem checar lobby/estado - o cliente usa isso só pra medir o round-trip de rede.
 	// --- Câmeras de segurança ---
+
+	// Fecha o posto de câmeras, seja quem for que esteja nele, e AVISA quem estava observando.
+	//
+	// O aviso é a parte que faltava: sem ele o cliente de quem observava continuava na câmera - sem
+	// andar, ouvindo outra sala, esperando um ESC que não resolvia nada, porque para o servidor ele
+	// já tinha saído. Todo lugar que derruba a câmera passa por aqui.
+	void close_cameras(game_state@ lobby, const string&in message_key = "") {
+		uint64 quem = lobby.release_cameras_any();
+		if (quem == 0) return;
+		send_camera_state(quem, false, "", message_key);
+		broadcast_camera_watching(lobby);
+	}
 
 	void send_camera_state(uint64 peer_id, bool active, const string&in room_id, const string&in message_key = "") {
 		net_packet@ pkt = net_packet(S_CAMERA_STATE);

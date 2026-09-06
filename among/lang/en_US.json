@@ -243,7 +243,7 @@
 	"task.water_plants.next_bed_2": "Now the bed on the right.",
 	"task.water_plants.wrong_spot": "The watering can is not at that bed.",
 	"task.review_records.instructions": "Listen to the corridor recording and count how many people walked past. Each person crosses from one side, with their own floor and rhythm. ESC cancels.",
-	"task.review_records.how_many": "How many people walked past? Answer with keys 1 to 4.",
+	"task.review_records.how_many": "How many people walked past? Answer with keys 1 to 6.",
 	"task.review_records.wrong": "Wrong. There were {count}.",
 	"task.list_empty": "You have no pending tasks.",
 	"task.all_completed": "All your tasks are complete.",

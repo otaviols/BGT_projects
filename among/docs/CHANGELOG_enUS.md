@@ -10,6 +10,15 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.18.1
+
+- **Sabotaging communications now closes the cameras for whoever was watching.** The station used to
+  shut down on the server while the player stayed stuck in it: standing still, hearing another room,
+  unable to walk.
+- **The security recording plays footsteps again.** It had been running silent since 0.16.0, and
+  without the footsteps there was nothing to count.
+- The recording can now have one to **six** people walking past, answered with keys 1 to 6.
+
 ## 0.18.0
 
 **Anyone inside a vent no longer shows up on the cameras.** The list of who is in the watched room

@@ -495,12 +495,19 @@ class game_state {
 		return true;
 	}
 
-	// Libera seja quem for. Usado quando a partida muda de fase ou a sabotagem derruba tudo.
-	bool release_cameras_any() {
-		if (camera_user_peer == 0) return false;
+	// Libera seja quem for e devolve QUEM foi liberado (0 = não havia ninguém). Usado quando a
+	// partida muda de fase ou a sabotagem derruba tudo.
+	//
+	// Devolve o peer, e não um sim/não, porque quem estava observando precisa ser avisado: o posto
+	// fechar só no servidor deixava o cliente dele achando que ainda está na câmera - parado, surdo
+	// para o próprio entorno e sem conseguir andar. Um estado que só existe de um lado é um jogador
+	// travado.
+	uint64 release_cameras_any() {
+		if (camera_user_peer == 0) return 0;
+		uint64 quem = camera_user_peer;
 		camera_user_peer = 0;
 		camera_room_id = "";
-		return true;
+		return quem;
 	}
 
 	int required_panels_for(const string&in sabotage_id) const {

@@ -10,6 +10,14 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.18.1
+
+- **Sabotar as comunicações agora fecha a câmera de quem estava olhando.** Antes o posto caía do lado
+  do servidor mas o jogador continuava preso nele: parado, ouvindo outra sala, sem conseguir andar.
+- **A gravação da segurança voltou a tocar os passos.** Ela rodava muda desde a 0.16.0, e sem os
+  passos não havia nada para contar.
+- Agora podem passar de uma a **seis** pessoas na gravação, e a resposta vai nas teclas 1 a 6.
+
 ## 0.18.0
 
 **Quem está dentro de um duto não aparece mais nas câmeras.** A lista de quem está na sala observada
