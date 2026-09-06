@@ -68,7 +68,10 @@ Sempre, e nesta ordem:
 
 1. **Suba `GAME_VERSION`** em `src/config/game_constants.nvgt`.
 2. **Escreva a entrada no changelog**, nos DOIS idiomas: `docs/CHANGELOG_ptBR.md` e
-   `docs/CHANGELOG_enUS.md`, no topo, como `## x.y.z`.
+   `docs/CHANGELOG_enUS.md`, no topo, como `## x.y.z`. A entrada diz **o que a versão traz para quem
+   joga** — nunca detalhe interno (nome de arquivo, refatoração, como o bug era no código). O texto é
+   FALADO ao jogador na atualização; "os papéis passaram a declarar o que podem fazer" não significa
+   nada para ele e expõe o interno à toa. Se uma versão não muda nada visível, diga só isso.
 3. **Gere o version.json**: `python tools/make_version_json.py`. Ele sai do changelog — não edite o
    `version.json` à mão, ou as duas descrições da mesma versão vão divergir. O script recusa se a
    versão do changelog não bater com `GAME_VERSION`, ou se um dos idiomas estiver faltando.
@@ -131,6 +134,17 @@ com `find_directories`.
 **Em script de `tools/`, não use `chdir("..")` fixo.** O diretório de trabalho depende de como o
 script foi invocado, então subir um nível às vezes cai fora do projeto. Os dois utilitários agora
 PROCURAM a raiz (`if (!directory_exists("sounds")) chdir("..")`) em vez de supor onde estão.
+
+**Leia cada tecla UMA vez por quadro e guarde o resultado.** `key_pressed()` é consumo de evento, não
+consulta de estado: perguntar duas vezes no mesmo quadro pode dar respostas diferentes. Foi assim que
+as setas da câmera andavam as duas para o mesmo lado — a condição perguntava `key_pressed(KEY_LEFT)`
+e o corpo perguntava de novo para escolher a direção. Guardar em `bool` antes de decidir vale
+independentemente da semântica exata.
+
+**Cuidado com dois blocos disputando a mesma tecla.** A tecla do radar era lida pelo bloco normal, que
+roda ANTES do da câmera e pede a varredura ao servidor; a resposta chegava depois e falava por cima da
+que a câmera já tinha dito. Sintoma: a câmera "funciona", mas responde pela sala errada. Quando um
+modo novo reaproveita uma tecla, o bloco antigo precisa ser desligado explicitamente nele.
 
 **Uma compilação do NVGT pode sair defeituosa.** Aconteceu: mesmo código-fonte, um build gerou binário
 com segfault na inicialização e o seguinte saiu bom. Compilar com sucesso **não** é o mesmo que o
