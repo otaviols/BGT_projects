@@ -10,6 +10,11 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.18.3
+
+O passo no piso de azulejo voltou a ser o de sempre. O som novo que entrou na versão passada era
+abafado demais, e nenhum ajuste de volume resolvia.
+
 ## 0.18.2
 
 Sons novos: passos, ambientes de sala e o alarme do botão de emergência foram trocados por versões

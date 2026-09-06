@@ -10,6 +10,11 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.18.3
+
+The footstep on the tiled floor is back to the old one. The new sound that came in the last version
+was too muffled, and no amount of volume adjustment fixed it.
+
 ## 0.18.2
 
 New sounds: footsteps, room ambiences and the emergency button alarm were replaced with better

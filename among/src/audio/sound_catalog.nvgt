@@ -133,7 +133,7 @@ const uint KILLED_VARIANT_COUNT_FOR_CATALOG = 4;            // ver colors.KILLED
 // o menu de aprender os sons monta a lista de passos a partir das mesmas contagens, e ter dois
 // lugares dizendo quantos arquivos existem é garantia de que um dia um vai discordar do outro.
 int footstep_variant_count(const string&in floor_prefix) {
-	if (floor_prefix == "Tile") return 7;
+	if (floor_prefix == "Tile") return 6;
 	if (floor_prefix == "MetalTile") return 8;
 	if (floor_prefix == "MetalBeltTile") return 6;
 	if (floor_prefix == "WoodTile") return 7;
@@ -174,10 +174,10 @@ string footstep_variant_extension(const string&in floor_prefix) {
 //
 // Nenhuma correção chega perto de estourar: o pico mais alto depois do ajuste fica em torno de -7 dB.
 float footstep_volume_db(const string&in floor_prefix) {
-	// O Tile já foi a +18 (o que a medida da parte SONORA do arquivo pedia, +17,6) e voltou para cá:
-	// no teste de ouvido ficou alto demais. A medida acerta a ordem de grandeza, o ouvido dá a
-	// palavra final - e a palavra final foram estes +15.
-	if (floor_prefix == "Tile") return 15.0;
+	// O Tile NÃO leva correção: o arquivo dele é o antigo, de antes da troca de sons, e ele já nasce
+	// no nível dos outros (corpo -30,9 dB, contra -29,7 do MetalTile). Os +15 dB que existiram aqui
+	// eram muleta para o arquivo novo, que vinha 14 dB mais baixo - e o arquivo novo foi descartado
+	// justamente porque nenhum ganho o deixava bom.
 	if (floor_prefix == "WoodTile") return 10.0;
 	if (floor_prefix == "EarthTile") return 13.0;
 	if (floor_prefix == "VentTile") return 5.0;
