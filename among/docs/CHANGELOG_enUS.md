@@ -10,6 +10,16 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.17.2
+
+Two fixes to the camera station:
+
+- The radar key now says who is in the **watched room**. Before, it answered for the room your own
+  character was standing in, which made the cameras useless for looking for someone.
+- Rooms are now in alphabetical order, and the game announces the position ("Cafeteria, 3 of 11").
+  Right arrow moves forward, left arrow goes back to the previous room, and the list wraps around at
+  the ends — you can learn by heart how many presses each room takes.
+
 ## 0.17.1
 
 The release notes the game announces when updating now show up **in your language**. Before they
@@ -29,16 +39,15 @@ Sabotaged communications take the cameras down.
 
 ## 0.16.0
 
-Housekeeping release: nothing changes for players. Under the hood, roles now declare what they can
-do (groundwork for new roles), sounds were organised into folders by category, and the manuals got a
-place of their own.
+Maintenance release. Nothing changes for players.
 
 ## 0.15.0
 
 - **Sabotage no longer affects ghosts.** After dying you keep the radar, your task markers and body
   sounds. Sabotage exists to pressure those who still have something to lose.
-- The error log now covers the menus too, and gets written even when the game folder is protected.
-- The temporary folder left behind by an update is cleaned up on its own.
+- When the game closes because of an error, it can now record what happened in more situations — and
+  it tells you when it could not, instead of leaving you looking for a file that is not there.
+- Updating no longer leaves files behind in the game folder.
 
 ## 0.14.2
 
@@ -47,8 +56,7 @@ New sound for the start of watering, in the greenhouse task.
 ## 0.14.1
 
 - **Matches of up to 15 players** (was 10), with five new colours.
-- Automatic updates no longer fail on machines where the temporary folder is blocked: the game looks
-  for somewhere it can actually write.
+- Automatic updates now work on computers where they used to fail.
 
 ## 0.13.0
 
@@ -59,10 +67,10 @@ New sound for the start of watering, in the greenhouse task.
 
 ## 0.12.0
 
-- **Pluggable languages**: drop a file in the `lang` folder and the language shows up in the game;
-  anything untranslated falls back to English.
-- Messages coming from the server are now translated into each player's own language.
-- Fixed the registration warnings, which were showing untranslated.
+- **Anyone can translate the game** into another language, and it shows up in the language list
+  without needing a new version. Anything untranslated shows in English. The manual explains how.
+- Warnings coming from the server now show in your own language.
+- Fixed the registration messages, which were showing untranslated.
 
 ## 0.11.1
 
@@ -78,8 +86,7 @@ what you were doing and the error log are sent along automatically.
 
 ## 0.10.1
 
-Fixed the **T** key during meetings: it did not respond because the key was read inside a stretch of
-code the game skips precisely while a meeting is happening.
+Fixed the **T** key during meetings: it did not respond.
 
 ## 0.10.0
 

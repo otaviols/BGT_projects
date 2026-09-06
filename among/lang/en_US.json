@@ -365,5 +365,6 @@
 	"camera.nobody_there": "There is nobody in that room.",
 	"camera.people_there": "In the room: {names}.",
 	"camera.unknown_room": "Unknown room",
-	"camera.hint": "Left and right arrows change room, the radar key says who is there, and ESC turns it off."
+	"camera.hint": "Left and right arrows change room, the radar key says who is there, and ESC turns it off.",
+	"camera.room_position": "{room} ({index} of {total})"
 }

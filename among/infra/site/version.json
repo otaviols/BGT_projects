@@ -1,9 +1,9 @@
 {
-	"version": "0.17.1",
+	"version": "0.17.2",
 	"url": "AmongUs.zip",
-	"notes": "The release notes the game announces when updating now show up in your language. Before they always came in Portuguese, even for people playing in English — which is the game's default.",
+	"notes": "Two fixes to the camera station: The radar key now says who is in the watched room. Before, it answered for the room your own character was standing in, which made the cameras useless for looking for someone. Rooms are now in alphabetical order, and the game announces the position (\"Cafeteria, 3 of 11\"). Right arrow moves forward, left arrow goes back to the previous room, and the list wraps around at the ends — you can learn by heart how many presses each room takes.",
 	"notes_by_language": {
-		"pt_BR": "As novidades que o jogo anuncia ao atualizar agora aparecem no seu idioma. Antes elas vinham sempre em português, mesmo para quem joga em inglês — que é o idioma padrão do jogo.",
-		"en_US": "The release notes the game announces when updating now show up in your language. Before they always came in Portuguese, even for people playing in English — which is the game's default."
+		"pt_BR": "Duas correções no posto de câmeras: A tecla do radar agora diz quem está na sala observada. Antes ela respondia pela sala onde o seu personagem estava parado, o que tornava a câmera inútil para procurar alguém. As salas passaram a ficar em ordem alfabética, e o jogo anuncia a posição (\"Cafeteria, 3 de 11\"). A seta para a direita avança, a seta para a esquerda volta para a sala anterior, e nas pontas a lista dá a volta — dá para aprender de cor quantas vezes apertar para chegar em cada sala.",
+		"en_US": "Two fixes to the camera station: The radar key now says who is in the watched room. Before, it answered for the room your own character was standing in, which made the cameras useless for looking for someone. Rooms are now in alphabetical order, and the game announces the position (\"Cafeteria, 3 of 11\"). Right arrow moves forward, left arrow goes back to the previous room, and the list wraps around at the ends — you can learn by heart how many presses each room takes."
 	}
 }

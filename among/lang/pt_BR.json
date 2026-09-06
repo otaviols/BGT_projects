@@ -365,5 +365,6 @@
 	"camera.nobody_there": "Não há ninguém nessa sala.",
 	"camera.people_there": "Na sala: {names}.",
 	"camera.unknown_room": "Sala desconhecida",
-	"camera.hint": "Setas esquerda e direita trocam de sala, a tecla do radar diz quem está lá, e ESC desliga."
+	"camera.hint": "Setas esquerda e direita trocam de sala, a tecla do radar diz quem está lá, e ESC desliga.",
+	"camera.room_position": "{room} ({index} de {total})"
 }

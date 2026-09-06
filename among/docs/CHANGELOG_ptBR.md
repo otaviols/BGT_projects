@@ -10,6 +10,16 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.17.2
+
+Duas correções no posto de câmeras:
+
+- A tecla do radar agora diz quem está na **sala observada**. Antes ela respondia pela sala onde o
+  seu personagem estava parado, o que tornava a câmera inútil para procurar alguém.
+- As salas passaram a ficar em ordem alfabética, e o jogo anuncia a posição ("Cafeteria, 3 de 11").
+  A seta para a direita avança, a seta para a esquerda volta para a sala anterior, e nas pontas a
+  lista dá a volta — dá para aprender de cor quantas vezes apertar para chegar em cada sala.
+
 ## 0.17.1
 
 As novidades que o jogo anuncia ao atualizar agora aparecem no **seu idioma**. Antes elas vinham
@@ -29,17 +39,15 @@ As comunicações sabotadas derrubam as câmeras.
 
 ## 0.16.0
 
-Versão de arrumação: nada muda para quem joga. Por dentro, os papéis passaram a declarar o que podem
-fazer (preparando o terreno para papéis novos), os sons foram organizados em pastas por categoria e
-os manuais ganharam um lugar próprio.
+Versão de manutenção. Nada muda para quem joga.
 
 ## 0.15.0
 
 - **Sabotagem não atinge mais fantasmas.** Depois de morrer você mantém o radar, os marcadores das
   suas tarefas e o som dos corpos. Sabotagem existe para pressionar quem ainda pode perder algo.
-- O registro de erros passou a cobrir também os menus, e a ser gravado mesmo quando a pasta do jogo
-  é protegida.
-- A pasta temporária deixada por uma atualização é limpa sozinha.
+- Quando o jogo fecha por um erro, ele agora consegue registrar o que houve em mais situações — e
+  avisa você se não conseguir, em vez de deixar você procurando um arquivo que não existe.
+- A atualização não deixa mais arquivos sobrando na pasta do jogo.
 
 ## 0.14.2
 
@@ -48,8 +56,7 @@ Som novo para o começo da rega, na tarefa da estufa.
 ## 0.14.1
 
 - **Partidas de até 15 jogadores** (eram 10), com cinco cores novas.
-- A atualização automática deixou de falhar em máquinas onde a pasta temporária é bloqueada: o jogo
-  procura um lugar onde realmente consiga escrever.
+- A atualização automática passou a funcionar em computadores onde antes ela falhava.
 
 ## 0.13.0
 
@@ -60,10 +67,11 @@ Som novo para o começo da rega, na tarefa da estufa.
 
 ## 0.12.0
 
-- **Idiomas plugáveis**: basta pôr um arquivo na pasta `lang` para o idioma aparecer no jogo, e o
-  que não estiver traduzido cai no inglês.
-- As mensagens que vêm do servidor passaram a ser traduzidas no idioma de cada jogador.
-- Corrigidos os avisos de cadastro, que apareciam sem tradução.
+- **Qualquer pessoa pode traduzir o jogo** para outro idioma, e ele aparece na lista de idiomas sem
+  precisar de uma versão nova. O que não estiver traduzido aparece em inglês. O passo a passo está no
+  manual.
+- Os avisos que vêm do servidor agora aparecem no seu idioma.
+- Corrigidas as mensagens de cadastro, que apareciam sem tradução.
 
 ## 0.11.1
 
@@ -79,8 +87,7 @@ estava fazendo e o registro de erros vão junto automaticamente.
 
 ## 0.10.1
 
-Corrigida a tecla **T** na reunião: ela não respondia porque a leitura da tecla ficava num trecho
-que o jogo pula justamente enquanto a reunião acontece.
+Corrigida a tecla **T** durante a reunião: ela não respondia.
 
 ## 0.10.0
 

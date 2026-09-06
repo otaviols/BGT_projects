@@ -619,9 +619,8 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			} else if (t == S_CAMERA_STATE) {
 				bool was_active = cameras.active;
 				if (pkt.get_bool("active")) {
-					cameras.start(pkt.get_string("room_id"), audio);
-					map_zone@ z = cameras.current_zone();
-					string nome_sala = tr(@z != null ? z.name_key : "camera.unknown_room");
+					cameras.start(pkt.get_string("room_id"));
+					string nome_sala = cameras.current_room_text();
 					if (!was_active) {
 						task_sound_simple(SND_CAMERA_ON);
 						// A dica só na ENTRADA: repeti-la a cada troca de sala atrapalharia justamente
@@ -632,7 +631,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					}
 				} else {
 					if (was_active) task_sound_simple(SND_CAMERA_OFF);
-					cameras.stop(audio);
+					cameras.stop();
 					// Volta a ouvir o próprio entorno: sem isto o jogador continuaria escutando a sala
 					// que estava observando, parado na segurança, sem entender por quê.
 					audio.update_listener(my_x, my_y);
@@ -852,7 +851,12 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			}
 		}
 
-		if (!movement_frozen && action_pressed(ACTION_RADAR)) {
+		// `!cameras.active`: no posto de câmeras a mesma tecla responde sobre a sala OBSERVADA, e quem
+		// faz isso é o bloco do posto, mais abaixo. Sem esta condição o radar normal também disparava:
+		// no modo jogadores ele PERGUNTA ao servidor (send_radar_scan), o servidor responde pela
+		// posição real de quem perguntou - parado na segurança - e essa resposta chegava depois,
+		// falando por cima. Era esse o "radar continua sendo o do jogador".
+		if (!movement_frozen && !cameras.active && action_pressed(ACTION_RADAR)) {
 			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -
 			// igual o Among Us original, onde mortos continuam observando a partida.
 			// Ctrl+Tab troca o modo do radar (jogadores <-> objetos da sala).
@@ -962,8 +966,14 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// jogador não anda nem interage com o que está à volta dele - é justamente o que torna o posto
 		// arriscado, e misturar as duas coisas deixaria alguém andando "às cegas" pela nave.
 		if (cameras.active) {
-			if (key_pressed(KEY_LEFT) || key_pressed(KEY_RIGHT)) {
-				string destino = cameras.room_at_offset(key_pressed(KEY_LEFT) ? -1 : 1);
+			// Os dois lados são lidos UMA vez cada e guardados. Antes a esquerda era consultada de novo
+			// dentro da linha ("key_pressed(KEY_LEFT) ? -1 : 1"), e a segunda leitura não devolve o
+			// mesmo que a primeira - o resultado é que apertar ESQUERDA andava para a direita, e nunca
+			// se voltava à sala anterior. Ler uma vez e guardar não depende dessa sutileza.
+			bool anterior = key_pressed(KEY_LEFT);
+			bool proxima = key_pressed(KEY_RIGHT);
+			if (anterior || proxima) {
+				string destino = cameras.room_at_offset(anterior ? -1 : 1);
 				if (destino != "") {
 					client.send_camera_switch(destino);
 					task_sound_simple(SND_CAMERA_SWITCH);

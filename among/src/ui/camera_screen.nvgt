@@ -26,8 +26,8 @@
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../network/protocol.nvgt"
-#include "../audio/audio_manager.nvgt"
 #include "../game/map.nvgt"
+#include "../core/client_state.nvgt"
 #include "../i18n.nvgt"
 
 // Estado do posto no cliente. Fica fora da tela porque o laço da partida precisa saber se está
@@ -40,19 +40,49 @@ class camera_view {
 	// As salas observáveis, na ordem em que as setas passam por elas.
 	array<map_zone@> rooms;
 
+	// A lista é ordenada pelo NOME que o jogador ouve, e não pela ordem em que as salas aparecem no
+	// mapa - que é ordem de construção do cenário e não significa nada para quem está usando.
+	//
+	// Ordem alfabética não é a única possível, mas é a única PREVISÍVEL sem visão: o jogador aprende
+	// uma vez onde cada sala cai e depois sabe quantas vezes apertar para chegar nela. Uma ordem
+	// arbitrária obrigaria a varrer tudo toda vez.
 	void build_room_list(game_map@ map) {
 		rooms.resize(0);
 		array<map_zone@>@ all = map.room_zones();
 		for (uint i = 0; i < all.length(); i++) rooms.insert_last(all[i]);
+
+		// Ordenação simples por inserção: são cerca de uma dúzia de salas, e ela roda uma vez por
+		// partida - não vale trazer nada mais elaborado para isso.
+		for (uint i = 1; i < rooms.length(); i++) {
+			map_zone@ atual = rooms[i];
+			int k = int(i) - 1;
+			while (k >= 0 && tr(rooms[k].name_key) > tr(atual.name_key)) {
+				@rooms[k + 1] = @rooms[k];
+				k--;
+			}
+			@rooms[k + 1] = @atual;
+		}
 	}
 
-	void start(const string&in room, audio_manager@ audio) {
+	// "Cafeteria (3 de 11)". O número é o que dá noção de POSIÇÃO: sem ele, quem está varrendo as
+	// salas não sabe se está no começo, no meio ou prestes a dar a volta.
+	string current_room_text() const {
+		map_zone@ z = current_zone();
+		if (@z == null) return tr("camera.unknown_room");
+		dictionary@ p = dictionary();
+		p.set("room", tr(z.name_key));
+		p.set("index", "" + (room_index + 1));
+		p.set("total", "" + rooms.length());
+		return tr("camera.room_position", p);
+	}
+
+	void start(const string&in room) {
 		active = true;
 		room_id = room;
 		sync_index();
 	}
 
-	void stop(audio_manager@ audio) {
+	void stop() {
 		active = false;
 		room_id = "";
 	}
