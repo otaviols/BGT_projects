@@ -19,7 +19,7 @@ const string SND_WIN = "sounds/events/Win.wav";
 const string SND_DEFEAT = "sounds/events/defeat.wav";
 const string SND_MEETING_RESULT = "sounds/events/meetingResult.wav"; // toca assim que o resultado da votação chega, antes de saber quem foi expulso
 const string SND_EJECTED = "sounds/events/ejected.wav"; // toca 1x pra nave inteira logo depois, só quando alguém É expulso (arquivo ainda a ser adicionado em sounds/)
-const string SND_MEETING_ALARM = "sounds/events/emergence_button_alarm.ogg"; // toca (ship-wide) quando o botão de emergência chama a reunião
+const string SND_MEETING_ALARM = "sounds/events/emergence_button_alarm.wav"; // toca (ship-wide) quando o botão de emergência chama a reunião
 const string SND_VOTE_CONFIRM = "sounds/events/voteConfirm.wav";
 const string SND_BODY_REPORTED = "sounds/events/bodyReport.wav"; // toca 1x pra nave inteira quando o corpo é reportado
 const string SND_MESSAGE_SENT = "sounds/ui/MessageSent.wav";       // toca pra quem manda uma msg no chat
@@ -45,8 +45,8 @@ const string SND_AMBIENT_STORAGE = "sounds/ambience/ambient_storage.wav";
 const string SND_AMBIENT_ELECTRICAL = "sounds/ambience/ambient_electrical.wav";
 const string SND_AMBIENT_REACTOR = "sounds/ambience/ambient_reactor.wav";
 const string SND_AMBIENT_GAMES = "sounds/ambience/ambient_games.ogg";
-const string SND_AMBIENT_GREENHOUSE = "sounds/ambience/ambient_greenhouse.ogg";
-const string SND_AMBIENT_SECURITY = "sounds/ambience/ambient_security.ogg";
+const string SND_AMBIENT_GREENHOUSE = "sounds/ambience/ambient_greenhouse.wav";
+const string SND_AMBIENT_SECURITY = "sounds/ambience/ambient_security.wav";
 
 // --- Objetos do mapa (som de UMA VEZ ao usar - abrir painel, entrar/sair do vent) ---
 const string SND_VENT_DOOR_1 = "sounds/world/ventDoor1.wav";
@@ -133,19 +133,59 @@ const uint KILLED_VARIANT_COUNT_FOR_CATALOG = 4;            // ver colors.KILLED
 // o menu de aprender os sons monta a lista de passos a partir das mesmas contagens, e ter dois
 // lugares dizendo quantos arquivos existem é garantia de que um dia um vai discordar do outro.
 int footstep_variant_count(const string&in floor_prefix) {
-	if (floor_prefix == "Tile") return 6;
-	if (floor_prefix == "MetalTile") return 3;
+	if (floor_prefix == "Tile") return 7;
+	if (floor_prefix == "MetalTile") return 8;
 	if (floor_prefix == "MetalBeltTile") return 6;
-	if (floor_prefix == "WoodTile") return 6;
-	if (floor_prefix == "EarthTile") return 5;
+	if (floor_prefix == "WoodTile") return 7;
+	if (floor_prefix == "EarthTile") return 7;
 	if (floor_prefix == "VentTile") return 4;
 	return 2;
 }
 
-// Extensão do arquivo de passo de cada piso - a maioria é .wav, mas nem todos (ex.: EarthTile é .ogg).
+// Pisos que o jogo conhece. Serve para o catálogo listar os arquivos de passo sem repetir a lista -
+// era assim que a contagem daqui e a lista de baixo saíam de sincronia.
+const array<string> FOOTSTEP_FLOOR_PREFIXES = {
+	"Tile", "MetalTile", "MetalBeltTile", "WoodTile", "EarthTile",
+	// VentTile é o piso de DENTRO do duto: nenhuma sala usa esse prefixo, ele toca só quando o
+	// impostor viaja de um vent para outro (ver run_vent_menu em game/game_loop.nvgt).
+	"VentTile"
+};
+
+// Extensão do arquivo de passo de cada piso. Hoje são todos .wav, mas a função continua existindo
+// porque isso já mudou duas vezes - e quando muda, muda só aqui.
 string footstep_variant_extension(const string&in floor_prefix) {
-	if (floor_prefix == "EarthTile") return "ogg";
 	return "wav";
+}
+
+// Correção de volume por piso, em dB.
+//
+// Os arquivos de passo não vêm todos no mesmo nível, e a diferença é grande demais para passar por
+// estilo: medindo o RMS médio das variantes de cada piso, o Tile está 15 dB abaixo do MetalTile e o
+// WoodTile 10 dB. Num jogo em que o passo alheio é a principal pista de que alguém está perto, um
+// piso 15 dB mais baixo é um piso onde ninguém é ouvido chegando - e a sala vira segura por acidente.
+//
+// Os números abaixo trazem cada piso para o nível do mais alto. Não achatam o caráter de cada um: o
+// que distingue madeira de metal é o timbre, não o volume. Medido assim (guardado aqui porque a
+// próxima pessoa que trocar um arquivo de passo vai precisar refazer a conta):
+//
+//   RMS médio das variantes  ->  Tile -46,4  MetalTile -31,3  MetalBeltTile -31,2  WoodTile -41,0
+//                                EarthTile -44,5  VentTile -36,4  CarpetTile -43,3  GlassTile -51,4
+//                                SnowTile -39,7   (dBFS)
+//
+// Nenhuma correção chega perto de estourar: o pico mais alto depois do ajuste fica em torno de -7 dB.
+float footstep_volume_db(const string&in floor_prefix) {
+	// Tile levou uma segunda medida: os +15 vieram do RMS do arquivo inteiro, e arquivo inteiro inclui
+	// o silêncio do fim. Medindo só a parte que soa (acima de 1% do pico), o Tile precisa de +17,6 -
+	// e foi exatamente esse o piso que continuou soando baixo no teste de ouvido. Silêncio no fim faz
+	// um som curto parecer mais forte do que é.
+	if (floor_prefix == "Tile") return 18.0;
+	if (floor_prefix == "WoodTile") return 10.0;
+	if (floor_prefix == "EarthTile") return 13.0;
+	if (floor_prefix == "VentTile") return 5.0;
+	if (floor_prefix == "CarpetTile") return 12.0;
+	if (floor_prefix == "GlassTile") return 20.0;
+	if (floor_prefix == "SnowTile") return 8.5;
+	return 0.0; // MetalTile e MetalBeltTile já são a referência
 }
 
 // Caminho de UMA variante de passo, contando a pasta. Todo lugar que toca passo passa por aqui.
@@ -277,15 +317,15 @@ array<string>@ all_sound_paths() {
 		list.insert_last("sounds/events/killed" + i + ".wav");
 	}
 
-	// Passos por piso - ver footstep_variant_count()/footstep_variant_extension() em game_loop.nvgt.
-	for (uint i = 1; i <= 6; i++) list.insert_last("sounds/steps/Tile" + i + ".wav");
-	for (uint i = 1; i <= 3; i++) list.insert_last("sounds/steps/MetalTile" + i + ".wav");
-	for (uint i = 1; i <= 6; i++) list.insert_last("sounds/steps/MetalBeltTile" + i + ".wav");
-	for (uint i = 1; i <= 6; i++) list.insert_last("sounds/steps/WoodTile" + i + ".wav");
-	for (uint i = 1; i <= 5; i++) list.insert_last("sounds/steps/EarthTile" + i + ".ogg");
-	// VentTile é o piso de DENTRO do duto: nenhuma sala usa esse prefixo, ele toca só quando o
-	// impostor viaja de um vent pra outro (ver run_vent_menu em game/game_loop.nvgt).
-	for (uint i = 1; i <= 4; i++) list.insert_last("sounds/steps/VentTile" + i + ".wav");
+	// Passos por piso, montados pelas MESMAS funções que o jogo usa para tocar. Escritos à mão aqui,
+	// eles discordavam da contagem lá em cima toda vez que alguém acrescentava um arquivo - e o
+	// sintoma era o conferidor acusando som faltando ou sobrando sem que nada estivesse errado.
+	for (uint f = 0; f < FOOTSTEP_FLOOR_PREFIXES.length(); f++) {
+		string prefix = FOOTSTEP_FLOOR_PREFIXES[f];
+		for (int i = 1; i <= footstep_variant_count(prefix); i++) {
+			list.insert_last(footstep_sound_path(prefix, i));
+		}
+	}
 
 	return list;
 }

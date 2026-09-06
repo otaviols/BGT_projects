@@ -50,7 +50,12 @@ bool run_review_records_task(game_client@ client) {
 			// O caminho sai de footstep_sound_path(), que sabe da pasta e da extensão. Montado à mão
 			// aqui, ficava "sounds/Tile3.wav" - arquivo que não existe desde que os sons foram para
 			// subpastas - e a gravação rodava MUDA: sem erro, sem passo, e sem como contar ninguém.
-			task_sound_path(footstep_sound_path(floor, random(1, variants)), pan);
+			//
+			// A correção de volume por piso vale aqui também, e aqui vale ainda mais: se um piso toca
+			// 15 dB abaixo dos outros, os passos dele somem no meio da gravação e a pessoa que passou
+			// deixa de ser contada - a task passa a errar por causa do arquivo, não do ouvido.
+			task_sound_path(footstep_sound_path(floor, random(1, variants)), pan,
+				footstep_volume_db(floor));
 			wait(step_interval);
 			client.update();
 			if (task_cancel_requested(client)) return false;

@@ -54,9 +54,9 @@ sound@ task_sound(const string&in filename, float pan = 0.0) {
 
 // Igual, mas com o caminho COMPLETO. Serve para os sons que já vêm montados de outro lugar - os
 // passos, por exemplo, cujo caminho sai de footstep_sound_path() e já inclui a pasta.
-sound@ task_sound_path(const string&in path, float pan = 0.0) {
+sound@ task_sound_path(const string&in path, float pan = 0.0, float extra_db = 0.0) {
 	return sound_play(path, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX),
-		g_settings.volume_db(SOUND_FAMILY_TASKS), pan);
+		g_settings.volume_db(SOUND_FAMILY_TASKS) + extra_db, pan);
 }
 
 // Espera um som de task terminar antes de seguir.

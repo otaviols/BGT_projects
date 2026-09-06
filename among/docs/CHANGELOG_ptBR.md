@@ -10,6 +10,14 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.18.2
+
+Sons novos: passos, ambientes de sala e o alarme do botão de emergência foram trocados por versões
+melhores. Os passos ganharam mais variações, então andar pela nave soa menos repetitivo.
+
+Alguns pisos soavam bem mais baixo que outros — o de azulejo chegava a quase sumir. Todos foram
+equilibrados: agora se ouve alguém chegando com a mesma clareza em qualquer chão.
+
 ## 0.18.1
 
 - **Sabotar as comunicações agora fecha a câmera de quem estava olhando.** Antes o posto caía do lado

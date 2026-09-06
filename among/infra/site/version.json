@@ -1,9 +1,9 @@
 {
-	"version": "0.18.1",
+	"version": "0.18.2",
 	"url": "AmongUs.zip",
-	"notes": "Sabotaging communications now closes the cameras for whoever was watching. The station used to shut down on the server while the player stayed stuck in it: standing still, hearing another room, unable to walk. The security recording plays footsteps again. It had been running silent since 0.16.0, and without the footsteps there was nothing to count. The recording can now have one to six people walking past, answered with keys 1 to 6.",
+	"notes": "New sounds: footsteps, room ambiences and the emergency button alarm were replaced with better versions. Footsteps gained more variations, so walking around the ship sounds less repetitive. Some floors were much quieter than others — the tiled one nearly vanished. They are all balanced now: you hear someone coming just as clearly on any floor.",
 	"notes_by_language": {
-		"pt_BR": "Sabotar as comunicações agora fecha a câmera de quem estava olhando. Antes o posto caía do lado do servidor mas o jogador continuava preso nele: parado, ouvindo outra sala, sem conseguir andar. A gravação da segurança voltou a tocar os passos. Ela rodava muda desde a 0.16.0, e sem os passos não havia nada para contar. Agora podem passar de uma a seis pessoas na gravação, e a resposta vai nas teclas 1 a 6.",
-		"en_US": "Sabotaging communications now closes the cameras for whoever was watching. The station used to shut down on the server while the player stayed stuck in it: standing still, hearing another room, unable to walk. The security recording plays footsteps again. It had been running silent since 0.16.0, and without the footsteps there was nothing to count. The recording can now have one to six people walking past, answered with keys 1 to 6."
+		"pt_BR": "Sons novos: passos, ambientes de sala e o alarme do botão de emergência foram trocados por versões melhores. Os passos ganharam mais variações, então andar pela nave soa menos repetitivo. Alguns pisos soavam bem mais baixo que outros — o de azulejo chegava a quase sumir. Todos foram equilibrados: agora se ouve alguém chegando com a mesma clareza em qualquer chão.",
+		"en_US": "New sounds: footsteps, room ambiences and the emergency button alarm were replaced with better versions. Footsteps gained more variations, so walking around the ship sounds less repetitive. Some floors were much quieter than others — the tiled one nearly vanished. They are all balanced now: you hear someone coming just as clearly on any floor."
 	}
 }

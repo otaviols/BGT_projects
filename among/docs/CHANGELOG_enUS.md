@@ -10,6 +10,14 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.18.2
+
+New sounds: footsteps, room ambiences and the emergency button alarm were replaced with better
+versions. Footsteps gained more variations, so walking around the ship sounds less repetitive.
+
+Some floors were much quieter than others — the tiled one nearly vanished. They are all balanced
+now: you hear someone coming just as clearly on any floor.
+
 ## 0.18.1
 
 - **Sabotaging communications now closes the cameras for whoever was watching.** The station used to

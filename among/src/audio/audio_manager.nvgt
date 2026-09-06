@@ -50,7 +50,7 @@ class audio_manager {
 		if (variant_count <= 0) return;
 		footstep_variant_seed = (footstep_variant_seed + 1) % uint(variant_count);
 		spatial.play_once(footstep_sound_path(floor_prefix, int(footstep_variant_seed) + 1), x, y,
-			family_db(SOUND_FAMILY_STEPS));
+			family_db(SOUND_FAMILY_STEPS) + footstep_volume_db(floor_prefix));
 	}
 
 	// Toca quando o jogador tenta andar pra fora de qualquer sala/corredor (ver game_map.is_walkable).
