@@ -10,6 +10,12 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.17.4
+
+In the security task where you review the recording, the tape was still rewinding when the first
+footsteps started — and a footstep on top of the tape noise is exactly the one you cannot count. The
+recording now starts only after the tape stops.
+
 ## 0.17.3
 
 The death sound now plays **only for the person who died**. The killer and anyone nearby hear the

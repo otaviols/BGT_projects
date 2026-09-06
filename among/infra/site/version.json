@@ -1,9 +1,9 @@
 {
-	"version": "0.17.3",
+	"version": "0.17.4",
 	"url": "AmongUs.zip",
-	"notes": "The death sound now plays only for the person who died. The killer and anyone nearby hear the kill sound instead, which gives away the direction of the crime without saying who did it. Before, both sounds played for everyone at once: it gave the kill away for free to anyone nearby and, to the victim, it sounded as though somebody else had died.",
+	"notes": "In the security task where you review the recording, the tape was still rewinding when the first footsteps started — and a footstep on top of the tape noise is exactly the one you cannot count. The recording now starts only after the tape stops.",
 	"notes_by_language": {
-		"pt_BR": "O som de morte agora toca só para quem morreu. Quem mata e quem estiver por perto ouve o som do assassinato, que dá a direção do crime sem dizer quem foi. Antes os dois sons tocavam para todo mundo ao mesmo tempo: entregava o assassinato de graça a quem estava por perto e, para a vítima, soava como se outra pessoa tivesse morrido.",
-		"en_US": "The death sound now plays only for the person who died. The killer and anyone nearby hear the kill sound instead, which gives away the direction of the crime without saying who did it. Before, both sounds played for everyone at once: it gave the kill away for free to anyone nearby and, to the victim, it sounded as though somebody else had died."
+		"pt_BR": "Na task de rever a gravação, na segurança, a fita rebobinando ainda estava tocando quando os primeiros passos começavam — e um passo por cima do chiado da fita é justamente o passo que não dá para contar. Agora a gravação só começa depois que a fita para.",
+		"en_US": "In the security task where you review the recording, the tape was still rewinding when the first footsteps started — and a footstep on top of the tape noise is exactly the one you cannot count. The recording now starts only after the tape stops."
 	}
 }

@@ -22,10 +22,13 @@ bool run_review_records_task(game_client@ client) {
 
 	speak(tr("task.review_records.instructions"));
 
-	task_sound(SND_VIDEO_OPENING);
-	wait(600);
-	task_sound(SND_TAPE_REWIND);
-	wait(1200);
+	// A abertura e a fita rebobinando são a introdução da gravação: cada uma só começa quando a
+	// anterior acaba, e a contagem só começa depois delas. Com espera fixa, a fita ainda estava
+	// rodando quando o primeiro passo tocava - e um passo por cima do chiado da fita é justamente o
+	// passo que não dá para contar.
+	if (!wait_for_task_sound(task_sound(SND_VIDEO_OPENING), client)) return false;
+	if (!wait_for_task_sound(task_sound(SND_TAPE_REWIND), client)) return false;
+	wait(300); // respiro entre a fita parar e a gravação começar
 
 	uint people = uint(random(int(MIN_PEOPLE), int(MAX_PEOPLE)));
 

@@ -178,6 +178,14 @@ por qual sabotagem se decide num lugar só. Espalhada como `if` em cada ponto (m
 de corpo, alcance de audição), bastava esquecer um para o jogador ficar cego pela metade sem que nada
 denunciasse. É também onde papéis novos vão declarar o que enxergam.
 
+**Não espere um som acabar com `wait` de duração fixa.** O número é um chute da duração do arquivo, e
+quem trocar o som depois não tem como saber que havia um `wait` casado com ele. Falha em silêncio:
+dois sons por cima um do outro, sem erro. A fita da sala de segurança dura 3457 ms e o código
+esperava 1200 — os primeiros passos, que a task pede para CONTAR, tocavam por cima do chiado. Use
+`wait_for_task_sound()` (em `src/game/tasks/task_common.nvgt`), que espera `sound.playing` virar
+false sem parar de bombear `client.update()`. Som que não existe devolve handle nulo, e a espera
+passa direto.
+
 **Cada som tem UM ouvinte pretendido — decida quem antes de tocar.** Num jogo em que a informação é o
 som, tocar para todo mundo entrega de graça o que devia custar. O assassinato são dois sons com
 públicos diferentes: a **morte** é pessoal e só a vítima ouve; o **kill** é espacial e é o único

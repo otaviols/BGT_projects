@@ -45,7 +45,33 @@ void shuffle_int_list(array<int>@ arr) {
 // Toca um som de feedback simples, sem posicionamento (a minigame não conhece a posição do jogador).
 // pan opcional pra minigames que trabalham com lados: -100 = só no ouvido esquerdo, 0 = no meio,
 // 100 = só no direito (a mesma escala de sound.pan).
-void task_sound(const string&in filename, float pan = 0.0) {
-	sound_play("sounds/" + filename, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX),
+//
+// Devolve o som que começou a tocar, para quem precisar esperar ele acabar (ver
+// wait_for_task_sound). Quem não precisa simplesmente ignora o retorno.
+sound@ task_sound(const string&in filename, float pan = 0.0) {
+	return sound_play("sounds/" + filename, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX),
 		g_settings.volume_db(SOUND_FAMILY_TASKS), pan);
+}
+
+// Espera um som de task terminar antes de seguir.
+//
+// Existe porque esperar um número fixo de milissegundos é chutar a duração do arquivo: quem trocar o
+// som depois não tem como adivinhar que havia um `wait` casado com ele em algum lugar, e o sintoma é
+// silencioso - dois sons tocando por cima um do outro, sem erro nenhum. Foi o que aconteceu com a
+// fita rebobinando da sala de segurança, que ainda estava tocando quando os passos começavam.
+//
+// Continua chamando client.update() e respeitando o cancelamento: a espera pode durar segundos, e
+// travar aqui prenderia o jogador na minigame durante uma reunião. Devolve false se a task foi
+// cancelada nesse meio-tempo.
+//
+// O teto existe para o caso de o som nunca reportar que parou (arquivo faltando, por exemplo): a
+// task continua, atrasada, em vez de travar para sempre.
+bool wait_for_task_sound(sound@ s, game_client@ client, uint max_wait_ms = 15000) {
+	timer limit;
+	while (@s != null && s.playing && limit.elapsed < int(max_wait_ms)) {
+		wait(20);
+		if (@client != null) client.update();
+		if (task_cancel_requested(client)) return false;
+	}
+	return true;
 }

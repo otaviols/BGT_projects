@@ -10,6 +10,12 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.17.4
+
+Na task de rever a gravação, na segurança, a fita rebobinando ainda estava tocando quando os
+primeiros passos começavam — e um passo por cima do chiado da fita é justamente o passo que não dá
+para contar. Agora a gravação só começa depois que a fita para.
+
 ## 0.17.3
 
 O som de morte agora toca **só para quem morreu**. Quem mata e quem estiver por perto ouve o som do
