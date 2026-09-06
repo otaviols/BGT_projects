@@ -178,6 +178,17 @@ por qual sabotagem se decide num lugar só. Espalhada como `if` em cada ponto (m
 de corpo, alcance de audição), bastava esquecer um para o jogador ficar cego pela metade sem que nada
 denunciasse. É também onde papéis novos vão declarar o que enxergam.
 
+**`audio_form` nasce SEM foco em controle nenhum** (`control_focus = -1` em `form.nvgt`) — chame
+`f.focus(<primeiro campo>)` depois de criar os controles, em todo form. Sintoma: o jogador abre a
+tela, digita, aperta Enter e nada acontece; funciona depois que ele aperta Tab. Foi assim com a caixa
+de mensagem do chat, o usuário no primeiro login, o nome da partida e os volumes.
+
+**Espera que consome um pacote não pode jogá-lo fora se ele for o único.** As esperas por resposta do
+servidor tiram pacotes da fila com `poll_message()`, e o que não for o pacote esperado **some**. A
+confirmação da criação da sala é o próprio `S_LOBBY_STATE` - o único retrato que o anfitrião sozinho
+recebe, já que o próximo só vem quando alguém entra. Descartá-lo deixava P e C mudos até chegar a
+segunda pessoa. Quem espera devolve o pacote a quem chamou.
+
 **Não espere um som acabar com `wait` de duração fixa.** O número é um chute da duração do arquivo, e
 quem trocar o som depois não tem como saber que havia um `wait` casado com ele. Falha em silêncio:
 dois sons por cima um do outro, sem erro. A fita da sala de segurança dura 3457 ms e o código

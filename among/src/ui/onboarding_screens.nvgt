@@ -155,7 +155,9 @@ login_result run_login_screen(game_client@ client) {
 	int f_login = f.create_button(tr("menu.login"), true);
 	int f_register = f.create_button(tr("menu.register"));
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
-	if (g_settings.last_username != "") f.focus(f_pass);
+	// Sempre focar algo: um audio_form nasce sem foco, e sem isto quem entra pela primeira vez (sem
+	// usuário salvo) digitava no vazio até apertar Tab.
+	f.focus(g_settings.last_username != "" ? f_pass : f_user);
 
 	while (true) {
 		wait(5);

@@ -82,6 +82,11 @@ void run_chat_compose(game_client@ client) {
 	int f_text = f.create_input_box(tr("chat.compose_label"));
 	int f_send = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	// Um audio_form nasce SEM controle nenhum focado (control_focus = -1 em form.nvgt): sem esta
+	// linha, o que o jogador digita ao abrir a caixa não entra em lugar nenhum e o Enter não faz
+	// nada, até ele apertar Tab. E ninguém aperta Tab numa caixa de mensagem - ele abriu para
+	// escrever. Todo form do jogo precisa focar o primeiro campo na mão.
+	f.focus(f_text);
 
 	while (true) {
 		wait(5);

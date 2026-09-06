@@ -60,6 +60,9 @@ void run_volume_screen() {
 	}
 	int f_save = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	// Um audio_form nasce sem foco: sem isto as setas não mexem em volume nenhum até o jogador
+	// apertar Tab, e a tela parece quebrada.
+	if (sliders.length() > 0) f.focus(sliders[0]);
 
 	array<int> original = g_settings.volumes;
 	sound@ preview = null;

@@ -10,6 +10,14 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.17.5
+
+- Na sala de espera, **P** (quem está aqui) e **C** (as regras da partida) já respondem para quem
+  acabou de criar a sala. Antes ficavam mudos até a segunda pessoa entrar.
+- Ao abrir a caixa de mensagem com **Y**, o cursor já começa dentro dela: dava para digitar e apertar
+  Enter sem que nada acontecesse, porque era preciso apertar Tab antes. O mesmo valia para o campo de
+  usuário na primeira entrada, o nome da partida ao criar uma sala e os volumes nas configurações.
+
 ## 0.17.4
 
 Na task de rever a gravação, na segurança, a fita rebobinando ainda estava tocando quando os

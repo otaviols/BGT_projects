@@ -10,6 +10,14 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.17.5
+
+- In the waiting room, **P** (who is here) and **C** (the match rules) now answer for whoever just
+  created the room. Before, they stayed silent until a second person joined.
+- Opening the message box with **Y** now puts the cursor straight inside it: you could type and press
+  Enter with nothing happening, because Tab had to be pressed first. The same applied to the username
+  field on a first login, the match name when creating a room, and the volumes in settings.
+
 ## 0.17.4
 
 In the security task where you review the recording, the tape was still rewinding when the first

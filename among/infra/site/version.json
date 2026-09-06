@@ -1,9 +1,9 @@
 {
-	"version": "0.17.4",
+	"version": "0.17.5",
 	"url": "AmongUs.zip",
-	"notes": "In the security task where you review the recording, the tape was still rewinding when the first footsteps started — and a footstep on top of the tape noise is exactly the one you cannot count. The recording now starts only after the tape stops.",
+	"notes": "In the waiting room, P (who is here) and C (the match rules) now answer for whoever just created the room. Before, they stayed silent until a second person joined. Opening the message box with Y now puts the cursor straight inside it: you could type and press Enter with nothing happening, because Tab had to be pressed first. The same applied to the username field on a first login, the match name when creating a room, and the volumes in settings.",
 	"notes_by_language": {
-		"pt_BR": "Na task de rever a gravação, na segurança, a fita rebobinando ainda estava tocando quando os primeiros passos começavam — e um passo por cima do chiado da fita é justamente o passo que não dá para contar. Agora a gravação só começa depois que a fita para.",
-		"en_US": "In the security task where you review the recording, the tape was still rewinding when the first footsteps started — and a footstep on top of the tape noise is exactly the one you cannot count. The recording now starts only after the tape stops."
+		"pt_BR": "Na sala de espera, P (quem está aqui) e C (as regras da partida) já respondem para quem acabou de criar a sala. Antes ficavam mudos até a segunda pessoa entrar. Ao abrir a caixa de mensagem com Y, o cursor já começa dentro dela: dava para digitar e apertar Enter sem que nada acontecesse, porque era preciso apertar Tab antes. O mesmo valia para o campo de usuário na primeira entrada, o nome da partida ao criar uma sala e os volumes nas configurações.",
+		"en_US": "In the waiting room, P (who is here) and C (the match rules) now answer for whoever just created the room. Before, they stayed silent until a second person joined. Opening the message box with Y now puts the cursor straight inside it: you could type and press Enter with nothing happening, because Tab had to be pressed first. The same applied to the username field on a first login, the match name when creating a room, and the volumes in settings."
 	}
 }

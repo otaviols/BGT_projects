@@ -21,6 +21,15 @@ class lobby_browser_result {
 	bool joined = false;
 	bool go_back = false;
 	bool is_host = false;
+
+	// O primeiro S_LOBBY_STATE, quando ele chegou ANTES da sala de espera abrir.
+	//
+	// Quem cria a partida recebe esse retrato na hora da criação, e a espera que confirma a criação
+	// tirava o pacote da fila e o jogava fora. A sala de espera então começava sem saber quem está
+	// nela nem quais são as regras, e o servidor só manda outro retrato quando alguém entra ou sai -
+	// então P e C ficavam mudos para o anfitrião sozinho, e passavam a funcionar "sozinhos" quando
+	// chegava a segunda pessoa. Guardar o pacote é o que fecha esse buraco.
+	net_packet@ initial_lobby_state = null;
 }
 
 // menu.run() e o monitor() de audio_form bloqueiam localmente enquanto o jogador decide (às vezes
@@ -82,9 +91,11 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			continue;
 		}
 		if (id == "__create__") {
-			if (run_create_lobby_screen(client)) {
+			net_packet@ created = run_create_lobby_screen(client);
+			if (@created != null) {
 				result.joined = true;
 				result.is_host = true;
+				@result.initial_lobby_state = created;
 				return result;
 			}
 			continue;
@@ -130,7 +141,11 @@ bool wait_for_join_result(game_client@ client) {
 }
 
 // Tela simples de criação de partida: nome + preset (clássico/rápido/caos).
-bool run_create_lobby_screen(game_client@ client) {
+//
+// Devolve o primeiro S_LOBBY_STATE da partida criada, ou null se o jogador desistiu ou o servidor não
+// respondeu. O pacote é DEVOLVIDO, e não descartado, porque é o único retrato da sala que o anfitrião
+// recebe enquanto estiver sozinho nela.
+net_packet@ run_create_lobby_screen(game_client@ client) {
 	audio_form f;
 	f.create_window(tr("menu.create_lobby"), false); // não sobrescreve o título da janela (nome do jogo)
 	int f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
@@ -155,12 +170,15 @@ bool run_create_lobby_screen(game_client@ client) {
 	f.add_list_item(f_sabotages, tr("lobby.override.disabled"), "off");
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	// Um audio_form nasce sem foco: sem isto o nome da partida não recebia o que era digitado até o
+	// jogador apertar Tab.
+	f.focus(f_name);
 
 	while (true) {
 		wait(5);
 		client.update(); // mantém a conexão viva enquanto o jogador preenche o formulário
 		f.monitor();
-		if (f.is_pressed(f_cancel)) return false;
+		if (f.is_pressed(f_cancel)) return null;
 		if (f.is_pressed(f_ok)) {
 			string lobby_name = f.get_text(f_name);
 			int preset_index = f.get_list_position(f_preset);
@@ -181,10 +199,10 @@ bool run_create_lobby_screen(game_client@ client) {
 			ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
 
 			client.send_create_lobby(lobby_name, preset_id, ov);
-			return wait_for_join_result_after_create(client);
+			return wait_for_lobby_state_after_create(client);
 		}
 	}
-	return false; // inalcançável - o laço só termina via return acima
+	return null; // inalcançável - o laço só termina via return acima
 }
 
 // Campo vazio (ou lixo digitado) vira -1 = "não mexi nisto, use o preset". Aceitar lixo como -1 em
@@ -202,18 +220,50 @@ int text_to_int_or_default(const string&in text) {
 	return value > 0 ? value : -1;
 }
 
-bool wait_for_join_result_after_create(game_client@ client) {
+// A criação é confirmada pelo primeiro S_LOBBY_STATE. Ele é DEVOLVIDO a quem chamou, não descartado:
+// é o retrato de quem está na sala e de quais são as regras, e o servidor só manda outro quando
+// alguém entra ou sai - o anfitrião sozinho nunca receberia um segundo.
+net_packet@ wait_for_lobby_state_after_create(game_client@ client) {
 	timer@ wait_clock = timer();
 	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
 		wait(20);
 		client.update();
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
-			if (pkt.type == S_LOBBY_STATE) return true;
+			if (pkt.type == S_LOBBY_STATE) return pkt;
 			@pkt = client.poll_message();
 		}
 	}
-	return false;
+	return null;
+}
+
+// Último retrato da sala que o servidor mandou: quem está nela, quais são as regras, e o teto de
+// jogadores. Guardado porque as teclas de "quem está aqui" e "quais as regras" respondem na hora, sem
+// ir perguntar nada ao servidor.
+//
+// É uma classe, e não três variáveis soltas no laço, porque o retrato chega por dois caminhos - o
+// pacote da criação da sala e os S_LOBBY_STATE que chegam depois - e os dois precisam aplicá-lo do
+// mesmo jeito. Quando eram variáveis soltas, só o segundo caminho existia.
+class lobby_snapshot {
+	json_array@ players = null;
+	json_object@ config = null;
+	uint max_players = MAX_PLAYERS;
+
+	void apply(net_packet@ pkt) {
+		if (@pkt == null) return;
+		@players = pkt.get_array("players");
+		@config = pkt.get_object("config");
+		max_players = uint(pkt.get_int("max_players", int(MAX_PLAYERS)));
+	}
+
+	string name_of(uint64 peer_id) const {
+		if (@players == null) return "";
+		for (uint i = 0; i < players.length(); i++) {
+			json_object@ pj = players.get_object(i);
+			if (@pj != null && uint64(pj["peer_id"]) == peer_id) return string(pj["name"]);
+		}
+		return "";
+	}
 }
 
 // Atualiza is_host/host_peer_id a partir de um novo valor vindo do servidor (S_LOBBY_STATE ou
@@ -240,7 +290,8 @@ void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inou
 // antes disso.
 // Não existe mais "marcar pronto": ninguém usava pra nada (o servidor nunca exigiu que todos
 // estivessem prontos pra começar), era só um passo a mais antes de jogar.
-net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
+net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
+		net_packet@ initial_lobby_state = null) {
 	audio_manager@ audio = audio_manager();
 	uint64 host_peer_id = 0; // 0 = ainda não recebemos nenhum S_LOBBY_STATE
 
@@ -248,12 +299,13 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 	chat_log@ events_log = chat_log();
 	bool viewing_events_container = false; // false = mensagens, true = eventos
 
-	// Último retrato da sala que o servidor mandou. É guardado porque as teclas de "quem está aqui"
-	// e "quais as regras" respondem na hora, sem ir perguntar ao servidor - o estado já chega
-	// sozinho a cada entrada e saída de gente (S_LOBBY_STATE).
-	json_array@ lobby_players = null;
-	json_object@ lobby_config_json = null;
-	uint lobby_max_players = MAX_PLAYERS;
+	// O retrato que veio da criação da sala vale desde já. Sem isto, quem cria a partida fica sem
+	// resposta para P e C enquanto estiver sozinho: o próximo retrato só chega quando alguém entra.
+	lobby_snapshot snapshot;
+	snapshot.apply(initial_lobby_state);
+	if (@initial_lobby_state != null) {
+		apply_host_change(client, host_peer_id, is_host, initial_lobby_state.get_uint64("host_peer_id"), "");
+	}
 
 	// A dica das teclas vem junto do aviso de entrada: numa sala de espera ninguém vai descobrir
 	// sozinho que P e C fazem alguma coisa, e é justamente ali que essas duas respostas importam.
@@ -280,19 +332,9 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 				audio.play_player_leave();
 				apply_host_change(client, host_peer_id, is_host, pkt.get_uint64("host_peer_id"), "");
 			} else if (pkt.type == S_LOBBY_STATE) {
-				string new_host_name = "";
-				json_array@ players = pkt.get_array("players");
-				@lobby_players = players;
-				@lobby_config_json = pkt.get_object("config");
-				lobby_max_players = uint(pkt.get_int("max_players", int(MAX_PLAYERS)));
+				snapshot.apply(pkt);
 				uint64 new_host_id = pkt.get_uint64("host_peer_id");
-				if (@players != null) {
-					for (uint i = 0; i < players.length(); i++) {
-						json_object@ pj = players.get_object(i);
-						if (@pj != null && uint64(pj["peer_id"]) == new_host_id) { new_host_name = string(pj["name"]); break; }
-					}
-				}
-				apply_host_change(client, host_peer_id, is_host, new_host_id, new_host_name);
+				apply_host_change(client, host_peer_id, is_host, new_host_id, snapshot.name_of(new_host_id));
 			} else if (pkt.type == S_CHAT_MESSAGE) {
 				string chat_name = pkt.get_string("name");
 				string chat_text = pkt.get_string("text");
@@ -325,8 +367,8 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host) {
 		//
 		// As duas respondem do último estado recebido, sem pedir nada ao servidor: a resposta é
 		// imediata, e numa sala de espera o estado já chega sozinho a cada pessoa que entra ou sai.
-		if (key_pressed(KEY_P)) speak(lobby_players_text(lobby_players, lobby_max_players));
-		if (key_pressed(KEY_C)) speak(lobby_config_text(lobby_config_json));
+		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players));
+		if (key_pressed(KEY_C)) speak(lobby_config_text(snapshot.config));
 
 		if (action_pressed(ACTION_CHAT)) run_chat_compose(client);
 
