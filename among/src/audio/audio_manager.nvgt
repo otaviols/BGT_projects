@@ -221,7 +221,8 @@ class audio_manager {
 
 	void start_camera_watching(float x, float y) {
 		stop_camera_watching();
-		camera_watching_slot = spatial.play_looping(SND_CAMERA_WATCHING, x, y, false, family_db(SOUND_FAMILY_BEACONS));
+		camera_watching_slot = spatial.play_looping(SND_CAMERA_WATCHING, x, y, false,
+			family_db(SOUND_FAMILY_BEACONS) + CAMERA_WATCHING_VOLUME_DB);
 	}
 
 	void stop_camera_watching() {

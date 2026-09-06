@@ -1,5 +1,5 @@
 {
-	"version": "0.16.0",
+	"version": "0.17.0",
 	"url": "AmongUs.zip",
-	"notes": "Versão de arrumação: nada muda para quem joga. Por dentro, os papéis passaram a declarar o que podem fazer (preparo para papéis novos), os sons foram organizados em pastas por categoria e os manuais ganharam um lugar próprio."
+	"notes": "Novo: posto de câmeras na segurança. Um jogador por vez observa uma sala à distância, ouvindo o que acontece lá como se estivesse no lugar - e quem está na sala observada ouve um rádio ao longe, então dá para perceber que está sendo vigiado. As comunicações sabotadas derrubam as câmeras."
 }

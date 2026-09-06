@@ -16,6 +16,11 @@
 //      isso, a câmera responderia "onde está cada um" de graça e a discussão perderia a dúvida.
 //
 // As comunicações sabotadas derrubam o posto - mesma sabotagem que já tira radar e marcadores.
+//
+// NÃO há chiado de monitor por baixo de tudo, e isso foi decidido depois de ouvir: num jogo em que a
+// informação É o som, uma camada constante por cima competia justamente com o que se veio escutar.
+// Pelo mesmo motivo o aviso da sala observada toca bem abaixo dos outros marcadores (ver
+// CAMERA_WATCHING_VOLUME_DB): ele precisa ser notado por quem presta atenção, não anunciado.
 
 #include "menu.nvgt"
 #include "speech.nvgt"
@@ -31,7 +36,6 @@ class camera_view {
 	bool active = false;
 	string room_id = "";
 	int room_index = 0;
-	private sound@ static_loop = null;
 
 	// As salas observáveis, na ordem em que as setas passam por elas.
 	array<map_zone@> rooms;
@@ -46,19 +50,11 @@ class camera_view {
 		active = true;
 		room_id = room;
 		sync_index();
-		if (@static_loop == null) {
-			sound s;
-			if (s.load(SND_CAMERA_STATIC)) {
-				@static_loop = s;
-				static_loop.play_looped();
-			}
-		}
 	}
 
 	void stop(audio_manager@ audio) {
 		active = false;
 		room_id = "";
-		if (@static_loop != null) { static_loop.stop(); @static_loop = null; }
 	}
 
 	private void sync_index() {

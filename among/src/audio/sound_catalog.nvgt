@@ -58,16 +58,14 @@ const string SND_DOOR_CLOSE = "sounds/world/CloseDoor.wav";
 const string SND_DOOR_OPEN = "sounds/world/OpenDoor.wav";
 
 // --- Câmeras de segurança ---
-// O posto fica na segurança e mostra UMA sala por vez. Os sons abaixo ainda não existem em sounds/;
-// enquanto não existirem, o recurso funciona calado nesses pontos (o carregamento de som falha em
-// silêncio no NVGT) - tools/check_sounds.nvgt lista o que falta.
-const string SND_CAMERA_BEACON = "sounds/beacons/cameras_pannel.ogg"; // marcador do posto, pra achá-lo
-const string SND_CAMERA_ON = "sounds/tasks/camera_on.wav";            // liga o monitor
-const string SND_CAMERA_OFF = "sounds/tasks/camera_off.wav";          // desliga
-const string SND_CAMERA_SWITCH = "sounds/tasks/camera_switch.wav";    // troca de sala (curto: toca muito)
-const string SND_CAMERA_STATIC = "sounds/tasks/camera_static.ogg";    // loop: chiado por baixo do que se observa
-// O aviso de quem está sendo observado. Contínuo e discreto de propósito: é ele que transforma a
-// câmera em jogo dos dois lados, e chamativo demais faria ninguém pisar numa sala observada.
+// O posto fica na segurança e mostra UMA sala por vez.
+const string SND_CAMERA_BEACON = "sounds/beacons/camera_pannel.ogg"; // marcador do posto, pra achá-lo
+const string SND_CAMERA_ON = "sounds/tasks/camera_on.ogg";           // liga o monitor
+const string SND_CAMERA_OFF = "sounds/tasks/camera_off.ogg";         // desliga
+const string SND_CAMERA_SWITCH = "sounds/tasks/camera_switch.ogg";   // troca de sala (curto: toca muito)
+// O aviso de quem está sendo observado - um rádio ligado ao longe. Contínuo e MUITO discreto de
+// propósito: é ele que transforma a câmera em jogo dos dois lados, e chamativo demais faria ninguém
+// pisar numa sala observada. Ver CAMERA_WATCHING_VOLUME_DB, que o abaixa ainda mais.
 const string SND_CAMERA_WATCHING = "sounds/beacons/camera_watching.ogg";
 
 // --- Radar ---
@@ -251,7 +249,6 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_CAMERA_ON);
 	list.insert_last(SND_CAMERA_OFF);
 	list.insert_last(SND_CAMERA_SWITCH);
-	list.insert_last(SND_CAMERA_STATIC);
 	list.insert_last(SND_CAMERA_WATCHING);
 	list.insert_last("sounds/" + SND_BEEP);
 	list.insert_last("sounds/" + SND_BEEP_COMPLETE);

@@ -225,6 +225,27 @@ com os marcadores das suas tarefas e com o som dos corpos. Sabotagem existe para
 ainda pode perder alguma coisa — e você já perdeu; continuar terminando as tarefas é o que ainda
 ajuda o time.
 
+## As câmeras da segurança
+
+Na **segurança** existe um posto de câmeras. Aperte **Enter** nele para ligar: você passa a ouvir
+uma sala à distância, como se estivesse lá dentro — os passos, o ambiente, o que acontece.
+
+| Tecla | O que faz |
+|---|---|
+| Setas esquerda / direita | trocar a sala observada |
+| Tab (a tecla do radar) | dizer quem está naquela sala |
+| ESC ou Enter | desligar |
+
+**Enquanto observa, você fica parado e surdo ao que está à sua volta.** Alguém pode chegar perto sem
+que você perceba — é o preço de estar olhando para longe.
+
+**Só uma pessoa por vez** usa o posto. E quem estiver na sala observada ouve **um rádio ligado ao
+longe**: é discreto, mas quem presta atenção percebe que está sendo vigiado. Vale nos dois sentidos —
+se você é impostor e ouve o rádio, sabe que alguém está de olho; se está na câmera, saiba que o outro
+lado também pode saber.
+
+**As comunicações sabotadas derrubam as câmeras.**
+
 ## Reuniões e votação
 
 Uma reunião começa quando alguém reporta um corpo ou aperta o botão de emergência. Todo mundo é

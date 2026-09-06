@@ -5,7 +5,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.16.0";
+const string GAME_VERSION = "0.17.0";
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.
@@ -128,6 +128,14 @@ const array<string> COMMON_TASK_TYPES = {"swipe_card"};
 // Chance de CADA task comum entrar na partida. Não é 100% de propósito: a graça está justamente em
 // não saber de antemão, senão a desculpa nunca seria testável.
 const float COMMON_TASK_CHANCE = 0.5;
+
+// Quanto o aviso de "esta sala está sendo observada" toca ABAIXO dos outros marcadores, em dB.
+//
+// Ele é um rádio ligado ao longe, e a intenção é que passe quase despercebido: quem presta atenção
+// nota, quem está distraído não. No volume normal de marcador ele disputava com os passos - que são
+// justamente o que se está tentando ouvir numa sala observada - e denunciava a câmera cedo demais,
+// fazendo ninguém pisar na sala.
+const float CAMERA_WATCHING_VOLUME_DB = -14.0;
 
 // Body
 const float BODY_SOUND_INTERVAL_SECONDS = 2.5;

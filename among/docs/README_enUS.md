@@ -228,6 +228,27 @@ door but **not** through a wall — and hears the bump against it, so it can sti
 markers and the body sounds. Sabotage exists to pressure those who still have something to lose — and
 you have already lost it; finishing your tasks is what still helps the team.
 
+## The security cameras
+
+There is a camera station in **security**. Press **Enter** on it to switch on: you start hearing one
+room from a distance, as if you were standing in it — the footsteps, the ambience, whatever happens.
+
+| Key | What it does |
+|---|---|
+| Left / right arrows | change the room you are watching |
+| Tab (the radar key) | say who is in that room |
+| ESC or Enter | switch off |
+
+**While watching you stand still and deaf to your own surroundings.** Someone can walk right up to
+you without you noticing — that is the price of looking far away.
+
+**Only one person at a time** can use the station. And anyone in the watched room hears **a radio
+playing somewhere far off**: it is subtle, but whoever pays attention notices they are being watched.
+It cuts both ways — as an impostor, hearing the radio tells you someone is looking; at the station,
+know that the other side may know too.
+
+**Sabotaged communications take the cameras down.**
+
 ## Meetings and voting
 
 A meeting starts when someone reports a body or presses the emergency button. Everyone is moved to
