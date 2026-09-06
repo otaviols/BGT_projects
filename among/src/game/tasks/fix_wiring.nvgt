@@ -17,7 +17,7 @@ bool run_fix_wiring_task(game_client@ client) {
 	array<bool> connected = {false, false, false};
 
 	speak(tr("task.fix_wiring.instructions"));
-	task_sound("eletricalString" + (left_order[left_cursor] + 1) + ".wav");
+	task_sound("eletricalString" + (left_order[left_cursor] + 1) + ".ogg");
 
 	while (true) {
 		wait(5);

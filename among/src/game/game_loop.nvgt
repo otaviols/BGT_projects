@@ -131,8 +131,8 @@ void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.doors_menu_hint");
-	m.click_sound = "ui/menuclick.wav";
-	m.select_sound = "ui/menuconfirm.wav";
+	m.click_sound = "ui/menuclick.ogg";
+	m.select_sound = "ui/menuconfirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = imp.client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -150,8 +150,8 @@ void run_sabotage_menu(impostor_controller@ imp) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.sabotage_menu_hint");
-	m.click_sound = "ui/menuclick.wav";
-	m.select_sound = "ui/menuconfirm.wav";
+	m.click_sound = "ui/menuclick.ogg";
+	m.select_sound = "ui/menuconfirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = imp.client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -173,8 +173,8 @@ void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.vent_menu_hint");
-	m.click_sound = "ui/menuclick.wav";
-	m.select_sound = "ui/menuconfirm.wav";
+	m.click_sound = "ui/menuclick.ogg";
+	m.select_sound = "ui/menuconfirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = imp.client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -242,8 +242,8 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.tasks_menu_hint");
-	m.click_sound = "ui/menuclick.wav";
-	m.select_sound = "ui/menuconfirm.wav";
+	m.click_sound = "ui/menuclick.ogg";
+	m.select_sound = "ui/menuconfirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -285,8 +285,8 @@ void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 
 	menu m;
 	m.intro_text = tr(crewmates_won ? "game.crewmates_win" : "game.impostors_win");
-	m.click_sound = "ui/menuclick.wav";
-	m.select_sound = "ui/menuconfirm.wav";
+	m.click_sound = "ui/menuclick.ogg";
+	m.select_sound = "ui/menuconfirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = client;
 	@m.background_callback = @pump_client_during_game_menu;

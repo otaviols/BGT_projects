@@ -233,6 +233,19 @@ com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma aç
 resposta virava um booleano em mais de sessenta pontos, e cada papel novo obrigava a revisitar todos.
 Um papel novo entra em três passos, descritos no topo daquele arquivo.
 
+**Todo som do jogo é `.ogg`** (Vorbis, qualidade 3), fora dois `.mp3` antigos. Foram 45 MB de wav
+virando 3,4 MB sem perda audível, e o download caiu de 60 MB para 29 MB. Som novo entra convertido:
+`D:\Program\winvox\ffmpeg.exe` (existe na máquina, mas **não está no PATH**) com
+`-c:a libvorbis -q:a 3`. Depois da conversão, o maior peso do zip passou a ser `lib/phonon.dll`
+(17,9 MB comprimido), que é o motor de áudio posicionado e não sai.
+
+**Volume de som se mede, não se chuta - e depois se confere de ouvido.** Os arquivos de passo vinham
+com até 15 dB de diferença entre pisos, o que num jogo onde o passo alheio é a pista principal deixa
+uma sala segura por acidente. A correção é por piso, em dB, em `footstep_volume_db()` - no código, e
+não nos arquivos, para ajustar sem reconverter. Duas armadilhas na medição: RMS do arquivo inteiro
+inclui o silêncio do fim e subestima som curto (medir só o que está acima de 1% do pico), e mesmo a
+medida certa erra para mais - o Tile pedia +17,6 pela conta e ficou alto demais, voltando para +15.
+
 **Som novo vai na subpasta certa de `sounds/`** (`steps`, `ambience`, `beacons`, `tasks`, `events`,
 `ui`, `world`) e o caminho no catálogo inclui a pasta. Depois de mexer em som, rode
 `nvgt tools/check_sounds.nvgt`: ele compara o catálogo com o disco **nos dois sentidos** e é a única

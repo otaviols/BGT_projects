@@ -9,53 +9,53 @@
 #include "../config/colors.nvgt"
 
 // --- UI / menus (sem posição) ---
-const string SND_MENU_CLICK = "sounds/ui/menuclick.wav";
-const string SND_MENU_CONFIRM = "sounds/ui/menuconfirm.wav";
-const string SND_INTRO = "sounds/ui/intro.wav";
-const string SND_PLAYER_ENTER = "sounds/ui/PlayerEnter.wav";
-const string SND_PLAYER_LEAVE = "sounds/ui/PlayerLeave.wav";
-const string SND_START_GAME = "sounds/events/startGame.wav";
-const string SND_WIN = "sounds/events/Win.wav";
-const string SND_DEFEAT = "sounds/events/defeat.wav";
-const string SND_MEETING_RESULT = "sounds/events/meetingResult.wav"; // toca assim que o resultado da votação chega, antes de saber quem foi expulso
-const string SND_EJECTED = "sounds/events/ejected.wav"; // toca 1x pra nave inteira logo depois, só quando alguém É expulso (arquivo ainda a ser adicionado em sounds/)
-const string SND_MEETING_ALARM = "sounds/events/emergence_button_alarm.wav"; // toca (ship-wide) quando o botão de emergência chama a reunião
-const string SND_VOTE_CONFIRM = "sounds/events/voteConfirm.wav";
-const string SND_BODY_REPORTED = "sounds/events/bodyReport.wav"; // toca 1x pra nave inteira quando o corpo é reportado
-const string SND_MESSAGE_SENT = "sounds/ui/MessageSent.wav";       // toca pra quem manda uma msg no chat
-const string SND_MESSAGE_RECEIVED = "sounds/ui/MessageReceived.wav"; // toca pra quem recebe uma msg de outro jogador
+const string SND_MENU_CLICK = "sounds/ui/menuclick.ogg";
+const string SND_MENU_CONFIRM = "sounds/ui/menuconfirm.ogg";
+const string SND_INTRO = "sounds/ui/intro.ogg";
+const string SND_PLAYER_ENTER = "sounds/ui/PlayerEnter.ogg";
+const string SND_PLAYER_LEAVE = "sounds/ui/PlayerLeave.ogg";
+const string SND_START_GAME = "sounds/events/startGame.ogg";
+const string SND_WIN = "sounds/events/Win.ogg";
+const string SND_DEFEAT = "sounds/events/defeat.ogg";
+const string SND_MEETING_RESULT = "sounds/events/meetingResult.ogg"; // toca assim que o resultado da votação chega, antes de saber quem foi expulso
+const string SND_EJECTED = "sounds/events/ejected.ogg"; // toca 1x pra nave inteira logo depois, só quando alguém É expulso (arquivo ainda a ser adicionado em sounds/)
+const string SND_MEETING_ALARM = "sounds/events/emergence_button_alarm.ogg"; // toca (ship-wide) quando o botão de emergência chama a reunião
+const string SND_VOTE_CONFIRM = "sounds/events/voteConfirm.ogg";
+const string SND_BODY_REPORTED = "sounds/events/bodyReport.ogg"; // toca 1x pra nave inteira quando o corpo é reportado
+const string SND_MESSAGE_SENT = "sounds/ui/MessageSent.ogg";       // toca pra quem manda uma msg no chat
+const string SND_MESSAGE_RECEIVED = "sounds/ui/MessageReceived.ogg"; // toca pra quem recebe uma msg de outro jogador
 
 // --- Diálogos (abrir/fechar tasks, paineis, votação) ---
-const string SND_DIALOG_OPEN = "sounds/ui/openDialog.wav";
-const string SND_DIALOG_CLOSE = "sounds/ui/closeDialog.wav";
+const string SND_DIALOG_OPEN = "sounds/ui/openDialog.ogg";
+const string SND_DIALOG_CLOSE = "sounds/ui/closeDialog.ogg";
 
 // --- Cenário / ambiente ---
-const string SND_SHIP_AMBIENCE = "sounds/ambience/ambience.wav";     // loop, nave inteira, toca a partida inteira
-const string SND_SABOTAGE_ALARM = "sounds/events/emergence.wav";   // loop, nave inteira, enquanto sabotagem ativa
+const string SND_SHIP_AMBIENCE = "sounds/ambience/ambience.ogg";     // loop, nave inteira, toca a partida inteira
+const string SND_SABOTAGE_ALARM = "sounds/events/emergence.ogg";   // loop, nave inteira, enquanto sabotagem ativa
 const string SND_PASSAGE = "sounds/ambience/passage.ogg";            // loop, um arquivo só, em todo corredor
 const string SND_WALL_BUMP = "sounds/world/wall_bump.ogg";        // toca ao esbarrar fora de sala/corredor
 const string SND_DOOR_BUMP = "sounds/world/door_bump.ogg";        // esbarrão numa PORTA trancada (não é parede: abre sozinha daqui a pouco)
 const string SND_BODY_ON_FLOOR = "sounds/events/body.ogg";         // loop no local do corpo até ser reportado
-const string SND_AMBIENT_CAFETERIA = "sounds/ambience/ambient_cafeteria.wav";
-const string SND_AMBIENT_WEAPONS = "sounds/ambience/ambient_weapons.wav";
-const string SND_AMBIENT_NAVIGATION = "sounds/ambience/ambient_navigation.wav";
-const string SND_AMBIENT_ADMIN = "sounds/ambience/ambient_admin.wav";
-const string SND_AMBIENT_MEDBAY = "sounds/ambience/ambient_medbay.wav";
-const string SND_AMBIENT_STORAGE = "sounds/ambience/ambient_storage.wav";
-const string SND_AMBIENT_ELECTRICAL = "sounds/ambience/ambient_electrical.wav";
-const string SND_AMBIENT_REACTOR = "sounds/ambience/ambient_reactor.wav";
+const string SND_AMBIENT_CAFETERIA = "sounds/ambience/ambient_cafeteria.ogg";
+const string SND_AMBIENT_WEAPONS = "sounds/ambience/ambient_weapons.ogg";
+const string SND_AMBIENT_NAVIGATION = "sounds/ambience/ambient_navigation.ogg";
+const string SND_AMBIENT_ADMIN = "sounds/ambience/ambient_admin.ogg";
+const string SND_AMBIENT_MEDBAY = "sounds/ambience/ambient_medbay.ogg";
+const string SND_AMBIENT_STORAGE = "sounds/ambience/ambient_storage.ogg";
+const string SND_AMBIENT_ELECTRICAL = "sounds/ambience/ambient_electrical.ogg";
+const string SND_AMBIENT_REACTOR = "sounds/ambience/ambient_reactor.ogg";
 const string SND_AMBIENT_GAMES = "sounds/ambience/ambient_games.ogg";
-const string SND_AMBIENT_GREENHOUSE = "sounds/ambience/ambient_greenhouse.wav";
-const string SND_AMBIENT_SECURITY = "sounds/ambience/ambient_security.wav";
+const string SND_AMBIENT_GREENHOUSE = "sounds/ambience/ambient_greenhouse.ogg";
+const string SND_AMBIENT_SECURITY = "sounds/ambience/ambient_security.ogg";
 
 // --- Objetos do mapa (som de UMA VEZ ao usar - abrir painel, entrar/sair do vent) ---
-const string SND_VENT_DOOR_1 = "sounds/world/ventDoor1.wav";
-const string SND_VENT_DOOR_2 = "sounds/world/ventDoor2.wav";
-const string SND_OPEN_PANEL = "sounds/world/openPanel.wav";
+const string SND_VENT_DOOR_1 = "sounds/world/ventDoor1.ogg";
+const string SND_VENT_DOOR_2 = "sounds/world/ventDoor2.ogg";
+const string SND_OPEN_PANEL = "sounds/world/openPanel.ogg";
 // Portas fechando/abrindo: tocam posicionados no corredor afetado, então quem está por perto ouve
 // exatamente qual passagem foi trancada.
-const string SND_DOOR_CLOSE = "sounds/world/CloseDoor.wav";
-const string SND_DOOR_OPEN = "sounds/world/OpenDoor.wav";
+const string SND_DOOR_CLOSE = "sounds/world/CloseDoor.ogg";
+const string SND_DOOR_OPEN = "sounds/world/OpenDoor.ogg";
 
 // --- Câmeras de segurança ---
 // O posto fica na segurança e mostra UMA sala por vez.
@@ -91,26 +91,26 @@ const string SND_TASK_BEACON_FUEL_ENGINES = "sounds/beacons/fuel_pannel.ogg";
 const string SND_TASK_BEACON_CLEAR_ASTEROIDS = "sounds/beacons/asteroid_pannel.ogg";
 const string SND_TASK_BEACON_ROLL_DICE = "sounds/beacons/games_pannel.ogg";
 const string SND_TASK_BEACON_WATER_PLANTS = "sounds/beacons/plants_pannel.ogg";
-const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.wav";
+const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
-const string SND_BEEP = "tasks/beep.wav";
-const string SND_BEEP_COMPLETE = "tasks/BeepComplet.wav";
-const string SND_CARD_ERROR = "tasks/CardError.wav";
-const string SND_CARD_COMPLETE = "tasks/CardComplet.wav";
-const string SND_GET_CARD = "tasks/GetCard.wav";
-const string SND_PULLING_GARBAGE_LEVER = "tasks/pulling_garbage_lever.wav"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
+const string SND_BEEP = "tasks/beep.ogg";
+const string SND_BEEP_COMPLETE = "tasks/BeepComplet.ogg";
+const string SND_CARD_ERROR = "tasks/CardError.ogg";
+const string SND_CARD_COMPLETE = "tasks/CardComplet.ogg";
+const string SND_GET_CARD = "tasks/GetCard.ogg";
+const string SND_PULLING_GARBAGE_LEVER = "tasks/pulling_garbage_lever.ogg"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
 const string SND_GUN_FIRE = "tasks/gun_fire.ogg"; // cada tiro na task de limpar asteroides
-const string SND_DICE = "tasks/dice.wav";                       // dado rolando na sala de jogos
+const string SND_DICE = "tasks/dice.ogg";                       // dado rolando na sala de jogos
 const string SND_WATER_FLOW = "tasks/waterflow.ogg";            // loop: água correndo enquanto se rega uma muda
-const string SND_FILLING = "tasks/filling.wav";                 // começou a regar este canteiro
-const string SND_FILLING_COMPLETE = "tasks/filling_complet.wav"; // o canteiro encheu: é a hora de soltar
+const string SND_FILLING = "tasks/filling.ogg";                 // começou a regar este canteiro
+const string SND_FILLING_COMPLETE = "tasks/filling_complet.ogg"; // o canteiro encheu: é a hora de soltar
 
 // Goles de água: marcam cada etapa do canteiro enchendo. São variantes justamente pra não virar um
 // bipe repetido - mesma ideia dos passos por piso.
 const uint LIQUID_VARIANT_COUNT = 4;
 string liquid_sound(int variant_1_based) {
-	return "tasks/liquid" + variant_1_based + ".wav";
+	return "tasks/liquid" + variant_1_based + ".ogg";
 }
 const string SND_VIDEO_OPENING = "tasks/opening_video_image.ogg"; // abre a gravação na sala de segurança
 const string SND_TAPE_REWIND = "tasks/rewinding_tape.mp3";      // rebobina a fita antes de tocar o trecho
@@ -118,11 +118,11 @@ const string SND_TAPE_REWIND = "tasks/rewinding_tape.mp3";      // rebobina a fi
 // fix_wiring usa 3 variantes numeradas - ver electrical_string_sound() abaixo.
 const uint ELECTRICAL_STRING_VARIANT_COUNT = 3;
 string electrical_string_sound(int variant_1_based) {
-	return "tasks/eletricalString" + variant_1_based + ".wav";
+	return "tasks/eletricalString" + variant_1_based + ".ogg";
 }
 
 // --- Morte / kill (ver config/colors.nvgt pra fallback por cor) ---
-const string SND_KILL = "sounds/events/kill.wav";                  // ouvido por quem tiver perto do assassinato
+const string SND_KILL = "sounds/events/kill.ogg";                  // ouvido por quem tiver perto do assassinato
 const uint KILLED_VARIANT_COUNT_FOR_CATALOG = 4;            // ver colors.KILLED_SOUND_VARIANT_COUNT
 
 // --- Passos por piso ---------------------------------------------------------
@@ -151,10 +151,10 @@ const array<string> FOOTSTEP_FLOOR_PREFIXES = {
 	"VentTile"
 };
 
-// Extensão do arquivo de passo de cada piso. Hoje são todos .wav, mas a função continua existindo
-// porque isso já mudou duas vezes - e quando muda, muda só aqui.
+// Extensão do arquivo de passo de cada piso. Hoje são todos .ogg, mas a função continua existindo
+// porque isso já mudou três vezes - e quando muda, muda só aqui.
 string footstep_variant_extension(const string&in floor_prefix) {
-	return "wav";
+	return "ogg";
 }
 
 // Correção de volume por piso, em dB.
@@ -174,11 +174,10 @@ string footstep_variant_extension(const string&in floor_prefix) {
 //
 // Nenhuma correção chega perto de estourar: o pico mais alto depois do ajuste fica em torno de -7 dB.
 float footstep_volume_db(const string&in floor_prefix) {
-	// Tile levou uma segunda medida: os +15 vieram do RMS do arquivo inteiro, e arquivo inteiro inclui
-	// o silêncio do fim. Medindo só a parte que soa (acima de 1% do pico), o Tile precisa de +17,6 -
-	// e foi exatamente esse o piso que continuou soando baixo no teste de ouvido. Silêncio no fim faz
-	// um som curto parecer mais forte do que é.
-	if (floor_prefix == "Tile") return 18.0;
+	// O Tile já foi a +18 (o que a medida da parte SONORA do arquivo pedia, +17,6) e voltou para cá:
+	// no teste de ouvido ficou alto demais. A medida acerta a ordem de grandeza, o ouvido dá a
+	// palavra final - e a palavra final foram estes +15.
+	if (floor_prefix == "Tile") return 15.0;
 	if (floor_prefix == "WoodTile") return 10.0;
 	if (floor_prefix == "EarthTile") return 13.0;
 	if (floor_prefix == "VentTile") return 5.0;
@@ -314,7 +313,7 @@ array<string>@ all_sound_paths() {
 		list.insert_last("sounds/" + electrical_string_sound(i));
 	}
 	for (uint i = 1; i <= KILLED_VARIANT_COUNT_FOR_CATALOG; i++) {
-		list.insert_last("sounds/events/killed" + i + ".wav");
+		list.insert_last("sounds/events/killed" + i + ".ogg");
 	}
 
 	// Passos por piso, montados pelas MESMAS funções que o jogo usa para tocar. Escritos à mão aqui,
@@ -337,8 +336,8 @@ array<string>@ optional_sound_paths() {
 	array<int>@ ids = all_color_ids();
 	for (uint i = 0; i < ids.length(); i++) {
 		string key = color_key(ids[i]);
-		list.insert_last("sounds/colors/" + key + "/death.wav");
-		list.insert_last("sounds/colors/" + key + "/kill.wav");
+		list.insert_last("sounds/colors/" + key + "/death.ogg");
+		list.insert_last("sounds/colors/" + key + "/kill.ogg");
 	}
 	return list;
 }
@@ -350,7 +349,7 @@ array<string>@ optional_sound_paths() {
 // conferidor de sons - e o modo como falhou é o perigoso: o conferidor passou a dizer que TODOS os
 // sons sumiram, quando eles estavam ali do lado.
 //
-// Os caminhos voltam relativos à raiz do projeto ("sounds/ui/menuclick.wav"), que é a mesma forma
+// Os caminhos voltam relativos à raiz do projeto ("sounds/ui/menuclick.ogg"), que é a mesma forma
 // usada no catálogo e no jogo.
 array<string>@ all_sound_files_on_disk(const string&in base = "sounds") {
 	array<string> result;

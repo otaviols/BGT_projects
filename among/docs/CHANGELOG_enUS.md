@@ -18,6 +18,8 @@ versions. Footsteps gained more variations, so walking around the ship sounds le
 Some floors were much quieter than others — the tiled one nearly vanished. They are all balanced
 now: you hear someone coming just as clearly on any floor.
 
+The download is half the size, down from 60 MB to 29 MB, with no audible loss of quality.
+
 ## 0.18.1
 
 - **Sabotaging communications now closes the cameras for whoever was watching.** The station used to
