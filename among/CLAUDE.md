@@ -67,12 +67,20 @@ nvgt -c -plinux server_main.nvgt    # servidor (Linux, para o contêiner)
 Sempre, e nesta ordem:
 
 1. **Suba `GAME_VERSION`** em `src/config/game_constants.nvgt`.
-2. **Atualize `infra/site/version.json`** com a **mesma** versão e as notas.
-3. Compile o que mudou.
-4. `infra\deploy.ps1 -StorageAccount amongusaudiogame` (use `-SkipServer` quando só o cliente mudou).
+2. **Escreva a entrada no changelog**, nos DOIS idiomas: `docs/CHANGELOG_ptBR.md` e
+   `docs/CHANGELOG_enUS.md`, no topo, como `## x.y.z`.
+3. **Gere o version.json**: `python tools/make_version_json.py`. Ele sai do changelog — não edite o
+   `version.json` à mão, ou as duas descrições da mesma versão vão divergir. O script recusa se a
+   versão do changelog não bater com `GAME_VERSION`, ou se um dos idiomas estiver faltando.
+4. Compile o que mudou.
+5. `infra\deploy.ps1 -StorageAccount amongusaudiogame` (use `-SkipServer` quando só o cliente mudou).
 
 As duas versões **têm que bater**. O `version.json` é o que os clientes instalados comparam contra si
 mesmos: se ele ficar para trás, ninguém é avisado da atualização.
+
+O `version.json` carrega as notas em dois formatos: `notes` (texto único, em inglês) para os clientes
+até a 0.17.0, que esperam uma string e quebrariam com um objeto, e `notes_by_language` para os novos.
+O campo antigo pode sair quando não houver mais ninguém nessas versões.
 
 **O servidor só precisa de deploy quando o código dele muda** (`src/network/server.nvgt`,
 `src/core/game_state.nvgt`, protocolo, banco). Som, UI e textos são só cliente.

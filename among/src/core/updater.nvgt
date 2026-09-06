@@ -56,6 +56,32 @@ bool is_newer(const string&in remote, const string&in local) {
 	return false; // iguais
 }
 
+// As novidades da versão, no idioma DESTE jogador.
+//
+// O version.json traz um texto por idioma ({"notes": {"en_US": "...", "pt_BR": "..."}}). Antes era
+// um texto só, escrito em português - e como o jogo abre em inglês por padrão, quem nunca mexeu no
+// idioma recebia o aviso metade em inglês (a moldura, traduzida) e metade em português (as notas).
+//
+// A ordem é: idioma do jogador -> inglês -> qualquer um que exista. O último passo importa para uma
+// tradução da comunidade cujo idioma ainda não tenha nota escrita: melhor a nota em inglês do que
+// nenhuma novidade.
+// Um version.json antigo, com "notes" em texto simples, continua sendo lido.
+string read_notes(json_object@ data) {
+	// O campo por idioma primeiro; "notes" (texto único, em inglês) é o formato antigo, mantido no
+	// arquivo para os clientes até a 0.17.0, que esperam uma string e quebrariam com um objeto.
+	if (!data.exists("notes_by_language")) {
+		return data.exists("notes") ? string(data["notes"]) : "";
+	}
+
+	json_object@ notes = data.get_object("notes_by_language");
+	if (@notes == null) return "";
+	string idioma = g_i18n.get_current_language();
+	if (idioma != "" && notes.exists(idioma)) return string(notes[idioma]);
+	if (notes.exists(DEFAULT_LANGUAGE)) return string(notes[DEFAULT_LANGUAGE]);
+	array<string>@ chaves = notes.get_keys();
+	return chaves.length() > 0 ? string(notes[chaves[0]]) : "";
+}
+
 // Busca o version.json publicado junto com o site de download e diz se há novidade.
 update_info@ check_for_update() {
 	update_info info;
@@ -77,7 +103,7 @@ update_info@ check_for_update() {
 
 	info.available = true;
 	info.version = remote_version;
-	info.notes = data.exists("notes") ? string(data["notes"]) : "";
+	info.notes = read_notes(data);
 
 	// A url no JSON é relativa ao site (ex.: "AmongUs.zip") pra que trocar o endereço do site não
 	// exija republicar o jogo inteiro. Uma url absoluta também é aceita, caso um dia o pacote passe

@@ -1,5 +1,9 @@
 {
-	"version": "0.17.0",
+	"version": "0.17.1",
 	"url": "AmongUs.zip",
-	"notes": "Novo: posto de câmeras na segurança. Um jogador por vez observa uma sala à distância, ouvindo o que acontece lá como se estivesse no lugar - e quem está na sala observada ouve um rádio ao longe, então dá para perceber que está sendo vigiado. As comunicações sabotadas derrubam as câmeras."
+	"notes": "The release notes the game announces when updating now show up in your language. Before they always came in Portuguese, even for people playing in English — which is the game's default.",
+	"notes_by_language": {
+		"pt_BR": "As novidades que o jogo anuncia ao atualizar agora aparecem no seu idioma. Antes elas vinham sempre em português, mesmo para quem joga em inglês — que é o idioma padrão do jogo.",
+		"en_US": "The release notes the game announces when updating now show up in your language. Before they always came in Portuguese, even for people playing in English — which is the game's default."
+	}
 }
