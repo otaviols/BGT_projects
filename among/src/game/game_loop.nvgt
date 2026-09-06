@@ -638,6 +638,8 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					string motivo = pkt.get_string("message_key");
 					if (motivo != "") speak(tr(motivo));
 				}
+			} else if (t == S_CAMERA_PLAYERS) {
+				speak(watched_room_players_text(pkt.get_array("names")));
 			} else if (t == S_CAMERA_WATCHING) {
 				watched_room_id = pkt.get_string("room_id");
 				refresh_camera_watching_beacon(audio, map, watched_room_id);
@@ -981,9 +983,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			}
 			// Nomes custam uma ação a mais, de propósito: varrer salas é barato, saber QUEM está numa
 			// delas exige parar e pedir.
-			if (action_pressed(ACTION_RADAR)) {
-				speak(watched_room_players_text(roster, map, cameras.room_id, client.my_peer_id));
-			}
+			// A pergunta vai ao servidor: quem está dentro de um duto não pode ser contado, e só ele
+			// sabe quem está. A resposta chega em S_CAMERA_PLAYERS, tratada junto dos outros pacotes.
+			if (action_pressed(ACTION_RADAR)) client.send_camera_scan();
 			if (key_pressed(KEY_ESCAPE) || action_pressed(ACTION_INTERACT)) client.send_camera_leave();
 
 			// O ouvinte fica na sala observada: é isso que faz o jogador ouvir os passos e o ambiente

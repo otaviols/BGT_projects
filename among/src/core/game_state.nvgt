@@ -147,14 +147,23 @@ class game_state {
 
 	// Jogadores no mesmo cômodo/corredor que peer_id, vivos, não escondidos em vent - usado pelo radar.
 	array<game_player@>@ players_in_same_room(uint64 peer_id) const {
-		array<game_player@> result;
 		game_player@ me = find_player(peer_id);
-		if (@me == null) return result;
-		string my_room = map.room_id_at(me.x, me.y);
+		if (@me == null) return array<game_player@>();
+		return players_in_room(map.room_id_at(me.x, me.y), peer_id);
+	}
+
+	// Quem está numa sala e pode ser percebido: vivo, fora de duto, e não é quem está perguntando.
+	//
+	// A regra mora aqui e não em cada lugar que precisa dela. O radar e a câmera de segurança são
+	// duas perguntas diferentes sobre a MESMA coisa, e enquanto a câmera respondia sozinha, do lado
+	// do cliente, ela contava quem estava escondido dentro de um duto - entregando de graça a
+	// dedução que o duto existe para negar.
+	array<game_player@>@ players_in_room(const string&in room_id, uint64 except_peer) const {
+		array<game_player@> result;
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ p = players[i];
-			if (p.peer_id == peer_id || !p.alive || p.vented) continue;
-			if (map.room_id_at(p.x, p.y) == my_room) result.insert_last(p);
+			if (p.peer_id == except_peer || !p.alive || p.vented) continue;
+			if (map.room_id_at(p.x, p.y) == room_id) result.insert_last(p);
 		}
 		return result;
 	}

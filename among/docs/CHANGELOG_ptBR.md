@@ -10,6 +10,13 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.18.0
+
+**Quem está dentro de um duto não aparece mais nas câmeras.** A lista de quem está na sala observada
+contava também o impostor escondido, e isso entregava de graça exatamente a dedução que o duto existe
+para negar: se a câmera diz que tem gente numa sala vazia, todo mundo sabe o que aquilo significa.
+Agora a sala observada mostra só quem está de fato andando por ela.
+
 ## 0.17.5
 
 - Na sala de espera, **P** (quem está aqui) e **C** (as regras da partida) já respondem para quem

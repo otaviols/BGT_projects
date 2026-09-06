@@ -1,9 +1,9 @@
 {
-	"version": "0.17.5",
+	"version": "0.18.0",
 	"url": "AmongUs.zip",
-	"notes": "In the waiting room, P (who is here) and C (the match rules) now answer for whoever just created the room. Before, they stayed silent until a second person joined. Opening the message box with Y now puts the cursor straight inside it: you could type and press Enter with nothing happening, because Tab had to be pressed first. The same applied to the username field on a first login, the match name when creating a room, and the volumes in settings.",
+	"notes": "Anyone inside a vent no longer shows up on the cameras. The list of who is in the watched room also counted the hidden impostor, which gave away for free exactly the deduction vents exist to deny: if the camera says someone is in an empty room, everybody knows what that means. The watched room now shows only the people actually walking through it.",
 	"notes_by_language": {
-		"pt_BR": "Na sala de espera, P (quem está aqui) e C (as regras da partida) já respondem para quem acabou de criar a sala. Antes ficavam mudos até a segunda pessoa entrar. Ao abrir a caixa de mensagem com Y, o cursor já começa dentro dela: dava para digitar e apertar Enter sem que nada acontecesse, porque era preciso apertar Tab antes. O mesmo valia para o campo de usuário na primeira entrada, o nome da partida ao criar uma sala e os volumes nas configurações.",
-		"en_US": "In the waiting room, P (who is here) and C (the match rules) now answer for whoever just created the room. Before, they stayed silent until a second person joined. Opening the message box with Y now puts the cursor straight inside it: you could type and press Enter with nothing happening, because Tab had to be pressed first. The same applied to the username field on a first login, the match name when creating a room, and the volumes in settings."
+		"pt_BR": "Quem está dentro de um duto não aparece mais nas câmeras. A lista de quem está na sala observada contava também o impostor escondido, e isso entregava de graça exatamente a dedução que o duto existe para negar: se a câmera diz que tem gente numa sala vazia, todo mundo sabe o que aquilo significa. Agora a sala observada mostra só quem está de fato andando por ela.",
+		"en_US": "Anyone inside a vent no longer shows up on the cameras. The list of who is in the watched room also counted the hidden impostor, which gave away for free exactly the deduction vents exist to deny: if the camera says someone is in an empty room, everybody knows what that means. The watched room now shows only the people actually walking through it."
 	}
 }

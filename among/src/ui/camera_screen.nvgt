@@ -112,16 +112,17 @@ class camera_view {
 
 // Quem está na sala observada, dito só quando o jogador pede (tecla do radar).
 //
-// Usa o elenco que o cliente já mantém - o servidor manda a posição de todo mundo, e é isso que faz
-// a câmera funcionar sem nenhum pacote novo. Fantasma não entra: ele é invisível para quem está vivo.
-string watched_room_players_text(client_roster@ roster, game_map@ map, const string&in room_id,
-		uint64 my_peer_id) {
+// A LISTA vem do servidor (S_CAMERA_PLAYERS), e não das posições que o cliente já recebe. O cliente
+// sabe onde cada um está, mas não sabe quem está dentro de um duto - isso é privado de quem entrou -
+// e montar a resposta aqui contava o impostor escondido como se ele estivesse ali na sala, que é
+// exatamente a dedução que o duto existe para negar. Mandar o estado de duto para todos os clientes
+// consertaria a lista criando um vazamento pior.
+//
+// Aqui só se monta a frase: nomes são identidade e chegam como estão, o resto é tradução local.
+string watched_room_players_text(json_array@ names) {
 	array<string> nomes;
-	for (uint i = 0; i < roster.entries.length(); i++) {
-		roster_entry@ e = roster.entries[i];
-		if (e.peer_id == my_peer_id || !e.alive) continue;
-		if (map.room_id_at(e.x, e.y) != room_id) continue;
-		nomes.insert_last(e.name);
+	if (@names != null) {
+		for (uint i = 0; i < names.length(); i++) nomes.insert_last(string(names[i]));
 	}
 	if (nomes.length() == 0) return tr("camera.nobody_there");
 	dictionary@ p = dictionary();

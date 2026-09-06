@@ -173,6 +173,14 @@ mesma partida acusarem "nomes" diferentes pela mesma pessoa.
 **Valor vindo do cliente é validado no servidor.** As configurações de sala passam por
 `lobby_config.validate()` depois de aplicadas: elas vêm da máquina do jogador.
 
+**Quem percebe QUEM se decide no servidor, não no cliente.** O cliente recebe a posição de todo mundo
+(é o que faz o áudio posicionado funcionar), então é tentador montar "quem está nesta sala" ali mesmo
+- e a câmera de segurança nasceu assim. Só que o cliente não sabe quem está dentro de um duto: isso é
+privado de quem entrou, e tem que continuar sendo. A câmera então contava o impostor escondido,
+entregando a dedução que o duto existe para negar; mandar o estado de duto para todos os clientes
+consertaria a lista criando um vazamento pior. A regra mora em `game_state.players_in_room()`, e o
+radar e a câmera são duas perguntas para a MESMA função.
+
 **Regra de percepção fica em `src/core/sabotage_rules.nvgt`, nunca espalhada.** Quem é atrapalhado
 por qual sabotagem se decide num lugar só. Espalhada como `if` em cada ponto (marcadores, radar, som
 de corpo, alcance de audição), bastava esquecer um para o jogador ficar cego pela metade sem que nada

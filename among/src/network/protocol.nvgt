@@ -36,6 +36,11 @@ const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
 const string C_CAMERA_ENTER = "c_camera_enter";   // {} - pedir o posto de câmeras
 const string C_CAMERA_LEAVE = "c_camera_leave";   // {}
 const string C_CAMERA_SWITCH = "c_camera_switch"; // {room_id} - apontar para outra sala
+// Quem está na sala observada. É PERGUNTADO ao servidor, e não montado pelo cliente com as posições
+// que ele já recebe, porque quem está dentro de um duto não pode aparecer - e só o servidor sabe
+// disso. Contar essa pessoa entregava justamente a dedução que o duto existe para esconder; mandar o
+// estado de duto para todos os clientes resolveria o sintoma criando um vazamento pior.
+const string C_CAMERA_SCAN = "c_camera_scan";     // {} - quem está na sala que estou observando
 
 // Recado do jogador para quem faz o jogo. Vai pelo MESMO canal do resto: a sessão já está
 // autenticada, então o servidor sabe de quem veio sem o jogador digitar nada, e nenhum endereço ou
@@ -84,6 +89,9 @@ const string S_CAMERA_STATE = "s_camera_state";             // {active, room_id,
 // Vai para todos, e não só para quem está na sala, porque quem ENTRA nela depois precisa ouvir o
 // zumbido também - e o cliente só sabe disso se souber qual sala está sob observação.
 const string S_CAMERA_WATCHING = "s_camera_watching";       // {room_id}
+// Resposta ao C_CAMERA_SCAN: os nomes de quem está na sala observada, em ordem. Nomes não são texto
+// traduzível - são identidade, e viajam como estão (ver "Nada de identidade é traduzido").
+const string S_CAMERA_PLAYERS = "s_camera_players";         // {names: [...]}
 
 // --- Mensagens traduzíveis vindas do servidor -------------------------------
 //

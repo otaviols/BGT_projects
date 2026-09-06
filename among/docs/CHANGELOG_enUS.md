@@ -10,6 +10,13 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.18.0
+
+**Anyone inside a vent no longer shows up on the cameras.** The list of who is in the watched room
+also counted the hidden impostor, which gave away for free exactly the deduction vents exist to deny:
+if the camera says someone is in an empty room, everybody knows what that means. The watched room now
+shows only the people actually walking through it.
+
 ## 0.17.5
 
 - In the waiting room, **P** (who is here) and **C** (the match rules) now answer for whoever just
