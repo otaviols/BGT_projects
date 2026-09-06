@@ -10,6 +10,13 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.17.3
+
+O som de morte agora toca **só para quem morreu**. Quem mata e quem estiver por perto ouve o som do
+assassinato, que dá a direção do crime sem dizer quem foi. Antes os dois sons tocavam para todo mundo
+ao mesmo tempo: entregava o assassinato de graça a quem estava por perto e, para a vítima, soava como
+se outra pessoa tivesse morrido.
+
 ## 0.17.2
 
 Duas correções no posto de câmeras:

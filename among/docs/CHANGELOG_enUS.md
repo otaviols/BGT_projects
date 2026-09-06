@@ -10,6 +10,13 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.17.3
+
+The death sound now plays **only for the person who died**. The killer and anyone nearby hear the
+kill sound instead, which gives away the direction of the crime without saying who did it. Before,
+both sounds played for everyone at once: it gave the kill away for free to anyone nearby and, to the
+victim, it sounded as though somebody else had died.
+
 ## 0.17.2
 
 Two fixes to the camera station:

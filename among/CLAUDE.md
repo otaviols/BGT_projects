@@ -178,6 +178,12 @@ por qual sabotagem se decide num lugar só. Espalhada como `if` em cada ponto (m
 de corpo, alcance de audição), bastava esquecer um para o jogador ficar cego pela metade sem que nada
 denunciasse. É também onde papéis novos vão declarar o que enxergam.
 
+**Cada som tem UM ouvinte pretendido — decida quem antes de tocar.** Num jogo em que a informação é o
+som, tocar para todo mundo entrega de graça o que devia custar. O assassinato são dois sons com
+públicos diferentes: a **morte** é pessoal e só a vítima ouve; o **kill** é espacial e é o único
+sinal do crime para quem está por perto. Tocar os dois para todos, como era antes, dava o crime de
+graça aos vizinhos e fazia a vítima ouvir a própria morte como se fosse de outra pessoa.
+
 **Fantasma não é atingido por sabotagem.** Ele já perdeu o que tinha a perder, e continua fazendo
 tarefas pelo time — cegá-lo não cria tensão, só torna tedioso o que ainda ajuda.
 

@@ -1,9 +1,9 @@
 {
-	"version": "0.17.2",
+	"version": "0.17.3",
 	"url": "AmongUs.zip",
-	"notes": "Two fixes to the camera station: The radar key now says who is in the watched room. Before, it answered for the room your own character was standing in, which made the cameras useless for looking for someone. Rooms are now in alphabetical order, and the game announces the position (\"Cafeteria, 3 of 11\"). Right arrow moves forward, left arrow goes back to the previous room, and the list wraps around at the ends — you can learn by heart how many presses each room takes.",
+	"notes": "The death sound now plays only for the person who died. The killer and anyone nearby hear the kill sound instead, which gives away the direction of the crime without saying who did it. Before, both sounds played for everyone at once: it gave the kill away for free to anyone nearby and, to the victim, it sounded as though somebody else had died.",
 	"notes_by_language": {
-		"pt_BR": "Duas correções no posto de câmeras: A tecla do radar agora diz quem está na sala observada. Antes ela respondia pela sala onde o seu personagem estava parado, o que tornava a câmera inútil para procurar alguém. As salas passaram a ficar em ordem alfabética, e o jogo anuncia a posição (\"Cafeteria, 3 de 11\"). A seta para a direita avança, a seta para a esquerda volta para a sala anterior, e nas pontas a lista dá a volta — dá para aprender de cor quantas vezes apertar para chegar em cada sala.",
-		"en_US": "Two fixes to the camera station: The radar key now says who is in the watched room. Before, it answered for the room your own character was standing in, which made the cameras useless for looking for someone. Rooms are now in alphabetical order, and the game announces the position (\"Cafeteria, 3 of 11\"). Right arrow moves forward, left arrow goes back to the previous room, and the list wraps around at the ends — you can learn by heart how many presses each room takes."
+		"pt_BR": "O som de morte agora toca só para quem morreu. Quem mata e quem estiver por perto ouve o som do assassinato, que dá a direção do crime sem dizer quem foi. Antes os dois sons tocavam para todo mundo ao mesmo tempo: entregava o assassinato de graça a quem estava por perto e, para a vítima, soava como se outra pessoa tivesse morrido.",
+		"en_US": "The death sound now plays only for the person who died. The killer and anyone nearby hear the kill sound instead, which gives away the direction of the crime without saying who did it. Before, both sounds played for everyone at once: it gave the kill away for free to anyone nearby and, to the victim, it sounded as though somebody else had died."
 	}
 }

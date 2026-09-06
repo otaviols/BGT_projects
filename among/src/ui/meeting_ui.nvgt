@@ -238,8 +238,22 @@ class meeting_ui {
 		float x = pkt.get_float("x");
 		float y = pkt.get_float("y");
 		int killer_color = pkt.get_int("killer_color");
-		audio.play_death(killer_color, x, y);
-		audio.play_kill_laugh(killer_color, x, y);
+
+		// Os dois sons do assassinato têm ouvintes DIFERENTES, e antes tocavam os dois para todo mundo.
+		//
+		//   morte - a reação de quem morreu. É pessoal: só a vítima ouve. Solto para os arredores, ele
+		//           entregava o assassinato de graça e ainda soava, para quem levou a facada, como se
+		//           fosse outra pessoa morrendo.
+		//   kill  - o que o assassino e quem estiver por perto ouvem. É o único sinal do crime para
+		//           fora, e é espacial: dá a direção sem dizer quem foi.
+		//
+		// A morte usa a cor da VÍTIMA (é o som dela), e não a de quem matou.
+		if (peer_id == client.my_peer_id) {
+			roster_entry@ victim = roster.find(peer_id);
+			audio.play_death(@victim != null ? victim.color : killer_color, x, y);
+		} else {
+			audio.play_kill_laugh(killer_color, x, y);
+		}
 		if (body_sounds_enabled) audio.start_body_beacon(peer_id, x, y);
 	}
 
