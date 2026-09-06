@@ -31,6 +31,12 @@ const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("light
 const string C_CLOSE_DOORS = "c_close_doors";     // {room_id} - fecha os corredores daquela sala, só impostor
 const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
 const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
+// Câmeras de segurança. Um jogador de cada vez, e é o servidor que arbitra: dois pedindo ao mesmo
+// tempo precisam de um árbitro só, e o cliente não tem como saber que outro já entrou.
+const string C_CAMERA_ENTER = "c_camera_enter";   // {} - pedir o posto de câmeras
+const string C_CAMERA_LEAVE = "c_camera_leave";   // {}
+const string C_CAMERA_SWITCH = "c_camera_switch"; // {room_id} - apontar para outra sala
+
 // Recado do jogador para quem faz o jogo. Vai pelo MESMO canal do resto: a sessão já está
 // autenticada, então o servidor sabe de quem veio sem o jogador digitar nada, e nenhum endereço ou
 // senha de serviço externo precisa viajar dentro do jogo distribuído.
@@ -71,6 +77,13 @@ const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, t
 // Confirmação de que o recado foi GRAVADO (não só recebido). O jogador precisa disto: sem resposta,
 // mandar feedback é falar no vácuo, e quem não tem certeza de que chegou manda de novo.
 const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}
+// Resposta ao próprio observador: entrou, trocou de sala, ou foi recusado/expulso.
+const string S_CAMERA_STATE = "s_camera_state";             // {active, room_id, message_key}
+// Para TODO mundo na partida: qual sala está sendo observada agora ("" = nenhuma).
+//
+// Vai para todos, e não só para quem está na sala, porque quem ENTRA nela depois precisa ouvir o
+// zumbido também - e o cliente só sabe disso se souber qual sala está sob observação.
+const string S_CAMERA_WATCHING = "s_camera_watching";       // {room_id}
 
 // --- Mensagens traduzíveis vindas do servidor -------------------------------
 //

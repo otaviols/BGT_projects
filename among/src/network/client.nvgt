@@ -91,6 +91,15 @@ class game_client {
 		send(p);
 	}
 
+	// --- Câmeras de segurança ---
+	void send_camera_enter() { send(net_packet(C_CAMERA_ENTER)); }
+	void send_camera_leave() { send(net_packet(C_CAMERA_LEAVE)); }
+	void send_camera_switch(const string&in room_id) {
+		net_packet@ p = net_packet(C_CAMERA_SWITCH);
+		p.set_string("room_id", room_id);
+		send(p);
+	}
+
 	void send_list_lobbies() {
 		send(net_packet(C_LIST_LOBBIES));
 	}

@@ -357,5 +357,13 @@
 	"color.maroon": "Bordô",
 	"color.gray": "Cinza",
 	"color.tan": "Bege",
-	"error.unexpected_no_log": "Aconteceu um erro inesperado e a partida foi encerrada. Não foi possível gravar o registro do erro nesta máquina, então use a opção de enviar um recado para contar o que estava fazendo quando isso aconteceu."
+	"error.unexpected_no_log": "Aconteceu um erro inesperado e a partida foi encerrada. Não foi possível gravar o registro do erro nesta máquina, então use a opção de enviar um recado para contar o que estava fazendo quando isso aconteceu.",
+	"object.security_cameras": "Posto de câmeras",
+	"camera.busy": "Alguém já está usando as câmeras.",
+	"camera.comms_down": "As câmeras estão fora do ar: as comunicações foram sabotadas.",
+	"camera.unavailable": "As câmeras não estão disponíveis agora.",
+	"camera.nobody_there": "Não há ninguém nessa sala.",
+	"camera.people_there": "Na sala: {names}.",
+	"camera.unknown_room": "Sala desconhecida",
+	"camera.hint": "Setas esquerda e direita trocam de sala, a tecla do radar diz quem está lá, e ESC desliga."
 }

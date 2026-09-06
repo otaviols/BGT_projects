@@ -40,6 +40,7 @@ enum map_object_type {
 	OBJ_VENT,
 	OBJ_SABOTAGE_PANEL,
 	OBJ_EMERGENCY_BUTTON,
+	OBJ_SECURITY_CAMERAS, // posto de câmeras na segurança: observa uma sala por vez, um jogador por vez
 	OBJ_DECORATION // mesa, cadeira, etc: só emite som ambiente, sem interação de gameplay
 }
 
@@ -473,6 +474,12 @@ game_map@ build_the_hub_map() {
 		OBJ_DECORATION, SND_AMBIENT_GAMES));
 	m.objects.insert_last(map_object("ambient_greenhouse", "room.greenhouse", 35, 25, "greenhouse",
 		OBJ_DECORATION, SND_AMBIENT_GREENHOUSE));
+	// Posto de câmeras: fica na segurança, junto do painel de gravações. É o único ponto do jogo que
+	// dá informação de OUTRA sala, e por isso custa caro - quem está nele fica parado e sem ouvir o
+	// que acontece à sua volta.
+	m.objects.insert_last(map_object("security_cameras", "object.security_cameras", 27, -27, "security",
+		OBJ_SECURITY_CAMERAS, SND_CAMERA_ON, "", "", SND_CAMERA_BEACON));
+
 	m.objects.insert_last(map_object("ambient_security", "room.security", 25, -25, "security",
 		OBJ_DECORATION, SND_AMBIENT_SECURITY));
 

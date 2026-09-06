@@ -172,6 +172,8 @@ class game_server {
 	}
 
 	void remove_from_lobby(game_state@ lobby, uint64 peer_id) {
+		// Quem sai (ou cai) larga o posto - senão ele fica preso a alguém que não está mais aqui.
+		if (lobby.release_cameras(peer_id)) broadcast_camera_watching(lobby);
 		string left_name = "";
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p != null) left_name = p.username;
@@ -261,6 +263,9 @@ class game_server {
 		else if (t == C_PING) on_ping(peer_id, pkt);
 		else if (t == C_CHAT_MESSAGE) on_chat_message(peer_id, pkt);
 		else if (t == C_SEND_FEEDBACK) on_send_feedback(peer_id, pkt);
+		else if (t == C_CAMERA_ENTER) on_camera_enter(peer_id, pkt);
+		else if (t == C_CAMERA_LEAVE) on_camera_leave(peer_id, pkt);
+		else if (t == C_CAMERA_SWITCH) on_camera_switch(peer_id, pkt);
 	}
 
 	// --- Autenticação ---
@@ -717,6 +722,9 @@ class game_server {
 
 		net_packet@ event;
 		if (lobby.try_kill(peer_id, target_peer, event)) {
+			// A vítima larga o posto: fantasma não opera equipamento, e um posto preso a quem morreu
+			// ficaria bloqueado para o resto da partida.
+			if (lobby.release_cameras(target_peer)) broadcast_camera_watching(lobby);
 			broadcast_to_lobby(lobby, event);
 		}
 	}
@@ -746,7 +754,11 @@ class game_server {
 		}
 
 		net_packet@ event;
-		if (lobby.start_meeting(peer_id, "body", event)) broadcast_meeting_and_voting(lobby, event);
+		if (lobby.start_meeting(peer_id, "body", event)) {
+			// Reunião leva todo mundo para a cafeteria - ninguém fica operando câmera.
+			if (lobby.release_cameras_any()) broadcast_camera_watching(lobby);
+			broadcast_meeting_and_voting(lobby, event);
+		}
 	}
 
 	// Manda o aviso de reunião (com a posição de teleporte) e, na sequência, já abre a votação - não
@@ -801,6 +813,7 @@ class game_server {
 		// cliente pra essa validação específica.
 		net_packet@ event;
 		if (lobby.start_meeting(peer_id, "button", event)) {
+			if (lobby.release_cameras_any()) broadcast_camera_watching(lobby);
 			broadcast_meeting_and_voting(lobby, event);
 		} else {
 			// Sem isso o jogador aperta o botão e não acontece nada nem fala nada - ex.: já gastou
@@ -971,6 +984,10 @@ class game_server {
 		net_packet@ event;
 		string fail_key;
 		if (lobby.trigger_sabotage(peer_id, sabotage_id, event, fail_key)) {
+			// Comunicações fora derrubam o posto de câmeras junto com o radar e os marcadores: é a
+			// resposta do impostor contra a segurança, e sem ela a câmera seria vigilância sem
+			// contrapartida.
+			if (sabotage_id == "comms" && lobby.release_cameras_any()) broadcast_camera_watching(lobby);
 			broadcast_to_lobby(lobby, event);
 		} else {
 			// Antes falhava calado - o impostor escolhia a sabotagem no menu e não acontecia nada,
@@ -992,6 +1009,58 @@ class game_server {
 	}
 
 	// Responde na hora, sem checar lobby/estado - o cliente usa isso só pra medir o round-trip de rede.
+	// --- Câmeras de segurança ---
+
+	void send_camera_state(uint64 peer_id, bool active, const string&in room_id, const string&in message_key = "") {
+		net_packet@ pkt = net_packet(S_CAMERA_STATE);
+		pkt.set_bool("active", active);
+		pkt.set_string("room_id", room_id);
+		pkt.set_string("message_key", message_key);
+		send_to(peer_id, pkt);
+	}
+
+	// Conta para a partida INTEIRA qual sala está sob observação. É isto que faz o zumbido tocar
+	// para quem está lá - e também para quem entrar na sala depois, que é o caso que um aviso
+	// pontual não cobriria.
+	void broadcast_camera_watching(game_state@ lobby) {
+		net_packet@ pkt = net_packet(S_CAMERA_WATCHING);
+		pkt.set_string("room_id", lobby.camera_room_id);
+		broadcast_to_lobby(lobby, pkt);
+	}
+
+	void on_camera_enter(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		string fail = lobby.try_enter_cameras(peer_id);
+		if (fail != "") {
+			send_camera_state(peer_id, false, "", fail);
+			return;
+		}
+		send_camera_state(peer_id, true, lobby.camera_room_id);
+		broadcast_camera_watching(lobby);
+	}
+
+	void on_camera_leave(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		if (!lobby.release_cameras(peer_id)) return;
+		send_camera_state(peer_id, false, "");
+		broadcast_camera_watching(lobby);
+	}
+
+	void on_camera_switch(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.camera_user_peer != peer_id) return;
+		// A sala tem que existir no mapa: o id vem do cliente, e um id inventado deixaria a câmera
+		// apontada para lugar nenhum - sem som, sem erro, parecendo defeito.
+		string room_id = pkt.get_string("room_id");
+		map_zone@ zone = lobby.map.find_zone(room_id);
+		if (@zone == null) return;
+		lobby.camera_room_id = room_id;
+		send_camera_state(peer_id, true, room_id);
+		broadcast_camera_watching(lobby);
+	}
+
 	void on_ping(uint64 peer_id, net_packet@ pkt) {
 		send_to(peer_id, net_packet(S_PONG));
 	}

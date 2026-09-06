@@ -1,0 +1,104 @@
+// camera_screen.nvgt
+// O posto de câmeras da segurança: observar UMA sala por vez, de longe.
+//
+// É o único ponto do jogo que dá informação de outra sala. Tudo o mais que o jogador sabe é local -
+// ele ouve o que está perto - e é isso que torna a câmera valiosa e, se mal calibrada, quebrada.
+// O equilíbrio está em três custos, todos deliberados:
+//
+//   1. Quem observa fica PARADO na segurança e deixa de ouvir o que acontece à sua volta. O truque
+//      que faz isso funcionar é mover o OUVINTE do áudio para a sala observada: o jogador passa a
+//      ouvir os passos e o ambiente de lá exatamente como ouviria se estivesse no lugar, e para de
+//      ouvir o próprio entorno. Nenhum código de áudio novo foi preciso.
+//   2. A sala observada AVISA que está sendo observada, com um zumbido contínuo. Quem entra nela
+//      descobre sozinho, e o impostor pode escolher esperar - é o que faz a câmera ser um jogo dos
+//      dois lados em vez de vigilância grátis.
+//   3. Nomes custam uma ação a mais: o jogador ouve quem está lá apertando a tecla do radar. Sem
+//      isso, a câmera responderia "onde está cada um" de graça e a discussão perderia a dúvida.
+//
+// As comunicações sabotadas derrubam o posto - mesma sabotagem que já tira radar e marcadores.
+
+#include "menu.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../audio/audio_manager.nvgt"
+#include "../game/map.nvgt"
+#include "../i18n.nvgt"
+
+// Estado do posto no cliente. Fica fora da tela porque o laço da partida precisa saber se está
+// observando (para não deixar o jogador andar) e qual sala (para posicionar o ouvinte).
+class camera_view {
+	bool active = false;
+	string room_id = "";
+	int room_index = 0;
+	private sound@ static_loop = null;
+
+	// As salas observáveis, na ordem em que as setas passam por elas.
+	array<map_zone@> rooms;
+
+	void build_room_list(game_map@ map) {
+		rooms.resize(0);
+		array<map_zone@>@ all = map.room_zones();
+		for (uint i = 0; i < all.length(); i++) rooms.insert_last(all[i]);
+	}
+
+	void start(const string&in room, audio_manager@ audio) {
+		active = true;
+		room_id = room;
+		sync_index();
+		if (@static_loop == null) {
+			sound s;
+			if (s.load(SND_CAMERA_STATIC)) {
+				@static_loop = s;
+				static_loop.play_looped();
+			}
+		}
+	}
+
+	void stop(audio_manager@ audio) {
+		active = false;
+		room_id = "";
+		if (@static_loop != null) { static_loop.stop(); @static_loop = null; }
+	}
+
+	private void sync_index() {
+		for (uint i = 0; i < rooms.length(); i++) {
+			if (rooms[i].id == room_id) { room_index = int(i); return; }
+		}
+	}
+
+	// Sala seguinte/anterior na lista, dando a volta. O jogador varre as salas com as setas, e parar
+	// nas pontas obrigaria a voltar o caminho todo para chegar na primeira.
+	string room_at_offset(int offset) const {
+		if (rooms.length() == 0) return "";
+		int n = int(rooms.length());
+		int idx = ((room_index + offset) % n + n) % n;
+		return rooms[idx].id;
+	}
+
+	map_zone@ current_zone() const {
+		for (uint i = 0; i < rooms.length(); i++) {
+			if (rooms[i].id == room_id) return rooms[i];
+		}
+		return null;
+	}
+}
+
+// Quem está na sala observada, dito só quando o jogador pede (tecla do radar).
+//
+// Usa o elenco que o cliente já mantém - o servidor manda a posição de todo mundo, e é isso que faz
+// a câmera funcionar sem nenhum pacote novo. Fantasma não entra: ele é invisível para quem está vivo.
+string watched_room_players_text(client_roster@ roster, game_map@ map, const string&in room_id,
+		uint64 my_peer_id) {
+	array<string> nomes;
+	for (uint i = 0; i < roster.entries.length(); i++) {
+		roster_entry@ e = roster.entries[i];
+		if (e.peer_id == my_peer_id || !e.alive) continue;
+		if (map.room_id_at(e.x, e.y) != room_id) continue;
+		nomes.insert_last(e.name);
+	}
+	if (nomes.length() == 0) return tr("camera.nobody_there");
+	dictionary@ p = dictionary();
+	p.set("names", join(nomes, ", "));
+	return tr("camera.people_there", p);
+}

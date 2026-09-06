@@ -13,6 +13,7 @@
 #include "../ui/meeting_ui.nvgt"
 #include "../core/client_state.nvgt"
 #include "../core/sabotage_rules.nvgt"
+#include "../ui/camera_screen.nvgt"
 #include "../core/chat_log.nvgt"
 #include "../core/player.nvgt"
 #include "../game/roles/crewmate.nvgt"
@@ -104,6 +105,24 @@ void refresh_landmark_beacons(audio_manager@ audio, game_map@ map, array<string>
 	bool comms_down = player_abilities(role, alive).blinded_by_comms(active_sabotage_id);
 	array<string>@ task_ids = comms_down ? null : my_task_object_ids;
 	audio.start_landmark_beacons(map, task_ids, active_sabotage_id);
+}
+
+// Som simples de interface do posto de câmeras (sem posição: quem ouve é quem está operando).
+void task_sound_simple(const string&in path) {
+	sound_play(path, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), g_settings.volume_db(SOUND_FAMILY_TASKS), 0.0);
+}
+
+// Liga/desliga o zumbido que avisa "esta sala está sendo observada".
+//
+// Ele toca no CENTRO da sala e é ouvido por quem estiver lá - inclusive por quem entrar depois, que
+// é justamente o caso que um aviso pontual não cobriria. Quem está operando a câmera também ouve,
+// porque o ouvinte dele está naquela sala: é o preço de estar olhando, e deixa claro que o outro
+// lado também sabe.
+void refresh_camera_watching_beacon(audio_manager@ audio, game_map@ map, const string&in room_id) {
+	audio.stop_camera_watching();
+	if (room_id == "") return;
+	map_zone@ z = map.find_zone(room_id);
+	if (@z != null) audio.start_camera_watching(z.center_x, z.center_y);
 }
 
 // Menu de fechar portas: lista as SALAS (corredor não entra - a porta é justamente o corredor que
@@ -429,6 +448,12 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	bool ping_pending = false;
 	bool game_over = false;
 	bool movement_frozen = false; // true durante reunião/votação - todo mundo parado na cafeteria
+	// Posto de câmeras (ver ui/camera_screen.nvgt). `watched_room_id` é a sala que a partida INTEIRA
+	// sabe estar sob observação - é o que faz o zumbido tocar para quem está lá dentro, mesmo que
+	// quem observa seja outra pessoa.
+	camera_view cameras;
+	cameras.build_room_list(map);
+	string watched_room_id = "";
 
 	while (!game_over) {
 		wait(5);
@@ -591,6 +616,32 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					speak(hint_text);
 					events_log.add("", hint_text);
 				}
+			} else if (t == S_CAMERA_STATE) {
+				bool was_active = cameras.active;
+				if (pkt.get_bool("active")) {
+					cameras.start(pkt.get_string("room_id"), audio);
+					map_zone@ z = cameras.current_zone();
+					string nome_sala = tr(@z != null ? z.name_key : "camera.unknown_room");
+					if (!was_active) {
+						task_sound_simple(SND_CAMERA_ON);
+						// A dica só na ENTRADA: repeti-la a cada troca de sala atrapalharia justamente
+						// quem já sabe operar e está varrendo a nave.
+						speak(nome_sala + ". " + tr("camera.hint"));
+					} else {
+						speak(nome_sala);
+					}
+				} else {
+					if (was_active) task_sound_simple(SND_CAMERA_OFF);
+					cameras.stop(audio);
+					// Volta a ouvir o próprio entorno: sem isto o jogador continuaria escutando a sala
+					// que estava observando, parado na segurança, sem entender por quê.
+					audio.update_listener(my_x, my_y);
+					string motivo = pkt.get_string("message_key");
+					if (motivo != "") speak(tr(motivo));
+				}
+			} else if (t == S_CAMERA_WATCHING) {
+				watched_room_id = pkt.get_string("room_id");
+				refresh_camera_watching_beacon(audio, map, watched_room_id);
 			} else if (t == S_SABOTAGE_COUNTDOWN) {
 				mui.on_sabotage_countdown(pkt);
 			} else if (t == S_SABOTAGE_FIXED) {
@@ -840,6 +891,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					} else if (obj.obj_type == OBJ_SABOTAGE_PANEL) {
 						audio.play_object_interact(obj);
 						imp.fix_sabotage_panel(obj.id);
+					} else if (obj.obj_type == OBJ_SECURITY_CAMERAS) {
+						// Só pede; quem decide é o servidor (o posto é de um de cada vez).
+						client.send_camera_enter();
 					} else if (obj.obj_type == OBJ_EMERGENCY_BUTTON) {
 						crew.call_emergency_meeting();
 					}
@@ -902,6 +956,30 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// FORA do bloco acima (que exige !is_vented).
 		if (player_abilities(my_role, alive).can_vent() && !movement_frozen && is_vented && action_pressed(ACTION_VENT)) {
 			run_vent_menu(imp, map, audio, current_vent_id);
+		}
+
+		// Controles do posto de câmeras. Ficam ANTES do resto e devolvem cedo: enquanto se observa, o
+		// jogador não anda nem interage com o que está à volta dele - é justamente o que torna o posto
+		// arriscado, e misturar as duas coisas deixaria alguém andando "às cegas" pela nave.
+		if (cameras.active) {
+			if (key_pressed(KEY_LEFT) || key_pressed(KEY_RIGHT)) {
+				string destino = cameras.room_at_offset(key_pressed(KEY_LEFT) ? -1 : 1);
+				if (destino != "") {
+					client.send_camera_switch(destino);
+					task_sound_simple(SND_CAMERA_SWITCH);
+				}
+			}
+			// Nomes custam uma ação a mais, de propósito: varrer salas é barato, saber QUEM está numa
+			// delas exige parar e pedir.
+			if (action_pressed(ACTION_RADAR)) {
+				speak(watched_room_players_text(roster, map, cameras.room_id, client.my_peer_id));
+			}
+			if (key_pressed(KEY_ESCAPE) || action_pressed(ACTION_INTERACT)) client.send_camera_leave();
+
+			// O ouvinte fica na sala observada: é isso que faz o jogador ouvir os passos e o ambiente
+			// de lá, e deixar de ouvir o próprio entorno.
+			map_zone@ watched = cameras.current_zone();
+			if (@watched != null) audio.update_listener(watched.center_x, watched.center_y);
 		}
 
 		// Lista de tarefas / tempo da reunião.

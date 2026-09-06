@@ -55,6 +55,14 @@ class game_state {
 	float sabotage_cooldown_remaining = 0.0;
 	array<string> sabotage_fixed_panels;
 
+	// --- Câmeras de segurança ---
+	// Quem está no posto agora (0 = livre) e para qual sala ele aponta.
+	//
+	// O posto é de UM de cada vez, e quem arbitra é o servidor: dois jogadores apertando Enter no
+	// mesmo instante não têm como se acertar sozinhos, e o cliente não sabe que outro já entrou.
+	uint64 camera_user_peer = 0;
+	string camera_room_id = "";
+
 	string winner = ""; // "" | "crewmates" | "impostors"
 	string win_reason = "";
 	float elapsed_time = 0.0;
@@ -449,6 +457,40 @@ class game_state {
 		out_event.set_string("sabotage_id", sabotage_id);
 		out_event.set_float("timer", sabotage_timer);
 		out_event.set_bool("critical", is_critical_sabotage(sabotage_id));
+		return true;
+	}
+
+	// Tenta ocupar o posto de câmeras. Devolve "" se conseguiu, ou a chave do motivo da recusa.
+	//
+	// As comunicações sabotadas derrubam as câmeras: é a mesma sabotagem que já tira radar,
+	// marcadores e aviso de corpo, e sem isso o posto seria o único ponto do jogo que o impostor não
+	// tem como cegar antes de agir.
+	string try_enter_cameras(uint64 peer_id) {
+		if (state != "in_progress") return "camera.unavailable";
+		if (active_sabotage == "comms") return "camera.comms_down";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) return "camera.unavailable"; // fantasma não opera equipamento
+		if (camera_user_peer != 0 && camera_user_peer != peer_id) return "camera.busy";
+		camera_user_peer = peer_id;
+		if (camera_room_id == "") camera_room_id = "cafeteria"; // uma sala qualquer para começar
+		return "";
+	}
+
+	// Libera o posto se for este jogador que o ocupa. Chamado de MUITOS lugares - sair, morrer,
+	// desconectar, reunião começar, comunicações caírem - porque um posto que fica preso a alguém
+	// que já saiu bloquearia as câmeras para o resto da partida.
+	bool release_cameras(uint64 peer_id) {
+		if (camera_user_peer == 0 || camera_user_peer != peer_id) return false;
+		camera_user_peer = 0;
+		camera_room_id = "";
+		return true;
+	}
+
+	// Libera seja quem for. Usado quando a partida muda de fase ou a sabotagem derruba tudo.
+	bool release_cameras_any() {
+		if (camera_user_peer == 0) return false;
+		camera_user_peer = 0;
+		camera_room_id = "";
 		return true;
 	}
 

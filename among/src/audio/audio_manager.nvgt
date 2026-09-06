@@ -212,6 +212,24 @@ class audio_manager {
 	void play_meeting_alarm() { spatial.play_ui(SND_MEETING_ALARM, false, family_db(SOUND_FAMILY_EVENTS)); }
 
 	// Sabotagem de luzes reduz o alcance de audição ambiente (decisão de design).
+	// Zumbido da sala sob observação. Um só de cada vez: só existe um posto de câmeras, então só
+	// pode haver uma sala observada.
+	// Segue o padrão dos outros beacons: play_looping devolve um "slot" que é o que se guarda para
+	// poder parar depois. -1 significa que o som não pôde ser carregado (o arquivo ainda não existe,
+	// por exemplo) - e aí não há nada a parar.
+	private int camera_watching_slot = -1;
+
+	void start_camera_watching(float x, float y) {
+		stop_camera_watching();
+		camera_watching_slot = spatial.play_looping(SND_CAMERA_WATCHING, x, y, false, family_db(SOUND_FAMILY_BEACONS));
+	}
+
+	void stop_camera_watching() {
+		if (camera_watching_slot == -1) return;
+		spatial.stop_sound(camera_watching_slot);
+		camera_watching_slot = -1;
+	}
+
 	void apply_lights_out(bool active, int normal_max_distance) {
 		if (active) spatial.set_max_distance(int(normal_max_distance * LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER));
 		else spatial.set_max_distance(normal_max_distance);
