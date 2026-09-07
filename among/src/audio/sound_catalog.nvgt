@@ -136,7 +136,7 @@ int footstep_variant_count(const string&in floor_prefix) {
 	if (floor_prefix == "Tile") return 6;
 	if (floor_prefix == "MetalTile") return 8;
 	if (floor_prefix == "MetalBeltTile") return 6;
-	if (floor_prefix == "WoodTile") return 7;
+	if (floor_prefix == "WoodTile") return 5;
 	if (floor_prefix == "EarthTile") return 7;
 	if (floor_prefix == "VentTile") return 4;
 	return 2;
@@ -178,9 +178,10 @@ float footstep_volume_db(const string&in floor_prefix) {
 	// no nível dos outros (corpo -30,9 dB, contra -29,7 do MetalTile). Os +15 dB que existiram aqui
 	// eram muleta para o arquivo novo, que vinha 14 dB mais baixo - e o arquivo novo foi descartado
 	// justamente porque nenhum ganho o deixava bom.
-	// WoodTile foi de +10 para +13: a medida da parte sonora pedia +13,2 e os +10 ainda soavam
-	// baixos ao lado dos outros pisos. Pico depois do ajuste: -10,5 dB, sem risco de estourar.
-	if (floor_prefix == "WoodTile") return 13.0;
+	// WoodTile ABAIXA, não sobe: os arquivos foram trocados de novo e os atuais são os mais fortes
+	// do conjunto (corpo -26,9 dB, contra -31,0 do MetalTile). O +13 que existiu aqui era para os
+	// arquivos anteriores, que eram fracos - o número segue o arquivo, não o piso.
+	if (floor_prefix == "WoodTile") return -4.0;
 	if (floor_prefix == "EarthTile") return 13.0;
 	if (floor_prefix == "VentTile") return 5.0;
 	if (floor_prefix == "CarpetTile") return 12.0;

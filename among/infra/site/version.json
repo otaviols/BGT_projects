@@ -1,9 +1,9 @@
 {
-	"version": "0.18.4",
+	"version": "0.18.5",
 	"url": "AmongUs.zip",
-	"notes": "The footstep on the wooden floor is a bit louder — it still sounded weak next to the other floors.",
+	"notes": "A new footstep for the wooden floor, balanced against the rest: this one came in louder than the other floors rather than quieter.",
 	"notes_by_language": {
-		"pt_BR": "O passo no piso de madeira ficou um pouco mais alto — ainda soava fraco ao lado dos outros pisos.",
-		"en_US": "The footstep on the wooden floor is a bit louder — it still sounded weak next to the other floors."
+		"pt_BR": "Passo novo no piso de madeira, e equilibrado com os demais: o de agora vinha mais forte que os outros pisos, e não mais fraco.",
+		"en_US": "A new footstep for the wooden floor, balanced against the rest: this one came in louder than the other floors rather than quieter."
 	}
 }

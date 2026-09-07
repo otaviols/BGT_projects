@@ -10,6 +10,11 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.18.5
+
+A new footstep for the wooden floor, balanced against the rest: this one came in louder than the
+other floors rather than quieter.
+
 ## 0.18.4
 
 The footstep on the wooden floor is a bit louder — it still sounded weak next to the other floors.

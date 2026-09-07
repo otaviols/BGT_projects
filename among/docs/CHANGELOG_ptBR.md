@@ -10,6 +10,11 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.18.5
+
+Passo novo no piso de madeira, e equilibrado com os demais: o de agora vinha mais forte que os outros
+pisos, e não mais fraco.
+
 ## 0.18.4
 
 O passo no piso de madeira ficou um pouco mais alto — ainda soava fraco ao lado dos outros pisos.
