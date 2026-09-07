@@ -178,7 +178,9 @@ float footstep_volume_db(const string&in floor_prefix) {
 	// no nível dos outros (corpo -30,9 dB, contra -29,7 do MetalTile). Os +15 dB que existiram aqui
 	// eram muleta para o arquivo novo, que vinha 14 dB mais baixo - e o arquivo novo foi descartado
 	// justamente porque nenhum ganho o deixava bom.
-	if (floor_prefix == "WoodTile") return 10.0;
+	// WoodTile foi de +10 para +13: a medida da parte sonora pedia +13,2 e os +10 ainda soavam
+	// baixos ao lado dos outros pisos. Pico depois do ajuste: -10,5 dB, sem risco de estourar.
+	if (floor_prefix == "WoodTile") return 13.0;
 	if (floor_prefix == "EarthTile") return 13.0;
 	if (floor_prefix == "VentTile") return 5.0;
 	if (floor_prefix == "CarpetTile") return 12.0;

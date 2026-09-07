@@ -10,6 +10,10 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.18.4
+
+O passo no piso de madeira ficou um pouco mais alto — ainda soava fraco ao lado dos outros pisos.
+
 ## 0.18.3
 
 O passo no piso de azulejo voltou a ser o de sempre. O som novo que entrou na versão passada era

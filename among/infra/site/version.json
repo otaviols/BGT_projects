@@ -1,9 +1,9 @@
 {
-	"version": "0.18.3",
+	"version": "0.18.4",
 	"url": "AmongUs.zip",
-	"notes": "The footstep on the tiled floor is back to the old one. The new sound that came in the last version was too muffled, and no amount of volume adjustment fixed it.",
+	"notes": "The footstep on the wooden floor is a bit louder — it still sounded weak next to the other floors.",
 	"notes_by_language": {
-		"pt_BR": "O passo no piso de azulejo voltou a ser o de sempre. O som novo que entrou na versão passada era abafado demais, e nenhum ajuste de volume resolvia.",
-		"en_US": "The footstep on the tiled floor is back to the old one. The new sound that came in the last version was too muffled, and no amount of volume adjustment fixed it."
+		"pt_BR": "O passo no piso de madeira ficou um pouco mais alto — ainda soava fraco ao lado dos outros pisos.",
+		"en_US": "The footstep on the wooden floor is a bit louder — it still sounded weak next to the other floors."
 	}
 }

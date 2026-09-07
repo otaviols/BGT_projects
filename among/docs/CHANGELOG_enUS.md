@@ -10,6 +10,10 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.18.4
+
+The footstep on the wooden floor is a bit louder — it still sounded weak next to the other floors.
+
 ## 0.18.3
 
 The footstep on the tiled floor is back to the old one. The new sound that came in the last version
