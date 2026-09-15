@@ -10,6 +10,12 @@
 #   infra\read_feedback.ps1 -After 40      # só os que chegaram depois do #40
 #   infra\read_feedback.ps1 -Limit 20      # só os 20 mais recentes
 #   infra\read_feedback.ps1 -WithCrashLog  # mostra o crash.log inteiro de cada um
+#   infra\read_feedback.ps1 -Out recados.txt  # grava em arquivo (UTF-8), em vez de mostrar
+#
+# Acentos: os recados vêm em três idiomas e o Python imprime UTF-8, mas o console do Windows lê
+# outra coisa por padrão e mostra "vers�o". Por isso o script força UTF-8 no Python E no console.
+# Para arquivo, use -Out em vez de ">": no Windows PowerShell o ">" grava UTF-16, e o arquivo abre
+# como "p e s s o a", com um espaço entre cada letra.
 #
 # O padrão é mostrar tudo. Já foi "os 20 mais recentes", e o efeito foi parecer que o script cortava
 # a lista: os recados chegam em dezenas por dia, e ninguém lembra de passar -Limit quando o que quer
@@ -19,7 +25,8 @@ param(
 	[int]$Limit = 0,
 	[int]$After = 0,
 	[switch]$WithCrashLog,
-	[string]$Namespace = "amongus"
+	[string]$Namespace = "amongus",
+	[string]$Out = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,6 +34,7 @@ $ErrorActionPreference = "Stop"
 $pod = kubectl get pods -n $Namespace -o jsonpath="{.items[0].metadata.name}"
 if ([string]::IsNullOrWhiteSpace($pod)) { throw "Não achei o pod do servidor no namespace $Namespace." }
 
+$origem = Get-Location # -Out relativo é relativo a de onde o script foi chamado, não à pasta de trabalho
 $work = Join-Path $env:TEMP "amongus_feedback"
 New-Item -ItemType Directory -Force $work | Out-Null
 Push-Location $work
@@ -81,7 +89,16 @@ for r in rows:
             print('   [tem crash.log anexado - rode com -WithCrashLog para ver]')
 "@
 	$py | Out-File -FilePath "ler.py" -Encoding utf8
-	python "ler.py" $Limit $After $(if ($WithCrashLog) { "1" } else { "0" })
+	$env:PYTHONIOENCODING = "utf-8"
+	[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+	$flagCrash = if ($WithCrashLog) { "1" } else { "0" }
+	if ($Out -ne "") {
+		$destino = if ([System.IO.Path]::IsPathRooted($Out)) { $Out } else { Join-Path $origem $Out }
+		python "ler.py" $Limit $After $flagCrash | Out-File -FilePath $destino -Encoding utf8
+		Write-Host "Gravado em $destino"
+	} else {
+		python "ler.py" $Limit $After $flagCrash
+	}
 }
 finally {
 	Pop-Location
