@@ -119,6 +119,22 @@ class game_server {
 		return null;
 	}
 
+	// O código é comparado sem diferença de maiúsculas e sem espaços nas pontas: ele é ditado de viva
+	// voz entre amigos, e ninguém dita maiúscula. Limite de tamanho porque vem da máquina do jogador.
+	string normalize_join_code(const string&in raw) const {
+		string code = raw.trim_whitespace().lower();
+		if (code.length() > MAX_JOIN_CODE_LENGTH) code = code.substr(0, MAX_JOIN_CODE_LENGTH);
+		return code;
+	}
+
+	game_state@ find_lobby_by_code(const string&in code) const {
+		if (code == "") return null;
+		for (uint i = 0; i < lobbies.length(); i++) {
+			if (lobbies[i].join_code == code) return lobbies[i];
+		}
+		return null;
+	}
+
 	game_state@ find_lobby_of_peer(uint64 peer_id) const {
 		game_player@ conn = find_connection(peer_id);
 		if (@conn == null || conn.lobby_id == "") return null;
@@ -132,9 +148,15 @@ class game_server {
 
 	// Bot não tem conexão: mandar pacote pro "peer" dele seria jogar no lixo (ou pior, mirar um peer
 	// que não existe), então todo envio em massa pula bot.
+	//
+	// Quem SAIU no meio da partida também não recebe nada. O registro dele continua na lista (para a
+	// contagem de vivos, ver remove_from_lobby) com o MESMO peer_id da conexão, e a conexão a esta
+	// altura pode estar em outra sala. Mandar pacote para esse peer_id era mandar a partida antiga
+	// para dentro da nova: o jogador recebia o S_GAME_OVER de uma partida que já tinha abandonado e
+	// o cliente dele, obediente, saía da partida em que estava - "como se tivesse vencido".
 	void broadcast_to_lobby(game_state@ lobby, net_packet@ pkt, uint64 exclude_peer = 0, bool reliable = true) {
 		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].is_bot) continue;
+			if (!reaches_client(lobby.players[i])) continue;
 			if (lobby.players[i].peer_id == exclude_peer) continue;
 			send_to(lobby.players[i].peer_id, pkt, reliable);
 		}
@@ -144,10 +166,16 @@ class game_server {
 	// dele (ver on_move).
 	void broadcast_to_dead_players(game_state@ lobby, net_packet@ pkt, uint64 exclude_peer = 0) {
 		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (lobby.players[i].is_bot) continue;
+			if (!reaches_client(lobby.players[i])) continue;
 			if (lobby.players[i].peer_id == exclude_peer || lobby.players[i].alive) continue;
 			send_to(lobby.players[i].peer_id, pkt, false);
 		}
+	}
+
+	// Há alguém do outro lado deste registro? Bot não tem conexão; quem saiu da partida tem uma
+	// conexão que já não pertence a esta sala.
+	bool reaches_client(game_player@ p) const {
+		return !p.is_bot && !p.left_match;
 	}
 
 	void handle_event(const network_event@ ev) {
@@ -315,6 +343,9 @@ class game_server {
 		for (uint i = 0; i < lobbies.length(); i++) {
 			game_state@ lobby = lobbies[i];
 			if (lobby.state != "waiting") continue;
+			// Partida privada não aparece: o sentido dela é ser encontrada só por quem tem o código.
+			// Listá-la "trancada" só convidaria tentativa de adivinhação.
+			if (lobby.is_private()) continue;
 			json_object@ entry = json_object();
 			entry.set("id", lobby.lobby_id);
 			entry.set("name", lobby.lobby_name);
@@ -349,6 +380,7 @@ class game_server {
 		// validate() DEPOIS de aplicar, e não antes: estes números vieram da máquina do jogador, e é
 		// aqui que um "1000 jogadores" ou um cooldown de meio segundo voltam para dentro dos limites.
 		lobby.config.validate();
+		lobby.join_code = normalize_join_code(pkt.get_string("join_code", ""));
 		lobby.host_peer_id = peer_id;
 		@lobby.map = build_the_hub_map();
 
@@ -364,12 +396,33 @@ class game_server {
 		if (@conn == null || !conn.authenticated) return;
 
 		string lobby_id = pkt.get_string("lobby_id");
-		game_state@ lobby = find_lobby(lobby_id);
+		string join_code = normalize_join_code(pkt.get_string("join_code", ""));
 		net_packet@ result = net_packet(S_JOIN_RESULT);
 
-		if (@lobby == null || lobby.state != "waiting" || lobby.players.length() >= lobby.config.max_players) {
+		// Sem id, a porta é o código: a partida privada não está na lista, então o cliente não tem
+		// como saber o id dela. Com id, o código é exigido se a partida for privada - senão bastaria
+		// saber o id (que já circulou na lista um dia) para pular a tranca.
+		game_state@ lobby;
+		string fail_key = "lobby.join_failed";
+		if (lobby_id == "") {
+			@lobby = find_lobby_by_code(join_code);
+			if (@lobby == null) fail_key = "lobby.code_not_found";
+		} else {
+			@lobby = find_lobby(lobby_id);
+			if (@lobby != null && lobby.is_private() && lobby.join_code != join_code) {
+				@lobby = null;
+				fail_key = "lobby.code_not_found";
+			}
+		}
+		if (@lobby != null && lobby.state != "waiting") { @lobby = null; fail_key = "lobby.in_progress"; }
+		if (@lobby != null && lobby.players.length() >= lobby.config.max_players) { @lobby = null; fail_key = "lobby.full"; }
+
+		if (@lobby == null) {
 			result.set_bool("ok", false);
 			result.set_string("message", "lobby_unavailable");
+			// O motivo vai como chave: "não deu" não diz ao jogador se errou o código, se a sala
+			// encheu ou se a partida já começou - e cada um desses pede uma reação diferente dele.
+			result.set_string(MSG_KEY_FIELD, fail_key);
 			send_to(peer_id, result);
 			return;
 		}
@@ -481,6 +534,9 @@ class game_server {
 		pkt.set_int("max_players", int(lobby.config.max_players));
 		pkt.set_uint64("host_peer_id", lobby.host_peer_id);
 		pkt.set_object("config", lobby.config.to_json(lobby.players.length()));
+		// O código vai para quem JÁ está dentro: é como o anfitrião o relembra para ditar aos amigos,
+		// e como quem entrou sabe que está numa sala fechada. Quem está fora nunca vê este pacote.
+		pkt.set_string("join_code", lobby.join_code);
 
 		json_array@ players_json = json_array();
 		for (uint i = 0; i < lobby.players.length(); i++) {

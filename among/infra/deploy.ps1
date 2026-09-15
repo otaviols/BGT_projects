@@ -24,6 +24,15 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
 if (-not $SkipServer) {
+	# A imagem é etiquetada com o commit atual, e a etiqueta só diz a verdade se o que está sendo
+	# compilado É o commit. Com mudanças por commitar, o pod diria "6b40082" rodando código que o
+	# 6b40082 não tem - e quem fosse investigar um problema no servidor olharia o código errado.
+	# Já aconteceu. Commite antes de publicar o servidor.
+	$dirty = git -C $root status --porcelain --untracked-files=no
+	if (-not [string]::IsNullOrWhiteSpace($dirty)) {
+		throw "Há mudanças por commitar. A imagem leva o nome do commit, então commite antes de publicar o servidor:`n$dirty"
+	}
+
 	$serverZip = Join-Path $root "server_main.zip"
 	if (-not (Test-Path $serverZip)) {
 		throw "Não achei $serverZip. Gere com: nvgt -c -plinux server_main.nvgt"

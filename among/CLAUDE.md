@@ -253,6 +253,20 @@ coisa que pega um caminho errado — som que não carrega falha em silêncio, se
 
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 
+**Commite ANTES de publicar o servidor.** A imagem leva o nome do commit atual, e isso só é verdade
+se a árvore estiver limpa: a 0.19.0 subiu etiquetada `6b40082` com código que o `6b40082` não tinha.
+O `deploy.ps1` agora recusa árvore suja quando o servidor entra no deploy. O cliente não tem esse
+problema - o zip não carrega nome de commit.
+
+**Quem saiu da partida continua na lista de jogadores dela** (como registro, para a contagem de vivos
+não quebrar) **com o mesmo peer_id da conexão** - e a conexão pode estar em outra sala. Todo envio em
+massa passa por `reaches_client()`, que pula bot e quem saiu. Sintoma quando isso faltou: o jogador
+recebia o fim da partida ANTIGA dentro da nova e o cliente, obediente, saía dela "como se tivesse
+vencido".
+
+**`read_feedback.ps1` mostra tudo por padrão; use `-After <id>` para retomar.** O padrão era "os 20
+mais recentes", e isso pareceu truncamento: os recados chegam em dezenas por dia.
+
 **Fora do git:** `terraform.tfvars`, `*.tfstate`, `sounds.dat`, `*.zip`, `*.exe`, `crash.log`,
 `among_users.db`, `server.txt`.
 
@@ -297,7 +311,14 @@ infra\read_feedback.ps1 [-WithCrashLog]     # recados dos jogadores
 
 ## Pendências conhecidas
 
-- **`sounds/ejected.wav` não existe.** Está no catálogo, o `build_pack` avisa a cada build, e o jogo
+- **Recados do beta ainda sem resposta** (ver `infraead_feedback.ps1`): pedidos repetidos de
+  personagem/passos mais rápidos (#30, #32, #40, #43, #54); um mapa ou algum jeito de se orientar
+  (#20, #33, #9, #15); avisos que interrompem a fala do leitor (#52 pede um buffer de anúncios);
+  bots impostores eficazes demais (#51); "não responde" no meio da partida (#49, #10 - sem log);
+  jogo fechou ao apertar Tab logo depois de a câmera cair por sabotagem (#35 - sem log, não
+  reproduzido); tradução completa para espanhol oferecida por Bauti (#31) - já existe um `es_LATAM`
+  em uso, então alguém já plugou.
+- **`sounds/ejected.ogg` não existe.** Está no catálogo, o `build_pack` avisa a cada build, e o jogo
   compilado sai sem o som de alguém ser expulso na votação.
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em
   versões até a 0.11.1.

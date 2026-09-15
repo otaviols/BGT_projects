@@ -5,7 +5,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.18.5";
+const string GAME_VERSION = "0.19.0";
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.
@@ -25,6 +25,8 @@ const uint MAX_PACKET_CHANNELS = 4;
 const uint NETWORK_TICKS_PER_SECOND = 20;
 
 // Jogadores
+// Código de partida privada: curto o bastante para ser ditado, longo o bastante para uma frase.
+const uint MAX_JOIN_CODE_LENGTH = 32;
 const uint MIN_PLAYERS = 3; // temporário, pra facilitar teste - Among Us de verdade usa 4
 const uint MAX_PLAYERS = 15;
 

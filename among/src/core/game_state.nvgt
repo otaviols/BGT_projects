@@ -25,6 +25,10 @@ class vote_entry {
 class game_state {
 	string lobby_id;
 	string lobby_name;
+	// Vazio = partida pública. Com código, ela some da lista e só entra quem o digitar. A comparação
+	// ignora maiúsculas: o código é ditado de viva voz entre amigos, e "Abc" e "abc" soam iguais.
+	string join_code = "";
+	bool is_private() const { return join_code != ""; }
 	uint64 host_peer_id;
 	lobby_config@ config;
 	game_map@ map;

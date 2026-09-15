@@ -19,6 +19,11 @@ pessoa, cada objeto e cada corpo só pelo som.
 4. Na sala de espera, o anfitrião aperta Enter para começar. São necessários pelo menos 3 jogadores;
    o máximo é 15.
 
+**Partida só para os amigos:** ao criar a partida, preencha o **código de acesso**. Com código, a
+partida não aparece na lista, e só entra quem escolher **Entrar em partida privada com código** e
+digitar o mesmo código. Maiúsculas e minúsculas não fazem diferença, então pode ditar de viva voz.
+Dentro da sala, a tecla **C** relembra o código para você passar adiante.
+
 **Antes de jogar:** no menu inicial existe a opção **Aprender os sons do jogo**. Ela toca cada som
 do jogo com o nome dele. Vale muito a pena passar por ela uma vez — o jogo inteiro depende de
 reconhecer esses sons.

@@ -10,6 +10,19 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.19.0
+
+**New: private matches.** When creating a match, fill in the access code: the match disappears from
+the list, and the only way in is choosing "Join a private match with a code" and typing the same
+code. Inside the room, the C key repeats the code so you can pass it to friends. This was your most
+repeated request.
+
+Fixed: leaving a match midway and joining another got you kicked out of the new one when the old
+one ended, as if you had won.
+
+When you cannot join a match, the game now says why: wrong code, room full, or match already
+started.
+
 ## 0.18.5
 
 A new footstep for the wooden floor, balanced against the rest: this one came in louder than the

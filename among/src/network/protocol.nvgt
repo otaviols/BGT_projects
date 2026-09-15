@@ -10,8 +10,12 @@ const uint8 CHANNEL_UNRELIABLE = 1;
 const string C_LOGIN = "c_login";                 // {username, password}
 const string C_REGISTER = "c_register";           // {username, password}
 const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
-const string C_CREATE_LOBBY = "c_create_lobby";   // {lobby_name, preset, kill_cooldown_override} (-1 = usa o preset)
-const string C_JOIN_LOBBY = "c_join_lobby";       // {lobby_id}
+// join_code (opcional) torna a partida PRIVADA: ela some da lista e só entra quem souber o código.
+// Foi o pedido mais repetido do beta - jogar só com os amigos, como no jogo original.
+const string C_CREATE_LOBBY = "c_create_lobby";   // {lobby_name, preset, join_code, ...overrides} (-1 = usa o preset)
+// Duas formas de entrar: por lobby_id (escolhida na lista) ou, com lobby_id vazio, por join_code -
+// a partida privada não está na lista, então o código é a única porta.
+const string C_JOIN_LOBBY = "c_join_lobby";       // {lobby_id} ou {join_code}
 const string C_LEAVE_LOBBY = "c_leave_lobby";     // {}
 const string C_START_GAME = "c_start_game";       // {} (só host)
 const string C_ADD_BOT = "c_add_bot";             // {} (só host, só na sala de espera)

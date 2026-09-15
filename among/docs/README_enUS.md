@@ -22,6 +22,11 @@ every object and every body is from sound alone.
 4. In the waiting room, the host presses Enter to start. At least 3 players are required; the
    maximum is 15.
 
+**A match just for friends:** when creating the match, fill in the **access code**. With a code,
+the match does not show up in the list, and the only way in is choosing **Join a private match
+with a code** and typing the same code. Case does not matter, so you can say it out loud. Inside
+the room, the **C** key repeats the code so you can pass it on.
+
 **Before playing:** the main menu has a **Learn the game sounds** option. It plays every sound in
 the game along with its name. It is well worth going through it once — the whole game depends on
 recognising these sounds.

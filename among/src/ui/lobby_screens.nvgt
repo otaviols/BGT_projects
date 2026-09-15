@@ -70,6 +70,8 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			}
 		}
 		m.add_item(tr("menu.create_lobby"), "__create__");
+		// Partida privada não aparece na lista: esta é a única porta para ela.
+		m.add_item(tr("lobby.join_by_code"), "__join_code__");
 		m.add_item(tr("lobby.refresh"), "__refresh__");
 		// O recado fica aqui, e não no menu inicial, por uma razão prática: o menu inicial vem ANTES
 		// do login, e sem sessão autenticada o servidor não teria como saber de quem é o recado. Aqui
@@ -90,6 +92,17 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			run_feedback_screen(client);
 			continue;
 		}
+		if (id == "__join_code__") {
+			string code = run_join_code_screen(client);
+			if (code == "") continue;
+			client.send_join_by_code(code);
+			if (wait_for_join_result(client)) {
+				result.joined = true;
+				result.is_host = false;
+				return result;
+			}
+			continue;
+		}
 		if (id == "__create__") {
 			net_packet@ created = run_create_lobby_screen(client);
 			if (@created != null) {
@@ -107,7 +120,6 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			result.is_host = false;
 			return result;
 		}
-		speak(tr("lobby.join_failed"));
 	}
 	return result; // inalcançável - o laço só termina via return acima
 }
@@ -126,6 +138,8 @@ json_array@ wait_for_lobby_list(game_client@ client) {
 	return null;
 }
 
+// Espera a resposta e, se não deu, DIZ por quê: código errado, sala cheia e partida já começada
+// pedem reações diferentes do jogador, e "não foi possível entrar" não distingue nenhuma.
 bool wait_for_join_result(game_client@ client) {
 	timer@ wait_clock = timer();
 	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
@@ -133,11 +147,36 @@ bool wait_for_join_result(game_client@ client) {
 		client.update();
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
-			if (pkt.type == S_JOIN_RESULT) return pkt.get_bool("ok");
+			if (pkt.type == S_JOIN_RESULT) {
+				if (pkt.get_bool("ok")) return true;
+				string motivo = pkt.get_string(MSG_KEY_FIELD, "");
+				speak(tr(motivo != "" ? motivo : "lobby.join_failed"));
+				return false;
+			}
 			@pkt = client.poll_message();
 		}
 	}
+	speak(tr("lobby.join_failed"));
 	return false;
+}
+
+// Pede o código de uma partida privada. Devolve "" se o jogador desistiu.
+string run_join_code_screen(game_client@ client) {
+	audio_form f;
+	f.create_window(tr("lobby.join_by_code"), false);
+	int f_code = f.create_input_box(tr("lobby.join_code_prompt"), "");
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_code); // audio_form nasce sem foco - ver CLAUDE.md
+
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		if (f.is_pressed(f_cancel)) return "";
+		if (f.is_pressed(f_ok)) return f.get_text(f_code);
+	}
+	return ""; // inalcançável
 }
 
 // Tela simples de criação de partida: nome + preset (clássico/rápido/caos).
@@ -149,6 +188,9 @@ net_packet@ run_create_lobby_screen(game_client@ client) {
 	audio_form f;
 	f.create_window(tr("menu.create_lobby"), false); // não sobrescreve o título da janela (nome do jogo)
 	int f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
+	// Vazio = pública. Com código, a partida some da lista e só entra quem o digitar. Fica logo
+	// depois do nome porque "é só para os amigos?" é a primeira decisão de quem cria uma sala.
+	int f_code = f.create_input_box(tr("lobby.join_code"), "");
 	int f_preset = f.create_list(tr("menu.settings"));
 	f.add_list_item(f_preset, tr("lobby.preset.classic_desc"), "classic");
 	f.add_list_item(f_preset, tr("lobby.preset.quick_desc"), "quick");
@@ -198,7 +240,7 @@ net_packet@ run_create_lobby_screen(game_client@ client) {
 			int sab_index = f.get_list_position(f_sabotages);
 			ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
 
-			client.send_create_lobby(lobby_name, preset_id, ov);
+			client.send_create_lobby(lobby_name, preset_id, ov, f.get_text(f_code));
 			return wait_for_lobby_state_after_create(client);
 		}
 	}
@@ -248,9 +290,11 @@ class lobby_snapshot {
 	json_array@ players = null;
 	json_object@ config = null;
 	uint max_players = MAX_PLAYERS;
+	string join_code = ""; // vazio = pública
 
 	void apply(net_packet@ pkt) {
 		if (@pkt == null) return;
+		join_code = pkt.get_string("join_code", "");
 		@players = pkt.get_array("players");
 		@config = pkt.get_object("config");
 		max_players = uint(pkt.get_int("max_players", int(MAX_PLAYERS)));
@@ -264,6 +308,15 @@ class lobby_snapshot {
 		}
 		return "";
 	}
+}
+
+// " Partida privada. Código: xyz." - ou nada, se for pública. Dito na entrada e na tecla C: é
+// assim que o anfitrião relembra o código para ditar aos amigos.
+string private_lobby_text(const string&in join_code) {
+	if (join_code == "") return "";
+	dictionary@ p = dictionary();
+	p.set("code", join_code);
+	return " " + tr("lobby.info.private_code", p);
 }
 
 // Atualiza is_host/host_peer_id a partir de um novo valor vindo do servidor (S_LOBBY_STATE ou
@@ -309,7 +362,8 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 
 	// A dica das teclas vem junto do aviso de entrada: numa sala de espera ninguém vai descobrir
 	// sozinho que P e C fazem alguma coisa, e é justamente ali que essas duas respostas importam.
-	speak(tr(is_host ? "lobby.host_start_hint" : "lobby.waiting_for_host") + " " + tr("lobby.info.keys_hint"));
+	speak(tr(is_host ? "lobby.host_start_hint" : "lobby.waiting_for_host") + " " + tr("lobby.info.keys_hint")
+		+ private_lobby_text(snapshot.join_code));
 
 	while (true) {
 		wait(10);
@@ -368,7 +422,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		// As duas respondem do último estado recebido, sem pedir nada ao servidor: a resposta é
 		// imediata, e numa sala de espera o estado já chega sozinho a cada pessoa que entra ou sai.
 		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players));
-		if (key_pressed(KEY_C)) speak(lobby_config_text(snapshot.config));
+		if (key_pressed(KEY_C)) speak(lobby_config_text(snapshot.config) + private_lobby_text(snapshot.join_code));
 
 		if (action_pressed(ACTION_CHAT)) run_chat_compose(client);
 

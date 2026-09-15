@@ -10,6 +10,18 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.19.0
+
+**Novo: partidas privadas.** Ao criar uma partida, preencha o código de acesso: ela some da lista e
+só entra quem escolher "Entrar em partida privada com código" e digitar o mesmo código. Dentro da
+sala, a tecla C relembra o código para você passar aos amigos. Foi o pedido mais repetido de vocês.
+
+Corrigido: sair de uma partida no meio e entrar em outra fazia você ser expulso da nova quando a
+antiga terminava, como se tivesse vencido.
+
+Quando não dá para entrar numa partida, o jogo agora diz por quê: código errado, sala cheia ou
+partida já começada.
+
 ## 0.18.5
 
 Passo novo no piso de madeira, e equilibrado com os demais: o de agora vinha mais forte que os outros

@@ -122,10 +122,12 @@ class game_client {
 
 	// Ajustes do anfitrião sobre o preset. O que ele não preencheu vai como -1 e o servidor mantém o
 	// valor do preset - ver lobby_overrides em config/lobby_config.nvgt.
-	void send_create_lobby(const string&in lobby_name, const string&in preset, const lobby_overrides&in overrides) {
+	void send_create_lobby(const string&in lobby_name, const string&in preset, const lobby_overrides&in overrides,
+			const string&in join_code = "") {
 		net_packet@ p = net_packet(C_CREATE_LOBBY);
 		p.set_string("lobby_name", lobby_name);
 		p.set_string("preset", preset);
+		p.set_string("join_code", join_code);
 		overrides.write_to_packet(p);
 		send(p);
 	}
@@ -141,6 +143,14 @@ class game_client {
 	void send_join_lobby(const string&in lobby_id) {
 		net_packet@ p = net_packet(C_JOIN_LOBBY);
 		p.set_string("lobby_id", lobby_id);
+		send(p);
+	}
+
+	// Entrar numa partida privada: ela não está na lista, então vai só o código.
+	void send_join_by_code(const string&in join_code) {
+		net_packet@ p = net_packet(C_JOIN_LOBBY);
+		p.set_string("lobby_id", "");
+		p.set_string("join_code", join_code);
 		send(p);
 	}
 
