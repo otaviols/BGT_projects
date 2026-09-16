@@ -1,11 +1,15 @@
 // game_constants.nvgt
 // Constantes globais do jogo. Nada aqui deve depender de estado de partida.
 
+// DEFAULT_LANGUAGE vem daqui. Declarado, e não herdado da ordem de inclusão: uma ferramenta que
+// inclua só o cliente (tools/reply_feedback) quebrava sem isto.
+#include "../i18n.nvgt"
+
 // Versão deste build. É ela que o updater compara com o version.json publicado no site
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.20.0";
+const string GAME_VERSION = "0.21.0";
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.

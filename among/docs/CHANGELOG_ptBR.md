@@ -10,6 +10,12 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.21.0
+
+**As respostas aos seus recados chegam pelo jogo.** Quando quem faz o jogo responder, você ouve ao
+chegar na lista de partidas, e a opção "Respostas aos seus recados" lê o seu recado e a resposta
+lado a lado. Sem email, sem sair do jogo.
+
 ## 0.20.0
 
 Três coisas que vocês pediram:

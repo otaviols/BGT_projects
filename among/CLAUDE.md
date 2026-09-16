@@ -264,6 +264,18 @@ massa passa por `reaches_client()`, que pula bot e quem saiu. Sintoma quando iss
 recebia o fim da partida ANTIGA dentro da nova e o cliente, obediente, saía dela "como se tivesse
 vencido".
 
+**Respostas aos recados vão pelo jogo, autorizadas por token de ambiente.** `C_ADMIN_REPLY` só passa
+se o token bater com `AMONGUS_ADMIN_TOKEN` no servidor (segredo `amongus-admin` do cluster; sem ele
+o servidor recusa tudo). Não há conta de administrador de propósito: seria mais uma senha dentro do
+banco que ela protege. Para testar local: `$env:AMONGUS_ADMIN_TOKEN` antes de subir o servidor e
+`reply_feedback.ps1 -Local`. A variável `AMONGUS_SERVER_HOST` faz qualquer ferramenta ou sonda
+apontar para outro servidor sem criar `server.txt` (que o jogo de verdade também leria).
+
+**Ferramenta que inclui só o cliente precisa dos `#include` certos.** `tools/reply_feedback` não
+compilava: `protocol.nvgt` usa `tr()` e `game_constants.nvgt` usa `DEFAULT_LANGUAGE`, e os dois
+vinham por ordem de inclusão. Agora os dois incluem `i18n.nvgt`. Sintoma: "No matching symbol 'tr'"
+numa ferramenta nova, com o jogo compilando normalmente.
+
 **`read_feedback.ps1` mostra tudo por padrão; use `-After <id>` para retomar.** O padrão era "os 20
 mais recentes", e isso pareceu truncamento: os recados chegam em dezenas por dia.
 
@@ -306,18 +318,21 @@ volume junto.
 ```
 kubectl get pods -n amongus
 kubectl logs -n amongus deploy/amongus-server -f
-infra\read_feedback.ps1 [-WithCrashLog]     # recados dos jogadores
+infra\read_feedback.ps1 [-After <id>] [-WithCrashLog] [-Out arquivo]   # recados dos jogadores
+infra\reply_feedback.ps1 -Id <id> -Text "..."   # responder; o jogador ouve dentro do jogo
 ```
 
 ## Pendências conhecidas
 
-- **Recados do beta ainda sem resposta** (ver `infraead_feedback.ps1`): pedidos repetidos de
-  personagem/passos mais rápidos (#30, #32, #40, #43, #54); um mapa ou algum jeito de se orientar
-  (#20, #33, #9, #15); avisos que interrompem a fala do leitor (#52 pede um buffer de anúncios);
-  bots impostores eficazes demais (#51); "não responde" no meio da partida (#49, #10 - sem log);
-  jogo fechou ao apertar Tab logo depois de a câmera cair por sabotagem (#35 - sem log, não
-  reproduzido); tradução completa para espanhol oferecida por Bauti (#31) - já existe um `es_LATAM`
-  em uso, então alguém já plugou.
+- **Recados do beta ainda sem resposta** (ver `infra\read_feedback.ps1`): pedidos repetidos de
+  personagem/passos mais rápidos (#30, #32, #40, #43, #54 - decidido: virar configuração da sala,
+  validada no servidor, com o padrão um pouco maior; ainda não feito); avisos que interrompem a
+  fala do leitor (#52 pede um buffer de anúncios); bots impostores eficazes demais (#51); "não
+  responde" no meio da partida (#49, #10 - sem log); jogo fechou ao apertar Tab logo depois de a
+  câmera cair por sabotagem (#35 - sem log, não reproduzido); tradução completa para espanhol
+  oferecida por Bauti (#31) - já existe um `es_LATAM` em uso; responder pelo `reply_feedback.ps1`.
+  Já atendidos: mapa/orientação (Conhecer o mapa), regras na sala (O), radar travado (Q), partidas
+  privadas.
 - **`sounds/ejected.ogg` não existe.** Está no catálogo, o `build_pack` avisa a cada build, e o jogo
   compilado sai sem o som de alguém ser expulso na votação.
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em

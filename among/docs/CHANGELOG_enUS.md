@@ -10,6 +10,12 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.21.0
+
+**Replies to your messages come through the game.** When the people who make the game answer, you
+hear it on reaching the match list, and the "Replies to your messages" option reads your message and
+the reply side by side. No email, no leaving the game.
+
 ## 0.20.0
 
 Three things you asked for:

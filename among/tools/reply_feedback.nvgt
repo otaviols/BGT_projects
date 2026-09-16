@@ -1,0 +1,61 @@
+// tools/reply_feedback.nvgt
+// Responde a um recado de jogador, de dentro do jogo. Não rode direto: use infra\reply_feedback.ps1,
+// que busca o token no cluster e chama isto.
+//
+//   nvgt tools/reply_feedback.nvgt <id do recado> <texto da resposta>
+//   (o token vem da variável de ambiente AMONGUS_ADMIN_TOKEN)
+//
+// O que acontece: conecta no servidor (o oficial, ou o do server.txt), manda C_ADMIN_REPLY e imprime
+// a resposta. O jogador dono do recado ouve a resposta na hora, se estiver conectado, ou na próxima
+// vez que entrar. Nenhum email, nenhum canal fora do jogo.
+
+#include "../src/network/client.nvgt"
+#include "../src/config/game_constants.nvgt"
+#include "../src/config/server_address.nvgt"
+
+void main() {
+	if (ARGS.length() < 3) {
+		println("uso: nvgt tools/reply_feedback.nvgt <id do recado> <texto da resposta>");
+		return;
+	}
+	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+	if (token == "") {
+		println("AMONGUS_ADMIN_TOKEN nao esta definido. Use infra\\reply_feedback.ps1, que busca o token no cluster.");
+		return;
+	}
+	int feedback_id = parse_int(ARGS[1]);
+	// O texto pode vir em várias palavras (argumentos separados): junta de volta.
+	string text = "";
+	for (uint i = 2; i < ARGS.length(); i++) text += (i > 2 ? " " : "") + ARGS[i];
+
+	server_address address = resolve_server_address();
+	game_client c;
+	if (!c.connect_to(address.host, address.port)) { println("nao conectou em " + address.display); return; }
+	timer t;
+	while (!c.connected && t.elapsed < 8000) { c.update(); wait(10); }
+	if (!c.connected) { println("sem resposta do servidor em " + address.display); return; }
+
+	c.send_admin_reply(token, feedback_id, text);
+
+	timer espera;
+	while (espera.elapsed < 8000) {
+		c.update();
+		net_packet@ r = c.poll_message();
+		while (@r != null) {
+			if (r.type == S_ADMIN_RESULT) {
+				string msg = r.get_string("message", "");
+				if (r.get_bool("ok", false)) println("Resposta gravada ao recado #" + feedback_id + " (" + msg + ").");
+				else if (msg == "bad_token") println("O servidor recusou o token.");
+				else if (msg == "server_has_no_token") println("O servidor esta sem token (segredo amongus-admin nao criado).");
+				else if (msg == "feedback_not_found") println("Nao existe recado #" + feedback_id + ".");
+				else println("Recusado: " + msg);
+				c.disconnect();
+				return;
+			}
+			@r = c.poll_message();
+		}
+		wait(10);
+	}
+	println("O servidor nao respondeu.");
+	c.disconnect();
+}

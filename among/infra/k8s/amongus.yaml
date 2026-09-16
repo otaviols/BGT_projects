@@ -97,6 +97,20 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+          # Token que autoriza responder aos recados dos jogadores (ver on_admin_reply no servidor
+          # e infra/reply_feedback.ps1). Vem de um segredo criado à mão, uma vez, como o ghcr-pull:
+          #
+          #   kubectl create secret generic amongus-admin -n amongus \
+          #     --from-literal=token=<uma senha longa e aleatória>
+          #
+          # Sem o segredo o servidor sobe do mesmo jeito e só recusa as respostas ("server_has_no_token").
+          env:
+            - name: AMONGUS_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: amongus-admin
+                  key: token
+                  optional: true
           volumeMounts:
             - name: data
               mountPath: /data

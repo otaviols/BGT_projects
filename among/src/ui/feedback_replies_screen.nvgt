@@ -1,0 +1,95 @@
+// feedback_replies_screen.nvgt
+// As respostas de quem faz o jogo aos recados deste jogador.
+//
+// É a outra metade do recado: sem ela, mandar feedback é falar num vácuo que às vezes responde por
+// email - e quem está jogando não quer sair do jogo para saber se alguém leu. Aqui a resposta chega
+// onde o recado foi escrito, e o jogador ouve o recado dele e a resposta lado a lado, porque uma
+// resposta solta ("sim, vai entrar!") sem o recado original não diz nada dias depois.
+
+#include "menu.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../i18n.nvgt"
+
+// menu.run() bloqueia sem chamar client.update() - mesmo problema das outras telas. Bomba própria
+// aqui, e não a do navegador de partidas: esta tela não deve depender de ser incluída depois dele.
+game_client@ g_replies_pump_client;
+void pump_client_during_replies_menu(menu@ m, string data) {
+	if (@g_replies_pump_client != null) g_replies_pump_client.update();
+}
+
+// Pede ao servidor as respostas ainda não ouvidas e espera a lista. Devolve null se não veio nada
+// em tempo - o navegador segue sem o item, e tenta de novo na próxima atualização da lista.
+json_array@ fetch_unread_feedback_replies(game_client@ client) {
+	client.send_feedback_replies_get();
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 3.0) {
+		wait(20);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_FEEDBACK_REPLIES) return pkt.get_array("replies");
+			@pkt = client.poll_message();
+		}
+	}
+	return null;
+}
+
+// Um trecho do recado para identificar a resposta no menu: o começo dele já lembra o assunto.
+string feedback_excerpt(const string&in text) {
+	const uint MAX = 60;
+	string t = text.replace("\n", " ", true).replace("\r", "", true);
+	if (t.length() <= MAX) return t;
+	return t.substr(0, MAX) + "...";
+}
+
+// Lista as respostas; Enter numa delas lê o recado e a resposta e a marca como ouvida. A marcação
+// só vai depois de LER: quem apertou Enter por engano e saiu no meio ainda vai encontrá-la da
+// próxima vez.
+void run_feedback_replies_screen(game_client@ client, json_array@ replies) {
+	while (@replies != null && replies.length() > 0) {
+		menu m;
+		m.intro_text = tr("feedback.replies_hint");
+		m.click_sound = "ui/menuclick.ogg";
+		m.select_sound = "ui/menuconfirm.ogg";
+		m.sounds_prefix = "sounds/";
+		@g_replies_pump_client = client;
+		@m.background_callback = @pump_client_during_replies_menu;
+		for (uint i = 0; i < replies.length(); i++) {
+			json_object@ r = replies.get_object(i);
+			if (@r == null) continue;
+			m.add_item(feedback_excerpt(string(r["feedback_text"])), "" + i);
+		}
+		m.add_item(tr("menu.back"), "__back__");
+		m.run();
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+
+		uint index = uint(parse_int(id));
+		json_object@ r = replies.get_object(index);
+		if (@r == null) return;
+		dictionary@ p = dictionary();
+		p.set("feedback", string(r["feedback_text"]));
+		p.set("reply", string(r["reply_text"]));
+		speak(tr("feedback.reply_read", p));
+		client.send_feedback_reply_read(int(r["reply_id"]));
+		// Espera o jogador terminar de ouvir antes de voltar ao menu: o menu fala o primeiro item
+		// ao abrir e cortaria a resposta no meio.
+		wait_for_key_or_timeout(client, 20000);
+
+		json_array@ remaining = json_array();
+		for (uint i = 0; i < replies.length(); i++) if (i != index) remaining.add(replies.get_object(i));
+		@replies = remaining;
+	}
+}
+
+// Deixa a fala correr até o jogador apertar algo (ou o tempo acabar), sem deixar a conexão cair.
+void wait_for_key_or_timeout(game_client@ client, int max_ms) {
+	timer t;
+	while (t.elapsed < max_ms) {
+		wait(20);
+		client.update();
+		if (keys_pressed().length() > 0) return;
+	}
+}

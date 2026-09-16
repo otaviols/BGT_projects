@@ -293,6 +293,9 @@ class game_server {
 		else if (t == C_PING) on_ping(peer_id, pkt);
 		else if (t == C_CHAT_MESSAGE) on_chat_message(peer_id, pkt);
 		else if (t == C_SEND_FEEDBACK) on_send_feedback(peer_id, pkt);
+		else if (t == C_FEEDBACK_REPLIES_GET) on_feedback_replies_get(peer_id, pkt);
+		else if (t == C_FEEDBACK_REPLY_READ) on_feedback_reply_read(peer_id, pkt);
+		else if (t == C_ADMIN_REPLY) on_admin_reply(peer_id, pkt);
 		else if (t == C_CAMERA_ENTER) on_camera_enter(peer_id, pkt);
 		else if (t == C_CAMERA_LEAVE) on_camera_leave(peer_id, pkt);
 		else if (t == C_CAMERA_SWITCH) on_camera_switch(peer_id, pkt);
@@ -1215,6 +1218,68 @@ class game_server {
 		net_packet@ result = net_packet(S_CAMERA_PLAYERS);
 		result.set_array("names", names);
 		send_to(peer_id, result);
+	}
+
+	// --- Respostas aos recados ---
+
+	void on_feedback_replies_get(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.username == "") return;
+		send_feedback_replies(peer_id, conn.username);
+	}
+
+	void send_feedback_replies(uint64 peer_id, const string&in username) {
+		net_packet@ resposta = net_packet(S_FEEDBACK_REPLIES);
+		resposta.set_array("replies", g_user_db.unread_feedback_replies(username));
+		send_to(peer_id, resposta);
+	}
+
+	void on_feedback_reply_read(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.username == "") return;
+		g_user_db.mark_feedback_reply_read(pkt.get_int("reply_id", 0), conn.username);
+	}
+
+	// Quem faz o jogo responde a um recado, pela ferramenta de administração (tools/reply_feedback).
+	//
+	// A comparação do token é o único portão: não há conta de administrador, porque uma conta seria
+	// mais uma senha para vazar dentro do mesmo banco que ela protege. Token vazio no servidor
+	// desliga a função inteira - melhor nenhuma resposta do que qualquer um respondendo.
+	//
+	// Se o dono do recado estiver conectado, ele recebe a resposta na hora; senão, na próxima vez que
+	// entrar (ver on_feedback_replies_get).
+	void on_admin_reply(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		string expected = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+		if (expected == "" || pkt.get_string("token", "") != expected) {
+			result.set_bool("ok", false);
+			result.set_string("message", expected == "" ? "server_has_no_token" : "bad_token");
+			send_to(peer_id, result);
+			return;
+		}
+		int feedback_id = pkt.get_int("feedback_id", 0);
+		string text = pkt.get_string("text", "").trim_whitespace();
+		if (text.length() > MAX_FEEDBACK_TEXT_LENGTH) text = text.substr(0, MAX_FEEDBACK_TEXT_LENGTH);
+		if (feedback_id <= 0 || text == "") {
+			result.set_bool("ok", false);
+			result.set_string("message", "bad_request");
+			send_to(peer_id, result);
+			return;
+		}
+		string dono = g_user_db.save_feedback_reply(feedback_id, text);
+		if (dono == "") {
+			result.set_bool("ok", false);
+			result.set_string("message", "feedback_not_found");
+			send_to(peer_id, result);
+			return;
+		}
+		result.set_bool("ok", true);
+		result.set_string("message", "delivered_to:" + dono);
+		send_to(peer_id, result);
+
+		for (uint i = 0; i < connections.length(); i++) {
+			if (connections[i].username == dono) send_feedback_replies(connections[i].peer_id, dono);
+		}
 	}
 
 	void on_ping(uint64 peer_id, net_packet@ pkt) {

@@ -68,6 +68,11 @@ missing when trying to fix a problem.
 While the game is in beta this is the most useful channel: one report with context is worth more
 than ten "it didn't work".
 
+**Replies come through the game.** When the people who make the game answer your message, you hear
+it on reaching the match list: "you have a reply to one of your messages". The **Replies to your
+messages** option reads your message and the reply side by side. No email, nothing outside the game
+— and to keep the conversation going, just send another message.
+
 ## Settings
 
 From the main menu, under **Settings**:

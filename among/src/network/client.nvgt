@@ -120,6 +120,23 @@ class game_client {
 		send(p);
 	}
 
+	// Ferramenta de administração (tools/reply_feedback.nvgt). Não é chamado por nenhuma tela do jogo:
+	// o token vem do ambiente de quem administra, nunca de dentro do cliente distribuído.
+	void send_admin_reply(const string&in token, int feedback_id, const string&in text) {
+		net_packet@ p = net_packet(C_ADMIN_REPLY);
+		p.set_string("token", token);
+		p.set_int("feedback_id", feedback_id);
+		p.set_string("text", text);
+		send(p);
+	}
+
+	void send_feedback_replies_get() { send(net_packet(C_FEEDBACK_REPLIES_GET)); }
+	void send_feedback_reply_read(int reply_id) {
+		net_packet@ p = net_packet(C_FEEDBACK_REPLY_READ);
+		p.set_int("reply_id", reply_id);
+		send(p);
+	}
+
 	// Ajustes do anfitrião sobre o preset. O que ele não preencheu vai como -1 e o servidor mantém o
 	// valor do preset - ver lobby_overrides em config/lobby_config.nvgt.
 	void send_create_lobby(const string&in lobby_name, const string&in preset, const lobby_overrides&in overrides,

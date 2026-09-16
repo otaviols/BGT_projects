@@ -117,10 +117,32 @@ pelo próprio servidor, autenticados, e ficam na tabela `feedback` do mesmo SQLi
 volume, então sobrevivem a deploy.
 
 ```
-infra\read_feedback.ps1                 # os 20 mais recentes
-infra\read_feedback.ps1 -Limit 100
+infra\read_feedback.ps1                 # todos
+infra\read_feedback.ps1 -After 40       # só os que chegaram depois do #40
 infra\read_feedback.ps1 -WithCrashLog   # inclui o crash.log anexado
+infra\read_feedback.ps1 -Out recados.txt  # grava em arquivo UTF-8
 ```
+
+### Responder a um recado
+
+```
+infra\reply_feedback.ps1 -Id 31 -Text "Obrigado! Manda o email certo por aqui mesmo."
+```
+
+O jogador ouve a resposta na hora, se estiver conectado, ou na próxima vez que abrir o jogo, com o
+recado original ao lado. É o canal de volta: sem ele o recado é falar no vácuo, e quem oferece ajuda
+(uma tradução, por exemplo) não tem como ser respondido sem sair do jogo.
+
+A resposta é autorizada por um token que mora no segredo `amongus-admin` do cluster e vai ao
+servidor como a variável `AMONGUS_ADMIN_TOKEN` (ver `k8s/amongus.yaml`). O script busca o token no
+segredo na hora; ele nunca fica em arquivo. Criar uma vez:
+
+```
+kubectl create secret generic amongus-admin -n amongus --from-literal=token=<senha longa e aleatória>
+kubectl rollout restart deploy/amongus-server -n amongus   # para o servidor ler a variável
+```
+
+Sem o segredo o servidor sobe do mesmo jeito e só recusa as respostas (`server_has_no_token`).
 
 Cada recado vem com o que o jogo sabia na hora: versão, idioma, se estava em partida, papel, sala —
 e o `crash.log`, se existir. É isso que separa um relato investigável de um "travou aqui": ninguém

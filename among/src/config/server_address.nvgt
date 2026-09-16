@@ -32,6 +32,15 @@ class server_address {
 // nesse ponto do jogo ainda não existe fala configurada pra erro de arquivo.
 server_address resolve_server_address() {
 	server_address result;
+	// Variável de ambiente ganha do arquivo: é o que deixa uma ferramenta (tools/reply_feedback) ou
+	// uma sonda apontar para um servidor local sem criar um server.txt que o jogo de verdade também
+	// leria. Só host; a porta continua a padrão.
+	string env_host = read_environment_variable("AMONGUS_SERVER_HOST", "");
+	if (env_host != "") {
+		result.host = env_host;
+		result.from_override = true;
+		return result;
+	}
 	if (!file_exists(SERVER_OVERRIDE_FILE)) return result;
 
 	string contents = file_get_contents(SERVER_OVERRIDE_FILE);

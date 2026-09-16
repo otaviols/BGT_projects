@@ -63,6 +63,11 @@ conseguir consertar um problema.
 Como está em beta, esse é o canal mais útil: um relato com contexto vale mais do que dez "não
 funcionou".
 
+**As respostas chegam pelo jogo.** Quando quem faz o jogo responder ao seu recado, você ouve ao
+chegar na lista de partidas: "você tem uma resposta a um recado seu". A opção **Respostas aos seus
+recados** lê o seu recado e a resposta lado a lado. Não precisa de email nem de nada fora do jogo —
+e se quiser continuar a conversa, é só mandar outro recado.
+
 ## Configurações
 
 No menu inicial, em **Configurações**:
