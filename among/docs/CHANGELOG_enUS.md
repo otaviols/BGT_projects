@@ -6,6 +6,12 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.22.5
+
+Fixed automatic updates, which in the previous two versions closed the game and never came back.
+If you are on 0.22.3 or 0.22.4, download this version from the site once; from then on updates work
+on their own again.
+
 ## 0.22.4
 
 Cleanup of the texts that ship with the game: the version history lost an internal note that meant

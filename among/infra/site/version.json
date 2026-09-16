@@ -1,9 +1,9 @@
 {
-	"version": "0.22.4",
+	"version": "0.22.5",
 	"url": "AmongUs.zip",
-	"notes": "Cleanup of the texts that ship with the game: the version history lost an internal note that meant nothing to players, and the manuals now refer to each other by the names that exist in the folder.",
+	"notes": "Fixed automatic updates, which in the previous two versions closed the game and never came back. If you are on 0.22.3 or 0.22.4, download this version from the site once; from then on updates work on their own again.",
 	"notes_by_language": {
-		"pt_BR": "Limpeza nos textos que vão com o jogo: o histórico de versões perdeu uma nota interna que não dizia nada a quem joga, e os manuais passaram a se referir um ao outro pelos nomes que existem na pasta.",
-		"en_US": "Cleanup of the texts that ship with the game: the version history lost an internal note that meant nothing to players, and the manuals now refer to each other by the names that exist in the folder."
+		"pt_BR": "Corrigida a atualização automática, que nas duas versões anteriores fechava o jogo e não voltava. Quem está na 0.22.3 ou 0.22.4 precisa baixar esta versão pelo site uma vez; daí em diante a atualização volta a ser sozinha.",
+		"en_US": "Fixed automatic updates, which in the previous two versions closed the game and never came back. If you are on 0.22.3 or 0.22.4, download this version from the site once; from then on updates work on their own again."
 	}
 }

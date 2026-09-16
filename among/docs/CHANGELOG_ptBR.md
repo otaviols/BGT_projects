@@ -6,6 +6,12 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.22.5
+
+Corrigida a atualização automática, que nas duas versões anteriores fechava o jogo e não voltava.
+Quem está na 0.22.3 ou 0.22.4 precisa baixar esta versão pelo site uma vez; daí em diante a
+atualização volta a ser sozinha.
+
 ## 0.22.4
 
 Limpeza nos textos que vão com o jogo: o histórico de versões perdeu uma nota interna que não dizia

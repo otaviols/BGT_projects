@@ -294,14 +294,21 @@ bool launch_updater_script(const string&in package_url) {
 
 	if (!file_put_contents(script_path, script)) return false;
 
-	// background=true e wait_for_completion=false: o script PRECISA sobreviver ao jogo, porque a
-	// primeira coisa que ele faz é esperar o jogo morrer. Esperar por ele aqui seria um bloqueio
-	// mútuo - cada um parado esperando o outro terminar.
+	// Os argumentos vão como LISTA, um por elemento, e não numa linha de comando só. A forma antiga,
+	// run(exe, "uma linha"), passou a quebrar a linha por espaço em branco na build 0.90.0-dev do
+	// NVGT de setembro de 2026: as aspas ficam dentro do token e um caminho com espaço ("C:\Users\
+	// João Silva\...") vira dois argumentos. O run() devolvia true, o PowerShell abria, não achava o
+	// script e morria calado: o jogo fechava para atualizar e nunca voltava. A lista entrega cada
+	// argumento intacto ao processo, sem passar por análise de linha nenhuma.
+	//
+	// PROCESS_BACKGROUND e sem PROCESS_WAIT: o script PRECISA sobreviver ao jogo, porque a primeira
+	// coisa que ele faz é esperar o jogo morrer. Esperar por ele aqui seria um bloqueio mútuo.
 	// -ExecutionPolicy Bypass porque a política padrão do Windows recusa scripts não assinados, e
 	// este acabou de ser gerado na máquina do próprio jogador.
-	return run(powershell_path(),
-		"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + to_forward_slashes(script_path) + "\"",
-		false, true);
+	array<string> args = {powershell_path(), "-NoProfile", "-ExecutionPolicy", "Bypass",
+		"-WindowStyle", "Hidden", "-File", to_forward_slashes(script_path)};
+	process@ proc = run(args, PROCESS_BACKGROUND);
+	return @proc != null;
 }
 
 // Verifica e, havendo versão nova, oferece atualizar. Chamada na abertura do jogo; se não houver

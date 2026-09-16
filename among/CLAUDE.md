@@ -140,6 +140,20 @@ falha sem dizer por quê.
 caminho completo. Isso deixou a atualização automática quebrada por versões seguidas, caindo no plano
 B silenciosamente.
 
+**`run(exe, "linha de argumentos")` quebrou na build do NVGT de 15/09/2026 - use a forma de LISTA.**
+A build nova reescreveu `run()` sobre `SDL_CreateProcess` e a forma antiga passou a partir a linha
+por espaço em branco, mantendo as aspas dentro dos tokens: `-File "C:/.../x.ps1"` chega ao
+PowerShell com aspas literais no nome e ele não acha o script. O pior é o sintoma: `run()` devolve
+`true`, o jogo diz "instalando" e fecha, e nunca volta - foi a 0.22.3/0.22.4 no ar com o updater
+morto. Sempre `process@ run(array<string> args, flags)` (`src/core/updater.nvgt`), que entrega cada
+argumento intacto. Isso prende o projeto à build nova do NVGT (a de dezembro não tem essa forma).
+
+**A ferramenta Bash do assistente corrompe barra invertida dupla em heredocs** (uma string NVGT
+escrita como barra-barra-probe vira barra-probe, que é um escape inválido e engole o `p`).
+Sonda escrita por heredoc com caminhos Windows dentro produz conclusões falsas - custou uma hora
+"investigando" um `run()` que na verdade recebia um caminho errado. Escreva sondas com a ferramenta
+de escrita de arquivo, não por heredoc; o código do projeto nunca passou por isso.
+
 **`DIRECTORY_TEMP` já termina com barra.** Concatenar outra gera caminhos com `\\` no meio que o
 PowerShell tolera e o NVGT não enxerga de volta.
 
