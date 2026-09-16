@@ -120,7 +120,7 @@ if (-not $SkipSite) {
 	# Os pacotes de Linux e Mac só sobem se existirem: são gerados à parte (ver CLAUDE.md, "Compilar"),
 	# e o de Mac depende de um stub que nem toda máquina tem. Um deploy sem eles publica só o Windows
 	# e deixa os links antigos de pé.
-	foreach ($extra in @("AmongUs-linux.zip", "AmongUs-mac.zip")) {
+	foreach ($extra in @("AmongUs-linux.tar.gz", "AmongUs-linux.zip", "AmongUs-mac.iso")) {
 		$path = Join-Path $root $extra
 		if (Test-Path $path) {
 			az storage blob upload --account-name $StorageAccount --auth-mode login `

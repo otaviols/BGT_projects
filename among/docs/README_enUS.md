@@ -58,7 +58,8 @@ With no internet the check simply does not happen and nothing is said.
 What changed in each version is in the main menu, under **What's new** — and also in the
 `CHANGELOG.md` file in the `docs` folder inside the game folder (where this manual lives too).
 
-**Linux and Mac:** the Linux version is on the site, experimental. On those systems updating is
+**Linux and Mac:** the Linux and Mac versions are on the site, experimental (the Linux one is a
+`.tar.gz`; the Mac one is a disk image: open it and drag the game to Applications). On those systems updating is
 still manual: the game says a new version is out and opens the download page.
 
 ## Sending feedback

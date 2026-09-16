@@ -44,7 +44,8 @@ Você pode recusar e continuar jogando na versão atual — a pergunta volta na 
 O que mudou em cada versão está no menu inicial, em **Novidades** — e também no arquivo
 `NOVIDADES.md`, na pasta `docs` dentro da pasta do jogo (onde este manual também fica).
 
-**Linux e Mac:** a versão para Linux está no site, experimental. Nesses sistemas a atualização ainda
+**Linux e Mac:** as versões para Linux e Mac estão no site, experimentais (a do Linux é um `.tar.gz`;
+a do Mac é uma imagem de disco: abra e arraste o jogo para Aplicativos). Nesses sistemas a atualização ainda
 é manual: o jogo avisa que saiu versão nova e abre a página de download.
 
 Suas configurações e sua conta não se perdem na atualização: as preferências ficam na pasta de dados

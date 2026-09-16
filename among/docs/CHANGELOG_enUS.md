@@ -10,6 +10,11 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.22.3
+
+Mac version on the site, experimental, next to the Linux one. It is a disk image: open it and drag
+the game to Applications. If you use Mac or Linux, tell us how it went through the in-game message.
+
 ## 0.22.2
 
 Every action key in a match can now be remapped in settings — the radar lock (Q) and the radar mode

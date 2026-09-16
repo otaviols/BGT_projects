@@ -3,9 +3,11 @@
 # de megabytes - versioná-lo só encheria o histórico com cópias do mesmo áudio.
 sounds.dat
 
-# Saída da compilação (nvgt -c).
+# Saída da compilação (nvgt -c). O .iso é o pacote do Mac gerado fora de um Mac (ver tools/build_clients.ps1).
 *.zip
 *.exe
+*.iso
+*.tar.gz
 
 # Caixa-preta do cliente (core/crash_log.nvgt): é o registro do que quebrou NAQUELA máquina.
 crash.log

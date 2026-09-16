@@ -10,6 +10,11 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.22.3
+
+Versão para Mac no site, experimental, ao lado da de Linux. É uma imagem de disco: abra e arraste o
+jogo para Aplicativos. Quem usa Mac ou Linux: conta o que aconteceu pelo recado dentro do jogo.
+
 ## 0.22.2
 
 Todas as teclas de ação da partida podem ser trocadas nas configurações — faltavam a de travar o

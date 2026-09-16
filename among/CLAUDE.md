@@ -66,16 +66,21 @@ tools\build_clients.ps1             # Windows + Linux (+ Mac se houver stub), co
 **O NVGT grava TODO build do cliente como `AmongUs.zip`, seja qual for a plataforma.** Compilar
 `-plinux` depois do Windows sobrescreve o zip do Windows em silêncio - e o deploy publicaria um
 binário Linux como se fosse Windows. Use `tools\build_clients.ps1`, que renomeia cada um
-(`AmongUs-linux.zip`, `AmongUs-mac.zip`) e deixa o Windows por último.
+(`AmongUs-linux.tar.gz`, `AmongUs-mac.iso`) e deixa o Windows por último. A extensão do Linux
+mudou de `.zip` para `.tar.gz` entre duas builds do NVGT 0.90.0-dev - o script aceita as duas e
+mantém a que saiu; se um dia mudar de novo, é ali que se acrescenta o nome novo.
 
-**Mac precisa do stub `stub/nvgt_mac.bin` e de `lib_mac/`**, que a instalação Windows do NVGT daqui
-não traz (só `nvgt_windows*.bin` e `nvgt_linux*.bin`). Não estão no repositório `D:\git\nvgt`: o
-stub é produto de compilar o NVGT NUM MAC (`build/build_macos.sh`), e o instalador oficial do
-Windows só o inclui como componente "MacOS binary stub" quando foi empacotado com ele
-(`install/nvgt.iss`). Caminhos: baixar o instalador oficial de nvgt.gg e marcar esse componente, ou
-alguém com Mac compilar e mandar os dois. Sem eles o `-pmac` falha com "File not found:
-stub/nvgt_mac.bin". Os builds de Linux e Mac são
-experimentais: compilam, mas ninguém os rodou; fora do Windows o updater só avisa e abre o site.
+**O produto do Mac fora de um Mac é `AmongUs.iso`, não zip nem dmg.** O NVGT só gera `.dmg` no
+macOS (precisa do `hdiutil`); em outros sistemas grava um ISO 9660 com Rock Ridge, que preserva os
+bits de execução e o macOS monta com dois cliques (`src/bundling.cpp` do NVGT). Sai grande (~73 MB)
+porque ISO não comprime.
+
+**Mac precisa do stub `stub/nvgt_mac.bin` e de `lib_mac/`** - já instalados nesta máquina (vieram
+do instalador oficial de nvgt.gg, componente "MacOS binary stub"). Não estão no repositório
+`D:\git\nvgt`: o stub é produto de compilar o NVGT num Mac. Se sumirem numa reinstalação, o
+`-pmac` falha com "File not found: stub/nvgt_mac.bin" e o `build_clients.ps1` pula o Mac avisando.
+Os builds de Linux e Mac são experimentais: compilam, mas ninguém os rodou; fora do Windows o
+updater só avisa e abre o site.
 
 **Mexeu em qualquer arquivo de `sounds/`? Rode o `build_pack` antes de compilar.** O jogo empacota o
 `sounds.dat`, não a pasta — sem regerar, o build sai com o som antigo e nada avisa.
