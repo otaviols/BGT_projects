@@ -80,6 +80,8 @@
 	"keys.chat_prev": "Mensagem anterior",
 	"keys.chat_next": "Próxima mensagem",
 	"keys.chat_switch": "Trocar entre mensagens e eventos",
+	"keys.radar_lock": "Travar ou soltar o radar no alvo",
+	"keys.radar_mode": "Trocar o modo do radar (jogadores / objetos)",
 	"learn.menu_hint": "Selecione um som com as setas pra ouvir. ESC volta.",
 	"learn.footstep_tile": "Passos - piso comum",
 	"learn.footstep_metal": "Passos - piso metálico",

@@ -153,7 +153,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | Enter | interagir com o que estiver mais perto |
 | Tab | radar: próximo alvo |
 | Shift + Tab | radar: alvo anterior |
-| Ctrl + Tab | trocar o modo do radar (jogadores / objetos da sala) |
+| M (ou Ctrl + Tab) | trocar o modo do radar (jogadores / objetos da sala) |
 | Q | travar o radar no último alvo apontado (ou soltar) |
 | C | dizer em que sala você está |
 | T | lista das suas tarefas, seu progresso e o do time |
@@ -191,7 +191,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 
 ## O radar (Tab)
 
-O radar tem dois modos, alternados com **Ctrl + Tab**:
+O radar tem dois modos, alternados com **M** (ou Ctrl + Tab):
 
 - **Jogadores** — cicla por quem está na mesma sala que você. Toca um bipe na posição da pessoa e
   fala o nome dela.

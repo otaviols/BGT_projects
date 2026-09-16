@@ -10,6 +10,11 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.22.2
+
+Todas as teclas de ação da partida podem ser trocadas nas configurações — faltavam a de travar o
+radar (Q) e a de trocar o modo do radar, que agora tem a tecla M (Ctrl + Tab continua valendo).
+
 ## 0.22.1
 
 Os manuais e o histórico de versões passaram para uma pasta `docs` dentro da pasta do jogo, em vez

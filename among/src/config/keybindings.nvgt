@@ -31,6 +31,10 @@ const int ACTION_CHAT = 15;
 const int ACTION_CHAT_PREV = 16;
 const int ACTION_CHAT_NEXT = 17;
 const int ACTION_CHAT_SWITCH = 18;
+// Entraram depois das outras e ficaram um tempo fixas no código (Q e Ctrl+Tab). Toda tecla de
+// AÇÃO da partida é remapeável; só setas de navegação dentro de tarefas e da câmera não são.
+const int ACTION_RADAR_LOCK = 19;
+const int ACTION_RADAR_MODE = 20;
 
 class key_binding {
 	string id;        // usado no arquivo de configuração - não mude depois de publicado
@@ -69,6 +73,10 @@ class keybinding_table {
 		bindings.insert_last(key_binding("chat_prev", "keys.chat_prev", KEY_COMMA));
 		bindings.insert_last(key_binding("chat_next", "keys.chat_next", KEY_PERIOD));
 		bindings.insert_last(key_binding("chat_switch", "keys.chat_switch", KEY_PAGEUP));
+		bindings.insert_last(key_binding("radar_lock", "keys.radar_lock", KEY_Q));
+		// M sozinha, mas Ctrl+Tab continua valendo (ver o laço da partida): é o que o manual ensinou
+		// por várias versões, e tirar um hábito custa mais do que manter os dois.
+		bindings.insert_last(key_binding("radar_mode", "keys.radar_mode", KEY_M));
 	}
 
 	int key(int action) const {

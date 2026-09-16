@@ -860,7 +860,8 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// falando por cima. Era esse o "radar continua sendo o do jogador".
 		// Q trava/solta o radar no último alvo; enquanto travado, o radar pergunta e bipa sozinho.
 		if (!movement_frozen && !cameras.active) {
-			if (key_pressed(KEY_Q)) radar.toggle_lock();
+			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_lock();
+			if (action_pressed(ACTION_RADAR_MODE)) radar.toggle_mode();
 			radar.tick();
 		}
 

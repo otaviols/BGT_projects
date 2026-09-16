@@ -159,7 +159,7 @@ your file and English — worth sending a message about it.
 | Enter | interact with whatever is closest |
 | Tab | radar: next target |
 | Shift + Tab | radar: previous target |
-| Ctrl + Tab | switch radar mode (players / room objects) |
+| M (or Ctrl + Tab) | switch radar mode (players / room objects) |
 | Q | lock the radar on the last target pointed at (or release it) |
 | C | say which room you are in |
 | T | your task list, your progress and the team's |
@@ -197,7 +197,7 @@ your file and English — worth sending a message about it.
 
 ## The radar (Tab)
 
-The radar has two modes, switched with **Ctrl + Tab**:
+The radar has two modes, switched with **M** (or Ctrl + Tab):
 
 - **Players** — cycles through whoever is in the same room as you. Plays a beep at the person's
   position and speaks their name.

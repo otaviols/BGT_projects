@@ -80,6 +80,8 @@
 	"keys.chat_prev": "Previous message",
 	"keys.chat_next": "Next message",
 	"keys.chat_switch": "Switch between messages and events",
+	"keys.radar_lock": "Lock or release the radar on the target",
+	"keys.radar_mode": "Switch radar mode (players / objects)",
 	"learn.menu_hint": "Select a sound with the arrow keys to hear it. ESC goes back.",
 	"learn.footstep_tile": "Footsteps - common floor",
 	"learn.footstep_metal": "Footsteps - metal floor",

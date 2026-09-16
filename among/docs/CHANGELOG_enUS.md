@@ -10,6 +10,11 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.22.2
+
+Every action key in a match can now be remapped in settings — the radar lock (Q) and the radar mode
+switch were missing; the mode switch now has the M key (Ctrl + Tab still works).
+
 ## 0.22.1
 
 The manuals and the version history moved into a `docs` folder inside the game folder, instead of
