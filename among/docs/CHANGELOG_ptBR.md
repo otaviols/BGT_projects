@@ -2,13 +2,14 @@
 
 Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
-*Also available in English: [CHANGELOG_enUS.md](CHANGELOG_enUS.md).*
-
-Este arquivo é a **fonte** das novidades que o jogo anuncia ao atualizar: o `version.json` publicado
-no site é gerado a partir da primeira entrada daqui (ver `tools/make_version_json.py`). Escrever a
-novidade em dois lugares seria garantir que um dia os dois discordem.
+*Also available in English: CHANGELOG.md, in this same folder.*
 
 ---
+
+## 0.22.4
+
+Limpeza nos textos que vão com o jogo: o histórico de versões perdeu uma nota interna que não dizia
+nada a quem joga, e os manuais passaram a se referir um ao outro pelos nomes que existem na pasta.
 
 ## 0.22.3
 

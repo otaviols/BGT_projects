@@ -96,7 +96,9 @@ Sempre, e nesta ordem:
    FALADO ao jogador na atualização; "os papéis passaram a declarar o que podem fazer" não significa
    nada para ele e expõe o interno à toa. Se uma versão não muda nada visível, diga só isso.
 3. **Gere o version.json**: `python tools/make_version_json.py`. Ele sai do changelog — não edite o
-   `version.json` à mão, ou as duas descrições da mesma versão vão divergir. O script recusa se a
+   `version.json` à mão, ou as duas descrições da mesma versão vão divergir. Essa relação fica
+   registrada AQUI, e não no cabeçalho do changelog: o changelog vai para o jogador (é o
+   `NOVIDADES.md` da pasta do jogo), e nome de script é informação interna. O script recusa se a
    versão do changelog não bater com `GAME_VERSION`, ou se um dos idiomas estiver faltando.
 4. Compile o que mudou.
 5. `infra\deploy.ps1 -StorageAccount amongusaudiogame` (use `-SkipServer` quando só o cliente mudou).

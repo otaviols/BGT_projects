@@ -9,7 +9,7 @@ every object and every body is from sound alone.
 > **Beta.** The game is playable from start to finish, but still under test. If something breaks,
 > the `crash.log` file in the game folder records what happened — it helps a lot.
 
-*Este manual também está disponível em português: [README_ptBR.md](README_ptBR.md).*
+*Este manual também está disponível em português: LEIAME.md, nesta mesma pasta.*
 
 ## Getting started
 

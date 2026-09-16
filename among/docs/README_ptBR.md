@@ -6,6 +6,8 @@ as tarefas da nave, ou um impostor tentando eliminar todo mundo sem ser descober
 Tudo no jogo é falado pelo leitor de tela e posicionado no espaço: dá pra saber onde está cada
 pessoa, cada objeto e cada corpo só pelo som.
 
+*This manual is also available in English: README.md, in this same folder.*
+
 > **Versão beta.** O jogo é jogável do começo ao fim, mas ainda está em testes. Se algo quebrar, o
 > arquivo `crash.log` na pasta do jogo guarda o que aconteceu — ele ajuda muito a consertar.
 

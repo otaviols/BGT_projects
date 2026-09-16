@@ -1,9 +1,9 @@
 {
-	"version": "0.22.3",
+	"version": "0.22.4",
 	"url": "AmongUs.zip",
-	"notes": "Mac version on the site, experimental, next to the Linux one. It is a disk image: open it and drag the game to Applications. If you use Mac or Linux, tell us how it went through the in-game message.",
+	"notes": "Cleanup of the texts that ship with the game: the version history lost an internal note that meant nothing to players, and the manuals now refer to each other by the names that exist in the folder.",
 	"notes_by_language": {
-		"pt_BR": "Versão para Mac no site, experimental, ao lado da de Linux. É uma imagem de disco: abra e arraste o jogo para Aplicativos. Quem usa Mac ou Linux: conta o que aconteceu pelo recado dentro do jogo.",
-		"en_US": "Mac version on the site, experimental, next to the Linux one. It is a disk image: open it and drag the game to Applications. If you use Mac or Linux, tell us how it went through the in-game message."
+		"pt_BR": "Limpeza nos textos que vão com o jogo: o histórico de versões perdeu uma nota interna que não dizia nada a quem joga, e os manuais passaram a se referir um ao outro pelos nomes que existem na pasta.",
+		"en_US": "Cleanup of the texts that ship with the game: the version history lost an internal note that meant nothing to players, and the manuals now refer to each other by the names that exist in the folder."
 	}
 }

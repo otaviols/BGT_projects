@@ -2,13 +2,14 @@
 
 Everything that changed in the game, newest first.
 
-*Também disponível em português: [CHANGELOG_ptBR.md](CHANGELOG_ptBR.md).*
-
-This file is the **source** of the release notes the game announces when updating: the `version.json`
-published to the site is generated from the first entry here (see `tools/make_version_json.py`).
-Writing the note in two places would be a guarantee that one day they disagree.
+*Também disponível em português: NOVIDADES.md, nesta mesma pasta.*
 
 ---
+
+## 0.22.4
+
+Cleanup of the texts that ship with the game: the version history lost an internal note that meant
+nothing to players, and the manuals now refer to each other by the names that exist in the folder.
 
 ## 0.22.3
 
