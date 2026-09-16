@@ -55,9 +55,20 @@ repositório sem esconder o manual de quem baixa.
 
 ```
 nvgt tools/build_pack.nvgt          # regera sounds.dat a partir de sounds/
-nvgt -c AmongUs.nvgt                # cliente
+nvgt -c AmongUs.nvgt                # cliente Windows -> AmongUs.zip
 nvgt -c -plinux server_main.nvgt    # servidor (Linux, para o contêiner)
+tools\build_clients.ps1             # Windows + Linux (+ Mac se houver stub), com os nomes certos
 ```
+
+**O NVGT grava TODO build do cliente como `AmongUs.zip`, seja qual for a plataforma.** Compilar
+`-plinux` depois do Windows sobrescreve o zip do Windows em silêncio - e o deploy publicaria um
+binário Linux como se fosse Windows. Use `tools\build_clients.ps1`, que renomeia cada um
+(`AmongUs-linux.zip`, `AmongUs-mac.zip`) e deixa o Windows por último.
+
+**Mac precisa do stub `stub/nvgt_mac.bin` e de `lib_mac/`**, que a instalação Windows do NVGT não
+traz (só `nvgt_windows*.bin` e `nvgt_linux*.bin`). Vêm do pacote do NVGT para macOS em nvgt.gg. Sem
+eles o `-pmac` falha com "File not found: stub/nvgt_mac.bin". Os builds de Linux e Mac são
+experimentais: compilam, mas ninguém os rodou; fora do Windows o updater só avisa e abre o site.
 
 **Mexeu em qualquer arquivo de `sounds/`? Rode o `build_pack` antes de compilar.** O jogo empacota o
 `sounds.dat`, não a pasta — sem regerar, o build sai com o som antigo e nada avisa.

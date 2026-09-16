@@ -241,7 +241,7 @@ class audio_manager {
 
 	void play_menu_click() { spatial.play_ui(SND_MENU_CLICK, false, family_db(SOUND_FAMILY_UI)); }
 	void play_menu_confirm() { spatial.play_ui(SND_MENU_CONFIRM, false, family_db(SOUND_FAMILY_UI)); }
-	void play_intro() { spatial.play_ui(SND_INTRO, false, family_db(SOUND_FAMILY_UI)); }
+	void play_intro() { spatial.play_ui(SND_INTRO, false, family_db(SOUND_FAMILY_MUSIC)); }
 	void play_player_enter() { spatial.play_ui(SND_PLAYER_ENTER, false, family_db(SOUND_FAMILY_UI)); }
 	void play_player_leave() { spatial.play_ui(SND_PLAYER_LEAVE, false, family_db(SOUND_FAMILY_UI)); }
 	void play_start_game() { spatial.play_ui(SND_START_GAME, false, family_db(SOUND_FAMILY_EVENTS)); }

@@ -19,7 +19,8 @@ const array<string> FAMILY_PREVIEW_SOUNDS = {
 	SND_VENT_BEACON,        // marcadores
 	"sounds/" + SND_BEEP,   // tasks
 	SND_BODY_REPORTED,      // eventos
-	SND_MENU_CLICK          // interface
+	SND_MENU_CLICK,         // interface
+	SND_INTRO               // música
 };
 
 void run_settings_menu() {

@@ -55,6 +55,12 @@ version is only replaced once the new one has arrived in full and been verified.
 
 With no internet the check simply does not happen and nothing is said.
 
+What changed in each version is in the main menu, under **What's new** — and also in the
+`CHANGELOG.md` file in the game folder.
+
+**Linux and Mac:** the Linux version is on the site, experimental. On those systems updating is
+still manual: the game says a new version is out and opens the download page.
+
 ## Sending feedback
 
 The lobby list has a **Send a message to the people who make the game** option. Write what you

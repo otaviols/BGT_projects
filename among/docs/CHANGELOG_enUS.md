@@ -10,6 +10,15 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.22.0
+
+- **What's new, inside the game.** The main menu gained "What's new": pick a version and hear what
+  changed in it. The history also ships as a file in the game folder (CHANGELOG.md).
+- **Music volume** is its own setting now. Today it is only the menu music, but whoever wants to
+  hear the footsteps turns the music down and nothing else.
+- **Linux version** on the site, experimental. On those systems updating is still manual: the game
+  says so and opens the download page.
+
 ## 0.21.0
 
 **Replies to your messages come through the game.** When the people who make the game answer, you

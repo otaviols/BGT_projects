@@ -321,6 +321,15 @@ bool run_update_check() {
 	// Perguntar, e não atualizar à força: quem entrou para jogar uma partida com os amigos não quer
 	// esperar um download de dezenas de megabytes agora. Dizer não continua na versão atual, e a
 	// pergunta volta na próxima abertura.
+	// Fora do Windows não há PowerShell nem pacote próprio ainda: o jogo avisa e abre a página, e
+	// o jogador baixa a versão do sistema dele. Perguntar "quer atualizar?" para depois falhar e
+	// abrir a página do mesmo jeito seria uma pergunta sem escolha.
+	if (system_is_unix) {
+		speak(tr("update.manual_platform"));
+		urlopen(DOWNLOAD_PAGE_URL);
+		return false;
+	}
+
 	if (question(tr("app.title"), tr("update.confirm")) != 1) return false;
 
 	if (!launch_updater_script(info.package_url)) {

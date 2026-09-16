@@ -1,0 +1,97 @@
+// changelog_screen.nvgt
+// "Novidades": o histórico de versões, lido de dentro do jogo.
+//
+// O jogo se atualiza sozinho, então quase ninguém abre o site - e as novidades ficavam só lá. A
+// atualização fala a entrada da versão nova na hora, mas quem disse "não" naquele momento, ou quer
+// saber o que mudou três versões atrás, não tinha onde ouvir. O arquivo já vai junto com o jogo
+// (ver os #pragma document em AmongUs.nvgt); aqui ele vira um menu: uma versão por item, Enter lê.
+//
+// Um arquivo por idioma, escolhido pelo idioma do jogador; sem o arquivo do idioma, o inglês.
+
+#include "menu.nvgt"
+#include "speech.nvgt"
+#include "../i18n.nvgt"
+#include "../config/game_constants.nvgt"
+
+// Uma versão do histórico: o número e o texto dela.
+class changelog_entry {
+	string version;
+	string text;
+}
+
+// O arquivo do idioma atual, ou o inglês. Os nomes são os DESTINOS dos #pragma document.
+string changelog_file_for_language() {
+	if (g_i18n.current_language == "pt_BR" && file_exists("NOVIDADES.md")) return "NOVIDADES.md";
+	return "CHANGELOG.md";
+}
+
+// Quebra o markdown em versões. O formato é fixo (tools/make_version_json.py depende dele também):
+// "## x.y.z" abre uma versão, e o resto do texto até o próximo "## " é o corpo dela.
+array<changelog_entry@>@ parse_changelog(const string&in contents) {
+	array<changelog_entry@> entries;
+	array<string>@ lines = contents.replace("\r", "", true).split("\n");
+	changelog_entry@ current = null;
+	for (uint i = 0; i < lines.length(); i++) {
+		string line = lines[i];
+		if (line.starts_with("## ")) {
+			@current = changelog_entry();
+			current.version = line.substr(3).trim_whitespace();
+			entries.insert_last(current);
+			continue;
+		}
+		if (@current == null) continue; // cabeçalho do arquivo, antes da primeira versão
+		current.text += line + "\n";
+	}
+	return entries;
+}
+
+// Tira a marcação para a fala: "asterisco asterisco Novo asterisco asterisco" não é uma frase. É a
+// mesma limpeza que tools/make_version_json.py faz para o aviso de atualização.
+string speakable_markdown(const string&in text) {
+	array<string>@ lines = text.split("\n");
+	array<string> partes;
+	for (uint i = 0; i < lines.length(); i++) {
+		string l = lines[i].trim_whitespace();
+		if (l == "") continue;
+		if (l.starts_with("- ") || l.starts_with("* ")) l = l.substr(2);
+		l = l.replace("**", "", true).replace("`", "", true);
+		partes.insert_last(l);
+	}
+	return join(partes, " ");
+}
+
+void run_changelog_screen() {
+	string caminho = changelog_file_for_language();
+	if (!file_exists(caminho)) { speak(tr("changelog.missing")); return; }
+	array<changelog_entry@>@ entries = parse_changelog(file_get_contents(caminho));
+	if (entries.length() == 0) { speak(tr("changelog.missing")); return; }
+
+	while (true) {
+		menu m;
+		m.intro_text = tr("changelog.hint");
+		m.click_sound = "ui/menuclick.ogg";
+		m.select_sound = "ui/menuconfirm.ogg";
+		m.sounds_prefix = "sounds/";
+		for (uint i = 0; i < entries.length(); i++) {
+			dictionary@ p = dictionary();
+			p.set("version", entries[i].version);
+			// A versão instalada é marcada: é a resposta mais comum a "o que tem de novo?".
+			m.add_item(tr(entries[i].version == GAME_VERSION ? "changelog.item_current" : "changelog.item", p), "" + i);
+		}
+		m.add_item(tr("menu.back"), "__back__");
+		m.run();
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		changelog_entry@ e = entries[uint(parse_int(id))];
+		dictionary@ p = dictionary();
+		p.set("version", e.version);
+		p.set("text", speakable_markdown(e.text));
+		speak(tr("changelog.read", p));
+		// Deixa a fala correr; qualquer tecla volta à lista.
+		timer t;
+		while (t.elapsed < 60000) {
+			wait(20);
+			if (keys_pressed().length() > 0) break;
+		}
+	}
+}

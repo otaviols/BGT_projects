@@ -117,6 +117,17 @@ if (-not $SkipSite) {
 	# O site estático mora no container `$web` - é o nome que o Azure exige, não é escolha nossa.
 	az storage blob upload --account-name $StorageAccount --auth-mode login `
 		--container-name '$web' --name "AmongUs.zip" --file $clientZip --overwrite | Out-Null
+	# Os pacotes de Linux e Mac só sobem se existirem: são gerados à parte (ver CLAUDE.md, "Compilar"),
+	# e o de Mac depende de um stub que nem toda máquina tem. Um deploy sem eles publica só o Windows
+	# e deixa os links antigos de pé.
+	foreach ($extra in @("AmongUs-linux.zip", "AmongUs-mac.zip")) {
+		$path = Join-Path $root $extra
+		if (Test-Path $path) {
+			az storage blob upload --account-name $StorageAccount --auth-mode login `
+				--container-name '$web' --name $extra --file $path --overwrite | Out-Null
+			Write-Host "Publicado $extra"
+		}
+	}
 	az storage blob upload-batch --account-name $StorageAccount --auth-mode login `
 		--destination '$web' --source (Join-Path $PSScriptRoot "site") --overwrite | Out-Null
 

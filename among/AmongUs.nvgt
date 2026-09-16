@@ -27,6 +27,11 @@
 // acha). A forma "origem;destino" é o que permite as duas coisas ao mesmo tempo.
 #pragma document "docs/README_ptBR.md;LEIAME.md"
 #pragma document "docs/README_enUS.md;README.md"
+// O histórico de versões vai junto pelo mesmo motivo: o jogo se atualiza sozinho e quase ninguém
+// abre o site. Além do arquivo, o menu inicial tem "Novidades", que lê estes mesmos arquivos
+// (ver ui/changelog_screen.nvgt) - os nomes de destino aqui são os que aquela tela procura.
+#pragma document "docs/CHANGELOG_ptBR.md;NOVIDADES.md"
+#pragma document "docs/CHANGELOG_enUS.md;CHANGELOG.md"
 
 #include "src/network/client.nvgt"
 #include "src/core/crash_log.nvgt"

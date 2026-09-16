@@ -10,6 +10,15 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.22.0
+
+- **Novidades dentro do jogo.** O menu inicial ganhou "Novidades": escolha uma versão e ouça o que
+  mudou nela. O histórico também vai como arquivo na pasta do jogo (NOVIDADES.md).
+- **Volume da música** separado nas configurações. Hoje é só a música do menu, mas quem quer ouvir
+  os passos abaixa a música e mais nada.
+- **Versão para Linux** no site, experimental. Nesses sistemas a atualização ainda é manual: o jogo
+  avisa e abre a página de download.
+
 ## 0.21.0
 
 **As respostas aos seus recados chegam pelo jogo.** Quando quem faz o jogo responder, você ouve ao

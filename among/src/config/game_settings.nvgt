@@ -19,11 +19,15 @@ const int SOUND_FAMILY_BEACONS = 3;   // marcadores de objeto, radar, corpo no c
 const int SOUND_FAMILY_TASKS = 4;     // minigames de task e interação com objetos
 const int SOUND_FAMILY_EVENTS = 5;    // mortes, alarmes, reunião, vitória e derrota
 const int SOUND_FAMILY_UI = 6;        // menus, diálogos, chat
-const int SOUND_FAMILY_COUNT = 7;
+// Música: hoje é só a do menu, antes de entrar numa partida. Família própria porque música é o que
+// mais divide opinião - quem quer ouvir os passos abaixa a música e mais nada - e porque, com mais
+// músicas no futuro, elas já nascem no lugar certo em vez de emprestadas da interface.
+const int SOUND_FAMILY_MUSIC = 7;
+const int SOUND_FAMILY_COUNT = 8;
 
-const array<string> SOUND_FAMILY_IDS = {"master", "ambience", "steps", "beacons", "tasks", "events", "ui"};
+const array<string> SOUND_FAMILY_IDS = {"master", "ambience", "steps", "beacons", "tasks", "events", "ui", "music"};
 const array<string> SOUND_FAMILY_NAME_KEYS = {"volume.master", "volume.ambience", "volume.steps",
-	"volume.beacons", "volume.tasks", "volume.events", "volume.ui"};
+	"volume.beacons", "volume.tasks", "volume.events", "volume.ui", "volume.music"};
 
 class game_settings {
 	private settings store;
