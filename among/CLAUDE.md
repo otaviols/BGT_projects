@@ -41,15 +41,18 @@ Antes de afirmar algo aqui, **verifique contra o código**, não contra a memór
 | `lang/` | **só dados** de tradução (`pt_BR.json`, `en_US.json`) — o motor de i18n fica em `src/` |
 | `sounds/` | áudio fonte; vira `sounds.dat` no build |
 | `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots` |
-| `docs/` | manuais do jogador (`README_ptBR.md`, `README_enUS.md`), distribuídos com o jogo |
+| `docs/` | manuais e histórico de versões, distribuídos com o jogo numa pasta `docs/` |
 | `infra/` | Terraform, Dockerfile, manifests do Kubernetes, `deploy.ps1`, `read_feedback.ps1` |
 
 `lang/` fica fora de `src/` de propósito: é lido por caminho em tempo de execução, e esse caminho
 precisa ser o mesmo rodando do fonte ou do build compilado.
 
-Os manuais moram em `docs/` mas chegam ao jogador na RAIZ da pasta do jogo, como `LEIAME.md` e
-`README.md` — o `#pragma document` aceita `origem;destino`, e é isso que permite organizar o
-repositório sem esconder o manual de quem baixa.
+Os manuais e o histórico moram em `docs/` e chegam ao jogador numa pasta `docs/` dentro da pasta
+do jogo (`LEIAME.md`, `README.md`, `NOVIDADES.md`, `CHANGELOG.md`) — o `#pragma document` aceita
+`origem;destino`, e o destino pode ter subpasta. Não vão na raiz de propósito: quatro textos soltos
+ao lado do executável poluíam a pasta. O menu "Novidades" lê esses arquivos (ver
+`src/ui/changelog_screen.nvgt`), procurando primeiro os nomes do jogo compilado e depois os do
+repositório, para funcionar rodando do fonte.
 
 ## Compilar
 
@@ -65,9 +68,13 @@ tools\build_clients.ps1             # Windows + Linux (+ Mac se houver stub), co
 binário Linux como se fosse Windows. Use `tools\build_clients.ps1`, que renomeia cada um
 (`AmongUs-linux.zip`, `AmongUs-mac.zip`) e deixa o Windows por último.
 
-**Mac precisa do stub `stub/nvgt_mac.bin` e de `lib_mac/`**, que a instalação Windows do NVGT não
-traz (só `nvgt_windows*.bin` e `nvgt_linux*.bin`). Vêm do pacote do NVGT para macOS em nvgt.gg. Sem
-eles o `-pmac` falha com "File not found: stub/nvgt_mac.bin". Os builds de Linux e Mac são
+**Mac precisa do stub `stub/nvgt_mac.bin` e de `lib_mac/`**, que a instalação Windows do NVGT daqui
+não traz (só `nvgt_windows*.bin` e `nvgt_linux*.bin`). Não estão no repositório `D:\git\nvgt`: o
+stub é produto de compilar o NVGT NUM MAC (`build/build_macos.sh`), e o instalador oficial do
+Windows só o inclui como componente "MacOS binary stub" quando foi empacotado com ele
+(`install/nvgt.iss`). Caminhos: baixar o instalador oficial de nvgt.gg e marcar esse componente, ou
+alguém com Mac compilar e mandar os dois. Sem eles o `-pmac` falha com "File not found:
+stub/nvgt_mac.bin". Os builds de Linux e Mac são
 experimentais: compilam, mas ninguém os rodou; fora do Windows o updater só avisa e abre o site.
 
 **Mexeu em qualquer arquivo de `sounds/`? Rode o `build_pack` antes de compilar.** O jogo empacota o

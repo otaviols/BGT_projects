@@ -23,15 +23,17 @@
 // só o manual em português deixaria quem joga em inglês sem manual nenhum.
 // O valor vai entre aspas de propósito: sem elas o pré-processador quebra o nome no ponto e
 // procura por "LEIAME . md", que não existe.
-// Origem em docs/ (organização do repositório), entregue na RAIZ da pasta do jogo (onde o jogador
-// acha). A forma "origem;destino" é o que permite as duas coisas ao mesmo tempo.
-#pragma document "docs/README_ptBR.md;LEIAME.md"
-#pragma document "docs/README_enUS.md;README.md"
+// Origem em docs/ (organização do repositório), entregue numa pasta docs/ DENTRO da pasta do jogo -
+// e não na raiz, ao lado do executável. Quatro arquivos de texto soltos junto do jogo poluíam a
+// pasta e escondiam o que importa (o executável); numa pasta própria eles continuam a um passo de
+// distância e o jogo diz onde estão. A forma "origem;destino" é o que permite renomear no caminho.
+#pragma document "docs/README_ptBR.md;docs/LEIAME.md"
+#pragma document "docs/README_enUS.md;docs/README.md"
 // O histórico de versões vai junto pelo mesmo motivo: o jogo se atualiza sozinho e quase ninguém
 // abre o site. Além do arquivo, o menu inicial tem "Novidades", que lê estes mesmos arquivos
 // (ver ui/changelog_screen.nvgt) - os nomes de destino aqui são os que aquela tela procura.
-#pragma document "docs/CHANGELOG_ptBR.md;NOVIDADES.md"
-#pragma document "docs/CHANGELOG_enUS.md;CHANGELOG.md"
+#pragma document "docs/CHANGELOG_ptBR.md;docs/NOVIDADES.md"
+#pragma document "docs/CHANGELOG_enUS.md;docs/CHANGELOG.md"
 
 #include "src/network/client.nvgt"
 #include "src/core/crash_log.nvgt"

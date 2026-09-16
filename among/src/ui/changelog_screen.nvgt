@@ -19,10 +19,21 @@ class changelog_entry {
 	string text;
 }
 
-// O arquivo do idioma atual, ou o inglês. Os nomes são os DESTINOS dos #pragma document.
+// O arquivo do idioma atual, ou o inglês. No jogo compilado os nomes são os DESTINOS dos #pragma
+// document (pasta docs/); rodando do fonte, os próprios arquivos do repositório. Devolve "" se não
+// há nenhum.
 string changelog_file_for_language() {
-	if (g_i18n.current_language == "pt_BR" && file_exists("NOVIDADES.md")) return "NOVIDADES.md";
-	return "CHANGELOG.md";
+	array<string> candidatos;
+	if (g_i18n.current_language == "pt_BR") {
+		candidatos.insert_last("docs/NOVIDADES.md");
+		candidatos.insert_last("docs/CHANGELOG_ptBR.md");
+	}
+	candidatos.insert_last("docs/CHANGELOG.md");
+	candidatos.insert_last("docs/CHANGELOG_enUS.md");
+	for (uint i = 0; i < candidatos.length(); i++) {
+		if (file_exists(candidatos[i])) return candidatos[i];
+	}
+	return "";
 }
 
 // Quebra o markdown em versões. O formato é fixo (tools/make_version_json.py depende dele também):
@@ -62,7 +73,7 @@ string speakable_markdown(const string&in text) {
 
 void run_changelog_screen() {
 	string caminho = changelog_file_for_language();
-	if (!file_exists(caminho)) { speak(tr("changelog.missing")); return; }
+	if (caminho == "") { speak(tr("changelog.missing")); return; }
 	array<changelog_entry@>@ entries = parse_changelog(file_get_contents(caminho));
 	if (entries.length() == 0) { speak(tr("changelog.missing")); return; }
 

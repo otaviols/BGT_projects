@@ -1,9 +1,9 @@
 {
-	"version": "0.22.0",
+	"version": "0.22.1",
 	"url": "AmongUs.zip",
-	"notes": "What's new, inside the game. The main menu gained \"What's new\": pick a version and hear what changed in it. The history also ships as a file in the game folder (CHANGELOG.md). Music volume is its own setting now. Today it is only the menu music, but whoever wants to hear the footsteps turns the music down and nothing else. Linux version on the site, experimental. On those systems updating is still manual: the game says so and opens the download page.",
+	"notes": "The manuals and the version history moved into a docs folder inside the game folder, instead of sitting loose next to the executable.",
 	"notes_by_language": {
-		"pt_BR": "Novidades dentro do jogo. O menu inicial ganhou \"Novidades\": escolha uma versão e ouça o que mudou nela. O histórico também vai como arquivo na pasta do jogo (NOVIDADES.md). Volume da música separado nas configurações. Hoje é só a música do menu, mas quem quer ouvir os passos abaixa a música e mais nada. Versão para Linux no site, experimental. Nesses sistemas a atualização ainda é manual: o jogo avisa e abre a página de download.",
-		"en_US": "What's new, inside the game. The main menu gained \"What's new\": pick a version and hear what changed in it. The history also ships as a file in the game folder (CHANGELOG.md). Music volume is its own setting now. Today it is only the menu music, but whoever wants to hear the footsteps turns the music down and nothing else. Linux version on the site, experimental. On those systems updating is still manual: the game says so and opens the download page."
+		"pt_BR": "Os manuais e o histórico de versões passaram para uma pasta docs dentro da pasta do jogo, em vez de ficarem soltos ao lado do executável.",
+		"en_US": "The manuals and the version history moved into a docs folder inside the game folder, instead of sitting loose next to the executable."
 	}
 }

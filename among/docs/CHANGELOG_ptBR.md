@@ -10,6 +10,11 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.22.1
+
+Os manuais e o histórico de versões passaram para uma pasta `docs` dentro da pasta do jogo, em vez
+de ficarem soltos ao lado do executável.
+
 ## 0.22.0
 
 - **Novidades dentro do jogo.** O menu inicial ganhou "Novidades": escolha uma versão e ouça o que

@@ -42,7 +42,7 @@ instala e abre de novo. Não há nada para baixar à mão nem pasta para descomp
 Você pode recusar e continuar jogando na versão atual — a pergunta volta na próxima vez que abrir.
 
 O que mudou em cada versão está no menu inicial, em **Novidades** — e também no arquivo
-`NOVIDADES.md`, na pasta do jogo.
+`NOVIDADES.md`, na pasta `docs` dentro da pasta do jogo (onde este manual também fica).
 
 **Linux e Mac:** a versão para Linux está no site, experimental. Nesses sistemas a atualização ainda
 é manual: o jogo avisa que saiu versão nova e abre a página de download.

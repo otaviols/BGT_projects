@@ -10,6 +10,11 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.22.1
+
+The manuals and the version history moved into a `docs` folder inside the game folder, instead of
+sitting loose next to the executable.
+
 ## 0.22.0
 
 - **What's new, inside the game.** The main menu gained "What's new": pick a version and hear what
