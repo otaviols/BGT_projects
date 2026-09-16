@@ -41,9 +41,9 @@ class spatial_audio {
 
 	// Som posicionado que toca uma vez e se limpa sozinho (passos, efeitos de interação, mortes, etc.).
 	// volume_db vem da família de som a que ele pertence (ver audio_manager) - 0 = volume original.
-	int play_once(const string&in path, float x, float y, float volume_db = 0.0) {
+	int play_once(const string&in path, float x, float y, float volume_db = 0.0, float pitch = 100.0) {
 		return pool.play_extended_2d(path, listener_x, world_to_pool_y(listener_y), x, world_to_pool_y(y),
-			0, 0, 0, 0, false, 0, 0.0, volume_db, 100.0, false);
+			0, 0, 0, 0, false, 0, 0.0, volume_db, pitch, false);
 	}
 
 	// Som posicionado contínuo (alarme de sabotagem, corpo no chão). `persistent` mantém o slot vivo

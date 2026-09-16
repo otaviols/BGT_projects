@@ -26,8 +26,8 @@
 // As teclas do jogo não são mais constantes: vêm do mapa remapeável do jogador, em
 // config/keybindings.nvgt. Aqui se pergunta pela AÇÃO (action_pressed(ACTION_KILL)), nunca pela
 // tecla - é o que permite trocar o teclado inteiro em Configurações sem tocar em nada disto.
-const float FOOTSTEP_INTERVAL_SECONDS = 0.35;
-const float WALL_BUMP_INTERVAL_SECONDS = 0.3;
+// FOOTSTEP_INTERVAL_SECONDS e WALL_BUMP_INTERVAL_SECONDS moram em config/game_constants.nvgt: o modo
+// de conhecer o mapa anda com o mesmo ritmo de passo da partida, e não deve incluir este arquivo.
 
 // Retorna o objeto interativo mais próximo dentro do alcance com o qual o jogador pode agir
 // agora (task pendente própria, vent se impostor, painel da sabotagem ATIVA, botão de emergência).
@@ -540,6 +540,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				// A limpeza dos corpos não é feita aqui e sim no S_MEETING_STARTED logo abaixo, que
 				// chega em seguida: lá TODOS somem de uma vez, não só o que foi reportado.
 			} else if (t == S_MEETING_STARTED) {
+				radar.unlock(false); // a reunião teleporta todo mundo: a trava não faz mais sentido
 				// Todo corpo some do mapa quando a reunião começa - é o que o servidor faz com a lista
 				// dele (ver start_meeting). Sem isto o cliente continuava ouvindo o som de um corpo que
 				// não existe mais e anunciando "você encontrou o corpo de fulano" em cima dele.
@@ -857,6 +858,12 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// no modo jogadores ele PERGUNTA ao servidor (send_radar_scan), o servidor responde pela
 		// posição real de quem perguntou - parado na segurança - e essa resposta chegava depois,
 		// falando por cima. Era esse o "radar continua sendo o do jogador".
+		// Q trava/solta o radar no último alvo; enquanto travado, o radar pergunta e bipa sozinho.
+		if (!movement_frozen && !cameras.active) {
+			if (key_pressed(KEY_Q)) radar.toggle_lock();
+			radar.tick();
+		}
+
 		if (!movement_frozen && !cameras.active && action_pressed(ACTION_RADAR)) {
 			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -
 			// igual o Among Us original, onde mortos continuam observando a partida.

@@ -252,7 +252,16 @@ class audio_manager {
 	void play_vote_confirm() { spatial.play_ui(SND_VOTE_CONFIRM, false, family_db(SOUND_FAMILY_UI)); }
 
 	// --- Radar ---
-	void play_radar_beep(float x, float y) {
-		spatial.play_once(SND_RADAR_BEEP, x, y, family_db(SOUND_FAMILY_BEACONS));
+	// O tom sobe conforme o alvo se aproxima. O volume posicionado já cai com a distância, mas volume
+	// é ambíguo (uma pessoa longe e o volume do jogo baixo soam igual); o tom não. É o padrão dos
+	// marcadores de rastreio em outros audiogames, e é o que faz o radar travado ser acompanhável sem
+	// olhar - você ouve o tom subir e sabe que está chegando.
+	void play_radar_beep(float x, float y, float distance = -1.0) {
+		float pitch = 100.0;
+		if (distance >= 0.0) {
+			float d = distance > RADAR_PITCH_FAR_DISTANCE ? RADAR_PITCH_FAR_DISTANCE : distance;
+			pitch = RADAR_PITCH_NEAR - (RADAR_PITCH_NEAR - RADAR_PITCH_FAR) * (d / RADAR_PITCH_FAR_DISTANCE);
+		}
+		spatial.play_once(SND_RADAR_BEEP, x, y, family_db(SOUND_FAMILY_BEACONS), pitch);
 	}
 }

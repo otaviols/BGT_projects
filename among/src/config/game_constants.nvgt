@@ -5,7 +5,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.19.0";
+const string GAME_VERSION = "0.20.0";
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.
@@ -36,6 +36,10 @@ const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servi
 const float PLAYER_INTERACT_RANGE = 1.4; // distância máxima para usar objetos/tasks/vents
 const float PLAYER_KILL_RANGE = 1.2;
 const float PLAYER_REPORT_RANGE = 2.0;
+// Ritmo dos passos e dos esbarrões ao andar. Compartilhado pela partida e pelo modo de conhecer o
+// mapa - os dois têm que soar iguais, senão o mapa "aprendido" não é o mapa jogado.
+const float FOOTSTEP_INTERVAL_SECONDS = 0.35;
+const float WALL_BUMP_INTERVAL_SECONDS = 0.3;
 
 // Radar (Tab / Shift+Tab)
 const float RADAR_BEEP_VOLUME = 0.0; // dB, ajustado por distância em tempo de execução
@@ -47,6 +51,13 @@ const float RADAR_LIGHTS_OUT_RANGE = 6.0;
 // precisa de um raio próprio porque uma sala tem até 24 unidades de ponta a ponta, e listar um
 // objeto no canto oposto dava a impressão de que ele estava logo ali.
 const float RADAR_OBJECT_RANGE = 12.0;
+// Tom do bip do radar pela distância (em %, 100 = som original): colado no alvo toca em NEAR, a
+// FAR_DISTANCE ou mais longe toca em FAR. Uma sala tem até 24 unidades de ponta a ponta.
+const float RADAR_PITCH_NEAR = 130.0;
+const float RADAR_PITCH_FAR = 80.0;
+const float RADAR_PITCH_FAR_DISTANCE = 20.0;
+// Com o radar travado num alvo (tecla Q), de quanto em quanto tempo ele pergunta ao servidor e bipa.
+const float RADAR_TRACK_INTERVAL_SECONDS = 0.6;
 
 // Impostor
 const float KILL_COOLDOWN_SECONDS = 25.0;

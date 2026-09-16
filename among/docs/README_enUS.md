@@ -27,6 +27,11 @@ the match does not show up in the list, and the only way in is choosing **Join a
 with a code** and typing the same code. Case does not matter, so you can say it out loud. Inside
 the room, the **C** key repeats the code so you can pass it on.
 
+**Explore the map:** the main menu has an **Explore the map** option that lets you walk around the
+ship alone, with no server and no pressure. Each room is named as you enter it, Tab lists what is in
+the room, Enter says what the nearest object is, and ESC returns to the menu. It is the way to learn
+where everything is before there is an impostor nearby.
+
 **Before playing:** the main menu has a **Learn the game sounds** option. It plays every sound in
 the game along with its name. It is well worth going through it once — the whole game depends on
 recognising these sounds.
@@ -126,6 +131,7 @@ your file and English — worth sending a message about it.
 | Enter | start the match (host only) |
 | P | who is in the lobby (with the count, and which are bots) |
 | C | this match's rules (impostors, cooldowns, timers, sabotage) |
+| O | change the rules (host only): the fields come with the current values, and anything left blank stays as it is. Everyone is told. |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
 | Y | write in chat |
@@ -143,6 +149,7 @@ your file and English — worth sending a message about it.
 | Tab | radar: next target |
 | Shift + Tab | radar: previous target |
 | Ctrl + Tab | switch radar mode (players / room objects) |
+| Q | lock the radar on the last target pointed at (or release it) |
 | C | say which room you are in |
 | T | your task list, your progress and the team's |
 | F1 | measure ping to the server |
@@ -185,6 +192,12 @@ The radar has two modes, switched with **Ctrl + Tab**:
   position and speaks their name.
 - **Room objects** — cycles through what exists in the room you are in (tasks, vents, panels,
   button). Useful for learning a room and knowing where everything is.
+
+**Locking on a target (Q):** after pointing at someone with Tab, press **Q** and the radar keeps
+beeping at that person on its own, with no need to keep pressing Tab. The beep's pitch rises as they
+get closer and falls as they move away. The lock still only works within the same room: if the
+person leaves the room, enters a vent or vanishes in the dark, the radar says so and releases.
+Pointing at someone else with Tab moves the lock to them; **Q** again releases it.
 
 The radar does not work while communications are sabotaged, in either mode.
 

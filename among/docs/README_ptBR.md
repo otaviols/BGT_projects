@@ -24,6 +24,11 @@ partida não aparece na lista, e só entra quem escolher **Entrar em partida pri
 digitar o mesmo código. Maiúsculas e minúsculas não fazem diferença, então pode ditar de viva voz.
 Dentro da sala, a tecla **C** relembra o código para você passar adiante.
 
+**Conhecer o mapa:** o menu inicial tem a opção **Conhecer o mapa**, que deixa você andar pela nave
+sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela, Tab lista o que há na
+sala, Enter diz o que é o objeto mais próximo, e ESC volta ao menu. É o jeito de aprender onde fica
+cada coisa antes de haver um impostor por perto.
+
 **Antes de jogar:** no menu inicial existe a opção **Aprender os sons do jogo**. Ela toca cada som
 do jogo com o nome dele. Vale muito a pena passar por ela uma vez — o jogo inteiro depende de
 reconhecer esses sons.
@@ -120,6 +125,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | Enter | iniciar a partida (só o anfitrião) |
 | P | quem está na sala (com o total e quais são bots) |
 | C | as regras desta partida (impostores, recargas, tempos, sabotagem) |
+| O | mudar as regras (só o anfitrião): os campos vêm com os valores atuais, e o que ficar em branco continua como está. Todo mundo é avisado. |
 | B | adicionar um bot (só o anfitrião, até 8) |
 | Shift + B | remover o último bot |
 | Y | escrever no chat |
@@ -137,6 +143,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | Tab | radar: próximo alvo |
 | Shift + Tab | radar: alvo anterior |
 | Ctrl + Tab | trocar o modo do radar (jogadores / objetos da sala) |
+| Q | travar o radar no último alvo apontado (ou soltar) |
 | C | dizer em que sala você está |
 | T | lista das suas tarefas, seu progresso e o do time |
 | F1 | medir o ping com o servidor |
@@ -179,6 +186,12 @@ O radar tem dois modos, alternados com **Ctrl + Tab**:
   fala o nome dela.
 - **Objetos da sala** — cicla pelo que existe na sala onde você está (tarefas, dutos, painéis,
   botão). Serve para conhecer o lugar e saber onde fica cada coisa.
+
+**Travar num alvo (Q):** depois de apontar alguém com o Tab, aperte **Q** e o radar passa a bipar
+sozinho naquela pessoa, sem precisar ficar apertando Tab. O tom do bipe sobe conforme ela se
+aproxima e desce quando se afasta. A trava continua valendo só dentro da mesma sala: se a pessoa
+sair da sala, entrar num duto ou sumir no escuro, o radar avisa e solta. Apontar outra pessoa com o
+Tab move a trava para ela; **Q** de novo solta.
 
 O radar não funciona com as comunicações sabotadas, em nenhum dos dois modos.
 

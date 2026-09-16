@@ -179,72 +179,115 @@ string run_join_code_screen(game_client@ client) {
 	return ""; // inalcançável
 }
 
-// Tela simples de criação de partida: nome + preset (clássico/rápido/caos).
+// O que sai do formulário de regras: os ajustes (o que ficou em branco vem como -1/"") e, na
+// criação, o nome, o código e o preset.
+class lobby_form_result {
+	bool ok = false;
+	string lobby_name;
+	string join_code;
+	string preset_id = "classic";
+	lobby_overrides ov;
+}
+
+// O formulário de regras, usado em DOIS momentos: ao criar a partida e, pelo anfitrião, com a sala
+// já aberta. É um só de propósito - duas telas com os mesmos campos divergiriam na primeira mudança.
 //
-// Devolve o primeiro S_LOBBY_STATE da partida criada, ou null se o jogador desistiu ou o servidor não
-// respondeu. O pacote é DEVOLVIDO, e não descartado, porque é o único retrato da sala que o anfitrião
-// recebe enquanto estiver sozinho nela.
-net_packet@ run_create_lobby_screen(game_client@ client) {
+// `current` distingue os dois: null é criação (com nome, código e preset); com a configuração atual,
+// os campos vêm PREENCHIDOS com o que vale hoje, e o que o anfitrião apagar volta a ser "não mexi".
+// Impostores no modo automático ficam em branco - preencher com o número resolvido de hoje o
+// congelaria sem ninguém pedir.
+lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ current) {
+	lobby_form_result r;
+	bool creating = @current == null;
+
 	audio_form f;
-	f.create_window(tr("menu.create_lobby"), false); // não sobrescreve o título da janela (nome do jogo)
-	int f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
-	// Vazio = pública. Com código, a partida some da lista e só entra quem o digitar. Fica logo
-	// depois do nome porque "é só para os amigos?" é a primeira decisão de quem cria uma sala.
-	int f_code = f.create_input_box(tr("lobby.join_code"), "");
-	int f_preset = f.create_list(tr("menu.settings"));
-	f.add_list_item(f_preset, tr("lobby.preset.classic_desc"), "classic");
-	f.add_list_item(f_preset, tr("lobby.preset.quick_desc"), "quick");
-	f.add_list_item(f_preset, tr("lobby.preset.chaos_desc"), "chaos");
+	f.create_window(tr(creating ? "menu.create_lobby" : "lobby.edit_settings"), false); // não sobrescreve o título da janela
+	int f_name = -1, f_code = -1, f_preset = -1;
+	if (creating) {
+		f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
+		// Vazio = pública. Com código, a partida some da lista e só entra quem o digitar. Fica logo
+		// depois do nome porque "é só para os amigos?" é a primeira decisão de quem cria uma sala.
+		f_code = f.create_input_box(tr("lobby.join_code"), "");
+		f_preset = f.create_list(tr("menu.settings"));
+		f.add_list_item(f_preset, tr("lobby.preset.classic_desc"), "classic");
+		f.add_list_item(f_preset, tr("lobby.preset.quick_desc"), "quick");
+		f.add_list_item(f_preset, tr("lobby.preset.chaos_desc"), "chaos");
+	}
 	// Ajustes finos sobre o preset. TODOS aceitam vazio, e vazio significa "usa o que o preset diz" -
 	// é o que mantém a tela utilizável para quem só quer criar uma sala e jogar, enquanto abre a
 	// porta para quem quer mexer. Um formulário que exigisse todos os campos transformaria a criação
 	// de partida numa lição de casa.
-	int f_kill_cooldown = f.create_input_box(tr("lobby.kill_cooldown_override"), "");
-	int f_max_players = f.create_input_box(tr("lobby.max_players_override"), "");
-	int f_impostors = f.create_input_box(tr("lobby.impostor_count_override"), "");
-	int f_tasks = f.create_input_box(tr("lobby.task_count_override"), "");
-	int f_discussion = f.create_input_box(tr("lobby.discussion_time_override"), "");
-	int f_voting = f.create_input_box(tr("lobby.voting_time_override"), "");
-	int f_meetings = f.create_input_box(tr("lobby.emergency_meetings_override"), "");
+	int f_kill_cooldown = f.create_input_box(tr("lobby.kill_cooldown_override"), current_float_text(current, "kill_cooldown_seconds"));
+	int f_max_players = f.create_input_box(tr("lobby.max_players_override"), current_int_text(current, "max_players"));
+	bool auto_impostors = @current != null && bool(current["impostors_automatic"]);
+	int f_impostors = f.create_input_box(tr("lobby.impostor_count_override"), auto_impostors ? "" : current_int_text(current, "impostor_count"));
+	int f_tasks = f.create_input_box(tr("lobby.task_count_override"), current_int_text(current, "task_count_per_crewmate"));
+	int f_discussion = f.create_input_box(tr("lobby.discussion_time_override"), current_float_text(current, "discussion_time_seconds"));
+	int f_voting = f.create_input_box(tr("lobby.voting_time_override"), current_float_text(current, "voting_time_seconds"));
+	int f_meetings = f.create_input_box(tr("lobby.emergency_meetings_override"), current_int_text(current, "emergency_meetings_per_player"));
 	int f_sabotages = f.create_list(tr("lobby.sabotages_override"));
 	f.add_list_item(f_sabotages, tr("lobby.override.preset_default"), "");
 	f.add_list_item(f_sabotages, tr("lobby.override.enabled"), "on");
 	f.add_list_item(f_sabotages, tr("lobby.override.disabled"), "off");
+	if (@current != null) f.set_list_position(f_sabotages, bool(current["sabotages_enabled"]) ? 1 : 2);
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
-	// Um audio_form nasce sem foco: sem isto o nome da partida não recebia o que era digitado até o
+	// Um audio_form nasce sem foco: sem isto o primeiro campo não recebia o que era digitado até o
 	// jogador apertar Tab.
-	f.focus(f_name);
+	f.focus(creating ? f_name : f_kill_cooldown);
+	if (!creating) speak(tr("lobby.edit_settings_hint"));
 
 	while (true) {
 		wait(5);
 		client.update(); // mantém a conexão viva enquanto o jogador preenche o formulário
 		f.monitor();
-		if (f.is_pressed(f_cancel)) return null;
+		if (f.is_pressed(f_cancel)) return r;
 		if (f.is_pressed(f_ok)) {
-			string lobby_name = f.get_text(f_name);
-			int preset_index = f.get_list_position(f_preset);
-			string preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";
-
-			lobby_overrides ov;
+			r.ok = true;
+			if (creating) {
+				r.lobby_name = f.get_text(f_name);
+				r.join_code = f.get_text(f_code);
+				int preset_index = f.get_list_position(f_preset);
+				r.preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";
+			}
 			// -1 em número e "" em texto significam "não mexi nisto": é o servidor que decide o
-			// valor final, partindo do preset. Mandar 0 no lugar seria pedir uma partida com zero
-			// tarefas por engano.
-			ov.kill_cooldown_seconds = text_to_float_or_default(f.get_text(f_kill_cooldown));
-			ov.max_players = text_to_int_or_default(f.get_text(f_max_players));
-			ov.impostor_count = text_to_int_or_default(f.get_text(f_impostors));
-			ov.task_count_per_crewmate = text_to_int_or_default(f.get_text(f_tasks));
-			ov.discussion_time_seconds = text_to_float_or_default(f.get_text(f_discussion));
-			ov.voting_time_seconds = text_to_float_or_default(f.get_text(f_voting));
-			ov.emergency_meetings_per_player = text_to_int_or_default(f.get_text(f_meetings));
+			// valor final. Mandar 0 no lugar seria pedir uma partida com zero tarefas por engano.
+			r.ov.kill_cooldown_seconds = text_to_float_or_default(f.get_text(f_kill_cooldown));
+			r.ov.max_players = text_to_int_or_default(f.get_text(f_max_players));
+			r.ov.impostor_count = text_to_int_or_default(f.get_text(f_impostors));
+			r.ov.task_count_per_crewmate = text_to_int_or_default(f.get_text(f_tasks));
+			r.ov.discussion_time_seconds = text_to_float_or_default(f.get_text(f_discussion));
+			r.ov.voting_time_seconds = text_to_float_or_default(f.get_text(f_voting));
+			r.ov.emergency_meetings_per_player = text_to_int_or_default(f.get_text(f_meetings));
 			int sab_index = f.get_list_position(f_sabotages);
-			ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
-
-			client.send_create_lobby(lobby_name, preset_id, ov, f.get_text(f_code));
-			return wait_for_lobby_state_after_create(client);
+			r.ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
+			return r;
 		}
 	}
-	return null; // inalcançável - o laço só termina via return acima
+	return r; // inalcançável - o laço só termina via return acima
+}
+
+// Valor atual de um campo como texto para pré-preencher o formulário - "" quando não há configuração
+// (criação) ou o campo não veio.
+string current_int_text(json_object@ cfg, const string&in key) {
+	if (@cfg == null || !cfg.exists(key)) return "";
+	return "" + int(cfg[key]);
+}
+string current_float_text(json_object@ cfg, const string&in key) {
+	if (@cfg == null || !cfg.exists(key)) return "";
+	return seconds_text(float(cfg[key]));
+}
+
+// Tela de criação de partida.
+//
+// Devolve o primeiro S_LOBBY_STATE da partida criada, ou null se o jogador desistiu ou o servidor não
+// respondeu. O pacote é DEVOLVIDO, e não descartado, porque é o único retrato da sala que o anfitrião
+// recebe enquanto estiver sozinho nela.
+net_packet@ run_create_lobby_screen(game_client@ client) {
+	lobby_form_result r = run_lobby_settings_form(client, null);
+	if (!r.ok) return null;
+	client.send_create_lobby(r.lobby_name, r.preset_id, r.ov, r.join_code);
+	return wait_for_lobby_state_after_create(client);
 }
 
 // Campo vazio (ou lixo digitado) vira -1 = "não mexi nisto, use o preset". Aceitar lixo como -1 em
@@ -415,6 +458,17 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 			if (!is_host) speak(tr("lobby.bot_host_only"));
 			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) client.send_remove_bot();
 			else client.send_add_bot();
+		}
+
+		// O: o anfitrião muda as regras com a sala já aberta. Sem isto, mudar qualquer coisa era
+		// desfazer a sala e criar outra - e perder quem já tinha entrado. A resposta vem pelo caminho
+		// normal (um S_LOBBY_STATE novo para todos, mais o aviso falado), então nada especial aqui.
+		if (key_pressed(KEY_O)) {
+			if (!is_host) speak(tr("lobby.edit_host_only"));
+			else {
+				lobby_form_result r = run_lobby_settings_form(client, snapshot.config);
+				if (r.ok) client.send_update_lobby_config(r.ov);
+			}
 		}
 
 		// P: quem está na sala. C: quais são as regras desta partida.

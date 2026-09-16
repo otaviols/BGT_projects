@@ -146,6 +146,14 @@ class game_client {
 		send(p);
 	}
 
+	// O anfitrião muda as regras da sala já aberta. Só os ajustes viajam: o que ficou em branco
+	// (-1/"") mantém o valor atual - ver on_update_lobby_config no servidor.
+	void send_update_lobby_config(const lobby_overrides&in overrides) {
+		net_packet@ p = net_packet(C_UPDATE_LOBBY_CONFIG);
+		overrides.write_to_packet(p);
+		send(p);
+	}
+
 	// Entrar numa partida privada: ela não está na lista, então vai só o código.
 	void send_join_by_code(const string&in join_code) {
 		net_packet@ p = net_packet(C_JOIN_LOBBY);
@@ -236,6 +244,12 @@ class game_client {
 		net_packet@ p = net_packet(C_RADAR_SCAN);
 		p.set_int("direction", direction);
 		send(p, false);
+	}
+
+	void send_radar_track(uint64 peer_id) {
+		net_packet@ p = net_packet(C_RADAR_TRACK);
+		p.set_uint64("peer_id", peer_id);
+		send(p, false); // vai a cada meio segundo; perder um não custa nada
 	}
 
 	void send_close_doors(const string&in room_id) {

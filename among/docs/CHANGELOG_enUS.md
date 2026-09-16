@@ -10,6 +10,18 @@ Writing the note in two places would be a guarantee that one day they disagree.
 
 ---
 
+## 0.20.0
+
+Three things you asked for:
+
+- **Explore the map**, in the main menu: walk around the ship alone, with no server and no
+  pressure. Each room is named as you enter, Tab lists what is in it, Enter says what the nearest
+  object is.
+- **The host can change the rules with the room already open**, with the O key. The fields come
+  with the current values, and everyone in the room is told about the change.
+- **Radar lock**: after pointing at someone with Tab, Q makes the radar beep at that person on its
+  own, with the pitch rising as they get closer. It releases by itself when they leave the room.
+
 ## 0.19.0
 
 **New: private matches.** When creating a match, fill in the access code: the match disappears from

@@ -272,6 +272,7 @@ class game_server {
 		else if (t == C_CREATE_LOBBY) on_create_lobby(peer_id, pkt);
 		else if (t == C_JOIN_LOBBY) on_join_lobby(peer_id, pkt);
 		else if (t == C_LEAVE_LOBBY) on_leave_lobby(peer_id, pkt);
+		else if (t == C_UPDATE_LOBBY_CONFIG) on_update_lobby_config(peer_id, pkt);
 		else if (t == C_START_GAME) on_start_game(peer_id, pkt);
 		else if (t == C_ADD_BOT) on_add_bot(peer_id, pkt);
 		else if (t == C_REMOVE_BOT) on_remove_bot(peer_id, pkt);
@@ -285,6 +286,7 @@ class game_server {
 		else if (t == C_USE_VENT) on_use_vent(peer_id, pkt);
 		else if (t == C_VENT_TRAVEL) on_vent_travel(peer_id, pkt);
 		else if (t == C_RADAR_SCAN) on_radar_scan(peer_id, pkt);
+		else if (t == C_RADAR_TRACK) on_radar_track(peer_id, pkt);
 		else if (t == C_TRIGGER_SABOTAGE) on_trigger_sabotage(peer_id, pkt);
 		else if (t == C_CLOSE_DOORS) on_close_doors(peer_id, pkt);
 		else if (t == C_INTERACT) on_interact(peer_id, pkt);
@@ -440,6 +442,26 @@ class game_server {
 		broadcast_to_lobby(lobby, joined, peer_id);
 
 		send_lobby_state(lobby, 0);
+	}
+
+	// O anfitrião muda as regras da sala aberta. Os ajustes entram POR CIMA da configuração atual, e
+	// não de um preset: o que ele deixou em branco tem que continuar valendo como está. E a validação
+	// roda de novo, pelo mesmo motivo de sempre - os números vieram da máquina do jogador.
+	void on_update_lobby_config(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) { send_error(peer_id, "lobby.edit_host_only"); return; }
+		if (lobby.state != "waiting") { send_error(peer_id, "lobby.edit_only_in_waiting"); return; }
+
+		lobby_overrides overrides;
+		overrides.read_from_packet(pkt);
+		overrides.apply_to(lobby.config);
+		lobby.config.validate();
+
+		// Todo mundo recebe o retrato novo E um aviso falado: quem já ouviu as regras uma vez não
+		// vai apertar C de novo por conta própria, e uma partida com regras que mudaram em silêncio é
+		// uma partida em que alguém joga com as regras erradas.
+		send_lobby_state(lobby, 0);
+		broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.config_changed"));
 	}
 
 	void on_leave_lobby(uint64 peer_id, net_packet@ pkt) {
@@ -988,25 +1010,24 @@ class game_server {
 		send_to(peer_id, result);
 	}
 
-	void on_radar_scan(uint64 peer_id, net_packet@ pkt) {
-		game_state@ lobby = find_lobby_of_peer(peer_id);
-		if (@lobby == null || lobby.state != "in_progress") return;
-		game_player@ me = lobby.find_player(peer_id);
-		if (@me == null) return; // fantasma (morto/expulso) também pode usar o radar - só não aparece nele
-
-		// Sabotagem não atrapalha quem sabota: o impostor mantém o radar inteiro nos dois casos abaixo.
-		// É a mesma lógica do jogo original, onde o apagão não cega o impostor - a sabotagem é uma
-		// arma dele, e uma arma que atinge o próprio dono deixa de ser usada.
+	// Quem `me` consegue perceber pelo radar agora. Uma função só para o radar normal e o travado:
+	// se a regra de percepção morasse em dois lugares, um dia um deles deixaria de excluir o duto.
+	//
+	// Sabotagem não atrapalha quem sabota: o impostor mantém o radar inteiro nos dois casos abaixo.
+	// É a mesma lógica do jogo original, onde o apagão não cega o impostor - a sabotagem é uma
+	// arma dele, e uma arma que atinge o próprio dono deixa de ser usada.
+	//
+	// Devolve null com `fail_key` preenchida quando o radar está fora (comunicações sabotadas): é o
+	// equivalente aqui ao "esconder as tasks" do jogo original - tira a ferramenta principal de saber
+	// quem está perto de você.
+	array<game_player@>@ radar_targets(game_state@ lobby, game_player@ me, string&out fail_key) {
+		fail_key = "";
 		bool blinded_by_sabotage = !me.is_impostor;
-
-		// Sabotagem de comunicações derruba o radar: é o equivalente aqui ao "esconder as tasks" do
-		// jogo original - tira a ferramenta principal de saber quem está perto de você.
 		if (blinded_by_sabotage && lobby.active_sabotage == "comms") {
-			send_error(peer_id, "sabotage.comms.radar_down");
-			return;
+			fail_key = "sabotage.comms.radar_down";
+			return null;
 		}
-
-		array<game_player@>@ nearby = lobby.players_in_same_room(peer_id);
+		array<game_player@>@ nearby = lobby.players_in_same_room(me.peer_id);
 		// Luzes apagadas: o radar vira quase um tato - só sente quem está bem colado, mesmo estando
 		// todo mundo na mesma sala.
 		if (blinded_by_sabotage && lobby.active_sabotage == "lights") {
@@ -1016,6 +1037,18 @@ class game_server {
 			}
 			nearby = in_reach;
 		}
+		return nearby;
+	}
+
+	void on_radar_scan(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ me = lobby.find_player(peer_id);
+		if (@me == null) return; // fantasma (morto/expulso) também pode usar o radar - só não aparece nele
+
+		string fail_key;
+		array<game_player@>@ nearby = radar_targets(lobby, me, fail_key);
+		if (@nearby == null) { send_error(peer_id, fail_key); return; }
 
 		net_packet@ result = net_packet(S_RADAR_RESULT);
 		if (nearby.length() == 0) {
@@ -1028,14 +1061,47 @@ class game_server {
 		me.radar_index = (me.radar_index + direction) % int(nearby.length());
 		if (me.radar_index < 0) me.radar_index += int(nearby.length());
 
-		game_player@ target = nearby[me.radar_index];
+		fill_radar_result(result, me, nearby[me.radar_index]);
+		send_to(peer_id, result);
+	}
+
+	// Radar travado: o alvo ainda pode ser percebido? Responde pela MESMA lista do radar normal - o
+	// alvo que entrou num duto, saiu da sala ou sumiu no escuro deixa de estar nela, e a trava cai.
+	void on_radar_track(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ me = lobby.find_player(peer_id);
+		if (@me == null) return;
+
+		net_packet@ result = net_packet(S_RADAR_RESULT);
+		result.set_bool("track", true);
+
+		string fail_key;
+		array<game_player@>@ nearby = radar_targets(lobby, me, fail_key);
+		uint64 target_peer = pkt.get_uint64("peer_id");
+		game_player@ target = null;
+		if (@nearby != null) {
+			for (uint i = 0; i < nearby.length(); i++) {
+				if (nearby[i].peer_id == target_peer) { @target = nearby[i]; break; }
+			}
+		}
+		if (@target == null) {
+			result.set_bool("empty", true);
+			result.set_bool("lost", true);
+			send_to(peer_id, result);
+			return;
+		}
+		fill_radar_result(result, me, target);
+		send_to(peer_id, result);
+	}
+
+	void fill_radar_result(net_packet@ result, game_player@ me, game_player@ target) {
 		result.set_bool("empty", false);
 		result.set_uint64("peer_id", target.peer_id);
 		result.set_string("name", target.username);
 		result.set_float("x", target.x);
 		result.set_float("y", target.y);
 		result.set_float("distance", distance_2d(me.x, me.y, target.x, target.y));
-		send_to(peer_id, result);
 	}
 
 	void on_trigger_sabotage(uint64 peer_id, net_packet@ pkt) {

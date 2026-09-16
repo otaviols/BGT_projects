@@ -10,6 +10,17 @@ novidade em dois lugares seria garantir que um dia os dois discordem.
 
 ---
 
+## 0.20.0
+
+Três coisas que vocês pediram:
+
+- **Conhecer o mapa**, no menu inicial: ande pela nave sozinho, sem servidor e sem pressão. O nome
+  de cada sala é dito ao entrar, Tab lista o que há nela, Enter diz o que é o objeto mais próximo.
+- **O anfitrião muda as regras com a sala já aberta**, com a tecla O. Os campos vêm com os valores
+  atuais, e todo mundo na sala é avisado da mudança.
+- **Radar travado**: depois de apontar alguém com o Tab, Q faz o radar bipar sozinho naquela
+  pessoa, com o tom subindo conforme ela se aproxima. Solta sozinho quando ela sai da sala.
+
 ## 0.19.0
 
 **Novo: partidas privadas.** Ao criar uma partida, preencha o código de acesso: ela some da lista e

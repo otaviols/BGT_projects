@@ -1,0 +1,156 @@
+// explore_screen.nvgt
+// Conhecer o mapa: andar pela nave sozinho, sem servidor, sem partida, sem pressão.
+//
+// Num jogo sem imagem, "ver o mapa" é isto - percorrê-lo com calma até o desenho das salas e dos
+// corredores ficar na cabeça. Foi o pedido por trás de quatro recados diferentes ("um mapa", "um
+// jeito de se orientar", "onde ficam as salas"): o problema não era falta de informação, era ter
+// de aprendê-la enquanto um impostor anda por perto.
+//
+// Roda INTEIRAMENTE no cliente. O mapa, os ambientes de sala, os passos por piso, os marcadores e
+// o radar de objetos já são locais na partida de verdade - o servidor só entra para saber onde os
+// OUTROS estão, e aqui não há outros. Por isso nada de rede: quem quer só andar não precisa nem
+// estar logado.
+//
+// O que existe aqui é deliberadamente pouco: andar, ouvir, o radar de objetos, a tecla de "onde
+// estou". Tasks não abrem e nada acontece ao interagir. Colocar mais viraria um modo de treino, que
+// é outra conversa - este é um mapa que se anda.
+
+#include "speech.nvgt"
+#include "../audio/audio_manager.nvgt"
+#include "../game/map.nvgt"
+#include "../config/keybindings.nvgt"
+#include "../config/game_constants.nvgt"
+#include "../i18n.nvgt"
+
+void run_explore_map_screen() {
+	game_map@ map = build_the_hub_map();
+	audio_manager@ audio = audio_manager();
+
+	// Todos os pontos de task contam como "seus": o objetivo é saber que eles existem e onde ficam.
+	array<string> all_task_ids;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		if (map.objects[i].obj_type == OBJ_TASK_SPOT) all_task_ids.insert_last(map.objects[i].id);
+	}
+
+	float my_x = 0.0, my_y = 0.0; // centro da cafeteria, onde toda partida começa
+	audio.update_listener(my_x, my_y);
+	audio.start_ship_ambience();
+	audio.start_room_ambience(map);
+	audio.start_landmark_beacons(map, all_task_ids, "");
+
+	speak(tr("explore.intro"));
+
+	string last_zone_id = "";
+	string last_object_id = "";
+	int object_index = -1;
+	string object_room_id = "";
+	timer frame_clock;
+	timer footstep_clock;
+	timer wall_bump_clock;
+
+	while (true) {
+		wait(5);
+		float delta = float(frame_clock.elapsed) / 1000.0;
+		frame_clock.restart();
+		if (delta > 0.1) delta = 0.1; // mesmo teto do laço da partida: um quadro longo não arremessa ninguém
+
+		if (key_pressed(KEY_ESCAPE)) break;
+
+		float dx = 0.0, dy = 0.0;
+		if (action_down(ACTION_MOVE_NORTH)) dy -= 1.0;
+		if (action_down(ACTION_MOVE_SOUTH)) dy += 1.0;
+		if (action_down(ACTION_MOVE_WEST)) dx -= 1.0;
+		if (action_down(ACTION_MOVE_EAST)) dx += 1.0;
+
+		if (dx != 0.0 || dy != 0.0) {
+			float len = sqrt(dx * dx + dy * dy);
+			dx /= len;
+			dy /= len;
+			float new_x = my_x + dx * PLAYER_MOVE_SPEED * delta;
+			float new_y = my_y + dy * PLAYER_MOVE_SPEED * delta;
+
+			if (map.can_move(my_x, my_y, new_x, new_y, true)) {
+				my_x = new_x;
+				my_y = new_y;
+				audio.update_listener(my_x, my_y);
+
+				map_zone@ zone = map.zone_at(my_x, my_y);
+				string zone_id = @zone != null ? zone.id : "";
+				if (zone_id != last_zone_id) {
+					last_zone_id = zone_id;
+					if (@zone != null) speak(tr(zone.name_key));
+				}
+
+				// Anuncia qualquer objeto de que se chega perto - aqui não há "meu" e "dos outros",
+				// tudo é referência da nave.
+				map_object@ nearby = nearest_object(map, my_x, my_y);
+				string nearby_id = @nearby != null ? nearby.id : "";
+				if (nearby_id != last_object_id) {
+					last_object_id = nearby_id;
+					if (@nearby != null) speak(object_name(nearby));
+				}
+
+				if (float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
+					footstep_clock.restart();
+					string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
+					audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
+				}
+			} else if (float(wall_bump_clock.elapsed) / 1000.0 >= WALL_BUMP_INTERVAL_SECONDS) {
+				wall_bump_clock.restart();
+				audio.play_wall_bump(my_x, my_y);
+			}
+		}
+
+		// Radar de objetos, igual ao da partida (Tab / Shift+Tab). Só o modo de objetos existe aqui:
+		// o de jogadores pergunta ao servidor, e não há nem servidor nem jogadores.
+		if (action_pressed(ACTION_RADAR)) {
+			string room_id = map.room_id_at(my_x, my_y);
+			array<map_object@>@ objects = interactables_in_room(map, room_id, my_x, my_y, all_task_ids, "");
+			if (objects.length() == 0) {
+				speak(tr("radar.no_objects_here"));
+			} else {
+				if (room_id != object_room_id) { object_room_id = room_id; object_index = -1; }
+				int direction = (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) ? -1 : 1;
+				object_index = (object_index + direction) % int(objects.length());
+				if (object_index < 0) object_index += int(objects.length());
+				map_object@ target = objects[object_index];
+				audio.play_radar_beep(target.x, target.y);
+				speak(object_name(target));
+			}
+		}
+
+		if (action_pressed(ACTION_ROOM_INFO)) {
+			map_zone@ zone = map.zone_at(my_x, my_y);
+			dictionary@ p = dictionary();
+			p.set("room", @zone != null ? tr(zone.name_key) : tr("game.nothing_nearby"));
+			p.set("x", "" + int(my_x));
+			p.set("y", "" + int(my_y));
+			speak(tr("game.location_info", p));
+		}
+
+		// Enter num objeto diz o que ele é e o que faria - e só. É o lugar de aprender "isto é o
+		// painel de oxigênio" sem o relógio correndo.
+		if (action_pressed(ACTION_INTERACT)) {
+			map_object@ obj = nearest_object(map, my_x, my_y);
+			speak(@obj != null ? object_name(obj) + ". " + tr("explore.object_hint") : tr("game.nothing_nearby"));
+		}
+	}
+
+	audio.stop_ship_ambience();
+	audio.stop_room_ambience();
+	audio.stop_landmark_beacons();
+}
+
+// O objeto mais perto dentro do alcance de interação, decoração de fora. Diferente do
+// find_interactable da partida, não filtra por papel nem por task: aqui tudo é ponto de referência.
+map_object@ nearest_object(game_map@ map, float x, float y) {
+	map_object@ best = null;
+	float best_dist = PLAYER_INTERACT_RANGE;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type == OBJ_DECORATION) continue;
+		float d = distance_2d(x, y, o.x, o.y);
+		if (d <= best_dist) { best_dist = d; @best = o; }
+	}
+	return best;
+}

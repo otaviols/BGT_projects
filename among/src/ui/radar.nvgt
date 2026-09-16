@@ -26,6 +26,17 @@ class radar_ui {
 	private string object_room_id = ""; // sala do último ciclo de objetos, pra reiniciar ao trocar de sala
 	private int object_index = -1;
 
+	// Radar travado (tecla Q): o último alvo apontado passa a bipar sozinho, com o tom pela
+	// distância, até sair do alcance ou ser solto. Substitui o "apertar Tab sem parar" para
+	// acompanhar alguém - que era o que os jogadores faziam, e pediram para não precisar fazer.
+	//
+	// Continua limitado pela mesma regra do radar: mesma sala. Seguir alguém pela nave inteira de
+	// graça seria forte demais; a trava tira o spam, não o limite.
+	private uint64 last_target_peer = 0; // quem o Tab apontou por último - é nele que o Q trava
+	private string last_target_name = "";
+	uint64 locked_peer = 0;
+	private timer track_clock;
+
 	radar_ui(game_client@ client, audio_manager@ audio) {
 		@this.client = client;
 		@this.audio = audio;
@@ -35,6 +46,33 @@ class radar_ui {
 		mode = mode == RADAR_MODE_PLAYERS ? RADAR_MODE_OBJECTS : RADAR_MODE_PLAYERS;
 		object_index = -1;
 		speak(tr(mode == RADAR_MODE_PLAYERS ? "radar.mode_players" : "radar.mode_objects"));
+	}
+
+	// Q: trava no último alvo do Tab, ou solta se já estava travado.
+	void toggle_lock() {
+		if (locked_peer != 0) { unlock(true); return; }
+		if (last_target_peer == 0) { speak(tr("radar.lock_no_target")); return; }
+		locked_peer = last_target_peer;
+		track_clock.restart();
+		dictionary@ p = dictionary();
+		p.set("name", last_target_name);
+		speak(tr("radar.lock_on", p));
+		client.send_radar_track(locked_peer);
+	}
+
+	void unlock(bool announce) {
+		if (locked_peer == 0) return;
+		locked_peer = 0;
+		if (announce) speak(tr("radar.lock_off"));
+	}
+
+	// Chamar a cada quadro. Com um alvo travado, pergunta ao servidor de tempos em tempos; a resposta
+	// (S_RADAR_RESULT com track) vira só o bip, sem nome, em handle_result.
+	void tick() {
+		if (locked_peer == 0) return;
+		if (float(track_clock.elapsed) / 1000.0 < RADAR_TRACK_INTERVAL_SECONDS) return;
+		track_clock.restart();
+		client.send_radar_track(locked_peer);
 	}
 
 	void scan_next(game_map@ map, float x, float y, array<string>@ my_task_object_ids, const string&in active_sabotage_id) {
@@ -72,14 +110,30 @@ class radar_ui {
 
 	// Chamar quando o loop principal receber um pacote do tipo S_RADAR_RESULT.
 	void handle_result(net_packet@ pkt) {
+		bool tracking = pkt.get_bool("track", false);
 		if (pkt.get_bool("empty", true)) {
+			if (tracking) {
+				// O alvo travado saiu de alcance (outra sala, duto, escuro) - a trava cai e avisa,
+				// senão o silêncio pareceria o jogo travado.
+				if (locked_peer != 0 && pkt.get_bool("lost", false)) { locked_peer = 0; speak(tr("radar.lock_lost")); }
+				return;
+			}
 			speak(tr("radar.no_players_nearby"));
 			return;
 		}
 		float x = pkt.get_float("x");
 		float y = pkt.get_float("y");
 		string name = pkt.get_string("name");
-		audio.play_radar_beep(x, y);
+		float distance = pkt.get_float("distance", -1.0);
+		if (tracking) {
+			if (locked_peer != 0) audio.play_radar_beep(x, y, distance); // só o bip: o nome já foi dito ao travar
+			return;
+		}
+		last_target_peer = pkt.get_uint64("peer_id");
+		last_target_name = name;
+		// Apontar outro alvo com o Tab move a trava junto: o jogador está dizendo "este agora".
+		if (locked_peer != 0) { locked_peer = last_target_peer; track_clock.restart(); }
+		audio.play_radar_beep(x, y, distance);
 		// A contagem de "passos" (distância em unidades de mundo) não tinha uma correspondência
 		// confiável com o que se ouve andando - em vez de reportar um número que engana, só fala o
 		// nome; o som posicionado do beep já dá a noção de direção/proximidade.
