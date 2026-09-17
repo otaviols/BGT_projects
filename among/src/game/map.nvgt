@@ -407,6 +407,9 @@ game_map@ build_the_hub_map() {
 		OBJ_TASK_SPOT, "sounds/" + SND_GET_CARD, "swipe_card", "", SND_TASK_BEACON_SWIPE_CARD));
 	m.objects.insert_last(map_object("task_manifolds_reactor", "task.unlock_manifolds.name", -33, -78, "reactor",
 		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "unlock_manifolds", "", SND_TASK_BEACON_UNLOCK_MANIFOLDS));
+	// O scan é a task VISUAL do jogo (ver tasks/submit_scan.nvgt): um ponto só, na enfermaria.
+	m.objects.insert_last(map_object("task_scan_medbay", "task.submit_scan.name", -27, -22, "medbay",
+		OBJ_TASK_SPOT, "sounds/" + SND_MEDBAY_SCAN, "submit_scan", "", SND_TASK_BEACON_SUBMIT_SCAN));
 	m.objects.insert_last(map_object("task_manifolds_medbay", "task.unlock_manifolds.name", -33, -28, "medbay",
 		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "unlock_manifolds", "", SND_TASK_BEACON_UNLOCK_MANIFOLDS));
 	m.objects.insert_last(map_object("task_fuel_storage", "task.fuel_engines.name", -3, -53, "storage",

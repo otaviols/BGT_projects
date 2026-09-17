@@ -6,6 +6,15 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.24.0
+
+- **Nova tarefa: o exame médico**, na enfermaria. Fique parado no scanner até ele terminar. Quem
+  estiver por perto ouve o scanner rodando e o jogo diz quem está sendo examinado — como impostor
+  não faz tarefa, é a prova de que aquela pessoa é tripulante. Fingir não produz som para os outros.
+- **Nova regra de sala: dizer ou não se o expulso era impostor.** Desligada, cada expulsão vira
+  dúvida em vez de resposta. Fica na criação da sala e na tecla O.
+- Sons novos na tarefa dos asteroides: o tiro e o estouro do acerto, vindo da direção certa.
+
 ## 0.23.0
 
 - **Espanhol!** O jogo ganhou a primeira tradução feita por um jogador. Está em Configurações, na

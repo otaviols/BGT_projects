@@ -67,6 +67,11 @@ class game_state {
 	uint64 camera_user_peer = 0;
 	string camera_room_id = "";
 
+	// Quem está numa task VISÍVEL agora (o scan da enfermaria), e em qual ponto. 0 = ninguém.
+	// Um de cada vez basta: só existe um scanner na nave.
+	uint64 visible_task_peer = 0;
+	string visible_task_object_id = "";
+
 	string winner = ""; // "" | "crewmates" | "impostors"
 	string win_reason = "";
 	float elapsed_time = 0.0;
@@ -410,7 +415,10 @@ class game_state {
 				ejected.alive = false;
 				result.set_uint64("ejected_peer", ejected.peer_id);
 				result.set_string("ejected_name", ejected.username);
-				result.set_bool("was_impostor", ejected.is_impostor);
+				// Com a revelação desligada o papel NÃO viaja: o cliente é a máquina do jogador, e
+				// mandar "só para ele não falar" seria mandar a resposta para quem quisesse ler.
+				result.set_bool("role_revealed", config.reveal_ejected_role);
+				if (config.reveal_ejected_role) result.set_bool("was_impostor", ejected.is_impostor);
 				result.set_bool("tie", false);
 			}
 		} else {
@@ -497,6 +505,34 @@ class game_state {
 		camera_user_peer = 0;
 		camera_room_id = "";
 		return true;
+	}
+
+	// Começa uma task visível para `peer`, se ele tiver essa task pendente e estiver vivo. Devolve
+	// false quando não tem - que é exatamente o caso do impostor fingindo, e do fantasma (o scan de
+	// quem já morreu não serve de álibi a ninguém).
+	bool try_start_visible_task(uint64 peer, const string&in object_id) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive) return false;
+		map_object@ spot = map.find_object(object_id);
+		if (@spot == null || spot.obj_type != OBJ_TASK_SPOT || spot.task_type != "submit_scan") return false;
+		bool pending = false;
+		for (uint i = 0; i < p.tasks.length(); i++) {
+			if (p.tasks[i].object_id == object_id && !p.tasks[i].completed) { pending = true; break; }
+		}
+		if (!pending) return false;
+		visible_task_peer = peer;
+		visible_task_object_id = object_id;
+		return true;
+	}
+
+	// Encerra a task visível se for deste jogador (ou de qualquer um, com peer 0). Devolve quem
+	// estava nela, para o servidor avisar a partida - o mesmo motivo do release_cameras_any.
+	uint64 end_visible_task(uint64 peer = 0) {
+		if (visible_task_peer == 0 || (peer != 0 && visible_task_peer != peer)) return 0;
+		uint64 quem = visible_task_peer;
+		visible_task_peer = 0;
+		visible_task_object_id = "";
+		return quem;
 	}
 
 	// Libera seja quem for e devolve QUEM foi liberado (0 = não havia ninguém). Usado quando a

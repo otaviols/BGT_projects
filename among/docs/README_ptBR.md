@@ -244,6 +244,10 @@ As onze tarefas:
   assim que você sabe onde ele está. Apertar Espaço no canteiro errado não rega nada.
 - **Revisar as gravações** (segurança) — ouça o trecho gravado do corredor e conte quantas pessoas
   passaram. Cada uma atravessa por um lado, com o piso e o ritmo dela. Responda nas teclas 1 a 6.
+- **Fazer o exame médico** (enfermaria) — fique parado no scanner até ele terminar. É a tarefa
+  mais fácil do jogo e a mais valiosa: **quem estiver por perto ouve o scanner rodando e o jogo diz
+  quem está sendo examinado** — e impostor não faz tarefa, então ver alguém no exame prova que é
+  tripulante. Um impostor fingindo não produz som nenhum para os outros.
 
 **ESC cancela qualquer tarefa**; ela continua pendente e você pode voltar depois. Se uma reunião
 começar no meio de uma tarefa, ela fecha sozinha e nada se perde.

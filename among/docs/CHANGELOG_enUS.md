@@ -6,6 +6,15 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.24.0
+
+- **New task: the medical scan**, in medbay. Stand still on the scanner until it finishes. Anyone
+  nearby hears the scanner running and the game says who is being scanned — since impostors cannot
+  do tasks, it is proof that person is crew. Faking it produces no sound for others.
+- **New room rule: say or not whether the ejected player was an impostor.** Off, every ejection
+  becomes a doubt instead of an answer. It is in room creation and under the O key.
+- New sounds in the asteroids task: the shot and the hit, coming from the right direction.
+
 ## 0.23.0
 
 - **Spanish!** The game gained its first translation made by a player. It is under Settings, in the

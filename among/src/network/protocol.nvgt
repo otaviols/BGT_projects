@@ -29,7 +29,7 @@ const string C_ADD_BOT = "c_add_bot";             // {} (só host, só na sala d
 const string C_REMOVE_BOT = "c_remove_bot";       // {} (só host, tira o último bot adicionado)
 const string C_MOVE = "c_move";                   // {x, y, seq}
 const string C_INTERACT = "c_interact";           // {object_id}
-const string C_START_TASK = "c_start_task";       // {task_id}
+const string C_START_TASK = "c_start_task";       // {task_id} - abriu a minigame; no scan, é o que faz o servidor avisar quem está perto
 const string C_TASK_INPUT = "c_task_input";       // {task_id, input}
 const string C_KILL = "c_kill";                   // {target_peer}
 const string C_REPORT_BODY = "c_report_body";     // {body_id}
@@ -94,6 +94,11 @@ const string S_PLAYER_JOINED = "s_player_joined";         // {peer_id, name, col
 const string S_PLAYER_LEFT = "s_player_left";             // {peer_id}
 const string S_TASK_RESULT = "s_task_result";             // {task_id, ok, progress}
 const string S_TASK_ASSIGNED = "s_task_assigned";         // {tasks: [...]}
+// Task VISÍVEL (hoje só o scan da enfermaria): o servidor conferiu que o jogador tem a task e avisa a
+// partida - o som do scanner toca no ponto da task para quem está perto, e é a prova de que quem
+// está lá é tripulante. Impostor fingindo não gera isto, porque não tem a task para o servidor
+// conferir. {active: false} quando termina, é cancelada, ou uma reunião/morte a interrompe.
+const string S_TASK_VISIBLE = "s_task_visible";           // {peer_id, name, object_id, active}
 const string S_TASK_PROGRESS = "s_task_progress";         // {completed, total, percent} - progresso da EQUIPE, vai pra todo mundo (impostor incluído)
 const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, killer_peer, killer_color, x, y}
 const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer, room_key} - room_key = chave i18n da sala onde o corpo estava

@@ -1,0 +1,40 @@
+// submit_scan.nvgt
+// Task da enfermaria: o exame médico. Não tem jogo nenhum - você fica parado no scanner até ele
+// terminar. É a task mais fácil do jogo, e é isso que a torna a mais importante.
+//
+// No Among Us original o scan é uma task VISUAL: quem está por perto vê a animação, e como impostor
+// não faz task, ver alguém sendo escaneado prova que aquela pessoa é tripulante. Aqui a prova é
+// sonora, e ela não vem deste arquivo: vem do SERVIDOR. Ao começar, o cliente avisa que abriu a
+// task; o servidor confere que este jogador tem mesmo o scan pendente (impostor não tem) e só então
+// conta a todos por perto que "fulano está fazendo o scan", com o som do scanner tocando no ponto
+// exato da enfermaria. Um impostor fingindo task não produz som nenhum para os outros - e é essa
+// diferença que faz o scan valer como álibi.
+//
+// O tempo é longo de propósito (ver SCAN_SECONDS): a prova precisa durar o bastante para alguém
+// entrar na sala e ouvir. Um scan de dois segundos não serviria de álibi para ninguém.
+
+#include "task_common.nvgt"
+
+const float SCAN_SECONDS = 10.0;
+
+bool run_submit_scan_task(game_client@ client) {
+	speak(tr("task.submit_scan.instructions"));
+
+	sound@ scanner = task_sound(SND_MEDBAY_SCAN);
+	timer clock;
+	while (float(clock.elapsed) / 1000.0 < SCAN_SECONDS) {
+		wait(20);
+		client.update();
+		if (task_cancel_requested(client)) {
+			if (@scanner != null) scanner.stop();
+			return false;
+		}
+		// O som é mais curto que o scan: recomeça quando acaba. Silêncio no meio pareceria que o
+		// scanner travou.
+		if (@scanner != null && !scanner.playing) scanner.play();
+	}
+	if (@scanner != null) scanner.stop();
+	task_sound(SND_BEEP_COMPLETE);
+	speak(tr("task.completed"));
+	return true;
+}

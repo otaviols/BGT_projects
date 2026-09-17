@@ -257,6 +257,13 @@ esperava 1200 — os primeiros passos, que a task pede para CONTAR, tocavam por 
 false sem parar de bombear `client.update()`. Som que não existe devolve handle nulo, e a espera
 passa direto.
 
+**Task visível (o scan) é prova porque o SERVIDOR a anuncia, não o cliente.** O cliente manda
+`C_START_TASK` ao abrir qualquer minigame; só para o scan o servidor confere que aquele jogador tem a
+task pendente e está vivo, e então manda `S_TASK_VISIBLE` a todos menos a ele. Impostor não tem a
+task, então nada é anunciado por mais que o cliente dele finja - é isso que faz o som do scanner na
+enfermaria valer como álibi. O fim vem pelo `C_TASK_INPUT` (sucesso ou cancelamento), e reunião,
+morte e saída também encerram (`end_visible_task`), senão o scanner soaria numa sala vazia.
+
 **Cada som tem UM ouvinte pretendido — decida quem antes de tocar.** Num jogo em que a informação é o
 som, tocar para todo mundo entrega de graça o que devia custar. O assassinato são dois sons com
 públicos diferentes: a **morte** é pessoal e só a vítima ouve; o **kill** é espacial e é o único
@@ -331,7 +338,8 @@ faz os dois sentidos - traz os da comunidade para `lang/`, manda os embutidos pa
 comunidade em `lang/`: o próximo sync sobrescreve; edite no repositório de traduções.
 
 **Como uma tradução chega:** o jogador manda pelo jogo ("Enviar uma tradução", na lista de partidas)
--> fica no banco do servidor, UMA por (usuário, idioma), reenvio substitui -> `infraead_translations.ps1`
+-> fica no banco do servidor, UMA por (usuário, idioma), reenvio substitui -> `infra
+ead_translations.ps1`
 traz para `translations_inbox/` e APAGA do servidor -> `python tools/check_translation.py <arquivo>`
 diz o que falta/sobra -> copiar para `D:\git\game-translationsmong-us\lang\<código>.json`,
 commit, push -> responder ao jogador com `reply_feedback.ps1` se ele mandou recado -> o próximo build
@@ -394,6 +402,9 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
   oferecida por Bauti (#31) - já existe um `es_LATAM` em uso; responder pelo `reply_feedback.ps1`.
   Já atendidos: mapa/orientação (Conhecer o mapa), regras na sala (O), radar travado (Q), partidas
   privadas.
+- **O marcador do scan (`beacons/medbay_scan_pannel.ogg`) é provisório**: veio do pacote de sons
+  como `panel_medbayscan`, e o usuário disse que ainda não escolheu o beacon. Trocar é só substituir
+  o arquivo.
 - **`sounds/ejected.ogg` não existe.** Está no catálogo, o `build_pack` avisa a cada build, e o jogo
   compilado sai sem o som de alguém ser expulso na votação.
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em

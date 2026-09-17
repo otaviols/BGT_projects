@@ -260,6 +260,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.add_list_item(f_sabotages, tr("lobby.override.enabled"), "on");
 	f.add_list_item(f_sabotages, tr("lobby.override.disabled"), "off");
 	if (@current != null) f.set_list_position(f_sabotages, bool(current["sabotages_enabled"]) ? 1 : 2);
+	int f_reveal = f.create_list(tr("lobby.reveal_ejected_override"));
+	f.add_list_item(f_reveal, tr("lobby.override.preset_default"), "");
+	f.add_list_item(f_reveal, tr("lobby.reveal.on"), "on");
+	f.add_list_item(f_reveal, tr("lobby.reveal.off"), "off");
+	if (@current != null && current.exists("reveal_ejected_role")) f.set_list_position(f_reveal, bool(current["reveal_ejected_role"]) ? 1 : 2);
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 	// Um audio_form nasce sem foco: sem isto o primeiro campo não recebia o que era digitado até o
@@ -291,6 +296,8 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.emergency_meetings_per_player = text_to_int_or_default(f.get_text(f_meetings));
 			int sab_index = f.get_list_position(f_sabotages);
 			r.ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
+			int rev_index = f.get_list_position(f_reveal);
+			r.ov.reveal_ejected = rev_index >= 0 ? f.get_list_item_id(f_reveal, rev_index) : "";
 			return r;
 		}
 	}

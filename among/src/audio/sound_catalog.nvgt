@@ -92,6 +92,7 @@ const string SND_TASK_BEACON_CLEAR_ASTEROIDS = "sounds/beacons/asteroid_pannel.o
 const string SND_TASK_BEACON_ROLL_DICE = "sounds/beacons/games_pannel.ogg";
 const string SND_TASK_BEACON_WATER_PLANTS = "sounds/beacons/plants_pannel.ogg";
 const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.ogg";
+const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.ogg"; // provisório: veio do pacote de sons, sem confirmação de que é o marcador certo
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 const string SND_BEEP = "tasks/beep.ogg";
@@ -100,7 +101,12 @@ const string SND_CARD_ERROR = "tasks/CardError.ogg";
 const string SND_CARD_COMPLETE = "tasks/CardComplet.ogg";
 const string SND_GET_CARD = "tasks/GetCard.ogg";
 const string SND_PULLING_GARBAGE_LEVER = "tasks/pulling_garbage_lever.ogg"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
-const string SND_GUN_FIRE = "tasks/gun_fire.ogg"; // cada tiro na task de limpar asteroides
+const string SND_ASTEROID_FIRE = "tasks/asteroid_fire.ogg"; // cada tiro na task de limpar asteroides
+const uint ASTEROID_HIT_VARIANT_COUNT = 3;                   // asteroid_hit1..3: o acerto, variado para não virar bipe
+string asteroid_hit_sound(int variant_1_based) {
+	return "tasks/asteroid_hit" + variant_1_based + ".ogg";
+}
+const string SND_MEDBAY_SCAN = "tasks/medbay_scan.ogg";     // o scanner da enfermaria rodando (quem faz E quem está perto ouvem)
 const string SND_DICE = "tasks/dice.ogg";                       // dado rolando na sala de jogos
 const string SND_WATER_FLOW = "tasks/waterflow.ogg";            // loop: água correndo enquanto se rega uma muda
 const string SND_FILLING = "tasks/filling.ogg";                 // começou a regar este canteiro
@@ -309,7 +315,10 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_CARD_COMPLETE);
 	list.insert_last("sounds/" + SND_GET_CARD);
 	list.insert_last("sounds/" + SND_PULLING_GARBAGE_LEVER);
-	list.insert_last("sounds/" + SND_GUN_FIRE);
+	list.insert_last("sounds/" + SND_ASTEROID_FIRE);
+	for (int i = 1; i <= int(ASTEROID_HIT_VARIANT_COUNT); i++) list.insert_last("sounds/" + asteroid_hit_sound(i));
+	list.insert_last("sounds/" + SND_MEDBAY_SCAN);
+	list.insert_last(SND_TASK_BEACON_SUBMIT_SCAN);
 	list.insert_last(SND_KILL);
 
 	for (int i = 1; i <= int(ELECTRICAL_STRING_VARIANT_COUNT); i++) {

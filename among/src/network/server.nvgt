@@ -202,6 +202,7 @@ class game_server {
 	void remove_from_lobby(game_state@ lobby, uint64 peer_id) {
 		// Quem sai (ou cai) larga o posto - senão ele fica preso a alguém que não está mais aqui.
 		if (lobby.release_cameras(peer_id)) broadcast_camera_watching(lobby);
+		end_visible_task(lobby, peer_id);
 		string left_name = "";
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p != null) left_name = p.username;
@@ -759,9 +760,36 @@ class game_server {
 		else broadcast_to_dead_players(lobby, moved, peer_id); // fantasma: invisível pra quem tá vivo
 	}
 
+	// A minigame roda no cliente; o servidor só se importa com a task VISÍVEL (o scan): confere que
+	// o jogador tem mesmo essa task pendente e, só então, avisa a partida. É essa conferência que
+	// transforma o som do scanner em prova - o impostor pode abrir o que quiser no cliente dele, mas
+	// o servidor não anuncia um scan de quem não tem scan para fazer.
 	void on_start_task(uint64 peer_id, net_packet@ pkt) {
-		// O minigame roda inteiramente no cliente; nada a validar aqui além de existir a task.
-		// Reservado para uso futuro (ex.: bloquear duas pessoas na mesma task ao mesmo tempo).
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		string object_id = pkt.get_string("task_id");
+		if (!lobby.try_start_visible_task(peer_id, object_id)) return;
+		game_player@ p = lobby.find_player(peer_id);
+		broadcast_task_visible(lobby, peer_id, @p != null ? p.username : "", object_id, true);
+	}
+
+	void broadcast_task_visible(game_state@ lobby, uint64 peer_id, const string&in name, const string&in object_id, bool active) {
+		net_packet@ pkt = net_packet(S_TASK_VISIBLE);
+		pkt.set_uint64("peer_id", peer_id);
+		pkt.set_string("name", name);
+		pkt.set_string("object_id", object_id);
+		pkt.set_bool("active", active);
+		// Quem faz a task já ouve o scanner no próprio cliente; para ele o aviso seria eco.
+		broadcast_to_lobby(lobby, pkt, peer_id);
+	}
+
+	// Encerra a task visível (de um jogador, ou de quem estiver nela com peer 0) e avisa a partida.
+	// Chamado de todo lugar que interrompe a task: fim normal, reunião, morte, saída.
+	void end_visible_task(game_state@ lobby, uint64 peer_id = 0) {
+		uint64 quem = lobby.end_visible_task(peer_id);
+		if (quem == 0) return;
+		game_player@ p = lobby.find_player(quem);
+		broadcast_task_visible(lobby, quem, @p != null ? p.username : "", "", false);
 	}
 
 	void on_task_input(uint64 peer_id, net_packet@ pkt) {
@@ -775,6 +803,9 @@ class game_server {
 
 		string task_id = pkt.get_string("task_id");
 		bool success = pkt.get_bool("success");
+		// O resultado (bom ou ruim) é o fim da minigame: a task visível, se era este jogador, acaba
+		// aqui - ANTES dos retornos abaixo, senão um scan cancelado ficaria soando para sempre.
+		end_visible_task(lobby, peer_id);
 		if (!success) return;
 		if (!p.complete_task(task_id)) return;
 
@@ -814,6 +845,7 @@ class game_server {
 				send_camera_state(target_peer, false, "");
 				broadcast_camera_watching(lobby);
 			}
+			end_visible_task(lobby, target_peer); // morreu no scanner: o scanner para
 			broadcast_to_lobby(lobby, event);
 		}
 	}
@@ -847,6 +879,7 @@ class game_server {
 			// Reunião leva todo mundo para a cafeteria - ninguém fica operando câmera. Sem chave de
 			// aviso: o anúncio da reunião já explica o que aconteceu.
 			close_cameras(lobby);
+			interrupt_visible_task(lobby);
 			broadcast_meeting_and_voting(lobby, event);
 		}
 	}
@@ -904,6 +937,7 @@ class game_server {
 		net_packet@ event;
 		if (lobby.start_meeting(peer_id, "button", event)) {
 			close_cameras(lobby);
+			interrupt_visible_task(lobby);
 			broadcast_meeting_and_voting(lobby, event);
 		} else {
 			// Sem isso o jogador aperta o botão e não acontece nada nem fala nada - ex.: já gastou
@@ -1155,6 +1189,12 @@ class game_server {
 		if (quem == 0) return;
 		send_camera_state(quem, false, "", message_key);
 		broadcast_camera_watching(lobby);
+	}
+
+	// Reunião: todo mundo é teleportado, e uma task visível pela metade não pode continuar soando
+	// numa enfermaria vazia. Chamado junto do close_cameras nos dois começos de reunião.
+	void interrupt_visible_task(game_state@ lobby) {
+		end_visible_task(lobby);
 	}
 
 	void send_camera_state(uint64 peer_id, bool active, const string&in room_id, const string&in message_key = "") {

@@ -35,6 +35,7 @@ class lobby_overrides {
 	float voting_time_seconds = -1.0;
 	int emergency_meetings_per_player = -1;
 	string sabotages = ""; // "" = preset, "on" = ligadas, "off" = desligadas
+	string reveal_ejected = ""; // "" = preset, "on" = diz se o expulso era impostor, "off" = não diz
 
 	// Aplica o que foi preenchido sobre uma configuração vinda do preset. O que ficou de fora não é
 	// tocado. A validação continua sendo feita depois, por lobby_config.validate(): estes valores
@@ -50,6 +51,8 @@ class lobby_overrides {
 		if (emergency_meetings_per_player > 0) cfg.emergency_meetings_per_player = uint(emergency_meetings_per_player);
 		if (sabotages == "on") cfg.sabotages_enabled = true;
 		else if (sabotages == "off") cfg.sabotages_enabled = false;
+		if (reveal_ejected == "on") cfg.reveal_ejected_role = true;
+		else if (reveal_ejected == "off") cfg.reveal_ejected_role = false;
 	}
 
 	void write_to_packet(net_packet@ pkt) const {
@@ -62,6 +65,7 @@ class lobby_overrides {
 		pkt.set_float("voting_time_seconds", voting_time_seconds);
 		pkt.set_int("emergency_meetings_per_player", emergency_meetings_per_player);
 		pkt.set_string("sabotages", sabotages);
+		pkt.set_string("reveal_ejected", reveal_ejected);
 	}
 
 	void read_from_packet(net_packet@ pkt) {
@@ -74,6 +78,7 @@ class lobby_overrides {
 		voting_time_seconds = pkt.get_float("voting_time_seconds", -1.0);
 		emergency_meetings_per_player = pkt.get_int("emergency_meetings_per_player", -1);
 		sabotages = pkt.get_string("sabotages", "");
+		reveal_ejected = pkt.get_string("reveal_ejected", "");
 	}
 }
 
@@ -87,6 +92,9 @@ class lobby_config {
 	float voting_time_seconds = VOTING_TIME_SECONDS;
 	uint emergency_meetings_per_player = DEFAULT_EMERGENCY_MEETINGS_PER_PLAYER;
 	bool sabotages_enabled = true;
+	// Dizer, ao expulsar alguém, se era impostor. Ligado é o jogo clássico; desligado é o modo em
+	// que a tripulação nunca tem certeza de nada - cada expulsão vira dúvida em vez de resposta.
+	bool reveal_ejected_role = true;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
 
@@ -130,6 +138,7 @@ class lobby_config {
 		o.set("voting_time_seconds", voting_time_seconds);
 		o.set("emergency_meetings_per_player", int(emergency_meetings_per_player));
 		o.set("sabotages_enabled", sabotages_enabled);
+		o.set("reveal_ejected_role", reveal_ejected_role);
 		return o;
 	}
 }

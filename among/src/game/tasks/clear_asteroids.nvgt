@@ -55,12 +55,17 @@ bool run_clear_asteroids_task(game_client@ client) {
 			// O tiro sai sempre, acertando ou não, e sai PELA DIREÇÃO pra onde se atirou: esta task
 			// inteira é sobre direção, então o tiro tem que confirmar de ouvido para onde o jogador
 			// apontou - inclusive quando ele aponta para a frente, que agora é o som no meio.
-			task_sound(SND_GUN_FIRE, ASTEROID_PANS[shot]);
+			task_sound(SND_ASTEROID_FIRE, ASTEROID_PANS[shot]);
 			if (shot != from) { // atirou pra direção errada
 				task_sound(SND_CARD_ERROR);
 				speak(tr("task.failed"));
 				return false;
 			}
+			// O acerto tem som próprio, vindo DA DIREÇÃO do asteroide: o tiro confirma para onde se
+			// apontou, e o estouro confirma que havia algo lá. Variado para cinco acertos seguidos não
+			// virarem cinco bipes iguais.
+			wait(120); // o tiro sai primeiro; o estouro vem logo atrás
+			task_sound(asteroid_hit_sound(random(1, int(ASTEROID_HIT_VARIANT_COUNT))), ASTEROID_PANS[from]);
 			break;
 		}
 		if (!answered) {

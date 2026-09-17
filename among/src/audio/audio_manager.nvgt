@@ -229,6 +229,20 @@ class audio_manager {
 		camera_watching_slot = -1;
 	}
 
+	// --- Task visível (o scanner da enfermaria rodando para alguém) ---
+	// Posicionado no scanner e em loop enquanto durar: quem entrar na enfermaria no meio ouve. É a
+	// família dos eventos, não dos marcadores - é informação de partida, não orientação.
+	private int visible_task_slot = -1;
+	void start_visible_task(float x, float y) {
+		stop_visible_task();
+		visible_task_slot = spatial.play_looping("sounds/" + SND_MEDBAY_SCAN, x, y, false, family_db(SOUND_FAMILY_EVENTS));
+	}
+	void stop_visible_task() {
+		if (visible_task_slot == -1) return;
+		spatial.stop_sound(visible_task_slot);
+		visible_task_slot = -1;
+	}
+
 	void apply_lights_out(bool active, int normal_max_distance) {
 		if (active) spatial.set_max_distance(int(normal_max_distance * LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER));
 		else spatial.set_max_distance(normal_max_distance);

@@ -181,7 +181,9 @@ class meeting_ui {
 		// O papel de quem foi expulso é a informação mais importante da reunião inteira: é o que diz
 		// se a tripulação acertou ou linchou um inocente. O servidor já mandava isso desde sempre
 		// (was_impostor no S_VOTE_RESULT) e o cliente estava jogando fora.
-		announce(tr(pkt.get_bool("was_impostor") ? "game.vote_result_ejected_impostor" : "game.vote_result_ejected_crewmate", params));
+		// role_revealed ausente = servidor antigo, que sempre mandava o papel.
+		if (!pkt.get_bool("role_revealed", true)) announce(tr("game.vote_result_ejected_unknown", params));
+		else announce(tr(pkt.get_bool("was_impostor") ? "game.vote_result_ejected_impostor" : "game.vote_result_ejected_crewmate", params));
 	}
 
 	// Chamado quando o jogador aperta a tecla de votar - só faz algo se a votação estiver mesmo

@@ -697,6 +697,25 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 					speak(doors_text);
 					events_log.add("", doors_text);
 				}
+			} else if (t == S_TASK_VISIBLE) {
+				// Alguém (não eu) está no scanner. O som toca no ponto da task, para quem estiver perto
+				// ouvir; o nome é dito só para quem está na mesma sala - de longe, o scanner é só um
+				// som, e é indo até lá que se confere quem é.
+				if (pkt.get_bool("active")) {
+					map_object@ spot = map.find_object(pkt.get_string("object_id"));
+					if (@spot != null) {
+						audio.start_visible_task(spot.x, spot.y);
+						if (map.room_id_at(my_x, my_y) == spot.room_id) {
+							dictionary@ vp = dictionary();
+							vp.set("name", pkt.get_string("name"));
+							string aviso = tr("game.visible_task_scan", vp);
+							speak(aviso);
+							events_log.add("", aviso);
+						}
+					}
+				} else {
+					audio.stop_visible_task();
+				}
 			} else if (t == S_TASK_PROGRESS) {
 				team_task_percent = pkt.get_int("percent");
 			} else if (t == S_RADAR_RESULT) {
@@ -708,6 +727,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				audio.stop_room_ambience();
 				audio.stop_landmark_beacons();
 				audio.stop_sabotage_alarm();
+				audio.stop_visible_task();
 				audio.stop_all_body_beacons();
 				mui.on_game_over(pkt);
 				run_game_over_screen(client, pkt);
@@ -887,6 +907,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				if (@obj != null) {
 					speak(object_name(obj));
 					if (obj.obj_type == OBJ_TASK_SPOT) {
+						// Avisa que abriu: para o scan, é isto que faz o servidor contar a quem está
+						// perto - depois de conferir que a task é mesmo deste jogador.
+						client.send_start_task(obj.id);
 						bool success = run_task_minigame(client, obj.task_type);
 						if (success) {
 							// Marca como feita já aqui, sem esperar o servidor confirmar - senão, se o

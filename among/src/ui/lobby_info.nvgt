@@ -84,6 +84,10 @@ string lobby_config_text(json_object@ cfg) {
 	partes.insert_last(tr("lobby.info.emergency_meetings", ep));
 
 	partes.insert_last(tr(bool(cfg["sabotages_enabled"]) ? "lobby.info.sabotage_on" : "lobby.info.sabotage_off"));
+	// Servidor antigo não manda o campo: nele a revelação era sempre ligada.
+	if (cfg.exists("reveal_ejected_role")) {
+		partes.insert_last(tr(bool(cfg["reveal_ejected_role"]) ? "lobby.info.reveal_on" : "lobby.info.reveal_off"));
+	}
 
 	return join(partes, ". ") + ".";
 }

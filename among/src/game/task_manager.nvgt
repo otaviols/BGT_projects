@@ -13,6 +13,7 @@
 #include "tasks/roll_dice.nvgt"
 #include "tasks/water_plants.nvgt"
 #include "tasks/review_records.nvgt"
+#include "tasks/submit_scan.nvgt"
 #include "../audio/sound_catalog.nvgt"
 
 // Roda a minigame correspondente a task_type e retorna true em caso de sucesso, false se falhou
@@ -36,6 +37,7 @@ bool run_task_minigame(game_client@ client, const string&in task_type) {
 	else if (task_type == "roll_dice") result = run_roll_dice_task(client);
 	else if (task_type == "water_plants") result = run_water_plants_task(client);
 	else if (task_type == "review_records") result = run_review_records_task(client);
+	else if (task_type == "submit_scan") result = run_submit_scan_task(client);
 	ui_sound(SND_DIALOG_CLOSE);
 	return result;
 }
