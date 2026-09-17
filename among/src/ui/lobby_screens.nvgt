@@ -482,7 +482,10 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 				string chat_name = pkt.get_string("name");
 				string chat_text = pkt.get_string("text");
 				messages_log.add(chat_name, chat_text);
-				speak(chat_name + ": " + chat_text);
+				// Sem interromper: uma mensagem de chat espera a fala atual acabar. Interrompendo, duas
+				// pessoas falando em sequência cortavam a primeira no meio, e um anúncio do jogo (quem
+				// reportou, quanto tempo falta) morria por causa de um "oi" no chat.
+				speak(chat_name + ": " + chat_text, false);
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
 				else audio.play_message_received();
 			} else if (pkt.type == S_ERROR) {

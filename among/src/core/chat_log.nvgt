@@ -25,13 +25,16 @@ class chat_log {
 	array<chat_line> lines;
 	int cursor = -1;
 
-	// Adiciona uma linha e já deixa o cursor nela (é a mais recente).
+	// Adiciona uma linha SEM mover o cursor. Antes o cursor pulava para a linha nova a cada chegada,
+	// e quem estava relendo o histórico no meio de uma reunião perdia o lugar toda vez que alguém
+	// falava - era impossível ler o chat enquanto o chat acontecia (recado #52). O cursor só vai
+	// para a primeira linha quando o histórico estava vazio, para haver onde começar.
 	void add(const string&in speaker_name, const string&in text) {
 		chat_line line;
 		line.speaker_name = speaker_name;
 		line.text = text;
 		lines.insert_last(line);
-		cursor = int(lines.length()) - 1;
+		if (cursor < 0) cursor = 0;
 	}
 
 	bool get_empty() const property {
