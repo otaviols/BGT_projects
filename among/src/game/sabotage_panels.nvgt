@@ -1,0 +1,197 @@
+// sabotage_panels.nvgt
+// O que acontece DENTRO de um painel de reparo. Antes, consertar era apertar Enter no painel; agora
+// cada sabotagem cobra um conserto próprio, como no jogo original:
+//
+//   luzes         - os disjuntores da elétrica: cinco chaves, algumas desligadas; religar todas.
+//   oxigênio      - um código de cinco dígitos, o MESMO nos dois painéis, dito ao abrir cada um.
+//   comunicações  - sintonizar: girar o dial até a voz do rádio ficar sem estática.
+//
+// O padrão é o das tasks (ver tasks/task_common.nvgt): laço bloqueante no cliente, ESC cancela,
+// reunião interrompe, e só o resultado vai ao servidor - que continua sendo quem decide se o painel
+// conta (distância, sabotagem certa, quantos painéis faltam). A dificuldade é o que torna a sabotagem
+// uma jogada: com o conserto instantâneo, sabotar só fazia barulho.
+
+#include "tasks/task_common.nvgt"
+#include "../audio/sound_catalog.nvgt"
+#include "../i18n.nvgt"
+
+// Roda o conserto da sabotagem `sabotage_id`. Devolve true se o jogador terminou; false se desistiu
+// ou foi interrompido. `oxygen_code` é o código desta sabotagem, vindo do servidor.
+bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const string&in oxygen_code) {
+	if (task_cancel_requested(client)) return false;
+	bool ok = false;
+	if (sabotage_id == "lights") ok = run_lights_panel(client);
+	else if (sabotage_id == "oxygen") ok = run_oxygen_panel(client, oxygen_code);
+	else if (sabotage_id == "comms") ok = run_comms_panel(client);
+	return ok;
+}
+
+// --- Luzes: os disjuntores -----------------------------------------------------------------------
+// Cinco chaves, as teclas 1 a 5. O painel diz quais estão desligadas; cada tecla inverte a chave
+// dela, com o estalo do disjuntor. Algumas já estão ligadas de propósito: religar TUDO às cegas
+// (apertar 1 2 3 4 5 em sequência) desligaria justamente as que estavam boas - é preciso ouvir.
+bool run_lights_panel(game_client@ client) {
+	const uint BREAKERS = 5;
+	array<bool> on(BREAKERS);
+	uint off_count = 0;
+	// Pelo menos duas desligadas, senão o painel abre quase pronto; e pelo menos uma ligada, senão
+	// não há o que confundir.
+	while (off_count < 2 || off_count == BREAKERS) {
+		off_count = 0;
+		for (uint i = 0; i < BREAKERS; i++) { on[i] = random(0, 1) == 1; if (!on[i]) off_count++; }
+	}
+	speak(tr("sabotage.lights.panel_intro") + " " + breakers_status_text(on));
+
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_cancel_requested(client)) return false;
+		int pressed = -1;
+		if (key_pressed(KEY_1)) pressed = 0;
+		else if (key_pressed(KEY_2)) pressed = 1;
+		else if (key_pressed(KEY_3)) pressed = 2;
+		else if (key_pressed(KEY_4)) pressed = 3;
+		else if (key_pressed(KEY_5)) pressed = 4;
+		if (pressed == -1) {
+			if (key_pressed(KEY_SPACE)) speak(breakers_status_text(on)); // repete o estado, sem mexer
+			continue;
+		}
+		on[pressed] = !on[pressed];
+		task_sound_path("sounds/" + SND_BREAKER_SWITCH);
+		dictionary@ p = dictionary();
+		p.set("number", "" + (pressed + 1));
+		speak(tr(on[pressed] ? "sabotage.lights.breaker_on" : "sabotage.lights.breaker_off", p));
+
+		bool all_on = true;
+		for (uint i = 0; i < BREAKERS; i++) if (!on[i]) all_on = false;
+		if (all_on) {
+			wait(400);
+			task_sound(SND_TASK_COMPLETE);
+			return true;
+		}
+	}
+	return false;
+}
+
+// "Desligados: 2, 4." - só os desligados: é o que o jogador precisa apertar.
+string breakers_status_text(array<bool>@ on) {
+	array<string> off;
+	for (uint i = 0; i < on.length(); i++) if (!on[i]) off.insert_last("" + (i + 1));
+	if (off.length() == 0) return tr("sabotage.lights.all_on");
+	dictionary@ p = dictionary();
+	p.set("list", join(off, ", "));
+	return tr("sabotage.lights.off_list", p);
+}
+
+// --- Oxigênio: o código ------------------------------------------------------------------------
+// O painel DIZ o código ao abrir e o jogador digita. O código é o mesmo nos dois painéis, decidido
+// pelo servidor a cada sabotagem: quem ouviu num painel pode ditar para quem está no outro, e é isso
+// que faz os dois lados da nave conversarem no meio da correria. Errar apaga e recomeça.
+bool run_oxygen_panel(game_client@ client, const string&in code) {
+	if (code.length() == 0) return false; // servidor antigo, sem código: não há o que digitar
+	dictionary@ p = dictionary();
+	p.set("code", spaced_digits(code));
+	speak(tr("sabotage.oxygen.panel_intro", p));
+
+	string typed = "";
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_cancel_requested(client)) return false;
+		if (key_pressed(KEY_SPACE)) { speak(tr("sabotage.oxygen.repeat", p)); continue; }
+		int digit = pressed_digit();
+		if (digit == -1) continue;
+		task_sound_path("sounds/" + SND_CODE_KEY);
+		typed += "" + digit;
+		if (!code.starts_with(typed)) {
+			task_sound_path("sounds/" + SND_CODE_BAD);
+			speak(tr("sabotage.oxygen.wrong"));
+			typed = "";
+			continue;
+		}
+		if (typed.length() == code.length()) {
+			task_sound_path("sounds/" + SND_CODE_GOOD);
+			return true;
+		}
+	}
+	return false;
+}
+
+// "4 7 2 9 1": com espaços, o leitor de tela fala dígito a dígito em vez de "quarenta e sete mil".
+string spaced_digits(const string&in code) {
+	string s = "";
+	for (uint i = 0; i < code.length(); i++) s += (i > 0 ? " " : "") + code.substr(i, 1);
+	return s;
+}
+
+int pressed_digit() {
+	if (key_pressed(KEY_0) || key_pressed(KEY_NUMPAD_0)) return 0;
+	if (key_pressed(KEY_1) || key_pressed(KEY_NUMPAD_1)) return 1;
+	if (key_pressed(KEY_2) || key_pressed(KEY_NUMPAD_2)) return 2;
+	if (key_pressed(KEY_3) || key_pressed(KEY_NUMPAD_3)) return 3;
+	if (key_pressed(KEY_4) || key_pressed(KEY_NUMPAD_4)) return 4;
+	if (key_pressed(KEY_5) || key_pressed(KEY_NUMPAD_5)) return 5;
+	if (key_pressed(KEY_6) || key_pressed(KEY_NUMPAD_6)) return 6;
+	if (key_pressed(KEY_7) || key_pressed(KEY_NUMPAD_7)) return 7;
+	if (key_pressed(KEY_8) || key_pressed(KEY_NUMPAD_8)) return 8;
+	if (key_pressed(KEY_9) || key_pressed(KEY_NUMPAD_9)) return 9;
+	return -1;
+}
+
+// --- Comunicações: sintonizar --------------------------------------------------------------------
+// Um dial de 0 a 100 e uma estação escondida em algum ponto. Setas giram; a voz do rádio fica mais
+// alta e a estática mais baixa conforme se aproxima. Segurar o dial na estação por um instante
+// fecha o conserto. É a única sabotagem que se conserta de OUVIDO - e a única em que ninguém pode
+// ditar a resposta de longe.
+bool run_comms_panel(game_client@ client) {
+	const int STEP = 4;
+	const int TOLERANCE = 3;          // dentro disto a voz está limpa
+	const float HOLD_SECONDS = 1.2;   // tempo parado na estação para valer
+	int station = random(15, 85);
+	int dial = random(0, 100);
+	while (int(abs(dial - station)) < 25) dial = random(0, 100); // começa longe, senão abre pronto
+
+	task_sound_path("sounds/" + SND_COMMS_PANEL_OPEN);
+	speak(tr("sabotage.comms.panel_intro"));
+
+	sound@ voice = task_sound_path("sounds/" + SND_COMMS_RADIO_VOICE);
+	sound@ noise = task_sound_path("sounds/" + SND_COMMS_STATIC);
+	timer hold;
+	bool holding = false;
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_cancel_requested(client)) { stop_radio(voice, noise); return false; }
+		if (@voice != null && !voice.playing) voice.play();
+		if (@noise != null && !noise.playing) noise.play();
+
+		bool moved = false;
+		if (key_pressed(KEY_LEFT) && dial > 0) { dial = dial - STEP < 0 ? 0 : dial - STEP; moved = true; }
+		if (key_pressed(KEY_RIGHT) && dial < 100) { dial = dial + STEP > 100 ? 100 : dial + STEP; moved = true; }
+		if (moved) task_sound_path("sounds/" + SND_COMMS_DIAL_STEP);
+
+		// Mistura: perto da estação a voz manda; longe, a estática engole tudo.
+		int dist = int(abs(dial - station));
+		float closeness = dist >= 40 ? 0.0 : 1.0 - float(dist) / 40.0; // 0 longe, 1 em cima
+		float base = g_settings.volume_db(SOUND_FAMILY_TASKS);
+		if (@voice != null) voice.volume = base + (-30.0 + 30.0 * closeness);
+		if (@noise != null) noise.volume = base + (-2.0 - 34.0 * closeness);
+
+		if (dist <= TOLERANCE) {
+			if (!holding) { holding = true; hold.restart(); }
+			else if (float(hold.elapsed) / 1000.0 >= HOLD_SECONDS) {
+				stop_radio(voice, noise);
+				task_sound_path("sounds/" + SND_COMMS_PANEL_CLOSE);
+				return true;
+			}
+		} else {
+			holding = false;
+		}
+	}
+	return false;
+}
+
+void stop_radio(sound@ voice, sound@ noise) {
+	if (@voice != null) voice.stop();
+	if (@noise != null) noise.stop();
+}

@@ -72,6 +72,10 @@ class game_state {
 	uint64 visible_task_peer = 0;
 	string visible_task_object_id = "";
 
+	// Código do oxigênio desta sabotagem. Decidido aqui, uma vez, para ser o MESMO nos dois painéis:
+	// quem ouviu num painel pode ditar para quem está no outro.
+	string oxygen_code = "";
+
 	string winner = ""; // "" | "crewmates" | "impostors"
 	string win_reason = "";
 	float elapsed_time = 0.0;
@@ -395,20 +399,34 @@ class game_state {
 			breakdown.add(entry);
 		}
 
+		// "Pular" CONTA na apuração, como candidato a "ninguém". É a regra do jogo original, e é o
+		// que impede a injustiça de antes: com nove jogadores pulando e um votando, aquele um voto
+		// expulsava alguém - a vontade de nove pessoas valia zero. Agora alguém só é expulso se tiver
+		// MAIS votos do que "pular" e do que qualquer outro; empate com "pular" é ninguém expulso.
+		int64 skip_count = 0;
+		counts.get("-1", skip_count);
 		int64 best_target = -1;
 		int64 best_count = 0;
 		bool tie = false;
 		for (uint i = 0; i < targets.length(); i++) {
 			int64 t = targets[i];
-			if (t == -1) continue; // votos de "pular" não elegem ninguém
+			if (t == -1) continue;
 			int64 c = 0;
 			counts.get("" + t, c);
 			if (c > best_count) { best_count = c; best_target = t; tie = false; }
 			else if (c == best_count && c > 0) tie = true;
 		}
+		if (best_target != -1 && best_count <= skip_count) {
+			// Pular ganhou ou empatou com o mais votado: ninguém sai. Empate com pular é "empate" para
+			// o jogador ouvir que a votação não decidiu nada.
+			tie = best_count == skip_count;
+			best_target = -1;
+		}
 
 		net_packet@ result = net_packet(S_VOTE_RESULT);
-		result.set_array("vote_breakdown", breakdown);
+		// A lista de quem votou em quem só existe com os votos abertos - e nesse caso ela já foi dita
+		// voto a voto durante a reunião, então o cliente não a repete no fim (ver on_vote_result).
+		if (config.show_votes) result.set_array("vote_breakdown", breakdown);
 		if (best_target != -1 && !tie && best_count > 0) {
 			game_player@ ejected = find_player(uint64(best_target));
 			if (@ejected != null) {
@@ -473,11 +491,19 @@ class game_state {
 		// diz "você tem 90 segundos", e o lembrete viria em cima, dizendo a mesma coisa duas vezes.
 		last_sabotage_countdown = int(sabotage_timer);
 
+		oxygen_code = "";
+		if (sabotage_id == "oxygen") {
+			for (uint i = 0; i < 5; i++) oxygen_code += "" + random(0, 9);
+		}
+
 		fail_key = "";
 		@out_event = net_packet(S_SABOTAGE_STARTED);
 		out_event.set_string("sabotage_id", sabotage_id);
 		out_event.set_float("timer", sabotage_timer);
 		out_event.set_bool("critical", is_critical_sabotage(sabotage_id));
+		// O código vai para todos: ele não é segredo, é trabalho. O que custa é chegar ao painel e
+		// digitar - e os dois painéis ficam em salas opostas.
+		out_event.set_string("oxygen_code", oxygen_code);
 		return true;
 	}
 

@@ -105,8 +105,8 @@ void run_learn_sounds_screen() {
 
 	sfx.add(tr("learn.ship_ambience"), SND_SHIP_AMBIENCE);
 	sfx.add(tr("learn.start_game"), SND_START_GAME);
-	sfx.add(tr("learn.win"), SND_WIN);
-	sfx.add(tr("learn.defeat"), SND_DEFEAT);
+	sfx.add(tr("learn.victory_crew"), SND_VICTORY_CREW);
+	sfx.add(tr("learn.victory_impostor"), SND_VICTORY_IMPOSTOR);
 	sfx.add(tr("learn.player_enter"), SND_PLAYER_ENTER);
 	sfx.add(tr("learn.player_leave"), SND_PLAYER_LEAVE);
 	sfx.add(tr("learn.menu_click"), SND_MENU_CLICK);
@@ -114,7 +114,14 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.dialog_open"), SND_DIALOG_OPEN);
 	sfx.add(tr("learn.dialog_close"), SND_DIALOG_CLOSE);
 	sfx.add(tr("learn.radar_beep"), SND_RADAR_BEEP);
+	sfx.add(tr("learn.vote_select"), SND_VOTE_SELECT);
 	sfx.add(tr("learn.vote_confirm"), SND_VOTE_CONFIRM);
+	sfx.add(tr("learn.vote_timer"), SND_VOTE_TIMER);
+	sfx.add(tr("learn.ejected"), SND_EJECTED);
+	sfx.add(tr("learn.task_inprogress"), "sounds/" + SND_TASK_INPROGRESS);
+	sfx.add(tr("learn.task_complete"), "sounds/" + SND_TASK_COMPLETE);
+	sfx.add(tr("learn.breaker_switch"), "sounds/" + SND_BREAKER_SWITCH);
+	sfx.add(tr("learn.comms_static"), "sounds/" + SND_COMMS_STATIC);
 	sfx.add(tr("learn.meeting_result"), SND_MEETING_RESULT);
 	sfx.add(tr("learn.intro"), SND_INTRO);
 

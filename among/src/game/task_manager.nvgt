@@ -24,7 +24,7 @@
 bool run_task_minigame(game_client@ client, const string&in task_type) {
 	// Reunião chamada no exato instante em que a task abriu: nem começa (ver task_cancel_requested).
 	if (task_cancel_requested(client)) return false;
-	ui_sound(SND_DIALOG_OPEN);
+	ui_sound("sounds/" + SND_TASK_INPROGRESS); // abriu: a task está "em andamento"
 	bool result = false;
 	if (task_type == "fix_wiring") result = run_fix_wiring_task(client);
 	else if (task_type == "download_data") result = run_download_data_task(client);
@@ -38,6 +38,8 @@ bool run_task_minigame(game_client@ client, const string&in task_type) {
 	else if (task_type == "water_plants") result = run_water_plants_task(client);
 	else if (task_type == "review_records") result = run_review_records_task(client);
 	else if (task_type == "submit_scan") result = run_submit_scan_task(client);
-	ui_sound(SND_DIALOG_CLOSE);
+	// Fechou: terminada tem um som, fechada pela metade (ESC, reunião, erro) tem outro - o mesmo de
+	// abrir, porque "em andamento" é exatamente o estado em que ela fica.
+	ui_sound("sounds/" + (result ? SND_TASK_COMPLETE : SND_TASK_INPROGRESS));
 	return result;
 }

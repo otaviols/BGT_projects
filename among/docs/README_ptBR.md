@@ -293,9 +293,17 @@ lado também pode saber.
 Uma reunião começa quando alguém reporta um corpo ou aperta o botão de emergência. Todo mundo é
 levado para a cafeteria e o movimento trava.
 
-Aperte **Y** para conversar e **B** para abrir o menu de votação quando estiver pronto. Fechar o
-menu de votação com ESC **não** gasta o seu voto: você pode abrir de novo. A votação acaba assim que
-todo mundo votar, ou quando o tempo terminar (75 segundos no preset Clássico).
+Aperte **Y** para conversar e **B** para abrir o menu de votação quando estiver pronto. No menu,
+**Enter marca** um nome (ou "pular") e **Enter de novo no mesmo nome confirma** — assim um dedo
+apressado não vota em quem estava em cima da lista. Fechar o menu com ESC **não** gasta o seu voto:
+você pode abrir de novo. A votação acaba assim que todo mundo votar, ou quando o tempo terminar
+(75 segundos no preset Clássico); nos últimos 10 segundos um tique marca o tempo.
+
+**Como se decide:** alguém só é expulso se tiver **mais votos do que "pular"** e do que qualquer
+outro. Se a maioria pula, ninguém sai — um voto sozinho não expulsa ninguém. Empate é ninguém.
+
+Duas regras da sala mudam a reunião (na criação e na tecla O): se o jogo **diz em quem cada um
+votou**, na hora do voto (clássico) ou só que votou; e se o jogo **diz se o expulso era impostor**.
 
 **Durante a reunião, T diz quanto tempo falta** — e diz de qual fase: se ainda é discussão ou se a
 votação já está correndo. Fora da reunião, T continua sendo a sua lista de tarefas.
@@ -309,15 +317,21 @@ Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 seg
 repetir a mesma duas vezes seguidas.
 
 - **Luzes** — os corpos ficam mudos, o radar só alcança quem estiver bem colado, o alcance de
-  audição geral cai e o botão de emergência para de funcionar. Dura até alguém consertar o painel na
-  Elétrica.
+  audição geral cai e o botão de emergência para de funcionar. Dura até alguém religar os
+  **disjuntores** no painel da Elétrica: são cinco, nas teclas 1 a 5; o painel diz quais estão
+  desligados, e cada tecla inverte o seu — religar tudo às cegas desliga os que estavam bons.
+  Espaço repete o estado.
 - **Oxigênio** — sabotagem crítica. A tripulação tem 90 segundos para consertar **dois** painéis, um
-  na Administração e outro na Elétrica, ou perde a partida. Enquanto ela estiver ativa, ninguém
+  na Administração e outro na Elétrica, ou perde a partida. Cada painel diz um **código de cinco
+  dígitos** ao abrir — o mesmo nos dois — e é preciso digitá-lo; errar apaga e recomeça, e Espaço
+  repete o código. Quem ouviu num painel pode ditar para quem está no outro. Enquanto ela estiver ativa, ninguém
   consegue chamar reunião nem reportar corpo. O jogo avisa quanto falta de 30 em 30 segundos, e nos
   **10 segundos finais** conta um a um — se você ouvir a contagem começar, já não dá tempo de trocar
   de painel: termine o que começou.
 - **Comunicações** — derruba o radar (nos dois modos), os marcadores das suas tarefas e o aviso de
-  corpo por perto. Dura até alguém consertar o painel na Navegação.
+  corpo por perto. Dura até alguém **sintonizar o rádio** no painel da Navegação: gire o dial com as
+  setas até a voz ficar sem estática e segure ali um instante. É o único conserto que se faz de
+  ouvido — ninguém consegue ditar a resposta de longe.
 
 **Portas (tecla F)** — tranca todos os corredores de uma sala por 12 segundos, com recarga de 25
 segundos. Não tem conserto: as portas reabrem sozinhas. Não é sabotagem, então dá para trancar uma

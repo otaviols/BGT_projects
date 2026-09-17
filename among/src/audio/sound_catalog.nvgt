@@ -15,19 +15,27 @@ const string SND_INTRO = "sounds/ui/intro.ogg";
 const string SND_PLAYER_ENTER = "sounds/ui/PlayerEnter.ogg";
 const string SND_PLAYER_LEAVE = "sounds/ui/PlayerLeave.ogg";
 const string SND_START_GAME = "sounds/events/startGame.ogg";
-const string SND_WIN = "sounds/events/Win.ogg";
-const string SND_DEFEAT = "sounds/events/defeat.ogg";
+// Fim de partida: um jingle por TIME vencedor, para todo mundo - como no original, onde a música do
+// fim diz quem ganhou, não se VOCÊ ganhou. A derrota é ouvir a música do outro time.
+const string SND_VICTORY_CREW = "sounds/events/victory_crew.ogg";
+const string SND_VICTORY_IMPOSTOR = "sounds/events/victory_impostor.ogg";
+const string SND_VICTORY_DISCONNECT = "sounds/events/victory_disconnect.ogg"; // reservado: vitória por desistência do outro lado
 const string SND_MEETING_RESULT = "sounds/events/meetingResult.ogg"; // toca assim que o resultado da votação chega, antes de saber quem foi expulso
-const string SND_EJECTED = "sounds/events/ejected.ogg"; // toca 1x pra nave inteira logo depois, só quando alguém É expulso (arquivo ainda a ser adicionado em sounds/)
+const string SND_EJECTED = "sounds/events/ejected.ogg"; // toca 1x pra nave inteira logo depois, só quando alguém É expulso
 const string SND_MEETING_ALARM = "sounds/events/emergence_button_alarm.ogg"; // toca (ship-wide) quando o botão de emergência chama a reunião
-const string SND_VOTE_CONFIRM = "sounds/events/voteConfirm.ogg";
+const string SND_VOTE_SELECT = "sounds/events/voteSelect.ogg";   // marcou um nome (ainda não votou)
+const string SND_VOTE_CONFIRM = "sounds/events/voteConfirm.ogg"; // confirmou o voto
+const string SND_VOTE_TIMER = "sounds/events/vote_timer.ogg";    // tique dos últimos segundos da votação
 const string SND_BODY_REPORTED = "sounds/events/bodyReport.ogg"; // toca 1x pra nave inteira quando o corpo é reportado
 const string SND_MESSAGE_SENT = "sounds/ui/MessageSent.ogg";       // toca pra quem manda uma msg no chat
 const string SND_MESSAGE_RECEIVED = "sounds/ui/MessageReceived.ogg"; // toca pra quem recebe uma msg de outro jogador
 
-// --- Diálogos (abrir/fechar tasks, paineis, votação) ---
-const string SND_DIALOG_OPEN = "sounds/ui/openDialog.ogg";
-const string SND_DIALOG_CLOSE = "sounds/ui/closeDialog.ogg";
+// --- Diálogos (menus dentro da partida, votação) ---
+// Os arquivos antigos (openDialog/closeDialog) eram na verdade os sons de task concluída e de task
+// fechada pela metade, usados no lugar errado. Agora: painel genérico para menus, e os de task em
+// tasks/ (ver SND_TASK_COMPLETE / SND_TASK_INPROGRESS).
+const string SND_DIALOG_OPEN = "sounds/ui/panel_appear.ogg";
+const string SND_DIALOG_CLOSE = "sounds/ui/panel_disappear.ogg";
 
 // --- Cenário / ambiente ---
 const string SND_SHIP_AMBIENCE = "sounds/ambience/ambience.ogg";     // loop, nave inteira, toca a partida inteira
@@ -56,6 +64,18 @@ const string SND_OPEN_PANEL = "sounds/world/openPanel.ogg";
 // exatamente qual passagem foi trancada.
 const string SND_DOOR_CLOSE = "sounds/world/CloseDoor.ogg";
 const string SND_DOOR_OPEN = "sounds/world/OpenDoor.ogg";
+const string SND_DOOR_SWITCH = "sounds/world/door_switch.ogg"; // o clique do impostor ao escolher a sala no menu de portas
+
+// --- Painéis de reparo (o que toca DENTRO do conserto - ver game/sabotage_panels.nvgt) ---
+const string SND_BREAKER_SWITCH = "world/breaker_switch.ogg";     // luzes: estalo de um disjuntor
+const string SND_CODE_KEY = "world/code_key.ogg";                 // oxigênio: tecla do código
+const string SND_CODE_GOOD = "world/code_good.ogg";               // oxigênio: código aceito
+const string SND_CODE_BAD = "world/code_bad.ogg";                 // oxigênio: código errado
+const string SND_COMMS_PANEL_OPEN = "world/comms_panel_open.ogg"; // comunicações: painel abre
+const string SND_COMMS_PANEL_CLOSE = "world/comms_panel_close.ogg";
+const string SND_COMMS_DIAL_STEP = "world/comms_dial_step.ogg";   // comunicações: um passo do dial
+const string SND_COMMS_STATIC = "world/comms_static.ogg";         // comunicações: estática (loop)
+const string SND_COMMS_RADIO_VOICE = "world/comms_radio_voice.ogg"; // comunicações: a voz do rádio (loop)
 
 // --- Câmeras de segurança ---
 // O posto fica na segurança e mostra UMA sala por vez.
@@ -95,6 +115,8 @@ const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.ogg
 const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
+const string SND_TASK_INPROGRESS = "tasks/task_inprogress.ogg"; // abriu uma task, ou fechou sem terminar
+const string SND_TASK_COMPLETE = "tasks/task_complete.ogg";     // fechou a task terminada
 const string SND_BEEP = "tasks/beep.ogg";
 const string SND_BEEP_COMPLETE = "tasks/BeepComplet.ogg";
 const string SND_CARD_ERROR = "tasks/CardError.ogg";
@@ -247,8 +269,8 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_PLAYER_ENTER);
 	list.insert_last(SND_PLAYER_LEAVE);
 	list.insert_last(SND_START_GAME);
-	list.insert_last(SND_WIN);
-	list.insert_last(SND_DEFEAT);
+	list.insert_last(SND_VICTORY_CREW);
+	list.insert_last(SND_VICTORY_IMPOSTOR);
 	list.insert_last(SND_MEETING_RESULT);
 	list.insert_last(SND_EJECTED);
 	list.insert_last(SND_MEETING_ALARM);
@@ -320,6 +342,21 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_MEDBAY_SCAN);
 	list.insert_last(SND_TASK_BEACON_SUBMIT_SCAN);
 	list.insert_last(SND_KILL);
+	list.insert_last("sounds/" + SND_TASK_INPROGRESS);
+	list.insert_last("sounds/" + SND_TASK_COMPLETE);
+	list.insert_last(SND_DOOR_SWITCH);
+	list.insert_last(SND_VOTE_SELECT);
+	list.insert_last(SND_VOTE_TIMER);
+	list.insert_last(SND_VICTORY_DISCONNECT);
+	list.insert_last("sounds/" + SND_BREAKER_SWITCH);
+	list.insert_last("sounds/" + SND_CODE_KEY);
+	list.insert_last("sounds/" + SND_CODE_GOOD);
+	list.insert_last("sounds/" + SND_CODE_BAD);
+	list.insert_last("sounds/" + SND_COMMS_PANEL_OPEN);
+	list.insert_last("sounds/" + SND_COMMS_PANEL_CLOSE);
+	list.insert_last("sounds/" + SND_COMMS_DIAL_STEP);
+	list.insert_last("sounds/" + SND_COMMS_STATIC);
+	list.insert_last("sounds/" + SND_COMMS_RADIO_VOICE);
 
 	for (int i = 1; i <= int(ELECTRICAL_STRING_VARIANT_COUNT); i++) {
 		list.insert_last("sounds/" + electrical_string_sound(i));

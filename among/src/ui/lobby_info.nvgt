@@ -88,6 +88,9 @@ string lobby_config_text(json_object@ cfg) {
 	if (cfg.exists("reveal_ejected_role")) {
 		partes.insert_last(tr(bool(cfg["reveal_ejected_role"]) ? "lobby.info.reveal_on" : "lobby.info.reveal_off"));
 	}
+	if (cfg.exists("show_votes")) {
+		partes.insert_last(tr(bool(cfg["show_votes"]) ? "lobby.info.votes_on" : "lobby.info.votes_off"));
+	}
 
 	return join(partes, ". ") + ".";
 }

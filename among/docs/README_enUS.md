@@ -293,9 +293,18 @@ know that the other side may know too.
 A meeting starts when someone reports a body or presses the emergency button. Everyone is moved to
 the cafeteria and movement locks.
 
-Press **Y** to talk and **B** to open the voting menu when you are ready. Closing the voting menu
-with ESC does **not** spend your vote: you can open it again. Voting ends as soon as everyone has
-voted, or when time runs out (75 seconds in the Classic preset).
+Press **Y** to talk and **B** to open the voting menu when you are ready. In the menu, **Enter
+marks** a name (or "skip") and **Enter again on the same name confirms** — so a hasty finger does
+not vote for whoever was at the top of the list. Closing the menu with ESC does **not** spend your
+vote: you can open it again. Voting ends as soon as everyone has voted, or when time runs out
+(75 seconds in the Classic preset); a tick marks the last 10 seconds.
+
+**How it is decided:** someone is only ejected with **more votes than "skip"** and than anyone
+else. If most people skip, nobody leaves — a lone vote ejects no one. A tie is nobody.
+
+Two room rules change the meeting (in room creation and under the O key): whether the game **says
+who each player voted for**, as the vote is cast (classic) or only that they voted; and whether the
+game **says if the ejected player was an impostor**.
 
 **During a meeting, T tells you how much time is left** — and which phase it is: still discussion,
 or voting already running. Outside a meeting, T is your task list as always.
@@ -309,15 +318,21 @@ Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, an
 cannot be repeated twice in a row.
 
 - **Lights** — bodies go silent, the radar only reaches whoever is right next to you, general
-  hearing range drops and the emergency button stops working. Lasts until someone fixes the panel in
-  Electrical.
+  hearing range drops and the emergency button stops working. Lasts until someone switches the
+  **breakers** back on at the panel in Electrical: five of them, on keys 1 to 5; the panel says which
+  are off, and each key flips its own — flipping everything blindly turns off the good ones. Space
+  repeats the state.
 - **Oxygen** — critical sabotage. The crew has 90 seconds to fix **two** panels, one in Admin and
-  one in Electrical, or they lose the match. While it is active, nobody can call a meeting or report
+  one in Electrical, or they lose the match. Each panel speaks a **five-digit code** when opened —
+  the same on both — and you type it in; a mistake clears it and starts over, and Space repeats the
+  code. Whoever heard it at one panel can dictate it to whoever is at the other. While it is active, nobody can call a meeting or report
   a body. The game announces the time left every 30 seconds, and counts down one by one over the
   **last 10** — if you hear the countdown start, there is no time to switch panels: finish the one
   you began.
 - **Communications** — takes down the radar (both modes), your task beacons and the nearby-body
-  warning. Lasts until someone fixes the panel in Navigation.
+  warning. Lasts until someone **tunes the radio** at the panel in Navigation: turn the dial with the
+  arrows until the voice is free of static and hold it there for a moment. It is the only repair done
+  by ear — nobody can dictate the answer from afar.
 
 **Doors (F)** — locks all of a room's corridors for 12 seconds, with a 25-second cooldown. There is
 no fixing them: the doors reopen on their own. It is not a sabotage, so you can lock a room **and**

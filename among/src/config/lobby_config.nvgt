@@ -36,6 +36,7 @@ class lobby_overrides {
 	int emergency_meetings_per_player = -1;
 	string sabotages = ""; // "" = preset, "on" = ligadas, "off" = desligadas
 	string reveal_ejected = ""; // "" = preset, "on" = diz se o expulso era impostor, "off" = não diz
+	string show_votes = ""; // "" = preset, "on" = diz em quem cada um votou, na hora; "off" = só diz que votou
 
 	// Aplica o que foi preenchido sobre uma configuração vinda do preset. O que ficou de fora não é
 	// tocado. A validação continua sendo feita depois, por lobby_config.validate(): estes valores
@@ -53,6 +54,8 @@ class lobby_overrides {
 		else if (sabotages == "off") cfg.sabotages_enabled = false;
 		if (reveal_ejected == "on") cfg.reveal_ejected_role = true;
 		else if (reveal_ejected == "off") cfg.reveal_ejected_role = false;
+		if (show_votes == "on") cfg.show_votes = true;
+		else if (show_votes == "off") cfg.show_votes = false;
 	}
 
 	void write_to_packet(net_packet@ pkt) const {
@@ -66,6 +69,7 @@ class lobby_overrides {
 		pkt.set_int("emergency_meetings_per_player", emergency_meetings_per_player);
 		pkt.set_string("sabotages", sabotages);
 		pkt.set_string("reveal_ejected", reveal_ejected);
+		pkt.set_string("show_votes", show_votes);
 	}
 
 	void read_from_packet(net_packet@ pkt) {
@@ -79,6 +83,7 @@ class lobby_overrides {
 		emergency_meetings_per_player = pkt.get_int("emergency_meetings_per_player", -1);
 		sabotages = pkt.get_string("sabotages", "");
 		reveal_ejected = pkt.get_string("reveal_ejected", "");
+		show_votes = pkt.get_string("show_votes", "");
 	}
 }
 
@@ -95,6 +100,10 @@ class lobby_config {
 	// Dizer, ao expulsar alguém, se era impostor. Ligado é o jogo clássico; desligado é o modo em
 	// que a tripulação nunca tem certeza de nada - cada expulsão vira dúvida em vez de resposta.
 	bool reveal_ejected_role = true;
+	// Dizer em quem cada um votou, NA HORA do voto. Ligado, a reunião é aberta: "fulano votou em
+	// beltrano" muda a discussão enquanto ela acontece. Desligado, só se sabe que votou - e o
+	// resultado sai sem a lista de quem votou em quem.
+	bool show_votes = true;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
 
@@ -139,6 +148,7 @@ class lobby_config {
 		o.set("emergency_meetings_per_player", int(emergency_meetings_per_player));
 		o.set("sabotages_enabled", sabotages_enabled);
 		o.set("reveal_ejected_role", reveal_ejected_role);
+		o.set("show_votes", show_votes);
 		return o;
 	}
 }

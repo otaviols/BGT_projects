@@ -40,3 +40,5 @@ infra/*.tfplan
 # Arquivo de trava deixado para trás quando um apply é interrompido. É estado de execução, e um
 # arquivo desses versionado faria o Terraform recusar comandos na máquina de outra pessoa.
 infra/.terraform.tfstate.lock.info
+# Saída salva do read_feedback.ps1 (arquivo pessoal, não versionar)
+infra/fb.txt

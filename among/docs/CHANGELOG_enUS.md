@@ -6,6 +6,20 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.25.0
+
+- **Fair voting.** Someone is only ejected with more votes than "skip" and than anyone else.
+  Before, nine people skipping and one voting got someone ejected.
+- **Voting in two steps**: Enter marks a name, Enter again confirms. And a tick marks the last ten
+  seconds of voting.
+- **New room rule: open or secret votes.** Open, the game says who each player voted for as the
+  vote is cast; secret, only that they voted.
+- **Fixing sabotage takes work now.** Lights: switch the five breakers in Electrical back on — the
+  panel says which are off. Oxygen: each panel speaks a five-digit code, the same on both.
+  Communications: tune the radio with the arrows until the voice is free of static.
+- New sounds: someone being ejected, each team's victory music, marking and confirming a vote, the
+  repairs, and the right sounds for opening and closing tasks and menus.
+
 ## 0.24.1
 
 The medbay scanner's beacon got its final sound.

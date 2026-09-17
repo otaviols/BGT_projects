@@ -265,6 +265,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.add_list_item(f_reveal, tr("lobby.reveal.on"), "on");
 	f.add_list_item(f_reveal, tr("lobby.reveal.off"), "off");
 	if (@current != null && current.exists("reveal_ejected_role")) f.set_list_position(f_reveal, bool(current["reveal_ejected_role"]) ? 1 : 2);
+	int f_votes = f.create_list(tr("lobby.show_votes_override"));
+	f.add_list_item(f_votes, tr("lobby.override.preset_default"), "");
+	f.add_list_item(f_votes, tr("lobby.votes.on"), "on");
+	f.add_list_item(f_votes, tr("lobby.votes.off"), "off");
+	if (@current != null && current.exists("show_votes")) f.set_list_position(f_votes, bool(current["show_votes"]) ? 1 : 2);
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 	// Um audio_form nasce sem foco: sem isto o primeiro campo não recebia o que era digitado até o
@@ -298,6 +303,8 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
 			int rev_index = f.get_list_position(f_reveal);
 			r.ov.reveal_ejected = rev_index >= 0 ? f.get_list_item_id(f_reveal, rev_index) : "";
+			int votes_index = f.get_list_position(f_votes);
+			r.ov.show_votes = votes_index >= 0 ? f.get_list_item_id(f_votes, votes_index) : "";
 			return r;
 		}
 	}

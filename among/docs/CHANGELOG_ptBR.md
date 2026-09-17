@@ -6,6 +6,20 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.25.0
+
+- **Votação justa.** Alguém só é expulso se tiver mais votos do que "pular" e do que qualquer outro.
+  Antes, nove pessoas pulando e uma votando expulsavam alguém.
+- **Votar em dois passos**: Enter marca um nome, Enter de novo confirma. E um tique marca os últimos
+  dez segundos da votação.
+- **Regra nova de sala: votos abertos ou secretos.** Abertos, o jogo diz em quem cada um votou na
+  hora do voto; secretos, só que votou.
+- **Consertar sabotagem agora dá trabalho.** Luzes: religar os cinco disjuntores da Elétrica, que o
+  painel diz quais estão desligados. Oxigênio: cada painel dita um código de cinco dígitos, o mesmo
+  nos dois. Comunicações: sintonizar o rádio com as setas até a voz ficar sem estática.
+- Sons novos: o de alguém ser expulso, a música de vitória de cada time, os de marcar e confirmar o
+  voto, os dos reparos, e os sons certos para abrir e fechar tarefas e menus.
+
 ## 0.24.1
 
 O marcador do scanner da enfermaria ganhou o som definitivo.

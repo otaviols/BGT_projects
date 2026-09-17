@@ -961,6 +961,14 @@ class game_server {
 			net_packet@ cast_pkt = net_packet(S_VOTE_CAST);
 			cast_pkt.set_uint64("voter_peer", peer_id);
 			cast_pkt.set_string("voter_name", voter.username);
+			// Com os votos abertos, o ALVO vai junto, na hora. Fechados, nem viaja: o cliente é a
+			// máquina do jogador, e "manda mas não fala" seria mandar para quem quisesse ler.
+			cast_pkt.set_bool("target_revealed", lobby.config.show_votes);
+			if (lobby.config.show_votes) {
+				cast_pkt.set_bool("skipped", target == -1);
+				game_player@ tp = target == -1 ? null : lobby.find_player(uint64(target));
+				cast_pkt.set_string("target_name", @tp != null ? tp.username : "");
+			}
 			broadcast_to_lobby(lobby, cast_pkt);
 		}
 	}

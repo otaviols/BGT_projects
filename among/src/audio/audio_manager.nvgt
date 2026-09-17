@@ -259,11 +259,13 @@ class audio_manager {
 	void play_player_enter() { spatial.play_ui(SND_PLAYER_ENTER, false, family_db(SOUND_FAMILY_UI)); }
 	void play_player_leave() { spatial.play_ui(SND_PLAYER_LEAVE, false, family_db(SOUND_FAMILY_UI)); }
 	void play_start_game() { spatial.play_ui(SND_START_GAME, false, family_db(SOUND_FAMILY_EVENTS)); }
-	void play_win() { spatial.play_ui(SND_WIN, false, family_db(SOUND_FAMILY_EVENTS)); }
-	void play_defeat() { spatial.play_ui(SND_DEFEAT, false, family_db(SOUND_FAMILY_EVENTS)); }
+	void play_victory(bool crewmates_won) { spatial.play_ui(crewmates_won ? SND_VICTORY_CREW : SND_VICTORY_IMPOSTOR, false, family_db(SOUND_FAMILY_EVENTS)); }
 	void play_meeting_result() { spatial.play_ui(SND_MEETING_RESULT, false, family_db(SOUND_FAMILY_EVENTS)); }
 	void play_ejected() { spatial.play_ui(SND_EJECTED, false, family_db(SOUND_FAMILY_EVENTS)); }
+	void play_vote_select() { spatial.play_ui(SND_VOTE_SELECT, false, family_db(SOUND_FAMILY_UI)); }
 	void play_vote_confirm() { spatial.play_ui(SND_VOTE_CONFIRM, false, family_db(SOUND_FAMILY_UI)); }
+	void play_vote_timer_tick() { spatial.play_ui(SND_VOTE_TIMER, false, family_db(SOUND_FAMILY_EVENTS)); }
+	void play_door_switch() { spatial.play_ui(SND_DOOR_SWITCH, false, family_db(SOUND_FAMILY_UI)); }
 
 	// --- Radar ---
 	// O tom sobe conforme o alvo se aproxima. O volume posicionado já cai com a distância, mas volume

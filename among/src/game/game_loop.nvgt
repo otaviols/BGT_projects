@@ -19,6 +19,7 @@
 #include "../game/roles/crewmate.nvgt"
 #include "../game/roles/impostor.nvgt"
 #include "../game/task_manager.nvgt"
+#include "../game/sabotage_panels.nvgt"
 #include "../game/map.nvgt"
 #include "../i18n.nvgt"
 #include "../config/game_constants.nvgt"
@@ -143,7 +144,7 @@ void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	m.run();
 	string room_id = m.selected_item_id;
 	ui_sound(SND_DIALOG_CLOSE);
-	if (room_id != "") imp.close_doors(room_id);
+	if (room_id != "") { audio_manager().play_door_switch(); imp.close_doors(room_id); }
 }
 
 void run_sabotage_menu(impostor_controller@ imp) {
@@ -357,7 +358,8 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	// SABOTAGE_INITIAL_COOLDOWN_SECONDS) - quem manda o valor é o servidor, que é quem de fato
 	// recusa a sabotagem cedo demais.
 	float my_sabotage_cooldown_remaining = start_pkt.get_float("sabotage_cooldown_seconds");
-	string active_sabotage_id = ""; // "" = nenhuma sabotagem em andamento
+	string active_sabotage_id = "";
+	string oxygen_code = ""; // código desta sabotagem de oxigênio, dito ao abrir o painel // "" = nenhuma sabotagem em andamento
 	int team_task_percent = 0; // andamento das tasks da equipe inteira, atualizado por S_TASK_PROGRESS
 	bool is_vented = false;
 	string current_vent_id = "";
@@ -586,6 +588,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
 				if (active_sabotage_id != "") audio.start_sabotage_alarm(); // sabotagem continua de pé depois da reunião
 			} else if (t == S_SABOTAGE_STARTED) {
+				oxygen_code = pkt.get_string("oxygen_code", "");
 				mui.on_sabotage_started(pkt);
 				string sabotage_id = pkt.get_string("sabotage_id");
 				active_sabotage_id = sabotage_id;
@@ -759,6 +762,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// qualquer sala (fora do alcance de is_walkable) e ficar preso lá, sem nunca mais tocar som
 		// de passo (só esbarrão, ou nada).
 		if (delta > 0.1) delta = 0.1;
+		mui.tick_vote_timer();
 
 		if (my_role.can_kill && my_kill_cooldown_remaining > 0.0) {
 			my_kill_cooldown_remaining -= delta;
@@ -925,8 +929,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 						imp.use_vent(obj.id);
 						current_vent_id = obj.id;
 					} else if (obj.obj_type == OBJ_SABOTAGE_PANEL) {
+						// O conserto é uma minigame (ver sabotage_panels.nvgt); só o resultado vai ao
+						// servidor, que continua decidindo se o painel conta.
 						audio.play_object_interact(obj);
-						imp.fix_sabotage_panel(obj.id);
+						if (run_sabotage_panel(client, active_sabotage_id, oxygen_code)) imp.fix_sabotage_panel(obj.id);
 					} else if (obj.obj_type == OBJ_SECURITY_CAMERAS) {
 						// Só pede; quem decide é o servidor (o posto é de um de cada vez).
 						client.send_camera_enter();
