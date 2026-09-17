@@ -77,9 +77,33 @@ class chat_log {
 	}
 }
 
+// Trata, dentro da caixa de mensagem, só o que não pode esperar. Devolve false se a caixa deve fechar.
+bool drain_chat_while_composing(game_client@ client, chat_log@ messages) {
+	for (uint i = 0; i < client.incoming.length(); i++) {
+		net_packet@ p = client.incoming[i];
+		if (p.type == S_VOTE_RESULT || p.type == S_GAME_OVER) return false; // fica na fila; o laço trata
+		if (p.type != S_CHAT_MESSAGE) continue;
+		string name = p.get_string("name");
+		string text = p.get_string("text");
+		if (@messages != null) messages.add(name, text);
+		speak(name + ": " + text, false);
+		client.incoming.remove_at(i);
+		i--;
+	}
+	return true;
+}
+
 // Caixa de texto simples pra escrever e mandar uma mensagem de chat. O servidor decide quem recebe
 // (facção durante a partida, todo mundo na lobby/reunião/votação - ver network/server.nvgt).
-void run_chat_compose(game_client@ client) {
+// Enquanto a caixa está aberta, o laço principal não roda - então ela mesma cuida do que não pode
+// esperar: mensagens de chat que chegam são guardadas e ditas (sem interromper a digitação), e o
+// fim da reunião ou da partida FECHA a caixa, porque a mensagem não teria mais para quem ir. O resto
+// dos pacotes fica na fila, intacto, para o laço principal tratar quando a caixa fechar - a caixa
+// só tira da fila o que ela própria trata.
+//
+// Antes disto o jogo parecia travar ao abrir a caixa: ninguém ouvia o chat enquanto escrevia, e
+// quem estava digitando quando a votação acabava continuava numa caixa fantasma.
+void run_chat_compose(game_client@ client, chat_log@ messages = null) {
 	audio_form f;
 	f.create_window(tr("chat.compose_title"), false);
 	int f_text = f.create_input_box(tr("chat.compose_label"));
@@ -94,6 +118,11 @@ void run_chat_compose(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
+		if (!client.connected) return; // quem chamou vai avisar da queda
+		if (!drain_chat_while_composing(client, messages)) {
+			speak(tr("chat.compose_closed"));
+			return;
+		}
 		f.monitor();
 		if (f.is_pressed(f_cancel)) return;
 		if (f.is_pressed(f_send)) {

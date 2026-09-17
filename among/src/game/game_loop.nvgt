@@ -1071,7 +1071,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			// responde na hora.
 			if (!movement_frozen) speak(tr("chat.only_in_meeting"));
 			else if (!alive) speak(tr("chat.dead_cannot_send"));
-			else run_chat_compose(client);
+			else run_chat_compose(client, messages_log);
 		}
 
 		if (alive && action_pressed(ACTION_VOTE)) mui.open_vote_menu_if_active();

@@ -363,6 +363,7 @@
 	"chat.compose_title": "Send message",
 	"chat.compose_label": "Message",
 	"chat.sent": "Message sent.",
+	"chat.compose_closed": "The meeting is over; the message box closed.",
 	"chat.dead_cannot_send": "You're dead, you can only read the chat.",
 	"chat.only_in_meeting": "Chat is only available during meetings.",
 	"game.ghost_cannot_interact": "As a ghost you can only finish your own tasks.",
