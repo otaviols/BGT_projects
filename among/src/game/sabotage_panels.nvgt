@@ -170,12 +170,14 @@ bool run_comms_panel(game_client@ client) {
 		if (key_pressed(KEY_RIGHT) && dial < 100) { dial = dial + STEP > 100 ? 100 : dial + STEP; moved = true; }
 		if (moved) task_sound_path("sounds/" + SND_COMMS_DIAL_STEP);
 
-		// Mistura: perto da estação a voz manda; longe, a estática engole tudo.
+		// Mistura: perto da estação a voz manda; longe, a estática engole tudo. DENTRO da tolerância
+		// a estática some de vez (não fica um resto baixinho): sintonizado tem que soar limpo, senão o
+		// jogador fica na dúvida se já chegou - foi o que aconteceu no teste de ouvido com -36 dB.
 		int dist = int(abs(dial - station));
 		float closeness = dist >= 40 ? 0.0 : 1.0 - float(dist) / 40.0; // 0 longe, 1 em cima
 		float base = g_settings.volume_db(SOUND_FAMILY_TASKS);
 		if (@voice != null) voice.volume = base + (-30.0 + 30.0 * closeness);
-		if (@noise != null) noise.volume = base + (-2.0 - 34.0 * closeness);
+		if (@noise != null) noise.volume = dist <= TOLERANCE ? -100.0 : base + (-2.0 - 40.0 * closeness);
 
 		if (dist <= TOLERANCE) {
 			if (!holding) { holding = true; hold.restart(); }
