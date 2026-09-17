@@ -394,6 +394,16 @@
 	"camera.nobody_there": "No hay nadie en esa sala.",
 	"camera.people_there": "En la sala: {names}.",
 	"camera.unknown_room": "Sala desconocida",
-	"camera.hint": "Las flechas izquierda y derecha cambian de sala, la tecla de radar dice quién está allí y ESC la apaga.",
-	"camera.room_position": "{room} ({index} de {total})"
+"camera.hint": "Las flechas izquierda y derecha cambian de sala, la tecla de radar dice quién está allí y ESC la apaga.",
+"camera.room_position": "{room} ({index} de {total})",
+	"task.submit_scan.name": "Enviar escaneo",
+	"task.submit_scan.instructions": "Quédese sobre el escáner hasta que termine. Cualquiera que esté cerca escuchará el proceso de escaneo. ESC cancela.",
+	"game.visible_task_scan": "{name} está realizando el escaneo médico.",
+	"learn.medbay_scan": "Escáner de la enfermería (alguien está siendo escaneado)",
+	"lobby.reveal_ejected_override": "Indica si el jugador expulsado era un impostor",
+	"lobby.reveal.on": "activado",
+	"lobby.reveal.off": "No decirlo. Deberá adivinarse",
+	"lobby.info.reveal_on": "Cuando alguien es expulsado, revelar si era un impostor",
+	"lobby.info.reveal_off": "Cuando alguien es expulsado, no revelar si era un impostor",
+	"game.vote_result_ejected_unknown": "{name} fue expulsado de la nave"
 }
