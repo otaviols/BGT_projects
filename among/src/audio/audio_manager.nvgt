@@ -265,7 +265,6 @@ class audio_manager {
 	void play_vote_select() { spatial.play_ui(SND_VOTE_SELECT, false, family_db(SOUND_FAMILY_UI)); }
 	void play_vote_confirm() { spatial.play_ui(SND_VOTE_CONFIRM, false, family_db(SOUND_FAMILY_UI)); }
 	void play_vote_timer_tick() { spatial.play_ui(SND_VOTE_TIMER, false, family_db(SOUND_FAMILY_EVENTS)); }
-	void play_door_switch() { spatial.play_ui(SND_DOOR_SWITCH, false, family_db(SOUND_FAMILY_UI)); }
 
 	// --- Radar ---
 	// O tom sobe conforme o alvo se aproxima. O volume posicionado já cai com a distância, mas volume

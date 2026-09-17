@@ -352,6 +352,12 @@ num teste - um envio com `{` solto matou o processo. Todo `parse_json` de conte�
 
 ## Testar
 
+**Minigame (task ou reparo) se testa no menu "Praticar tarefas e reparos"** do próprio jogo, sem
+servidor: `src/ui/practice_screen.nvgt` roda o mesmo `run_task_minigame`/`run_sabotage_panel` da
+partida com um `game_client` criado mas não conectado (`make_offline_client`). Serve para o jogador
+como modo de treino e para quem desenvolve como bancada - antes, testar uma task era montar uma
+partida de três.
+
 Há um servidor de verdade no ar — **use-o**. O padrão que funcionou a sessão inteira: escrever um
 `.nvgt` curto que conecta, faz a coisa e imprime o resultado, rodar com `nvgt arquivo.nvgt`, apagar
 depois. Foi assim que se validou feedback, i18n, configurações de sala e limite de jogadores.

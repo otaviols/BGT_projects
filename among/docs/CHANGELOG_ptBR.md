@@ -19,6 +19,8 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
   nos dois. Comunicações: sintonizar o rádio com as setas até a voz ficar sem estática.
 - Sons novos: o de alguém ser expulso, a música de vitória de cada time, os de marcar e confirmar o
   voto, os dos reparos, e os sons certos para abrir e fechar tarefas e menus.
+- **Praticar tarefas e reparos**, no menu inicial: qualquer tarefa ou reparo, sozinho, sem partida.
+  Era o "modo de treino" que vocês pediram.
 
 ## 0.24.1
 

@@ -27,6 +27,9 @@ the match does not show up in the list, and the only way in is choosing **Join a
 with a code** and typing the same code. Case does not matter, so you can say it out loud. Inside
 the room, the **C** key repeats the code so you can pass it on.
 
+**Practice:** the main menu has **Practice tasks and repairs**: any task or sabotage repair, alone,
+with no match — to learn each one calmly before it counts.
+
 **Explore the map:** the main menu has an **Explore the map** option that lets you walk around the
 ship alone, with no server and no pressure. Each room is named as you enter it, Tab lists what is in
 the room, Enter says what the nearest object is, and ESC returns to the menu. It is the way to learn

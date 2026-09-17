@@ -6,6 +6,7 @@
 #include "form.nvgt"
 #include "explore_screen.nvgt"
 #include "changelog_screen.nvgt"
+#include "practice_screen.nvgt"
 #include "menu.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
@@ -28,6 +29,7 @@ bool run_main_menu() {
 		m.add_item(tr("menu.connect"), "connect");
 		m.add_item(tr("menu.learn_sounds"), "learn_sounds");
 		m.add_item(tr("menu.explore_map"), "explore_map");
+		m.add_item(tr("menu.practice"), "practice");
 		m.add_item(tr("menu.changelog"), "changelog");
 		m.add_item(tr("menu.settings"), "settings");
 		m.add_item(tr("menu.exit"), "exit");
@@ -37,6 +39,7 @@ bool run_main_menu() {
 		if (id == "connect") return true;
 		if (id == "learn_sounds") { run_learn_sounds_screen(); continue; }
 		if (id == "explore_map") { run_explore_map_screen(); continue; }
+		if (id == "practice") { run_practice_screen(); continue; }
 		if (id == "changelog") { run_changelog_screen(); continue; }
 		if (id == "settings") { run_settings_menu(); continue; }
 		return false; // "exit", ESC ou fechou sem escolher

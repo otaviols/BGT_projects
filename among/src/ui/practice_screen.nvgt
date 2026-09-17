@@ -1,0 +1,71 @@
+// practice_screen.nvgt
+// Praticar: qualquer tarefa ou reparo de sabotagem, sozinho, sem servidor e sem partida.
+//
+// Nasceu de duas necessidades que são a mesma coisa vista de dois lados. Quem desenvolve precisava
+// de um jeito de testar uma minigame sem montar uma partida de três pessoas toda vez; e os jogadores
+// pediram um "modo de treino" desde os primeiros recados do beta - aprender a tarefa do combustível
+// com um impostor por perto é a pior hora para aprender qualquer coisa.
+//
+// Roda EXATAMENTE o mesmo código da partida (task_manager e sabotage_panels), com um cliente de
+// rede que existe mas não está ligado a nada: as minigames chamam client.update() e olham a fila de
+// pacotes para saber se uma reunião começou, e as duas coisas funcionam com a fila vazia. Nada é
+// enviado a lugar nenhum - o resultado é só dito.
+
+#include "menu.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../game/task_manager.nvgt"
+#include "../game/sabotage_panels.nvgt"
+#include "../i18n.nvgt"
+
+// As tarefas que existem, na ordem em que aparecem no manual. Só o tipo: o nome vem da tradução
+// ("task.<tipo>.name"), a mesma que a partida usa.
+const array<string> PRACTICE_TASKS = {
+	"fix_wiring", "download_data", "empty_garbage", "align_engine", "swipe_card", "unlock_manifolds",
+	"fuel_engines", "clear_asteroids", "roll_dice", "water_plants", "review_records", "submit_scan"
+};
+const array<string> PRACTICE_SABOTAGES = {"lights", "oxygen", "comms"};
+
+// Um cliente de rede que existe mas não está conectado a nada. update() sem conexão não faz nada,
+// e poll_message() devolve null - é tudo de que uma minigame precisa para rodar.
+game_client@ make_offline_client() {
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	return c;
+}
+
+void run_practice_screen() {
+	game_client@ client = make_offline_client();
+	while (true) {
+		menu m;
+		m.intro_text = tr("practice.hint");
+		m.click_sound = "ui/menuclick.ogg";
+		m.select_sound = "ui/menuconfirm.ogg";
+		m.sounds_prefix = "sounds/";
+		for (uint i = 0; i < PRACTICE_TASKS.length(); i++) {
+			m.add_item(tr("task." + PRACTICE_TASKS[i] + ".name"), "task:" + PRACTICE_TASKS[i]);
+		}
+		for (uint i = 0; i < PRACTICE_SABOTAGES.length(); i++) {
+			dictionary@ p = dictionary();
+			p.set("name", tr("sabotage." + PRACTICE_SABOTAGES[i] + ".name"));
+			m.add_item(tr("practice.repair_item", p), "sabotage:" + PRACTICE_SABOTAGES[i]);
+		}
+		m.add_item(tr("menu.back"), "__back__");
+		m.run();
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+
+		bool ok;
+		if (id.starts_with("task:")) {
+			ok = run_task_minigame(client, id.substr(5));
+		} else {
+			// O código do oxigênio vem do servidor na partida; aqui é sorteado na hora.
+			string code = "";
+			for (uint i = 0; i < 5; i++) code += "" + random(0, 9);
+			ok = run_sabotage_panel(client, id.substr(9), code);
+		}
+		speak(tr(ok ? "practice.done" : "practice.not_done"));
+		wait(1800);
+	}
+}

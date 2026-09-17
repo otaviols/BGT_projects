@@ -26,6 +26,9 @@ partida não aparece na lista, e só entra quem escolher **Entrar em partida pri
 digitar o mesmo código. Maiúsculas e minúsculas não fazem diferença, então pode ditar de viva voz.
 Dentro da sala, a tecla **C** relembra o código para você passar adiante.
 
+**Praticar:** o menu inicial tem **Praticar tarefas e reparos**: qualquer tarefa ou reparo de
+sabotagem, sozinho, sem partida — para aprender cada uma com calma antes de valer.
+
 **Conhecer o mapa:** o menu inicial tem a opção **Conhecer o mapa**, que deixa você andar pela nave
 sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela, Tab lista o que há na
 sala, Enter diz o que é o objeto mais próximo, e ESC volta ao menu. É o jeito de aprender onde fica

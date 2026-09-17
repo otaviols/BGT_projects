@@ -19,6 +19,8 @@ Everything that changed in the game, newest first.
   Communications: tune the radio with the arrows until the voice is free of static.
 - New sounds: someone being ejected, each team's victory music, marking and confirming a vote, the
   repairs, and the right sounds for opening and closing tasks and menus.
+- **Practice tasks and repairs**, in the main menu: any task or repair, alone, with no match. The
+  "training mode" you asked for.
 
 ## 0.24.1
 

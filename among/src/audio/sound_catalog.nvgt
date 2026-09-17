@@ -64,7 +64,7 @@ const string SND_OPEN_PANEL = "sounds/world/openPanel.ogg";
 // exatamente qual passagem foi trancada.
 const string SND_DOOR_CLOSE = "sounds/world/CloseDoor.ogg";
 const string SND_DOOR_OPEN = "sounds/world/OpenDoor.ogg";
-const string SND_DOOR_SWITCH = "sounds/world/door_switch.ogg"; // o clique do impostor ao escolher a sala no menu de portas
+const string SND_DOOR_SWITCH = "sounds/world/door_switch.ogg"; // reservado: interruptor para reabrir porta trancada, ideia para um mapa futuro (não usado neste)
 
 // --- Painéis de reparo (o que toca DENTRO do conserto - ver game/sabotage_panels.nvgt) ---
 const string SND_BREAKER_SWITCH = "world/breaker_switch.ogg";     // luzes: estalo de um disjuntor

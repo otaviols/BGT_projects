@@ -144,7 +144,7 @@ void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	m.run();
 	string room_id = m.selected_item_id;
 	ui_sound(SND_DIALOG_CLOSE);
-	if (room_id != "") { audio_manager().play_door_switch(); imp.close_doors(room_id); }
+	if (room_id != "") imp.close_doors(room_id);
 }
 
 void run_sabotage_menu(impostor_controller@ imp) {
