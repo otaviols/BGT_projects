@@ -110,6 +110,15 @@ O `version.json` carrega as notas em dois formatos: `notes` (texto único, em in
 até a 0.17.0, que esperam uma string e quebrariam com um objeto, e `notes_by_language` para os novos.
 O campo antigo pode sair quando não houver mais ninguém nessas versões.
 
+**Deploy do servidor derruba quem está jogando - por isso ele AVISA antes.** O estado das partidas
+vive na memória do processo; trocar o pod no meio de uma partida derrubou todo mundo sem aviso (e
+foi assim que se descobriu). O `deploy.ps1` agora, com a imagem nova pronta e conferida, manda
+`C_ADMIN_DRAIN` ao servidor atual: todo jogador conectado ouve "o servidor vai reiniciar em N
+minutos", nenhuma partida nova começa, e o script espera as partidas em andamento acabarem (ou o
+prazo, `-DrainSeconds`, padrão 300; 0 = trocar na hora). `tools/server_admin.nvgt status|drain`
+também serve à mão. O cliente, por sua vez, DETECTA conexão perdida (antes o laço rodava para
+sempre numa nave vazia, sem aviso) e volta ao menu inicial avisando.
+
 **O servidor só precisa de deploy quando o código dele muda** (`src/network/server.nvgt`,
 `src/core/game_state.nvgt`, protocolo, banco). Som, UI e textos são só cliente.
 

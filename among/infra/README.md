@@ -123,6 +123,26 @@ infra\read_feedback.ps1 -WithCrashLog   # inclui o crash.log anexado
 infra\read_feedback.ps1 -Out recados.txt  # grava em arquivo UTF-8
 ```
 
+## Reiniciar sem derrubar ninguém
+
+O servidor guarda as partidas na memória, então trocar o pod no meio de uma partida derruba quem
+está jogando. O `deploy.ps1` avisa antes: com a imagem nova pronta, manda ao servidor atual um aviso
+de reinício (todo jogador ouve "o servidor vai reiniciar em N minutos"), proíbe partidas novas de
+começar e espera as que estão rolando acabarem - ou o prazo - antes de trocar.
+
+```
+infra\deploy.ps1 -StorageAccount amongusaudiogame                    # avisa e espera até 5 min
+infra\deploy.ps1 -StorageAccount amongusaudiogame -DrainSeconds 600   # mais paciência
+infra\deploy.ps1 -StorageAccount amongusaudiogame -DrainSeconds 0     # trocar na hora (derruba)
+```
+
+À mão, com o token no ambiente (o deploy busca sozinho no segredo `amongus-admin`):
+
+```
+nvgt tools/server_admin.nvgt status      # conexões, salas, partidas em andamento
+nvgt tools/server_admin.nvgt drain 120   # avisar e travar partidas novas por 2 minutos
+```
+
 ### Responder a um recado
 
 ```

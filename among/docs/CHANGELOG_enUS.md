@@ -6,6 +6,17 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.25.1
+
+- **When the server is about to update, you are warned first**: "the server will restart in so
+  many minutes". No new match starts until then, and the ones in progress have that time to finish.
+  Before, the server switched without warning and dropped everyone mid-game.
+- If the connection to the server drops, the game now says so and returns to the main menu — before
+  it sat frozen in an empty ship with no explanation.
+- Chat: messages no longer interrupt speech, and the history cursor stays where you left it when a
+  new message arrives. With the message box open you keep hearing the chat, and it closes on its own
+  when the meeting ends.
+
 ## 0.25.0
 
 - **Fair voting.** Someone is only ejected with more votes than "skip" and than anyone else.

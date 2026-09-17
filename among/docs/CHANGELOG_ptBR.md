@@ -6,6 +6,17 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.25.1
+
+- **Quando o servidor for atualizar, você é avisado antes**: "o servidor vai reiniciar em tantos
+  minutos". Partidas novas não começam até lá, e as que estão rolando têm esse tempo para acabar.
+  Antes o servidor trocava sem aviso e derrubava todo mundo no meio do jogo.
+- Se a conexão com o servidor cair, o jogo agora diz isso e volta ao menu inicial — antes ficava
+  parado numa nave vazia, sem explicação.
+- Chat: as mensagens não interrompem mais a fala, e o cursor do histórico fica onde você o deixou
+  quando chega mensagem nova. Com a caixa de mensagem aberta você continua ouvindo o chat, e ela
+  fecha sozinha quando a reunião acaba.
+
 ## 0.25.0
 
 - **Votação justa.** Alguém só é expulso se tiver mais votos do que "pular" e do que qualquer outro.
