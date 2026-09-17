@@ -37,6 +37,10 @@ class game_player {
 	// esperando pra sempre as tasks de quem não está mais lá.
 	bool left_match = false;
 
+	// Quer receber voz (C_VOICE_STATE). Falso até o cliente dizer o contrário: cliente antigo nunca
+	// diz, e assim não recebe 128 kbps de áudio que não sabe tocar.
+	bool voice_enabled = false;
+
 	// --- Bot ---
 	// Bots são game_player normais em tudo (entram na contagem, recebem tasks, podem ser mortos,
 	// expulsos e reportados); a diferença é que ninguém manda C_MOVE por eles e nenhum pacote é

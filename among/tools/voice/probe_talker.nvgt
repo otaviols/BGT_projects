@@ -1,0 +1,70 @@
+// Um "jogador" que só fala: entra na primeira sala em espera e manda um tom de 440 Hz pelo canal
+// de voz sem parar. Serve para ouvir, no jogo de verdade, a voz de outra pessoa posicionada - e
+// para conferir que o que o jogo manda chega aqui (imprime os quadros recebidos).
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+class sink : voice_receiver {
+	uint frames = 0; uint bytes = 0;
+	void on_voice_frame(const string&in wire) { uint64 who; string a; if (voice_unwire(wire, who, a)) { frames++; bytes += a.length(); } }
+	void tick() {}
+}
+
+uint8 ulaw_from_sample(float f) {
+	const int BIAS = 0x84, CLIP = 32635;
+	int s = int(f * 32767.0); int sign = s < 0 ? 0x80 : 0; if (s < 0) s = -s; if (s > CLIP) s = CLIP; s += BIAS;
+	int exponent = 7; int mask = 0x4000;
+	while (exponent > 0 && (s & mask) == 0) { exponent--; mask >>= 1; }
+	int mantissa = (s >> (exponent + 3)) & 0x0F;
+	return uint8(~(sign | (exponent << 4) | mantissa) & 0xFF);
+}
+
+net_packet@ wait_for(game_client@ c, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == type) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	game_client c; sink s; @c.voice = s;
+	string name = "falante" + random(100, 999);
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(name, "probe123"); wait_for(c, S_REGISTER_RESULT, 3000);
+	c.send_login(name, "probe123");
+	net_packet@ lr = wait_for(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+	c.send_voice_state(true);
+	c.send_list_lobbies();
+	net_packet@ list = wait_for(c, S_LOBBY_LIST, 5000);
+	string lobby_id = "";
+	if (@list != null) { json_array@ ls = list.get_array("lobbies"); if (@ls != null && ls.length() > 0) lobby_id = string(ls.get_object(0)["id"]); }
+	if (lobby_id == "") { println("nenhuma sala em espera: crie uma no jogo antes"); return; }
+	c.send_join_lobby(lobby_id);
+	net_packet@ jr = wait_for(c, S_JOIN_RESULT, 5000);
+	if (@jr == null || !jr.get_bool("ok")) { println("nao entrou"); return; }
+	println(name + " entrou na sala e vai ficar falando (tom de 440 Hz). Ctrl+C para sair.");
+
+	float phase = 0; const float STEP = 2.0 * 3.14159265 * 440.0 / 16000.0;
+	timer frame_clock; timer report; uint sent = 0;
+	while (true) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) {
+			if (p.type == S_GAME_START) println("partida comecou: estou em " + p.get_float("your_x") + "," + p.get_float("your_y"));
+			if (p.type == S_ERROR) println("erro: " + p.get_string("message_key"));
+			@p = c.poll_message();
+		}
+		if (frame_clock.elapsed >= 20) {
+			frame_clock.restart();
+			string audio;
+			for (uint i = 0; i < 320; i++) { audio += ascii_to_character(ulaw_from_sample(0.3 * sin(phase))); phase += STEP; }
+			c.send_voice(audio); sent++;
+		}
+		if (report.elapsed >= 5000) { report.restart(); println("enviados " + sent + " quadros; recebidos do jogo: " + s.frames + " (" + s.bytes + " bytes)"); }
+		if (!c.connected) { println("conexao caiu"); return; }
+		wait(2);
+	}
+}

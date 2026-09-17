@@ -41,6 +41,7 @@
 #include "src/ui/onboarding_screens.nvgt"
 #include "src/ui/lobby_screens.nvgt"
 #include "src/game/game_loop.nvgt"
+#include "src/audio/voice_chat.nvgt"
 #include "src/i18n.nvgt"
 #include "src/config/game_constants.nvgt"
 
@@ -137,15 +138,21 @@ void report_crash(const string&in context) {
 // Uma sessão completa: conectar, logar, e ficar entrando em partidas até o jogador sair.
 void run_session() {
 	game_client client;
+	// O chat de voz vive dentro do cliente de rede (ver voice_receiver em network/client.nvgt) para
+	// continuar funcionando em qualquer tela. Ligado aqui, uma vez por sessão.
+	g_voice.attach(client);
 	if (!connect_to_server(client)) return;
 
 	login_result login = run_login_screen(client);
 	if (!login.ok) { client.disconnect(); return; }
+	// O servidor só manda voz para quem disse que quer: sem este aviso ninguém ouviria ninguém.
+	g_voice.announce(client.connected);
 
 	while (true) {
 		// Começo limpo a cada volta: o que sobrou na fila é de uma partida ou sala que ficou pra trás.
 		// Sem isto, sair de uma partida e entrar noutra fazia a tela nova processar eventos da antiga.
 		client.clear_incoming();
+		g_voice.leave(); // fora de sala, nem captura nem toca
 
 		lobby_browser_result browse = run_lobby_browser_screen(client);
 		if (browse.go_back || !browse.joined) break;
@@ -160,5 +167,6 @@ void run_session() {
 		// o jogador retorna ao navegador de lobbies.
 	}
 
+	g_voice.leave();
 	client.disconnect();
 }

@@ -23,11 +23,18 @@ const int SOUND_FAMILY_UI = 6;        // menus, diálogos, chat
 // mais divide opinião - quem quer ouvir os passos abaixa a música e mais nada - e porque, com mais
 // músicas no futuro, elas já nascem no lugar certo em vez de emprestadas da interface.
 const int SOUND_FAMILY_MUSIC = 7;
-const int SOUND_FAMILY_COUNT = 8;
+// Vozes dos outros jogadores (chat de voz). Família própria porque é o som que mais varia de
+// pessoa para pessoa - microfone alto, microfone baixo - e o ajuste tem que ser de quem ouve.
+const int SOUND_FAMILY_VOICES = 8;
+const int SOUND_FAMILY_COUNT = 9;
 
-const array<string> SOUND_FAMILY_IDS = {"master", "ambience", "steps", "beacons", "tasks", "events", "ui", "music"};
+const array<string> SOUND_FAMILY_IDS = {"master", "ambience", "steps", "beacons", "tasks", "events", "ui", "music", "voices"};
 const array<string> SOUND_FAMILY_NAME_KEYS = {"volume.master", "volume.ambience", "volume.steps",
-	"volume.beacons", "volume.tasks", "volume.events", "volume.ui", "volume.music"};
+	"volume.beacons", "volume.tasks", "volume.events", "volume.ui", "volume.music", "volume.voices"};
+
+// Como o microfone abre no chat de voz.
+const string VOICE_MODE_KEY = "key";   // segurando a tecla de falar
+const string VOICE_MODE_AUTO = "auto"; // sozinho, quando a voz passa da sensibilidade
 
 class game_settings {
 	private settings store;
@@ -40,6 +47,16 @@ class game_settings {
 	// O padrão é pt_BR porque é o idioma em que o jogo foi escrito e o único garantidamente completo;
 	// quem preferir outro troca uma vez e a escolha fica.
 	string language = DEFAULT_LANGUAGE;
+
+	// Chat de voz. O jogador decide se participa, como o microfone abre, e com que sensibilidade
+	// (só no modo automático: 0 = só grito, 100 = qualquer sopro). Os dispositivos são guardados pelo
+	// NOME, e não pelo índice: a ordem da lista muda quando se liga um fone, e o índice apontaria
+	// para outro aparelho. "" = o padrão do sistema.
+	bool voice_chat_enabled = true;
+	string voice_mode = VOICE_MODE_KEY;
+	int voice_sensitivity = 50;
+	string voice_input_device = "";
+	string audio_output_device = "";
 
 	game_settings() {
 		volumes.resize(SOUND_FAMILY_COUNT);
@@ -93,8 +110,46 @@ class game_settings {
 		if (language == "") language = DEFAULT_LANGUAGE;
 		string voice_config = store.read_string("tts", "");
 		if (voice_config != "") tts_load_config(voice_config, tts);
+		voice_chat_enabled = store.read_number("voice_chat_enabled", 1) != 0;
+		voice_mode = store.read_string("voice_mode", VOICE_MODE_KEY);
+		if (voice_mode != VOICE_MODE_AUTO) voice_mode = VOICE_MODE_KEY;
+		voice_sensitivity = int(store.read_number("voice_sensitivity", 50));
+		if (voice_sensitivity < 0) voice_sensitivity = 0;
+		if (voice_sensitivity > 100) voice_sensitivity = 100;
+		voice_input_device = store.read_string("voice_input_device", "");
+		audio_output_device = store.read_string("audio_output_device", "");
 
 		apply_master();
+		apply_output_device();
+	}
+
+	// Índice do dispositivo escolhido na lista atual do sistema (-1 = não está mais ligado, ou é o
+	// padrão). O índice é o da própria lista: a documentação do NVGT fala de um item 0 "sem som", mas
+	// nesta build as listas começam no primeiro aparelho de verdade (conferido com uma sonda:
+	// sound_output_device = 1 era o segundo da lista, e microphone(1) o segundo microfone).
+	int output_device_index() const {
+		if (audio_output_device == "") return -1;
+		const array<string>@ devices = get_sound_output_devices();
+		for (uint i = 0; i < devices.length(); i++) if (devices[i] == audio_output_device) return int(i);
+		return -1;
+	}
+	int input_device_index() const {
+		if (voice_input_device == "") return -1;
+		const array<string>@ devices = get_sound_input_devices();
+		for (uint i = 0; i < devices.length(); i++) if (devices[i] == voice_input_device) return int(i);
+		return -1;
+	}
+
+	// O que o sistema escolheu sozinho ao abrir o jogo: é para onde "padrão do sistema" volta.
+	int default_output_index = -1;
+
+	// Dispositivo escolhido que não está mais ligado cai no padrão em silêncio - o jogo tem que
+	// abrir com som mesmo que o fone de ontem tenha ficado em casa.
+	void apply_output_device() {
+		if (default_output_index < 0) default_output_index = sound_output_device;
+		int index = output_device_index();
+		if (index < 0) index = default_output_index;
+		if (index >= 0 && sound_output_device != index) sound_output_device = index;
 	}
 
 	void save() {
@@ -109,6 +164,11 @@ class game_settings {
 		store.write_string("last_username", last_username);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));
+		store.write_number("voice_chat_enabled", voice_chat_enabled ? 1 : 0);
+		store.write_string("voice_mode", voice_mode);
+		store.write_number("voice_sensitivity", voice_sensitivity);
+		store.write_string("voice_input_device", voice_input_device);
+		store.write_string("audio_output_device", audio_output_device);
 	}
 }
 

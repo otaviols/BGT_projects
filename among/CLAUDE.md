@@ -40,7 +40,7 @@ Antes de afirmar algo aqui, **verifique contra o código**, não contra a memór
 | `src/` | **todo** o código: `config/`, `core/`, `game/`, `network/`, `ui/`, `database/`, `audio/`, `i18n.nvgt` |
 | `lang/` | **só dados** de tradução (`pt_BR.json`, `en_US.json`) — o motor de i18n fica em `src/` |
 | `sounds/` | áudio fonte; vira `sounds.dat` no build |
-| `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `check_translation.py`, ferramentas de administração |
+| `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `check_translation.py`, ferramentas de administração, `voice/` (sondas do chat de voz) |
 | `docs/` | manuais e histórico de versões, distribuídos com o jogo numa pasta `docs/` |
 | `infra/` | Terraform, Dockerfile, manifests do Kubernetes, `deploy.ps1`, `read_feedback.ps1` |
 
@@ -312,16 +312,30 @@ medida certa erra para mais - o Tile pedia +17,6 pela conta e ficou alto demais,
 `nvgt tools/check_sounds.nvgt`: ele compara o catálogo com o disco **nos dois sentidos** e é a única
 coisa que pega um caminho errado — som que não carrega falha em silêncio, sem erro nenhum.
 
-**Chat de voz: Opus NÃO decodifica ao vivo nesta build do NVGT; o codec é μ-law em script.** A
-sonda (`_voice/voice_probe.nvgt`, fora do build) provou: `microphone.read()` +
-`sound.stream_pcm()` tocam voz posicionada em tempo real; `audio_opus_encoder` codifica, mas o
-`audio_decoder` (opusfile) só abre fluxo COMPLETO - num fluxo que cresce responde "Invalid file"
-sempre, com ou sem taxa/canais, com 2 KB ou 200 KB dentro. Não é parâmetro, é a biblioteca. O
-G.711 μ-law a 16 kHz (`ulaw_from_sample`/`sample_from_ulaw`) dá 128 kbps por pessoa falando,
-qualidade de telefone, latência de um quadro e nenhuma dependência; Opus pode substituir depois sem
-mexer em rede ou interface. Armadilha junto: `spatialization_enabled`/`set_position_3d` definidos
-ANTES do primeiro `stream_pcm` se perdem (o som sai centralizado, sem erro) - reaplique depois que o
-fluxo existe. O microfone pode entregar estéreo, e som estéreo não espacializa: converta para mono.
+**Chat de voz: Opus NÃO decodifica ao vivo nesta build do NVGT; o codec é μ-law em script.**
+`src/audio/voice_chat.nvgt` captura com `microphone.read()`, comprime em G.711 μ-law a 16 kHz
+(128 kbps por pessoa falando, qualidade de telefone) e toca com `sound.stream_pcm()`. Não é Opus
+porque o `audio_decoder` (opusfile) só abre fluxo COMPLETO - num fluxo que cresce responde
+"Invalid file" sempre, com ou sem taxa/canais. Trocar por Opus um dia é trocar `voice_encode`/
+`voice_decode` e nada mais. Armadilhas achadas pela sonda (`tools/voice/voice_probe.nvgt`):
+`spatialization_enabled`/`set_position_3d` definidos ANTES do primeiro `stream_pcm` se perdem (som
+centralizado, sem erro) - reaplique depois de cada quadro; microfone estéreo não espacializa
+(converta para mono); `mic.read(n)` devolve n quadros × canais amostras; e as listas de
+`get_sound_input_devices()`/`get_sound_output_devices()` NÃO têm o item 0 "sem som" que a
+documentação descreve - o índice é o da própria lista (`sound_output_device = 1` era o segundo
+aparelho). Por isso os dispositivos são guardados pelo NOME e resolvidos na hora.
+
+**A voz viaja num canal próprio, binário, e fora da fila de pacotes.** `CHANNEL_VOICE` (2) não
+carrega JSON (`voice_wire`/`voice_unwire` em `protocol.nvgt`); cliente antigo tenta ler como JSON,
+falha e descarta. No cliente ela não entra em `incoming`: é entregue a `game_client.voice` dentro de
+`update()`, que é a única coisa que TODA tela bombeia - na fila, quem abrisse uma task ficava surdo
+até fechá-la. Quem ouve quem é decidido no SERVIDOR (`game_state.can_hear_voice`): sala de espera
+e reunião, todos; na nave, `VOICE_RANGE` (8); dentro de duto, ninguém é ouvido; fantasma ouve todos
+e só é ouvido por fantasma. O servidor só manda voz a quem mandou `C_VOICE_STATE` ligado - sem
+isso um cliente antigo receberia 128 kbps que não sabe tocar. Regra da sala `voice_chat` (padrão
+ligado). Testes: `tools/voice/probe_relay.nvgt` (relay e distância, contra servidor local) e
+`tools/voice/probe_talker.nvgt` (um "jogador" que manda um tom de 440 Hz, para ouvir a voz
+posicionada no jogo de verdade com `AMONGUS_SERVER_HOST=127.0.0.1`).
 
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 

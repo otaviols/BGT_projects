@@ -551,6 +551,25 @@ class game_state {
 		return true;
 	}
 
+	// Quem ouve a voz de quem. É a regra de percepção do chat de voz, e mora aqui pelo mesmo motivo
+	// de players_in_room(): o cliente não sabe quem está morto de verdade nem quem está num duto, e
+	// entregar voz é entregar posição - uma voz posicionada denuncia onde a pessoa está.
+	//
+	// - Na sala de espera todo mundo se ouve, sem posição: é o bate-papo antes da partida.
+	// - Na reunião e na votação todos os vivos se ouvem: é a discussão, e todos estão no mesmo lugar.
+	// - Andando pela nave, a voz alcança VOICE_RANGE - a mesma sala, não a nave inteira - e quem
+	//   está dentro de um duto não é ouvido por fora (ver on_voice_frame no servidor).
+	// - Fantasma ouve todo mundo e só é ouvido por fantasma: o morto continua acompanhando a partida
+	//   (como no jogo original) mas não pode contar aos vivos quem o matou.
+	bool can_hear_voice(game_player@ talker, game_player@ listener) const {
+		if (@talker == null || @listener == null) return false;
+		if (state == "waiting" || state == "ended") return true;
+		if (!talker.alive) return !listener.alive;
+		if (!listener.alive) return true;
+		if (state == "meeting" || state == "voting") return true;
+		return distance_2d(talker.x, talker.y, listener.x, listener.y) <= VOICE_RANGE;
+	}
+
 	// Encerra a task visível se for deste jogador (ou de qualquer um, com peer 0). Devolve quem
 	// estava nela, para o servidor avisar a partida - o mesmo motivo do release_cameras_any.
 	uint64 end_visible_task(uint64 peer = 0) {

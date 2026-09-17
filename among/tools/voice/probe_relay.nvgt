@@ -1,0 +1,116 @@
+// Sonda do relay de voz (servidor local em AMONGUS_SERVER_HOST=127.0.0.1). Três clientes:
+// A fala, B ouve (com voz ligada), C nunca ligou a voz. Verifica: sala de espera, partida por
+// distância, e que C não recebe nada.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+class sink : voice_receiver {
+	array<uint64> talkers;
+	uint frames = 0;
+	void on_voice_frame(const string&in wire) {
+		uint64 who; string audio;
+		if (!voice_unwire(wire, who, audio)) { println("  quadro malformado"); return; }
+		frames++;
+		if (talkers.find(who) == -1) talkers.insert_last(who);
+	}
+	void tick() {}
+}
+
+class peer {
+	game_client@ c;
+	sink@ s;
+	string name;
+	uint64 id = 0;
+	float x = 0, y = 0;
+	peer(const string&in n) { name = n; @c = game_client(); @s = sink(); @c.voice = s; }
+}
+
+net_packet@ wait_for(game_client@ c, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) { if (p.type == type) return p; @p = c.poll_message(); }
+		wait(5);
+	}
+	return null;
+}
+void pump(array<peer@>@ ps, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < ps.length(); i++) { ps[i].c.update(); ps[i].c.clear_incoming(); } wait(5); }
+}
+void talk(peer@ p, array<peer@>@ all, int frames) {
+	string audio; for (uint i = 0; i < 320; i++) audio += ascii_to_character(0x7F);
+	for (int f = 0; f < frames; f++) { p.c.send_voice(audio); pump(all, 20); }
+}
+void reset(array<peer@>@ all) { for (uint i = 0; i < all.length(); i++) { all[i].s.frames = 0; all[i].s.talkers.resize(0); } }
+void report(const string&in caso, array<peer@>@ all) {
+	string r = caso + ":";
+	for (uint i = 0; i < all.length(); i++) r += " " + all[i].name + "=" + all[i].s.frames;
+	println(r);
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999); array<peer@> all = {peer("va" + sfx), peer("vb" + sfx), peer("vc" + sfx)};
+	for (uint i = 0; i < all.length(); i++) {
+		peer@ p = all[i];
+		if (!p.c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!p.c.connected && t.elapsed < 5000) { p.c.update(); wait(5); }
+		p.c.send_register(p.name, "probe123"); wait_for(p.c, S_REGISTER_RESULT, 3000);
+		p.c.send_login(p.name, "probe123");
+		net_packet@ lr = wait_for(p.c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println(p.name + ": login falhou"); return; }
+		p.id = lr.get_uint64("peer_id"); p.c.my_peer_id = p.id;
+	}
+	// A e B querem voz; C nunca diz nada (cliente antigo)
+	all[0].c.send_voice_state(true);
+	all[1].c.send_voice_state(true);
+
+	lobby_overrides ov; ov.max_players = 3; ov.impostor_count = 1;
+	all[0].c.send_create_lobby("voz", "classic", ov);
+	net_packet@ st = wait_for(all[0].c, S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem lobby state"); return; }
+	string lobby_id = st.get_string("lobby_id");
+	for (uint i = 1; i < all.length(); i++) { all[i].c.send_join_lobby(lobby_id); wait_for(all[i].c, S_JOIN_RESULT, 5000); }
+	pump(all, 300);
+
+	// 1) sala de espera: A fala, B ouve, C não
+	reset(all); talk(all[0], all, 10); pump(all, 300);
+	report("espera (esperado va=0 vb=10 vc=0)", all);
+
+	// 2) partida
+	all[0].c.send_start_game();
+	net_packet@ start = null;
+	timer t;
+	while (t.elapsed < 8000 && @start == null) {
+		for (uint i = 0; i < all.length(); i++) { all[i].c.update(); net_packet@ p = all[i].c.poll_message(); while (@p != null) { if (p.type == S_GAME_START && i == 0) @start = p; @p = all[i].c.poll_message(); } }
+		wait(5);
+	}
+	if (@start == null) { println("partida nao comecou"); return; }
+	float x0 = start.get_float("your_x"), y0 = start.get_float("your_y");
+	println("partida: todos nascem em " + x0 + "," + y0);
+	pump(all, 500);
+	reset(all); talk(all[0], all, 10); pump(all, 300);
+	report("juntos (esperado vb=10 vc=0)", all);
+
+	// B se afasta mais que VOICE_RANGE, tentando os quatro sentidos (o servidor valida o movimento
+	// contra o mapa; A ouve S_PLAYER_MOVED e diz onde B chegou de verdade).
+	array<float> dxs = {0.08, -0.08, 0, 0}, dys = {0, 0, 0.08, -0.08};
+	for (uint d = 0; d < 4; d++) {
+		float bx = x0, by = y0, lastx = x0, lasty = y0;
+		for (int step = 0; step < 150; step++) {
+			bx += dxs[d]; by += dys[d]; all[1].c.send_move(bx, by);
+			timer tt; while (tt.elapsed < 30) { for (uint i = 0; i < all.length(); i++) { all[i].c.update(); net_packet@ p = all[i].c.poll_message(); while (@p != null) { if (i == 0 && p.type == S_PLAYER_MOVED && p.get_uint64("peer_id") == all[1].id) { lastx = p.get_float("x"); lasty = p.get_float("y"); } @p = all[i].c.poll_message(); } } wait(5); }
+		}
+		float dist = sqrt((lastx - x0) * (lastx - x0) + (lasty - y0) * (lasty - y0));
+		reset(all); talk(all[0], all, 10); pump(all, 300);
+		report("B a " + dist + " (esperado vb=" + (dist > VOICE_RANGE ? "0" : "10") + ")", all);
+		// volta
+		for (int step = 0; step < 150; step++) { bx -= dxs[d]; by -= dys[d]; all[1].c.send_move(bx, by); pump(all, 15); }
+	}
+	println("fim");
+	for (uint i = 0; i < all.length(); i++) all[i].c.disconnect();
+}

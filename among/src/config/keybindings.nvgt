@@ -36,6 +36,9 @@ const int ACTION_CHAT_SWITCH = 18;
 // "alvo anterior" NÃO são ações: são Ctrl e Shift segurados junto com a tecla do radar, seja ela
 // qual for - modificadores acompanham a tecla remapeada sozinhos.
 const int ACTION_RADAR_LOCK = 19;
+// Falar no chat de voz (só no modo "segurando a tecla"; no automático o microfone abre sozinho).
+// Segurada, não apertada: soltar é o que fecha o microfone.
+const int ACTION_TALK = 20;
 
 class key_binding {
 	string id;        // usado no arquivo de configuração - não mude depois de publicado
@@ -75,6 +78,7 @@ class keybinding_table {
 		bindings.insert_last(key_binding("chat_next", "keys.chat_next", KEY_PERIOD));
 		bindings.insert_last(key_binding("chat_switch", "keys.chat_switch", KEY_PAGEUP));
 		bindings.insert_last(key_binding("radar_lock", "keys.radar_lock", KEY_Q));
+		bindings.insert_last(key_binding("talk", "keys.talk", KEY_X));
 	}
 
 	int key(int action) const {

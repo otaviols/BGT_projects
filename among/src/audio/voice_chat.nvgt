@@ -1,0 +1,300 @@
+// voice_chat.nvgt
+// Chat de voz por proximidade: captura o microfone, comprime, manda ao servidor; recebe as vozes dos
+// outros e toca cada uma no ponto onde a pessoa está. Quem decide QUEM ouve é o servidor (ver
+// game_state.can_hear_voice); aqui só se toca o que chegou, posicionado.
+//
+// O codec é mu-law (G.711, o do telefone) a 16 kHz, feito em script: 128 kbps por pessoa falando.
+// Não é Opus porque o decodificador do NVGT só abre fluxo COMPLETO - a sonda provou que um fluxo
+// Opus que cresce ao vivo responde "Invalid file" sempre (ver CLAUDE.md). O mu-law não depende de
+// nada, tem latência de um quadro e qualidade de telefone, que para voz de jogo basta. Trocar por
+// Opus um dia é trocar encode()/decode() e mais nada: rede, regra e interface não mudam.
+//
+// Roda de dentro de game_client.update() (interface voice_receiver, em network/client.nvgt), e não
+// do laço principal: é a única coisa que toda tela bombeia, então a voz continua nas tasks, na caixa
+// de mensagem e nos formulários.
+
+#include "../network/client.nvgt"
+#include "../config/game_settings.nvgt"
+#include "../config/keybindings.nvgt"
+#include "../core/client_state.nvgt"
+#include "sound_catalog.nvgt"
+
+const uint VOICE_SAMPLE_RATE = 16000;
+// Um quadro de envio: 20 ms a 48 kHz (a taxa do motor). Menor que isto é cabeçalho demais por
+// pacote; maior é latência que se percebe na conversa.
+const uint VOICE_CAPTURE_FRAMES = 960;
+// Depois que a voz cai abaixo da sensibilidade, o microfone ainda fica aberto este tanto: sem
+// isso cada pausa entre palavras cortava o fim da frase.
+const int VOICE_AUTO_HANGOVER_MS = 400;
+// Voz que ficou este tempo sem quadro novo é descartada, para o objeto de som não viver para sempre.
+const int VOICE_STREAM_IDLE_MS = 2000;
+
+// --- mu-law (G.711) ---------------------------------------------------------------------------
+uint8 ulaw_from_sample(float f) {
+	const int BIAS = 0x84, CLIP = 32635;
+	int s = int(f * 32767.0);
+	int sign = s < 0 ? 0x80 : 0;
+	if (s < 0) s = -s;
+	if (s > CLIP) s = CLIP;
+	s += BIAS;
+	int exponent = 7;
+	int mask = 0x4000;
+	while (exponent > 0 && (s & mask) == 0) { exponent--; mask >>= 1; }
+	int mantissa = (s >> (exponent + 3)) & 0x0F;
+	return uint8(~(sign | (exponent << 4) | mantissa) & 0xFF);
+}
+float sample_from_ulaw(uint8 u) {
+	int v = ~int(u) & 0xFF;
+	int sign = v & 0x80, exponent = (v >> 4) & 0x07, mantissa = v & 0x0F;
+	int s = ((mantissa << 3) + 0x84) << exponent;
+	s -= 0x84;
+	return float(sign != 0 ? -s : s) / 32767.0;
+}
+// 48 kHz mono -> 16 kHz mu-law (média de cada três amostras: filtro simples, suficiente para voz).
+string voice_encode(array<float>@ mono48) {
+	string saida;
+	for (uint i = 0; i + 2 < mono48.length(); i += 3) {
+		saida += ascii_to_character(ulaw_from_sample((mono48[i] + mono48[i + 1] + mono48[i + 2]) / 3.0));
+	}
+	return saida;
+}
+array<float>@ voice_decode(const string&in bytes) {
+	array<float> pcm(bytes.length());
+	for (uint i = 0; i < bytes.length(); i++) pcm[i] = sample_from_ulaw(character_to_ascii(bytes.substr(i, 1)));
+	return pcm;
+}
+
+// O microfone pode entregar estéreo, e som estéreo NÃO espacializa (sai centralizado, sem erro).
+array<float>@ voice_to_mono(array<float>@ frames, uint channels) {
+	if (channels <= 1) return frames;
+	array<float> mono;
+	mono.reserve(frames.length() / channels);
+	for (uint i = 0; i + channels - 1 < frames.length(); i += channels) {
+		float soma = 0;
+		for (uint c = 0; c < channels; c++) soma += frames[i + c];
+		mono.insert_last(soma / float(channels));
+	}
+	return mono;
+}
+
+// Nível de um quadro em dB (0 = fundo de escala). É o que a sensibilidade compara.
+float voice_level_db(array<float>@ mono) {
+	if (mono.length() == 0) return -100.0;
+	float soma = 0;
+	for (uint i = 0; i < mono.length(); i++) soma += mono[i] * mono[i];
+	float rms = sqrt(soma / float(mono.length()));
+	if (rms <= 0.00001) return -100.0;
+	return 20.0 * log10(rms);
+}
+// Sensibilidade (0 a 100) -> limiar em dB. 100 abre com um sopro (-60 dB), 0 só com grito (-10 dB).
+float voice_threshold_db(int sensitivity) {
+	return -10.0 - float(sensitivity) * 0.5;
+}
+
+// A voz de UMA pessoa: um som contínuo alimentado quadro a quadro.
+class voice_stream {
+	uint64 peer_id;
+	sound snd;
+	timer last_frame;
+	bool started = false;
+}
+
+class voice_chat : voice_receiver {
+	game_client@ client;
+	microphone@ mic = null;
+	uint mic_channels = 1;
+	int mic_device = -2; // com qual índice o microfone foi aberto (-2 = nenhum aberto)
+	// A sala permite voz e há partida/sala para falar. Sem isto nada é capturado: microfone aberto
+	// à toa é banda e privacidade jogadas fora.
+	bool allowed = false;
+	bool transmitting = false;
+	timer hangover;
+	array<float> pending; // captura acumulada até dar um quadro de envio
+	// Para posicionar as vozes: o elenco (com a posição de todos, inclusive a minha) e quem sou eu.
+	// Sem elenco (sala de espera, reunião) as vozes tocam sem posição.
+	client_roster@ roster = null;
+	uint64 my_peer_id = 0;
+	bool spatial = false;
+	array<voice_stream@> streams;
+	// Auto-escuta (tela de configurações): o que passa pelo microfone volta para o alto-falante.
+	bool monitoring = false;
+	sound monitor_snd;
+
+	void attach(game_client@ c) {
+		@client = c;
+		@c.voice = this;
+	}
+
+	// Entrando numa partida: as vozes passam a ser posicionadas pelo elenco.
+	void begin_match(client_roster@ r, uint64 me, bool room_allows) {
+		@roster = r;
+		my_peer_id = me;
+		spatial = true;
+		allowed = room_allows;
+		stop_all();
+	}
+	// Sala de espera (ou fim da partida): todo mundo se ouve, sem posição.
+	void begin_lobby(bool room_allows) {
+		@roster = null;
+		spatial = false;
+		allowed = room_allows;
+		stop_all();
+	}
+	// Saiu de tudo: nada é capturado nem tocado.
+	void leave() {
+		@roster = null;
+		spatial = false;
+		allowed = false;
+		stop_all();
+		close_mic();
+	}
+
+	// Avisa o servidor se quero receber voz. Chamado ao entrar numa sala e quando a configuração muda.
+	void announce(bool connected_client) {
+		if (@client == null || !connected_client) return;
+		client.send_voice_state(g_settings.voice_chat_enabled);
+	}
+
+	void stop_all() {
+		for (uint i = 0; i < streams.length(); i++) streams[i].snd.stop();
+		streams.resize(0);
+		if (transmitting) set_transmitting(false, false);
+		pending.resize(0);
+	}
+
+	// --- Captura -------------------------------------------------------------------------------
+
+	private bool open_mic() {
+		int device = g_settings.input_device_index();
+		if (@mic != null && mic_device == device) return true;
+		close_mic();
+		try {
+			@mic = microphone(device);
+			mic_channels = mic.get_output_channels(0);
+			if (mic_channels == 0) mic_channels = 1;
+			mic_device = device;
+			return true;
+		} catch {
+			@mic = null;
+			return false;
+		}
+	}
+	private void close_mic() {
+		@mic = null;
+		mic_device = -2;
+		mic_channels = 1;
+	}
+
+	private void set_transmitting(bool on, bool with_sound) {
+		if (transmitting == on) return;
+		transmitting = on;
+		// Só no modo tecla: no automático o microfone abre e fecha a cada frase, e um clique por
+		// frase seria um metrônomo por cima da conversa.
+		if (with_sound && g_settings.voice_mode == VOICE_MODE_KEY) ui_sound(SND_MENU_CLICK);
+	}
+
+	// Chamado por game_client.update(). Lê o microfone, decide se a voz deve sair, e manda.
+	void tick() {
+		bool capture = (allowed && g_settings.voice_chat_enabled && @client != null && client.connected) || monitoring;
+		if (!capture) {
+			if (transmitting) set_transmitting(false, false);
+			if (@mic != null) close_mic();
+			expire_streams();
+			return;
+		}
+		if (!open_mic()) { expire_streams(); return; }
+
+		array<float>@ frames = mic.read(VOICE_CAPTURE_FRAMES);
+		if (@frames != null && frames.length() > 0) {
+			array<float>@ mono = voice_to_mono(frames, mic_channels);
+			for (uint i = 0; i < mono.length(); i++) pending.insert_last(mono[i]);
+		}
+		if (pending.length() >= VOICE_CAPTURE_FRAMES) {
+			array<float> frame = pending; // cópia: um handle para o mesmo array seria esvaziado junto
+			pending.resize(0);
+			bool open;
+			if (g_settings.voice_mode == VOICE_MODE_AUTO) {
+				if (voice_level_db(frame) >= voice_threshold_db(g_settings.voice_sensitivity)) hangover.restart();
+				open = hangover.elapsed <= VOICE_AUTO_HANGOVER_MS;
+			} else {
+				open = action_down(ACTION_TALK);
+			}
+			set_transmitting(open, true);
+			if (open) {
+				string bytes = voice_encode(frame);
+				if (monitoring) play_monitor(bytes);
+				else client.send_voice(bytes);
+			}
+		}
+		expire_streams();
+	}
+
+	// --- Recepção ------------------------------------------------------------------------------
+
+	private voice_stream@ stream_for(uint64 peer) {
+		for (uint i = 0; i < streams.length(); i++) if (streams[i].peer_id == peer) return streams[i];
+		voice_stream@ s = voice_stream();
+		s.peer_id = peer;
+		streams.insert_last(s);
+		return s;
+	}
+
+	private void expire_streams() {
+		for (uint i = 0; i < streams.length(); i++) {
+			if (streams[i].last_frame.elapsed <= VOICE_STREAM_IDLE_MS) continue;
+			streams[i].snd.stop();
+			streams.remove_at(i);
+			i--;
+		}
+	}
+
+	void on_voice_frame(const string&in wire) {
+		if (!g_settings.voice_chat_enabled) return;
+		uint64 talker;
+		string audio;
+		if (!voice_unwire(wire, talker, audio)) return;
+		voice_stream@ s = stream_for(talker);
+		s.last_frame.restart();
+		s.snd.stream_pcm(voice_decode(audio), VOICE_SAMPLE_RATE, 1);
+		s.started = true;
+		place(s);
+	}
+
+	// Posição e volume de uma voz. Reaplicado a CADA quadro, e depois do stream_pcm: o que se
+	// configura antes do primeiro stream_pcm se perde (o som sai centralizado, sem erro) - foi a
+	// lição da sonda. E as pessoas andam enquanto falam.
+	private void place(voice_stream@ s) {
+		s.snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES);
+		roster_entry@ me = @roster != null ? roster.find(my_peer_id) : null;
+		roster_entry@ who = @roster != null ? roster.find(s.peer_id) : null;
+		if (!spatial || @me == null || @who == null) {
+			s.snd.spatialization_enabled = false;
+			return;
+		}
+		// Mesma convenção do sound_pool (ver spatial_audio.nvgt): ouvinte na origem, e o y do mundo
+		// cresce para o sul, então inverte.
+		s.snd.positioning = AUDIO_POSITIONING_ABSOLUTE;
+		s.snd.spatialization_enabled = true;
+		s.snd.rolloff = 1.0;
+		s.snd.directional_attenuation_factor = 1.0;
+		s.snd.set_position_3d(who.x - me.x, -(who.y - me.y), 0);
+	}
+
+	// --- Auto-escuta (configurações) ---------------------------------------------------------------
+	// O que sairia para os outros volta para o próprio alto-falante, sem posição: é como se ouve o
+	// próprio microfone, a sensibilidade escolhida e o dispositivo certo antes de entrar numa partida.
+	void start_monitor() { monitoring = true; hangover.restart(); }
+	void stop_monitor() {
+		monitoring = false;
+		monitor_snd.stop();
+		if (!allowed) close_mic();
+		if (transmitting) set_transmitting(false, false);
+	}
+	private void play_monitor(const string&in bytes) {
+		monitor_snd.stream_pcm(voice_decode(bytes), VOICE_SAMPLE_RATE, 1);
+		monitor_snd.spatialization_enabled = false;
+		monitor_snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES);
+	}
+}
+
+voice_chat g_voice;

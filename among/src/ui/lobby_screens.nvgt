@@ -7,6 +7,7 @@
 #include "../network/client.nvgt"
 #include "../core/client_state.nvgt"
 #include "../core/chat_log.nvgt"
+#include "../audio/voice_chat.nvgt"
 #include "../i18n.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../audio/audio_manager.nvgt"
@@ -271,6 +272,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.add_list_item(f_votes, tr("lobby.votes.on"), "on");
 	f.add_list_item(f_votes, tr("lobby.votes.off"), "off");
 	if (@current != null && current.exists("show_votes")) f.set_list_position(f_votes, bool(current["show_votes"]) ? 1 : 2);
+	int f_voice = f.create_list(tr("lobby.voice_chat_override"));
+	f.add_list_item(f_voice, tr("lobby.override.preset_default"), "");
+	f.add_list_item(f_voice, tr("lobby.override.enabled"), "on");
+	f.add_list_item(f_voice, tr("lobby.override.disabled"), "off");
+	if (@current != null && current.exists("voice_chat")) f.set_list_position(f_voice, bool(current["voice_chat"]) ? 1 : 2);
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 	// Um audio_form nasce sem foco: sem isto o primeiro campo não recebia o que era digitado até o
@@ -306,6 +312,8 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.reveal_ejected = rev_index >= 0 ? f.get_list_item_id(f_reveal, rev_index) : "";
 			int votes_index = f.get_list_position(f_votes);
 			r.ov.show_votes = votes_index >= 0 ? f.get_list_item_id(f_votes, votes_index) : "";
+			int voice_index = f.get_list_position(f_voice);
+			r.ov.voice_chat = voice_index >= 0 ? f.get_list_item_id(f_voice, voice_index) : "";
 			return r;
 		}
 	}
@@ -431,6 +439,11 @@ void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inou
 // antes disso.
 // Não existe mais "marcar pronto": ninguém usava pra nada (o servidor nunca exigiu que todos
 // estivessem prontos pra começar), era só um passo a mais antes de jogar.
+// Servidor antigo não manda o campo, e nele não há relay de voz de qualquer jeito.
+bool lobby_allows_voice(json_object@ config) {
+	return @config != null && config.exists("voice_chat") && bool(config["voice_chat"]);
+}
+
 net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		net_packet@ initial_lobby_state = null) {
 	audio_manager@ audio = audio_manager();
@@ -447,6 +460,9 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 	if (@initial_lobby_state != null) {
 		apply_host_change(client, host_peer_id, is_host, initial_lobby_state.get_uint64("host_peer_id"), "");
 	}
+	// Na sala de espera todo mundo se ouve, sem posição (ver game_state.can_hear_voice). A regra da
+	// sala pode mudar enquanto se espera (tecla O do anfitrião), por isso é reaplicada a cada retrato.
+	g_voice.begin_lobby(lobby_allows_voice(snapshot.config));
 
 	// A dica das teclas vem junto do aviso de entrada: numa sala de espera ninguém vai descobrir
 	// sozinho que P e C fazem alguma coisa, e é justamente ali que essas duas respostas importam.
@@ -476,6 +492,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 				apply_host_change(client, host_peer_id, is_host, pkt.get_uint64("host_peer_id"), "");
 			} else if (pkt.type == S_LOBBY_STATE) {
 				snapshot.apply(pkt);
+				g_voice.allowed = lobby_allows_voice(snapshot.config);
 				uint64 new_host_id = pkt.get_uint64("host_peer_id");
 				apply_host_change(client, host_peer_id, is_host, new_host_id, snapshot.name_of(new_host_id));
 			} else if (pkt.type == S_CHAT_MESSAGE) {

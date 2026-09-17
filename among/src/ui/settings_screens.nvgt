@@ -7,6 +7,7 @@
 #include "speech.nvgt"
 #include "../config/game_settings.nvgt"
 #include "../audio/sound_catalog.nvgt"
+#include "../audio/voice_chat.nvgt"
 #include "../i18n.nvgt"
 
 // Som de amostra de cada família, na ordem de SOUND_FAMILY_*. Tocar o som DA FAMÍLIA ao mexer no
@@ -20,7 +21,8 @@ const array<string> FAMILY_PREVIEW_SOUNDS = {
 	"sounds/" + SND_BEEP,   // tasks
 	SND_BODY_REPORTED,      // eventos
 	SND_MENU_CLICK,         // interface
-	SND_INTRO               // música
+	SND_INTRO,              // música
+	SND_MESSAGE_RECEIVED    // vozes (não há voz gravada para servir de amostra; o aviso de chat é o parente mais próximo)
 };
 
 void run_settings_menu() {
@@ -33,6 +35,8 @@ void run_settings_menu() {
 		m.add_item(tr("settings.volumes"), "volumes");
 		m.add_item(tr("settings.keys"), "keys");
 		m.add_item(tr("settings.voice"), "voice");
+		m.add_item(tr("settings.voice_chat"), "voice_chat");
+		m.add_item(tr("settings.output_device"), "output");
 		m.add_item(tr("settings.language"), "language");
 		m.add_item(tr("menu.back"), "back");
 		m.run();
@@ -41,6 +45,8 @@ void run_settings_menu() {
 		if (id == "volumes") run_volume_screen();
 		else if (id == "keys") run_keys_screen();
 		else if (id == "voice") run_voice_screen();
+		else if (id == "voice_chat") run_voice_chat_screen();
+		else if (id == "output") run_output_device_screen();
 		else if (id == "language") run_language_screen();
 		else return; // "back", ESC ou fechou sem escolher
 	}
@@ -251,4 +257,102 @@ void run_language_screen() {
 void run_voice_screen() {
 	tts_config(tts, true);
 	g_settings.save();
+}
+
+// --- Chat de voz ---
+// Participar ou não, como o microfone abre (segurando a tecla de falar, ou sozinho quando a voz
+// passa da sensibilidade), a sensibilidade, o microfone, e um teste: enquanto o botão de teste está
+// ligado, o que passaria para os outros volta para o próprio fone - sem posição - que é o único jeito
+// de saber, de ouvido, se o microfone certo está escolhido e se a sensibilidade corta ou deixa passar.
+// A tecla de falar se troca em Teclas, como as outras.
+void run_voice_chat_screen() {
+	audio_form f;
+	f.create_window(tr("settings.voice_chat"), false);
+	int f_enabled = f.create_checkbox(tr("settings.voice_chat_enabled"), g_settings.voice_chat_enabled);
+	int f_mode = f.create_list(tr("settings.voice_mode"));
+	f.add_list_item(f_mode, tr("settings.voice_mode_key"), VOICE_MODE_KEY);
+	f.add_list_item(f_mode, tr("settings.voice_mode_auto"), VOICE_MODE_AUTO);
+	f.set_list_position(f_mode, g_settings.voice_mode == VOICE_MODE_AUTO ? 1 : 0);
+	int f_sens = f.create_slider(tr("settings.voice_sensitivity"), g_settings.voice_sensitivity, 0, 100);
+	int f_input = f.create_list(tr("settings.input_device"));
+	// A primeira entrada é "padrão do sistema" (""); as seguintes são os aparelhos, guardados pelo nome.
+	const array<string>@ inputs = get_sound_input_devices();
+	f.add_list_item(f_input, tr("settings.device_default"), "");
+	int input_pos = 0;
+	for (uint i = 0; i < inputs.length(); i++) {
+		f.add_list_item(f_input, inputs[i], inputs[i]);
+		if (inputs[i] == g_settings.voice_input_device) input_pos = int(i) + 1;
+	}
+	f.set_list_position(f_input, input_pos);
+	int f_test = f.create_checkbox(tr("settings.voice_test"), false);
+	int f_save = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_enabled);
+	speak(tr("settings.voice_chat_hint"), false);
+
+	bool orig_enabled = g_settings.voice_chat_enabled;
+	string orig_mode = g_settings.voice_mode;
+	int orig_sens = g_settings.voice_sensitivity;
+	string orig_input = g_settings.voice_input_device;
+
+	while (true) {
+		wait(5);
+		f.monitor();
+		// Os valores valem na hora, porque o teste de microfone usa exatamente o que está na tela.
+		g_settings.voice_chat_enabled = f.is_checked(f_enabled);
+		int mode_pos = f.get_list_position(f_mode);
+		g_settings.voice_mode = mode_pos == 1 ? VOICE_MODE_AUTO : VOICE_MODE_KEY;
+		g_settings.voice_sensitivity = int(f.get_slider(f_sens));
+		int in_pos = f.get_list_position(f_input);
+		g_settings.voice_input_device = in_pos > 0 ? f.get_list_item_id(f_input, in_pos) : "";
+		bool testing = f.is_checked(f_test);
+		if (testing != g_voice.monitoring) {
+			if (testing) g_voice.start_monitor(); else g_voice.stop_monitor();
+		}
+		g_voice.tick(); // fora de partida ninguém bombeia o cliente; o teste precisa disto
+
+		if (f.is_pressed(f_cancel)) {
+			g_voice.stop_monitor();
+			g_settings.voice_chat_enabled = orig_enabled;
+			g_settings.voice_mode = orig_mode;
+			g_settings.voice_sensitivity = orig_sens;
+			g_settings.voice_input_device = orig_input;
+			speak(tr("settings.cancelled"));
+			return;
+		}
+		if (f.is_pressed(f_save)) {
+			g_voice.stop_monitor();
+			g_settings.save();
+			// O servidor precisa saber se passei a querer (ou a não querer) receber voz.
+			if (@g_voice.client != null) g_voice.announce(g_voice.client.connected);
+			speak(tr("settings.saved"));
+			return;
+		}
+	}
+}
+
+// --- Dispositivo de saída ---
+// Por onde TODO o som do jogo sai. Vale na hora de escolher: a confirmação falada já sai pelo
+// aparelho novo, e é assim que se descobre se era esse mesmo.
+void run_output_device_screen() {
+	const array<string>@ outputs = get_sound_output_devices();
+	menu m;
+	m.intro_text = tr("settings.output_device_hint");
+	m.click_sound = "ui/menuclick.ogg";
+	m.select_sound = "ui/menuconfirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.add_item(tr("settings.device_default") + (g_settings.audio_output_device == "" ? " " + tr("settings.device_current") : ""), "default");
+	for (uint i = 0; i < outputs.length(); i++) {
+		string label = outputs[i];
+		if (outputs[i] == g_settings.audio_output_device) label += " " + tr("settings.device_current");
+		m.add_item(label, outputs[i]);
+	}
+	m.add_item(tr("menu.back"), "back");
+	m.run();
+	string chosen = m.selected_item_id;
+	if (chosen == "" || chosen == "back") return;
+	g_settings.audio_output_device = chosen == "default" ? "" : chosen;
+	g_settings.apply_output_device(); // com "" volta ao que o sistema tinha escolhido ao abrir o jogo
+	g_settings.save();
+	speak(tr("settings.output_device_changed"));
 }

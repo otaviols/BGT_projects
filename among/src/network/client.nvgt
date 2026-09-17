@@ -11,8 +11,22 @@
 // declarada. Bastava alguém incluir só o cliente para quebrar.
 #include "../config/lobby_config.nvgt"
 
+// Quem consome os quadros de voz. É uma interface, e não o audio/voice_chat.nvgt direto, para o
+// cliente de rede não depender de microfone e alto-falante (o servidor e as ferramentas de tools/
+// incluem este arquivo também).
+//
+// A voz NÃO entra na fila `incoming` de propósito. A fila só é lida pelo laço principal, e o jogo
+// passa boa parte do tempo fora dele - numa task, na caixa de mensagem, num formulário - bombeando
+// só update(). Se a voz ficasse na fila, quem abrisse uma task ficaria surdo até fechá-la e depois
+// ouviria tudo de uma vez. Entregando aqui, dentro de update(), ela flui em qualquer tela.
+interface voice_receiver {
+	void on_voice_frame(const string&in wire);
+	void tick();
+}
+
 class game_client {
 	network@ net;
+	voice_receiver@ voice = null;
 	// Dois ids DIFERENTES, e confundir os dois já causou bug feio (ver abaixo):
 	// - local_peer_id: o id que o ENet daqui devolveu pra ESTA conexão. Só serve pra mandar pacote
 	//   (net.send_*), é um handle local.
@@ -49,10 +63,30 @@ class game_client {
 			} else if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) {
 				connected = false;
 			} else if (ev.type == event_receive) {
+				if (ev.channel == CHANNEL_VOICE) {
+					if (@voice != null) voice.on_voice_frame(ev.message);
+					continue;
+				}
 				net_packet@ pkt = packet_from_wire(ev.message);
 				if (@pkt != null) incoming.insert_last(pkt);
 			}
 		}
+		// Captura do microfone e limpeza das vozes que calaram: roda junto com a rede, pelo mesmo
+		// motivo de a recepção não ir para a fila - update() é a única coisa que TODA tela bombeia.
+		if (@voice != null) voice.tick();
+	}
+
+	// Um quadro de voz, binário, sem JSON (ver CHANNEL_VOICE em protocol.nvgt). Não confiável: um
+	// quadro perdido é um estalo de 20 ms; reenviá-lo chegaria tarde demais para servir.
+	void send_voice(const string&in audio) {
+		if (@net == null || !connected) return;
+		net.send_unreliable(local_peer_id, audio, CHANNEL_VOICE);
+	}
+
+	void send_voice_state(bool enabled) {
+		net_packet@ p = net_packet(C_VOICE_STATE);
+		p.set_bool("enabled", enabled);
+		send(p);
 	}
 
 	// Joga fora tudo que ainda estava na fila. Chamado ao sair de uma partida: o que sobrou lá é

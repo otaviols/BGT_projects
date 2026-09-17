@@ -1,0 +1,21 @@
+// Confere a semântica dos índices de dispositivo: microphone(int) segue a lista de
+// get_sound_input_devices() (0 = sem som)? E sound_output_device a de saída?
+void main() {
+	const array<string>@ ins = get_sound_input_devices();
+	const array<string>@ outs = get_sound_output_devices();
+	println("entrada (" + ins.length() + "):");
+	for (uint i = 0; i < ins.length(); i++) println("  " + i + ": " + ins[i]);
+	println("saida (" + outs.length() + "):");
+	for (uint i = 0; i < outs.length(); i++) println("  " + i + ": " + outs[i]);
+	println("sound_output_device atual = " + sound_output_device);
+	for (int d = -1; d < int(ins.length()); d++) {
+		try {
+			microphone m(d);
+			wait(300);
+			array<float>@ f = m.read(4800);
+			float peak = 0;
+			for (uint i = 0; i < f.length(); i++) if (abs(f[i]) > peak) peak = abs(f[i]);
+			println("mic(" + d + "): canais=" + m.get_output_channels(0) + " quadros=" + f.length() + " pico=" + peak);
+		} catch { println("mic(" + d + "): EXCECAO " + get_exception_info()); }
+	}
+}

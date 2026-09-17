@@ -15,6 +15,7 @@
 #include "../core/sabotage_rules.nvgt"
 #include "../ui/camera_screen.nvgt"
 #include "../core/chat_log.nvgt"
+#include "../audio/voice_chat.nvgt"
 #include "../core/player.nvgt"
 #include "../game/roles/crewmate.nvgt"
 #include "../game/roles/impostor.nvgt"
@@ -347,6 +348,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	float my_x = start_pkt.get_float("your_x");
 	float my_y = start_pkt.get_float("your_y");
 	roster.load_from_start_packet(start_pkt);
+	// As vozes passam a tocar no ponto de cada pessoa (o elenco guarda a posição de todos, inclusive
+	// a minha - ver roster.update_position no movimento). Servidor antigo não manda voice_chat.
+	g_voice.begin_match(roster, client.my_peer_id, start_pkt.get_bool("voice_chat", false));
 
 	// Cooldown de kill acompanhado localmente (só é preciso de verdade pro impostor) - o servidor
 	// continua sendo quem decide de fato se o kill vale (ver network/server.on_kill), isso aqui é só

@@ -37,6 +37,7 @@ class lobby_overrides {
 	string sabotages = ""; // "" = preset, "on" = ligadas, "off" = desligadas
 	string reveal_ejected = ""; // "" = preset, "on" = diz se o expulso era impostor, "off" = não diz
 	string show_votes = ""; // "" = preset, "on" = diz em quem cada um votou, na hora; "off" = só diz que votou
+	string voice_chat = ""; // "" = preset, "on" = chat de voz por proximidade, "off" = só texto
 
 	// Aplica o que foi preenchido sobre uma configuração vinda do preset. O que ficou de fora não é
 	// tocado. A validação continua sendo feita depois, por lobby_config.validate(): estes valores
@@ -56,6 +57,8 @@ class lobby_overrides {
 		else if (reveal_ejected == "off") cfg.reveal_ejected_role = false;
 		if (show_votes == "on") cfg.show_votes = true;
 		else if (show_votes == "off") cfg.show_votes = false;
+		if (voice_chat == "on") cfg.voice_chat = true;
+		else if (voice_chat == "off") cfg.voice_chat = false;
 	}
 
 	void write_to_packet(net_packet@ pkt) const {
@@ -70,6 +73,7 @@ class lobby_overrides {
 		pkt.set_string("sabotages", sabotages);
 		pkt.set_string("reveal_ejected", reveal_ejected);
 		pkt.set_string("show_votes", show_votes);
+		pkt.set_string("voice_chat", voice_chat);
 	}
 
 	void read_from_packet(net_packet@ pkt) {
@@ -84,6 +88,7 @@ class lobby_overrides {
 		sabotages = pkt.get_string("sabotages", "");
 		reveal_ejected = pkt.get_string("reveal_ejected", "");
 		show_votes = pkt.get_string("show_votes", "");
+		voice_chat = pkt.get_string("voice_chat", "");
 	}
 }
 
@@ -104,6 +109,10 @@ class lobby_config {
 	// beltrano" muda a discussão enquanto ela acontece. Desligado, só se sabe que votou - e o
 	// resultado sai sem a lista de quem votou em quem.
 	bool show_votes = true;
+	// Chat de voz por proximidade. Regra da SALA, e não só preferência de cada um, porque muda o
+	// jogo para todos: com voz, a reunião vira conversa e o corredor vira lugar de cochicho. Quem
+	// prefere jogar só por texto cria a sala assim, e ninguém entra esperando outra coisa.
+	bool voice_chat = true;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
 
@@ -149,6 +158,7 @@ class lobby_config {
 		o.set("sabotages_enabled", sabotages_enabled);
 		o.set("reveal_ejected_role", reveal_ejected_role);
 		o.set("show_votes", show_votes);
+		o.set("voice_chat", voice_chat);
 		return o;
 	}
 }

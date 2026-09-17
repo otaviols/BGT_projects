@@ -201,9 +201,35 @@ class game_server {
 		} else if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) {
 			on_disconnect(ev.peer_id);
 		} else if (ev.type == event_receive) {
+			if (ev.channel == CHANNEL_VOICE) { on_voice_frame(ev.peer_id, ev.message); return; }
 			net_packet@ pkt = packet_from_wire(ev.message);
 			if (@pkt != null) route_packet(ev.peer_id, pkt);
 		}
+	}
+
+	// Um quadro de voz de `peer_id`. O servidor não decodifica nada - só decide QUEM recebe (a regra
+	// está em game_state.can_hear_voice) e repassa os bytes como vieram. É o pacote mais frequente
+	// do jogo (50 por segundo por pessoa falando), então nada aqui aloca além do envelope.
+	void on_voice_frame(uint64 peer_id, const string&in audio) {
+		if (audio.length() == 0 || audio.length() > VOICE_MAX_FRAME_BYTES) return;
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || !lobby.config.voice_chat) return;
+		game_player@ talker = lobby.find_player(peer_id);
+		// Dentro do duto ninguém é ouvido: a voz posicionada entregaria onde o duto está.
+		if (@talker == null || talker.vented) return;
+		string wire = voice_wire(peer_id, audio);
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (!reaches_client(p) || p.peer_id == peer_id || !p.voice_enabled) continue;
+			if (!lobby.can_hear_voice(talker, p)) continue;
+			net.send_unreliable(p.peer_id, wire, CHANNEL_VOICE);
+		}
+	}
+
+	void on_voice_state(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null) return;
+		conn.voice_enabled = pkt.get_bool("enabled");
 	}
 
 	void on_disconnect(uint64 peer_id) {
@@ -309,6 +335,7 @@ class game_server {
 		else if (t == C_INTERACT) on_interact(peer_id, pkt);
 		else if (t == C_PING) on_ping(peer_id, pkt);
 		else if (t == C_CHAT_MESSAGE) on_chat_message(peer_id, pkt);
+		else if (t == C_VOICE_STATE) on_voice_state(peer_id, pkt);
 		else if (t == C_SEND_FEEDBACK) on_send_feedback(peer_id, pkt);
 		else if (t == C_FEEDBACK_REPLIES_GET) on_feedback_replies_get(peer_id, pkt);
 		else if (t == C_FEEDBACK_REPLY_READ) on_feedback_reply_read(peer_id, pkt);
@@ -728,6 +755,9 @@ class game_server {
 			start.set_float("your_y", p.y);
 			start.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
 			start.set_float("sabotage_cooldown_seconds", lobby.sabotage_cooldown_remaining);
+			// Regra de voz da sala: sem ela o cliente capturaria e mandaria áudio que o servidor iria
+			// descartar - microfone aberto à toa.
+			start.set_bool("voice_chat", lobby.config.voice_chat);
 			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
 			// um ou três, senão a discussão da reunião é chute puro.
 			start.set_int("impostor_count", impostor_count);

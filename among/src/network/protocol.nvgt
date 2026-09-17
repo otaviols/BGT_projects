@@ -9,6 +9,39 @@
 
 const uint8 CHANNEL_RELIABLE = 0;
 const uint8 CHANNEL_UNRELIABLE = 1;
+// Voz. É o ÚNICO canal que não carrega JSON: um quadro de voz são 320 bytes de áudio a cada 20 ms,
+// e embrulhá-lo em JSON (base64 + chaves) custaria um terço a mais de banda para nada. O que viaja
+// aqui é binário puro - ver voice_wire()/voice_unwire() abaixo. Cliente antigo que receba isto tenta
+// ler como JSON, falha e descarta em silêncio (packet_from_wire devolve null), então o canal novo
+// não derruba ninguém.
+const uint8 CHANNEL_VOICE = 2;
+
+// Cliente -> servidor no canal de voz: só o áudio (mu-law, 16 kHz, mono). Quem fala é o peer da
+// conexão, então nada precisa ir no pacote. Servidor -> cliente: o peer de quem falou na frente,
+// porque quem ouve precisa posicionar cada voz no ponto de quem falou.
+// Formato: 1 byte com o tamanho do cabeçalho, o peer_id em decimal, e o áudio.
+string voice_wire(uint64 talker_peer, const string&in audio) {
+	string head = "" + talker_peer;
+	return ascii_to_character(head.length()) + head + audio;
+}
+// Devolve false se o pacote não tiver a forma esperada.
+bool voice_unwire(const string&in wire, uint64&out talker_peer, string&out audio) {
+	talker_peer = 0;
+	audio = "";
+	if (wire.length() < 2) return false;
+	uint head_len = uint(character_to_ascii(wire.substr(0, 1)));
+	if (head_len == 0 || wire.length() < 1 + head_len) return false;
+	talker_peer = parse_int(wire.substr(1, head_len));
+	audio = wire.substr(1 + head_len);
+	return talker_peer != 0 && audio.length() > 0;
+}
+// Maior quadro aceito: 200 ms de áudio. O cliente manda 20 ms por vez (ou o que acumulou enquanto
+// uma tela bloqueante prendeu o laço); mais que isto é lixo ou abuso.
+const uint VOICE_MAX_FRAME_BYTES = 3200;
+// A voz alcança menos que o passo: dá para ouvir alguém na mesma sala, não do outro lado da nave.
+// Quem está dentro do alcance é decidido pelo SERVIDOR (ver game_state.can_hear_voice), e o cliente
+// só atenua pela distância o que recebeu.
+const float VOICE_RANGE = 8.0;
 
 // Cliente -> Servidor
 const string C_LOGIN = "c_login";                 // {username, password}
@@ -47,6 +80,9 @@ const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("light
 const string C_CLOSE_DOORS = "c_close_doors";     // {room_id} - fecha os corredores daquela sala, só impostor
 const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
 const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
+// O jogador avisa se quer RECEBER voz. Sem isto o servidor mandaria 128 kbps de áudio para quem
+// desligou o chat de voz nas configurações (ou joga numa versão que nem o conhece).
+const string C_VOICE_STATE = "c_voice_state";     // {enabled}
 // Câmeras de segurança. Um jogador de cada vez, e é o servidor que arbitra: dois pedindo ao mesmo
 // tempo precisam de um árbitro só, e o cliente não tem como saber que outro já entrou.
 const string C_CAMERA_ENTER = "c_camera_enter";   // {} - pedir o posto de câmeras

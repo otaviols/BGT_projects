@@ -1,0 +1,185 @@
+// Sonda do chat de voz, degrau 1 (segunda rodada). Sem rede.
+//   1 = microfone -> alto-falante posicionado à direita, via sound.stream_pcm (mono forçado)
+//   2 = microfone -> mixer posicionado (o jeito do teste oficial do NVGT)
+//   3 = microfone -> Opus -> decodificação -> alto-falante (cada passo protegido e registrado)
+//   ESC sai. O log é gravado a cada linha, em voice_probe_log.txt.
+#include "speech.nvgt"
+
+string log_text;
+void log(const string&in s) { log_text += s + "\n"; file_put_contents("voice_probe_log.txt", log_text); }
+
+// O microfone pode entregar estéreo; espacializar exige mono. Média dos canais.
+array<float>@ to_mono(array<float>@ frames, uint channels) {
+	if (channels <= 1) return frames;
+	array<float> mono;
+	mono.reserve(frames.length() / channels);
+	for (uint i = 0; i + channels - 1 < frames.length(); i += channels) {
+		float soma = 0;
+		for (uint c = 0; c < channels; c++) soma += frames[i + c];
+		mono.insert_last(soma / float(channels));
+	}
+	return mono;
+}
+
+// mu-law (G.711), o codec do telefone: 8 bits por amostra, formula pura. A 16 kHz da 128 kbps por
+// pessoa falando - pesado perto do Opus, mas nao depende de nada que o NVGT possa nao decodificar.
+uint8 ulaw_from_sample(float f) {
+	const int BIAS = 0x84, CLIP = 32635;
+	int s = int(f * 32767.0);
+	int sign = s < 0 ? 0x80 : 0;
+	if (s < 0) s = -s;
+	if (s > CLIP) s = CLIP;
+	s += BIAS;
+	int exponent = 7;
+	int mask = 0x4000;
+	while (exponent > 0 && (s & mask) == 0) { exponent--; mask >>= 1; }
+	int mantissa = (s >> (exponent + 3)) & 0x0F;
+	return uint8(~(sign | (exponent << 4) | mantissa) & 0xFF);
+}
+float sample_from_ulaw(uint8 u) {
+	int v = ~int(u) & 0xFF;
+	int sign = v & 0x80, exponent = (v >> 4) & 0x07, mantissa = v & 0x0F;
+	int s = ((mantissa << 3) + 0x84) << exponent;
+	s -= 0x84;
+	return float(sign != 0 ? -s : s) / 32767.0;
+}
+string ulaw_encode_16k(array<float>@ mono48) {
+	string saida;
+	for (uint i = 0; i + 2 < mono48.length(); i += 3) {
+		saida += ascii_to_character(ulaw_from_sample((mono48[i] + mono48[i + 1] + mono48[i + 2]) / 3.0));
+	}
+	return saida;
+}
+array<float>@ ulaw_decode(const string&in bytes) {
+	array<float> pcm(bytes.length());
+	for (uint i = 0; i < bytes.length(); i++) pcm[i] = sample_from_ulaw(character_to_ascii(bytes.substr(i, 1)));
+	return pcm;
+}
+
+void main() {
+	show_window("Sonda de voz 2");
+	speak("Sonda de voz, rodada quatro. 1: direto. 2: mixer. 3: Opus. 4: mu-law, o plano B. ESC sai.", true);
+	sound_set_listener_position(0, 0, 0);
+
+	microphone mic;
+	uint ch = mic.get_output_channels(0);
+	log("microfone: canais = " + ch + ", engine rate = " + sound_default_engine.get_sample_rate());
+
+	sound saida;
+	saida.spatialization_enabled = true;
+	saida.hrtf = true;
+	saida.set_position_3d(4, 0, 0);
+	log("sound: spatialization=" + saida.spatialization_enabled + " hrtf=" + saida.hrtf + " pos=" + saida.get_position_3d().x);
+
+	mixer mix;
+	bool mix_attached = false;
+
+	int modo = 0;
+	audio_opus_encoder enc;
+	audio_decoder dec;
+	datastream@ pacotes = null;
+	bool opus_ok = false;
+	bool dec_aberto = false;
+	uint64 bytes_cod = 0, amostras_dec = 0, bytes_total = 0;
+	string acumulado = "";
+	// modo 4: mu-law a 16 kHz, so em script - o plano B se o Opus nao decodificar ao vivo
+	sound saida4;
+	saida4.spatialization_enabled = true; saida4.hrtf = true; saida4.set_position_3d(4, 0, 0);
+	uint64 bytes_ulaw = 0;
+	timer relogio;
+
+	while (!key_pressed(KEY_ESCAPE)) {
+		wait(5);
+		bool k1 = key_pressed(KEY_1), k2 = key_pressed(KEY_2), k3 = key_pressed(KEY_3), k4 = key_pressed(KEY_4);
+		if (k1 || k2 || k3 || k4) {
+			if (mix_attached) { mic.detach_output_bus(0); mix_attached = false; }
+			modo = k1 ? 1 : (k2 ? 2 : (k3 ? 3 : 4));
+			if (modo == 4) { bytes_ulaw = 0; relogio.restart(); }
+			acumulado = "";
+			log("== modo " + modo);
+			if (modo == 2) {
+				try {
+					mix.set_position_3d(4, 0, 0);
+					mix_attached = mic.attach_output_bus(0, mix, 0);
+					log("mixer: attach=" + mix_attached);
+				} catch { log("mixer: EXCECAO " + get_exception_info()); }
+			}
+			if (modo == 3) {
+				opus_ok = false;
+				try {
+					bool ok = enc.open(48000, 1);
+					log("opus encoder open(48000,1)=" + ok + " formato=" + enc.get_format() + " erro='" + SOUNDSYSTEM_LAST_ERROR_TEXT + "'");
+					if (ok) {
+						try { enc.bitrate = 24000; enc.signal_type = OPUS_SIGNAL_VOICE; log("bitrate/signal ok"); }
+						catch { log("bitrate/signal: EXCECAO " + get_exception_info()); }
+						// O decodificador NÃO abre num fluxo vazio ("Invalid file"): ele lê o cabeçalho ao
+						// abrir. Então só abre depois que os primeiros pacotes chegaram (ver o laço).
+						@pacotes = datastream();
+						opus_ok = ok;
+						dec_aberto = false;
+					}
+				} catch { log("opus: EXCECAO " + get_exception_info()); }
+				bytes_cod = 0; amostras_dec = 0; relogio.restart();
+			}
+			speak("modo " + modo, true);
+		}
+		if (modo == 0 || modo == 2) continue;
+
+		array<float>@ quadros = mic.read(960);
+		if (@quadros == null || quadros.length() == 0) continue;
+		array<float>@ mono = to_mono(quadros, ch);
+
+		if (modo == 1) {
+			saida.set_position_3d(4, 0, 0);
+			saida.stream_pcm(mono, 0, 1);
+			continue;
+		}
+		if (modo == 4) {
+			// 48 kHz -> 16 kHz (media de 3), mu-law 8 bits, "envia", decodifica, toca a 16 kHz
+			string bytes = ulaw_encode_16k(mono);
+			bytes_ulaw += bytes.length();
+			array<float>@ de_volta = ulaw_decode(bytes);
+			saida4.stream_pcm(de_volta, 16000, 1);
+			// A posicao tem que ser (re)aplicada DEPOIS de o fluxo existir: o primeiro stream_pcm cria o
+			// som por baixo e perde o que foi configurado antes - e por isso o modo 1, que reposiciona a
+			// cada quadro, saia a direita, e este saia no centro.
+			saida4.spatialization_enabled = true;
+			saida4.set_position_3d(4, 0, 0);
+			if (relogio.elapsed >= 5000 && bytes_ulaw == 0) {}
+			if (relogio.elapsed >= 5000) { log("  mu-law 5 s: " + (bytes_ulaw * 8 / 5000) + " kbps"); relogio.restart(); bytes_ulaw = 0; }
+			continue;
+		}
+		if (!opus_ok) continue;
+		try {
+			enc.write(mono);
+			string pacote = enc.read();
+			if (pacote.length() > 0) { bytes_cod += pacote.length(); bytes_total += pacote.length(); if (dec_aberto) pacotes.write(pacote); else acumulado += pacote; }
+		} catch { log("encode: EXCECAO " + get_exception_info()); opus_ok = false; continue; }
+		if (!dec_aberto) {
+			if (bytes_total < 2048) continue; // espera haver cabeçalho e alguns pacotes
+			try {
+				// Um datastream vazio que foi crescendo nao abriu ("Invalid file"). Tentativa: construir
+				// o datastream JA com os bytes acumulados, abrir, e continuar escrevendo nele.
+				@pacotes = datastream(acumulado);
+				dec_aberto = dec.open(pacotes, 48000, 1);
+				if (!dec_aberto) {
+					// segunda tentativa: sem dizer taxa/canais (deixa o decoder descobrir)
+					@pacotes = datastream(acumulado);
+					dec_aberto = dec.open(pacotes);
+					log("  (sem rate/ch) = " + dec_aberto + " erro='" + SOUNDSYSTEM_LAST_ERROR_TEXT + "'");
+				}
+				log("decoder open depois de " + bytes_total + " bytes = " + dec_aberto + " erro='" + SOUNDSYSTEM_LAST_ERROR_TEXT + "' rate=" + dec.sample_rate + " ch=" + dec.channels);
+			} catch { log("decoder open: EXCECAO " + get_exception_info()); opus_ok = false; }
+			if (!dec_aberto) { opus_ok = false; continue; }
+		}
+		try {
+			array<float>@ d = dec.read(0);
+			if (@d != null && d.length() > 0) { amostras_dec += d.length(); saida.stream_pcm(d, 48000, 1); }
+		} catch { log("decode: EXCECAO " + get_exception_info()); opus_ok = false; continue; }
+		if (relogio.elapsed >= 5000) {
+			log("  5 s: " + (bytes_cod * 8 / 5000) + " kbps codificados, " + amostras_dec + " amostras decodificadas");
+			relogio.restart(); bytes_cod = 0; amostras_dec = 0;
+		}
+	}
+	log("saiu normalmente");
+}
