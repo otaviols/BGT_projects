@@ -19,6 +19,9 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
   nos dois. Comunicações: sintonizar o rádio com as setas até a voz ficar sem estática.
 - Sons novos: o de alguém ser expulso, a música de vitória de cada time, os de marcar e confirmar o
   voto, os dos reparos, e os sons certos para abrir e fechar tarefas e menus.
+- O radar travado (Q) agora funciona também no modo de objetos. E o modo do radar volta a ser só
+  Ctrl + a tecla do radar — a tecla M saiu.
+- Com as comunicações sabotadas, a lista de tarefas também não responde.
 - **Praticar tarefas e reparos**, no menu inicial: qualquer tarefa ou reparo, sozinho, sem partida.
   Era o "modo de treino" que vocês pediram.
 

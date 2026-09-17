@@ -885,8 +885,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// Q trava/solta o radar no último alvo; enquanto travado, o radar pergunta e bipa sozinho.
 		if (!movement_frozen && !cameras.active) {
 			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_lock();
-			if (action_pressed(ACTION_RADAR_MODE)) radar.toggle_mode();
-			radar.tick();
+			radar.tick(map, my_x, my_y);
 		}
 
 		if (!movement_frozen && !cameras.active && action_pressed(ACTION_RADAR)) {
@@ -1042,6 +1041,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// o bloco antigo também não abria.
 		if (action_pressed(ACTION_TASK_LIST)) {
 			if (movement_frozen) mui.announce_time_remaining();
+			// Comunicações sabotadas escondem a lista de tarefas também - é o que a sabotagem faz no
+			// original ("esconder as tasks"). Pelo mesmo critério do radar e dos marcadores: impostor
+			// e fantasma continuam vendo a lista.
+			else if (comms_down_for(active_sabotage_id, is_impostor, alive)) speak(tr("sabotage.comms.tasks_hidden"));
 			else if (!is_vented) run_task_list_menu(client, map, my_tasks, team_task_percent);
 		}
 

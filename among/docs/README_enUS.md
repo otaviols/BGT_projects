@@ -168,7 +168,7 @@ your file and English — worth sending a message about it.
 | Enter | interact with whatever is closest |
 | Tab | radar: next target |
 | Shift + Tab | radar: previous target |
-| M (or Ctrl + Tab) | switch radar mode (players / room objects) |
+| Ctrl + Tab | switch radar mode (players / room objects) |
 | Q | lock the radar on the last target pointed at (or release it) |
 | C | say which room you are in |
 | T | your task list, your progress and the team's |
@@ -206,7 +206,8 @@ your file and English — worth sending a message about it.
 
 ## The radar (Tab)
 
-The radar has two modes, switched with **M** (or Ctrl + Tab):
+The radar has two modes, switched with **Ctrl + Tab** (Ctrl and Shift follow the radar key if you
+remap it in settings):
 
 - **Players** — cycles through whoever is in the same room as you. Plays a beep at the person's
   position and speaks their name.
@@ -217,7 +218,8 @@ The radar has two modes, switched with **M** (or Ctrl + Tab):
 beeping at that person on its own, with no need to keep pressing Tab. The beep's pitch rises as they
 get closer and falls as they move away. The lock still only works within the same room: if the
 person leaves the room, enters a vent or vanishes in the dark, the radar says so and releases.
-Pointing at someone else with Tab moves the lock to them; **Q** again releases it.
+Pointing at someone else with Tab moves the lock to them; **Q** again releases it. In objects mode
+the lock works the same way: it beeps at the marked object until you leave the room.
 
 The radar does not work while communications are sabotaged, in either mode.
 
@@ -332,8 +334,8 @@ cannot be repeated twice in a row.
   a body. The game announces the time left every 30 seconds, and counts down one by one over the
   **last 10** — if you hear the countdown start, there is no time to switch panels: finish the one
   you began.
-- **Communications** — takes down the radar (both modes), your task beacons and the nearby-body
-  warning. Lasts until someone **tunes the radio** at the panel in Navigation: turn the dial with the
+- **Communications** — takes down the radar (both modes), the task list, your task beacons and the
+  nearby-body warning. Lasts until someone **tunes the radio** at the panel in Navigation: turn the dial with the
   arrows until the voice is free of static and hold it there for a moment. It is the only repair done
   by ear — nobody can dictate the answer from afar.
 

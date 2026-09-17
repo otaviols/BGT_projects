@@ -165,7 +165,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | Enter | interagir com o que estiver mais perto |
 | Tab | radar: próximo alvo |
 | Shift + Tab | radar: alvo anterior |
-| M (ou Ctrl + Tab) | trocar o modo do radar (jogadores / objetos da sala) |
+| Ctrl + Tab | trocar o modo do radar (jogadores / objetos da sala) |
 | Q | travar o radar no último alvo apontado (ou soltar) |
 | C | dizer em que sala você está |
 | T | lista das suas tarefas, seu progresso e o do time |
@@ -203,7 +203,8 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 
 ## O radar (Tab)
 
-O radar tem dois modos, alternados com **M** (ou Ctrl + Tab):
+O radar tem dois modos, alternados com **Ctrl + Tab** (Ctrl e Shift acompanham a tecla do radar,
+se você a trocar nas configurações):
 
 - **Jogadores** — cicla por quem está na mesma sala que você. Toca um bipe na posição da pessoa e
   fala o nome dela.
@@ -214,7 +215,8 @@ O radar tem dois modos, alternados com **M** (ou Ctrl + Tab):
 sozinho naquela pessoa, sem precisar ficar apertando Tab. O tom do bipe sobe conforme ela se
 aproxima e desce quando se afasta. A trava continua valendo só dentro da mesma sala: se a pessoa
 sair da sala, entrar num duto ou sumir no escuro, o radar avisa e solta. Apontar outra pessoa com o
-Tab move a trava para ela; **Q** de novo solta.
+Tab move a trava para ela; **Q** de novo solta. No modo de objetos a trava funciona igual: bipa no
+objeto marcado até você sair da sala.
 
 O radar não funciona com as comunicações sabotadas, em nenhum dos dois modos.
 
@@ -331,8 +333,8 @@ repetir a mesma duas vezes seguidas.
   consegue chamar reunião nem reportar corpo. O jogo avisa quanto falta de 30 em 30 segundos, e nos
   **10 segundos finais** conta um a um — se você ouvir a contagem começar, já não dá tempo de trocar
   de painel: termine o que começou.
-- **Comunicações** — derruba o radar (nos dois modos), os marcadores das suas tarefas e o aviso de
-  corpo por perto. Dura até alguém **sintonizar o rádio** no painel da Navegação: gire o dial com as
+- **Comunicações** — derruba o radar (nos dois modos), a lista de tarefas, os marcadores das suas
+  tarefas e o aviso de corpo por perto. Dura até alguém **sintonizar o rádio** no painel da Navegação: gire o dial com as
   setas até a voz ficar sem estática e segure ali um instante. É o único conserto que se faz de
   ouvido — ninguém consegue ditar a resposta de longe.
 
