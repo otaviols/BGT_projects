@@ -51,6 +51,22 @@ class game_server {
 	array<game_player@> connections;
 	array<game_state@> lobbies;
 	timer@ clock;
+	// Reinício anunciado (ver C_ADMIN_DRAIN): enquanto faltar tempo, nenhuma partida nova começa.
+	timer@ drain_clock = null;
+	float drain_seconds = 0.0;
+
+	bool draining() const {
+		return @drain_clock != null && float(drain_clock.elapsed) / 1000.0 < drain_seconds;
+	}
+	int draining_seconds_left() const {
+		if (!draining()) return 0;
+		return int(drain_seconds - float(drain_clock.elapsed) / 1000.0);
+	}
+	uint matches_in_progress() const {
+		uint n = 0;
+		for (uint i = 0; i < lobbies.length(); i++) if (lobbies[i].state != "waiting" && lobbies[i].state != "ended") n++;
+		return n;
+	}
 
 	// As duas falhas possíveis aqui têm causas e consertos completamente diferentes - porta ocupada
 	// de um lado, permissão de arquivo do outro - e uma mensagem única ("Falha ao iniciar") obriga
@@ -300,6 +316,8 @@ class game_server {
 		else if (t == C_SEND_TRANSLATION) on_send_translation(peer_id, pkt);
 		else if (t == C_ADMIN_LIST_TRANSLATIONS) on_admin_list_translations(peer_id, pkt);
 		else if (t == C_ADMIN_DELETE_TRANSLATION) on_admin_delete_translation(peer_id, pkt);
+		else if (t == C_ADMIN_DRAIN) on_admin_drain(peer_id, pkt);
+		else if (t == C_ADMIN_STATUS) on_admin_status(peer_id, pkt);
 		else if (t == C_CAMERA_ENTER) on_camera_enter(peer_id, pkt);
 		else if (t == C_CAMERA_LEAVE) on_camera_leave(peer_id, pkt);
 		else if (t == C_CAMERA_SWITCH) on_camera_switch(peer_id, pkt);
@@ -588,6 +606,14 @@ class game_server {
 	void on_start_game(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.host_peer_id != peer_id) return;
+		// Reinício a caminho: uma partida que começasse agora seria derrubada no meio. Melhor não
+		// começar - e dizer por quê, com o tempo que falta.
+		if (draining()) {
+			dictionary@ p = dictionary();
+			p.set("minutes", "" + ((draining_seconds_left() + 59) / 60));
+			send_error(peer_id, "server.restart_soon_no_start", p);
+			return;
+		}
 		if (lobby.players.length() < MIN_PLAYERS) {
 			dictionary@ p = dictionary();
 			p.set("min", "" + MIN_PLAYERS);
@@ -1414,6 +1440,33 @@ class game_server {
 		result.set_bool("ok", ok);
 		result.set_string("message", ok ? "deleted" : "delete_failed");
 		send_to(peer_id, result);
+	}
+
+	// --- Reinício anunciado ---
+
+	void on_admin_drain(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		drain_seconds = float(pkt.get_int("seconds", 120));
+		@drain_clock = timer();
+		// Todo mundo conectado ouve, esteja onde estiver: menu, sala de espera, partida.
+		dictionary@ p = dictionary();
+		p.set("minutes", "" + ((int(drain_seconds) + 59) / 60));
+		net_packet@ aviso = build_message(S_ERROR, "server.restart_in", p);
+		for (uint i = 0; i < connections.length(); i++) send_to(connections[i].peer_id, aviso);
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		result.set_bool("ok", true);
+		result.set_string("message", "draining:" + int(drain_seconds));
+		send_to(peer_id, result);
+	}
+
+	void on_admin_status(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		net_packet@ st = net_packet(S_ADMIN_STATUS);
+		st.set_int("connections", int(connections.length()));
+		st.set_int("lobbies", int(lobbies.length()));
+		st.set_int("in_progress", int(matches_in_progress()));
+		st.set_int("draining_seconds", draining_seconds_left());
+		send_to(peer_id, st);
 	}
 
 	void on_ping(uint64 peer_id, net_packet@ pkt) {

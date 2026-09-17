@@ -81,6 +81,12 @@ const string C_SEND_TRANSLATION = "c_send_translation";           // {code, cont
 // recolhido, para o banco do servidor não guardar tradução para sempre.
 const string C_ADMIN_LIST_TRANSLATIONS = "c_admin_list_translations";   // {token}
 const string C_ADMIN_DELETE_TRANSLATION = "c_admin_delete_translation"; // {token, username, code}
+// Reinício anunciado. O servidor guarda as partidas na memória: reiniciar no meio de uma derruba
+// todo mundo. O deploy então AVISA com antecedência (todo jogador conectado ouve "o servidor vai
+// reiniciar em N minutos"), proíbe partidas novas de começar, e espera as que estão rolando
+// acabarem - ou o prazo - antes de trocar o servidor. Ver infra/deploy.ps1.
+const string C_ADMIN_DRAIN = "c_admin_drain";     // {token, seconds}
+const string C_ADMIN_STATUS = "c_admin_status";   // {token}
 
 // Servidor -> Cliente
 const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id} - peer_id = como o SERVIDOR me identifica
@@ -125,6 +131,7 @@ const string S_FEEDBACK_REPLIES = "s_feedback_replies";     // {replies: [{reply
 const string S_ADMIN_RESULT = "s_admin_result";             // {ok, message} - só para a ferramenta de administração
 const string S_TRANSLATION_ACK = "s_translation_ack";       // {ok, message_key}
 const string S_ADMIN_TRANSLATIONS = "s_admin_translations"; // {items: [{username, code, content, created_at}]}
+const string S_ADMIN_STATUS = "s_admin_status";             // {connections, lobbies, in_progress, draining_seconds}
 // Resposta ao próprio observador: entrou, trocou de sala, ou foi recusado/expulso.
 const string S_CAMERA_STATE = "s_camera_state";             // {active, room_id, message_key}
 // Para TODO mundo na partida: qual sala está sendo observada agora ("" = nenhuma).

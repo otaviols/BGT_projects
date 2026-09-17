@@ -1,0 +1,56 @@
+// tools/server_admin.nvgt
+// Comandos de administração do servidor. Chamado pelo infra/deploy.ps1 (reinício anunciado) e
+// utilizável à mão:
+//
+//   nvgt tools/server_admin.nvgt status            -> conexões, salas, partidas em andamento
+//   nvgt tools/server_admin.nvgt drain <segundos>  -> avisa todo mundo e proíbe partidas novas
+//   (o token vem de AMONGUS_ADMIN_TOKEN; AMONGUS_SERVER_HOST aponta para outro servidor)
+//
+// "status" imprime uma linha por campo, "chave=valor", para o PowerShell ler sem adivinhar formato.
+
+#include "../src/network/client.nvgt"
+#include "../src/config/game_constants.nvgt"
+#include "../src/config/server_address.nvgt"
+
+net_packet@ espera(game_client@ c, const string&in tipo, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) { if (p.type == tipo) return p; @p = c.poll_message(); }
+		wait(10);
+	}
+	return null;
+}
+
+void main() {
+	if (ARGS.length() < 2) { println("uso: nvgt tools/server_admin.nvgt status | drain <segundos>"); return; }
+	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+	if (token == "") { println("erro=AMONGUS_ADMIN_TOKEN nao definido"); return; }
+	string cmd = ARGS[1];
+
+	server_address address = resolve_server_address();
+	game_client c;
+	if (!c.connect_to(address.host, address.port)) { println("erro=nao conectou em " + address.display); return; }
+	timer t;
+	while (!c.connected && t.elapsed < 8000) { c.update(); wait(10); }
+	if (!c.connected) { println("erro=sem resposta de " + address.display); return; }
+
+	if (cmd == "status") {
+		c.send_admin_status(token);
+		net_packet@ st = espera(c, S_ADMIN_STATUS, 8000);
+		if (@st == null) { println("erro=sem status (token errado ou servidor antigo)"); c.disconnect(); return; }
+		println("connections=" + st.get_int("connections"));
+		println("lobbies=" + st.get_int("lobbies"));
+		println("in_progress=" + st.get_int("in_progress"));
+		println("draining_seconds=" + st.get_int("draining_seconds"));
+	} else if (cmd == "drain") {
+		int seconds = ARGS.length() > 2 ? parse_int(ARGS[2]) : 120;
+		c.send_admin_drain(token, seconds);
+		net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
+		println(@r == null ? "erro=sem resposta" : (r.get_bool("ok") ? "ok=" + r.get_string("message") : "erro=" + r.get_string("message")));
+	} else {
+		println("erro=comando desconhecido " + cmd);
+	}
+	c.disconnect();
+}

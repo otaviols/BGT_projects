@@ -151,9 +151,11 @@ void run_session() {
 		if (browse.go_back || !browse.joined) break;
 
 		net_packet@ start_pkt = run_waiting_room_screen(client, browse.is_host, browse.initial_lobby_state);
+		if (!client.connected) break; // conexão perdida: as telas já avisaram; volta ao menu inicial
 		if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador
 
 		run_game(client, start_pkt);
+		if (!client.connected) break;
 		// ao fim da partida (S_GAME_OVER), o servidor volta a lobby pro estado "waiting";
 		// o jogador retorna ao navegador de lobbies.
 	}

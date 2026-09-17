@@ -57,6 +57,7 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 	bool replies_announced = false;
 
 	while (true) {
+		if (!client.connected) { speak(tr("net.connection_lost")); result.go_back = true; return result; }
 		client.send_list_lobbies();
 		json_array@ lobbies = wait_for_lobby_list(client);
 		// As respostas aos recados vêm em pedido próprio, depois da lista: a espera pela lista joga
@@ -455,6 +456,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 	while (true) {
 		wait(10);
 		client.update();
+		if (!client.connected) { speak(tr("net.connection_lost")); return null; }
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
 			if (pkt.type == S_PLAYER_JOINED) {

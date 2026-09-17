@@ -752,6 +752,13 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			@pkt = client.poll_message();
 		}
 		if (game_over) break;
+		// Conexão caiu (o servidor reiniciou, a internet foi embora): sem isto o laço continuava
+		// rodando para sempre - o jogador andava por uma nave onde ninguém mais ouvia ninguém, sem
+		// nenhum aviso. Quem chama (run_session) vê connected == false e volta ao menu inicial.
+		if (!client.connected) {
+			speak(tr("net.connection_lost"));
+			break;
+		}
 
 		float delta = float(frame_clock.elapsed) / 1000.0;
 		frame_clock.restart();

@@ -151,6 +151,18 @@ class game_client {
 		send(p);
 	}
 
+	void send_admin_drain(const string&in token, int seconds) {
+		net_packet@ p = net_packet(C_ADMIN_DRAIN);
+		p.set_string("token", token);
+		p.set_int("seconds", seconds);
+		send(p);
+	}
+	void send_admin_status(const string&in token) {
+		net_packet@ p = net_packet(C_ADMIN_STATUS);
+		p.set_string("token", token);
+		send(p);
+	}
+
 	void send_feedback_replies_get() { send(net_packet(C_FEEDBACK_REPLIES_GET)); }
 	void send_feedback_reply_read(int reply_id) {
 		net_packet@ p = net_packet(C_FEEDBACK_REPLY_READ);

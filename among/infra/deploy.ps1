@@ -17,7 +17,10 @@ param(
 	[string]$Image = "ghcr.io/otaviols/amongus-server",
 	# Pular uma das partes é útil quando só o cliente mudou (ou só o servidor).
 	[switch]$SkipServer,
-	[switch]$SkipSite
+	[switch]$SkipSite,
+	# Reinício anunciado: quanto tempo avisar os jogadores e esperar as partidas em andamento
+	# acabarem antes de trocar o servidor. 0 = trocar na hora (derruba quem estiver jogando).
+	[int]$DrainSeconds = 300
 )
 
 $ErrorActionPreference = "Stop"
@@ -93,6 +96,47 @@ if (-not $SkipServer) {
 	docker push $fullImage
 	if ($LASTEXITCODE -ne 0) {
 		throw "docker push falhou. Se for erro de autenticação: docker login ghcr.io -u <usuario>"
+	}
+
+	# O servidor guarda as partidas na memória: trocar o pod no meio de uma derruba todo mundo que
+	# está jogando, sem aviso - aconteceu, e foi assim que se descobriu. Então, com a imagem nova já
+	# pronta e conferida, o servidor ATUAL é avisado: todo jogador conectado ouve "o servidor vai
+	# reiniciar em N minutos", nenhuma partida nova pode começar, e o deploy espera as que estão
+	# rolando acabarem - ou o prazo. Quem está na sala de espera cai e volta; quem está no meio de
+	# uma partida teve N minutos para terminá-la.
+	#
+	# Se o servidor atual não conhece o aviso (versão anterior a esta) ou o token não bater, o
+	# deploy segue sem esperar - e diz isso.
+	if ($DrainSeconds -gt 0) {
+		$encoded = kubectl get secret amongus-admin -n amongus -o jsonpath="{.data.token}" 2>$null
+		if ([string]::IsNullOrWhiteSpace($encoded)) {
+			Write-Warning "Sem o segredo amongus-admin: não dá para avisar os jogadores; trocando o servidor direto."
+		} else {
+			$env:AMONGUS_ADMIN_TOKEN = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
+			Push-Location $root
+			try {
+				$drain = nvgt tools/server_admin.nvgt drain $DrainSeconds 2>&1
+				if ("$drain" -notmatch "^ok=") {
+					Write-Warning "O servidor atual não aceitou o aviso de reinício ($drain); trocando direto."
+				} else {
+					Write-Host "Jogadores avisados: reinício em $DrainSeconds s. Esperando as partidas em andamento acabarem..."
+					$deadline = (Get-Date).AddSeconds($DrainSeconds)
+					while ((Get-Date) -lt $deadline) {
+						$st = nvgt tools/server_admin.nvgt status 2>&1
+						$emAndamento = ($st | Select-String -Pattern "^in_progress=(\d+)").Matches
+						if ($emAndamento.Count -eq 0) { Write-Warning "Não consegui ler o estado do servidor; seguindo."; break }
+						$n = [int]$emAndamento[0].Groups[1].Value
+						if ($n -eq 0) { Write-Host "Nenhuma partida em andamento. Trocando o servidor."; break }
+						Write-Host ("  {0} partida(s) em andamento; faltam {1:N0} s do prazo." -f $n, ($deadline - (Get-Date)).TotalSeconds)
+						Start-Sleep -Seconds 15
+					}
+				}
+			}
+			finally {
+				Pop-Location
+				$env:AMONGUS_ADMIN_TOKEN = ""
+			}
+		}
 	}
 
 	Write-Host "Atualizando o servidor no cluster..."
