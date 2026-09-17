@@ -54,7 +54,6 @@ bool run_empty_garbage_task(game_client@ client) {
 		client.update();
 		if (task_cancel_requested(client)) return false;
 		if (key_pressed(KEY_SPACE)) {
-			task_sound(SND_BEEP_COMPLETE);
 			speak(tr("task.completed"));
 			return true;
 		}

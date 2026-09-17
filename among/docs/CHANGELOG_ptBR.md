@@ -6,6 +6,11 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.25.2
+
+Toda tarefa (e todo reparo) termina com o mesmo som de concluído. Antes cada uma tocava um som
+diferente no fim, por cima do certo.
+
 ## 0.25.1
 
 - **Quando o servidor for atualizar, você é avisado antes**: "o servidor vai reiniciar em tantos

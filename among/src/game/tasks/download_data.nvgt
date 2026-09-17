@@ -34,7 +34,6 @@ bool run_download_data_task(game_client@ client) {
 			}
 
 			if (progress >= 100.0) {
-				task_sound(SND_BEEP_COMPLETE);
 				speak(tr("task.completed"));
 				return true;
 			}

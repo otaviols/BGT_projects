@@ -42,7 +42,6 @@ bool run_align_engine_task(game_client@ client) {
 		if (key_pressed(KEY_RETURN)) {
 			if (absf(position) <= SUCCESS_TOLERANCE) {
 				engine_beep.stop();
-				task_sound(SND_BEEP_COMPLETE);
 				speak(tr("task.completed"));
 				return true;
 			} else {

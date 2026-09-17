@@ -273,6 +273,12 @@ task, então nada é anunciado por mais que o cliente dele finja - é isso que f
 enfermaria valer como álibi. O fim vem pelo `C_TASK_INPUT` (sucesso ou cancelamento), e reunião,
 morte e saída também encerram (`end_visible_task`), senão o scanner soaria numa sala vazia.
 
+**"Task concluída" é UM som, tocado num lugar só.** `SND_TASK_COMPLETE` sai do `task_manager` ao
+fechar a task com sucesso (e de `run_sabotage_panel` para reparos). Nenhuma task toca um som de
+"acabei" por conta própria: `BeepComplet` e `CardComplet` são feedback de ETAPA (lixo puxado, cartão
+aceito) e só entram onde a etapa existe. Antes cada task tocava um som diferente no fim, por cima do
+som certo.
+
 **Cada som tem UM ouvinte pretendido — decida quem antes de tocar.** Num jogo em que a informação é o
 som, tocar para todo mundo entrega de graça o que devia custar. O assassinato são dois sons com
 públicos diferentes: a **morte** é pessoal e só a vítima ouve; o **kill** é espacial e é o único
@@ -305,6 +311,17 @@ medida certa erra para mais - o Tile pedia +17,6 pela conta e ficou alto demais,
 `ui`, `world`) e o caminho no catálogo inclui a pasta. Depois de mexer em som, rode
 `nvgt tools/check_sounds.nvgt`: ele compara o catálogo com o disco **nos dois sentidos** e é a única
 coisa que pega um caminho errado — som que não carrega falha em silêncio, sem erro nenhum.
+
+**Chat de voz: Opus NÃO decodifica ao vivo nesta build do NVGT; o codec é μ-law em script.** A
+sonda (`_voice/voice_probe.nvgt`, fora do build) provou: `microphone.read()` +
+`sound.stream_pcm()` tocam voz posicionada em tempo real; `audio_opus_encoder` codifica, mas o
+`audio_decoder` (opusfile) só abre fluxo COMPLETO - num fluxo que cresce responde "Invalid file"
+sempre, com ou sem taxa/canais, com 2 KB ou 200 KB dentro. Não é parâmetro, é a biblioteca. O
+G.711 μ-law a 16 kHz (`ulaw_from_sample`/`sample_from_ulaw`) dá 128 kbps por pessoa falando,
+qualidade de telefone, latência de um quadro e nenhuma dependência; Opus pode substituir depois sem
+mexer em rede ou interface. Armadilha junto: `spatialization_enabled`/`set_position_3d` definidos
+ANTES do primeiro `stream_pcm` se perdem (o som sai centralizado, sem erro) - reaplique depois que o
+fluxo existe. O microfone pode entregar estéreo, e som estéreo não espacializa: converta para mono.
 
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 

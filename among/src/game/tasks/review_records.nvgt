@@ -87,7 +87,6 @@ bool run_review_records_task(game_client@ client) {
 			return false;
 		}
 
-		task_sound(SND_BEEP_COMPLETE);
 		speak(tr("task.completed"));
 		return true;
 	}

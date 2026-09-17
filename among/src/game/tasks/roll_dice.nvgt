@@ -39,7 +39,6 @@ bool run_roll_dice_task(game_client@ client) {
 			continue;
 		}
 
-		task_sound(SND_BEEP_COMPLETE);
 		speak(tr("task.roll_dice.rolled", result_params) + " " + tr("task.completed"));
 		return true;
 	}

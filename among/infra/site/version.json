@@ -1,9 +1,9 @@
 {
-	"version": "0.25.1",
+	"version": "0.25.2",
 	"url": "AmongUs.zip",
-	"notes": "When the server is about to update, you are warned first: \"the server will restart in so many minutes\". No new match starts until then, and the ones in progress have that time to finish. Before, the server switched without warning and dropped everyone mid-game. If the connection to the server drops, the game now says so and returns to the main menu — before it sat frozen in an empty ship with no explanation. Chat: messages no longer interrupt speech, and the history cursor stays where you left it when a new message arrives. With the message box open you keep hearing the chat, and it closes on its own when the meeting ends.",
+	"notes": "Every task (and every repair) ends with the same completion sound. Before, each played a different one at the end, on top of the right one.",
 	"notes_by_language": {
-		"pt_BR": "Quando o servidor for atualizar, você é avisado antes: \"o servidor vai reiniciar em tantos minutos\". Partidas novas não começam até lá, e as que estão rolando têm esse tempo para acabar. Antes o servidor trocava sem aviso e derrubava todo mundo no meio do jogo. Se a conexão com o servidor cair, o jogo agora diz isso e volta ao menu inicial — antes ficava parado numa nave vazia, sem explicação. Chat: as mensagens não interrompem mais a fala, e o cursor do histórico fica onde você o deixou quando chega mensagem nova. Com a caixa de mensagem aberta você continua ouvindo o chat, e ela fecha sozinha quando a reunião acaba.",
-		"en_US": "When the server is about to update, you are warned first: \"the server will restart in so many minutes\". No new match starts until then, and the ones in progress have that time to finish. Before, the server switched without warning and dropped everyone mid-game. If the connection to the server drops, the game now says so and returns to the main menu — before it sat frozen in an empty ship with no explanation. Chat: messages no longer interrupt speech, and the history cursor stays where you left it when a new message arrives. With the message box open you keep hearing the chat, and it closes on its own when the meeting ends."
+		"pt_BR": "Toda tarefa (e todo reparo) termina com o mesmo som de concluído. Antes cada uma tocava um som diferente no fim, por cima do certo.",
+		"en_US": "Every task (and every repair) ends with the same completion sound. Before, each played a different one at the end, on top of the right one."
 	}
 }

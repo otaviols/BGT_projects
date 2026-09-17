@@ -51,7 +51,6 @@ bool run_unlock_manifolds_task(game_client@ client) {
 		typed++;
 	}
 
-	task_sound(SND_BEEP_COMPLETE);
 	speak(tr("task.completed"));
 	return true;
 }

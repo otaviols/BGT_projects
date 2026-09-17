@@ -6,6 +6,11 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.25.2
+
+Every task (and every repair) ends with the same completion sound. Before, each played a different
+one at the end, on top of the right one.
+
 ## 0.25.1
 
 - **When the server is about to update, you are warned first**: "the server will restart in so

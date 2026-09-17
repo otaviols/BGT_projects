@@ -34,7 +34,6 @@ bool run_submit_scan_task(game_client@ client) {
 		if (@scanner != null && !scanner.playing) scanner.play();
 	}
 	if (@scanner != null) scanner.stop();
-	task_sound(SND_BEEP_COMPLETE);
 	speak(tr("task.completed"));
 	return true;
 }

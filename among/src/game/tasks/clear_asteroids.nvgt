@@ -75,7 +75,6 @@ bool run_clear_asteroids_task(game_client@ client) {
 		}
 	}
 
-	task_sound(SND_CARD_COMPLETE);
 	speak(tr("task.completed"));
 	return true;
 }

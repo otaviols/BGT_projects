@@ -45,7 +45,6 @@ bool run_fix_wiring_task(game_client@ client) {
 			if (connected[left_cursor]) continue;
 			if (left_order[left_cursor] == right_order[right_cursor]) {
 				connected[left_cursor] = true;
-				task_sound(SND_BEEP_COMPLETE);
 				bool all_done = true;
 				for (uint i = 0; i < connected.length(); i++) {
 					if (!connected[i]) { all_done = false; break; }

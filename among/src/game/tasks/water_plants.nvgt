@@ -104,7 +104,6 @@ bool run_water_plants_task(game_client@ client) {
 		wait(300); // respiro entre um canteiro e outro
 	}
 
-	task_sound(SND_CARD_COMPLETE); // som de "task inteira concluída", diferente do de canteiro cheio
 	speak(tr("task.completed"));
 	return true;
 }
