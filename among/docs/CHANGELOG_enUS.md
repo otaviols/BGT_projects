@@ -6,6 +6,10 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.24.1
+
+The medbay scanner's beacon got its final sound.
+
 ## 0.24.0
 
 - **New task: the medical scan**, in medbay. Stand still on the scanner until it finishes. Anyone

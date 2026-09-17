@@ -6,6 +6,10 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.24.1
+
+O marcador do scanner da enfermaria ganhou o som definitivo.
+
 ## 0.24.0
 
 - **Nova tarefa: o exame médico**, na enfermaria. Fique parado no scanner até ele terminar. Quem

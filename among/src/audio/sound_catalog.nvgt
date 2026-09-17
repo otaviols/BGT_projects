@@ -92,7 +92,7 @@ const string SND_TASK_BEACON_CLEAR_ASTEROIDS = "sounds/beacons/asteroid_pannel.o
 const string SND_TASK_BEACON_ROLL_DICE = "sounds/beacons/games_pannel.ogg";
 const string SND_TASK_BEACON_WATER_PLANTS = "sounds/beacons/plants_pannel.ogg";
 const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.ogg";
-const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.ogg"; // provisório: veio do pacote de sons, sem confirmação de que é o marcador certo
+const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 const string SND_BEEP = "tasks/beep.ogg";

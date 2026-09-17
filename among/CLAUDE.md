@@ -402,9 +402,6 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
   oferecida por Bauti (#31) - já existe um `es_LATAM` em uso; responder pelo `reply_feedback.ps1`.
   Já atendidos: mapa/orientação (Conhecer o mapa), regras na sala (O), radar travado (Q), partidas
   privadas.
-- **O marcador do scan (`beacons/medbay_scan_pannel.ogg`) é provisório**: veio do pacote de sons
-  como `panel_medbayscan`, e o usuário disse que ainda não escolheu o beacon. Trocar é só substituir
-  o arquivo.
 - **`sounds/ejected.ogg` não existe.** Está no catálogo, o `build_pack` avisa a cada build, e o jogo
   compilado sai sem o som de alguém ser expulso na votação.
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em
