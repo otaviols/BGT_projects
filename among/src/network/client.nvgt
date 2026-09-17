@@ -130,6 +130,27 @@ class game_client {
 		send(p);
 	}
 
+	void send_translation(const string&in code, const string&in content) {
+		net_packet@ p = net_packet(C_SEND_TRANSLATION);
+		p.set_string("code", code);
+		p.set_string("content", content);
+		send(p);
+	}
+
+	// Ferramenta de administração (tools/read_translations.nvgt).
+	void send_admin_list_translations(const string&in token) {
+		net_packet@ p = net_packet(C_ADMIN_LIST_TRANSLATIONS);
+		p.set_string("token", token);
+		send(p);
+	}
+	void send_admin_delete_translation(const string&in token, const string&in username, const string&in code) {
+		net_packet@ p = net_packet(C_ADMIN_DELETE_TRANSLATION);
+		p.set_string("token", token);
+		p.set_string("username", username);
+		p.set_string("code", code);
+		send(p);
+	}
+
 	void send_feedback_replies_get() { send(net_packet(C_FEEDBACK_REPLIES_GET)); }
 	void send_feedback_reply_read(int reply_id) {
 		net_packet@ p = net_packet(C_FEEDBACK_REPLY_READ);

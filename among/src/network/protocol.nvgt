@@ -72,6 +72,15 @@ const string C_FEEDBACK_REPLY_READ = "c_feedback_reply_read";     // {reply_id}
 // (variável de ambiente, vinda de um segredo do cluster) e NUNCA dentro do jogo distribuído - o
 // cliente do jogador não conhece este pacote nem tem como montá-lo com um token válido.
 const string C_ADMIN_REPLY = "c_admin_reply";                     // {token, feedback_id, text}
+// Traduções feitas por jogadores. O tradutor já tem o arquivo (é o lang/<código>.json com que ele
+// joga); o envio o leva ao servidor, autenticado. Quem decide se entra no jogo é quem faz o jogo,
+// depois - o arquivo vai para o repositório de traduções e volta com a versão seguinte. O servidor
+// guarda só o ÚLTIMO envio de cada pessoa por idioma: reenviar substitui, nada acumula.
+const string C_SEND_TRANSLATION = "c_send_translation";           // {code, content}
+// Administração (mesmo token do C_ADMIN_REPLY): lista o que foi enviado e apaga o que já foi
+// recolhido, para o banco do servidor não guardar tradução para sempre.
+const string C_ADMIN_LIST_TRANSLATIONS = "c_admin_list_translations";   // {token}
+const string C_ADMIN_DELETE_TRANSLATION = "c_admin_delete_translation"; // {token, username, code}
 
 // Servidor -> Cliente
 const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id} - peer_id = como o SERVIDOR me identifica
@@ -109,6 +118,8 @@ const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, t
 const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}
 const string S_FEEDBACK_REPLIES = "s_feedback_replies";     // {replies: [{reply_id, feedback_id, feedback_text, reply_text, created_at}]}
 const string S_ADMIN_RESULT = "s_admin_result";             // {ok, message} - só para a ferramenta de administração
+const string S_TRANSLATION_ACK = "s_translation_ack";       // {ok, message_key}
+const string S_ADMIN_TRANSLATIONS = "s_admin_translations"; // {items: [{username, code, content, created_at}]}
 // Resposta ao próprio observador: entrou, trocou de sala, ou foi recusado/expulso.
 const string S_CAMERA_STATE = "s_camera_state";             // {active, room_id, message_key}
 // Para TODO mundo na partida: qual sala está sendo observada agora ("" = nenhuma).

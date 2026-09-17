@@ -1,7 +1,9 @@
 # Imagem do servidor dedicado.
 #
-# O contexto de build é a RAIZ do projeto (a pasta among), não esta pasta - o Dockerfile precisa do
-# server_main.zip, que o NVGT gera lá. Ver deploy.ps1, que já chama o build com o contexto certo:
+# O contexto de build é a RAIZ do projeto (a pasta among), não esta pasta - o Dockerfile precisa da
+# pasta server_pkg/, que o deploy.ps1 extrai do pacote que o NVGT gera (server_main.zip nas builds
+# antigas do NVGT, server_main.tar.gz nas recentes - por isso a extração fica FORA da imagem, onde o
+# tar do Windows abre os dois formatos). Ver deploy.ps1, que faz tudo na ordem certa:
 #   nvgt -c -plinux server_main.nvgt
 #   docker build -f infra/Dockerfile -t <imagem> .
 #
@@ -10,17 +12,11 @@
 # quebraria o binário, que é glibc.
 FROM ubuntu:22.04 AS extract
 
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends unzip \
-	&& rm -rf /var/lib/apt/lists/*
-
 WORKDIR /pkg
-COPY server_main.zip .
-# O zip vem com o binário na raiz e as bibliotecas em lib/ - a mesma disposição que o systemd
+# O pacote vem com o binário na raiz e as bibliotecas em lib/ - a mesma disposição que o systemd
 # esperava na VM, e é por isso que o LD_LIBRARY_PATH lá embaixo aponta para lib/.
-RUN unzip -q server_main.zip \
-	&& rm server_main.zip \
-	&& chmod +x server_main
+COPY server_pkg/ .
+RUN chmod +x server_main
 
 FROM ubuntu:22.04
 

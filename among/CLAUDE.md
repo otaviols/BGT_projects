@@ -40,7 +40,7 @@ Antes de afirmar algo aqui, **verifique contra o código**, não contra a memór
 | `src/` | **todo** o código: `config/`, `core/`, `game/`, `network/`, `ui/`, `database/`, `audio/`, `i18n.nvgt` |
 | `lang/` | **só dados** de tradução (`pt_BR.json`, `en_US.json`) — o motor de i18n fica em `src/` |
 | `sounds/` | áudio fonte; vira `sounds.dat` no build |
-| `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots` |
+| `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `check_translation.py`, ferramentas de administração |
 | `docs/` | manuais e histórico de versões, distribuídos com o jogo numa pasta `docs/` |
 | `infra/` | Terraform, Dockerfile, manifests do Kubernetes, `deploy.ps1`, `read_feedback.ps1` |
 
@@ -321,6 +321,27 @@ mais recentes", e isso pareceu truncamento: os recados chegam em dezenas por dia
 **Fora do git:** `terraform.tfvars`, `*.tfstate`, `sounds.dat`, `*.zip`, `*.exe`, `crash.log`,
 `among_users.db`, `server.txt`.
 
+## Traduções
+
+**Fonte da verdade: github.com/otaviols/game-translations** (clone em `D:\git\game-translations`),
+pasta `among-us/lang/`. `en_US` e `pt_BR` são EMBUTIDOS e mantidos aqui, junto do código (as chaves
+novas nascem aqui); os outros idiomas são da comunidade e vivem lá. `tools\sync_translations.ps1`
+faz os dois sentidos - traz os da comunidade para `lang/`, manda os embutidos para lá como referência
+(commit + push automático) - e roda no começo do `build_clients.ps1`. Não edite um idioma da
+comunidade em `lang/`: o próximo sync sobrescreve; edite no repositório de traduções.
+
+**Como uma tradução chega:** o jogador manda pelo jogo ("Enviar uma tradução", na lista de partidas)
+-> fica no banco do servidor, UMA por (usuário, idioma), reenvio substitui -> `infraead_translations.ps1`
+traz para `translations_inbox/` e APAGA do servidor -> `python tools/check_translation.py <arquivo>`
+diz o que falta/sobra -> copiar para `D:\git\game-translationsmong-us\lang\<código>.json`,
+commit, push -> responder ao jogador com `reply_feedback.ps1` se ele mandou recado -> o próximo build
+traz. O `build_clients.ps1` recolhe a caixa de entrada sozinho e PARA se houver algo para revisar
+(`-SkipInbox` pula). Pull request no repositório também serve para quem sabe usar GitHub.
+
+**`parse_json` LANÇA exceção em JSON malformado** (não devolve null). Já derrubou o servidor inteiro
+num teste - um envio com `{` solto matou o processo. Todo `parse_json` de conteúdo que vem de fora
+(rede, arquivo de idioma, version.json) fica em try/catch; ver `validate_translation_json`.
+
 ## Testar
 
 Há um servidor de verdade no ar — **use-o**. O padrão que funcionou a sessão inteira: escrever um
@@ -359,6 +380,7 @@ kubectl get pods -n amongus
 kubectl logs -n amongus deploy/amongus-server -f
 infra\read_feedback.ps1 [-After <id>] [-WithCrashLog] [-Out arquivo]   # recados dos jogadores
 infra\reply_feedback.ps1 -Id <id> -Text "..."   # responder; o jogador ouve dentro do jogo
+infra\read_translations.ps1                    # traduções enviadas pelo jogo -> translations_inbox/ (e apaga do servidor)
 ```
 
 ## Pendências conhecidas

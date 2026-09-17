@@ -6,6 +6,15 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.23.0
+
+- **Espanhol!** O jogo ganhou a primeira tradução feita por um jogador. Está em Configurações, na
+  opção Idioma.
+- **Enviar uma tradução pelo jogo.** Traduziu o jogo para o seu idioma? Na lista de partidas, escolha
+  "Enviar uma tradução para quem faz o jogo": ela é revisada e entra na versão seguinte, e você
+  recebe uma resposta dentro do jogo. O manual explica como fazer a tradução. Na lista de idiomas, o
+  nome de quem traduziu é dito ao lado do idioma.
+
 ## 0.22.5
 
 Corrigida a atualização automática, que nas duas versões anteriores fechava o jogo e não voltava.

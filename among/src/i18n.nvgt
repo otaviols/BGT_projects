@@ -23,6 +23,7 @@ const string DEFAULT_LANGUAGE = "en_US";
 
 // Chave que cada arquivo de idioma usa para dizer como ele se chama, no próprio idioma.
 const string LANGUAGE_NAME_KEY = "language.name";
+const string LANGUAGE_TRANSLATOR_KEY = "language.translator"; // opcional: quem fez a tradução
 
 class i18n {
 	private dictionary strings;
@@ -45,10 +46,15 @@ class i18n {
 		string content = file_get_contents(file_path);
 		if (content.empty()) return false;
 
-		var@ parsed = parse_json(content);
-		if (@parsed == null) return false;
-
-		json_object@ lang_data = cast<json_object@>(parsed);
+		// parse_json LANÇA em JSON malformado. Um arquivo de idioma da comunidade com uma vírgula a
+		// menos não pode derrubar o jogo na abertura: vira "não carregou" e o jogo cai no padrão.
+		json_object@ lang_data = null;
+		try {
+			var@ parsed = parse_json(content);
+			if (@parsed != null) @lang_data = cast<json_object@>(parsed);
+		} catch {
+			return false;
+		}
 		if (@lang_data == null) return false;
 
 		target.delete_all();
@@ -138,6 +144,16 @@ class i18n {
 		string name;
 		if (temp.get(LANGUAGE_NAME_KEY, name) && name != "") return name;
 		return lang_code; // sem nome declarado: o código cru é feio, mas nunca invisível
+	}
+
+	// Quem traduziu, se o arquivo disser (chave language.translator). É dito na lista de idiomas:
+	// crédito é o que faz uma tradução feita de graça continuar sendo mantida.
+	string translator_of(const string&in lang_code) {
+		dictionary temp;
+		if (!load_into(lang_code, temp)) return "";
+		string who;
+		if (temp.get(LANGUAGE_TRANSLATOR_KEY, who)) return who;
+		return "";
 	}
 }
 

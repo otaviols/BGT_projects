@@ -17,10 +17,15 @@ andar juntas: se o version.json ficar para trás, ninguém é avisado da atualiz
 frente, o jogo anuncia uma versão que ele mesmo já é.
 """
 
+import io
 import json
 import re
 import sys
 from pathlib import Path
+
+# O console do Windows nem sempre aceita UTF-8; sem isto um travessão ou uma seta nas notas derruba o
+# script DEPOIS de gravar o arquivo, e o erro parece ser do version.json.
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 RAIZ = Path(__file__).resolve().parent.parent
 CHANGELOGS = {

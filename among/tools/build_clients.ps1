@@ -16,11 +16,30 @@
 # o macOS monta com dois cliques). Por isso cada build aceita mais de um nome de saída e renomeia o
 # que apareceu, mantendo a extensão.
 
+param(
+	# Pula a caixa de entrada de traduções (útil offline ou quando já foi revisada nesta sessão).
+	[switch]$SkipInbox
+)
+
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
 try {
 	$nvgtHome = Split-Path -Parent (Get-Command nvgt).Source
+
+	# Traduções, ANTES de compilar: todo build sai com o main do repositório de traduções, e o que
+	# os jogadores enviaram pelo jogo é recolhido aqui - se houver algo na caixa de entrada, o
+	# build para para você revisar (tools\check_translation.py) e commitar no repositório. Senão a
+	# tradução ficaria esquecida no servidor até alguém lembrar de olhar.
+	if (-not $SkipInbox) {
+		& (Join-Path $PSScriptRoot "..\infra\read_translations.ps1") | Out-Host
+		$inbox = Join-Path $root "translations_inbox"
+		$pendentes = if (Test-Path $inbox) { Get-ChildItem $inbox -Filter *.json } else { @() }
+		if ($pendentes) {
+			throw "Há $($pendentes.Count) tradução(ões) enviada(s) em $inbox para revisar antes de buildar (ou rode com -SkipInbox)."
+		}
+	}
+	& (Join-Path $PSScriptRoot "sync_translations.ps1") | Out-Host
 
 	# $candidates: os nomes que o NVGT pode gravar para esta plataforma; $suffix: o que vai no nome
 	# final ("" para o Windows, que precisa continuar AmongUs.<ext>).

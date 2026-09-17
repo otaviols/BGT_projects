@@ -1,0 +1,69 @@
+// translation_screen.nvgt
+// Enviar uma tradução para quem faz o jogo.
+//
+// O tradutor já tem o arquivo: é o lang/<código>.json com que ele está jogando. Aqui ele só escolhe
+// qual mandar; o arquivo sobe pelo servidor, autenticado, e quem faz o jogo o recolhe, revisa e põe
+// no repositório de traduções - a tradução volta para todo mundo na versão seguinte.
+//
+// Existe porque o público que traduz é jogador cego, quase sempre não-técnico: pedir conta no
+// GitHub, fork e pull request perderia a maioria. Quem sabe usar o GitHub continua podendo; este é o
+// caminho que não exige sair do jogo.
+
+#include "menu.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../i18n.nvgt"
+#include "../config/game_constants.nvgt"
+
+game_client@ g_translation_pump_client;
+void pump_client_during_translation_menu(menu@ m, string data) {
+	if (@g_translation_pump_client != null) g_translation_pump_client.update();
+}
+
+void run_send_translation_screen(game_client@ client) {
+	// Só os idiomas que NÃO vêm com o jogo: os embutidos são mantidos junto do código, e mudança
+	// neles é por recado, não por arquivo.
+	array<string>@ codes = g_i18n.get_available_languages();
+	array<string> candidates;
+	for (uint i = 0; i < codes.length(); i++) {
+		if (BUILTIN_LANGUAGES.find(codes[i]) == -1) candidates.insert_last(codes[i]);
+	}
+	if (candidates.length() == 0) { speak(tr("translation.none")); return; }
+
+	menu m;
+	m.intro_text = tr("translation.pick_hint");
+	m.click_sound = "ui/menuclick.ogg";
+	m.select_sound = "ui/menuconfirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_translation_pump_client = client;
+	@m.background_callback = @pump_client_during_translation_menu;
+	for (uint i = 0; i < candidates.length(); i++) {
+		m.add_item(language_display_name(candidates[i]) + " (" + candidates[i] + ")", candidates[i]);
+	}
+	m.add_item(tr("menu.back"), "__back__");
+	m.run();
+	string code = m.selected_item_id;
+	if (code == "" || code == "__back__") return;
+
+	string content = file_get_contents("lang/" + code + ".json");
+	if (content == "") { speak(tr("translation.send_failed")); return; }
+	speak(tr("translation.sending"));
+	client.send_translation(code, content);
+
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 10.0) {
+		wait(20);
+		client.update();
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_TRANSLATION_ACK) {
+				speak(tr(pkt.get_string("message_key", "translation.send_failed")));
+				wait(3000); // tempo de ouvir a resposta antes de o menu de trás falar de novo
+				return;
+			}
+			@pkt = client.poll_message();
+		}
+	}
+	speak(tr("translation.send_failed"));
+}

@@ -33,10 +33,21 @@ if (-not $SkipServer) {
 		throw "Há mudanças por commitar. A imagem leva o nome do commit, então commite antes de publicar o servidor:`n$dirty"
 	}
 
-	$serverZip = Join-Path $root "server_main.zip"
-	if (-not (Test-Path $serverZip)) {
-		throw "Não achei $serverZip. Gere com: nvgt -c -plinux server_main.nvgt"
-	}
+	# O NVGT grava o servidor como server_main.zip (builds antigas) ou server_main.tar.gz (recentes).
+	# O mais NOVO dos dois é o que vale: um zip velho ao lado de um tar.gz recém-gerado já quase foi
+	# publicado como se fosse o servidor atual. O pacote é extraído aqui para server_pkg/, que é o
+	# que o Dockerfile copia - o tar do Windows abre os dois formatos.
+	$packages = @("server_main.tar.gz", "server_main.zip") | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ }
+	if (-not $packages) { throw "Não achei server_main.tar.gz nem server_main.zip. Gere com: nvgt -c -plinux server_main.nvgt" }
+	$serverPkg = $packages | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
+	$stale = $packages | Where-Object { $_ -ne $serverPkg }
+	if ($stale) { Write-Warning "Ignorando pacote(s) mais antigo(s): $($stale -join ', ') - apague para não confundir." }
+	$pkgDir = Join-Path $root "server_pkg"
+	if (Test-Path $pkgDir) { Remove-Item $pkgDir -Recurse -Force }
+	New-Item -ItemType Directory -Path $pkgDir | Out-Null
+	tar -xf $serverPkg -C $pkgDir
+	if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $pkgDir "server_main"))) { throw "Não consegui extrair $serverPkg." }
+	Write-Host "Servidor: $(Split-Path $serverPkg -Leaf)"
 
 	# A tag é o commit atual, e não `latest`, por dois motivos: dá para saber exatamente qual código
 	# está no ar olhando o pod, e o Kubernetes só reinicia o servidor quando a tag MUDA - com
@@ -48,7 +59,7 @@ if (-not $SkipServer) {
 	$fullImage = "${Image}:${tag}"
 
 	Write-Host "Construindo $fullImage..."
-	# O contexto é a RAIZ do projeto porque o Dockerfile precisa do server_main.zip, que fica lá.
+	# O contexto é a RAIZ do projeto porque o Dockerfile precisa da server_pkg/, que fica lá.
 	docker build -f (Join-Path $PSScriptRoot "Dockerfile") -t $fullImage $root
 	if ($LASTEXITCODE -ne 0) { throw "docker build falhou." }
 

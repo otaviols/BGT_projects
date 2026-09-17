@@ -8,6 +8,10 @@ sounds.dat
 *.exe
 *.iso
 *.tar.gz
+# Servidor extraído pelo deploy.ps1 para o docker build.
+server_pkg/
+# Traduções recolhidas do servidor (infra/read_translations.ps1): vão para o repositório de traduções, não para este.
+translations_inbox/
 
 # Caixa-preta do cliente (core/crash_log.nvgt): é o registro do que quebrou NAQUELA máquina.
 crash.log

@@ -1,0 +1,70 @@
+// tools/read_translations.nvgt
+// Recolhe as traduções que os jogadores enviaram pelo jogo. Não rode direto: use
+// infra\read_translations.ps1, que busca o token no cluster e chama isto.
+//
+//   nvgt tools/read_translations.nvgt <pasta de destino> [keep]
+//   (o token vem de AMONGUS_ADMIN_TOKEN; AMONGUS_SERVER_HOST aponta para outro servidor)
+//
+// Cada envio vira um arquivo <código>__<usuário>.json na pasta de destino e é APAGADO do servidor
+// depois de gravado (a menos que "keep" seja passado). O banco do servidor é caixa de entrada, não
+// arquivo: o que já foi recolhido não tem por que continuar lá.
+
+#include "../src/network/client.nvgt"
+#include "../src/config/game_constants.nvgt"
+#include "../src/config/server_address.nvgt"
+
+net_packet@ espera(game_client@ c, const string&in tipo, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) { if (p.type == tipo) return p; @p = c.poll_message(); }
+		wait(10);
+	}
+	return null;
+}
+
+void main() {
+	if (ARGS.length() < 2) { println("uso: nvgt tools/read_translations.nvgt <pasta de destino> [keep]"); return; }
+	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+	if (token == "") { println("AMONGUS_ADMIN_TOKEN nao esta definido. Use infra\\read_translations.ps1."); return; }
+	string destino = ARGS[1];
+	bool keep = ARGS.length() > 2 && ARGS[2] == "keep";
+	if (!directory_exists(destino) && !directory_create(destino)) { println("nao consegui criar " + destino); return; }
+
+	server_address address = resolve_server_address();
+	game_client c;
+	if (!c.connect_to(address.host, address.port)) { println("nao conectou em " + address.display); return; }
+	timer t;
+	while (!c.connected && t.elapsed < 8000) { c.update(); wait(10); }
+	if (!c.connected) { println("sem resposta do servidor em " + address.display); return; }
+
+	c.send_admin_list_translations(token);
+	net_packet@ lista = espera(c, S_ADMIN_TRANSLATIONS, 8000);
+	if (@lista == null) {
+		net_packet@ erro = espera(c, S_ADMIN_RESULT, 500);
+		println(@erro != null ? "Recusado: " + erro.get_string("message", "") : "O servidor nao respondeu.");
+		c.disconnect();
+		return;
+	}
+	json_array@ items = lista.get_array("items");
+	if (@items == null || items.length() == 0) { println("Nenhuma traducao enviada."); c.disconnect(); return; }
+
+	println(items.length() + " traducao(oes) enviada(s):");
+	for (uint i = 0; i < items.length(); i++) {
+		json_object@ it = items.get_object(i);
+		string user = string(it["username"]);
+		string code = string(it["code"]);
+		string content = string(it["content"]);
+		string arquivo = destino + "/" + code + "__" + user + ".json";
+		bool gravou = file_put_contents(arquivo, content);
+		println("  " + code + " de " + user + " (" + string(it["created_at"]) + ", " + content.length() + " bytes) -> " + arquivo + (gravou ? "" : "  [NAO GRAVOU]"));
+		if (gravou && !keep) {
+			c.send_admin_delete_translation(token, user, code);
+			net_packet@ r = espera(c, S_ADMIN_RESULT, 5000);
+			if (@r == null || !r.get_bool("ok", false)) println("     (nao consegui apagar do servidor)");
+		}
+	}
+	if (keep) println("(mantidas no servidor: keep)");
+	c.disconnect();
+}

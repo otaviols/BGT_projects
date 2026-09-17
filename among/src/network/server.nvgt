@@ -296,6 +296,9 @@ class game_server {
 		else if (t == C_FEEDBACK_REPLIES_GET) on_feedback_replies_get(peer_id, pkt);
 		else if (t == C_FEEDBACK_REPLY_READ) on_feedback_reply_read(peer_id, pkt);
 		else if (t == C_ADMIN_REPLY) on_admin_reply(peer_id, pkt);
+		else if (t == C_SEND_TRANSLATION) on_send_translation(peer_id, pkt);
+		else if (t == C_ADMIN_LIST_TRANSLATIONS) on_admin_list_translations(peer_id, pkt);
+		else if (t == C_ADMIN_DELETE_TRANSLATION) on_admin_delete_translation(peer_id, pkt);
 		else if (t == C_CAMERA_ENTER) on_camera_enter(peer_id, pkt);
 		else if (t == C_CAMERA_LEAVE) on_camera_leave(peer_id, pkt);
 		else if (t == C_CAMERA_SWITCH) on_camera_switch(peer_id, pkt);
@@ -1280,6 +1283,89 @@ class game_server {
 		for (uint i = 0; i < connections.length(); i++) {
 			if (connections[i].username == dono) send_feedback_replies(connections[i].peer_id, dono);
 		}
+	}
+
+	// --- Traduções enviadas pelo jogo ---
+
+	// O arquivo é validado ANTES de gravar: tamanho, JSON que abre, language.name presente e um código
+	// de idioma que sirva de nome de arquivo. Não é para julgar a tradução - isso é de quem revisa -
+	// mas um arquivo que nem carrega não vale o espaço no banco, e o jogador merece saber na hora
+	// que mandou algo quebrado, em vez de descobrir semanas depois que foi descartado.
+	void on_send_translation(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ ack = net_packet(S_TRANSLATION_ACK);
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.username == "") { ack.set_bool("ok", false); ack.set_string("message_key", "translation.send_failed"); send_to(peer_id, ack); return; }
+
+		string code = pkt.get_string("code", "").trim_whitespace();
+		string content = pkt.get_string("content", "");
+		string fail = "";
+		if (!is_valid_language_code(code)) fail = "translation.bad_code";
+		else if (BUILTIN_LANGUAGES.find(code) != -1) fail = "translation.builtin";
+		else if (content.length() == 0 || content.length() > MAX_TRANSLATION_BYTES) fail = "translation.too_big";
+		else fail = validate_translation_json(content);
+		if (fail == "") {
+			if (!g_user_db.save_translation(conn.username, code, content)) fail = "translation.send_failed";
+		}
+		ack.set_bool("ok", fail == "");
+		ack.set_string("message_key", fail == "" ? "translation.sent" : fail);
+		send_to(peer_id, ack);
+	}
+
+	// "" se o conteúdo é um JSON de tradução aceitável, senão a chave do motivo.
+	//
+	// Dentro de try/catch porque o parse_json do NVGT LANÇA exceção em JSON malformado em vez de
+	// devolver null - e uma exceção não tratada aqui derruba o servidor inteiro. Descoberto no
+	// teste: um envio com "{" solto matou o processo para todos os jogadores conectados. Conteúdo
+	// que vem da rede nunca pode ter o poder de derrubar o servidor.
+	string validate_translation_json(const string&in content) {
+		try {
+			var@ parsed = parse_json(content);
+			json_object@ obj = @parsed != null ? cast<json_object@>(parsed) : null;
+			if (@obj == null) return "translation.bad_json";
+			if (!obj.exists("language.name")) return "translation.no_name";
+			if (string(obj["language.name"]) == "") return "translation.no_name";
+			return "";
+		} catch {
+			return "translation.bad_json";
+		}
+	}
+
+	// Só letras, dígitos e sublinhado, como "es_LATAM": o código vira nome de arquivo do outro lado,
+	// e um "../x" aqui seria um caminho, não um idioma.
+	bool is_valid_language_code(const string&in code) const {
+		if (code.length() < 2 || code.length() > 16) return false;
+		for (uint i = 0; i < code.length(); i++) {
+			string c = code.substr(i, 1);
+			bool ok = (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c == "_";
+			if (!ok) return false;
+		}
+		return true;
+	}
+
+	bool admin_token_ok(uint64 peer_id, net_packet@ pkt) {
+		string expected = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+		if (expected != "" && pkt.get_string("token", "") == expected) return true;
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		result.set_bool("ok", false);
+		result.set_string("message", expected == "" ? "server_has_no_token" : "bad_token");
+		send_to(peer_id, result);
+		return false;
+	}
+
+	void on_admin_list_translations(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		net_packet@ out_pkt = net_packet(S_ADMIN_TRANSLATIONS);
+		out_pkt.set_array("items", g_user_db.list_translations());
+		send_to(peer_id, out_pkt);
+	}
+
+	void on_admin_delete_translation(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		bool ok = g_user_db.delete_translation(pkt.get_string("username", ""), pkt.get_string("code", ""));
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		result.set_bool("ok", ok);
+		result.set_string("message", ok ? "deleted" : "delete_failed");
+		send_to(peer_id, result);
 	}
 
 	void on_ping(uint64 peer_id, net_packet@ pkt) {

@@ -86,8 +86,57 @@ class user_database {
 			"read_at DATETIME)"
 		) != SQLITE_OK) return false;
 
+		// Traduções enviadas pelo jogo. Chave (username, code): cada pessoa tem no máximo UMA versão
+		// de cada idioma guardada aqui - reenviar substitui. É o que impede a tabela de crescer com
+		// dez versões do mesmo arquivo, e a ferramenta que recolhe (tools/read_translations) apaga o
+		// que já trouxe. O banco é caixa de entrada, não arquivo.
+		if (db.execute(
+			"CREATE TABLE IF NOT EXISTS translations (" +
+			"username TEXT NOT NULL, " +
+			"code TEXT NOT NULL, " +
+			"content TEXT NOT NULL, " +
+			"created_at DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+			"PRIMARY KEY (username, code))"
+		) != SQLITE_OK) return false;
+
 		db.execute("CREATE INDEX IF NOT EXISTS idx_username ON users(username)");
 		return true;
+	}
+
+	bool save_translation(const string&in username, const string&in code, const string&in content) {
+		if (@db == null) return false;
+		sqlite3statement@ st = db.prepare(
+			"INSERT OR REPLACE INTO translations (username, code, content, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)");
+		if (@st == null) return false;
+		st.bind_text(1, username, false);
+		st.bind_text(2, code, false);
+		st.bind_text(3, content, false);
+		return st.step() == SQLITE_DONE;
+	}
+
+	json_array@ list_translations() {
+		json_array@ list = json_array();
+		if (@db == null) return list;
+		sqlite3statement@ st = db.prepare("SELECT username, code, content, created_at FROM translations ORDER BY created_at");
+		if (@st == null) return list;
+		while (st.step() == SQLITE_ROW) {
+			json_object@ o = json_object();
+			o.set("username", st.column_text(0));
+			o.set("code", st.column_text(1));
+			o.set("content", st.column_text(2));
+			o.set("created_at", st.column_text(3));
+			list.add(o);
+		}
+		return list;
+	}
+
+	bool delete_translation(const string&in username, const string&in code) {
+		if (@db == null) return false;
+		sqlite3statement@ st = db.prepare("DELETE FROM translations WHERE username = ? AND code = ?");
+		if (@st == null) return false;
+		st.bind_text(1, username, false);
+		st.bind_text(2, code, false);
+		return st.step() == SQLITE_DONE;
 	}
 
 	// Grava uma resposta a um recado. Devolve o usuário dono do recado (para avisá-lo na hora se

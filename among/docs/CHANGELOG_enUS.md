@@ -6,6 +6,15 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.23.0
+
+- **Spanish!** The game gained its first translation made by a player. It is under Settings, in the
+  Language option.
+- **Send a translation through the game.** Translated the game into your language? In the match
+  list, choose "Send a translation to the people who make the game": it is reviewed and ships with
+  the next version, and you get a reply inside the game. The manual explains how to make one. In
+  the language list, the translator's name is spoken next to the language.
+
 ## 0.22.5
 
 Fixed automatic updates, which in the previous two versions closed the game and never came back.

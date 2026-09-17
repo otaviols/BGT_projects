@@ -1,9 +1,9 @@
 {
-	"version": "0.22.5",
+	"version": "0.23.0",
 	"url": "AmongUs.zip",
-	"notes": "Fixed automatic updates, which in the previous two versions closed the game and never came back. If you are on 0.22.3 or 0.22.4, download this version from the site once; from then on updates work on their own again.",
+	"notes": "Spanish! The game gained its first translation made by a player. It is under Settings, in the Language option. Send a translation through the game. Translated the game into your language? In the match list, choose \"Send a translation to the people who make the game\": it is reviewed and ships with the next version, and you get a reply inside the game. The manual explains how to make one. In the language list, the translator's name is spoken next to the language.",
 	"notes_by_language": {
-		"pt_BR": "Corrigida a atualização automática, que nas duas versões anteriores fechava o jogo e não voltava. Quem está na 0.22.3 ou 0.22.4 precisa baixar esta versão pelo site uma vez; daí em diante a atualização volta a ser sozinha.",
-		"en_US": "Fixed automatic updates, which in the previous two versions closed the game and never came back. If you are on 0.22.3 or 0.22.4, download this version from the site once; from then on updates work on their own again."
+		"pt_BR": "Espanhol! O jogo ganhou a primeira tradução feita por um jogador. Está em Configurações, na opção Idioma. Enviar uma tradução pelo jogo. Traduziu o jogo para o seu idioma? Na lista de partidas, escolha \"Enviar uma tradução para quem faz o jogo\": ela é revisada e entra na versão seguinte, e você recebe uma resposta dentro do jogo. O manual explica como fazer a tradução. Na lista de idiomas, o nome de quem traduziu é dito ao lado do idioma.",
+		"en_US": "Spanish! The game gained its first translation made by a player. It is under Settings, in the Language option. Send a translation through the game. Translated the game into your language? In the match list, choose \"Send a translation to the people who make the game\": it is reviewed and ships with the next version, and you get a reply inside the game. The manual explains how to make one. In the language list, the translator's name is spoken next to the language."
 	}
 }

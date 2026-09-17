@@ -92,9 +92,16 @@ update_info@ check_for_update() {
 	// JSON só geraria lixo. O site responde 404 enquanto nenhuma versão foi publicada ainda.
 	if (response.status != 200 || body.empty()) return info;
 
-	var@ parsed = parse_json(body);
-	if (@parsed == null) return info;
-	json_object@ data = cast<json_object@>(parsed);
+	// parse_json LANÇA em JSON malformado (ver packet.nvgt). Isto roda antes do try do menu, então
+	// uma exceção aqui fecharia o jogo na abertura por causa de um version.json meio baixado ou de
+	// um portal de wi-fi respondendo 200 com HTML - a atualização tem que falhar em silêncio.
+	json_object@ data = null;
+	try {
+		var@ parsed = parse_json(body);
+		if (@parsed != null) @data = cast<json_object@>(parsed);
+	} catch {
+		return info;
+	}
 	if (@data == null) return info;
 
 	string remote_version = data.exists("version") ? string(data["version"]) : "";

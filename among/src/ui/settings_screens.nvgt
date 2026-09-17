@@ -204,6 +204,13 @@ void run_language_screen() {
 
 	for (uint i = 0; i < codes.length(); i++) {
 		string label = language_display_name(codes[i]);
+		string translator = g_i18n.translator_of(codes[i]);
+		if (translator != "") {
+			dictionary@ tp = dictionary();
+			tp.set("language", label);
+			tp.set("translator", translator);
+			label = tr("settings.language_by", tp);
+		}
 		// O idioma atual é anunciado como tal: sem isso, quem entra na tela não tem como saber em qual
 		// deles já está - a lista sozinha não diz.
 		if (codes[i] == g_settings.language) {

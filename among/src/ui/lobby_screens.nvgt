@@ -12,6 +12,7 @@
 #include "../audio/audio_manager.nvgt"
 #include "feedback_screen.nvgt"
 #include "feedback_replies_screen.nvgt"
+#include "translation_screen.nvgt"
 #include "lobby_info.nvgt"
 #include "../config/lobby_config.nvgt"
 // KEY_CHAT* vêm de core/chat_log.nvgt (compartilhado com game/game_loop.nvgt)
@@ -93,6 +94,7 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		// o jogador já entrou, e este é o lugar onde ele volta entre uma partida e outra - que é
 		// exatamente quando alguém lembra de contar o que achou estranho.
 		m.add_item(tr("feedback.menu_item"), "__feedback__");
+		m.add_item(tr("translation.menu_item"), "__translation__");
 		if (reply_count > 0) {
 			dictionary@ rp = dictionary();
 			rp.set("count", "" + reply_count);
@@ -110,6 +112,10 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		if (id == "__refresh__") continue;
 		if (id == "__feedback__") {
 			run_feedback_screen(client);
+			continue;
+		}
+		if (id == "__translation__") {
+			run_send_translation_screen(client);
 			continue;
 		}
 		if (id == "__replies__") {

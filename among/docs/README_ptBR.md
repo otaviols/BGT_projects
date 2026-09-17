@@ -110,8 +110,14 @@ Qualquer pessoa pode acrescentar um idioma, sem programar e sem esperar por uma 
 2. Traduza os **valores** (o que está depois dos dois-pontos). As **chaves** (o que está antes) não
    mudam nunca — são elas que o jogo procura.
 3. Na primeira linha, escreva o nome do idioma **no próprio idioma**, em `language.name`. É esse
-   nome que aparece na lista: quem procura o idioma dele reconhece "Français", não "Francês".
+   nome que aparece na lista: quem procura o idioma dele reconhece "Français", não "Francês". Em
+   `language.translator`, ponha o seu nome — ele é dito ao lado do idioma na lista.
 4. Abra o jogo. O idioma já aparece em **Configurações → Idioma**.
+5. Para que todo mundo receba a sua tradução, na lista de partidas escolha **Enviar uma tradução
+   para quem faz o jogo** e selecione o idioma. Ela é revisada e entra na versão seguinte; você
+   recebe uma resposta dentro do jogo. Para atualizar depois, edite o arquivo e envie de novo.
+
+As traduções ficam em github.com/otaviols/game-translations — quem preferir pode mandar por lá.
 
 **Não precisa traduzir tudo de uma vez.** O que faltar aparece em inglês, então dá para traduzir aos
 poucos, e uma tradução antiga continua funcionando quando o jogo ganha textos novos.
