@@ -337,6 +337,17 @@ ligado). Testes: `tools/voice/probe_relay.nvgt` (relay e distância, contra serv
 `tools/voice/probe_talker.nvgt` (um "jogador" que manda um tom de 440 Hz, para ouvir a voz
 posicionada no jogo de verdade com `AMONGUS_SERVER_HOST=127.0.0.1`).
 
+**`dictionary.get(chave, valor&out)` com chave AUSENTE deixa `valor` com LIXO.** É como o
+AngelScript trata parâmetro `&out` que a função não escreveu - o valor inicial da variável NÃO é
+preservado. Foi o bug "todo mundo votou nele e deu empate": sem nenhum "pular" a chave `-1` não
+existia, a contagem de pular saía com um número qualquer e ganhava a apuração. Só com alguém
+pulando a chave existia e funcionava - sintoma que parece regra de jogo, não bug. Sempre
+`exists()` antes de `get()`, ou use o retorno booleano de `get()`.
+
+**Quem sai da sala de espera precisa de um S_LOBBY_STATE novo para os que ficaram.** A lista de
+quem está na sala (tecla P) sai do último retrato; só o S_PLAYER_LEFT não a atualiza, e quem saiu
+continuava listado. `remove_from_lobby` manda o retrato quando não há partida em curso.
+
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 
 **Commite ANTES de publicar o servidor.** A imagem leva o nome do commit atual, e isso só é verdade

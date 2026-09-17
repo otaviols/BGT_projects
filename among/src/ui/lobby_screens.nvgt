@@ -396,6 +396,16 @@ class lobby_snapshot {
 		max_players = uint(pkt.get_int("max_players", int(MAX_PLAYERS)));
 	}
 
+	// Entrega os nomes ao chat de voz, para silenciar por nome já na sala de espera.
+	void feed_voice_names() const {
+		if (@players == null) return;
+		g_voice.forget_names();
+		for (uint i = 0; i < players.length(); i++) {
+			json_object@ pj = players.get_object(i);
+			if (@pj != null) g_voice.remember_name(uint64(pj["peer_id"]), string(pj["name"]));
+		}
+	}
+
 	string name_of(uint64 peer_id) const {
 		if (@players == null) return "";
 		for (uint i = 0; i < players.length(); i++) {
@@ -463,6 +473,8 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 	// Na sala de espera todo mundo se ouve, sem posição (ver game_state.can_hear_voice). A regra da
 	// sala pode mudar enquanto se espera (tecla O do anfitrião), por isso é reaplicada a cada retrato.
 	g_voice.begin_lobby(lobby_allows_voice(snapshot.config));
+	g_voice.my_peer_id = client.my_peer_id;
+	snapshot.feed_voice_names();
 
 	// A dica das teclas vem junto do aviso de entrada: numa sala de espera ninguém vai descobrir
 	// sozinho que P e C fazem alguma coisa, e é justamente ali que essas duas respostas importam.
@@ -493,6 +505,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 			} else if (pkt.type == S_LOBBY_STATE) {
 				snapshot.apply(pkt);
 				g_voice.allowed = lobby_allows_voice(snapshot.config);
+				snapshot.feed_voice_names();
 				uint64 new_host_id = pkt.get_uint64("host_peer_id");
 				apply_host_change(client, host_peer_id, is_host, new_host_id, snapshot.name_of(new_host_id));
 			} else if (pkt.type == S_CHAT_MESSAGE) {
@@ -545,6 +558,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		if (key_pressed(KEY_C)) speak(lobby_config_text(snapshot.config) + private_lobby_text(snapshot.join_code));
 
 		if (action_pressed(ACTION_CHAT)) run_chat_compose(client, messages_log);
+		if (action_pressed(ACTION_TALK) && (key_down(KEY_LCTRL) || key_down(KEY_RCTRL))) g_voice.run_mute_menu();
 
 		if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
 			viewing_events_container = !viewing_events_container;

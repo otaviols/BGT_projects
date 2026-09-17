@@ -378,9 +378,11 @@ class game_state {
 		json_array@ breakdown = json_array(); // quem votou em quem, pra anunciar no cliente antes do resultado
 		for (uint i = 0; i < votes.length(); i++) {
 			int64 t = votes[i].target_peer_id;
-			int64 c = 0;
+			// dictionary.get() com chave AUSENTE não zera o &out: ele sai com LIXO (é assim que o
+			// AngelScript trata &out não escrito). Sempre exists() antes.
 			string key = "" + t;
-			counts.get(key, c);
+			int64 c = 0;
+			if (counts.exists(key)) counts.get(key, c);
 			c++;
 			counts.set(key, c);
 			if (targets.find(t) == -1) targets.insert_last(t);
@@ -404,7 +406,9 @@ class game_state {
 		// expulsava alguém - a vontade de nove pessoas valia zero. Agora alguém só é expulso se tiver
 		// MAIS votos do que "pular" e do que qualquer outro; empate com "pular" é ninguém expulso.
 		int64 skip_count = 0;
-		counts.get("-1", skip_count);
+		// Sem exists() isto era o bug "todo mundo votou nele e ninguém foi expulso": sem nenhum
+		// "pular" a chave não existia, skip_count saía com lixo e "vencia" a apuração como empate.
+		if (counts.exists("-1")) counts.get("-1", skip_count);
 		int64 best_target = -1;
 		int64 best_count = 0;
 		bool tie = false;
@@ -412,7 +416,7 @@ class game_state {
 			int64 t = targets[i];
 			if (t == -1) continue;
 			int64 c = 0;
-			counts.get("" + t, c);
+			if (counts.exists("" + t)) counts.get("" + t, c);
 			if (c > best_count) { best_count = c; best_target = t; tie = false; }
 			else if (c == best_count && c > 0) tie = true;
 		}

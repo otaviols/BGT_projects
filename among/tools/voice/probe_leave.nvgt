@@ -1,0 +1,60 @@
+// Sonda: quem sai da sala de espera some do retrato (S_LOBBY_STATE) dos que ficaram.
+// Sonda da apuração: N clientes, todos votam no mesmo, e imprime o S_VOTE_RESULT.
+// Uso: AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/voice/probe_vote.nvgt [bots]
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+class peer { game_client@ c; string name; uint64 id = 0; bool alive = true; peer(const string&in n) { name = n; @c = game_client(); } }
+
+net_packet@ wait_for(game_client@ c, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == type) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+// bombeia todos e devolve o primeiro pacote do tipo pedido visto em QUALQUER um (sem descartar os outros tipos)
+net_packet@ wait_any(array<peer@>@ all, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		for (uint i = 0; i < all.length(); i++) {
+			all[i].c.update();
+			for (uint k = 0; k < all[i].c.incoming.length(); k++) {
+				net_packet@ p = all[i].c.incoming[k];
+				if (p.type == type) { all[i].c.incoming.remove_at(k); return p; }
+			}
+		}
+		wait(5);
+	}
+	return null;
+}
+void pump(array<peer@>@ ps, int ms) { timer t; while (t.elapsed < ms) { for (uint i = 0; i < ps.length(); i++) { ps[i].c.update(); ps[i].c.clear_incoming(); } wait(5); } }
+
+void main() {
+	int bots = ARGS.length() > 1 ? parse_int(ARGS[1]) : 0;
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<peer@> all = {peer("pa" + sfx), peer("pb" + sfx), peer("pc" + sfx)};
+	for (uint i = 0; i < all.length(); i++) {
+		peer@ p = all[i];
+		if (!p.c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!p.c.connected && t.elapsed < 5000) { p.c.update(); wait(5); }
+		p.c.send_register(p.name, "probe123"); wait_for(p.c, S_REGISTER_RESULT, 3000);
+		p.c.send_login(p.name, "probe123");
+		net_packet@ lr = wait_for(p.c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		p.id = lr.get_uint64("peer_id"); p.c.my_peer_id = p.id;
+	}
+	lobby_overrides ov; ov.max_players = 10; ov.impostor_count = 1; ov.discussion_time_seconds = 5; ov.voting_time_seconds = 30;
+	all[0].c.send_create_lobby("voto", "classic", ov);
+	net_packet@ st = wait_for(all[0].c, S_LOBBY_STATE, 5000);
+	string lobby_id = st.get_string("lobby_id");
+	for (uint i = 1; i < all.length(); i++) { all[i].c.send_join_lobby(lobby_id); wait_for(all[i].c, S_JOIN_RESULT, 5000); }
+	pump(all, 300);
+	all[1].c.send_leave_lobby();
+	net_packet@ ls = wait_for(all[0].c, S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("FALHA: sem S_LOBBY_STATE depois da saida"); return; }
+	json_array@ ps = ls.get_array("players");
+	println("retrato depois da saida: " + ps.length() + " jogadores (esperado 2)");
+	for (uint i = 0; i < all.length(); i++) all[i].c.disconnect();
+}

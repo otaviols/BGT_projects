@@ -6,6 +6,21 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.26.0
+
+- **Chat de voz por proximidade.** Quem está perto de você na nave ouve o que você diz, do lado
+  onde você está; na sala de espera e na reunião todo mundo se ouve. Quem morreu só fala com quem
+  morreu (mas continua ouvindo todo mundo), e dentro do duto ninguém te ouve. Segure **X** para
+  falar — ou, em Configurações > Chat de voz, escolha abrir o microfone sozinho quando você fala,
+  com a sensibilidade que preferir, e teste o seu microfone antes de entrar. A tecla se troca em
+  Teclas. Ctrl mais a tecla de falar abre a lista para **silenciar** alguém (fica silenciado nas
+  próximas partidas também). Há um volume próprio para as vozes, e a sala tem a regra "Chat de voz"
+  para quem preferir jogar só por texto.
+- **Escolha por onde o som sai e qual microfone usar**, em Configurações.
+- Corrigido: quando todo mundo votava na mesma pessoa e ninguém pulava, a votação dava empate e
+  ninguém era expulso.
+- Corrigido: quem saía da sala de espera continuava aparecendo na lista de quem está na sala.
+
 ## 0.25.2
 
 Toda tarefa (e todo reparo) termina com o mesmo som de concluído. Antes cada uma tocava um som

@@ -6,6 +6,20 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.26.0
+
+- **Proximity voice chat.** Players near you on the ship hear what you say, from the side you're
+  on; in the waiting room and during meetings everyone hears everyone. The dead only talk to the
+  dead (but still hear everyone), and nobody hears you inside a vent. Hold **X** to talk — or, under
+  Settings > Voice chat, let the microphone open by itself when you speak, with the sensitivity you
+  prefer, and test your microphone before joining. The key can be changed under Keys. Ctrl plus the
+  talk key opens the list to **mute** someone (they stay muted in later matches too). Voices have
+  their own volume, and rooms have a "Voice chat" rule for those who prefer text only.
+- **Choose the sound output device and the microphone**, under Settings.
+- Fixed: when everyone voted for the same player and nobody skipped, the vote ended in a tie and
+  nobody was ejected.
+- Fixed: players who left the waiting room were still listed as being in the room.
+
 ## 0.25.2
 
 Every task (and every repair) ends with the same completion sound. Before, each played a different

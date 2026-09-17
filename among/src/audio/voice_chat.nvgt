@@ -18,6 +18,8 @@
 #include "../config/keybindings.nvgt"
 #include "../core/client_state.nvgt"
 #include "sound_catalog.nvgt"
+#include "menu.nvgt"
+#include "../i18n.nvgt"
 
 const uint VOICE_SAMPLE_RATE = 16000;
 // Um quadro de envio: 20 ms a 48 kHz (a taxa do motor). Menor que isto é cabeçalho demais por
@@ -119,6 +121,16 @@ class voice_chat : voice_receiver {
 	// Auto-escuta (tela de configurações): o que passa pelo microfone volta para o alto-falante.
 	bool monitoring = false;
 	sound monitor_snd;
+	// Nome de cada peer que pode falar comigo (sala de espera e partida), para silenciar por nome.
+	dictionary peer_names;
+
+	void remember_name(uint64 peer, const string&in name) { if (name != "") peer_names.set("" + peer, name); }
+	void forget_names() { peer_names.delete_all(); }
+	string name_of(uint64 peer) const {
+		string name;
+		if (peer_names.exists("" + peer)) peer_names.get("" + peer, name);
+		return name;
+	}
 
 	void attach(game_client@ c) {
 		@client = c;
@@ -129,6 +141,8 @@ class voice_chat : voice_receiver {
 	void begin_match(client_roster@ r, uint64 me, bool room_allows) {
 		@roster = r;
 		my_peer_id = me;
+		forget_names();
+		for (uint i = 0; i < r.entries.length(); i++) remember_name(r.entries[i].peer_id, r.entries[i].name);
 		spatial = true;
 		allowed = room_allows;
 		stop_all();
@@ -143,6 +157,7 @@ class voice_chat : voice_receiver {
 	// Saiu de tudo: nada é capturado nem tocado.
 	void leave() {
 		@roster = null;
+		forget_names();
 		spatial = false;
 		allowed = false;
 		stop_all();
@@ -217,7 +232,8 @@ class voice_chat : voice_receiver {
 				if (voice_level_db(frame) >= voice_threshold_db(g_settings.voice_sensitivity)) hangover.restart();
 				open = hangover.elapsed <= VOICE_AUTO_HANGOVER_MS;
 			} else {
-				open = action_down(ACTION_TALK);
+				// Com Ctrl, a tecla de falar abre a lista de silenciar - não é fala.
+				open = action_down(ACTION_TALK) && !key_down(KEY_LCTRL) && !key_down(KEY_RCTRL);
 			}
 			set_transmitting(open, true);
 			if (open) {
@@ -253,6 +269,7 @@ class voice_chat : voice_receiver {
 		uint64 talker;
 		string audio;
 		if (!voice_unwire(wire, talker, audio)) return;
+		if (g_settings.is_muted(name_of(talker))) return;
 		voice_stream@ s = stream_for(talker);
 		s.last_frame.restart();
 		s.snd.stream_pcm(voice_decode(audio), VOICE_SAMPLE_RATE, 1);
@@ -280,6 +297,41 @@ class voice_chat : voice_receiver {
 		s.snd.set_position_3d(who.x - me.x, -(who.y - me.y), 0);
 	}
 
+	// --- Silenciar -----------------------------------------------------------------------------
+	// Lista de quem está comigo; Enter alterna silenciado/ouvindo e a lista continua aberta, para
+	// silenciar mais de um de uma vez. Ctrl + tecla de falar abre isto (ver game_loop e a sala de
+	// espera). A rede continua sendo bombeada pelo callback do menu, senão a conexão cairia.
+	void run_mute_menu() {
+		while (true) {
+			menu m;
+			m.intro_text = tr("voice.mute_hint");
+			m.click_sound = "ui/menuclick.ogg";
+			m.select_sound = "ui/menuconfirm.ogg";
+			m.sounds_prefix = "sounds/";
+			@g_voice_pump_client = client;
+			@m.background_callback = @pump_client_during_voice_menu;
+			array<string>@ keys = peer_names.get_keys();
+			uint listed = 0;
+			for (uint i = 0; i < keys.length(); i++) {
+				if (keys[i] == "" + my_peer_id) continue;
+				string name; peer_names.get(keys[i], name);
+				string label = name;
+				if (g_settings.is_muted(name)) label = tr("voice.muted_item", name_params(name));
+				m.add_item(label, name);
+				listed++;
+			}
+			if (listed == 0) { speak(tr("voice.mute_nobody")); return; }
+			m.add_item(tr("menu.back"), "back");
+			m.run();
+			string chosen = m.selected_item_id;
+			if (chosen == "" || chosen == "back") return;
+			bool now_muted = g_settings.toggle_muted(chosen);
+			g_settings.save();
+			speak(tr(now_muted ? "voice.now_muted" : "voice.now_unmuted", name_params(chosen)));
+			wait(600); // deixa a confirmação ser ouvida antes de o menu reler o primeiro item
+		}
+	}
+
 	// --- Auto-escuta (configurações) ---------------------------------------------------------------
 	// O que sairia para os outros volta para o próprio alto-falante, sem posição: é como se ouve o
 	// próprio microfone, a sensibilidade escolhida e o dispositivo certo antes de entrar numa partida.
@@ -295,6 +347,13 @@ class voice_chat : voice_receiver {
 		monitor_snd.spatialization_enabled = false;
 		monitor_snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES);
 	}
+}
+
+dictionary@ name_params(const string&in name) { dictionary@ d = dictionary(); d.set("name", name); return d; }
+
+game_client@ g_voice_pump_client;
+void pump_client_during_voice_menu(menu@ m, string data) {
+	if (@g_voice_pump_client != null) g_voice_pump_client.update();
 }
 
 voice_chat g_voice;

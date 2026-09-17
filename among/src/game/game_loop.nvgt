@@ -901,6 +901,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_lock();
 			radar.tick(map, my_x, my_y);
 		}
+		// Ctrl + tecla de falar: silenciar/ouvir jogadores no chat de voz. Funciona parado na reunião
+		// também - é justamente quando alguém fala demais.
+		if (action_pressed(ACTION_TALK) && (key_down(KEY_LCTRL) || key_down(KEY_RCTRL))) g_voice.run_mute_menu();
 
 		if (!movement_frozen && !cameras.active && action_pressed(ACTION_RADAR)) {
 			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -

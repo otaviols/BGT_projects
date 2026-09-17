@@ -57,6 +57,18 @@ class game_settings {
 	int voice_sensitivity = 50;
 	string voice_input_device = "";
 	string audio_output_device = "";
+	// Jogadores silenciados no chat de voz, pelo NOME de usuário: sobrevive à partida e à sessão,
+	// porque quem incomoda hoje vai incomodar amanhã, e ninguém quer silenciar de novo a cada sala.
+	array<string> muted_players;
+
+	bool is_muted(const string&in username) const { return username != "" && muted_players.find(username) != -1; }
+	// Devolve o estado novo.
+	bool toggle_muted(const string&in username) {
+		int at = muted_players.find(username);
+		if (at != -1) { muted_players.remove_at(at); return false; }
+		muted_players.insert_last(username);
+		return true;
+	}
 
 	game_settings() {
 		volumes.resize(SOUND_FAMILY_COUNT);
@@ -118,6 +130,9 @@ class game_settings {
 		if (voice_sensitivity > 100) voice_sensitivity = 100;
 		voice_input_device = store.read_string("voice_input_device", "");
 		audio_output_device = store.read_string("audio_output_device", "");
+		muted_players.resize(0);
+		string muted = store.read_string("muted_players", "");
+		if (muted != "") muted_players = muted.split("|");
 
 		apply_master();
 		apply_output_device();
@@ -169,6 +184,7 @@ class game_settings {
 		store.write_number("voice_sensitivity", voice_sensitivity);
 		store.write_string("voice_input_device", voice_input_device);
 		store.write_string("audio_output_device", audio_output_device);
+		store.write_string("muted_players", join(muted_players, "|"));
 	}
 }
 

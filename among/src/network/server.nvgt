@@ -303,6 +303,9 @@ class game_server {
 		left.set_string("name", left_name);
 		left.set_uint64("host_peer_id", lobby.host_peer_id);
 		broadcast_to_lobby(lobby, left);
+		// Na sala de espera, um retrato novo: a lista de quem está na sala (tecla P) vem do último
+		// S_LOBBY_STATE, e sem este envio quem saiu continuava listado como se estivesse lá.
+		if (!match_active) send_lobby_state(lobby, 0);
 	}
 
 	// --- Roteamento ---
