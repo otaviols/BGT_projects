@@ -368,6 +368,10 @@ pulando a chave existia e funcionava - sintoma que parece regra de jogo, não bu
 quem está na sala (tecla P) sai do último retrato; só o S_PLAYER_LEFT não a atualiza, e quem saiu
 continuava listado. `remove_from_lobby` manda o retrato quando não há partida em curso.
 
+**"docker build falhou" logo no começo do deploy = Docker Desktop parado** (a máquina reiniciou).
+`Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"` e esperar `docker info`
+responder; o deploy não inicia o Docker sozinho.
+
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 
 **Commite ANTES de publicar o servidor.** A imagem leva o nome do commit atual, e isso só é verdade
