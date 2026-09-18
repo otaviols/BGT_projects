@@ -114,13 +114,22 @@ class user_database {
 		return true;
 	}
 
+	// Hash do token SEMPRE em hexadecimal. string_hash_sha256 devolve BINÁRIO no Linux (e texto hex
+	// no Windows - a mesma chamada, resultado diferente por plataforma), e binário com byte nulo no
+	// meio é cortado por bind_text ao gravar numa coluna TEXT: os token_hash saíam com 6 bytes e o
+	// login por token nunca casava na produção (passava no teste local, que roda no Windows).
+	// string_to_hex é idempotente sobre texto que já é hex, então cobre as duas plataformas.
+	private string token_hash(const string&in token) {
+		return string_to_hex(string_hash_sha256(token, true));
+	}
+
 	// Cria um token de sessão para o usuário e devolve o token (só esta vez: guardado só o hash).
 	string create_session(const string&in username) {
 		if (@db == null) return "";
 		string token = string_base64_encode(random_bytes(32));
 		sqlite3statement@ st = db.prepare("INSERT INTO sessions (token_hash, username) VALUES (?, ?)");
 		if (@st == null) return "";
-		st.bind_text(1, string_hash_sha256(token), false);
+		st.bind_text(1, token_hash(token), false);
 		st.bind_text(2, username, false);
 		return st.step() == SQLITE_DONE ? token : "";
 	}
@@ -129,7 +138,7 @@ class user_database {
 	string session_user(const string&in token) {
 		if (@db == null || token == "") return "";
 		db.execute("DELETE FROM sessions WHERE last_used < datetime('now', '-" + SESSION_TOKEN_DAYS + " days')");
-		string hash = string_hash_sha256(token);
+		string hash = token_hash(token);
 		sqlite3statement@ st = db.prepare("SELECT username FROM sessions WHERE token_hash = ?");
 		if (@st == null) return "";
 		st.bind_text(1, hash, false);
@@ -144,7 +153,7 @@ class user_database {
 		if (@db == null || token == "") return;
 		sqlite3statement@ st = db.prepare("DELETE FROM sessions WHERE token_hash = ?");
 		if (@st == null) return;
-		st.bind_text(1, string_hash_sha256(token), false);
+		st.bind_text(1, token_hash(token), false);
 		st.step();
 	}
 

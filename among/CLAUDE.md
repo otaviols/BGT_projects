@@ -385,6 +385,13 @@ massa passa por `reaches_client()`, que pula bot e quem saiu. Sintoma quando iss
 recebia o fim da partida ANTIGA dentro da nova e o cliente, obediente, saía dela "como se tivesse
 vencido".
 
+**`bind_text` corta dados BINÁRIOS no primeiro byte nulo - hash/binário em coluna TEXT vai como
+hex.** O token de sessão guardava `string_hash_sha256(token)` direto: no Windows essa chamada volta
+como texto hexadecimal, mas no LINUX volta binário, e os 32 bytes com um nulo no meio eram cortados
+para 6 na hora do bind_text - o login por token nunca casava na produção, embora passasse no teste
+local (que roda no Windows). Sempre `string_to_hex(string_hash_sha256(x, true))` para gravar hash.
+A mesma armadilha vale para qualquer binário que for para uma coluna TEXT.
+
 **"Lembrar de mim" guarda um token de sessão, nunca a senha.** O NVGT não alcança o Cofre de
 Credenciais do Windows nem DPAPI, então senha em disco seria texto puro. O servidor emite um
 token aleatório no login com `remember` (tabela `sessions`, só o SHA-256 dele; vence depois de

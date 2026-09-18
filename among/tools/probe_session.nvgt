@@ -25,6 +25,9 @@ void main() {
 	net_packet@ r = wait_for(a, S_LOGIN_RESULT, 5000);
 	string token = @r != null ? r.get_string("session_token") : "";
 	println("login com senha: ok=" + (@r != null && r.get_bool("ok")) + " token=" + (token.length() > 0 ? token.length() + " chars" : "NENHUM"));
+	println("  token bruto: [" + token + "]");
+	// o mesmo hash que o servidor usa, para ver se o token sobrevive ao ir e voltar
+	println("  sha256(token) hex: " + string_hash_sha256(token));
 	a.disconnect();
 
 	game_client@ b = conectar(addr);
