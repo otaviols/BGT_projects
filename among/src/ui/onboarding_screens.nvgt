@@ -164,12 +164,28 @@ bool connect_to_server(game_client@ client) {
 login_result run_login_screen(game_client@ client) {
 	login_result result;
 
+	// "Lembrar de mim": há um token de sessão guardado, então tenta entrar com ele antes de mostrar
+	// o formulário. Se o servidor recusar (token vencido, conta apagada, servidor antigo), o token
+	// é esquecido e o formulário aparece como sempre - com a senha em branco, que nunca é guardada.
+	if (g_settings.session_token != "") {
+		dictionary@ p = dictionary();
+		p.set("name", g_settings.last_username);
+		speak(tr("login.remembered", p));
+		client.send_login_token(g_settings.session_token);
+		if (wait_for_auth_result(client, false, g_settings.last_username, "", result, true)) return result;
+		g_settings.session_token = "";
+		g_settings.save();
+	}
+
 	audio_form f;
 	f.create_window(tr("menu.login"), false); // não sobrescreve o título da janela (nome do jogo)
 	// Já vem com o último usuário que entrou nesta máquina; se houver um, o foco pula direto pra
 	// senha, que é o único campo que ainda precisa ser digitado.
 	int f_user = f.create_input_box(tr("login.username"), g_settings.last_username);
 	int f_pass = f.create_input_box(tr("login.password"), "", "*");
+	// Marcado por padrão: quem joga todo dia não quer digitar senha todo dia. O que fica no disco é
+	// um token que o servidor emite e pode revogar - a senha em si nunca é gravada.
+	int f_remember = f.create_checkbox(tr("login.remember"), true);
 	int f_login = f.create_button(tr("menu.login"), true);
 	int f_register = f.create_button(tr("menu.register"));
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
@@ -189,10 +205,11 @@ login_result run_login_screen(game_client@ client) {
 			string password = f.get_text(f_pass);
 			if (username.empty() || password.empty()) continue;
 
+			bool remember = f.is_checked(f_remember);
 			if (wants_register) client.send_register(username, password);
-			else client.send_login(username, password);
+			else client.send_login(username, password, remember);
 
-			if (!wait_for_auth_result(client, wants_register, username, password, result)) continue;
+			if (!wait_for_auth_result(client, wants_register, username, password, result, false, remember)) continue;
 			return result;
 		}
 	}
@@ -202,7 +219,7 @@ login_result run_login_screen(game_client@ client) {
 // Aguarda S_REGISTER_RESULT ou S_LOGIN_RESULT do servidor. Se o cadastro deu certo, envia login
 // automaticamente em seguida e espera o resultado desse login também.
 bool wait_for_auth_result(game_client@ client, bool was_register, const string&in username,
-		const string&in password, login_result@ result) {
+		const string&in password, login_result@ result, bool by_token = false, bool remember = false) {
 	timer@ wait_clock = timer();
 	bool logging_in_after_register = false;
 
@@ -221,15 +238,18 @@ bool wait_for_auth_result(game_client@ client, bool was_register, const string&i
 					return false;
 				}
 				speak(tr("login.register_success"));
-				client.send_login(username, password);
+				client.send_login(username, password, remember);
 				logging_in_after_register = true;
 				wait_clock.restart();
 			} else if (pkt.type == S_LOGIN_RESULT) {
 				if (!pkt.get_bool("ok")) {
-					speak(tr("login.invalid_credentials"));
+					speak(tr(by_token ? "login.remembered_failed" : "login.invalid_credentials"));
 					return false;
 				}
 				speak(tr("login.success"));
+				// O token novo (se pedimos para lembrar) substitui o anterior; um login sem "lembrar"
+				// apaga o que havia, para um computador emprestado não ficar com a sessão de alguém.
+				if (!by_token) g_settings.session_token = pkt.get_string("session_token", "");
 				// A partir daqui o cliente sabe com que id o servidor o identifica - tudo que compara
 				// peer_id vindo de pacote (anfitrião, voto, chat, radar) depende disso estar certo.
 				client.my_peer_id = pkt.get_uint64("peer_id");

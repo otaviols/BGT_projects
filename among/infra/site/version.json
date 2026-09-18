@@ -1,9 +1,9 @@
 {
-	"version": "0.26.1",
+	"version": "0.27.0",
 	"url": "AmongUs.zip",
-	"notes": "Voice chat: other players' voices now come through clean and continuous. In 0.26.0 they sounded choppy and garbled for everyone. Typing the talk key in the chat box or in the room rules no longer opens the microphone.",
+	"notes": "Remember me. Tick the option on the sign-in screen and, next time, the game signs you in by itself. Your password is not stored on the computer: the server gives the game its own access, which you can cancel with \"Sign out and forget this computer\" in the match list. Voice chat: dead players now hear the meeting properly (the discussion came from far away, barely audible).",
 	"notes_by_language": {
-		"pt_BR": "Chat de voz: a voz dos outros chega limpa e contínua. Na 0.26.0 saía picotada e embaralhada para todo mundo. Digitar a tecla de falar no chat ou nas regras da sala não abre mais o microfone.",
-		"en_US": "Voice chat: other players' voices now come through clean and continuous. In 0.26.0 they sounded choppy and garbled for everyone. Typing the talk key in the chat box or in the room rules no longer opens the microphone."
+		"pt_BR": "Lembrar de mim. Marque a opção na tela de entrada e, da próxima vez, o jogo entra sozinho na sua conta. A senha não fica guardada no computador: o servidor dá ao jogo um acesso próprio, que você pode cancelar em \"Sair da conta e esquecer este computador\", na lista de partidas. Chat de voz: quem morreu agora ouve a reunião direito (a discussão chegava de longe, quase inaudível).",
+		"en_US": "Remember me. Tick the option on the sign-in screen and, next time, the game signs you in by itself. Your password is not stored on the computer: the server gives the game its own access, which you can cancel with \"Sign out and forget this computer\" in the match list. Voice chat: dead players now hear the meeting properly (the discussion came from far away, barely audible)."
 	}
 }

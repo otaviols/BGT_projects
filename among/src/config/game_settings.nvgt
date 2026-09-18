@@ -43,6 +43,9 @@ class game_settings {
 	// ficaria em texto puro num arquivo do computador, e "não redigitar o nome" já é o incômodo que
 	// se queria resolver.
 	string last_username = "";
+	// "Lembrar de mim": o TOKEN de sessão que o servidor emitiu, nunca a senha. Só serve para entrar
+	// neste jogo como este usuário, e o servidor pode invalidá-lo. Vazio = pedir a senha.
+	string session_token = "";
 	// Idioma escolhido pelo jogador, no formato do nome do arquivo em lang/ (ex.: "pt_BR").
 	// O padrão é pt_BR porque é o idioma em que o jogo foi escrito e o único garantidamente completo;
 	// quem preferir outro troca uma vez e a escolha fica.
@@ -118,6 +121,7 @@ class game_settings {
 		// Voz: o próprio speech.nvgt sabe serializar e restaurar a configuração dele (voz escolhida,
 		// velocidade, volume e se deve usar o leitor de tela quando existir).
 		last_username = store.read_string("last_username", "");
+		session_token = store.read_string("session_token", "");
 		language = store.read_string("language", DEFAULT_LANGUAGE);
 		if (language == "") language = DEFAULT_LANGUAGE;
 		string voice_config = store.read_string("tts", "");
@@ -177,6 +181,7 @@ class game_settings {
 			store.write_number("key_" + b.id, b.key);
 		}
 		store.write_string("last_username", last_username);
+		store.write_string("session_token", session_token);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));
 		store.write_number("voice_chat_enabled", voice_chat_enabled ? 1 : 0);

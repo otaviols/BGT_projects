@@ -111,10 +111,24 @@ class game_client {
 
 	// --- Envio de comandos (Cliente -> Servidor) ---
 
-	void send_login(const string&in username, const string&in password) {
+	void send_login(const string&in username, const string&in password, bool remember = false) {
 		net_packet@ p = net_packet(C_LOGIN);
 		p.set_string("username", username);
 		p.set_string("password", password);
+		p.set_bool("remember", remember);
+		send(p);
+	}
+
+	// Login com o token guardado por "lembrar de mim" (ver C_LOGIN).
+	void send_login_token(const string&in token) {
+		net_packet@ p = net_packet(C_LOGIN);
+		p.set_string("token", token);
+		send(p);
+	}
+
+	void send_logout(const string&in token) {
+		net_packet@ p = net_packet(C_LOGOUT);
+		p.set_string("token", token);
 		send(p);
 	}
 

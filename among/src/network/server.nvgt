@@ -313,6 +313,7 @@ class game_server {
 	void route_packet(uint64 peer_id, net_packet@ pkt) {
 		string t = pkt.type;
 		if (t == C_LOGIN) on_login(peer_id, pkt);
+		else if (t == C_LOGOUT) on_logout(peer_id, pkt);
 		else if (t == C_REGISTER) on_register(peer_id, pkt);
 		else if (t == C_LIST_LOBBIES) on_list_lobbies(peer_id, pkt);
 		else if (t == C_CREATE_LOBBY) on_create_lobby(peer_id, pkt);
@@ -359,9 +360,17 @@ class game_server {
 	void on_login(uint64 peer_id, net_packet@ pkt) {
 		string username = pkt.get_string("username");
 		string password = pkt.get_string("password");
+		string token = pkt.get_string("token");
 		net_packet@ result = net_packet(S_LOGIN_RESULT);
 
-		if (g_user_db.verify_login(username, password)) {
+		bool ok;
+		if (token != "") {
+			username = g_user_db.session_user(token);
+			ok = username != "";
+		} else {
+			ok = g_user_db.verify_login(username, password);
+		}
+		if (ok) {
 			game_player@ conn = find_connection(peer_id);
 			if (@conn != null) {
 				conn.username = username;
@@ -370,6 +379,8 @@ class game_server {
 			result.set_bool("ok", true);
 			result.set_string("message", "login.success");
 			result.set_string("username", username);
+			// Pediu para lembrar: sai um token novo; o cliente guarda o token, nunca a senha.
+			if (token == "" && pkt.get_bool("remember")) result.set_string("session_token", g_user_db.create_session(username));
 			// O cliente não tem como descobrir sozinho com que id o servidor o identifica (o id que
 			// o ENet dele devolve é só um handle local) - sem isso ele compara maçã com laranja em
 			// todo peer_id que chega e às vezes "acerta" o de outro jogador (ver game_client).
@@ -379,6 +390,10 @@ class game_server {
 			result.set_string("message", "login.invalid_credentials");
 		}
 		send_to(peer_id, result);
+	}
+
+	void on_logout(uint64 peer_id, net_packet@ pkt) {
+		g_user_db.delete_session(pkt.get_string("token"));
 	}
 
 	void on_register(uint64 peer_id, net_packet@ pkt) {

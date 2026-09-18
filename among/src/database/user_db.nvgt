@@ -99,8 +99,53 @@ class user_database {
 			"PRIMARY KEY (username, code))"
 		) != SQLITE_OK) return false;
 
+		// "Lembrar de mim": o cliente guarda um TOKEN de sessão, nunca a senha. Aqui fica só o hash
+		// do token - quem ler o banco não consegue entrar com ele - e a data de uso, para o token
+		// morrer sozinho depois de SESSION_TOKEN_DAYS sem abrir o jogo.
+		if (db.execute(
+			"CREATE TABLE IF NOT EXISTS sessions (" +
+			"token_hash TEXT PRIMARY KEY, " +
+			"username TEXT NOT NULL, " +
+			"created_at DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+			"last_used DATETIME DEFAULT CURRENT_TIMESTAMP)"
+		) != SQLITE_OK) return false;
+
 		db.execute("CREATE INDEX IF NOT EXISTS idx_username ON users(username)");
 		return true;
+	}
+
+	// Cria um token de sessão para o usuário e devolve o token (só esta vez: guardado só o hash).
+	string create_session(const string&in username) {
+		if (@db == null) return "";
+		string token = string_base64_encode(random_bytes(32));
+		sqlite3statement@ st = db.prepare("INSERT INTO sessions (token_hash, username) VALUES (?, ?)");
+		if (@st == null) return "";
+		st.bind_text(1, string_hash_sha256(token), false);
+		st.bind_text(2, username, false);
+		return st.step() == SQLITE_DONE ? token : "";
+	}
+
+	// Usuário dono do token, ou "" se ele não existe ou venceu. Renova a data de uso.
+	string session_user(const string&in token) {
+		if (@db == null || token == "") return "";
+		db.execute("DELETE FROM sessions WHERE last_used < datetime('now', '-" + SESSION_TOKEN_DAYS + " days')");
+		string hash = string_hash_sha256(token);
+		sqlite3statement@ st = db.prepare("SELECT username FROM sessions WHERE token_hash = ?");
+		if (@st == null) return "";
+		st.bind_text(1, hash, false);
+		if (st.step() != SQLITE_ROW) return "";
+		string username = st.column_text(0);
+		sqlite3statement@ touch = db.prepare("UPDATE sessions SET last_used = CURRENT_TIMESTAMP WHERE token_hash = ?");
+		if (@touch != null) { touch.bind_text(1, hash, false); touch.step(); }
+		return username;
+	}
+
+	void delete_session(const string&in token) {
+		if (@db == null || token == "") return;
+		sqlite3statement@ st = db.prepare("DELETE FROM sessions WHERE token_hash = ?");
+		if (@st == null) return;
+		st.bind_text(1, string_hash_sha256(token), false);
+		st.step();
 	}
 
 	bool save_translation(const string&in username, const string&in code, const string&in content) {

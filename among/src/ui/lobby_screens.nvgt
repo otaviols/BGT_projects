@@ -102,11 +102,20 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			rp.set("count", "" + reply_count);
 			m.add_item(tr("feedback.replies_menu_item", rp), "__replies__");
 		}
+		if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
 		m.add_item(tr("menu.back"), "__back__");
 
 		m.run();
 		string id = m.selected_item_id;
 
+		if (id == "__forget__") {
+			// Esquece este computador: o servidor invalida o token e o próximo login pede a senha.
+			client.send_logout(g_settings.session_token);
+			g_settings.session_token = "";
+			g_settings.save();
+			speak(tr("login.forgotten"));
+			continue;
+		}
 		if (id == "" || id == "__back__") {
 			result.go_back = true;
 			return result;

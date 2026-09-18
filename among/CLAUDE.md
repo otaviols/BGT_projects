@@ -381,6 +381,17 @@ massa passa por `reaches_client()`, que pula bot e quem saiu. Sintoma quando iss
 recebia o fim da partida ANTIGA dentro da nova e o cliente, obediente, saía dela "como se tivesse
 vencido".
 
+**"Lembrar de mim" guarda um token de sessão, nunca a senha.** O NVGT não alcança o Cofre de
+Credenciais do Windows nem DPAPI, então senha em disco seria texto puro. O servidor emite um
+token aleatório no login com `remember` (tabela `sessions`, só o SHA-256 dele; vence depois de
+`SESSION_TOKEN_DAYS` sem uso), o cliente guarda o token nas preferências e entra com `C_LOGIN
+{token}`; "Sair da conta" manda `C_LOGOUT` e apaga. Login com senha SEM lembrar apaga o token
+local, para computador emprestado não ficar com a sessão de alguém. Sonda: `tools/probe_session`.
+
+**Na reunião a voz toca SEM posição** (`g_voice.spatial = false` entre S_MEETING_STARTED e
+S_VOTE_RESULT): os vivos são teleportados para a cafeteria e o fantasma fica onde morreu - com
+posição, ele ouvia a discussão de longe, quase inaudível.
+
 **Respostas aos recados vão pelo jogo, autorizadas por token de ambiente.** `C_ADMIN_REPLY` só passa
 se o token bater com `AMONGUS_ADMIN_TOKEN` no servidor (segredo `amongus-admin` do cluster; sem ele
 o servidor recusa tudo). Não há conta de administrador de propósito: seria mais uma senha dentro do

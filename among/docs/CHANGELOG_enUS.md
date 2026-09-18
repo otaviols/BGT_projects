@@ -6,6 +6,14 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.27.0
+
+- **Remember me.** Tick the option on the sign-in screen and, next time, the game signs you in by
+  itself. Your password is not stored on the computer: the server gives the game its own access,
+  which you can cancel with "Sign out and forget this computer" in the match list.
+- Voice chat: dead players now hear the meeting properly (the discussion came from far away,
+  barely audible).
+
 ## 0.26.1
 
 - Voice chat: other players' voices now come through clean and continuous. In 0.26.0 they

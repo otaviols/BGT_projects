@@ -6,6 +6,14 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.27.0
+
+- **Lembrar de mim.** Marque a opção na tela de entrada e, da próxima vez, o jogo entra sozinho
+  na sua conta. A senha não fica guardada no computador: o servidor dá ao jogo um acesso próprio,
+  que você pode cancelar em "Sair da conta e esquecer este computador", na lista de partidas.
+- Chat de voz: quem morreu agora ouve a reunião direito (a discussão chegava de longe, quase
+  inaudível).
+
 ## 0.26.1
 
 - Chat de voz: a voz dos outros chega limpa e contínua. Na 0.26.0 saía picotada e embaralhada

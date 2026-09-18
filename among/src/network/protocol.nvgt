@@ -44,7 +44,11 @@ const uint VOICE_MAX_FRAME_BYTES = 3200;
 const float VOICE_RANGE = 8.0;
 
 // Cliente -> Servidor
-const string C_LOGIN = "c_login";                 // {username, password}
+// Duas formas: {username, password, remember} ou {token} - o token veio de um login anterior com
+// remember=true (S_LOGIN_RESULT.session_token) e é o que "lembrar de mim" guarda em disco: a senha
+// nunca fica no computador do jogador.
+const string C_LOGIN = "c_login";                 // {username, password, remember} | {token}
+const string C_LOGOUT = "c_logout";               // {token} - esquece este computador
 const string C_REGISTER = "c_register";           // {username, password}
 const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
 // join_code (opcional) torna a partida PRIVADA: ela some da lista e só entra quem souber o código.
@@ -125,7 +129,7 @@ const string C_ADMIN_DRAIN = "c_admin_drain";     // {token, seconds}
 const string C_ADMIN_STATUS = "c_admin_status";   // {token}
 
 // Servidor -> Cliente
-const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id} - peer_id = como o SERVIDOR me identifica
+const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id, session_token?} - peer_id = como o SERVIDOR me identifica
 const string S_REGISTER_RESULT = "s_register_result";     // {ok, message}
 const string S_LOBBY_LIST = "s_lobby_list";               // {lobbies: [...]}
 const string S_LOBBY_STATE = "s_lobby_state";             // {lobby_id, players: [...], config}
