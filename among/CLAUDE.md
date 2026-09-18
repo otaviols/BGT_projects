@@ -389,8 +389,11 @@ vencido".
 hex.** O token de sessão guardava `string_hash_sha256(token)` direto: no Windows essa chamada volta
 como texto hexadecimal, mas no LINUX volta binário, e os 32 bytes com um nulo no meio eram cortados
 para 6 na hora do bind_text - o login por token nunca casava na produção, embora passasse no teste
-local (que roda no Windows). Sempre `string_to_hex(string_hash_sha256(x, true))` para gravar hash.
-A mesma armadilha vale para qualquer binário que for para uma coluna TEXT.
+local (que roda no Windows). Pior: `string_to_hex` TAMBÉM não produz hex na build Linux, então não
+adianta embrulhar a chamada nele. A saída que funciona nos dois é hexar os bytes À MÃO
+(`character_to_ascii` + tabela de dígitos, ver `token_hash` em user_db). A mesma armadilha vale para
+qualquer binário que for para uma coluna TEXT, e o teste local no Windows NÃO pega - confira contra
+a produção (sonda + `kubectl exec ... base64 among_users.db`, olhando o comprimento da coluna).
 
 **"Lembrar de mim" guarda um token de sessão, nunca a senha.** O NVGT não alcança o Cofre de
 Credenciais do Windows nem DPAPI, então senha em disco seria texto puro. O servidor emite um

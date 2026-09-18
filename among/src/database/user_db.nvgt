@@ -114,13 +114,20 @@ class user_database {
 		return true;
 	}
 
-	// Hash do token SEMPRE em hexadecimal. string_hash_sha256 devolve BINÁRIO no Linux (e texto hex
-	// no Windows - a mesma chamada, resultado diferente por plataforma), e binário com byte nulo no
-	// meio é cortado por bind_text ao gravar numa coluna TEXT: os token_hash saíam com 6 bytes e o
-	// login por token nunca casava na produção (passava no teste local, que roda no Windows).
-	// string_to_hex é idempotente sobre texto que já é hex, então cobre as duas plataformas.
+	// Hash do token SEMPRE como hexadecimal ASCII. Duas armadilhas da build Linux do NVGT, as duas
+	// invisíveis no teste local (que roda no Windows): string_hash_sha256 devolve BINÁRIO no Linux
+	// mesmo pedindo texto, e string_to_hex também não produz hex ali - então o hash ia binário para
+	// a coluna TEXT e o bind_text o cortava no primeiro byte nulo (os token_hash saíam com 6 bytes),
+	// e o login por token nunca casava. Hexar os 32 bytes à mão não depende de nenhum dos dois.
 	private string token_hash(const string&in token) {
-		return string_to_hex(string_hash_sha256(token, true));
+		string raw = string_hash_sha256(token, true);
+		const string DIGITS = "0123456789abcdef";
+		string hex;
+		for (uint i = 0; i < raw.length(); i++) {
+			uint b = character_to_ascii(raw.substr(i, 1)) & 0xFF;
+			hex += DIGITS.substr(b >> 4, 1) + DIGITS.substr(b & 0x0F, 1);
+		}
+		return hex;
 	}
 
 	// Cria um token de sessão para o usuário e devolve o token (só esta vez: guardado só o hash).
