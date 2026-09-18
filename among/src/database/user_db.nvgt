@@ -136,7 +136,12 @@ class user_database {
 		string token = string_base64_encode(random_bytes(32));
 		sqlite3statement@ st = db.prepare("INSERT INTO sessions (token_hash, username) VALUES (?, ?)");
 		if (@st == null) return "";
-		st.bind_text(1, token_hash(token), false);
+		// hash em variável NOMEADA, não inline: bind_text(..., false) não copia (SQLITE_STATIC), então
+		// guarda um ponteiro para a string. Um temporário `token_hash(token)` morre antes do step() e
+		// o SQLite grava memória liberada - no Windows sobrevivia por acaso, no Linux virava lixo, e o
+		// login por token nunca casava na produção. O resto do arquivo passa &in nomeado, que sobrevive.
+		string hash = token_hash(token);
+		st.bind_text(1, hash, false);
 		st.bind_text(2, username, false);
 		return st.step() == SQLITE_DONE ? token : "";
 	}
@@ -160,7 +165,8 @@ class user_database {
 		if (@db == null || token == "") return;
 		sqlite3statement@ st = db.prepare("DELETE FROM sessions WHERE token_hash = ?");
 		if (@st == null) return;
-		st.bind_text(1, token_hash(token), false);
+		string hash = token_hash(token); // nomeado, não temporário - ver create_session
+		st.bind_text(1, hash, false);
 		st.step();
 	}
 
