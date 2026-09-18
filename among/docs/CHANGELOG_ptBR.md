@@ -6,6 +6,12 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.26.1
+
+- Chat de voz: a voz dos outros chega limpa e contínua. Na 0.26.0 saía picotada e embaralhada
+  para todo mundo.
+- Digitar a tecla de falar no chat ou nas regras da sala não abre mais o microfone.
+
 ## 0.26.0
 
 - **Chat de voz por proximidade.** Quem está perto de você na nave ouve o que você diz, do lado

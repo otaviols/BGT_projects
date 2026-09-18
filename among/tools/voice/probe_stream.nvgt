@@ -1,0 +1,39 @@
+// Sonda do stream_pcm sob tremor de rede: um tom de 440 Hz em pedaços de 20 ms, entregues com
+// atraso aleatório (0 a 80 ms), em duas estratégias. Imprime quantas escritas o motor recusou
+// (false = áudio jogado fora) e se o som continua tocando depois de um buraco.
+//   A = como o jogo faz hoje (buffer automático = 2x o primeiro pedaço)
+//   B = buffer explícito de 2 s
+void feed(sound@ s, array<float>@ pcm, uint buffer_size, bool&out ok) { ok = s.stream_pcm(pcm, 16000, 1, buffer_size); }
+
+void run(const string&in nome, uint buffer_size, bool preroll) {
+	sound s;
+	float phase = 0; const float STEP = 2.0 * 3.14159265 * 440.0 / 16000.0;
+	uint recusadas = 0, escritas = 0, parou = 0;
+	timer total;
+	bool first = true;
+	while (total.elapsed < 4000) {
+		uint n = (first && preroll) ? 1920 : 320;
+		array<float> pcm(n);
+		for (uint i = 0; i < n; i++) { pcm[i] = 0.3 * sin(phase); phase += STEP; }
+		bool ok = s.stream_pcm(pcm, 16000, 1, first ? buffer_size : 0);
+		first = false;
+		escritas++;
+		if (!ok) recusadas++;
+		if (!s.playing) parou++;
+		// tremor: em média 20 ms por pedaço, mas irregular
+		wait(random(0, 40));
+	}
+	s.stop();
+	println(nome + ": escritas=" + escritas + " recusadas=" + recusadas + " vezes parado=" + parou);
+}
+
+void main() {
+	run("A (auto, sem folga)", 0, false);
+	run("A2 (auto, folga de 120 ms)", 0, true);
+	run("B (buffer 2 s, folga)", 32000, true);
+	// C: entrega regular, sem tremor, para comparar
+	sound s; float phase = 0; const float STEP = 2.0 * 3.14159265 * 440.0 / 16000.0;
+	uint recusadas = 0, parou = 0; bool first = true; timer t;
+	while (t.elapsed < 3000) { array<float> pcm(320); for (uint i = 0; i < 320; i++) { pcm[i] = 0.3 * sin(phase); phase += STEP; } if (!s.stream_pcm(pcm, 16000, 1, first ? 32000 : 0)) recusadas++; first = false; if (!s.playing) parou++; wait(20); }
+	println("C (regular, buffer 2 s): recusadas=" + recusadas + " parado=" + parou);
+}

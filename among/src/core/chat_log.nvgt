@@ -9,6 +9,7 @@
 #include "../network/client.nvgt"
 #include "../i18n.nvgt"
 #include "../config/keybindings.nvgt"
+#include "../audio/voice_chat.nvgt"
 
 // As teclas de chat e de voto agora vêm do mapa de teclas do jogador (config/keybindings.nvgt):
 // ACTION_CHAT, ACTION_CHAT_PREV, ACTION_CHAT_NEXT, ACTION_CHAT_SWITCH e ACTION_VOTE.
@@ -115,22 +116,26 @@ void run_chat_compose(game_client@ client, chat_log@ messages = null) {
 	// escrever. Todo form do jogo precisa focar o primeiro campo na mão.
 	f.focus(f_text);
 
+	// A tecla de falar é uma letra: digitá-la aqui abria o microfone no meio da mensagem.
+	g_voice.typing = true;
 	while (true) {
 		wait(5);
 		client.update();
-		if (!client.connected) return; // quem chamou vai avisar da queda
+		if (!client.connected) { g_voice.typing = false; return; } // quem chamou vai avisar da queda
 		if (!drain_chat_while_composing(client, messages)) {
 			speak(tr("chat.compose_closed"));
+			g_voice.typing = false;
 			return;
 		}
 		f.monitor();
-		if (f.is_pressed(f_cancel)) return;
+		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return; }
 		if (f.is_pressed(f_send)) {
 			string text = f.get_text(f_text);
 			if (text != "") {
 				client.send_chat_message(text);
 				speak(tr("chat.sent"));
 			}
+			g_voice.typing = false;
 			return;
 		}
 	}

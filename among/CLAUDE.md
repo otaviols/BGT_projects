@@ -325,6 +325,26 @@ centralizado, sem erro) - reaplique depois de cada quadro; microfone estéreo n�
 documentação descreve - o índice é o da própria lista (`sound_output_device = 1` era o segundo
 aparelho). Por isso os dispositivos são guardados pelo NOME e resolvidos na hora.
 
+**`microphone.read(n)` devolve SEMPRE n quadros, tenha ou não n quadros novos; `read(0)` devolve
+só o que há.** Medido: `read(960)` a cada 5 ms rendia 169 mil quadros/s de um microfone de 48 mil -
+3,5x mais dados que fala, e a voz chegava embaralhada ("qualidade terrível" da 0.26.0). Capture
+sempre com `read(0)` e acumule até dar um pacote.
+
+**Reprodução de voz ao vivo precisa de folga E de detectar que ela secou.** `stream_pcm` toca o que
+tem e, quando falta, toca silêncio sem avisar - cada pacote 30 ms atrasado era um estalo, e uma
+cadência 5% mais lenta que o relógio do áudio (o que qualquer `wait(20)` produz, porque dura 21-22
+ms) esvaziava a fila aos poucos e o som "tremia da metade para o final". O cliente junta 120 ms
+antes de começar cada fala, contabiliza quanto entregou versus quanto tempo passou, e quando a folga
+chega a zero refaz a folga (um buraco de 120 ms uma vez, em vez de tremer sem parar). Buffer de
+2 s explícito: o automático é 2x o primeiro pedaço. Quem GERA áudio sintético para teste
+(`probe_talker`) tem que marcar a cadência pelo tempo total, não por "20 ms desde o último envio":
+reiniciar o relógio perde o resto e a entrega fica lenta - foi um defeito da sonda que pareceu
+defeito do jogo. Sondas: `probe_sender` (mede a captura real: esperado 50 pacotes/s),
+`probe_playback` (de ouvido, cinco caminhos de reprodução), `probe_stream` (stream_pcm sob tremor).
+
+**A tecla de falar é uma letra: toda caixa de texto liga `g_voice.typing`** (chat, regras da sala)
+enquanto está aberta, senão digitar a letra abre o microfone no meio da mensagem.
+
 **A voz viaja num canal próprio, binário, e fora da fila de pacotes.** `CHANNEL_VOICE` (2) não
 carrega JSON (`voice_wire`/`voice_unwire` em `protocol.nvgt`); cliente antigo tenta ler como JSON,
 falha e descarta. No cliente ela não entra em `incoming`: é entregue a `game_client.voice` dentro de

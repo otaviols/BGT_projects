@@ -30,6 +30,10 @@ const uint VOICE_CAPTURE_FRAMES = 960;
 const int VOICE_AUTO_HANGOVER_MS = 400;
 // Voz que ficou este tempo sem quadro novo é descartada, para o objeto de som não viver para sempre.
 const int VOICE_STREAM_IDLE_MS = 2000;
+// Folga acumulada antes de começar a tocar cada fala (ver voice_stream.queue), e a pausa a partir
+// da qual a próxima chegada conta como fala nova e junta folga de novo.
+const int VOICE_JITTER_MS = 120;
+const int VOICE_TALK_GAP_MS = 350;
 
 // --- mu-law (G.711) ---------------------------------------------------------------------------
 uint8 ulaw_from_sample(float f) {
@@ -98,7 +102,17 @@ class voice_stream {
 	uint64 peer_id;
 	sound snd;
 	timer last_frame;
-	bool started = false;
+	// Reserva contra o tremor da rede: os pacotes chegam a cada 20 ms na média, mas não a cada 20
+	// ms de fato. Tocar cada um assim que chega deixava o som a zero de folga - qualquer pacote 30
+	// ms atrasado era um buraco, e a voz saía picotada. Cada fala começa só depois de juntar
+	// VOICE_JITTER_MS; daí em diante o que chega vai direto, e a folga se mantém.
+	array<float> queue;
+	bool playing = false;
+	// Quanto já foi entregue ao motor desde que esta fala começou a tocar, e há quanto tempo. A
+	// diferença entre os dois é a folga que resta - o motor não diz isso, e é a única forma de
+	// perceber que a fila secou (ver on_voice_frame).
+	uint64 written = 0;
+	timer since_start;
 }
 
 class voice_chat : voice_receiver {
@@ -109,7 +123,12 @@ class voice_chat : voice_receiver {
 	// A sala permite voz e há partida/sala para falar. Sem isto nada é capturado: microfone aberto
 	// à toa é banda e privacidade jogadas fora.
 	bool allowed = false;
+	// O jogador está numa caixa de texto (chat, formulário da sala). A tecla de falar é uma letra,
+	// e digitar essa letra abria o microfone no meio da mensagem. Enquanto isto for true, a tecla
+	// não fala; o modo automático continua valendo.
+	bool typing = false;
 	bool transmitting = false;
+	uint frames_sent = 0; // só para as sondas de tools/voice medirem a captura
 	timer hangover;
 	array<float> pending; // captura acumulada até dar um quadro de envio
 	// Para posicionar as vozes: o elenco (com a posição de todos, inclusive a minha) e quem sou eu.
@@ -219,25 +238,34 @@ class voice_chat : voice_receiver {
 		}
 		if (!open_mic()) { expire_streams(); return; }
 
-		array<float>@ frames = mic.read(VOICE_CAPTURE_FRAMES);
+		// read(0) = "tudo que há". read(n) devolve SEMPRE n quadros, mesmo sem ter n novos - medido:
+		// 176 chamadas/s x 960 = 169 mil quadros/s de um microfone de 48 mil. Era a "qualidade
+		// terrível" da primeira versão: 3,5x mais dados que fala, e a voz saía picada.
+		array<float>@ frames = mic.read(0);
 		if (@frames != null && frames.length() > 0) {
 			array<float>@ mono = voice_to_mono(frames, mic_channels);
 			for (uint i = 0; i < mono.length(); i++) pending.insert_last(mono[i]);
 		}
-		if (pending.length() >= VOICE_CAPTURE_FRAMES) {
-			array<float> frame = pending; // cópia: um handle para o mesmo array seria esvaziado junto
-			pending.resize(0);
+		// Um pacote por 20 ms, SEMPRE - mesmo quando uma tela bloqueante (um wait(300) numa task)
+		// deixou acumular meio segundo: mandar tudo num pacote só passava do limite que o servidor
+		// aceita, ele descartava, e a voz sumia por um trecho.
+		while (pending.length() >= VOICE_CAPTURE_FRAMES) {
+			array<float> frame;
+			frame.resize(VOICE_CAPTURE_FRAMES);
+			for (uint i = 0; i < VOICE_CAPTURE_FRAMES; i++) frame[i] = pending[i];
+			pending.remove_range(0, VOICE_CAPTURE_FRAMES);
 			bool open;
 			if (g_settings.voice_mode == VOICE_MODE_AUTO) {
 				if (voice_level_db(frame) >= voice_threshold_db(g_settings.voice_sensitivity)) hangover.restart();
 				open = hangover.elapsed <= VOICE_AUTO_HANGOVER_MS;
 			} else {
 				// Com Ctrl, a tecla de falar abre a lista de silenciar - não é fala.
-				open = action_down(ACTION_TALK) && !key_down(KEY_LCTRL) && !key_down(KEY_RCTRL);
+				open = !typing && action_down(ACTION_TALK) && !key_down(KEY_LCTRL) && !key_down(KEY_RCTRL);
 			}
 			set_transmitting(open, true);
 			if (open) {
 				string bytes = voice_encode(frame);
+				frames_sent++;
 				if (monitoring) play_monitor(bytes);
 				else client.send_voice(bytes);
 			}
@@ -271,9 +299,27 @@ class voice_chat : voice_receiver {
 		if (!voice_unwire(wire, talker, audio)) return;
 		if (g_settings.is_muted(name_of(talker))) return;
 		voice_stream@ s = stream_for(talker);
+		if (s.last_frame.elapsed > VOICE_TALK_GAP_MS) s.playing = false; // pausa: a próxima é fala nova
+		// A fila secou (a rede atrasou mais que a folga, ou o relógio de quem fala anda um pouco
+		// mais devagar que o meu alto-falante): daqui em diante cada pacote tocaria com folga zero
+		// e a voz tremeria sem parar. Melhor um buraco de 120 ms UMA vez e a folga refeita.
+		if (s.playing && s.written < uint64(s.since_start.elapsed) * VOICE_SAMPLE_RATE / 1000) s.playing = false;
 		s.last_frame.restart();
-		s.snd.stream_pcm(voice_decode(audio), VOICE_SAMPLE_RATE, 1);
-		s.started = true;
+		array<float>@ pcm = voice_decode(audio);
+		if (s.playing) {
+			s.snd.stream_pcm(pcm, VOICE_SAMPLE_RATE, 1);
+			s.written += pcm.length();
+		} else {
+			for (uint i = 0; i < pcm.length(); i++) s.queue.insert_last(pcm[i]);
+			if (s.queue.length() < VOICE_SAMPLE_RATE * VOICE_JITTER_MS / 1000) return;
+			// Buffer de 2 s explícito: o automático é 2x o primeiro pedaço, e a folga não pode
+			// depender do tamanho do que chegou primeiro.
+			s.snd.stream_pcm(s.queue, VOICE_SAMPLE_RATE, 1, VOICE_SAMPLE_RATE * 2);
+			s.written = s.queue.length();
+			s.since_start.restart();
+			s.queue.resize(0);
+			s.playing = true;
+		}
 		place(s);
 	}
 

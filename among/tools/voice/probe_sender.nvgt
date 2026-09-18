@@ -1,0 +1,53 @@
+// Sonda do caminho de CAPTURA do jogo: usa a própria classe voice_chat (microfone de verdade, modo
+// automático com sensibilidade máxima = sempre aberto) ligada a um cliente na primeira sala em
+// espera, e imprime quantos quadros mandou por segundo. O esperado é 50 (20 ms cada).
+#include "../../src/audio/voice_chat.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+class counting_client : game_client {
+	uint sent = 0; uint bytes = 0;
+}
+
+net_packet@ wait_for(game_client@ c, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == type) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	g_settings.voice_chat_enabled = true;
+	g_settings.voice_mode = VOICE_MODE_AUTO;
+	g_settings.voice_sensitivity = 200; // limiar -110 dB: sempre aberto, mesmo com microfone mudo
+	server_address addr = resolve_server_address();
+	game_client c;
+	g_voice.attach(c);
+	string name = "capta" + random(100, 999);
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(name, "probe123"); wait_for(c, S_REGISTER_RESULT, 3000);
+	c.send_login(name, "probe123");
+	net_packet@ lr = wait_for(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+	c.my_peer_id = lr.get_uint64("peer_id");
+	c.send_voice_state(true);
+	c.send_list_lobbies();
+	net_packet@ list = wait_for(c, S_LOBBY_LIST, 5000);
+	string lobby_id = "";
+	if (@list != null) { json_array@ ls = list.get_array("lobbies"); if (@ls != null && ls.length() > 0) lobby_id = string(ls.get_object(0)["id"]); }
+	if (lobby_id == "") {
+		lobby_overrides ov;
+		c.send_create_lobby("captura", "classic", ov);
+		wait_for(c, S_LOBBY_STATE, 5000);
+	} else {
+		c.send_join_lobby(lobby_id);
+		wait_for(c, S_JOIN_RESULT, 5000);
+	}
+	g_voice.begin_lobby(true);
+	println(name + " na sala; capturando (modo automatico, sempre aberto). 10 s.");
+	for (int s = 0; s < 10; s++) {
+		timer sec; uint ticks = 0; uint before = g_voice.frames_sent;
+		while (sec.elapsed < 1000) { c.update(); c.clear_incoming(); ticks++; wait(5); }
+		println("s" + s + ": quadros/s=" + (g_voice.frames_sent - before) + " transmitindo=" + g_voice.transmitting + " pendente=" + g_voice.pending.length() + " ticks=" + ticks + " mic=" + (@g_voice.mic != null) + " canais=" + g_voice.mic_channels);
+	}
+	c.disconnect();
+}

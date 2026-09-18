@@ -57,8 +57,10 @@ void main() {
 			if (p.type == S_ERROR) println("erro: " + p.get_string("message_key"));
 			@p = c.poll_message();
 		}
-		if (frame_clock.elapsed >= 20) {
-			frame_clock.restart();
+		// Cadência pelo tempo TOTAL, não por "20 ms desde o último": reiniciar o relógio a cada envio
+		// perdia o resto (21 ms virava 20), a entrega ficava 5% mais lenta que o áudio, e o ouvinte
+		// ouvia o tom tremer - um defeito da sonda que pareceu defeito do jogo.
+		while (uint64(frame_clock.elapsed) / 20 > sent) {
 			string audio;
 			for (uint i = 0; i < 320; i++) { audio += ascii_to_character(ulaw_from_sample(0.3 * sin(phase))); phase += STEP; }
 			c.send_voice(audio); sent++;

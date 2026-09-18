@@ -284,12 +284,14 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.focus(creating ? f_name : f_kill_cooldown);
 	if (!creating) speak(tr("lobby.edit_settings_hint"));
 
+	g_voice.typing = true; // a tecla de falar é uma letra; aqui ela é texto
 	while (true) {
 		wait(5);
 		client.update(); // mantém a conexão viva enquanto o jogador preenche o formulário
 		f.monitor();
-		if (f.is_pressed(f_cancel)) return r;
+		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return r; }
 		if (f.is_pressed(f_ok)) {
+			g_voice.typing = false;
 			r.ok = true;
 			if (creating) {
 				r.lobby_name = f.get_text(f_name);

@@ -1,0 +1,54 @@
+// Sonda de REPRODUÇÃO (de ouvido): o mesmo tom de 440 Hz que o probe_talker manda, entregue aqui
+// dentro a cada 20 ms como se viesse da rede, por quatro caminhos. Qual deles picota?
+//   1 = cada pedaço direto no stream_pcm, sem folga (a primeira versão do jogo)
+//   2 = folga de 120 ms antes de começar, buffer automático (o jogo de hoje)
+//   3 = folga de 120 ms, buffer explícito de 2 s
+//   4 = como o 3, e mexendo em volume/espacialização a cada pedaço, como o jogo faz
+//   5 = como o 2, mas com tremor de rede simulado (0 a 60 ms por pedaço)
+//   ESC sai. Cada modo toca por 6 s e para.
+#include "speech.nvgt"
+
+void main() {
+	show_window("Sonda de reprodução");
+	speak("Sonda de reprodução. 1 a 5 escolhem o caminho, cada um toca 6 segundos. ESC sai.", true);
+	while (!key_pressed(KEY_ESCAPE)) {
+		wait(5);
+		int modo = 0;
+		if (key_pressed(KEY_1)) modo = 1; else if (key_pressed(KEY_2)) modo = 2; else if (key_pressed(KEY_3)) modo = 3;
+		else if (key_pressed(KEY_4)) modo = 4; else if (key_pressed(KEY_5)) modo = 5;
+		if (modo == 0) continue;
+		speak("modo " + modo, true);
+		sound s;
+		float phase = 0; const float STEP = 2.0 * 3.14159265 * 440.0 / 16000.0;
+		array<float> queue; bool playing = false;
+		bool preroll = modo != 1;
+		uint ring = (modo == 3 || modo == 4) ? 32000 : 0;
+		bool touch = modo == 4;
+		bool jitter = modo == 5;
+		timer total; timer clock;
+		while (total.elapsed < 6000 && !key_pressed(KEY_ESCAPE)) {
+			wait(jitter ? random(0, 60) : 2);
+			if (clock.elapsed < 20 && !jitter) continue;
+			// quantos pedaços de 20 ms "chegaram" desde a última vez (com tremor, podem vir 0, 1, 2, 3...)
+			int chegaram = int(clock.elapsed) / 20;
+			if (chegaram <= 0) continue;
+			clock.restart();
+			for (int k = 0; k < chegaram; k++) {
+				array<float> pcm(320);
+				for (uint i = 0; i < 320; i++) { pcm[i] = 0.3 * sin(phase); phase += STEP; }
+				if (!preroll || playing) {
+					s.stream_pcm(pcm, 16000, 1, playing ? 0 : ring);
+					playing = true;
+				} else {
+					for (uint i = 0; i < 320; i++) queue.insert_last(pcm[i]);
+					if (queue.length() < 1920) continue;
+					s.stream_pcm(queue, 16000, 1, ring);
+					queue.resize(0);
+					playing = true;
+				}
+				if (touch) { s.volume = 0.0; s.spatialization_enabled = false; }
+			}
+		}
+		s.stop();
+	}
+}

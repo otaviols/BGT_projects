@@ -6,6 +6,12 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.26.1
+
+- Voice chat: other players' voices now come through clean and continuous. In 0.26.0 they
+  sounded choppy and garbled for everyone.
+- Typing the talk key in the chat box or in the room rules no longer opens the microphone.
+
 ## 0.26.0
 
 - **Proximity voice chat.** Players near you on the ship hear what you say, from the side you're
