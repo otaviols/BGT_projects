@@ -364,6 +364,16 @@ existia, a contagem de pular saía com um número qualquer e ganhava a apuraçã
 pulando a chave existia e funcionava - sintoma que parece regra de jogo, não bug. Sempre
 `exists()` antes de `get()`, ou use o retorno booleano de `get()`.
 
+**O saguão é derivado, não declarado.** "Estar no saguão" é `autenticado && lobby_id == ""`
+(`in_hall` no servidor) - não existe um "entrar no saguão" que o cliente peça, justamente para não
+haver um segundo estado capaz de discordar do primeiro. O preço é lembrar de chamar
+`send_hall_state()` em TODO caminho que muda essa condição: login, criar sala, entrar, sair, queda,
+e sala fechada. Criar sala foi o esquecido - a sonda pegou (a lista continuava com quem já tinha
+saído, embora a conversa já o excluísse, porque o envio recalcula na hora). Sonda:
+`tools/probes/probe_hall.nvgt`. No cliente, os pacotes do saguão são retirados da fila por
+`drain_hall_packets`, chamado TAMBÉM de dentro das esperas por resposta do servidor: elas descartam
+o que não esperam, e sem isso uma mensagem que chegasse durante a busca da lista de partidas sumia.
+
 **A sala SOBREVIVE à partida - o que morre é o estado dela.** No fim do jogo a lobby volta a
 "waiting" com a mesma gente dentro (`reopen_lobby` no servidor, `reopen_for_next_match` no
 game_state), em vez de fechar e jogar todo mundo no navegador de partidas. Duas coisas têm que

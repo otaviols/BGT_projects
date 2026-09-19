@@ -6,6 +6,24 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.28.0
+
+- **Saguão.** No menu de partidas agora dá para ver **quem está online** fora das salas e
+  **conversar** com essas pessoas — é onde se combina quem vai criar a partida, sem precisar
+  adivinhar se tem mais alguém no servidor.
+- **A sala continua depois da partida.** Todo mundo volta junto para a mesma sala de espera, com as
+  mesmas regras, pronto para jogar de novo. Antes a sala acabava junto com a partida e o grupo
+  tinha que se reorganizar a cada rodada.
+- **Chat de voz durante a sabotagem de comunicações**: o rádio sai do ar para todos os vivos
+  enquanto o painel não for consertado. Na reunião a voz nunca é cortada.
+- **Novidades na tecla de falar**: segurando Shift, o jogo diz quem está falando naquele momento;
+  com Ctrl, abre a lista para silenciar alguém; e, para quem usa o microfone automático, a tecla
+  sozinha liga e desliga o microfone.
+- Na reunião, quem morreu passa a ouvir a discussão normalmente (antes ela chegava de longe, quase
+  inaudível).
+- Corrigido: quem morria durante uma sabotagem continuava cego por ela até alguém consertar o
+  painel. Sabotagem não atinge mais fantasma em momento nenhum.
+
 ## 0.27.0
 
 - **Lembrar de mim.** Marque a opção na tela de entrada e, da próxima vez, o jogo entra sozinho

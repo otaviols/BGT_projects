@@ -87,6 +87,10 @@ const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
 // O jogador avisa se quer RECEBER voz. Sem isto o servidor mandaria 128 kbps de áudio para quem
 // desligou o chat de voz nas configurações (ou joga numa versão que nem o conhece).
 const string C_VOICE_STATE = "c_voice_state";     // {enabled}
+// Saguão: quem está conectado e FORA de qualquer sala (o menu de partidas). Existe para o grupo
+// conseguir se combinar antes de alguém criar a sala - até aqui, quem chegava ao servidor não tinha
+// como saber se havia mais alguém online, nem como falar com quem estivesse.
+const string C_HALL_CHAT = "c_hall_chat";         // {text}
 // Câmeras de segurança. Um jogador de cada vez, e é o servidor que arbitra: dois pedindo ao mesmo
 // tempo precisam de um árbitro só, e o cliente não tem como saber que outro já entrou.
 const string C_CAMERA_ENTER = "c_camera_enter";   // {} - pedir o posto de câmeras
@@ -164,6 +168,10 @@ const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, 
 const string S_ERROR = "s_error";                          // {message}
 const string S_PONG = "s_pong";                             // {} - resposta a C_PING, cliente mede o round-trip
 const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, text}
+// Saguão (ver C_HALL_CHAT). Só chega a quem está fora de qualquer sala; quem entra numa deixa de
+// receber, e é por isso que a conversa do saguão nunca atrapalha uma partida.
+const string S_HALL_STATE = "s_hall_state";                 // {players: [nomes]}
+const string S_HALL_CHAT = "s_hall_chat";                   // {name, text}
 // Confirmação de que o recado foi GRAVADO (não só recebido). O jogador precisa disto: sem resposta,
 // mandar feedback é falar no vácuo, e quem não tem certeza de que chegou manda de novo.
 const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}

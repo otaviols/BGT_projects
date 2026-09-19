@@ -6,6 +6,24 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.28.0
+
+- **Hall.** The match menu now shows **who is online** outside the rooms and lets you **chat** with
+  them — it's where you agree on who creates the match, instead of guessing whether anyone else is
+  on the server.
+- **The room now survives the match.** Everyone goes back together to the same waiting room, with
+  the same rules, ready to play again. Before, the room ended with the match and the group had to
+  reorganize every round.
+- **Voice chat during the comms sabotage**: the radio goes out for every living player until the
+  panel is fixed. Voices are never cut during a meeting.
+- **More from the talk key**: hold Shift and the game says who is speaking right now; Ctrl opens the
+  list to mute someone; and, for those using the automatic microphone, the key alone turns the
+  microphone on and off.
+- In meetings, dead players now hear the discussion properly (it used to come from far away, barely
+  audible).
+- Fixed: dying during a sabotage left you blinded by it until someone fixed the panel. Sabotage no
+  longer affects ghosts at any point.
+
 ## 0.27.0
 
 - **Remember me.** Tick the option on the sign-in screen and, next time, the game signs you in by

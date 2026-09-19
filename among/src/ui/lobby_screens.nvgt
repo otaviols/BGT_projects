@@ -41,9 +41,112 @@ class lobby_browser_result {
 // servidor pode considerá-la caída, fazendo a lista de lobbies parecer travada/vazia mesmo com o
 // servidor funcionando. background_callback do menu.nvgt roda a cada iteração do monitor() interno,
 // então usamos ele pra manter a rede viva enquanto o menu está aberto.
+// O saguão: quem está conectado fora de qualquer sala, e a conversa entre eles. Existe para o
+// grupo se combinar antes de criar a partida - antes disto, quem chegava ao servidor não tinha como
+// saber se havia mais alguém online.
+class hall_view {
+	array<string> names;
+	chat_log@ log = chat_log();
+}
+hall_view g_hall;
+
+// Tira da fila os pacotes do saguão, onde quer que ela esteja sendo lida.
+//
+// Precisa ser chamado DENTRO das esperas por resposta do servidor, e não só no laço do menu: essas
+// esperas consomem a fila e jogam fora o que não estão esperando (ver CLAUDE.md), então uma
+// mensagem do saguão que chegasse durante a busca da lista de partidas sumia sem deixar rastro.
+// Aqui só os pacotes do saguão são retirados; o resto fica intacto para quem está esperando.
+void drain_hall_packets(game_client@ client) {
+	for (uint i = 0; i < client.incoming.length(); i++) {
+		net_packet@ p = client.incoming[i];
+		if (p.type == S_HALL_STATE) {
+			g_hall.names.resize(0);
+			json_array@ names = p.get_array("players");
+			if (@names != null) for (uint k = 0; k < names.length(); k++) g_hall.names.insert_last(string(names[k]));
+		} else if (p.type == S_HALL_CHAT) {
+			string name = p.get_string("name");
+			string text = p.get_string("text");
+			g_hall.log.add(name, text);
+			// Sem interromper: quem está lendo a lista de partidas não pode ser cortado no meio.
+			speak(name + ": " + text, false);
+		} else continue;
+		client.incoming.remove_at(i);
+		i--;
+	}
+}
+
+// Quem está no saguão, pronto para falar. O próprio jogador entra na conta - ele é um dos que
+// estão ali, e uma lista que o omitisse faria "1 pessoa" soar como "tem mais alguém".
+string hall_people_text() {
+	if (g_hall.names.length() <= 1) return tr("hall.alone");
+	dictionary@ p = dictionary();
+	p.set("names", join(g_hall.names, ", "));
+	return tr("hall.people", p);
+}
+
 game_client@ g_lobby_pump_client;
 void pump_client_during_menu(menu@ m, string data) {
-	if (@g_lobby_pump_client != null) g_lobby_pump_client.update();
+	if (@g_lobby_pump_client == null) return;
+	g_lobby_pump_client.update();
+	drain_hall_packets(g_lobby_pump_client);
+}
+
+// Conversa do saguão: o histórico como lista navegável (é assim que se relê o que já foi dito) e
+// uma caixa para escrever. A lista é remontada a cada volta, então o que chegou enquanto a caixa
+// estava aberta já aparece.
+void run_hall_screen(game_client@ client) {
+	while (true) {
+		if (!client.connected) return;
+		menu m;
+		m.intro_text = tr("hall.title");
+		m.click_sound = "ui/menuclick.ogg";
+		m.select_sound = "ui/menuconfirm.ogg";
+		m.sounds_prefix = "sounds/";
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
+
+		m.add_item(tr("hall.write"), "__write__");
+		m.add_item(hall_people_text(), "__who__");
+		if (g_hall.log.empty) m.add_item(tr("hall.no_messages"), "__none__");
+		else for (uint i = 0; i < g_hall.log.lines.length(); i++) m.add_item(g_hall.log.format_line(i), "__line__");
+		m.add_item(tr("menu.back"), "__back__");
+		m.run();
+
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		if (id == "__write__") run_hall_compose(client);
+	}
+}
+
+// Caixa de mensagem do saguão. Enquanto ela está aberta o jogo continua ouvindo o saguão (o laço
+// bombeia e drena), pelo mesmo motivo da caixa de chat da partida: uma caixa que emudece o mundo
+// parece um travamento.
+void run_hall_compose(game_client@ client) {
+	audio_form f;
+	f.create_window(tr("hall.title"), false);
+	int f_text = f.create_input_box(tr("chat.compose_label"));
+	int f_send = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_text); // audio_form nasce sem foco nenhum
+	g_voice.typing = true; // a tecla de falar é uma letra
+
+	while (true) {
+		wait(5);
+		client.update();
+		drain_hall_packets(client);
+		if (!client.connected) { g_voice.typing = false; return; }
+		f.monitor();
+		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return; }
+		if (f.is_pressed(f_send)) {
+			string text = f.get_text(f_text);
+			if (text != "") {
+				client.send_hall_chat(text);
+				speak(tr("chat.sent"));
+			}
+			g_voice.typing = false;
+			return;
+		}
+	}
 }
 
 // Busca a lista de lobbies em espera no servidor e monta um menu navegável: cada partida existente
@@ -87,6 +190,9 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 				m.add_item(lobby_summary_text(entry), string(entry["id"]));
 			}
 		}
+		// O saguão vem antes de tudo: é onde se descobre que há mais gente online, e o motivo mais
+		// comum de ninguém jogar era achar que não havia ninguém.
+		m.add_item(tr("hall.menu_item"), "__hall__");
 		m.add_item(tr("menu.create_lobby"), "__create__");
 		// Partida privada não aparece na lista: esta é a única porta para ela.
 		m.add_item(tr("lobby.join_by_code"), "__join_code__");
@@ -121,6 +227,10 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			return result;
 		}
 		if (id == "__refresh__") continue;
+		if (id == "__hall__") {
+			run_hall_screen(client);
+			continue;
+		}
 		if (id == "__feedback__") {
 			run_feedback_screen(client);
 			continue;
@@ -170,6 +280,7 @@ json_array@ wait_for_lobby_list(game_client@ client) {
 	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
 		wait(20);
 		client.update();
+		drain_hall_packets(client); // o saguão não pode ser engolido por uma espera (ver drain_hall_packets)
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
 			if (pkt.type == S_LOBBY_LIST) return pkt.get_array("lobbies");
@@ -186,6 +297,7 @@ bool wait_for_join_result(game_client@ client) {
 	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
 		wait(20);
 		client.update();
+		drain_hall_packets(client); // o saguão não pode ser engolido por uma espera (ver drain_hall_packets)
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
 			if (pkt.type == S_JOIN_RESULT) {
@@ -377,6 +489,7 @@ net_packet@ wait_for_lobby_state_after_create(game_client@ client) {
 	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
 		wait(20);
 		client.update();
+		drain_hall_packets(client); // o saguão não pode ser engolido por uma espera (ver drain_hall_packets)
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
 			if (pkt.type == S_LOBBY_STATE) return pkt;

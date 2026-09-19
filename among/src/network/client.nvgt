@@ -366,6 +366,13 @@ class game_client {
 		send(net_packet(C_PING));
 	}
 
+	// Conversa do saguão (fora de qualquer sala) - ver C_HALL_CHAT em protocol.nvgt.
+	void send_hall_chat(const string&in text) {
+		net_packet@ p = net_packet(C_HALL_CHAT);
+		p.set_string("text", text);
+		send(p);
+	}
+
 	void send_chat_message(const string&in text) {
 		net_packet@ p = net_packet(C_CHAT_MESSAGE);
 		p.set_string("text", text);

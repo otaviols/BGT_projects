@@ -188,6 +188,45 @@ class game_server {
 		}
 	}
 
+	// Está no saguão: conectado, autenticado e fora de qualquer sala. É a definição inteira - não há
+	// um "entrar no saguão" para o cliente pedir, porque isso seria um estado a mais para sair de
+	// sincronia com o que o servidor já sabe.
+	bool in_hall(game_player@ p) const {
+		return @p != null && !p.is_bot && p.authenticated && p.lobby_id == "";
+	}
+
+	void broadcast_to_hall(net_packet@ pkt) {
+		for (uint i = 0; i < connections.length(); i++) {
+			if (!in_hall(connections[i])) continue;
+			send_to(connections[i].peer_id, pkt);
+		}
+	}
+
+	// Quem está no saguão agora, para todos que estão nele. Mandado sempre que essa lista pode ter
+	// mudado: login, entrar numa sala, sair de uma, e queda de conexão.
+	void send_hall_state() {
+		net_packet@ pkt = net_packet(S_HALL_STATE);
+		json_array@ names = json_array();
+		for (uint i = 0; i < connections.length(); i++) {
+			if (!in_hall(connections[i])) continue;
+			names.add(connections[i].username);
+		}
+		pkt.set_array("players", names);
+		broadcast_to_hall(pkt);
+	}
+
+	void on_hall_chat(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (!in_hall(conn)) return; // quem está numa sala fala na sala, não aqui
+		string text = pkt.get_string("text").trim_whitespace();
+		if (text == "") return;
+		if (text.length() > MAX_CHAT_LENGTH) text = text.substr(0, MAX_CHAT_LENGTH);
+		net_packet@ msg = net_packet(S_HALL_CHAT);
+		msg.set_string("name", conn.username); // nome é identidade: viaja como está, sem tradução
+		msg.set_string("text", text);
+		broadcast_to_hall(msg);
+	}
+
 	// Há alguém do outro lado deste registro? Bot não tem conexão; quem saiu da partida tem uma
 	// conexão que já não pertence a esta sala.
 	bool reaches_client(game_player@ p) const {
@@ -239,6 +278,7 @@ class game_server {
 		for (uint i = 0; i < connections.length(); i++) {
 			if (connections[i].peer_id == peer_id) { connections.remove_at(i); break; }
 		}
+		send_hall_state(); // caiu: sai da lista de quem está no saguão
 	}
 
 	void remove_from_lobby(game_state@ lobby, uint64 peer_id) {
@@ -340,6 +380,7 @@ class game_server {
 		else if (t == C_PING) on_ping(peer_id, pkt);
 		else if (t == C_CHAT_MESSAGE) on_chat_message(peer_id, pkt);
 		else if (t == C_VOICE_STATE) on_voice_state(peer_id, pkt);
+		else if (t == C_HALL_CHAT) on_hall_chat(peer_id, pkt);
 		else if (t == C_SEND_FEEDBACK) on_send_feedback(peer_id, pkt);
 		else if (t == C_FEEDBACK_REPLIES_GET) on_feedback_replies_get(peer_id, pkt);
 		else if (t == C_FEEDBACK_REPLY_READ) on_feedback_reply_read(peer_id, pkt);
@@ -390,6 +431,8 @@ class game_server {
 			result.set_string("message", "login.invalid_credentials");
 		}
 		send_to(peer_id, result);
+		// Depois de responder, e não antes: assim quem acabou de entrar já se vê na lista do saguão.
+		if (ok) send_hall_state();
 	}
 
 	void on_logout(uint64 peer_id, net_packet@ pkt) {
@@ -461,6 +504,7 @@ class game_server {
 		lobbies.insert_last(lobby);
 
 		send_lobby_state(lobby, peer_id);
+		send_hall_state(); // quem criou a sala saiu do saguão (entrar numa sala não é o único caminho)
 	}
 
 	void on_join_lobby(uint64 peer_id, net_packet@ pkt) {
@@ -506,6 +550,8 @@ class game_server {
 		result.set_bool("ok", true);
 		send_to(peer_id, result);
 
+		send_hall_state(); // entrou numa sala: sai da lista do saguão
+
 		net_packet@ joined = net_packet(S_PLAYER_JOINED);
 		joined.set_uint64("peer_id", peer_id);
 		joined.set_string("name", conn.username);
@@ -547,6 +593,7 @@ class game_server {
 		remove_from_lobby(lobby, peer_id);
 		game_player@ conn = find_connection(peer_id);
 		if (@conn != null) conn.lobby_id = "";
+		send_hall_state(); // voltou ao saguão
 	}
 
 	// --- Bots (jogadores controlados pelo servidor) ---
@@ -1589,6 +1636,7 @@ class game_server {
 		}
 		string text = pkt.get_string("text");
 		if (text == "") return;
+		if (text.length() > MAX_CHAT_LENGTH) text = text.substr(0, MAX_CHAT_LENGTH);
 
 		net_packet@ msg = net_packet(S_CHAT_MESSAGE);
 		msg.set_uint64("peer_id", peer_id);
@@ -1694,5 +1742,6 @@ class game_server {
 			if (conn.lobby_id == lobby.lobby_id) conn.lobby_id = "";
 		}
 		lobbies.remove_at(index);
+		send_hall_state(); // quem estava nela voltou ao saguão
 	}
 }

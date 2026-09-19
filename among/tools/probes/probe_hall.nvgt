@@ -1,0 +1,99 @@
+// Sonda do saguão: quem está fora de qualquer sala se vê e se fala; quem entra numa sala some da
+// lista e para de receber a conversa; quem sai volta para ela.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_hall.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+class peer {
+	game_client@ c;
+	string name;
+	uint64 id = 0;
+	array<string> hall;      // último S_HALL_STATE visto
+	uint chat_recebido = 0;  // quantas mensagens do saguão chegaram
+	peer(const string&in n) { name = n; @c = game_client(); }
+}
+
+net_packet@ wait_for(game_client@ c, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == type) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+// Bombeia todos, guardando o que é do saguão (é o que o cliente de verdade faz em drain_hall_packets).
+void pump(array<peer@>@ all, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		for (uint i = 0; i < all.length(); i++) {
+			all[i].c.update();
+			net_packet@ p = all[i].c.poll_message();
+			while (@p != null) {
+				if (p.type == S_HALL_STATE) {
+					all[i].hall.resize(0);
+					json_array@ ns = p.get_array("players");
+					if (@ns != null) for (uint k = 0; k < ns.length(); k++) all[i].hall.insert_last(string(ns[k]));
+				} else if (p.type == S_HALL_CHAT) {
+					all[i].chat_recebido++;
+				}
+				@p = all[i].c.poll_message();
+			}
+		}
+		wait(5);
+	}
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<peer@> all = {peer("ha" + sfx), peer("hb" + sfx), peer("hc" + sfx)};
+	for (uint i = 0; i < all.length(); i++) {
+		peer@ p = all[i];
+		if (!p.c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!p.c.connected && t.elapsed < 5000) { p.c.update(); wait(5); }
+		p.c.send_register(p.name, "probe123"); wait_for(p.c, S_REGISTER_RESULT, 3000);
+		p.c.send_login(p.name, "probe123");
+		net_packet@ lr = wait_for(p.c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		p.id = lr.get_uint64("peer_id");
+		p.c.my_peer_id = p.id;
+	}
+	pump(all, 600);
+	println("depois do login, o saguão de cada um: " + all[0].hall.length() + ", " + all[1].hall.length() + ", " + all[2].hall.length() + " (esperado >= 3)");
+
+	// conversa: um fala, os outros ouvem
+	for (uint i = 0; i < all.length(); i++) all[i].chat_recebido = 0;
+	all[0].c.send_hall_chat("alguem quer jogar?");
+	pump(all, 600);
+	println("mensagem do saguão recebida por: " + all[0].chat_recebido + ", " + all[1].chat_recebido + ", " + all[2].chat_recebido + " (esperado 1, 1, 1)");
+
+	// hc cria uma sala: sai do saguão
+	lobby_overrides ov;
+	all[2].c.send_create_lobby("sala", "classic", ov);
+	wait_for(all[2].c, S_LOBBY_STATE, 5000);
+	pump(all, 600);
+	println("apos hc criar sala, saguão de ha = " + all[0].hall.length() + " (esperado 2)");
+
+	for (uint i = 0; i < all.length(); i++) all[i].chat_recebido = 0;
+	all[0].c.send_hall_chat("e agora?");
+	pump(all, 600);
+	println("quem recebeu a segunda mensagem: " + all[0].chat_recebido + ", " + all[1].chat_recebido + ", " + all[2].chat_recebido + " (esperado 1, 1, 0 - hc está na sala)");
+
+	// hc tenta falar no saguão de dentro da sala: não pode
+	for (uint i = 0; i < all.length(); i++) all[i].chat_recebido = 0;
+	all[2].c.send_hall_chat("oi daqui de dentro");
+	pump(all, 600);
+	println("mensagem de quem está na sala: " + all[0].chat_recebido + ", " + all[1].chat_recebido + " (esperado 0, 0)");
+
+	// hc sai: volta ao saguão
+	all[2].c.send_leave_lobby();
+	pump(all, 800);
+	println("depois de hc sair, saguão de ha = " + all[0].hall.length() + " (esperado 3)");
+
+	// quem cai some da lista
+	all[1].c.disconnect();
+	pump(all, 1200);
+	println("depois de hb cair, saguão de ha = " + all[0].hall.length() + " (esperado 2)");
+
+	for (uint i = 0; i < all.length(); i++) all[i].c.disconnect();
+}
