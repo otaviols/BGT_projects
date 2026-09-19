@@ -43,7 +43,7 @@ bool run_clear_asteroids_task(game_client@ client) {
 		while (float(reaction_clock.elapsed) / 1000.0 < REACTION_SECONDS) {
 			wait(5);
 			client.update();
-			if (task_cancel_requested(client)) return false;
+			if (task_tick(client)) return false;
 
 			int shot = -1;
 			if (key_pressed(KEY_LEFT)) shot = ASTEROID_FROM_LEFT;

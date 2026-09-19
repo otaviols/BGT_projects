@@ -18,7 +18,7 @@
 // Roda o conserto da sabotagem `sabotage_id`. Devolve true se o jogador terminou; false se desistiu
 // ou foi interrompido. `oxygen_code` é o código desta sabotagem, vindo do servidor.
 bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const string&in oxygen_code) {
-	if (task_cancel_requested(client)) return false;
+	if (task_tick(client)) return false;
 	bool ok = false;
 	if (sabotage_id == "lights") ok = run_lights_panel(client);
 	else if (sabotage_id == "oxygen") ok = run_oxygen_panel(client, oxygen_code);
@@ -48,7 +48,7 @@ bool run_lights_panel(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested(client)) return false;
+		if (task_tick(client)) return false;
 		int pressed = -1;
 		if (key_pressed(KEY_1)) pressed = 0;
 		else if (key_pressed(KEY_2)) pressed = 1;
@@ -99,7 +99,7 @@ bool run_oxygen_panel(game_client@ client, const string&in code) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested(client)) return false;
+		if (task_tick(client)) return false;
 		if (key_pressed(KEY_SPACE)) { speak(tr("sabotage.oxygen.repeat", p)); continue; }
 		int digit = pressed_digit();
 		if (digit == -1) continue;
@@ -163,7 +163,7 @@ bool run_comms_panel(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested(client)) { stop_radio(voice, noise); return false; }
+		if (task_tick(client)) { stop_radio(voice, noise); return false; }
 		if (@voice != null && !voice.playing) voice.play();
 		if (@noise != null && !noise.playing) noise.play();
 

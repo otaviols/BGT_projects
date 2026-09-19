@@ -24,6 +24,10 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
   fantasma fica onde morreu, isso era quase silêncio.
 - Corrigido: quem morria durante uma sabotagem continuava cego por ela até alguém consertar o
   painel. Sabotagem não atinge mais fantasma em momento nenhum.
+- **Você não fica mais surdo dentro de uma tarefa.** Chat, sabotagens e a contagem do oxigênio
+  passam a ser ditos enquanto você está numa tarefa, num painel de reparo ou na caixa de mensagem —
+  antes só chegavam quando você fechava a tela. Nada larga a tarefa por você: o aviso chega e a
+  decisão de sair correndo é sua.
 - **Corrigido o jogo "não está respondendo" no meio da partida.** Acontecia depois de ficar um tempo
   numa tela que prende o jogo — uma tarefa, a câmera, a caixa de mensagem — numa partida movimentada.
 - **O radar voltou a dizer a direção.** O tom do bip agora indica se o alvo está ao norte (mais

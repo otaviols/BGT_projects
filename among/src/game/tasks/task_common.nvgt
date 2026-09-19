@@ -9,6 +9,7 @@
 #include "../../audio/sound_catalog.nvgt"
 #include "../../config/game_settings.nvgt"
 #include "../../network/client.nvgt"
+#include "../../core/event_speech.nvgt"
 
 const int TASK_CANCEL_KEY = KEY_ESCAPE;
 
@@ -22,6 +23,17 @@ const int TASK_CANCEL_KEY = KEY_ESCAPE;
 // "in_progress". A task ficava marcada como feita SÓ no cliente: sumia da lista dele, nunca contava
 // pro time, e não dava pra refazer. Agora a minigame simplesmente é abortada (nada é marcado, nada
 // é enviado) e a task continua pendente pra ele voltar lá depois da reunião.
+// O gancho de TODA minigame, uma vez por quadro: diz o que chegou enquanto ela está aberta (chat,
+// sabotagem, a contagem do oxigênio) e devolve true se ela deve parar agora.
+//
+// Os avisos são só falados, nunca consumidos: o laço principal ainda vai tratar cada pacote com os
+// efeitos dele. E nada aqui LARGA a task por conta própria além do que já largava - saber que o
+// oxigênio está acabando e decidir se vale terminar a task é escolha do jogador, não do jogo.
+bool task_tick(game_client@ client) {
+	announce_background_events(client);
+	return task_cancel_requested(client);
+}
+
 bool task_cancel_requested(game_client@ client) {
 	if (key_pressed(KEY_ESCAPE)) return true;
 	if (@client == null) return false;

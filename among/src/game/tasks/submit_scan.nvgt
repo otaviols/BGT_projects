@@ -25,7 +25,7 @@ bool run_submit_scan_task(game_client@ client) {
 	while (float(clock.elapsed) / 1000.0 < SCAN_SECONDS) {
 		wait(20);
 		client.update();
-		if (task_cancel_requested(client)) {
+		if (task_tick(client)) {
 			if (@scanner != null) scanner.stop();
 			return false;
 		}

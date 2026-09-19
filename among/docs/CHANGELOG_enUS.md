@@ -24,6 +24,9 @@ Everything that changed in the game, newest first.
   stays where they died, that was almost silence.
 - Fixed: dying during a sabotage left you blinded by it until someone fixed the panel. Sabotage no
   longer affects ghosts at any point.
+- **You are no longer deaf inside a task.** Chat, sabotages and the oxygen countdown are now spoken
+  while you are in a task, a repair panel or the message box — before, they only arrived when you
+  closed the screen. Nothing drops the task for you: you get the warning, and leaving is your call.
 - **Fixed the game going "not responding" mid-match.** It happened after spending a while on a
   screen that holds the game — a task, the cameras, the message box — during a busy match.
 - **The radar tells you the direction again.** The beep's pitch now says whether the target is north

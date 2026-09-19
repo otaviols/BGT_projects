@@ -50,7 +50,7 @@ bool run_water_plants_task(game_client@ client) {
 		while (!watered) {
 			wait(5);
 			client.update();
-			if (task_cancel_requested(client)) return false;
+			if (task_tick(client)) return false;
 
 			// Mover o regador. O som do movimento sai no lado PRA ONDE ele foi - é o único jeito de
 			// o jogador saber onde o regador está, já que não há nada na tela pra conferir.
@@ -88,7 +88,7 @@ bool run_water_plants_task(game_client@ client) {
 				while (float(gap.elapsed) / 1000.0 < TICK_SECONDS) {
 					wait(5);
 					client.update();
-					if (task_cancel_requested(client)) {
+					if (task_tick(client)) {
 						water.stop();
 						return false;
 					}

@@ -33,7 +33,7 @@ bool run_unlock_manifolds_task(game_client@ client) {
 	while (typed < sequence.length()) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested(client)) return false;
+		if (task_tick(client)) return false;
 
 		int pressed = -1;
 		if (key_pressed(KEY_1)) pressed = 0;

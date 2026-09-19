@@ -1,0 +1,60 @@
+// Sonda do contrato dos avisos em tela bloqueante: anunciar SEM consumir, e sem repetir.
+// Não testa o som (isso é de ouvido) - testa que a fila continua intacta para o laço principal
+// tratar os efeitos, que cada pacote é falado uma vez só, e que o que não deve ser anunciado no
+// meio de uma task realmente não é.
+//   nvgt tools/probes/probe_background_events.nvgt
+#include "../../src/core/event_speech.nvgt"
+#include "../../src/config/game_constants.nvgt"
+
+net_packet@ faz(const string&in tipo) { return net_packet(tipo); }
+
+void main() {
+	// Caminho relativo resolve pelo diretório do EXECUTÁVEL, não pelo de trabalho: sem procurar a
+	// raiz, lang/ não é encontrado e tr() devolve a própria chave (ver CLAUDE.md).
+	// Caminho relativo resolve pelo diretório do EXECUTÁVEL: procurar a raiz em vez de supor onde
+	// estamos é o padrão das ferramentas daqui (ver CLAUDE.md).
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) println("(lang nao encontrado: os textos saem como chave)");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+	game_client c;
+	c.my_peer_id = 7;
+
+	// O que DEVE ser anunciado
+	net_packet@ chat = faz(S_CHAT_MESSAGE); chat.set_string("name", "fulano"); chat.set_string("text", "oi");
+	net_packet@ sab = faz(S_SABOTAGE_STARTED); sab.set_string("sabotage_id", "oxygen"); sab.set_bool("critical", true); sab.set_float("timer", 45.0);
+	net_packet@ cont = faz(S_SABOTAGE_COUNTDOWN); cont.set_int("seconds", 10); cont.set_bool("final", true);
+	net_packet@ fix = faz(S_SABOTAGE_FIXED);
+	net_packet@ saiu = faz(S_PLAYER_LEFT); saiu.set_string("name", "beltrano");
+	net_packet@ morri = faz(S_PLAYER_KILLED); morri.set_uint64("peer_id", 7); morri.set_uint64("killer_peer", 9);
+	// O que NÃO deve
+	net_packet@ andou = faz(S_PLAYER_MOVED); andou.set_uint64("peer_id", 3);
+	net_packet@ prog = faz(S_TASK_PROGRESS); prog.set_int("percent", 40);
+	net_packet@ outro_morreu = faz(S_PLAYER_KILLED); outro_morreu.set_uint64("peer_id", 3);
+
+	array<net_packet@> todos = {chat, sab, cont, fix, saiu, morri, andou, prog, outro_morreu};
+	for (uint i = 0; i < todos.length(); i++) c.incoming.insert_last(todos[i]);
+	uint antes = c.incoming.length();
+
+	announce_background_events(c);
+
+	println("fila depois de anunciar: " + c.incoming.length() + " (esperado " + antes + " - nada pode ser consumido)");
+	uint marcados = 0;
+	for (uint i = 0; i < todos.length(); i++) if (todos[i].announced) marcados++;
+	println("pacotes falados: " + marcados + " (esperado 6)");
+	println("  chat=" + chat.announced + " sabotagem=" + sab.announced + " contagem=" + cont.announced
+		+ " consertada=" + fix.announced + " saiu=" + saiu.announced + " minha morte=" + morri.announced);
+	println("  andou=" + andou.announced + " progresso=" + prog.announced + " morte alheia=" + outro_morreu.announced
+		+ " (os tres tem que ser false)");
+
+	// Segunda passada: nada pode ser falado de novo
+	uint antes_marcados = marcados;
+	announce_background_events(c);
+	marcados = 0;
+	for (uint i = 0; i < todos.length(); i++) if (todos[i].announced) marcados++;
+	println("segunda passada: " + marcados + " marcados (esperado " + antes_marcados + ", nenhum novo)");
+
+	// E o texto sai montado de verdade, não como chave crua
+	println("texto da sabotagem: " + sabotage_started_text(sab));
+	println("texto da contagem: " + sabotage_countdown_text(cont));
+}

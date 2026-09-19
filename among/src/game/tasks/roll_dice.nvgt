@@ -20,7 +20,7 @@ bool run_roll_dice_task(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested(client)) return false;
+		if (task_tick(client)) return false;
 		if (!key_pressed(KEY_SPACE)) continue;
 
 		int result = random(1, DICE_SIDES);

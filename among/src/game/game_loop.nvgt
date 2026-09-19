@@ -406,6 +406,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	float my_x = start_pkt.get_float("your_x");
 	float my_y = start_pkt.get_float("your_y");
 	roster.load_from_start_packet(start_pkt);
+	// Quem está numa tela bloqueante precisa do elenco para dizer QUEM matou (ver event_speech).
+	@g_match_roster = roster;
 	// As vozes passam a tocar no ponto de cada pessoa (o elenco guarda a posição de todos, inclusive
 	// a minha - ver roster.update_position no movimento). Servidor antigo não manda voice_chat.
 	// A regra da sala vale para a partida inteira; o que muda no meio é a sabotagem de comunicações,
@@ -559,7 +561,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					dictionary@ left_params = dictionary();
 					left_params.set("name", left_name);
 					string left_text = tr("lobby.player_left", left_params);
-					speak(left_text);
+					if (!pkt.announced) speak(left_text);
 					events_log.add("", left_text);
 				}
 			} else if (t == S_TASK_RESULT) {
@@ -587,16 +589,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
 					// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
 					// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
-					roster_entry@ killer = roster.find(pkt.get_uint64("killer_peer"));
-					string killed_text;
-					if (@killer != null && killer.name != "") {
-						dictionary@ killer_params = dictionary();
-						killer_params.set("name", killer.name);
-						killed_text = tr("game.you_were_killed_by", killer_params);
-					} else {
-						killed_text = tr("game.you_were_killed"); // não deveria acontecer, mas não fica mudo
-					}
-					speak(killed_text);
+					string killed_text = you_were_killed_text(pkt, roster);
+					if (!pkt.announced) speak(killed_text);
 					events_log.add("", killed_text);
 				}
 				if (pkt.get_uint64("killer_peer") == client.my_peer_id) my_kill_cooldown_remaining = kill_cooldown_config;
@@ -609,7 +603,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// Sem interromper: uma mensagem de chat espera a fala atual acabar. Interrompendo, duas
 				// pessoas falando em sequência cortavam a primeira no meio, e um anúncio do jogo (quem
 				// reportou, quanto tempo falta) morria por causa de um "oi" no chat.
-				speak(chat_name + ": " + chat_text, false);
+				if (!pkt.announced) speak(chat_name + ": " + chat_text, false);
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
 				else audio.play_message_received();
 			} else if (t == S_BODY_REPORTED) {
@@ -824,7 +818,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			} else if (t == S_ERROR) {
 				// Traduzido AQUI, no idioma deste jogador: o servidor manda a chave, não a frase
 				// (ver network/protocol.nvgt).
-				speak(tr_server_message(pkt));
+				if (!pkt.announced) speak(tr_server_message(pkt));
 			} else if (t == S_PONG && ping_pending) {
 				ping_pending = false;
 				dictionary@ ping_params = dictionary();
@@ -1199,6 +1193,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				audio.stop_ship_ambience();
 				audio.stop_room_ambience();
 				audio.stop_landmark_beacons();
+				@g_match_roster = null;
 				return null; // abandonou a partida: não há sala para voltar
 			}
 		}
@@ -1206,6 +1201,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	audio.stop_ship_ambience();
 	audio.stop_room_ambience();
 	audio.stop_landmark_beacons();
+	@g_match_roster = null; // o elenco morre com a partida
 	return back_to_lobby;
 }
 

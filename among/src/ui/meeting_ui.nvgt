@@ -91,8 +91,10 @@ class meeting_ui {
 
 	// Fala na hora (igual sempre foi) e também guarda no container de eventos, pra dar pra reler
 	// depois com PageUp/PageDown + vírgula/ponto.
-	private void announce(const string&in text) {
-		speak(text);
+	// `say` em false quando uma tela bloqueante já disse isto (ver core/event_speech.nvgt): o texto
+	// ainda entra no histórico para ser relido, mas não é falado de novo ao fechar a tela.
+	private void announce(const string&in text, bool say = true) {
+		if (say) speak(text);
 		events_log.add("", text);
 	}
 
@@ -190,40 +192,28 @@ class meeting_ui {
 
 	void on_sabotage_started(net_packet@ pkt) {
 		string sabotage_id = pkt.get_string("sabotage_id");
-		string text = tr("sabotage." + sabotage_id + ".name"); // nome vem da própria chave, sem lista fixa aqui
-		// Sabotagem crítica (oxigênio) tem relógio e é derrota se ninguém consertar - dizer quanto
-		// tempo existe é a diferença entre correr pro painel certo e não fazer ideia do que fazer.
-		// Tudo numa fala só porque speak() interrompe a anterior.
-		if (pkt.get_bool("critical")) {
-			dictionary@ p = dictionary();
-			p.set("seconds", "" + int(pkt.get_float("timer")));
-			text += " " + tr("sabotage.critical_warning", p);
-		}
-		announce(text);
+		announce(sabotage_started_text(pkt), !pkt.announced);
 		audio.start_sabotage_alarm();
 		if (lights_out_for(sabotage_id, is_impostor, alive)) audio.apply_lights_out(true, NORMAL_AUDIO_MAX_DISTANCE);
 	}
 
 	// Lembrete de quanto falta na sabotagem crítica (marcos de 30 em 30) e a contagem dos 10 finais.
 	void on_sabotage_countdown(net_packet@ pkt) {
-		int seconds = pkt.get_int("seconds");
-		dictionary@ p = dictionary();
-		p.set("seconds", "" + seconds);
-
+		if (pkt.announced) return; // uma tela bloqueante já disse este número
 		if (pkt.get_bool("final")) {
 			// speak() direto, sem passar pelo registro de eventos: dez números seguidos entupiriam o
 			// histórico que o jogador relê com PageUp/PageDown, empurrando pra fora justamente o que
 			// interessa reler (quem reportou, quem votou em quem).
 			// E sem esperar a fala anterior terminar - numa contagem, um número atrasado é pior do que
 			// um número interrompido.
-			speak(tr("sabotage.countdown_final", p));
+			speak(sabotage_countdown_text(pkt));
 			return;
 		}
-		announce(tr("sabotage.countdown_remaining", p));
+		announce(sabotage_countdown_text(pkt));
 	}
 
 	void on_sabotage_fixed(net_packet@ pkt) {
-		announce(tr("sabotage.fixed"));
+		announce(sabotage_fixed_text(), !pkt.announced);
 		audio.stop_sabotage_alarm();
 		audio.apply_lights_out(false, NORMAL_AUDIO_MAX_DISTANCE);
 	}

@@ -15,6 +15,15 @@ float safe_var_to_float(var@ v) {
 
 class net_packet {
 	json_object@ obj;
+	// Anotações locais de quem recebeu (não viajam pela rede), usadas pelos avisos em tela
+	// bloqueante - ver core/event_speech.nvgt:
+	// - announce_checked: a tela já OLHOU este pacote e decidiu se valia falar. Sem isto, o
+	//   anunciador reexaminaria a fila inteira a cada quadro, que é exatamente o custo por quadro
+	//   que derrubava o jogo (ver MAX_INCOMING_PACKETS).
+	// - announced: e decidiu que sim. É o que impede o laço principal de repetir a mesma frase ao
+	//   fechar a tela. O pacote continua na fila e ainda será tratado inteiro, com todos os efeitos.
+	bool announce_checked = false;
+	bool announced = false;
 
 	net_packet(const string&in msg_type) {
 		@obj = json_object();

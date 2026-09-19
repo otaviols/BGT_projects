@@ -364,6 +364,20 @@ existia, a contagem de pular saía com um número qualquer e ganhava a apuraçã
 pulando a chave existia e funcionava - sintoma que parece regra de jogo, não bug. Sempre
 `exists()` antes de `get()`, ou use o retorno booleano de `get()`.
 
+**Tela bloqueante ANUNCIA sem consumir.** Enquanto uma minigame (ou o painel de reparo, ou a caixa
+de mensagem) está aberta, o laço principal não roda e nada do que chega é dito - o jogador ficava
+surdo ao chat e à contagem do oxigênio até fechar a tela. `announce_background_events`
+(`src/core/event_speech.nvgt`) fala o que chegou e MARCA o pacote (`announced`), que continua na
+fila para o laço principal tratar com todos os efeitos dele; quem fala depois pergunta antes
+(`if (!pkt.announced) speak(...)`). Consumir o pacote ali perderia os efeitos - elenco, alarme,
+marcadores - e o jogo passaria a dizer coisas que não aconteceram. O texto de cada evento mora num
+lugar só, em `event_speech.nvgt`, porque agora há dois pontos que o dizem. O gancho por quadro das
+minigames é `task_tick()`, que anuncia e responde se a task deve parar - `task_cancel_requested`
+sozinho não anuncia nada. E, pela mesma razão que derrubou o jogo antes, cada pacote é examinado
+UMA vez (`announce_checked`): nada de reexaminar a fila inteira por quadro. **Decisão: nenhum aviso
+larga a task por conta própria** (nem o oxigênio) - avisar é do jogo, decidir é do jogador.
+Sonda: `tools/probes/probe_background_events.nvgt`.
+
 **A fila de pacotes do cliente tem TETO, e nada pode varrê-la por quadro.** A fila só é esvaziada
 pelo laço principal, e o jogador passa minutos fora dele (task, câmera, caixa de mensagem) enquanto
 os pacotes continuam chegando - posição de outro jogador chega a cada quadro DELE, então numa

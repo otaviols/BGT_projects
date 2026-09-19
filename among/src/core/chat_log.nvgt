@@ -10,6 +10,7 @@
 #include "../i18n.nvgt"
 #include "../config/keybindings.nvgt"
 #include "../audio/voice_chat.nvgt"
+#include "event_speech.nvgt"
 
 // As teclas de chat e de voto agora vêm do mapa de teclas do jogador (config/keybindings.nvgt):
 // ACTION_CHAT, ACTION_CHAT_PREV, ACTION_CHAT_NEXT, ACTION_CHAT_SWITCH e ACTION_VOTE.
@@ -87,7 +88,7 @@ bool drain_chat_while_composing(game_client@ client, chat_log@ messages) {
 		string name = p.get_string("name");
 		string text = p.get_string("text");
 		if (@messages != null) messages.add(name, text);
-		speak(name + ": " + text, false);
+		if (!p.announced) speak(name + ": " + text, false);
 		client.incoming.remove_at(i);
 		i--;
 	}
@@ -121,6 +122,8 @@ void run_chat_compose(game_client@ client, chat_log@ messages = null) {
 	while (true) {
 		wait(5);
 		client.update();
+		// A caixa é uma tela bloqueante como qualquer outra: o que chega continua sendo dito.
+		announce_background_events(client);
 		if (!client.connected) { g_voice.typing = false; return; } // quem chamou vai avisar da queda
 		if (!drain_chat_while_composing(client, messages)) {
 			speak(tr("chat.compose_closed"));

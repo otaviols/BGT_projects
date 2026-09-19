@@ -47,7 +47,7 @@ bool run_fuel_engines_task(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested(client)) {
+		if (task_tick(client)) {
 			filling.stop();
 			return false;
 		}

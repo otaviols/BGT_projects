@@ -58,7 +58,7 @@ bool run_review_records_task(game_client@ client) {
 				footstep_volume_db(floor));
 			wait(step_interval);
 			client.update();
-			if (task_cancel_requested(client)) return false;
+			if (task_tick(client)) return false;
 		}
 		wait(random(700, 1100)); // silêncio entre uma pessoa e a próxima
 	}
@@ -68,7 +68,7 @@ bool run_review_records_task(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_cancel_requested(client)) return false;
+		if (task_tick(client)) return false;
 
 		int answer = 0;
 		if (key_pressed(KEY_1)) answer = 1;

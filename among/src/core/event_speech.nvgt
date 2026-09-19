@@ -1,0 +1,108 @@
+// event_speech.nvgt
+// O texto falado de cada evento da partida, num lugar só - e a entrega desses avisos para quem está
+// numa TELA BLOQUEANTE (uma task, um painel de reparo, a caixa de mensagem).
+//
+// O problema que isto resolve: enquanto uma minigame está aberta, o laço principal não roda, então
+// nada do que chega é dito. O jogador ficava surdo ao chat e aos anúncios até fechar a tela - e no
+// caso do oxigênio isso custa a partida, porque a contagem inteira acontecia em silêncio.
+//
+// A regra é ANUNCIAR SEM CONSUMIR. O pacote continua na fila e o laço principal ainda vai tratá-lo
+// com todos os efeitos dele (elenco, alarme, marcadores, beacons) - se a tela bloqueante o tirasse
+// da fila para falar, esses efeitos se perderiam e o jogo ficaria dizendo coisas que não aconteceram.
+// Para não falar duas vezes, o pacote é MARCADO (net_packet.announced) e quem fala depois pergunta
+// antes. Foi decisão do jogador: ele é avisado do oxigênio, e escolhe se larga a task ou não - o
+// jogo não decide por ele.
+//
+// O texto de cada evento mora aqui porque agora há dois lugares que o dizem. Duplicar o tr() nos
+// dois seria a receita para eles divergirem no dia em que um deles mudasse.
+
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../i18n.nvgt"
+#include "client_state.nvgt"
+#include "speech.nvgt"
+
+string sabotage_started_text(net_packet@ pkt) {
+	string sabotage_id = pkt.get_string("sabotage_id");
+	string text = tr("sabotage." + sabotage_id + ".name"); // o nome sai da própria chave, sem lista fixa
+	// Sabotagem crítica (oxigênio) tem relógio e é derrota se ninguém consertar - dizer quanto tempo
+	// existe é a diferença entre correr pro painel certo e não fazer ideia do que fazer. Tudo numa
+	// fala só porque speak() interrompe a anterior.
+	if (pkt.get_bool("critical")) {
+		dictionary@ p = dictionary();
+		p.set("seconds", "" + int(pkt.get_float("timer")));
+		text += " " + tr("sabotage.critical_warning", p);
+	}
+	return text;
+}
+
+string sabotage_countdown_text(net_packet@ pkt) {
+	dictionary@ p = dictionary();
+	p.set("seconds", "" + pkt.get_int("seconds"));
+	return tr(pkt.get_bool("final") ? "sabotage.countdown_final" : "sabotage.countdown_remaining", p);
+}
+
+string sabotage_fixed_text() {
+	return tr("sabotage.fixed");
+}
+
+string chat_message_text(net_packet@ pkt) {
+	return pkt.get_string("name") + ": " + pkt.get_string("text");
+}
+
+string player_left_text(net_packet@ pkt) {
+	string name = pkt.get_string("name", "");
+	if (name == "") return "";
+	dictionary@ p = dictionary();
+	p.set("name", name);
+	return tr("lobby.player_left", p);
+}
+
+// "Você foi eliminado por fulano" - só para a vítima, e só ela recebe o nome do assassino.
+string you_were_killed_text(net_packet@ pkt, client_roster@ roster) {
+	if (@roster == null) return tr("game.you_were_killed");
+	roster_entry@ killer = roster.find(pkt.get_uint64("killer_peer"));
+	if (@killer == null || killer.name == "") return tr("game.you_were_killed");
+	dictionary@ p = dictionary();
+	p.set("name", killer.name);
+	return tr("game.you_were_killed_by", p);
+}
+
+// O que uma tela bloqueante deve dizer por este pacote, ou "" se ele não é para ser anunciado ali.
+//
+// Fica de fora o que a própria tela já trata (reunião, corpo reportado e fim de partida cancelam a
+// minigame) e tudo que não é para ser ouvido no meio de uma task - progresso das tarefas da equipe,
+// posição de quem anda, resultado de radar.
+string background_event_text(net_packet@ pkt, game_client@ client) {
+	string t = pkt.type;
+	if (t == S_CHAT_MESSAGE) return chat_message_text(pkt);
+	if (t == S_SABOTAGE_STARTED) return sabotage_started_text(pkt);
+	if (t == S_SABOTAGE_COUNTDOWN) return sabotage_countdown_text(pkt);
+	if (t == S_SABOTAGE_FIXED) return sabotage_fixed_text();
+	if (t == S_PLAYER_LEFT) return player_left_text(pkt);
+	if (t == S_ERROR) return tr_server_message(pkt);
+	// A morte só é anunciada para a própria vítima: para os outros, o assassinato é o som, não o texto.
+	if (t == S_PLAYER_KILLED && @client != null && pkt.get_uint64("peer_id") == client.my_peer_id) {
+		return you_were_killed_text(pkt, g_match_roster);
+	}
+	return "";
+}
+
+// Diz o que chegou enquanto uma tela bloqueante está aberta, SEM tirar nada da fila. Chamado uma vez
+// por quadro por essas telas (ver task_tick em game/tasks/task_common.nvgt).
+void announce_background_events(game_client@ client) {
+	if (@client == null) return;
+	for (uint i = 0; i < client.incoming.length(); i++) {
+		net_packet@ pkt = client.incoming[i];
+		// Cada pacote é examinado UMA vez: o custo por quadro passa a ser o dos que acabaram de
+		// chegar, e não o da fila inteira - que é a armadilha que já travou o jogo uma vez.
+		if (pkt.announce_checked) continue;
+		pkt.announce_checked = true;
+		string text = background_event_text(pkt, client);
+		if (text == "") continue;
+		pkt.announced = true; // o laço principal ainda vai tratá-lo; só não vai repetir a fala
+		// Sem interromper: quem está no meio de uma task ouvindo tons não pode ter o tom cortado.
+		// A exceção é a contagem final do oxigênio, onde um número atrasado é pior que um cortado.
+		speak(text, pkt.type == S_SABOTAGE_COUNTDOWN && pkt.get_bool("final"));
+	}
+}
