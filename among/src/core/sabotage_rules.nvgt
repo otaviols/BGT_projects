@@ -27,3 +27,11 @@ bool comms_down_for(const string&in active, bool is_impostor, bool alive) {
 bool lights_out_for(const string&in active, bool is_impostor, bool alive) {
 	return sabotage_affects("lights", active, is_impostor, alive);
 }
+
+// O rádio (chat de voz) cai com as comunicações sabotadas - e esta é a ÚNICA regra de percepção em
+// que o impostor NÃO tem imunidade. Com imunidade, durante o apagão de comunicações só ele
+// conseguiria falar: quem abrisse a boca estaria se entregando, e a sabotagem viraria um detector
+// de impostor em vez de uma cegueira. Fantasma continua conversando, como em toda sabotagem.
+bool voice_down_for(const string&in active, bool alive) {
+	return active == "comms" && alive;
+}

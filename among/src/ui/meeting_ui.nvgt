@@ -201,7 +201,7 @@ class meeting_ui {
 		}
 		announce(text);
 		audio.start_sabotage_alarm();
-		if (lights_out_for(sabotage_id, is_impostor, alive)) audio.apply_lights_out(true, 40);
+		if (lights_out_for(sabotage_id, is_impostor, alive)) audio.apply_lights_out(true, NORMAL_AUDIO_MAX_DISTANCE);
 	}
 
 	// Lembrete de quanto falta na sabotagem crítica (marcos de 30 em 30) e a contagem dos 10 finais.
@@ -225,7 +225,7 @@ class meeting_ui {
 	void on_sabotage_fixed(net_packet@ pkt) {
 		announce(tr("sabotage.fixed"));
 		audio.stop_sabotage_alarm();
-		audio.apply_lights_out(false, 40);
+		audio.apply_lights_out(false, NORMAL_AUDIO_MAX_DISTANCE);
 	}
 
 	void on_player_killed(net_packet@ pkt) {

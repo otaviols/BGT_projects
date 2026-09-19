@@ -88,6 +88,41 @@ void pump_client_during_game_menu(menu@ m, string data) {
 // não vê o corpo no escuro, então também não o ouve de longe), e as comunicações tiram o aviso
 // falado de quem é a vítima quando você chega perto (é informação, igual ao radar). Uma sabotagem
 // nunca derruba as duas: sempre sobra um jeito de descobrir o corpo.
+// Aplica os efeitos da sabotagem ativa para o estado ATUAL deste jogador.
+//
+// Tem que ser reavaliado quando o jogador MORRE, e não só quando a sabotagem começa e termina.
+// Sabotagem não atinge fantasma (ver core/sabotage_rules.nvgt), mas os efeitos eram ligados no
+// instante em que a sabotagem começava e só desligados quando alguém consertava o painel: quem
+// morria no meio de um apagão ficava com o alcance de audição cortado e sem o som dos corpos pelo
+// resto da sabotagem - cego justamente quem já não tinha mais nada a perder.
+void apply_sabotage_effects(audio_manager@ audio, meeting_ui@ mui, game_map@ map,
+		array<string>@ my_task_object_ids, const string&in active_sabotage_id, role_traits@ role,
+		bool is_impostor, bool alive, array<uint64>@ known_body_peers, array<vector>@ known_body_positions) {
+	bool lights_out = lights_out_for(active_sabotage_id, is_impostor, alive);
+	mui.body_sounds_enabled = !lights_out;
+	audio.apply_lights_out(lights_out, NORMAL_AUDIO_MAX_DISTANCE);
+	refresh_body_beacons(audio, known_body_peers, known_body_positions, lights_out);
+	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, role, alive);
+}
+
+// Liga ou corta o rádio deste jogador pela regra da sala mais a sabotagem de comunicações.
+// Devolve true quando o rádio ACABOU de cair, para quem chama avisar o jogador uma única vez.
+bool apply_voice_permission(bool room_allows, const string&in active_sabotage, bool alive) {
+	bool down = voice_down_for(active_sabotage, alive);
+	bool was_allowed = g_voice.allowed;
+	g_voice.allowed = room_allows && !down;
+	return room_allows && down && was_allowed;
+}
+
+// Quem está falando agora, pronto para falar ao jogador.
+string who_is_speaking_text() {
+	array<string>@ names = g_voice.speaking_names();
+	if (names.length() == 0) return tr("voice.nobody_speaking");
+	dictionary@ p = dictionary();
+	p.set("names", join(names, ", "));
+	return tr("voice.speaking_now", p);
+}
+
 void refresh_body_beacons(audio_manager@ audio, array<uint64>@ body_peers, array<vector>@ body_positions,
 		bool lights_out) {
 	audio.stop_all_body_beacons();
@@ -350,7 +385,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	roster.load_from_start_packet(start_pkt);
 	// As vozes passam a tocar no ponto de cada pessoa (o elenco guarda a posição de todos, inclusive
 	// a minha - ver roster.update_position no movimento). Servidor antigo não manda voice_chat.
-	g_voice.begin_match(roster, client.my_peer_id, start_pkt.get_bool("voice_chat", false));
+	// A regra da sala vale para a partida inteira; o que muda no meio é a sabotagem de comunicações,
+	// que derruba o rádio enquanto durar (ver voice_down_for).
+	bool voice_room_allows = start_pkt.get_bool("voice_chat", false);
+	g_voice.begin_match(roster, client.my_peer_id, voice_room_allows);
 
 	// Cooldown de kill acompanhado localmente (só é preciso de verdade pro impostor) - o servidor
 	// continua sendo quem decide de fato se o kill vale (ver network/server.on_kill), isso aqui é só
@@ -516,6 +554,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) {
 					alive = false;
 					mui.alive = false;
+					// Virou fantasma: sabotagem não atinge morto, então o que estava ligado sai agora.
+					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+						my_role, is_impostor, alive, known_body_peers, known_body_positions);
+					apply_voice_permission(voice_room_allows, active_sabotage_id, alive);
 					// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
 					// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
 					// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
@@ -590,7 +632,13 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				mui.on_vote_result(pkt);
 				movement_frozen = false;
 				g_voice.spatial = true;
-				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) { alive = false; mui.alive = false; } // virou fantasma
+				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) {
+					alive = false;
+					mui.alive = false; // virou fantasma: sabotagem deixa de atingi-lo (ver apply_sabotage_effects)
+					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+						my_role, is_impostor, alive, known_body_peers, known_body_positions);
+					apply_voice_permission(voice_room_allows, active_sabotage_id, alive);
+				}
 				// O servidor rearma o cooldown de kill de todo impostor ao fim da votação (ver
 				// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
 				// falharia calada.
@@ -603,14 +651,15 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				mui.on_sabotage_started(pkt);
 				string sabotage_id = pkt.get_string("sabotage_id");
 				active_sabotage_id = sabotage_id;
-				// Luzes apagadas calam os corpos já caídos, e mui.body_sounds_enabled cuida dos que
-				// caírem durante o apagão.
-				mui.body_sounds_enabled = sabotage_id != "lights";
-				if (sabotage_id == "lights") refresh_body_beacons(audio, known_body_peers, known_body_positions,
-					lights_out_for(sabotage_id, is_impostor, alive));
-				// Liga o beacon dos painéis dessa sabotagem (ver start_landmark_beacons): fora de
-				// sabotagem eles ficam calados, senão o mapa inteiro apita painel o tempo todo.
-				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
+				// Os efeitos (corpos calados, alcance de audição, beacons dos painéis desta sabotagem)
+				// saem todos daqui, para o fantasma e o vivo nunca discordarem sobre o que está ligado.
+				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+					my_role, is_impostor, alive, known_body_peers, known_body_positions);
+				if (apply_voice_permission(voice_room_allows, active_sabotage_id, alive)) {
+					string radio_text = tr("sabotage.comms.voice_down");
+					speak(radio_text);
+					events_log.add("", radio_text);
+				}
 
 				// Dica de conserto: fala em qual(is) sala(s) fica o painel certo pra essa sabotagem -
 				// sem isso o anúncio só dizia QUAL sabotagem, não pra ONDE ir consertar.
@@ -663,9 +712,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			} else if (t == S_SABOTAGE_FIXED) {
 				mui.on_sabotage_fixed(pkt);
 				active_sabotage_id = "";
-				mui.body_sounds_enabled = true;
-				refresh_body_beacons(audio, known_body_peers, known_body_positions, false); // luz de volta, corpos voltam a soar
-				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
+				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+					my_role, is_impostor, alive, known_body_peers, known_body_positions);
+				apply_voice_permission(voice_room_allows, active_sabotage_id, alive);
 				if (my_role.can_sabotage) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 			} else if (t == S_VENT_STATE) {
 				bool was_vented = is_vented;
@@ -905,9 +954,15 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_lock();
 			radar.tick(map, my_x, my_y);
 		}
-		// Ctrl + tecla de falar: silenciar/ouvir jogadores no chat de voz. Funciona parado na reunião
-		// também - é justamente quando alguém fala demais.
-		if (action_pressed(ACTION_TALK) && (key_down(KEY_LCTRL) || key_down(KEY_RCTRL))) g_voice.run_mute_menu();
+		// A tecla de falar e seus modificadores, lidos num lugar só (duas leituras de key_pressed no
+		// mesmo quadro podem dar respostas diferentes): Ctrl abre a lista de silenciar, Shift diz quem
+		// está falando agora, e sozinha - só no modo automático, onde ela não teria função - liga e
+		// desliga o microfone. No modo de segurar, ela é a própria fala e não faz nada aqui.
+		if (action_pressed(ACTION_TALK)) {
+			if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(who_is_speaking_text());
+			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
+		}
 
 		if (!movement_frozen && !cameras.active && action_pressed(ACTION_RADAR)) {
 			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -

@@ -127,6 +127,9 @@ class voice_chat : voice_receiver {
 	// e digitar essa letra abria o microfone no meio da mensagem. Enquanto isto for true, a tecla
 	// não fala; o modo automático continua valendo.
 	bool typing = false;
+	// Microfone mudo. Só existe no modo automático: ali a tecla de falar não teria função nenhuma,
+	// e é justamente onde se precisa de um jeito rápido de calar (alguém entrou no quarto, tosse).
+	bool mic_muted = false;
 	bool transmitting = false;
 	uint frames_sent = 0; // só para as sondas de tools/voice medirem a captura
 	timer hangover;
@@ -187,6 +190,27 @@ class voice_chat : voice_receiver {
 	void announce(bool connected_client) {
 		if (@client == null || !connected_client) return;
 		client.send_voice_state(g_settings.voice_chat_enabled);
+	}
+
+	// Devolve o estado novo. Quem chama é o laço do jogo (a tecla é lida num lugar só, para dois
+	// blocos não disputarem o mesmo evento de tecla).
+	bool toggle_mic_muted() {
+		mic_muted = !mic_muted;
+		if (transmitting) set_transmitting(false, false);
+		return mic_muted;
+	}
+
+	// Quem está falando NESTE instante, por nome. Num jogo sem tela, reconhecer dez vozes de ouvido
+	// é pedir demais - e o nome não entrega nada além do que a própria voz já entrega, porque o
+	// servidor só manda a voz de quem este jogador tem direito de ouvir.
+	array<string>@ speaking_names() {
+		array<string> names;
+		for (uint i = 0; i < streams.length(); i++) {
+			if (streams[i].last_frame.elapsed > VOICE_TALK_GAP_MS) continue;
+			string name = name_of(streams[i].peer_id);
+			if (name != "" && names.find(name) == -1) names.insert_last(name);
+		}
+		return names;
 	}
 
 	void stop_all() {
@@ -255,7 +279,9 @@ class voice_chat : voice_receiver {
 			for (uint i = 0; i < VOICE_CAPTURE_FRAMES; i++) frame[i] = pending[i];
 			pending.remove_range(0, VOICE_CAPTURE_FRAMES);
 			bool open;
-			if (g_settings.voice_mode == VOICE_MODE_AUTO) {
+			if (mic_muted) {
+				open = false;
+			} else if (g_settings.voice_mode == VOICE_MODE_AUTO) {
 				if (voice_level_db(frame) >= voice_threshold_db(g_settings.voice_sensitivity)) hangover.restart();
 				open = hangover.elapsed <= VOICE_AUTO_HANGOVER_MS;
 			} else {

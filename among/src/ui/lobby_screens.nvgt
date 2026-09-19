@@ -569,7 +569,11 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		if (key_pressed(KEY_C)) speak(lobby_config_text(snapshot.config) + private_lobby_text(snapshot.join_code));
 
 		if (action_pressed(ACTION_CHAT)) run_chat_compose(client, messages_log);
-		if (action_pressed(ACTION_TALK) && (key_down(KEY_LCTRL) || key_down(KEY_RCTRL))) g_voice.run_mute_menu();
+		if (action_pressed(ACTION_TALK)) {
+			if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(who_is_speaking_text());
+			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
+		}
 
 		if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
 			viewing_events_container = !viewing_events_container;

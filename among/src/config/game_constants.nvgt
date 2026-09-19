@@ -93,6 +93,9 @@ const float SABOTAGE_COOLDOWN_SECONDS = 30.0;
 // antes de qualquer um ter tido tempo de sair da cafeteria ou começar uma task.
 const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
+// Alcance de audição normal, fora de apagão. Era um 40 solto repetido em cada ponto que liga e
+// desliga o efeito das luzes - bastava mudar um para o jogador voltar do apagão com outro alcance.
+const int NORMAL_AUDIO_MAX_DISTANCE = 40;
 
 // Áudio posicionado: quanto o pitch cai (em %, 100 = som original) pra tudo que está ao SUL de você.
 // O estéreo só resolve esquerda/direita - norte e sul soam idênticos, e num mapa em que se anda nos

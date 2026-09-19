@@ -7,6 +7,9 @@
 #include "../config/lobby_config.nvgt"
 #include "../game/map.nvgt"
 #include "player.nvgt"
+// A regra de quem é atrapalhado por qual sabotagem mora num lugar só, e o servidor também pergunta
+// a ela (can_hear_voice): quem percebe quem se decide aqui, não no cliente.
+#include "sabotage_rules.nvgt"
 #include "../network/protocol.nvgt"
 #include "../network/packet.nvgt"
 
@@ -571,6 +574,10 @@ class game_state {
 		if (!talker.alive) return !listener.alive;
 		if (!listener.alive) return true;
 		if (state == "meeting" || state == "voting") return true;
+		// Comunicações sabotadas derrubam o rádio de todos os vivos, impostor incluído (o porquê da
+		// exceção à imunidade está em core/sabotage_rules.nvgt). A reunião fica de fora de propósito:
+		// ela é a discussão, e o tempo da sabotagem nem corre durante ela.
+		if (voice_down_for(active_sabotage, talker.alive) || voice_down_for(active_sabotage, listener.alive)) return false;
 		return distance_2d(talker.x, talker.y, listener.x, listener.y) <= VOICE_RANGE;
 	}
 
