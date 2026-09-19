@@ -377,6 +377,12 @@ meio da partida que vários jogadores relataram. Duas correções: `game_client.
 já viaja pelo canal não confiável; descartar um EVENTO deixaria o cliente contando uma partida que
 não existe. Ao escrever qualquer tela bloqueante nova, nada de varrer `client.incoming` por quadro.
 
+**Voz posicionada é só para quem está VIVO e andando.** `g_voice.spatial = alive && !movement_frozen`
+é decidido a cada quadro, e não em cada transição: são três (morrer, começar a reunião, acabar a
+votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na reunião todo mundo está
+na mesma mesa; o fantasma fica onde morreu, então com posição ele ouvia a discussão e os outros
+fantasmas - espalhados pelo mapa - de tão longe que virava silêncio. Morto não tem lugar.
+
 **Um sinal sonoro, um significado.** O tom do bip do radar dizia a DISTÂNCIA (130 perto, 80 longe)
 enquanto o tom de todo o resto do jogo diz NORTE/SUL (`SPATIAL_SOUTH_PITCH_DECREASE`, 6%). Os 50%
 da distância engoliam os 6% da direção, e o radar deixava de responder à única pergunta que o

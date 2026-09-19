@@ -19,8 +19,9 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 - **Novidades na tecla de falar**: segurando Shift, o jogo diz quem está falando naquele momento;
   com Ctrl, abre a lista para silenciar alguém; e, para quem usa o microfone automático, a tecla
   sozinha liga e desliga o microfone.
-- Na reunião, quem morreu passa a ouvir a discussão normalmente (antes ela chegava de longe, quase
-  inaudível).
+- **Quem morreu passa a ouvir todo mundo sem distância**: os outros fantasmas viram uma conversa
+  geral, e a reunião chega inteira. Antes a voz chegava do ponto onde cada um estava — e como
+  fantasma fica onde morreu, isso era quase silêncio.
 - Corrigido: quem morria durante uma sabotagem continuava cego por ela até alguém consertar o
   painel. Sabotagem não atinge mais fantasma em momento nenhum.
 - **Corrigido o jogo "não está respondendo" no meio da partida.** Acontecia depois de ficar um tempo

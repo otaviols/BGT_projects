@@ -618,9 +618,6 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// chega em seguida: lá TODOS somem de uma vez, não só o que foi reportado.
 			} else if (t == S_MEETING_STARTED) {
 				radar.unlock(false); // a reunião teleporta todo mundo: a trava não faz mais sentido
-				// Na reunião a voz toca sem posição: todo mundo está na mesma mesa, e o fantasma - que
-				// fica onde morreu - ouvia a discussão inteira de longe, quase inaudível.
-				g_voice.spatial = false;
 				// Todo corpo some do mapa quando a reunião começa - é o que o servidor faz com a lista
 				// dele (ver start_meeting). Sem isto o cliente continuava ouvindo o som de um corpo que
 				// não existe mais e anunciando "você encontrou o corpo de fulano" em cima dele.
@@ -657,7 +654,6 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			} else if (t == S_VOTE_RESULT) {
 				mui.on_vote_result(pkt);
 				movement_frozen = false;
-				g_voice.spatial = true;
 				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) {
 					alive = false;
 					mui.alive = false; // virou fantasma: sabotagem deixa de atingi-lo (ver apply_sabotage_effects)
@@ -860,6 +856,12 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// de passo (só esbarrão, ou nada).
 		if (delta > 0.1) delta = 0.1;
 		mui.tick_vote_timer();
+		// A voz só é posicionada para quem está VIVO e andando pela nave. Decidido a cada quadro, e
+		// não em cada transição, porque são três transições (morrer, começar reunião, acabar
+		// votação) e esquecer uma deixa o jogador num estado que nada mais corrige: na reunião todos
+		// estão na mesma mesa, e o fantasma fica onde morreu - com posição, ele ouvia a discussão (e
+		// os outros fantasmas, espalhados pelo mapa) de longe, quase inaudível. Morto não tem lugar.
+		g_voice.spatial = alive && !movement_frozen;
 
 		if (my_role.can_kill && my_kill_cooldown_remaining > 0.0) {
 			my_kill_cooldown_remaining -= delta;

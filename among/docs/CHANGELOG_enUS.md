@@ -19,8 +19,9 @@ Everything that changed in the game, newest first.
 - **More from the talk key**: hold Shift and the game says who is speaking right now; Ctrl opens the
   list to mute someone; and, for those using the automatic microphone, the key alone turns the
   microphone on and off.
-- In meetings, dead players now hear the discussion properly (it used to come from far away, barely
-  audible).
+- **Dead players now hear everyone with no distance**: other ghosts become a general chat, and the
+  meeting comes through in full. Before, voices came from where each person was — and since a ghost
+  stays where they died, that was almost silence.
 - Fixed: dying during a sabotage left you blinded by it until someone fixed the panel. Sabotage no
   longer affects ghosts at any point.
 - **Fixed the game going "not responding" mid-match.** It happened after spending a while on a
