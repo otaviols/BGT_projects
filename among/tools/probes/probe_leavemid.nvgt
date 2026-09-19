@@ -1,0 +1,163 @@
+// Variante: o ANFITRIÃO sai no meio da partida - o registro dele não pode voltar para a sala de
+// espera, e alguém que ficou tem que assumir como anfitrião.
+// Sonda do "continuar na mesma sala": joga uma partida até o fim (todos votam no impostor), confere
+// que a sala volta sozinha para a espera com a mesma gente, e INICIA UMA SEGUNDA partida nela -
+// que é a prova de que nada do estado anterior ficou atravessado.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/voice/probe_rematch.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+class peer {
+	game_client@ c;
+	string name;
+	uint64 id = 0;
+	bool impostor = false;
+	peer(const string&in n) { name = n; @c = game_client(); }
+}
+
+net_packet@ wait_for(game_client@ c, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == type) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+// Bombeia todos e devolve o primeiro pacote do tipo pedido, sem descartar os outros.
+net_packet@ wait_any(array<peer@>@ all, const string&in type, int ms, int&out who) {
+	who = -1;
+	timer t;
+	while (t.elapsed < ms) {
+		for (uint i = 0; i < all.length(); i++) {
+			all[i].c.update();
+			for (uint k = 0; k < all[i].c.incoming.length(); k++) {
+				net_packet@ p = all[i].c.incoming[k];
+				if (p.type == type) { all[i].c.incoming.remove_at(k); who = int(i); return p; }
+			}
+		}
+		wait(5);
+	}
+	return null;
+}
+// Bombeia SEM limpar a fila: usado depois de mexer na partida, quando o pacote que interessa pode
+// chegar a qualquer instante (foi assim que esta sonda perdeu o fim de partida e acusou falha).
+void pump_keep(array<peer@>@ ps, int ms) { timer t; while (t.elapsed < ms) { for (uint i = 0; i < ps.length(); i++) ps[i].c.update(); wait(5); } }
+void pump(array<peer@>@ ps, int ms) { timer t; while (t.elapsed < ms) { for (uint i = 0; i < ps.length(); i++) { ps[i].c.update(); ps[i].c.clear_incoming(); } wait(5); } }
+
+// Começa uma partida e devolve quem é o impostor (-1 se não descobriu).
+int jogar_ate_o_fim(array<peer@>@ all) {
+	all[0].c.send_start_game();
+	// cada cliente recebe o SEU S_GAME_START, com o papel dele
+	int impostor = -1;
+	timer t;
+	uint recebidos = 0;
+	while (t.elapsed < 8000 && recebidos < all.length()) {
+		for (uint i = 0; i < all.length(); i++) {
+			all[i].c.update();
+			for (uint k = 0; k < all[i].c.incoming.length(); k++) {
+				net_packet@ p = all[i].c.incoming[k];
+				if (p.type != S_GAME_START) continue;
+				all[i].impostor = p.get_bool("your_role_impostor");
+				if (all[i].impostor) impostor = int(i);
+				all[i].c.incoming.remove_at(k);
+				recebidos++;
+				break;
+			}
+		}
+		wait(5);
+	}
+	if (recebidos < all.length()) { println("  FALHA: nem todos receberam S_GAME_START (" + recebidos + ")"); return -1; }
+	println("  partida comecou; impostor = " + (impostor >= 0 ? all[impostor].name : "nenhum humano"));
+	if (impostor < 0) return -1;
+
+	pump(all, 400);
+	all[0].c.send_call_meeting();
+	int quem;
+	if (@wait_any(all, S_MEETING_STARTED, 6000, quem) == null) { println("  FALHA: reuniao nao comecou"); return -1; }
+	if (@wait_any(all, S_VOTING_STARTED, 20000, quem) == null) { println("  FALHA: votacao nao comecou"); return -1; }
+	pump(all, 200);
+	for (uint i = 0; i < all.length(); i++) all[i].c.send_cast_vote(int64(all[impostor].id));
+	net_packet@ vr = wait_any(all, S_VOTE_RESULT, 40000, quem);
+	if (@vr == null) { println("  FALHA: sem resultado da votacao"); return -1; }
+	println("  expulso: " + vr.get_string("ejected_name"));
+	return impostor;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<peer@> all = {peer("ra" + sfx), peer("rb" + sfx), peer("rc" + sfx)};
+	for (uint i = 0; i < all.length(); i++) {
+		peer@ p = all[i];
+		if (!p.c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!p.c.connected && t.elapsed < 5000) { p.c.update(); wait(5); }
+		p.c.send_register(p.name, "probe123"); wait_for(p.c, S_REGISTER_RESULT, 3000);
+		p.c.send_login(p.name, "probe123");
+		net_packet@ lr = wait_for(p.c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		p.id = lr.get_uint64("peer_id"); p.c.my_peer_id = p.id;
+	}
+	lobby_overrides ov;
+	ov.max_players = 10; ov.impostor_count = 1; ov.discussion_time_seconds = 5; ov.voting_time_seconds = 20;
+	all[0].c.send_create_lobby("revanche", "classic", ov);
+	net_packet@ st = wait_for(all[0].c, S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem lobby state"); return; }
+	string lobby_id = st.get_string("lobby_id");
+	for (uint i = 1; i < all.length(); i++) { all[i].c.send_join_lobby(lobby_id); wait_for(all[i].c, S_JOIN_RESULT, 5000); }
+	pump(all, 300);
+
+	println("== partida com o anfitriao saindo no meio ==");
+	all[0].c.send_start_game();
+	int impostor = -1; uint recebidos = 0; timer t0;
+	while (t0.elapsed < 8000 && recebidos < all.length()) {
+		for (uint i = 0; i < all.length(); i++) {
+			all[i].c.update();
+			for (uint k = 0; k < all[i].c.incoming.length(); k++) {
+				net_packet@ p = all[i].c.incoming[k];
+				if (p.type != S_GAME_START) continue;
+				all[i].impostor = p.get_bool("your_role_impostor");
+				if (all[i].impostor) impostor = int(i);
+				all[i].c.incoming.remove_at(k); recebidos++; break;
+			}
+		}
+		wait(5);
+	}
+	println("  impostor = " + (impostor >= 0 ? all[impostor].name : "?") + "; anfitriao " + all[0].name + " (peer " + all[0].id + ") vai sair");
+	pump(all, 300);
+	all[0].c.send_leave_lobby();
+	pump_keep(all, 800);
+	// Com o anfitrião fora, a partida pode já ter acabado sozinha (a conta de vivos mudou). Só se
+	// ela continuar de pé é que os dois que sobraram precisam expulsar o impostor.
+	int q0;
+	bool ja_acabou = @wait_any(all, S_GAME_OVER, 1500, q0) != null;
+	println("  acabou ao sair o anfitriao? " + ja_acabou);
+	if (!ja_acabou && impostor > 0) {
+		int q;
+		all[1].c.send_call_meeting();
+		if (@wait_any(all, S_MEETING_STARTED, 6000, q) != null && @wait_any(all, S_VOTING_STARTED, 20000, q) != null) {
+			pump(all, 200);
+			for (uint i = 1; i < all.length(); i++) all[i].c.send_cast_vote(int64(all[impostor].id));
+			wait_any(all, S_VOTE_RESULT, 40000, q);
+		}
+	}
+
+	int quem = 0;
+	if (!ja_acabou) {
+		net_packet@ go = wait_any(all, S_GAME_OVER, 20000, quem);
+		if (@go == null) { println("FALHA: sem S_GAME_OVER"); return; }
+		println("fim de partida: vencedor = " + go.get_string("winner"));
+	}
+
+	// A prova: a sala volta sozinha, com a mesma gente
+	net_packet@ back = wait_any(all, S_LOBBY_STATE, 8000, quem);
+	if (@back == null) { println("FALHA: a sala NAO reabriu (sem S_LOBBY_STATE)"); return; }
+	json_array@ ps = back.get_array("players");
+	println("sala reaberta: id=" + back.get_string("lobby_id") + " (mesma=" + (back.get_string("lobby_id") == lobby_id) + ")"
+		+ " jogadores=" + (@ps != null ? ps.length() : 0) + " (esperado 2)");
+
+	bool tem_o_que_saiu = false;
+	if (@ps != null) for (uint i = 0; i < ps.length(); i++) if (uint64(ps.get_object(i)["peer_id"]) == all[0].id) tem_o_que_saiu = true;
+	println("quem saiu ainda aparece na sala? " + tem_o_que_saiu + " (esperado false)");
+	println("anfitriao novo = " + back.get_uint64("host_peer_id") + " (era " + all[0].id + ", tem que ser outro)");
+
+	for (uint i = 0; i < all.length(); i++) all[i].c.disconnect();
+}

@@ -114,6 +114,27 @@ bool apply_voice_permission(bool room_allows, const string&in active_sabotage, b
 	return room_allows && down && was_allowed;
 }
 
+// Espera o retrato da sala reaberta que o servidor manda logo depois do fim da partida. Devolve
+// null se ele não vier (servidor mais antigo, ou a sala fechou por não ter sobrado ninguém), e
+// nesse caso o jogador volta ao navegador de partidas como antes.
+//
+// A fila NÃO é esvaziada antes: o retrato costuma chegar enquanto a tela de resultado ainda está
+// aberta (ela bombeia client.update()), então ele já está esperando aqui.
+net_packet@ wait_for_reopened_lobby(game_client@ client) {
+	timer t;
+	while (t.elapsed < 4000) {
+		client.update();
+		if (!client.connected) return null;
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_LOBBY_STATE) return pkt;
+			@pkt = client.poll_message();
+		}
+		wait(10);
+	}
+	return null;
+}
+
 // Quem está falando agora, pronto para falar ao jogador.
 string who_is_speaking_text() {
 	array<string>@ names = g_voice.speaking_names();
@@ -358,7 +379,9 @@ void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 
 // Executa uma partida inteira a partir do pacote S_GAME_START. Bloqueia até o fim da partida
 // (S_GAME_OVER) ou até o jogador escolher sair (ESC + confirmação).
-void run_game(game_client@ client, net_packet@ start_pkt) {
+// Devolve o S_LOBBY_STATE da sala REABERTA quando a partida acabou e o grupo continua junto, ou
+// null quando não há para onde voltar (conexão perdida, ou o servidor fechou a sala).
+net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	game_map@ map = build_the_hub_map();
 	audio_manager@ audio = audio_manager();
 	client_roster@ roster = client_roster();
@@ -484,6 +507,9 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 	string last_zone_id = @start_zone != null ? start_zone.id : "";
 	string last_interactable_id = "";
 	uint64 last_nearby_player_id = 0;
+
+	// Retrato da sala reaberta no fim da partida (ver o tratamento de S_GAME_OVER).
+	net_packet@ back_to_lobby = null;
 
 	timer@ frame_clock = timer();
 	timer@ footstep_clock = timer();
@@ -794,6 +820,10 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				audio.stop_all_body_beacons();
 				mui.on_game_over(pkt);
 				run_game_over_screen(client, pkt);
+				// A sala continua de pé com a mesma turma: o servidor manda o retrato dela logo depois
+				// do fim da partida (ver reopen_lobby). Quem chama usa isso para voltar direto à sala
+				// de espera, sem passar pelo navegador de partidas.
+				@back_to_lobby = wait_for_reopened_lobby(client);
 				game_over = true;
 			} else if (t == S_ERROR) {
 				// Traduzido AQUI, no idioma deste jogador: o servidor manda a chave, não a frase
@@ -817,7 +847,7 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 		// nenhum aviso. Quem chama (run_session) vê connected == false e volta ao menu inicial.
 		if (!client.connected) {
 			speak(tr("net.connection_lost"));
-			break;
+			return null;
 		}
 
 		float delta = float(frame_clock.elapsed) / 1000.0;
@@ -1167,13 +1197,14 @@ void run_game(game_client@ client, net_packet@ start_pkt) {
 				audio.stop_ship_ambience();
 				audio.stop_room_ambience();
 				audio.stop_landmark_beacons();
-				return;
+				return null; // abandonou a partida: não há sala para voltar
 			}
 		}
 	}
 	audio.stop_ship_ambience();
 	audio.stop_room_ambience();
 	audio.stop_landmark_beacons();
+	return back_to_lobby;
 }
 
 bool my_tasks_all_completed(array<player_task>@ tasks) {

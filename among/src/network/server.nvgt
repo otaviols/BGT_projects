@@ -1635,12 +1635,45 @@ class game_server {
 				bool reliable = events[e].type != S_PLAYER_MOVED;
 				broadcast_to_lobby(lobby, events[e], 0, reliable);
 			}
-			// A partida acabou (o S_GAME_OVER acabou de sair): a lobby FECHA.
-			if (lobby.state == "ended") close_lobby(i);
+			// A partida acabou (o S_GAME_OVER acabou de sair): a sala REABRE para a mesma turma.
+			if (lobby.state == "ended") reopen_lobby(i);
 		}
 	}
 
-	// Encerra e apaga a lobby de índice `index`. Toda partida termina assim.
+	// Fim de partida: a sala volta ao estado de espera com a mesma gente dentro, em vez de sumir.
+	//
+	// Era assim que terminava antes: a sala fechava e todo mundo caía no navegador de partidas,
+	// obrigando o grupo a se reorganizar a cada rodada - combinar de novo quem cria, achar a sala,
+	// redigitar o código da partida privada. Manter a sala é o comportamento do jogo original.
+	//
+	// O que NÃO pode sobreviver à partida está em reopen_for_next_match(); o que não pode sobreviver
+	// no JOGADOR está em reset_match_state(). Quem saiu no meio só existia como registro para a
+	// contagem de vivos não quebrar (ver remove_from_lobby) - esse registro sai daqui, senão a sala
+	// de espera listaria gente que foi embora e a próxima partida contaria com ela.
+	void reopen_lobby(int index) {
+		game_state@ lobby = lobbies[index];
+		for (int i = int(lobby.players.length()) - 1; i >= 0; i--) {
+			if (lobby.players[i].left_match) lobby.players.remove_at(i);
+		}
+		// Sobrou só bot (ou ninguém): não há para quem reabrir, e uma sala assim ficaria para sempre
+		// na lista sem nunca começar nada - bot não aperta Enter.
+		if (lobby.human_count() == 0) { close_lobby(index); return; }
+		lobby.reopen_for_next_match();
+		// O anfitrião pode ter caído no meio da partida: sem isto a sala reabriria sem ninguém que
+		// possa iniciar a próxima.
+		if (@lobby.find_player(lobby.host_peer_id) == null) {
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				if (lobby.players[i].is_bot) continue; // bot não pode ser anfitrião
+				lobby.host_peer_id = lobby.players[i].peer_id;
+				break;
+			}
+		}
+		// Logo depois do S_GAME_OVER, e é por este retrato que o cliente sabe que a sala continua de
+		// pé (e quem é o anfitrião agora) - ver run_game em game/game_loop.nvgt.
+		send_lobby_state(lobby, 0);
+	}
+
+	// Encerra e apaga a lobby de índice `index`. Hoje só quando não sobrou ninguém para reabrir.
 	//
 	// A lobby não sobrevive à partida de propósito. Todo cliente volta pro navegador de partidas
 	// quando a tela de fim de jogo fecha (ver AmongUs.nvgt), então uma lobby que continuasse de pé

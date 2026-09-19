@@ -40,7 +40,7 @@ Antes de afirmar algo aqui, **verifique contra o código**, não contra a memór
 | `src/` | **todo** o código: `config/`, `core/`, `game/`, `network/`, `ui/`, `database/`, `audio/`, `i18n.nvgt` |
 | `lang/` | **só dados** de tradução (`pt_BR.json`, `en_US.json`) — o motor de i18n fica em `src/` |
 | `sounds/` | áudio fonte; vira `sounds.dat` no build |
-| `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `check_translation.py`, ferramentas de administração, `voice/` (sondas do chat de voz) |
+| `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `check_translation.py`, ferramentas de administração, `probes/` (sondas que conversam com um servidor de verdade) |
 | `docs/` | manuais e histórico de versões, distribuídos com o jogo numa pasta `docs/` |
 | `infra/` | Terraform, Dockerfile, manifests do Kubernetes, `deploy.ps1`, `read_feedback.ps1` |
 
@@ -317,7 +317,7 @@ coisa que pega um caminho errado — som que não carrega falha em silêncio, se
 (128 kbps por pessoa falando, qualidade de telefone) e toca com `sound.stream_pcm()`. Não é Opus
 porque o `audio_decoder` (opusfile) só abre fluxo COMPLETO - num fluxo que cresce responde
 "Invalid file" sempre, com ou sem taxa/canais. Trocar por Opus um dia é trocar `voice_encode`/
-`voice_decode` e nada mais. Armadilhas achadas pela sonda (`tools/voice/voice_probe.nvgt`):
+`voice_decode` e nada mais. Armadilhas achadas pela sonda (`tools/probes/voice_probe.nvgt`):
 `spatialization_enabled`/`set_position_3d` definidos ANTES do primeiro `stream_pcm` se perdem (som
 centralizado, sem erro) - reaplique depois de cada quadro; microfone estéreo não espacializa
 (converta para mono); `mic.read(n)` devolve n quadros × canais amostras; e as listas de
@@ -339,7 +339,7 @@ chega a zero refaz a folga (um buraco de 120 ms uma vez, em vez de tremer sem pa
 2 s explícito: o automático é 2x o primeiro pedaço. Quem GERA áudio sintético para teste
 (`probe_talker`) tem que marcar a cadência pelo tempo total, não por "20 ms desde o último envio":
 reiniciar o relógio perde o resto e a entrega fica lenta - foi um defeito da sonda que pareceu
-defeito do jogo. Sondas: `probe_sender` (mede a captura real: esperado 50 pacotes/s),
+defeito do jogo. Sondas (em `tools/probes/`): `probe_sender` (mede a captura real: esperado 50 pacotes/s),
 `probe_playback` (de ouvido, cinco caminhos de reprodução), `probe_stream` (stream_pcm sob tremor).
 
 **A tecla de falar é uma letra: toda caixa de texto liga `g_voice.typing`** (chat, regras da sala)
@@ -353,8 +353,8 @@ até fechá-la. Quem ouve quem é decidido no SERVIDOR (`game_state.can_hear_voi
 e reunião, todos; na nave, `VOICE_RANGE` (8); dentro de duto, ninguém é ouvido; fantasma ouve todos
 e só é ouvido por fantasma. O servidor só manda voz a quem mandou `C_VOICE_STATE` ligado - sem
 isso um cliente antigo receberia 128 kbps que não sabe tocar. Regra da sala `voice_chat` (padrão
-ligado). Testes: `tools/voice/probe_relay.nvgt` (relay e distância, contra servidor local) e
-`tools/voice/probe_talker.nvgt` (um "jogador" que manda um tom de 440 Hz, para ouvir a voz
+ligado). Testes: `tools/probes/probe_relay.nvgt` (relay e distância, contra servidor local) e
+`tools/probes/probe_talker.nvgt` (um "jogador" que manda um tom de 440 Hz, para ouvir a voz
 posicionada no jogo de verdade com `AMONGUS_SERVER_HOST=127.0.0.1`).
 
 **`dictionary.get(chave, valor&out)` com chave AUSENTE deixa `valor` com LIXO.** É como o
@@ -363,6 +363,19 @@ preservado. Foi o bug "todo mundo votou nele e deu empate": sem nenhum "pular" a
 existia, a contagem de pular saía com um número qualquer e ganhava a apuração. Só com alguém
 pulando a chave existia e funcionava - sintoma que parece regra de jogo, não bug. Sempre
 `exists()` antes de `get()`, ou use o retorno booleano de `get()`.
+
+**A sala SOBREVIVE à partida - o que morre é o estado dela.** No fim do jogo a lobby volta a
+"waiting" com a mesma gente dentro (`reopen_lobby` no servidor, `reopen_for_next_match` no
+game_state), em vez de fechar e jogar todo mundo no navegador de partidas. Duas coisas têm que
+acontecer juntas, e esquecer qualquer uma vira bug sem causa visível na partida seguinte: **o
+estado de partida da SALA** sai em `reopen_for_next_match` (corpos, votos, reunião, sabotagem,
+câmera, portas, vencedor) e o **estado do JOGADOR** em `reset_match_state`. Ao acrescentar campo de
+partida em qualquer um dos dois, acrescente a limpeza no mesmo commit. Quem saiu no meio é
+REMOVIDO da lista ao reabrir (o registro dele só existia para a contagem de vivos não quebrar), e
+o anfitrião é reatribuído se tiver caído. O cliente reconhece a volta pelo `S_LOBBY_STATE` que vem
+logo depois do `S_GAME_OVER`: `run_game` devolve esse retrato e `run_session` entra direto na sala
+de espera com ele (null = navegador, como antes). Sondas: `tools/probes/probe_rematch.nvgt` (duas
+partidas seguidas na mesma sala) e `probe_leavemid.nvgt` (anfitrião sai no meio).
 
 **Quem sai da sala de espera precisa de um S_LOBBY_STATE novo para os que ficaram.** A lista de
 quem está na sala (tecla P) sai do último retrato; só o S_PLAYER_LEFT não a atualiza, e quem saiu

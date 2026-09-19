@@ -893,6 +893,44 @@ class game_state {
 		for (uint i = 0; i < players.length(); i++) players[i].reset_match_state();
 	}
 
+	// Devolve a sala ao estado de espera para a MESMA turma jogar de novo, sem desfazer quem está
+	// nela nem as regras que o anfitrião escolheu.
+	//
+	// Esta lista é o ponto único onde se decide o que pertence à partida que acabou. Um campo
+	// esquecido aqui não dá erro nenhum: ele simplesmente atravessa para a partida seguinte e
+	// aparece como um bug sem causa visível (um corpo que ninguém matou, uma sabotagem que começa
+	// consertada, uma votação que já tem votos). Ao acrescentar estado de partida no game_state,
+	// acrescente a limpeza dele aqui também.
+	void reopen_for_next_match() {
+		reset_players_after_match();
+		state = "waiting";
+		bodies.resize(0);
+		votes.resize(0);
+		meeting_timer = 0.0;
+		voting_timer = 0.0;
+		meeting_caller = 0;
+		meeting_reason = "";
+		meeting_unvented_peers.resize(0);
+		meeting_doors_opened.resize(0);
+		meeting_cooldown_remaining = 0.0;
+		doors_cooldown_remaining = 0.0;
+		active_sabotage = "";
+		last_sabotage_id = "";
+		sabotage_timer = 0.0;
+		last_sabotage_countdown = -1;
+		sabotage_cooldown_remaining = 0.0;
+		sabotage_fixed_panels.resize(0);
+		oxygen_code = "";
+		camera_user_peer = 0;
+		camera_room_id = "";
+		visible_task_peer = 0;
+		visible_task_object_id = "";
+		winner = "";
+		win_reason = "";
+		elapsed_time = 0.0;
+		map.open_all_doors();
+	}
+
 	// --- Tick: avança timers, retorna eventos que o servidor precisa transmitir. ---
 	array<net_packet@>@ tick(float delta_seconds) {
 		array<net_packet@> events;
