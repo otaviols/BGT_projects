@@ -271,12 +271,13 @@ class audio_manager {
 	// é ambíguo (uma pessoa longe e o volume do jogo baixo soam igual); o tom não. É o padrão dos
 	// marcadores de rastreio em outros audiogames, e é o que faz o radar travado ser acompanhável sem
 	// olhar - você ouve o tom subir e sabe que está chegando.
-	void play_radar_beep(float x, float y, float distance = -1.0) {
+	// O tom diz NORTE (mais agudo) ou SUL (mais grave) - a única pergunta que o estéreo não responde
+	// sozinho. Ver RADAR_PITCH_DIRECTION_STEP para o motivo de não ser a distância.
+	void play_radar_beep(float x, float y) {
+		float dy = spatial.listener_y - y; // o y do mundo cresce para o SUL
 		float pitch = 100.0;
-		if (distance >= 0.0) {
-			float d = distance > RADAR_PITCH_FAR_DISTANCE ? RADAR_PITCH_FAR_DISTANCE : distance;
-			pitch = RADAR_PITCH_NEAR - (RADAR_PITCH_NEAR - RADAR_PITCH_FAR) * (d / RADAR_PITCH_FAR_DISTANCE);
-		}
+		if (dy > RADAR_SAME_ROW_TOLERANCE) pitch += RADAR_PITCH_DIRECTION_STEP;
+		else if (dy < -RADAR_SAME_ROW_TOLERANCE) pitch -= RADAR_PITCH_DIRECTION_STEP;
 		spatial.play_once(SND_RADAR_BEEP, x, y, family_db(SOUND_FAMILY_BEACONS), pitch);
 	}
 }

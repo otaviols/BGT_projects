@@ -40,6 +40,10 @@ class game_client {
 	uint64 my_peer_id = 0;
 	bool connected = false;
 	array<net_packet@> incoming;
+	// Há um pacote que INTERROMPE uma minigame esperando na fila (reunião, corpo reportado, fim de
+	// partida)? As minigames precisam saber disso a cada quadro, e descobrir varrendo a fila custava
+	// o quadro inteiro quando ela crescia (ver MAX_INCOMING_PACKETS). Marcado na chegada, custa nada.
+	bool interrupt_pending = false;
 
 	bool connect_to(const string&in host, uint16 port) {
 		@net = network();
@@ -68,7 +72,7 @@ class game_client {
 					continue;
 				}
 				net_packet@ pkt = packet_from_wire(ev.message);
-				if (@pkt != null) incoming.insert_last(pkt);
+				if (@pkt != null) enqueue(pkt);
 			}
 		}
 		// Captura do microfone e limpeza das vozes que calaram: roda junto com a rede, pelo mesmo
@@ -89,16 +93,40 @@ class game_client {
 		send(p);
 	}
 
+	// Põe o pacote na fila, anotando se ele interrompe uma minigame e mantendo a fila dentro do teto.
+	private void enqueue(net_packet@ pkt) {
+		string type = pkt.type;
+		if (type == S_MEETING_STARTED || type == S_BODY_REPORTED || type == S_GAME_OVER) interrupt_pending = true;
+		incoming.insert_last(pkt);
+		if (incoming.length() > MAX_INCOMING_PACKETS) drop_oldest_position();
+	}
+
+	// Fila cheia: sai a posição mais antiga. É o único pacote que chega em rajada e o único que pode
+	// ser descartado sem perda - posição é ESTADO, a mais nova substitui a anterior, e ela já viaja
+	// pelo canal não confiável (a rede também a descarta). Nada que seja EVENTO sai daqui: perder
+	// uma morte ou o início de uma reunião deixaria o cliente contando uma partida que não existe.
+	private void drop_oldest_position() {
+		for (uint i = 0; i < incoming.length(); i++) {
+			if (incoming[i].type != S_PLAYER_MOVED) continue;
+			incoming.remove_at(i);
+			return;
+		}
+	}
+
 	// Joga fora tudo que ainda estava na fila. Chamado ao sair de uma partida: o que sobrou lá é
 	// notícia de uma partida que não é mais a sua (posição de gente, corpo reportado, fim de jogo), e
 	// a tela seguinte processaria esses pacotes como se fossem da partida nova.
 	void clear_incoming() {
 		incoming.resize(0);
+		interrupt_pending = false;
 	}
 
 	// Retira a próxima mensagem recebida da fila, ou null se não houver nenhuma.
 	net_packet@ poll_message() {
-		if (incoming.length() == 0) return null;
+		if (incoming.length() == 0) {
+			interrupt_pending = false; // fila vazia: o que interrompia já foi entregue e tratado
+			return null;
+		}
 		net_packet@ pkt = incoming[0];
 		incoming.remove_at(0);
 		return pkt;

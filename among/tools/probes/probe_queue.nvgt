@@ -1,0 +1,117 @@
+// Sonda do "não está respondendo": mede o que acontece com a fila de pacotes do cliente enquanto
+// ele está numa tela bloqueante (uma task, a câmera, a caixa de mensagem), que chama update() mas
+// não lê a fila. Simula exatamente isso numa partida com bots andando.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_queue.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wait_for(game_client@ c, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == type) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+// O mesmo que task_cancel_requested faz a cada quadro: varre a fila inteira sem tirar nada dela.
+// Como era antes da correção: varria a fila inteira a cada quadro.
+bool varre_fila(game_client@ c) {
+	for (uint i = 0; i < c.incoming.length(); i++) {
+		string type = c.incoming[i].type;
+		if (type == S_MEETING_STARTED || type == S_BODY_REPORTED || type == S_GAME_OVER) return true;
+	}
+	return false;
+}
+
+// Como ficou: uma consulta ao sinalizador que o cliente marca na chegada.
+bool consulta_fila(game_client@ c) { return c.interrupt_pending; }
+
+// Parte A: quanto custa esvaziar uma fila grande. poll_message tira do INICIO do array, o que
+// reposiciona todo o resto - o custo cresce com o quadrado do tamanho.
+void medir_drenagem(uint n) {
+	game_client c;
+	for (uint i = 0; i < n; i++) {
+		net_packet@ p = net_packet(S_PLAYER_MOVED);
+		p.set_uint64("peer_id", 2);
+		p.set_float("x", 1.0);
+		p.set_float("y", 1.0);
+		c.incoming.insert_last(p);
+	}
+	timer t;
+	net_packet@ p = c.poll_message();
+	uint lidos = 0;
+	while (@p != null) { lidos++; @p = c.poll_message(); }
+	println("  esvaziar " + lidos + " pacotes: " + t.elapsed + " ms");
+}
+
+// Parte B: o custo de UMA varredura da fila - o que task_cancel_requested faz a cada quadro da
+// minigame. Se uma varredura custa mais que o quadro inteiro, o laço da task para de acompanhar o
+// relógio e a janela deixa de responder.
+void medir_varredura(uint n) {
+	game_client c;
+	for (uint i = 0; i < n; i++) {
+		net_packet@ p = net_packet(S_PLAYER_MOVED);
+		p.set_uint64("peer_id", 2);
+		c.incoming.insert_last(p);
+	}
+	timer t;
+	const uint VEZES = 20;
+	for (uint k = 0; k < VEZES; k++) varre_fila(c);
+	float por_varredura = float(t.elapsed) / float(VEZES);
+	timer t2;
+	for (uint k = 0; k < VEZES; k++) consulta_fila(c);
+	println("  fila com " + n + ": varrer = " + por_varredura + " ms por quadro; consultar = "
+		+ (float(t2.elapsed) / float(VEZES)) + " ms por quadro");
+}
+
+void main() {
+	println("== custo de esvaziar a fila ==");
+	medir_drenagem(2000);
+	medir_drenagem(10000);
+	medir_drenagem(40000);
+	println("== custo por quadro: varrer (antes) x consultar (agora) ==");
+	medir_varredura(2000);
+	medir_varredura(10000);
+	medir_varredura(40000);
+
+	server_address addr = resolve_server_address();
+	string name = "fila" + random(1000, 9999);
+	game_client c;
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(name, "probe123"); wait_for(c, S_REGISTER_RESULT, 3000);
+	c.send_login(name, "probe123");
+	net_packet@ lr = wait_for(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+	c.my_peer_id = lr.get_uint64("peer_id");
+
+	lobby_overrides ov; ov.max_players = 10; ov.impostor_count = 1;
+	c.send_create_lobby("fila", "classic", ov);
+	if (@wait_for(c, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
+	for (int b = 0; b < 8; b++) { c.send_add_bot(); timer w; while (w.elapsed < 150) { c.update(); c.clear_incoming(); wait(5); } }
+	c.send_start_game();
+	if (@wait_for(c, S_GAME_START, 8000) == null) { println("partida nao comecou"); return; }
+	c.clear_incoming();
+	println("partida com 8 bots. simulando uma task de 20 s (update sem ler a fila)...");
+	println("  (bots tem envio limitado; um humano manda posicao a cada quadro - ver parte C)");
+
+	// Exatamente o que uma minigame faz: update() + a varredura do cancelamento, sem consumir a fila.
+	timer task;
+	uint quadros = 0;
+	while (task.elapsed < 20000) {
+		c.update();
+		varre_fila(c);
+		quadros++;
+		wait(5);
+	}
+	uint presos = c.incoming.length();
+	println("pacotes presos na fila depois de 20 s: " + presos + " (teto = " + MAX_INCOMING_PACKETS + ")");
+
+	// Agora o custo de esvaziar tudo de uma vez, como o laço principal faz ao fechar a tela.
+	timer drena;
+	uint lidos = 0;
+	net_packet@ p = c.poll_message();
+	while (@p != null) { lidos++; @p = c.poll_message(); }
+	println("esvaziar " + lidos + " pacotes levou " + drena.elapsed + " ms (acima de ~5000 a janela ja aparece como 'nao esta respondendo')");
+	c.disconnect();
+}

@@ -23,6 +23,15 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
   inaudível).
 - Corrigido: quem morria durante uma sabotagem continuava cego por ela até alguém consertar o
   painel. Sabotagem não atinge mais fantasma em momento nenhum.
+- **Corrigido o jogo "não está respondendo" no meio da partida.** Acontecia depois de ficar um tempo
+  numa tela que prende o jogo — uma tarefa, a câmera, a caixa de mensagem — numa partida movimentada.
+- **O radar voltou a dizer a direção.** O tom do bip agora indica se o alvo está ao norte (mais
+  agudo) ou ao sul (mais grave), tanto no radar normal quanto no travado. Antes o tom variava pela
+  distância e engolia essa informação, que é justamente a que o som sozinho não dá.
+- A tarefa dos fios voltou a avisar quando você conecta o par certo.
+- **Volume por pessoa no chat de voz**: na lista de jogadores (Ctrl mais a tecla de falar) dá para
+  silenciar alguém ou ajustar só o volume da voz dela, de 0 a 300 por cento. Fica salvo pelo nome,
+  então vale nas próximas partidas.
 
 ## 0.27.0
 

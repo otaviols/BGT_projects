@@ -45,6 +45,10 @@ bool run_fix_wiring_task(game_client@ client) {
 			if (connected[left_cursor]) continue;
 			if (left_order[left_cursor] == right_order[right_cursor]) {
 				connected[left_cursor] = true;
+				// Acertar um fio não dava sinal NENHUM: o jogador ficava sem saber se o par tinha
+				// pegado. É etapa dentro da task, então o som é o de "em andamento" - o de concluída
+				// é UM só, e quem o toca é o task_manager ao fechar a task (ver CLAUDE.md).
+				task_sound(SND_TASK_INPROGRESS);
 				bool all_done = true;
 				for (uint i = 0; i < connected.length(); i++) {
 					if (!connected[i]) { all_done = false; break; }

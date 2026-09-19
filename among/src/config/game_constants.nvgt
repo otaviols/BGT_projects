@@ -34,6 +34,16 @@ const uint MAX_JOIN_CODE_LENGTH = 32;
 // Tamanho máximo de uma mensagem de chat. Vem da máquina do jogador, como tudo mais: sem teto, uma
 // mensagem de um megabyte viraria uma fala infinita no leitor de tela de todo mundo na sala.
 const uint MAX_CHAT_LENGTH = 300;
+// Teto da fila de pacotes recebidos do cliente. A fila só é esvaziada pelo laço principal, e o
+// jogador passa minutos fora dele - numa task, na câmera, na caixa de mensagem. Numa partida cheia
+// chegam centenas de pacotes de posição por segundo, e a fila crescia sem limite: a verificação de
+// cancelamento das minigames varre a fila INTEIRA a cada quadro, então com dez mil pacotes cada
+// quadro passava a custar 14 ms só nessa varredura, o quadro atrasava, a fila crescia mais, e a
+// janela deixava de responder. Era o "não está respondendo" no meio da partida.
+const uint MAX_INCOMING_PACKETS = 300;
+// Teto do volume individual de uma voz. Passa de 100 de propósito: o pedido veio de quem joga com
+// alguém de microfone fraco, e abaixar todos os outros não é a mesma coisa que levantar aquele.
+const int VOICE_VOLUME_MAX_PERCENT = 300;
 const uint MIN_PLAYERS = 3; // temporário, pra facilitar teste - Among Us de verdade usa 4
 const uint MAX_PLAYERS = 15;
 
@@ -60,9 +70,18 @@ const float RADAR_LIGHTS_OUT_RANGE = 6.0;
 const float RADAR_OBJECT_RANGE = 12.0;
 // Tom do bip do radar pela distância (em %, 100 = som original): colado no alvo toca em NEAR, a
 // FAR_DISTANCE ou mais longe toca em FAR. Uma sala tem até 24 unidades de ponta a ponta.
-const float RADAR_PITCH_NEAR = 130.0;
-const float RADAR_PITCH_FAR = 80.0;
-const float RADAR_PITCH_FAR_DISTANCE = 20.0;
+// O tom do bip do radar diz a DIREÇÃO (norte ou sul), não a distância. Todo som do jogo já usa o
+// tom para isso (ver SPATIAL_SOUTH_PITCH_DECREASE), e o radar fazia o contrário: variava 50% do
+// tom conforme a distância, o que engolia por completo a diferença de 6% que indicava o sentido -
+// o bip respondia "quão longe", nunca "acima ou abaixo de mim". A distância continua audível pela
+// atenuação natural do som posicionado.
+//
+// O passo é bem maior que os 6% do resto do jogo de propósito: o bip é curto e é uma pergunta
+// deliberada do jogador, então a resposta precisa ser inequívoca já na primeira vez.
+const float RADAR_PITCH_DIRECTION_STEP = 20.0;
+// Abaixo desta diferença em y, o alvo é tratado como na mesma linha que o jogador - sem isso um
+// alvo praticamente ao lado soaria agudo ou grave por um décimo de unidade de diferença.
+const float RADAR_SAME_ROW_TOLERANCE = 1.0;
 // Com o radar travado num alvo (tecla Q), de quanto em quanto tempo ele pergunta ao servidor e bipa.
 const float RADAR_TRACK_INTERVAL_SECONDS = 0.6;
 

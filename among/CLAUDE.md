@@ -364,6 +364,26 @@ existia, a contagem de pular saía com um número qualquer e ganhava a apuraçã
 pulando a chave existia e funcionava - sintoma que parece regra de jogo, não bug. Sempre
 `exists()` antes de `get()`, ou use o retorno booleano de `get()`.
 
+**A fila de pacotes do cliente tem TETO, e nada pode varrê-la por quadro.** A fila só é esvaziada
+pelo laço principal, e o jogador passa minutos fora dele (task, câmera, caixa de mensagem) enquanto
+os pacotes continuam chegando - posição de outro jogador chega a cada quadro DELE, então numa
+partida cheia são centenas por segundo. O que derrubava o jogo não era o tamanho em si: era
+`task_cancel_requested` varrendo a fila INTEIRA a cada quadro para procurar reunião/corpo/fim. Com
+10 mil pacotes isso custava 13,9 ms por quadro (medido em `tools/probes/probe_queue.nvgt`), o
+quadro atrasava, a fila crescia mais, e a janela parava de responder - o "não está respondendo" no
+meio da partida que vários jogadores relataram. Duas correções: `game_client.enqueue` marca
+`interrupt_pending` na CHEGADA (a consulta virou O(1)) e descarta a posição mais antiga acima de
+`MAX_INCOMING_PACKETS`. Só POSIÇÃO é descartável - ela é estado, a mais nova substitui a anterior e
+já viaja pelo canal não confiável; descartar um EVENTO deixaria o cliente contando uma partida que
+não existe. Ao escrever qualquer tela bloqueante nova, nada de varrer `client.incoming` por quadro.
+
+**Um sinal sonoro, um significado.** O tom do bip do radar dizia a DISTÂNCIA (130 perto, 80 longe)
+enquanto o tom de todo o resto do jogo diz NORTE/SUL (`SPATIAL_SOUTH_PITCH_DECREASE`, 6%). Os 50%
+da distância engoliam os 6% da direção, e o radar deixava de responder à única pergunta que o
+estéreo não responde sozinho: "está acima ou abaixo de mim?". Hoje o tom do radar é só direção, e a
+distância fica por conta da atenuação do som posicionado. Antes de usar tom, volume ou repetição
+para uma informação nova, veja o que aquele canal já significa em outro lugar do jogo.
+
 **O saguão é derivado, não declarado.** "Estar no saguão" é `autenticado && lobby_id == ""`
 (`in_hall` no servidor) - não existe um "entrar no saguão" que o cliente peça, justamente para não
 haver um segundo estado capaz de discordar do primeiro. O preço é lembrar de chamar

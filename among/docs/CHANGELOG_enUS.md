@@ -23,6 +23,14 @@ Everything that changed in the game, newest first.
   audible).
 - Fixed: dying during a sabotage left you blinded by it until someone fixed the panel. Sabotage no
   longer affects ghosts at any point.
+- **Fixed the game going "not responding" mid-match.** It happened after spending a while on a
+  screen that holds the game — a task, the cameras, the message box — during a busy match.
+- **The radar tells you the direction again.** The beep's pitch now says whether the target is north
+  (higher) or south (lower), both in the normal radar and in the locked one. Before, the pitch
+  varied with distance and swallowed exactly the information sound alone cannot give.
+- The wiring task confirms again when you connect the right pair.
+- **Per-player voice volume**: in the player list (Ctrl plus the talk key) you can mute someone or
+  just adjust their voice volume, from 0 to 300 percent. Saved by name, so it holds for later matches.
 
 ## 0.27.0
 

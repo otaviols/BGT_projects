@@ -64,6 +64,40 @@ class game_settings {
 	// porque quem incomoda hoje vai incomodar amanhã, e ninguém quer silenciar de novo a cada sala.
 	array<string> muted_players;
 
+	// Volume individual de cada voz, em porcentagem (100 = como veio). Guardado por NOME, junto com
+	// os silenciados e pelo mesmo motivo: microfone alto ou baixo é uma característica da pessoa, e
+	// reajustar a cada partida seria um trabalho sem fim. Arrays paralelos em vez de dicionário
+	// porque isto é lido a cada quadro de voz e precisa ir direto para o disco como texto.
+	array<string> voice_volume_names;
+	array<int> voice_volume_values;
+
+	int voice_volume_of(const string&in username) const {
+		int at = voice_volume_names.find(username);
+		return at == -1 ? 100 : voice_volume_values[at];
+	}
+
+	void set_voice_volume(const string&in username, int percent) {
+		if (username == "") return;
+		if (percent < 0) percent = 0;
+		if (percent > VOICE_VOLUME_MAX_PERCENT) percent = VOICE_VOLUME_MAX_PERCENT;
+		int at = voice_volume_names.find(username);
+		// 100 é o padrão: não vale gravar, e apagar mantém o arquivo do tamanho do que foi mexido.
+		if (percent == 100) {
+			if (at != -1) { voice_volume_names.remove_at(at); voice_volume_values.remove_at(at); }
+			return;
+		}
+		if (at == -1) { voice_volume_names.insert_last(username); voice_volume_values.insert_last(percent); }
+		else voice_volume_values[at] = percent;
+	}
+
+	// Ajuste desta voz, em decibéis, para somar ao volume da família de vozes.
+	float voice_volume_db(const string&in username) const {
+		int percent = voice_volume_of(username);
+		if (percent == 100) return 0.0;
+		if (percent <= 0) return -100.0;
+		return 20.0 * log10(float(percent) / 100.0);
+	}
+
 	bool is_muted(const string&in username) const { return username != "" && muted_players.find(username) != -1; }
 	// Devolve o estado novo.
 	bool toggle_muted(const string&in username) {
@@ -137,6 +171,19 @@ class game_settings {
 		muted_players.resize(0);
 		string muted = store.read_string("muted_players", "");
 		if (muted != "") muted_players = muted.split("|");
+		voice_volume_names.resize(0);
+		voice_volume_values.resize(0);
+		// Formato: nome=porcentagem, separados por barra vertical (nenhum nome de usuário tem as duas).
+		string volumes = store.read_string("voice_volumes", "");
+		if (volumes != "") {
+			array<string>@ parts = volumes.split("|");
+			for (uint i = 0; i < parts.length(); i++) {
+				int sep = parts[i].find_last("=");
+				if (sep <= 0) continue;
+				voice_volume_names.insert_last(parts[i].substr(0, sep));
+				voice_volume_values.insert_last(parse_int(parts[i].substr(sep + 1)));
+			}
+		}
 
 		apply_master();
 		apply_output_device();
@@ -190,6 +237,9 @@ class game_settings {
 		store.write_string("voice_input_device", voice_input_device);
 		store.write_string("audio_output_device", audio_output_device);
 		store.write_string("muted_players", join(muted_players, "|"));
+		array<string> volumes;
+		for (uint i = 0; i < voice_volume_names.length(); i++) volumes.insert_last(voice_volume_names[i] + "=" + voice_volume_values[i]);
+		store.write_string("voice_volumes", join(volumes, "|"));
 	}
 }
 

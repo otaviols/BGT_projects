@@ -353,7 +353,8 @@ class voice_chat : voice_receiver {
 	// configura antes do primeiro stream_pcm se perde (o som sai centralizado, sem erro) - foi a
 	// lição da sonda. E as pessoas andam enquanto falam.
 	private void place(voice_stream@ s) {
-		s.snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES);
+		// Volume da família de vozes mais o ajuste individual desta pessoa (ver voice_volume_db).
+		s.snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES) + g_settings.voice_volume_db(name_of(s.peer_id));
 		roster_entry@ me = @roster != null ? roster.find(my_peer_id) : null;
 		roster_entry@ who = @roster != null ? roster.find(s.peer_id) : null;
 		if (!spatial || @me == null || @who == null) {
@@ -389,6 +390,12 @@ class voice_chat : voice_receiver {
 				string name; peer_names.get(keys[i], name);
 				string label = name;
 				if (g_settings.is_muted(name)) label = tr("voice.muted_item", name_params(name));
+				else if (g_settings.voice_volume_of(name) != 100) {
+					dictionary@ vp = dictionary();
+					vp.set("name", name);
+					vp.set("percent", "" + g_settings.voice_volume_of(name));
+					label = tr("voice.volume_item", vp);
+				}
 				m.add_item(label, name);
 				listed++;
 			}
@@ -397,10 +404,34 @@ class voice_chat : voice_receiver {
 			m.run();
 			string chosen = m.selected_item_id;
 			if (chosen == "" || chosen == "back") return;
-			bool now_muted = g_settings.toggle_muted(chosen);
-			g_settings.save();
-			speak(tr(now_muted ? "voice.now_muted" : "voice.now_unmuted", name_params(chosen)));
-			wait(600); // deixa a confirmação ser ouvida antes de o menu reler o primeiro item
+			run_player_voice_form(chosen);
+		}
+	}
+
+	// Silenciar esta pessoa e ajustar o volume dela, na mesma tela: são as duas coisas que se quer
+	// fazer com uma voz alheia, e separá-las em dois lugares faria procurar.
+	private void run_player_voice_form(const string&in name) {
+		audio_form f;
+		f.create_window(name, false);
+		int f_muted = f.create_checkbox(tr("voice.mute_checkbox"), g_settings.is_muted(name));
+		int f_volume = f.create_slider(tr("voice.volume_label"), g_settings.voice_volume_of(name), 0, VOICE_VOLUME_MAX_PERCENT);
+		int f_ok = f.create_button(tr("menu.confirm"), true);
+		int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+		f.focus(f_muted); // audio_form nasce sem foco nenhum
+
+		while (true) {
+			wait(5);
+			if (@client != null) client.update(); // a voz continua chegando enquanto se ajusta
+			f.monitor();
+			if (f.is_pressed(f_cancel)) return;
+			if (f.is_pressed(f_ok)) {
+				bool quer_mudo = f.is_checked(f_muted);
+				if (quer_mudo != g_settings.is_muted(name)) g_settings.toggle_muted(name);
+				g_settings.set_voice_volume(name, int(f.get_slider(f_volume)));
+				g_settings.save();
+				speak(tr(quer_mudo ? "voice.now_muted" : "voice.now_unmuted", name_params(name)));
+				return;
+			}
 		}
 	}
 

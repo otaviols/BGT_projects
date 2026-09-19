@@ -25,11 +25,10 @@ const int TASK_CANCEL_KEY = KEY_ESCAPE;
 bool task_cancel_requested(game_client@ client) {
 	if (key_pressed(KEY_ESCAPE)) return true;
 	if (@client == null) return false;
-	for (uint i = 0; i < client.incoming.length(); i++) {
-		string type = client.incoming[i].type;
-		if (type == S_MEETING_STARTED || type == S_BODY_REPORTED || type == S_GAME_OVER) return true;
-	}
-	return false;
+	// Uma consulta, não uma varredura: quem marca é o próprio cliente ao receber o pacote. Varrer a
+	// fila inteira aqui a cada quadro era o que derrubava o jogo quando ela crescia - com dez mil
+	// pacotes, 14 ms por quadro só nisto, e a janela parava de responder (ver MAX_INCOMING_PACKETS).
+	return client.interrupt_pending;
 }
 
 // Embaralha uma lista pequena de inteiros (Fisher-Yates). Usado para sortear tons/posições.
