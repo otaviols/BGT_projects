@@ -23,7 +23,7 @@ const array<string> FAMILY_PREVIEW_SOUNDS = {
 	SND_MENU_CLICK,         // interface
 	SND_INTRO,              // música
 	SND_MESSAGE_RECEIVED,   // vozes (não há voz gravada para servir de amostra; o aviso de chat é o parente mais próximo)
-	SND_MEETING_ALARM       // alarme de emergência
+	SND_SABOTAGE_ALARM      // alarme da sabotagem
 };
 
 void run_settings_menu() {

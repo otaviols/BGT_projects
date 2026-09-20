@@ -1,9 +1,9 @@
 {
 	"version": "0.29.1",
 	"url": "AmongUs.zip",
-	"notes": "A volume of its own for the emergency meeting alarm. It is the loudest and most sudden sound in the game, and until now turning it down also turned down deaths, body reports and victory, which share the same category.",
+	"notes": "A volume of its own for the sabotage alarm — the one that keeps ringing while a sabotage is up. It is the only sound in the game that never stops, and until now turning it down also turned down deaths, body reports and victory, which share the same category.",
 	"notes_by_language": {
-		"pt_BR": "Volume só para o alarme da reunião de emergência. Ele é o som mais alto e mais súbito do jogo, e até agora abaixá-lo custava abaixar também a morte, o corpo encontrado e a vitória, que estão na mesma categoria.",
-		"en_US": "A volume of its own for the emergency meeting alarm. It is the loudest and most sudden sound in the game, and until now turning it down also turned down deaths, body reports and victory, which share the same category."
+		"pt_BR": "Volume só para o alarme de sabotagem — aquele que fica tocando enquanto a sabotagem está no ar. É o único som do jogo que não para, e até agora abaixá-lo custava abaixar também a morte, o corpo encontrado e a vitória, que estão na mesma categoria.",
+		"en_US": "A volume of its own for the sabotage alarm — the one that keeps ringing while a sabotage is up. It is the only sound in the game that never stops, and until now turning it down also turned down deaths, body reports and victory, which share the same category."
 	}
 }

@@ -196,7 +196,9 @@ class audio_manager {
 	// mapa, o que por coincidência caía perto do centro da cafeteria e só era audível ali.
 	void start_sabotage_alarm() {
 		stop_sabotage_alarm();
-		ambient_sabotage_slot = spatial.play_ui(SND_SABOTAGE_ALARM, true, family_db(SOUND_FAMILY_EVENTS));
+		// Família própria (ver SOUND_FAMILY_ALARM): é o único som do jogo que não para, e abaixá-lo não
+		// pode custar o som da morte nem o do corpo encontrado.
+		ambient_sabotage_slot = spatial.play_ui(SND_SABOTAGE_ALARM, true, family_db(SOUND_FAMILY_ALARM));
 	}
 
 	void stop_sabotage_alarm() {
@@ -207,9 +209,7 @@ class audio_manager {
 	}
 
 	// Toca uma vez pra nave inteira quando alguém aperta o botão de emergência (reunião chamada).
-	// Família própria (ver SOUND_FAMILY_EMERGENCY): é o som mais alto do jogo, e abaixá-lo não pode
-	// custar o som da morte nem o do corpo encontrado.
-	void play_meeting_alarm() { spatial.play_ui(SND_MEETING_ALARM, false, family_db(SOUND_FAMILY_EMERGENCY)); }
+	void play_meeting_alarm() { spatial.play_ui(SND_MEETING_ALARM, false, family_db(SOUND_FAMILY_EVENTS)); }
 
 	// Sabotagem de luzes reduz o alcance de audição ambiente (decisão de design).
 	// Zumbido da sala sob observação. Um só de cada vez: só existe um posto de câmeras, então só

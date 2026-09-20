@@ -8,9 +8,9 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ## 0.29.1
 
-- **Volume só para o alarme da reunião de emergência.** Ele é o som mais alto e mais súbito do jogo,
-  e até agora abaixá-lo custava abaixar também a morte, o corpo encontrado e a vitória, que estão na
-  mesma categoria.
+- **Volume só para o alarme de sabotagem** — aquele que fica tocando enquanto a sabotagem está no
+  ar. É o único som do jogo que não para, e até agora abaixá-lo custava abaixar também a morte, o
+  corpo encontrado e a vitória, que estão na mesma categoria.
 
 ## 0.29.0
 

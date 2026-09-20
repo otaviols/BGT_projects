@@ -8,9 +8,9 @@ Everything that changed in the game, newest first.
 
 ## 0.29.1
 
-- **A volume of its own for the emergency meeting alarm.** It is the loudest and most sudden sound in
-  the game, and until now turning it down also turned down deaths, body reports and victory, which
-  share the same category.
+- **A volume of its own for the sabotage alarm** — the one that keeps ringing while a sabotage is
+  up. It is the only sound in the game that never stops, and until now turning it down also turned
+  down deaths, body reports and victory, which share the same category.
 
 ## 0.29.0
 

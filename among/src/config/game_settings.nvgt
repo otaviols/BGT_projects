@@ -26,19 +26,20 @@ const int SOUND_FAMILY_MUSIC = 7;
 // Vozes dos outros jogadores (chat de voz). Família própria porque é o som que mais varia de
 // pessoa para pessoa - microfone alto, microfone baixo - e o ajuste tem que ser de quem ouve.
 const int SOUND_FAMILY_VOICES = 8;
-// O alarme da reunião de emergência, sozinho. Família própria porque ele é o som mais alto e mais
-// súbito do jogo: quem o achava demais só podia abaixar a família inteira de eventos, e junto iam
-// o som da morte e o do corpo encontrado - justamente os que ninguém quer perder.
+// O alarme que fica TOCANDO enquanto uma sabotagem está ativa. Família própria porque ele é o único
+// som do jogo que não para: dura a sabotagem inteira por cima de tudo, e quem o achava demais só
+// podia abaixar a família inteira de eventos - levando junto a morte, o corpo encontrado e a
+// vitória, que tocam uma vez e são justamente os que ninguém quer perder.
 //
 // Ids novos entram no FIM: o que fica salvo em disco é "volume_<id>", então acrescentar aqui não
 // mexe no que o jogador já ajustou.
-const int SOUND_FAMILY_EMERGENCY = 9;
+const int SOUND_FAMILY_ALARM = 9;
 const int SOUND_FAMILY_COUNT = 10;
 
-const array<string> SOUND_FAMILY_IDS = {"master", "ambience", "steps", "beacons", "tasks", "events", "ui", "music", "voices", "emergency"};
+const array<string> SOUND_FAMILY_IDS = {"master", "ambience", "steps", "beacons", "tasks", "events", "ui", "music", "voices", "alarm"};
 const array<string> SOUND_FAMILY_NAME_KEYS = {"volume.master", "volume.ambience", "volume.steps",
 	"volume.beacons", "volume.tasks", "volume.events", "volume.ui", "volume.music", "volume.voices",
-	"volume.emergency"};
+	"volume.alarm"};
 
 // Como o microfone abre no chat de voz.
 const string VOICE_MODE_KEY = "key";   // segurando a tecla de falar

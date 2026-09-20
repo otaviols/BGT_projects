@@ -25,7 +25,7 @@
 	"update.manual_platform": "Saiu uma versão nova. Neste sistema a atualização ainda é manual: vou abrir a página de download.",
 	"volume.music": "Música",
 	"volume.voices": "Vozes dos outros jogadores",
-	"volume.emergency": "Alarme da reunião de emergência",
+	"volume.alarm": "Alarme de sabotagem (o que fica tocando)",
 	"menu.explore_map": "Conhecer o mapa",
 	"explore.intro": "Você está na cafeteria, sozinho na nave. Ande com as teclas de movimento; o nome de cada sala é dito ao entrar nela. Tab lista o que há na sala, Enter diz o que é o objeto mais próximo, e ESC volta ao menu.",
 	"explore.object_hint": "Numa partida, Enter aqui abriria isto.",
