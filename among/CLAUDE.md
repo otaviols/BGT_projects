@@ -397,6 +397,15 @@ votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na r
 na mesma mesa; o fantasma fica onde morreu, então com posição ele ouvia a discussão e os outros
 fantasmas - espalhados pelo mapa - de tão longe que virava silêncio. Morto não tem lugar.
 
+**Duas redes de dutos, e elas não podem se tocar.** A rede se declara nos `linked_object_id` de
+cada duto (lista separada por vírgula), e é o que permite ao jogador deduzir para onde alguém pode
+ter ido: "a tampa abriu na navegação, então ele saiu em armas ou no reator". Ligar todos os dutos
+numa rede só mataria essa dedução - por isso a rede nova (corredor jogos-estufa ↔ corredor da
+segurança) é SEPARADA da antiga, e a sonda `tools/probes/probe_vents.nvgt` confere justamente que
+uma não alcança a outra. Duto em corredor tem um custo que duto em sala não tem: o som da tampa é
+ouvido por quem está passando. E rede de dois dutos é determinística de propósito (quem ouve sabe
+onde ele vai sair) - é a troca de velocidade por previsibilidade.
+
 **Tarefa de VÁRIAS FASES: a sequência mora no mapa, a fase mora no servidor.** `task_chain`
 (`game/map.nvgt`) lista os pontos de uma tarefa na ordem, junto dos objetos - separada deles, um id
 renomeado quebraria a corrente em silêncio. `player_task` carrega `phase`/`phase_count` e o

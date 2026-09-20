@@ -1,0 +1,37 @@
+// Sonda das redes de dutos: cada rede leva aos seus, e NUNCA aos da outra. Uma rede que vaza para a
+// outra transformaria as duas numa só e destruiria a dedução de para onde alguém pode ter ido.
+//   nvgt tools/probes/probe_vents.nvgt
+#include "../../src/game/map.nvgt"
+
+void confere(game_map@ m, const string&in origem, const string&in destino, bool esperado) {
+	map_object@ o = m.find_object(origem);
+	if (@o == null) { println("FALHA: duto " + origem + " nao existe"); return; }
+	bool liga = m.vent_connections(o).find(destino) != -1;
+	println((liga == esperado ? "ok  " : "FALHA ") + origem + " -> " + destino + ": " + liga + " (esperado " + esperado + ")");
+}
+
+void main() {
+	game_map@ m = build_the_hub_map();
+	array<map_object@>@ vents = m.objects_by_type(OBJ_VENT);
+	println("dutos no mapa: " + vents.length());
+	for (uint i = 0; i < vents.length(); i++) {
+		map_zone@ z = m.find_zone(vents[i].room_id);
+		println("  " + vents[i].id + " em " + vents[i].room_id + " (zona existe: " + (@z != null) + ")");
+	}
+	println("--- rede antiga ---");
+	confere(m, "vent_navigation", "vent_weapons", true);
+	confere(m, "vent_navigation", "vent_reactor", true);
+	println("--- rede nova ---");
+	confere(m, "vent_corridor_south", "vent_corridor_security", true);
+	confere(m, "vent_corridor_security", "vent_corridor_south", true);
+	println("--- uma rede nao pode alcancar a outra ---");
+	confere(m, "vent_navigation", "vent_corridor_south", false);
+	confere(m, "vent_corridor_south", "vent_navigation", false);
+	confere(m, "vent_corridor_security", "vent_reactor", false);
+	println("--- os dutos novos estao DENTRO dos corredores? ---");
+	for (uint i = 0; i < vents.length(); i++) {
+		map_zone@ z = m.zone_at(vents[i].x, vents[i].y);
+		string onde = @z != null ? z.id : "(fora de qualquer zona)";
+		println("  " + vents[i].id + ": " + onde + (onde == vents[i].room_id ? "  ok" : "  FALHA: room_id diz " + vents[i].room_id));
+	}
+}

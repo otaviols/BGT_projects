@@ -436,6 +436,28 @@ game_map@ build_the_hub_map() {
 	m.objects.insert_last(map_object("vent_reactor", "object.vent", -30, -71, "reactor", OBJ_VENT,
 		SND_VENT_DOOR_1, "", "vent_navigation,vent_weapons", SND_VENT_BEACON));
 
+	// SEGUNDA rede, separada da primeira de propósito. Engordar a rede existente destruiria a
+	// dedução que ela permite ("a tampa abriu na navegação, então ele saiu em armas ou no reator");
+	// com duas redes pequenas, cada uma continua tendo um conjunto de saídas que dá para aprender.
+	//
+	// Ela cobre o buraco do mapa: o norte (jogos, estufa) e o centro-leste (segurança) não tinham
+	// duto nenhum, e o impostor que trabalhasse ali não tinha rota de fuga.
+	//
+	// Os dois dutos ficam em CORREDOR, e isso muda como eles se usam: corredor é lugar de passagem,
+	// então o som da tampa é ouvido por quem estiver cruzando. É uma rota forte e difícil de usar
+	// despercebido - ao contrário de sumir dentro de uma sala vazia.
+	//
+	// Com dois dutos a rede é determinística: quem ouve a tampa sabe exatamente onde ele vai sair.
+	// É a troca consciente desta rede - velocidade por previsibilidade - e é o contraste com a rede
+	// de três, onde ainda há escolha de saída.
+	m.objects.insert_last(map_object("vent_corridor_south", "object.vent", 22, 26, "corridor_games_greenhouse",
+		OBJ_VENT, SND_VENT_DOOR_2, "", "vent_corridor_security", SND_VENT_BEACON));
+	// Ao lado da segurança: é a mudança de equilíbrio de verdade desta rede, e não o atalho. Matar
+	// quem está nas câmeras e sumir fica bem mais fácil - e é justo que ficar nas câmeras, que
+	// entregam uma sala inteira de ouvido, custe esse risco.
+	m.objects.insert_last(map_object("vent_corridor_security", "object.vent", 14, -26, "corridor_admin_security",
+		OBJ_VENT, SND_VENT_DOOR_1, "", "vent_corridor_south", SND_VENT_BEACON));
+
 	// Tasks (espalhadas por várias salas, jogador recebe um subconjunto aleatório). O beacon é por
 	// TIPO de task, não por sala - a mesma task em salas diferentes soa igual de propósito.
 	m.objects.insert_last(map_object("task_wiring_admin", "task.fix_wiring.name", 3, -22, "admin",

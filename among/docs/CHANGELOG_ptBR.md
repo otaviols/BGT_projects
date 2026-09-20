@@ -11,6 +11,10 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 - **Tarefas agora são curtas, longas ou comuns**, e a lista (tecla T) diz qual é qual — dá para
   planejar a rota sabendo se aquela tarefa custa uma travessia da nave ou resolve ali mesmo. O
   anfitrião escolhe **quantas das tarefas são longas** nas regras da sala.
+- **Uma segunda rede de dutos**, ligando o corredor entre a sala de jogos e a estufa ao corredor da
+  segurança — o norte e o centro-leste do mapa não tinham duto nenhum. As duas redes são separadas:
+  de uma você nunca sai na outra. E são dutos de CORREDOR, onde passa gente: o som da tampa abrindo
+  é ouvido por quem estiver cruzando, então é uma rota rápida e arriscada de usar.
 - **Tarefas de várias etapas.** "Abastecer os motores" agora é pegar o galão no depósito e levá-lo
   até o reator: o marcador muda de lugar sozinho, o jogo diz para onde ir, e a lista de tarefas
   mostra em que etapa você está e onde ela é. Cada etapa tem o seu próprio marcador, para dar para

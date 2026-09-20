@@ -11,6 +11,10 @@ Everything that changed in the game, newest first.
 - **Tasks are now short, long or common**, and the list (T key) says which is which — you can plan
   your route knowing whether a task costs a trip across the ship or is solved on the spot. The host
   chooses **how many of the tasks are long** in the room rules.
+- **A second vent network**, linking the corridor between the games room and the greenhouse to the
+  security corridor — the north and mid-east of the map had no vents at all. The two networks are
+  separate: you never come out of one into the other. And these are CORRIDOR vents, where people
+  walk past: the lid opening is heard by anyone crossing, so it is a fast route that is risky to use.
 - **Multi-step tasks.** "Fuel Engines" is now picking up the can in storage and carrying it to the
   reactor: the beacon moves on its own, the game tells you where to go, and the task list shows
   which step you are on and where it is. Each step has its own beacon, so you can tell by ear where
