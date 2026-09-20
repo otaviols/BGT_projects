@@ -38,6 +38,8 @@ class lobby_overrides {
 	string reveal_ejected = ""; // "" = preset, "on" = diz se o expulso era impostor, "off" = não diz
 	string show_votes = ""; // "" = preset, "on" = diz em quem cada um votou, na hora; "off" = só diz que votou
 	string voice_chat = ""; // "" = preset, "on" = chat de voz por proximidade, "off" = só texto
+	string comms_in_meeting = ""; // "" = preset, "on" = comunicações sabotadas calam a reunião
+	float emergency_cooldown_seconds = -1.0;
 
 	// Aplica o que foi preenchido sobre uma configuração vinda do preset. O que ficou de fora não é
 	// tocado. A validação continua sendo feita depois, por lobby_config.validate(): estes valores
@@ -59,6 +61,9 @@ class lobby_overrides {
 		else if (show_votes == "off") cfg.show_votes = false;
 		if (voice_chat == "on") cfg.voice_chat = true;
 		else if (voice_chat == "off") cfg.voice_chat = false;
+		if (comms_in_meeting == "on") cfg.comms_affects_meeting = true;
+		else if (comms_in_meeting == "off") cfg.comms_affects_meeting = false;
+		if (emergency_cooldown_seconds >= 0.0) cfg.emergency_cooldown_seconds = emergency_cooldown_seconds;
 	}
 
 	void write_to_packet(net_packet@ pkt) const {
@@ -74,6 +79,8 @@ class lobby_overrides {
 		pkt.set_string("reveal_ejected", reveal_ejected);
 		pkt.set_string("show_votes", show_votes);
 		pkt.set_string("voice_chat", voice_chat);
+		pkt.set_string("comms_in_meeting", comms_in_meeting);
+		pkt.set_float("emergency_cooldown_seconds", emergency_cooldown_seconds);
 	}
 
 	void read_from_packet(net_packet@ pkt) {
@@ -89,6 +96,8 @@ class lobby_overrides {
 		reveal_ejected = pkt.get_string("reveal_ejected", "");
 		show_votes = pkt.get_string("show_votes", "");
 		voice_chat = pkt.get_string("voice_chat", "");
+		comms_in_meeting = pkt.get_string("comms_in_meeting", "");
+		emergency_cooldown_seconds = pkt.get_float("emergency_cooldown_seconds", -1.0);
 	}
 }
 
@@ -113,6 +122,14 @@ class lobby_config {
 	// jogo para todos: com voz, a reunião vira conversa e o corredor vira lugar de cochicho. Quem
 	// prefere jogar só por texto cria a sala assim, e ninguém entra esperando outra coisa.
 	bool voice_chat = true;
+	// Comunicações sabotadas calam o chat de voz TAMBÉM na reunião. Desligado é o jogo clássico (a
+	// reunião é sagrada); ligado, sabotar as comunicações antes de um corpo ser reportado vira uma
+	// jogada de impostor: a discussão acontece só por texto, devagar, e quem não digita rápido fica
+	// para trás. É forte, e por isso é escolha da sala.
+	bool comms_affects_meeting = false;
+	// Recarga do botão de emergência. Em partida grande, quinze segundos permitem reuniões em
+	// sequência que não deixam ninguém jogar; em partida pequena, atrapalham.
+	float emergency_cooldown_seconds = EMERGENCY_MEETING_COOLDOWN_SECONDS;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
 
@@ -129,6 +146,8 @@ class lobby_config {
 		if (kill_cooldown_seconds < 5.0) { kill_cooldown_seconds = 5.0; changed = true; }
 		if (discussion_time_seconds < 5.0) { discussion_time_seconds = 5.0; changed = true; }
 		if (voting_time_seconds < 5.0) { voting_time_seconds = 5.0; changed = true; }
+		if (emergency_cooldown_seconds < 0.0) { emergency_cooldown_seconds = 0.0; changed = true; }
+		if (emergency_cooldown_seconds > 300.0) { emergency_cooldown_seconds = 300.0; changed = true; }
 		return changed;
 	}
 
@@ -159,6 +178,8 @@ class lobby_config {
 		o.set("reveal_ejected_role", reveal_ejected_role);
 		o.set("show_votes", show_votes);
 		o.set("voice_chat", voice_chat);
+		o.set("comms_affects_meeting", comms_affects_meeting);
+		o.set("emergency_cooldown_seconds", emergency_cooldown_seconds);
 		return o;
 	}
 }

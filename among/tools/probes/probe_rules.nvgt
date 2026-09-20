@@ -1,0 +1,43 @@
+// Sonda das regras novas: recarga do botão de emergência e "comunicações calam a reunião".
+// Confere que os valores viajam no retrato da sala e que o servidor os respeita.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_rules.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string name = "regra" + random(1000, 9999);
+	game_client c;
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(name, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(name, "probe123");
+	if (@wf(c, S_LOGIN_RESULT, 5000) == null) { println("login falhou"); return; }
+
+	lobby_overrides ov;
+	ov.emergency_cooldown_seconds = 42.0;
+	ov.comms_in_meeting = "on";
+	c.send_create_lobby("regras", "classic", ov);
+	net_packet@ st = wf(c, S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem retrato"); return; }
+	json_object@ cfg = st.get_object("config");
+	println("recarga do botao: " + float(cfg["emergency_cooldown_seconds"]) + " (esperado 42)");
+	println("comunicacoes calam a reuniao: " + bool(cfg["comms_affects_meeting"]) + " (esperado true)");
+
+	// e os limites: um valor absurdo tem que ser podado pelo servidor
+	lobby_overrides ov2;
+	ov2.emergency_cooldown_seconds = 9999.0;
+	c.send_update_lobby_config(ov2);
+	net_packet@ st2 = wf(c, S_LOBBY_STATE, 5000);
+	json_object@ cfg2 = st2.get_object("config");
+	println("recarga absurda virou: " + float(cfg2["emergency_cooldown_seconds"]) + " (esperado 300, o teto)");
+	c.disconnect();
+}

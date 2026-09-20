@@ -463,7 +463,7 @@ class game_state {
 		for (uint i = 0; i < players.length(); i++) {
 			if (players[i].is_impostor) players[i].kill_cooldown_remaining = config.kill_cooldown_seconds;
 		}
-		meeting_cooldown_remaining = EMERGENCY_MEETING_COOLDOWN_SECONDS;
+		meeting_cooldown_remaining = config.emergency_cooldown_seconds;
 
 		return result;
 	}
@@ -573,11 +573,15 @@ class game_state {
 		if (state == "waiting" || state == "ended") return true;
 		if (!talker.alive) return !listener.alive;
 		if (!listener.alive) return true;
-		if (state == "meeting" || state == "voting") return true;
+		// A reunião normalmente é intocável - é a discussão, e o tempo da sabotagem nem corre durante
+		// ela. Com a regra `comms_affects_meeting` ligada, a sala escolheu que as comunicações
+		// sabotadas calam o rádio também ali, e a reunião passa a ser só por texto.
+		bool in_meeting = state == "meeting" || state == "voting";
+		if (in_meeting && !config.comms_affects_meeting) return true;
 		// Comunicações sabotadas derrubam o rádio de todos os vivos, impostor incluído (o porquê da
-		// exceção à imunidade está em core/sabotage_rules.nvgt). A reunião fica de fora de propósito:
-		// ela é a discussão, e o tempo da sabotagem nem corre durante ela.
+		// exceção à imunidade está em core/sabotage_rules.nvgt).
 		if (voice_down_for(active_sabotage, talker.alive) || voice_down_for(active_sabotage, listener.alive)) return false;
+		if (in_meeting) return true; // sem sabotagem, a reunião é toda no mesmo lugar
 		return distance_2d(talker.x, talker.y, listener.x, listener.y) <= VOICE_RANGE;
 	}
 

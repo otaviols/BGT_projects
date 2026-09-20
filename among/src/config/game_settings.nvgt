@@ -58,6 +58,10 @@ class game_settings {
 	bool voice_chat_enabled = true;
 	string voice_mode = VOICE_MODE_KEY;
 	int voice_sensitivity = 50;
+	// Ganho aplicado ao que SAI deste microfone, em porcentagem (100 = como o aparelho entrega).
+	// Microfone fraco é problema de quem fala, e abaixar todo mundo do outro lado não resolve - por
+	// isso existe dos dois lados: aqui e no volume por pessoa de quem ouve.
+	int voice_mic_volume = 100;
 	string voice_input_device = "";
 	string audio_output_device = "";
 	// Jogadores silenciados no chat de voz, pelo NOME de usuário: sobrevive à partida e à sessão,
@@ -166,6 +170,9 @@ class game_settings {
 		voice_sensitivity = int(store.read_number("voice_sensitivity", 50));
 		if (voice_sensitivity < 0) voice_sensitivity = 0;
 		if (voice_sensitivity > 100) voice_sensitivity = 100;
+		voice_mic_volume = int(store.read_number("voice_mic_volume", 100));
+		if (voice_mic_volume < 0) voice_mic_volume = 0;
+		if (voice_mic_volume > VOICE_VOLUME_MAX_PERCENT) voice_mic_volume = VOICE_VOLUME_MAX_PERCENT;
 		voice_input_device = store.read_string("voice_input_device", "");
 		audio_output_device = store.read_string("audio_output_device", "");
 		muted_players.resize(0);
@@ -234,6 +241,7 @@ class game_settings {
 		store.write_number("voice_chat_enabled", voice_chat_enabled ? 1 : 0);
 		store.write_string("voice_mode", voice_mode);
 		store.write_number("voice_sensitivity", voice_sensitivity);
+		store.write_number("voice_mic_volume", voice_mic_volume);
 		store.write_string("voice_input_device", voice_input_device);
 		store.write_string("audio_output_device", audio_output_device);
 		store.write_string("muted_players", join(muted_players, "|"));

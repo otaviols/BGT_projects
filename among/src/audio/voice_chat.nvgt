@@ -83,6 +83,20 @@ array<float>@ voice_to_mono(array<float>@ frames, uint channels) {
 	return mono;
 }
 
+// Aplica o ganho do microfone às amostras, cortando no limite. O corte é feio, mas é melhor do que
+// deixar a amostra dar a volta e virar estalo - e quem passa do ponto ouve isso no teste de
+// auto-escuta e volta o controle.
+void apply_mic_gain(array<float>@ mono, int percent) {
+	if (percent == 100) return;
+	float gain = float(percent) / 100.0;
+	for (uint i = 0; i < mono.length(); i++) {
+		float v = mono[i] * gain;
+		if (v > 1.0) v = 1.0;
+		else if (v < -1.0) v = -1.0;
+		mono[i] = v;
+	}
+}
+
 // Nível de um quadro em dB (0 = fundo de escala). É o que a sensibilidade compara.
 float voice_level_db(array<float>@ mono) {
 	if (mono.length() == 0) return -100.0;
@@ -268,6 +282,9 @@ class voice_chat : voice_receiver {
 		array<float>@ frames = mic.read(0);
 		if (@frames != null && frames.length() > 0) {
 			array<float>@ mono = voice_to_mono(frames, mic_channels);
+			// O ganho entra ANTES da sensibilidade: quem aumentou o microfone espera que o portão
+			// também passe a abrir mais fácil, e não que os dois controles briguem entre si.
+			apply_mic_gain(mono, g_settings.voice_mic_volume);
 			for (uint i = 0; i < mono.length(); i++) pending.insert_last(mono[i]);
 		}
 		// Um pacote por 20 ms, SEMPRE - mesmo quando uma tela bloqueante (um wait(300) numa task)

@@ -273,6 +273,7 @@ void run_voice_chat_screen() {
 	f.add_list_item(f_mode, tr("settings.voice_mode_key"), VOICE_MODE_KEY);
 	f.add_list_item(f_mode, tr("settings.voice_mode_auto"), VOICE_MODE_AUTO);
 	f.set_list_position(f_mode, g_settings.voice_mode == VOICE_MODE_AUTO ? 1 : 0);
+	int f_mic_volume = f.create_slider(tr("settings.voice_mic_volume"), g_settings.voice_mic_volume, 0, VOICE_VOLUME_MAX_PERCENT);
 	int f_sens = f.create_slider(tr("settings.voice_sensitivity"), g_settings.voice_sensitivity, 0, 100);
 	int f_input = f.create_list(tr("settings.input_device"));
 	// A primeira entrada é "padrão do sistema" (""); as seguintes são os aparelhos, guardados pelo nome.
@@ -293,6 +294,7 @@ void run_voice_chat_screen() {
 	bool orig_enabled = g_settings.voice_chat_enabled;
 	string orig_mode = g_settings.voice_mode;
 	int orig_sens = g_settings.voice_sensitivity;
+	int orig_mic_volume = g_settings.voice_mic_volume;
 	string orig_input = g_settings.voice_input_device;
 
 	while (true) {
@@ -303,6 +305,7 @@ void run_voice_chat_screen() {
 		int mode_pos = f.get_list_position(f_mode);
 		g_settings.voice_mode = mode_pos == 1 ? VOICE_MODE_AUTO : VOICE_MODE_KEY;
 		g_settings.voice_sensitivity = int(f.get_slider(f_sens));
+		g_settings.voice_mic_volume = int(f.get_slider(f_mic_volume));
 		int in_pos = f.get_list_position(f_input);
 		g_settings.voice_input_device = in_pos > 0 ? f.get_list_item_id(f_input, in_pos) : "";
 		bool testing = f.is_checked(f_test);
@@ -316,6 +319,7 @@ void run_voice_chat_screen() {
 			g_settings.voice_chat_enabled = orig_enabled;
 			g_settings.voice_mode = orig_mode;
 			g_settings.voice_sensitivity = orig_sens;
+			g_settings.voice_mic_volume = orig_mic_volume;
 			g_settings.voice_input_device = orig_input;
 			speak(tr("settings.cancelled"));
 			return;

@@ -91,6 +91,14 @@ string lobby_config_text(json_object@ cfg) {
 	if (cfg.exists("show_votes")) {
 		partes.insert_last(tr(bool(cfg["show_votes"]) ? "lobby.info.votes_on" : "lobby.info.votes_off"));
 	}
+	if (cfg.exists("emergency_cooldown_seconds")) {
+		dictionary@ ec = dictionary();
+		ec.set("seconds", seconds_text(float(cfg["emergency_cooldown_seconds"])));
+		partes.insert_last(tr("lobby.info.emergency_cooldown", ec));
+	}
+	if (cfg.exists("comms_affects_meeting")) {
+		partes.insert_last(tr(bool(cfg["comms_affects_meeting"]) ? "lobby.info.comms_meeting_on" : "lobby.info.comms_meeting_off"));
+	}
 	if (cfg.exists("voice_chat")) {
 		partes.insert_last(tr(bool(cfg["voice_chat"]) ? "lobby.info.voice_on" : "lobby.info.voice_off"));
 	}

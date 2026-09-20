@@ -15,6 +15,7 @@
 #include "feedback_replies_screen.nvgt"
 #include "translation_screen.nvgt"
 #include "lobby_info.nvgt"
+#include "settings_screens.nvgt"
 #include "../config/lobby_config.nvgt"
 // KEY_CHAT* vêm de core/chat_log.nvgt (compartilhado com game/game_loop.nvgt)
 
@@ -409,6 +410,12 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.add_list_item(f_votes, tr("lobby.votes.on"), "on");
 	f.add_list_item(f_votes, tr("lobby.votes.off"), "off");
 	if (@current != null && current.exists("show_votes")) f.set_list_position(f_votes, bool(current["show_votes"]) ? 1 : 2);
+	int f_emergency_cd = f.create_input_box(tr("lobby.emergency_cooldown_override"), current_float_text(current, "emergency_cooldown_seconds"));
+	int f_comms_meeting = f.create_list(tr("lobby.comms_meeting_override"));
+	f.add_list_item(f_comms_meeting, tr("lobby.override.preset_default"), "");
+	f.add_list_item(f_comms_meeting, tr("lobby.comms_meeting.on"), "on");
+	f.add_list_item(f_comms_meeting, tr("lobby.comms_meeting.off"), "off");
+	if (@current != null && current.exists("comms_affects_meeting")) f.set_list_position(f_comms_meeting, bool(current["comms_affects_meeting"]) ? 1 : 2);
 	int f_voice = f.create_list(tr("lobby.voice_chat_override"));
 	f.add_list_item(f_voice, tr("lobby.override.preset_default"), "");
 	f.add_list_item(f_voice, tr("lobby.override.enabled"), "on");
@@ -453,6 +460,9 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.show_votes = votes_index >= 0 ? f.get_list_item_id(f_votes, votes_index) : "";
 			int voice_index = f.get_list_position(f_voice);
 			r.ov.voice_chat = voice_index >= 0 ? f.get_list_item_id(f_voice, voice_index) : "";
+			r.ov.emergency_cooldown_seconds = text_to_float_or_default(f.get_text(f_emergency_cd));
+			int cm_index = f.get_list_position(f_comms_meeting);
+			r.ov.comms_in_meeting = cm_index >= 0 ? f.get_list_item_id(f_comms_meeting, cm_index) : "";
 			return r;
 		}
 	}
@@ -602,6 +612,8 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 	chat_log@ messages_log = chat_log();
 	chat_log@ events_log = chat_log();
 	bool viewing_events_container = false; // false = mensagens, true = eventos
+	timer@ ping_clock = timer();
+	bool ping_pending = false;
 
 	// O retrato que veio da criação da sala vale desde já. Sem isto, quem cria a partida fica sem
 	// resposta para P e C enquanto estiver sozinho: o próximo retrato só chega quando alguém entra.
@@ -658,6 +670,11 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 				speak(chat_name + ": " + chat_text, false);
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
 				else audio.play_message_received();
+			} else if (pkt.type == S_PONG && ping_pending) {
+				ping_pending = false;
+				dictionary@ ping_params = dictionary();
+				ping_params.set("ms", "" + int(ping_clock.elapsed));
+				speak(tr("game.ping_result", ping_params));
 			} else if (pkt.type == S_ERROR) {
 				speak(tr_server_message(pkt));
 			} else if (pkt.type == S_GAME_START) {
@@ -694,6 +711,19 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		//
 		// As duas respondem do último estado recebido, sem pedir nada ao servidor: a resposta é
 		// imediata, e numa sala de espera o estado já chega sozinho a cada pessoa que entra ou sai.
+		// Medir o ping ANTES de entrar na partida é quando ele mais serve: dá para decidir se vale
+		// jogar agora ou esperar. A resposta é o S_PONG, tratado no laço de pacotes acima.
+		if (action_pressed(ACTION_PING) && !ping_pending) {
+			ping_pending = true;
+			ping_clock.restart();
+			client.send_ping();
+		}
+		// F3 abre as configurações sem sair da sala: antes, mudar um volume ou uma tecla no meio da
+		// espera custava desconectar e entrar de novo - e perder a sala.
+		if (key_pressed(KEY_F3)) {
+			run_settings_menu();
+			speak(tr("lobby.back_from_settings"));
+		}
 		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players));
 		if (key_pressed(KEY_C)) speak(lobby_config_text(snapshot.config) + private_lobby_text(snapshot.join_code));
 
