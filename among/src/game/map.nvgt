@@ -436,9 +436,9 @@ game_map@ build_the_hub_map() {
 	// dentro da elétrica - com os dois lá, apagar a luz e cortar o ar eram a mesma corrida para a
 	// mesma sala, e quem fosse consertar encontrava tudo no mesmo lugar.
 	//
-	// O piso de vidro é o único do mapa: entrar nela é reconhecível pelo passo, sem precisar de
-	// anúncio nenhum - é uma sala pequena demais para se ficar procurando.
-	m.zones.insert_last(map_zone("oxygen", "room.oxygen", -16, -44, 3, 3, "GlassTile"));
+	// O piso dela é só dela: entrar na sala é reconhecível pelo passo, sem precisar de anúncio
+	// nenhum - é uma sala pequena demais para se ficar procurando.
+	m.zones.insert_last(map_zone("oxygen", "room.oxygen", -16, -44, 3, 3, "O2Tile"));
 	// Ela é uma SALA pendurada num CORREDOR, forma que o nome do corredor não expressa (ver
 	// zone_link): sem esta linha os bots nunca acham caminho até ela.
 	m.extra_links.insert_last(zone_link("corridor_storage_electrical", "oxygen"));

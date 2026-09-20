@@ -307,6 +307,14 @@ não nos arquivos, para ajustar sem reconverter. Duas armadilhas na medição: R
 inclui o silêncio do fim e subestima som curto (medir só o que está acima de 1% do pico), e mesmo a
 medida certa erra para mais - o Tile pedia +17,6 pela conta e ficou alto demais, voltando para +15.
 
+**Piso novo entra em DUAS tabelas, e esquecer uma falha calado.** `footstep_variant_count` tem um
+fallback de 2 variantes: um piso com oito arquivos que não esteja na tabela toca sempre os dois
+mesmos passos, e nada acusa - o som existe, só soa repetitivo. `FOOTSTEP_FLOOR_PREFIXES` é a outra:
+sem ela os arquivos não entram no `sounds.dat` e o piso fica mudo no jogo compilado (funciona
+rodando do fonte, que é o pior jeito de descobrir). E o ganho do piso se MEDE: o O2Tile veio 9 dB
+acima da referência, com picos a -1,7 dB - sem correção, uma sala de seis por seis viraria a mais
+barulhenta do mapa por acidente de gravação. Sonda: `tools/probes/probe_floor.nvgt`.
+
 **Som novo vai na subpasta certa de `sounds/`** (`steps`, `ambience`, `beacons`, `tasks`, `events`,
 `ui`, `world`) e o caminho no catálogo inclui a pasta. Depois de mexer em som, rode
 `nvgt tools/check_sounds.nvgt`: ele compara o catálogo com o disco **nos dois sentidos** e é a única

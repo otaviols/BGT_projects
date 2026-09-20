@@ -1,0 +1,9 @@
+// Confere que o piso novo está registrado nas duas tabelas: a contagem de variantes e a lista de
+// pisos. Faltar numa delas não dá erro - o passo só passa a soar sempre igual.
+#include "../../src/audio/sound_catalog.nvgt"
+void main() {
+	println("variantes O2Tile: " + footstep_variant_count("O2Tile") + " (esperado 8)");
+	println("ganho O2Tile: " + footstep_volume_db("O2Tile") + " dB (medido: o arquivo vem 9 dB acima da referencia)");
+	println("caminho da variante 8: " + footstep_sound_path("O2Tile", 8));
+	println("O2Tile na lista de pisos: " + (FOOTSTEP_FLOOR_PREFIXES.find("O2Tile") != -1));
+}

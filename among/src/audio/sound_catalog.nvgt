@@ -174,6 +174,11 @@ int footstep_variant_count(const string&in floor_prefix) {
 	if (floor_prefix == "WoodTile") return 5;
 	if (floor_prefix == "EarthTile") return 7;
 	if (floor_prefix == "VentTile") return 4;
+	if (floor_prefix == "O2Tile") return 8;
+	// O fallback é baixo de propósito: piso sem entrada aqui toca só duas variantes e fica
+	// repetitivo rápido, que é como se percebe o esquecimento. Piso novo entra NAS DUAS listas -
+	// esta e FOOTSTEP_FLOOR_PREFIXES, logo abaixo -, senão os arquivos que sobram nunca são tocados
+	// e nada acusa: o passo simplesmente soa sempre igual.
 	return 2;
 }
 
@@ -183,7 +188,9 @@ const array<string> FOOTSTEP_FLOOR_PREFIXES = {
 	"Tile", "MetalTile", "MetalBeltTile", "WoodTile", "EarthTile",
 	// VentTile é o piso de DENTRO do duto: nenhuma sala usa esse prefixo, ele toca só quando o
 	// impostor viaja de um vent para outro (ver run_vent_menu em game/game_loop.nvgt).
-	"VentTile"
+	"VentTile",
+	// Piso da sala do oxigênio, só dela.
+	"O2Tile"
 };
 
 // Extensão do arquivo de passo de cada piso. Hoje são todos .ogg, mas a função continua existindo
@@ -204,8 +211,8 @@ string footstep_variant_extension(const string&in floor_prefix) {
 // próxima pessoa que trocar um arquivo de passo vai precisar refazer a conta):
 //
 //   RMS médio das variantes  ->  Tile -46,4  MetalTile -31,3  MetalBeltTile -31,2  WoodTile -41,0
-//                                EarthTile -44,5  VentTile -36,4  CarpetTile -43,3  GlassTile -51,4
-//                                SnowTile -39,7   (dBFS)
+//                                EarthTile -44,5  VentTile -36,4  CarpetTile -43,3  SnowTile -39,7
+//                                O2Tile -21,7   (dBFS)
 //
 // Nenhuma correção chega perto de estourar: o pico mais alto depois do ajuste fica em torno de -7 dB.
 float footstep_volume_db(const string&in floor_prefix) {
@@ -220,7 +227,11 @@ float footstep_volume_db(const string&in floor_prefix) {
 	if (floor_prefix == "EarthTile") return 13.0;
 	if (floor_prefix == "VentTile") return 5.0;
 	if (floor_prefix == "CarpetTile") return 12.0;
-	if (floor_prefix == "GlassTile") return 20.0;
+	// O piso da sala do oxigênio ABAIXA: as oito variantes dele vêm 9 dB ACIMA da referência (corpo
+	// -21,7 dBFS contra -31,0 do MetalTile), com picos a -1,7 dB em duas delas. Sem a correção, uma
+	// sala de seis por seis passaria a ser a mais barulhenta do mapa - e quem estivesse nela seria
+	// ouvido de longe por um acidente de gravação, não por uma decisão de projeto.
+	if (floor_prefix == "O2Tile") return -9.0;
 	if (floor_prefix == "SnowTile") return 8.5;
 	return 0.0; // MetalTile e MetalBeltTile já são a referência
 }
