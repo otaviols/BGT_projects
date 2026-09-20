@@ -7,9 +7,13 @@
 #include "../config/colors.nvgt"
 
 class player_task {
+	// O ponto da fase ATUAL - ele muda quando a tarefa avança (ver game_state.advance_task).
 	string object_id;
 	string task_type;
 	bool completed = false;
+	// Tarefa de várias fases (ver task_chain em game/map.nvgt). phase_count = 1 é o caso comum.
+	uint phase = 0;
+	uint phase_count = 1;
 }
 
 class game_player {
@@ -73,36 +77,34 @@ class game_player {
 		return true;
 	}
 
+	// Conta FASES, não tarefas: uma tarefa de duas fases vale dois passos na barra da equipe, como
+	// no jogo original. Contar por tarefa faria a barra parar durante a travessia inteira - o
+	// jogador andaria meia nave sem nada acontecer no placar.
 	uint task_count() const {
-		return tasks.length();
+		uint count = 0;
+		for (uint i = 0; i < tasks.length(); i++) count += tasks[i].phase_count;
+		return count;
 	}
 
 	uint completed_task_count() const {
 		uint count = 0;
 		for (uint i = 0; i < tasks.length(); i++) {
-			if (tasks[i].completed) count++;
+			count += tasks[i].completed ? tasks[i].phase_count : tasks[i].phase;
 		}
 		return count;
 	}
 
 	bool all_tasks_completed() const {
 		if (tasks.length() == 0) return true;
-		return completed_task_count() == tasks.length();
+		// Compara FASES com FASES: desde que uma tarefa possa valer mais de um passo, comparar com o
+		// número de tarefas daria "tudo pronto" no meio de uma travessia.
+		return completed_task_count() == task_count();
 	}
 
 	int task_progress_percent() const {
-		if (tasks.length() == 0) return 100;
-		return int((completed_task_count() * 100) / tasks.length());
-	}
-
-	bool complete_task(const string&in object_id) {
-		for (uint i = 0; i < tasks.length(); i++) {
-			if (tasks[i].object_id == object_id) {
-				tasks[i].completed = true;
-				return true;
-			}
-		}
-		return false;
+		uint total = task_count();
+		if (total == 0) return 100;
+		return int((completed_task_count() * 100) / total);
 	}
 
 	void tick_cooldowns(float delta_seconds) {

@@ -315,7 +315,15 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 		// A categoria entra no item: quem planeja a rota quer saber de antemão se aquela tarefa vai
 		// custar uma travessia da nave ou se resolve ali mesmo.
 		item.set("category", tr(task_category_key(pending[i].task_type)));
-		m.add_item(tr("task.list_item", item), pending[i].object_id);
+		// Numa tarefa de várias fases, o nome e a sala são os da fase ATUAL (o object_id acompanha a
+		// fase) - dizer em qual delas está é o que impede o jogador de voltar ao ponto já resolvido.
+		if (pending[i].phase_count > 1) {
+			item.set("phase", "" + (pending[i].phase + 1));
+			item.set("phases", "" + pending[i].phase_count);
+			m.add_item(tr("task.list_item_phased", item), pending[i].object_id);
+		} else {
+			m.add_item(tr("task.list_item", item), pending[i].object_id);
+		}
 	}
 
 	dictionary@ p = dictionary();
@@ -457,6 +465,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			player_task pt;
 			pt.object_id = string(tj["object_id"]);
 			pt.task_type = string(tj["task_type"]);
+			// Servidor antigo não manda fase: uma fase só, como sempre foi.
+			if (tj.exists("phase")) pt.phase = uint(int(tj["phase"]));
+			if (tj.exists("phase_count")) pt.phase_count = uint(int(tj["phase_count"]));
 			my_tasks.insert_last(pt);
 			my_task_object_ids.insert_last(pt.object_id);
 		}
@@ -572,7 +583,15 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// assim que a minigame termina (ver a tecla de interagir abaixo) - aqui só cobre o caso raro
 				// de ainda não estar marcada quando essa confirmação do servidor chega.
 				string task_id = pkt.get_string("task_id");
-				if (pkt.get_bool("ok") && !is_task_completed(my_tasks, task_id)) {
+				string next_object_id = pkt.get_string("next_object_id", "");
+				if (pkt.get_bool("ok") && next_object_id != "" && task_id != next_object_id) {
+					// A tarefa avançou de fase em vez de acabar. O caminho normal já avançou na hora
+					// (ver a tecla de interagir); isto cobre o caso de a confirmação chegar antes.
+					bool ja_avancou = false;
+					for (uint i = 0; i < my_tasks.length(); i++) if (my_tasks[i].object_id == next_object_id) ja_avancou = true;
+					if (!ja_avancou) advance_task_locally(map, audio, my_tasks, my_task_object_ids, task_id,
+						next_object_id, active_sabotage_id, my_role, alive);
+				} else if (pkt.get_bool("ok") && !is_task_completed(my_tasks, task_id)) {
 					mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, task_id, active_sabotage_id, my_role, alive);
 					if (my_tasks_all_completed(my_tasks)) {
 						string all_done_text = tr("task.all_completed");
@@ -1018,14 +1037,37 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 						// Avisa que abriu: para o scan, é isto que faz o servidor contar a quem está
 						// perto - depois de conferir que a task é mesmo deste jogador.
 						client.send_start_task(obj.id);
-						bool success = run_task_minigame(client, obj.task_type);
+						// A fase decide QUAL etapa da tarefa roda (pegar o galão ou abastecer).
+						uint task_phase = 0;
+						uint task_phases = 1;
+						for (uint ti = 0; ti < my_tasks.length(); ti++) {
+							if (my_tasks[ti].object_id != obj.id) continue;
+							task_phase = my_tasks[ti].phase;
+							task_phases = my_tasks[ti].phase_count;
+							break;
+						}
+						bool success = run_task_minigame(client, obj.task_type, task_phase);
 						if (success) {
-							// Marca como feita já aqui, sem esperar o servidor confirmar - senão, se o
-							// jogador apertar Enter de novo rápido, a task ainda apareceria "aberta"
-							// (find_interactable só ignora task já com completed=true) até o round-trip
-							// da rede voltar, dando pra abrir ela de novo por engano.
-							mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id, my_role, alive);
-							if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
+							// Tarefa de várias fases: avança para o ponto seguinte em vez de terminar, e
+							// diz para onde ir. O marcador muda de lugar junto.
+							string next_object_id = task_phase + 1 < task_phases
+								? map.chain_object_at(obj.task_type, task_phase + 1) : "";
+							if (next_object_id != "") {
+								advance_task_locally(map, audio, my_tasks, my_task_object_ids, obj.id,
+									next_object_id, active_sabotage_id, my_role, alive);
+								string proxima = next_phase_text(map, next_object_id);
+								if (proxima != "") {
+									speak(proxima);
+									events_log.add("", proxima);
+								}
+							} else {
+								// Marca como feita já aqui, sem esperar o servidor confirmar - senão, se o
+								// jogador apertar Enter de novo rápido, a task ainda apareceria "aberta"
+								// (find_interactable só ignora task já com completed=true) até o round-trip
+								// da rede voltar, dando pra abrir ela de novo por engano.
+								mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id, my_role, alive);
+								if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
+							}
 						}
 						client.send_task_input(obj.id, success);
 					} else if (obj.obj_type == OBJ_VENT) {
@@ -1221,6 +1263,39 @@ bool is_task_completed(array<player_task>@ tasks, const string&in object_id) {
 		if (tasks[i].object_id == object_id) return tasks[i].completed;
 	}
 	return false;
+}
+
+// A tarefa de várias fases andou uma fase: o ponto que ela mira passa a ser o próximo, o marcador
+// muda de lugar junto, e o jogador ouve para onde ir agora.
+//
+// Isto acontece localmente assim que a minigame termina, sem esperar o servidor - é o mesmo
+// otimismo de mark_task_completed_locally, e pelo mesmo motivo: quem acabou de fazer a etapa já
+// quer sair andando, e esperar a ida e volta da rede deixaria o marcador apontando para trás.
+void advance_task_locally(game_map@ map, audio_manager@ audio, array<player_task>@ my_tasks,
+		array<string>@ my_task_object_ids, const string&in object_id, const string&in next_object_id,
+		const string&in active_sabotage_id, role_traits@ my_role, bool alive) {
+	for (uint i = 0; i < my_tasks.length(); i++) {
+		if (my_tasks[i].object_id != object_id) continue;
+		my_tasks[i].phase++;
+		my_tasks[i].object_id = next_object_id;
+		break;
+	}
+	for (uint i = 0; i < my_task_object_ids.length(); i++) {
+		if (my_task_object_ids[i] == object_id) { my_task_object_ids[i] = next_object_id; break; }
+	}
+	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
+}
+
+// Para onde ir agora, dito ao terminar uma fase. É o mesmo texto da lista de tarefas, de propósito:
+// quem ouviu aqui e quem for conferir na lista depois têm que ouvir a mesma coisa.
+string next_phase_text(game_map@ map, const string&in next_object_id) {
+	map_object@ obj = map.find_object(next_object_id);
+	if (@obj == null) return "";
+	map_zone@ zone = map.find_zone(obj.room_id);
+	dictionary@ p = dictionary();
+	p.set("name", tr(obj.name_key));
+	p.set("room", @zone != null ? tr(zone.name_key) : "");
+	return tr("task.next_phase", p);
 }
 
 // Marca a task como feita localmente (pra find_interactable parar de oferecer ela de novo) e tira

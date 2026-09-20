@@ -397,6 +397,19 @@ votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na r
 na mesma mesa; o fantasma fica onde morreu, então com posição ele ouvia a discussão e os outros
 fantasmas - espalhados pelo mapa - de tão longe que virava silêncio. Morto não tem lugar.
 
+**Tarefa de VÁRIAS FASES: a sequência mora no mapa, a fase mora no servidor.** `task_chain`
+(`game/map.nvgt`) lista os pontos de uma tarefa na ordem, junto dos objetos - separada deles, um id
+renomeado quebraria a corrente em silêncio. `player_task` carrega `phase`/`phase_count` e o
+`object_id` da fase ATUAL, então marcador, lista de tarefas e `find_interactable` seguem a fase sem
+saber que ela existe. Quem avança é `game_state.advance_task`, no servidor: quem for interrompido
+por uma reunião no meio da travessia volta com o galão na mão, e não do começo - punir quem reporta
+um corpo seria punir o comportamento que o jogo quer. Três armadilhas que já custaram: a contagem
+da equipe conta FASES (`task_count` soma `phase_count`), senão a barra congela durante a travessia
+inteira; só o PRIMEIRO ponto da corrente entra no sorteio (`is_chain_start`), senão alguém recebe a
+segunda metade de uma tarefa que nunca começou; e o modo de treino roda todas as fases em sequência,
+senão "treinar" a tarefa é só a etapa que não tem o que treinar. Sonda:
+`tools/probes/probe_phases.nvgt`.
+
 **Tarefa longa vale mais aqui do que no jogo original.** `LONG_TASK_TYPES` (em
 `config/game_constants.nvgt`) marca as tarefas que fazem atravessar a nave ou ficar parado um bom
 tempo; o que não é comum nem longo é CURTO, sem terceira lista para sair de sincronia. O motivo não

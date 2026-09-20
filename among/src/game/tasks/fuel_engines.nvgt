@@ -14,7 +14,22 @@
 
 #include "task_common.nvgt"
 
-bool run_fuel_engines_task(game_client@ client) {
+// Duas fases: pegar o galão no depósito e levá-lo até o reator para abastecer. A travessia ENTRE as
+// duas é o ponto da tarefa - é ela que faz barulho e diz aos outros por onde você andou.
+bool run_fuel_engines_task(game_client@ client, uint phase = 0) {
+	if (phase == 0) return run_fuel_pickup(client);
+	return run_fuel_fill(client);
+}
+
+// Pegar o galão: não é um desafio, é um gesto. A tarefa não fica mais difícil por isso - fica mais
+// LONGA, que é o que se queria.
+bool run_fuel_pickup(game_client@ client) {
+	speak(tr("task.fuel_engines.pickup"));
+	if (!wait_for_task_sound(task_sound(SND_FUEL_GRAB), client)) return false;
+	return true;
+}
+
+bool run_fuel_fill(game_client@ client) {
 	const float START_PITCH = 70.0;
 	const float PITCH_PER_SECOND = 25.0;
 	const float PITCH_TOLERANCE = 9.0;

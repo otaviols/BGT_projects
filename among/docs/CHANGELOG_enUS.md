@@ -11,6 +11,10 @@ Everything that changed in the game, newest first.
 - **Tasks are now short, long or common**, and the list (T key) says which is which — you can plan
   your route knowing whether a task costs a trip across the ship or is solved on the spot. The host
   chooses **how many of the tasks are long** in the room rules.
+- **Multi-step tasks.** "Fuel Engines" is now picking up the can in storage and carrying it to the
+  reactor: the beacon moves on its own, the game tells you where to go, and the task list shows
+  which step you are on and where it is. Being interrupted by a meeting midway loses nothing — you
+  come back holding the can.
 - **F5 refreshes the list**, both in the hall and in the match list. The hall also says who is there
   as soon as you open it.
 - **Your microphone volume** in the voice chat settings, for when you come through too quiet or too

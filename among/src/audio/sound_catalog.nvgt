@@ -115,6 +115,9 @@ const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.ogg
 const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
+// Pegar o galão de combustível no depósito (primeira fase de abastecer os motores). Provisório: usa
+// o som da alavanca até entrar um som próprio.
+const string SND_FUEL_GRAB = SND_PULLING_GARBAGE_LEVER;
 const string SND_TASK_INPROGRESS = "tasks/task_inprogress.ogg"; // abriu uma task, ou fechou sem terminar
 const string SND_TASK_COMPLETE = "tasks/task_complete.ogg";     // fechou a task terminada
 const string SND_BEEP = "tasks/beep.ogg";

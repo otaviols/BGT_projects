@@ -775,6 +775,9 @@ class game_server {
 				array<map_object@> long_pool;
 				array<map_object@> short_pool;
 				for (uint s = 0; s < personal_spots.length(); s++) {
+					// Ponto do MEIO de uma corrente não entra no sorteio: ele é a continuação de uma
+					// tarefa, não uma tarefa (ver is_chain_start em game/map.nvgt).
+					if (lobby.map.object_in_chain(personal_spots[s].id) && !lobby.map.is_chain_start(personal_spots[s].id)) continue;
 					if (task_is_long(personal_spots[s].task_type)) long_pool.insert_last(personal_spots[s]);
 					else short_pool.insert_last(personal_spots[s]);
 				}
@@ -798,12 +801,14 @@ class game_server {
 					player_task pt;
 					pt.object_id = long_pool[t].id;
 					pt.task_type = long_pool[t].task_type;
+					pt.phase_count = lobby.map.phase_count_of(pt.task_type);
 					p.tasks.insert_last(pt);
 				}
 				for (uint t = 0; t < want_short; t++) {
 					player_task pt;
 					pt.object_id = short_pool[t].id;
 					pt.task_type = short_pool[t].task_type;
+					pt.phase_count = lobby.map.phase_count_of(pt.task_type);
 					p.tasks.insert_last(pt);
 				}
 			}
@@ -877,6 +882,10 @@ class game_server {
 				json_object@ tj = json_object();
 				tj.set("object_id", p.tasks[t].object_id);
 				tj.set("task_type", p.tasks[t].task_type);
+				// A fase vai junto porque a partida pode ter recomeçado com a tarefa no meio (reunião,
+				// reconexão): o cliente precisa mirar o ponto certo, não o começo da corrente.
+				tj.set("phase", int(p.tasks[t].phase));
+				tj.set("phase_count", int(p.tasks[t].phase_count));
 				tasks_json.add(tj);
 			}
 			start.set_array("tasks", tasks_json);
@@ -954,14 +963,21 @@ class game_server {
 		// aqui - ANTES dos retornos abaixo, senão um scan cancelado ficaria soando para sempre.
 		end_visible_task(lobby, peer_id);
 		if (!success) return;
-		if (!p.complete_task(task_id)) return;
+		string next_object_id;
+		uint phase;
+		if (!lobby.advance_task(p, task_id, next_object_id, phase)) return;
 
+		// A estatística conta FASES concluídas: é o que o jogador fez, e é o mesmo passo que move a
+		// barra da equipe.
 		g_user_db.increment_stat(p.username, "tasks_completed", 1);
 
 		net_packet@ result = net_packet(S_TASK_RESULT);
 		result.set_string("task_id", task_id);
 		result.set_bool("ok", true);
 		result.set_int("progress", p.task_progress_percent());
+		// Vazio quando a tarefa acabou; com valor, é o ponto da próxima fase (ver advance_task).
+		result.set_string("next_object_id", next_object_id);
+		result.set_int("phase", int(phase));
 		send_to(peer_id, result);
 
 		// Placar da equipe vai pra TODO mundo, impostor incluído: pro tripulante é saber quanto falta,

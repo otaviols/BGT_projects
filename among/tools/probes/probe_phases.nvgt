@@ -1,0 +1,67 @@
+// Sonda das tarefas de várias fases: a tarefa é entregue na fase 0 no depósito, avança para o
+// reator ao ser concluída a primeira etapa, e só then termina. E o ponto do MEIO nunca é sorteado
+// como tarefa independente.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_phases.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	bool achou_fases = false;
+	// O sorteio é aleatório: tenta algumas vezes até cair uma tarefa de combustível.
+	for (int tentativa = 0; tentativa < 8 && !achou_fases; tentativa++) {
+		string name = "fase" + random(10000, 99999);
+		game_client c;
+		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+		c.send_register(name, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(name, "probe123");
+		if (@wf(c, S_LOGIN_RESULT, 5000) == null) { println("login falhou"); return; }
+		lobby_overrides ov;
+		ov.impostor_count = 1; ov.task_count_per_crewmate = 8; ov.long_task_count = 8;
+		c.send_create_lobby("fases", "classic", ov);
+		if (@wf(c, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
+		for (int b = 0; b < 3; b++) { c.send_add_bot(); timer w; while (w.elapsed < 150) { c.update(); c.clear_incoming(); wait(5); } }
+		c.send_start_game();
+		net_packet@ start = wf(c, S_GAME_START, 8000);
+		if (@start == null) { println("nao comecou"); return; }
+		if (start.get_bool("your_role_impostor")) { c.disconnect(); continue; }
+		json_array@ tasks = start.get_array("tasks");
+		string fuel_id = "";
+		for (uint i = 0; i < tasks.length(); i++) {
+			json_object@ tj = tasks.get_object(i);
+			string tipo = string(tj["task_type"]);
+			string oid = string(tj["object_id"]);
+			// O ponto do meio da corrente nunca pode ser entregue como tarefa
+			if (oid == "task_fuel_reactor") println("FALHA: recebeu o ponto do meio da corrente como tarefa");
+			if (tipo == "fuel_engines") {
+				fuel_id = oid;
+				println("combustivel entregue em: " + oid + " (esperado task_fuel_storage), fases=" + int(tj["phase_count"]) + " fase=" + int(tj["phase"]));
+			}
+		}
+		if (fuel_id == "") { c.disconnect(); continue; }
+		achou_fases = true;
+
+		// Conclui a primeira fase
+		c.send_start_task(fuel_id);
+		c.send_task_input(fuel_id, true);
+		net_packet@ r1 = wf(c, S_TASK_RESULT, 5000);
+		println("apos a fase 1: proximo ponto = " + r1.get_string("next_object_id") + " (esperado task_fuel_reactor), progresso " + r1.get_int("progress") + "%");
+
+		// Conclui a segunda
+		c.send_start_task("task_fuel_reactor");
+		c.send_task_input("task_fuel_reactor", true);
+		net_packet@ r2 = wf(c, S_TASK_RESULT, 5000);
+		println("apos a fase 2: proximo ponto = '" + r2.get_string("next_object_id") + "' (esperado vazio), progresso " + r2.get_int("progress") + "%");
+		c.disconnect();
+	}
+	if (!achou_fases) println("nao caiu tarefa de combustivel em 8 tentativas");
+}

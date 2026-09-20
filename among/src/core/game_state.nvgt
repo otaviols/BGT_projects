@@ -540,6 +540,36 @@ class game_state {
 		return true;
 	}
 
+	// Avança a tarefa deste jogador que está no ponto `object_id`.
+	//
+	// Tarefa de uma fase só é marcada concluída, como sempre. De várias fases, anda UMA fase e o
+	// ponto seguinte volta em `next_object_id` - é ele que o cliente passa a mirar (marcador, lista
+	// de tarefas). A fase fica guardada aqui, no servidor: quem for interrompido por uma reunião no
+	// meio da travessia volta com o galão na mão, e não do começo - punir quem reporta um corpo
+	// seria punir exatamente o comportamento que o jogo quer.
+	//
+	// Devolve false se a pessoa não tem essa tarefa pendente nesse ponto.
+	bool advance_task(game_player@ p, const string&in object_id, string&out next_object_id, uint&out phase) {
+		next_object_id = "";
+		phase = 0;
+		if (@p == null) return false;
+		for (uint i = 0; i < p.tasks.length(); i++) {
+			player_task@ t = p.tasks[i];
+			if (t.object_id != object_id || t.completed) continue;
+			if (t.phase + 1 < t.phase_count) {
+				t.phase++;
+				t.object_id = map.chain_object_at(t.task_type, t.phase);
+				next_object_id = t.object_id;
+				phase = t.phase;
+				return true;
+			}
+			t.completed = true;
+			phase = t.phase;
+			return true;
+		}
+		return false;
+	}
+
 	// Começa uma task visível para `peer`, se ele tiver essa task pendente e estiver vivo. Devolve
 	// false quando não tem - que é exatamente o caso do impostor fingindo, e do fantasma (o scan de
 	// quem já morreu não serve de álibi a ninguém).
@@ -845,7 +875,17 @@ class game_state {
 			// igual a de qualquer jogador) e descansa antes de escolher o próximo destino.
 			if (b.bot_path.length() == 0 && distance_2d(b.x, b.y, b.bot_target_x, b.bot_target_y) <= PLAYER_INTERACT_RANGE) {
 				if (b.bot_target_object_id != "") {
-					if (b.complete_task(b.bot_target_object_id)) events.insert_last(build_task_progress_packet());
+					// Pelo mesmo caminho dos jogadores de verdade: uma tarefa de várias fases faz o bot
+					// AVANÇAR de fase e caminhar até o ponto seguinte, em vez de concluir tudo de uma
+					// vez parado no primeiro ponto.
+					string next_object_id;
+					uint phase;
+					if (advance_task(b, b.bot_target_object_id, next_object_id, phase)) {
+						events.insert_last(build_task_progress_packet());
+						// O destino do bot passa a ser a fase nova; sem isto ele ficaria parado achando
+						// que já terminou, e a tarefa nunca sairia do lugar.
+						if (next_object_id != "") b.bot_target_object_id = next_object_id;
+					}
 					b.bot_action_timer = random_range(BOT_TASK_MIN_SECONDS, BOT_TASK_MAX_SECONDS);
 				} else if (b.is_impostor) {
 					b.bot_repath_timer = 0.0; // chegou onde a presa estava: recalcula na hora, sem pausa

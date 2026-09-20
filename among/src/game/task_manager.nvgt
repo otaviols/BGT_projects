@@ -21,7 +21,9 @@
 // minigame poder chamar client.update() no próprio laço - sem isso a conexão ficava sem ser servida
 // durante minigames mais longos, e a task às vezes não completava (o pacote de sucesso se perdia
 // numa conexão que o servidor já tinha considerado inativa).
-bool run_task_minigame(game_client@ client, const string&in task_type) {
+// `phase` é a fase atual de uma tarefa de várias fases (ver task_chain em game/map.nvgt); zero
+// para as de uma fase só, que é o caso da maioria.
+bool run_task_minigame(game_client@ client, const string&in task_type, uint phase = 0) {
 	// Reunião chamada no exato instante em que a task abriu: nem começa (ver task_cancel_requested).
 	if (task_cancel_requested(client)) return false;
 	ui_sound("sounds/" + SND_TASK_INPROGRESS); // abriu: a task está "em andamento"
@@ -32,7 +34,7 @@ bool run_task_minigame(game_client@ client, const string&in task_type) {
 	else if (task_type == "align_engine") result = run_align_engine_task(client);
 	else if (task_type == "swipe_card") result = run_swipe_card_task(client);
 	else if (task_type == "unlock_manifolds") result = run_unlock_manifolds_task(client);
-	else if (task_type == "fuel_engines") result = run_fuel_engines_task(client);
+	else if (task_type == "fuel_engines") result = run_fuel_engines_task(client, phase);
 	else if (task_type == "clear_asteroids") result = run_clear_asteroids_task(client);
 	else if (task_type == "roll_dice") result = run_roll_dice_task(client);
 	else if (task_type == "water_plants") result = run_water_plants_task(client);
