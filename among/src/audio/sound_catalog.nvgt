@@ -55,6 +55,7 @@ const string SND_AMBIENT_REACTOR = "sounds/ambience/ambient_reactor.ogg";
 const string SND_AMBIENT_GAMES = "sounds/ambience/ambient_games.ogg";
 const string SND_AMBIENT_GREENHOUSE = "sounds/ambience/ambient_greenhouse.ogg";
 const string SND_AMBIENT_SECURITY = "sounds/ambience/ambient_security.ogg";
+const string SND_AMBIENT_OXYGEN = "sounds/ambience/ambient_oxygen.ogg";
 
 // --- Objetos do mapa (som de UMA VEZ ao usar - abrir painel, entrar/sair do vent) ---
 const string SND_VENT_DOOR_1 = "sounds/world/ventDoor1.ogg";
@@ -313,6 +314,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_AMBIENT_GAMES);
 	list.insert_last(SND_AMBIENT_GREENHOUSE);
 	list.insert_last(SND_AMBIENT_SECURITY);
+	list.insert_last(SND_AMBIENT_OXYGEN);
 	list.insert_last("sounds/" + SND_DICE);
 	list.insert_last("sounds/" + SND_WATER_FLOW);
 	list.insert_last("sounds/" + SND_FILLING);

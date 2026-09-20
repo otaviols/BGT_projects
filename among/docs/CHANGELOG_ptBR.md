@@ -11,6 +11,10 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 - **Tarefas agora são curtas, longas ou comuns**, e a lista (tecla T) diz qual é qual — dá para
   planejar a rota sabendo se aquela tarefa custa uma travessia da nave ou resolve ali mesmo. O
   anfitrião escolhe **quantas das tarefas são longas** nas regras da sala.
+- **Uma sala nova: a sala do oxigênio**, que se abre para o corredor de carga, entre o armazém e a
+  elétrica. Um dos dois painéis de oxigênio saiu da elétrica e foi para lá — com os dois na mesma
+  sala, apagar a luz e cortar o ar eram a mesma corrida para o mesmo lugar. Ela tem piso e ambiente
+  próprios, então dá para saber que entrou nela só pelo passo.
 - **Uma segunda rede de dutos**, ligando o corredor entre a sala de jogos e a estufa ao corredor da
   segurança — o norte e o centro-leste do mapa não tinham duto nenhum. As duas redes são separadas:
   de uma você nunca sai na outra. E são dutos de CORREDOR, onde passa gente: o som da tampa abrindo

@@ -599,6 +599,8 @@ game_map@ build_the_hub_map() {
 	m.objects.insert_last(map_object("security_cameras", "object.security_cameras", 27, -27, "security",
 		OBJ_SECURITY_CAMERAS, SND_CAMERA_ON, "", "", SND_CAMERA_BEACON));
 
+	m.objects.insert_last(map_object("ambient_oxygen", "room.oxygen", -16, -44, "oxygen",
+		OBJ_DECORATION, SND_AMBIENT_OXYGEN));
 	m.objects.insert_last(map_object("ambient_security", "room.security", 25, -25, "security",
 		OBJ_DECORATION, SND_AMBIENT_SECURITY));
 
