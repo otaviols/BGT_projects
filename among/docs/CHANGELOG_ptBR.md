@@ -18,8 +18,11 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 - **F3 abre as configurações dentro da sala de espera**, sem precisar sair e perder o lugar. E a
   tecla de medir o ping passa a funcionar ali também.
 - Duas regras novas de sala: a **recarga do botão de emergência** (era sempre 15 segundos) e
-  **"comunicações sabotadas calam a reunião"** — com ela ligada, sabotar as comunicações antes de um
-  corpo aparecer faz a discussão inteira acontecer só por texto.
+  **"comunicações sabotadas calam a reunião"**, que já vem ligada: sabotar as comunicações antes de
+  um corpo aparecer faz a discussão inteira acontecer só por texto. Quem preferir a reunião sempre
+  com voz desliga nas regras da sala.
+- Com as **luzes apagadas**, o radar enxerga bem menos do que antes: agora só pega quem estiver
+  quase encostado em você.
 
 ## 0.28.0
 

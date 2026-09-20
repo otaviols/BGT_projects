@@ -129,11 +129,11 @@ class lobby_config {
 	// jogo para todos: com voz, a reunião vira conversa e o corredor vira lugar de cochicho. Quem
 	// prefere jogar só por texto cria a sala assim, e ninguém entra esperando outra coisa.
 	bool voice_chat = true;
-	// Comunicações sabotadas calam o chat de voz TAMBÉM na reunião. Desligado é o jogo clássico (a
-	// reunião é sagrada); ligado, sabotar as comunicações antes de um corpo ser reportado vira uma
-	// jogada de impostor: a discussão acontece só por texto, devagar, e quem não digita rápido fica
-	// para trás. É forte, e por isso é escolha da sala.
-	bool comms_affects_meeting = false;
+	// Comunicações sabotadas calam o chat de voz TAMBÉM na reunião. LIGADO por padrão: sabotar as
+	// comunicações antes de um corpo aparecer passa a ser uma jogada de impostor de verdade, com a
+	// discussão acontecendo só por texto. Quem preferir que a reunião seja sempre intocável desliga
+	// na sala - mas o padrão é a sabotagem valer para tudo, que é o que faz dela uma ameaça.
+	bool comms_affects_meeting = true;
 	// Recarga do botão de emergência. Em partida grande, quinze segundos permitem reuniões em
 	// sequência que não deixam ninguém jogar; em partida pequena, atrapalham.
 	float emergency_cooldown_seconds = EMERGENCY_MEETING_COOLDOWN_SECONDS;

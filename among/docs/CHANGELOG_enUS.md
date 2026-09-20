@@ -18,8 +18,11 @@ Everything that changed in the game, newest first.
 - **F3 opens the settings from inside the waiting room**, with no need to leave and lose your spot.
   The ping key works there too now.
 - Two new room rules: the **emergency button cooldown** (it was always 15 seconds) and **"sabotaged
-  comms silence the meeting"** — with it on, sabotaging comms before a body turns up makes the whole
-  discussion happen in text only.
+  comms silence the meeting"**, which is on by default: sabotaging comms before a body turns up
+  makes the whole discussion happen in text only. Hosts who prefer meetings to always have voice can
+  turn it off in the room rules.
+- With the **lights out**, the radar sees much less than before: now it only picks up players who
+  are almost on top of you.
 
 ## 0.28.0
 
