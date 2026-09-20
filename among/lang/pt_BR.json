@@ -188,7 +188,7 @@
 	"lobby.preset.chaos_desc": "Caos: até 10 jogadores, 3 impostores, cooldown de kill de 12 segundos, sabotagens ativadas - bem mais difícil pros tripulantes.",
 	"lobby.kill_cooldown_override": "Cooldown do kill em segundos (em branco = padrão do preset)",
 	"lobby.leave": "Sair da partida",
-	"lobby.refresh": "Atualizar lista",
+	"lobby.refresh": "Atualizar a lista (F5)",
 	"lobby.no_lobbies": "Nenhuma partida disponível.",
 	"lobby.join_failed": "Não foi possível entrar na partida.",
 	"lobby.edit_settings": "Mudar as regras da partida",

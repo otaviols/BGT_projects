@@ -188,7 +188,7 @@
 	"lobby.preset.chaos_desc": "Chaos: up to 10 players, 3 impostors, 12 second kill cooldown, sabotages enabled - much harder for crewmates.",
 	"lobby.kill_cooldown_override": "Kill cooldown in seconds (blank = preset default)",
 	"lobby.leave": "Leave lobby",
-	"lobby.refresh": "Refresh list",
+	"lobby.refresh": "Refresh the list (F5)",
 	"lobby.no_lobbies": "No lobbies available.",
 	"lobby.join_failed": "Could not join the lobby.",
 	"lobby.edit_settings": "Change the match rules",

@@ -84,6 +84,19 @@ string hall_people_text() {
 	return tr("hall.people", p);
 }
 
+// Roda um menu deixando o F5 recarregá-lo; devolve true se foi isso que o jogador pediu.
+//
+// menu.run() é um laço fechado (`while (monitor()) wait(5)`) que só enxerga as teclas da própria
+// lista, então uma tecla a mais exige abrir esse laço aqui - sem tocar na menu.nvgt instalada.
+// Quem chama é que remonta o menu: só ele sabe o que a lista deveria mostrar agora.
+bool run_menu_with_refresh(menu@ m) {
+	while (m.monitor()) {
+		wait(5);
+		if (key_pressed(KEY_F5)) return true;
+	}
+	return false;
+}
+
 game_client@ g_lobby_pump_client;
 void pump_client_during_menu(menu@ m, string data) {
 	if (@g_lobby_pump_client == null) return;
@@ -98,7 +111,9 @@ void run_hall_screen(game_client@ client) {
 	while (true) {
 		if (!client.connected) return;
 		menu m;
-		m.intro_text = tr("hall.title");
+		// Quem está no saguão é a informação que se vem buscar aqui: ela abre a tela, e é o que se
+		// ouve de novo a cada F5.
+		m.intro_text = hall_people_text();
 		m.click_sound = "ui/menuclick.ogg";
 		m.select_sound = "ui/menuconfirm.ogg";
 		m.sounds_prefix = "sounds/";
@@ -106,14 +121,15 @@ void run_hall_screen(game_client@ client) {
 		@m.background_callback = @pump_client_during_menu;
 
 		m.add_item(tr("hall.write"), "__write__");
-		m.add_item(hall_people_text(), "__who__");
+		m.add_item(tr("lobby.refresh"), "__refresh__");
 		if (g_hall.log.empty) m.add_item(tr("hall.no_messages"), "__none__");
 		else for (uint i = 0; i < g_hall.log.lines.length(); i++) m.add_item(g_hall.log.format_line(i), "__line__");
 		m.add_item(tr("menu.back"), "__back__");
-		m.run();
+		if (run_menu_with_refresh(m)) continue; // F5: remonta com quem está lá agora
 
 		string id = m.selected_item_id;
 		if (id == "" || id == "__back__") return;
+		if (id == "__refresh__") continue;
 		if (id == "__write__") run_hall_compose(client);
 	}
 }
@@ -211,7 +227,7 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
 		m.add_item(tr("menu.back"), "__back__");
 
-		m.run();
+		if (run_menu_with_refresh(m)) continue; // F5: pergunta a lista de partidas de novo
 		string id = m.selected_item_id;
 
 		if (id == "__forget__") {
