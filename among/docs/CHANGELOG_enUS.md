@@ -6,6 +6,21 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.29.0
+
+- **Tasks are now short, long or common**, and the list (T key) says which is which — you can plan
+  your route knowing whether a task costs a trip across the ship or is solved on the spot. The host
+  chooses **how many of the tasks are long** in the room rules.
+- **F5 refreshes the list**, both in the hall and in the match list. The hall also says who is there
+  as soon as you open it.
+- **Your microphone volume** in the voice chat settings, for when you come through too quiet or too
+  loud on the other side.
+- **F3 opens the settings from inside the waiting room**, with no need to leave and lose your spot.
+  The ping key works there too now.
+- Two new room rules: the **emergency button cooldown** (it was always 15 seconds) and **"sabotaged
+  comms silence the meeting"** — with it on, sabotaging comms before a body turns up makes the whole
+  discussion happen in text only.
+
 ## 0.28.0
 
 - **Hall.** The match menu now shows **who is online** outside the rooms and lets you **chat** with

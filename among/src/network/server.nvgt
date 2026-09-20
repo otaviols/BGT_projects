@@ -768,16 +768,42 @@ class game_server {
 					pt.task_type = common_spots[c].task_type;
 					p.tasks.insert_last(pt);
 				}
-				// Depois as individuais, completando até o total configurado.
-				array<map_object@> pool = personal_spots;
-				shuffle_object_array(pool);
-				uint count = lobby.config.task_count_per_crewmate;
-				count = count > p.tasks.length() ? count - p.tasks.length() : 0;
-				if (count > pool.length()) count = pool.length();
-				for (uint t = 0; t < count; t++) {
+				// Depois as individuais, sorteadas POR CATEGORIA: primeiro as longas que a sala pediu,
+				// depois curtas até fechar o total. Sortear tudo de um monte só devolvia partidas em
+				// que um jogador andava a nave inteira e outro resolvia tudo num canto - e a diferença
+				// entre esses dois jogadores, num jogo em que andar faz barulho, é enorme.
+				array<map_object@> long_pool;
+				array<map_object@> short_pool;
+				for (uint s = 0; s < personal_spots.length(); s++) {
+					if (task_is_long(personal_spots[s].task_type)) long_pool.insert_last(personal_spots[s]);
+					else short_pool.insert_last(personal_spots[s]);
+				}
+				shuffle_object_array(long_pool);
+				shuffle_object_array(short_pool);
+
+				uint total = lobby.config.task_count_per_crewmate;
+				total = total > p.tasks.length() ? total - p.tasks.length() : 0;
+				uint want_long = lobby.config.long_task_count;
+				if (want_long > total) want_long = total;
+				if (want_long > long_pool.length()) want_long = long_pool.length();
+				// O que faltar de longa vira curta, e vice-versa: o mapa tem um número fixo de pontos
+				// de cada tipo, e é melhor entregar o total pedido do que respeitar a proporção à risca.
+				uint want_short = total - want_long;
+				if (want_short > short_pool.length()) {
+					uint sobra = want_short - short_pool.length();
+					want_short = short_pool.length();
+					if (want_long + sobra <= long_pool.length()) want_long += sobra;
+				}
+				for (uint t = 0; t < want_long; t++) {
 					player_task pt;
-					pt.object_id = pool[t].id;
-					pt.task_type = pool[t].task_type;
+					pt.object_id = long_pool[t].id;
+					pt.task_type = long_pool[t].task_type;
+					p.tasks.insert_last(pt);
+				}
+				for (uint t = 0; t < want_short; t++) {
+					player_task pt;
+					pt.object_id = short_pool[t].id;
+					pt.task_type = short_pool[t].task_type;
 					p.tasks.insert_last(pt);
 				}
 			}

@@ -6,6 +6,21 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.29.0
+
+- **Tarefas agora são curtas, longas ou comuns**, e a lista (tecla T) diz qual é qual — dá para
+  planejar a rota sabendo se aquela tarefa custa uma travessia da nave ou resolve ali mesmo. O
+  anfitrião escolhe **quantas das tarefas são longas** nas regras da sala.
+- **F5 recarrega a lista**, no saguão e na lista de partidas. O saguão também passa a dizer quem
+  está lá assim que você entra nele.
+- **Volume do seu microfone** nas configurações de chat de voz, para quem fala baixo demais ou alto
+  demais do outro lado.
+- **F3 abre as configurações dentro da sala de espera**, sem precisar sair e perder o lugar. E a
+  tecla de medir o ping passa a funcionar ali também.
+- Duas regras novas de sala: a **recarga do botão de emergência** (era sempre 15 segundos) e
+  **"comunicações sabotadas calam a reunião"** — com ela ligada, sabotar as comunicações antes de um
+  corpo aparecer faz a discussão inteira acontecer só por texto.
+
 ## 0.28.0
 
 - **Saguão.** No menu de partidas agora dá para ver **quem está online** fora das salas e

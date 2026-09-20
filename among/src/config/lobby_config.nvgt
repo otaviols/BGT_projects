@@ -30,6 +30,7 @@ class lobby_overrides {
 	int max_players = -1;
 	int impostor_count = -1;
 	int task_count_per_crewmate = -1;
+	int long_task_count = -1;
 	float kill_cooldown_seconds = -1.0;
 	float discussion_time_seconds = -1.0;
 	float voting_time_seconds = -1.0;
@@ -49,6 +50,7 @@ class lobby_overrides {
 		if (max_players > 0) cfg.max_players = uint(max_players);
 		if (impostor_count > 0) cfg.impostor_count = impostor_count;
 		if (task_count_per_crewmate > 0) cfg.task_count_per_crewmate = uint(task_count_per_crewmate);
+		if (long_task_count >= 0) cfg.long_task_count = uint(long_task_count);
 		if (kill_cooldown_seconds > 0.0) cfg.kill_cooldown_seconds = kill_cooldown_seconds;
 		if (discussion_time_seconds > 0.0) cfg.discussion_time_seconds = discussion_time_seconds;
 		if (voting_time_seconds > 0.0) cfg.voting_time_seconds = voting_time_seconds;
@@ -71,6 +73,7 @@ class lobby_overrides {
 		pkt.set_int("max_players", max_players);
 		pkt.set_int("impostor_count", impostor_count);
 		pkt.set_int("task_count_per_crewmate", task_count_per_crewmate);
+		pkt.set_int("long_task_count", long_task_count);
 		pkt.set_float("kill_cooldown_override", kill_cooldown_seconds);
 		pkt.set_float("discussion_time_seconds", discussion_time_seconds);
 		pkt.set_float("voting_time_seconds", voting_time_seconds);
@@ -88,6 +91,7 @@ class lobby_overrides {
 		max_players = pkt.get_int("max_players", -1);
 		impostor_count = pkt.get_int("impostor_count", -1);
 		task_count_per_crewmate = pkt.get_int("task_count_per_crewmate", -1);
+		long_task_count = pkt.get_int("long_task_count", -1);
 		kill_cooldown_seconds = pkt.get_float("kill_cooldown_override", -1.0);
 		discussion_time_seconds = pkt.get_float("discussion_time_seconds", -1.0);
 		voting_time_seconds = pkt.get_float("voting_time_seconds", -1.0);
@@ -106,6 +110,9 @@ class lobby_config {
 	uint max_players = 10;
 	int impostor_count = 1; // -1 = calcular automaticamente a partir dos jogadores conectados
 	uint task_count_per_crewmate = DEFAULT_TASK_COUNT_PER_CREWMATE;
+	// Quantas das pessoais são longas; o resto é curto (ver LONG_TASK_TYPES). Mexer nisto muda a
+	// duração da partida mais do que qualquer outro número: tarefa longa é tempo andando pela nave.
+	uint long_task_count = DEFAULT_LONG_TASK_COUNT;
 	float kill_cooldown_seconds = KILL_COOLDOWN_SECONDS;
 	float discussion_time_seconds = DISCUSSION_TIME_SECONDS;
 	float voting_time_seconds = VOTING_TIME_SECONDS;
@@ -143,6 +150,9 @@ class lobby_config {
 		if (impostor_count > max_impostors) { impostor_count = max_impostors; changed = true; }
 		if (impostor_count < 1 && impostor_count != -1) { impostor_count = 1; changed = true; }
 		if (task_count_per_crewmate < 1) { task_count_per_crewmate = 1; changed = true; }
+		// Mais longas do que tarefas no total não quer dizer nada, e o sorteio acabaria devolvendo
+		// menos tarefas do que o anfitrião pediu sem explicar por quê.
+		if (long_task_count > task_count_per_crewmate) { long_task_count = task_count_per_crewmate; changed = true; }
 		if (kill_cooldown_seconds < 5.0) { kill_cooldown_seconds = 5.0; changed = true; }
 		if (discussion_time_seconds < 5.0) { discussion_time_seconds = 5.0; changed = true; }
 		if (voting_time_seconds < 5.0) { voting_time_seconds = 5.0; changed = true; }
@@ -170,6 +180,7 @@ class lobby_config {
 		o.set("impostor_count", resolved_impostor_count(connected_players));
 		o.set("impostors_automatic", impostor_count == -1);
 		o.set("task_count_per_crewmate", int(task_count_per_crewmate));
+		o.set("long_task_count", int(long_task_count));
 		o.set("kill_cooldown_seconds", kill_cooldown_seconds);
 		o.set("discussion_time_seconds", discussion_time_seconds);
 		o.set("voting_time_seconds", voting_time_seconds);

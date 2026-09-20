@@ -1,0 +1,51 @@
+// Sonda do sorteio de tarefas por categoria: com a sala pedindo N tarefas das quais L longas, é
+// isso que cada tripulante recebe? E quando o mapa não tem longas suficientes, o total é mantido?
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_task_mix.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void mede(int total, int longas) {
+	server_address addr = resolve_server_address();
+	string name = "mix" + random(10000, 99999);
+	game_client c;
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(name, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(name, "probe123");
+	if (@wf(c, S_LOGIN_RESULT, 5000) == null) { println("login falhou"); return; }
+	lobby_overrides ov;
+	ov.impostor_count = 1; ov.task_count_per_crewmate = total; ov.long_task_count = longas;
+	c.send_create_lobby("mix", "classic", ov);
+	if (@wf(c, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
+	for (int b = 0; b < 3; b++) { c.send_add_bot(); timer w; while (w.elapsed < 150) { c.update(); c.clear_incoming(); wait(5); } }
+	c.send_start_game();
+	net_packet@ start = wf(c, S_GAME_START, 8000);
+	if (@start == null) { println("nao comecou"); return; }
+	if (start.get_bool("your_role_impostor")) { c.disconnect(); mede(total, longas); return; } // impostor não tem tarefa: repete
+	json_array@ tasks = start.get_array("tasks");
+	uint n_longas = 0, n_curtas = 0, n_comuns = 0;
+	for (uint i = 0; i < tasks.length(); i++) {
+		string tipo = string(tasks.get_object(i)["task_type"]);
+		if (task_is_common(tipo)) n_comuns++;
+		else if (task_is_long(tipo)) n_longas++;
+		else n_curtas++;
+	}
+	println("pedido: " + total + " no total (" + longas + " longas) -> recebido: " + n_longas + " longas, "
+		+ n_curtas + " curtas, " + n_comuns + " comuns (total " + (n_longas + n_curtas + n_comuns) + ")");
+	c.disconnect();
+}
+
+void main() {
+	mede(5, 2);
+	mede(6, 0);
+	mede(6, 6); // mais longas do que o mapa tem: o total tem que ser mantido com curtas
+	mede(4, 4);
+}

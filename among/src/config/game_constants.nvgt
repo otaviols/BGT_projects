@@ -9,7 +9,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.28.0";
+const string GAME_VERSION = "0.29.0";
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.
@@ -155,6 +155,10 @@ const float DOORS_COOLDOWN_SECONDS = 25.0;
 
 // Tasks
 const uint DEFAULT_TASK_COUNT_PER_CREWMATE = 5;
+// Quantas das tarefas pessoais são LONGAS. É esta a forma da configuração (total + quantas longas)
+// em vez de uma contagem por categoria: as curtas são o resto, ninguém precisa fazer a conta, e a
+// sala continua entendendo o total que as versões anteriores já mandavam.
+const uint DEFAULT_LONG_TASK_COUNT = 2;
 
 // TASKS COMUNS: ou TODO tripulante recebe, ou NENHUM recebe - nunca só alguns.
 //
@@ -166,10 +170,33 @@ const uint DEFAULT_TASK_COUNT_PER_CREWMATE = 5;
 //
 // Por isso também: uma task comum tem UM ponto só no mapa inteiro (ver game/map.nvgt), senão "fui no
 // outro" viraria escapatória.
+// Tarefas LONGAS: as que fazem o jogador atravessar a nave ou ficar parado um bom tempo. A
+// distinção existe por um motivo que vale mais aqui do que no jogo original: nesta versão, andar é
+// fazer barulho, e barulho é a moeda do jogo. Uma tarefa curta feita num canto não produz
+// informação nenhuma para ninguém; uma longa é álibi para quem a faz e janela para o impostor.
+//
+// Uma tarefa que não é comum nem longa é CURTA - não existe terceira lista para ficar fora de
+// sincronia com esta. Ao acrescentar uma tarefa nova, decida aqui se ela é longa; esquecer é
+// tratá-la como curta, que é o padrão seguro.
+const array<string> LONG_TASK_TYPES = {"empty_garbage", "align_engine", "fuel_engines",
+	"clear_asteroids", "review_records", "submit_scan"};
+
+// Tarefas COMUNS: iguais para todo tripulante, no mesmo ponto do mapa. São a ferramenta de dedução
+// mais barata do jogo - quem diz ter feito uma comum que você não tem está mentindo.
 const array<string> COMMON_TASK_TYPES = {"swipe_card"};
 // Chance de CADA task comum entrar na partida. Não é 100% de propósito: a graça está justamente em
 // não saber de antemão, senão a desculpa nunca seria testável.
 const float COMMON_TASK_CHANCE = 0.5;
+
+bool task_is_long(const string&in task_type) { return LONG_TASK_TYPES.find(task_type) != -1; }
+bool task_is_common(const string&in task_type) { return COMMON_TASK_TYPES.find(task_type) != -1; }
+
+// Chave do nome falado da categoria, para a lista de tarefas dizer o que é cada uma - quem planeja
+// a rota quer saber de antemão se vai atravessar a nave ou resolver ali mesmo.
+string task_category_key(const string&in task_type) {
+	if (task_is_common(task_type)) return "task.category_common";
+	return task_is_long(task_type) ? "task.category_long" : "task.category_short";
+}
 
 // Quanto o aviso de "esta sala está sendo observada" toca ABAIXO dos outros marcadores, em dB.
 //

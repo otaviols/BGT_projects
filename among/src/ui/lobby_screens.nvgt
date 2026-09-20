@@ -392,6 +392,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	bool auto_impostors = @current != null && bool(current["impostors_automatic"]);
 	int f_impostors = f.create_input_box(tr("lobby.impostor_count_override"), auto_impostors ? "" : current_int_text(current, "impostor_count"));
 	int f_tasks = f.create_input_box(tr("lobby.task_count_override"), current_int_text(current, "task_count_per_crewmate"));
+	int f_long_tasks = f.create_input_box(tr("lobby.long_task_count_override"), current_int_text(current, "long_task_count"));
 	int f_discussion = f.create_input_box(tr("lobby.discussion_time_override"), current_float_text(current, "discussion_time_seconds"));
 	int f_voting = f.create_input_box(tr("lobby.voting_time_override"), current_float_text(current, "voting_time_seconds"));
 	int f_meetings = f.create_input_box(tr("lobby.emergency_meetings_override"), current_int_text(current, "emergency_meetings_per_player"));
@@ -449,6 +450,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.max_players = text_to_int_or_default(f.get_text(f_max_players));
 			r.ov.impostor_count = text_to_int_or_default(f.get_text(f_impostors));
 			r.ov.task_count_per_crewmate = text_to_int_or_default(f.get_text(f_tasks));
+			r.ov.long_task_count = text_to_int_or_default(f.get_text(f_long_tasks));
 			r.ov.discussion_time_seconds = text_to_float_or_default(f.get_text(f_discussion));
 			r.ov.voting_time_seconds = text_to_float_or_default(f.get_text(f_voting));
 			r.ov.emergency_meetings_per_player = text_to_int_or_default(f.get_text(f_meetings));

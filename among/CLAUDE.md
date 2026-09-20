@@ -397,6 +397,17 @@ votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na r
 na mesma mesa; o fantasma fica onde morreu, então com posição ele ouvia a discussão e os outros
 fantasmas - espalhados pelo mapa - de tão longe que virava silêncio. Morto não tem lugar.
 
+**Tarefa longa vale mais aqui do que no jogo original.** `LONG_TASK_TYPES` (em
+`config/game_constants.nvgt`) marca as tarefas que fazem atravessar a nave ou ficar parado um bom
+tempo; o que não é comum nem longo é CURTO, sem terceira lista para sair de sincronia. O motivo não
+é paridade com o original: nesta versão andar é fazer barulho, e barulho é a moeda do jogo - uma
+tarefa curta feita num canto não produz informação para ninguém, uma longa é álibi para quem a faz
+e janela para o impostor. O sorteio é por categoria (`on_start_game`), e quando o mapa não tem
+pontos suficientes de uma delas o resto vem da outra: entregar o total pedido importa mais do que a
+proporção exata. A configuração é **total + quantas longas** (não uma contagem por categoria): as
+curtas são o resto, ninguém faz conta, e as versões anteriores, que só mandavam o total, continuam
+entendidas. Sonda: `tools/probes/probe_task_mix.nvgt`.
+
 **Um sinal sonoro, um significado.** O tom do bip do radar dizia a DISTÂNCIA (130 perto, 80 longe)
 enquanto o tom de todo o resto do jogo diz NORTE/SUL (`SPATIAL_SOUTH_PITCH_DECREASE`, 6%). Os 50%
 da distância engoliam os 6% da direção, e o radar deixava de responder à única pergunta que o

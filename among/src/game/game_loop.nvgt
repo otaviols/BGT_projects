@@ -312,6 +312,9 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 		dictionary@ item = dictionary();
 		item.set("name", @obj != null ? tr(obj.name_key) : tr(pending[i].task_type + ".name"));
 		item.set("room", @zone != null ? tr(zone.name_key) : "");
+		// A categoria entra no item: quem planeja a rota quer saber de antemão se aquela tarefa vai
+		// custar uma travessia da nave ou se resolve ali mesmo.
+		item.set("category", tr(task_category_key(pending[i].task_type)));
 		m.add_item(tr("task.list_item", item), pending[i].object_id);
 	}
 

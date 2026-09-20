@@ -66,6 +66,11 @@ string lobby_config_text(json_object@ cfg) {
 	dictionary@ tp = dictionary();
 	tp.set("count", "" + int(cfg["task_count_per_crewmate"]));
 	partes.insert_last(tr("lobby.info.tasks", tp));
+	if (cfg.exists("long_task_count")) {
+		dictionary@ lp = dictionary();
+		lp.set("count", "" + int(cfg["long_task_count"]));
+		partes.insert_last(tr("lobby.info.long_tasks", lp));
+	}
 
 	dictionary@ kp = dictionary();
 	kp.set("seconds", seconds_text(float(cfg["kill_cooldown_seconds"])));
