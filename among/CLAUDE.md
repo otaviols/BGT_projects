@@ -397,6 +397,16 @@ votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na r
 na mesma mesa; o fantasma fica onde morreu, então com posição ele ouvia a discussão e os outros
 fantasmas - espalhados pelo mapa - de tão longe que virava silêncio. Morto não tem lugar.
 
+**O grafo de navegação sai do NOME do corredor - e só sabe ligar sala a sala.** `zone_neighbors`
+parte `corridor_<sala_a>_<sala_b>` em três e é assim que os bots acham caminho. Uma sala pendurada
+num CORREDOR (a do oxigênio, que se abre para o corredor de carga) não cabe nessa forma: o id teria
+quatro partes, o grafo a ignoraria e os bots nunca chegariam lá - sem erro nenhum, só bots que não
+vão àquela sala. Para esses casos existe `zone_link`/`extra_links`, uma ligação declarada à mão.
+Ao acrescentar zona nova, confira as duas coisas separadamente: a GEOMETRIA decide por onde o
+jogador anda (`zone_at`/`can_move` são puramente retangulares, e zonas não podem se sobrepor, senão
+o jogo diz a sala errada conforme qual for encontrada primeiro), e o GRAFO decide por onde o bot
+anda. Sonda: `tools/probes/probe_o2room.nvgt`.
+
 **Duas redes de dutos, e elas não podem se tocar.** A rede se declara nos `linked_object_id` de
 cada duto (lista separada por vírgula), e é o que permite ao jogador deduzir para onde alguém pode
 ter ido: "a tampa abriu na navegação, então ele saiu em armas ou no reator". Ligar todos os dutos

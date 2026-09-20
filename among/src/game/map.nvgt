@@ -22,6 +22,22 @@ class task_chain {
 	}
 }
 
+// Uma ligação entre duas zonas que o nome do corredor NÃO consegue expressar.
+//
+// O grafo de navegação sai da convenção "corridor_<sala_a>_<sala_b>" (ver zone_neighbors), e ela só
+// sabe ligar SALA a SALA. Uma sala pendurada num corredor - como a do oxigênio, que se abre para o
+// corredor de carga - não cabe nessa forma: o id teria quatro partes e o grafo simplesmente a
+// ignoraria, deixando os bots pararem de andar até ela.
+class zone_link {
+	string a;
+	string b;
+
+	zone_link(const string&in a, const string&in b) {
+		this.a = a;
+		this.b = b;
+	}
+}
+
 class map_zone {
 	string id;
 	string name_key; // chave de i18n, ex: "room.cafeteria"
@@ -86,6 +102,9 @@ class map_object {
 }
 
 class game_map {
+	// Ligações que a convenção de nome não expressa (ver zone_link).
+	array<zone_link@> extra_links;
+
 	// Tarefas de várias fases (ver task_chain). Uma tarefa que não está aqui tem uma fase só.
 	array<task_chain@> chains;
 
@@ -268,6 +287,11 @@ class game_map {
 				result.insert_last(z.id);
 			}
 		}
+		// E as ligações declaradas à mão, para o que a convenção não alcança (ver zone_link).
+		for (uint i = 0; i < extra_links.length(); i++) {
+			if (extra_links[i].a == zone_id) result.insert_last(extra_links[i].b);
+			else if (extra_links[i].b == zone_id) result.insert_last(extra_links[i].a);
+		}
 		return result;
 	}
 
@@ -407,6 +431,17 @@ game_map@ build_the_hub_map() {
 	m.zones.insert_last(map_zone("corridor_medbay_electrical", "corridor.electrical", -30, -37.5, 3, 4.5, "Tile", true));
 	// Único corredor com piso de terra, o que já dá identidade própria a ele de ouvido.
 	m.zones.insert_last(map_zone("corridor_storage_electrical", "corridor.cargo", -16, -50, 6, 3, "EarthTile", true));
+	// Salinha do oxigênio: abre para o corredor de carga, encostada nele pelo lado de cima (o
+	// corredor vai até y -47, e ela começa exatamente ali). Existe para tirar o painel de oxigênio de
+	// dentro da elétrica - com os dois lá, apagar a luz e cortar o ar eram a mesma corrida para a
+	// mesma sala, e quem fosse consertar encontrava tudo no mesmo lugar.
+	//
+	// O piso de vidro é o único do mapa: entrar nela é reconhecível pelo passo, sem precisar de
+	// anúncio nenhum - é uma sala pequena demais para se ficar procurando.
+	m.zones.insert_last(map_zone("oxygen", "room.oxygen", -16, -44, 3, 3, "GlassTile"));
+	// Ela é uma SALA pendurada num CORREDOR, forma que o nome do corredor não expressa (ver
+	// zone_link): sem esta linha os bots nunca acham caminho até ela.
+	m.extra_links.insert_last(zone_link("corridor_storage_electrical", "oxygen"));
 	m.zones.insert_last(map_zone("corridor_electrical_reactor", "corridor.reactor", -30, -62.5, 3, 4.5, "MetalTile", true));
 	// Corredores da ala sul. O id segue a convenção "corridor_<sala_a>_<sala_b>", que é de onde a IA
 	// dos bots tira o grafo de navegação (ver zone_neighbors) - fugir dela deixaria os bots parados.
@@ -526,7 +561,7 @@ game_map@ build_the_hub_map() {
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights", "", SND_PANEL_BEACON_LIGHTS));
 	m.objects.insert_last(map_object("panel_oxygen_admin", "sabotage.oxygen.name", 6, -20, "admin",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen", "", SND_PANEL_BEACON_OXYGEN));
-	m.objects.insert_last(map_object("panel_oxygen_electrical", "sabotage.oxygen.name", -33, -53, "electrical",
+	m.objects.insert_last(map_object("panel_oxygen_o2room", "sabotage.oxygen.name", -16, -44, "oxygen",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen", "", SND_PANEL_BEACON_OXYGEN));
 	m.objects.insert_last(map_object("panel_comms_navigation", "sabotage.comms.name", 38, -6, "navigation",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "comms", "", SND_PANEL_BEACON_COMMS));

@@ -1,0 +1,50 @@
+// Sonda da salinha do oxigênio: ela existe, encosta no corredor de carga, os bots acham caminho até
+// ela (é o que a ligação explícita resolve), e o painel de oxigênio mudou de sala.
+//   nvgt tools/probes/probe_o2room.nvgt
+#include "../../src/game/map.nvgt"
+
+void main() {
+	game_map@ m = build_the_hub_map();
+
+	map_zone@ o2 = m.find_zone("oxygen");
+	println("a sala existe: " + (@o2 != null));
+	if (@o2 == null) return;
+
+	// Encostada no corredor: o ponto logo abaixo da borda dela tem que ser o corredor de carga, e o
+	// de dentro tem que ser ela. Sem isso não se entra nela a pé.
+	map_zone@ dentro = m.zone_at(-16, -44);
+	map_zone@ abaixo = m.zone_at(-16, -49);
+	println("dentro dela: " + (@dentro != null ? dentro.id : "nada") + " (esperado oxygen)");
+	println("logo abaixo: " + (@abaixo != null ? abaixo.id : "nada") + " (esperado corridor_storage_electrical)");
+
+	// Nenhuma zona pode se sobrepor a ela - um ponto pertencer a duas zonas faz o jogo dizer a sala
+	// errada, dependendo de qual for encontrada primeiro.
+	uint sobrepostas = 0;
+	for (uint i = 0; i < m.zones.length(); i++) {
+		map_zone@ z = m.zones[i];
+		if (z.id == "oxygen") continue;
+		bool x_bate = !(z.center_x + z.half_w <= -19 || z.center_x - z.half_w >= -13);
+		bool y_bate = !(z.center_y + z.half_h <= -47 || z.center_y - z.half_h >= -41);
+		if (x_bate && y_bate) { println("  sobrepoe: " + z.id); sobrepostas++; }
+	}
+	println("zonas sobrepostas: " + sobrepostas + " (esperado 0)");
+
+	// O grafo dos bots: de qualquer sala tem que existir caminho até ela, e de dentro dela de volta.
+	array<string> origens = {"cafeteria", "storage", "electrical", "navigation", "greenhouse"};
+	for (uint i = 0; i < origens.length(); i++) {
+		array<string>@ ida = m.zone_path(origens[i], "oxygen");
+		array<string>@ volta = m.zone_path("oxygen", origens[i]);
+		println("  " + origens[i] + " -> oxygen: " + ida.length() + " zonas; volta: " + volta.length()
+			+ (ida.length() > 0 && volta.length() > 0 ? "  ok" : "  FALHA: sem caminho"));
+	}
+
+	// O painel saiu da elétrica
+	println("painel antigo na eletrica: " + (@m.find_object("panel_oxygen_electrical") != null) + " (esperado false)");
+	map_object@ novo = m.find_object("panel_oxygen_o2room");
+	println("painel novo: " + (@novo != null ? novo.room_id : "nao existe") + " (esperado oxygen)");
+	// Os dois painéis de oxigênio continuam existindo, em salas diferentes
+	array<map_object@>@ paineis = m.objects_by_type(OBJ_SABOTAGE_PANEL);
+	uint n_o2 = 0;
+	for (uint i = 0; i < paineis.length(); i++) if (paineis[i].task_type == "oxygen") { n_o2++; println("  oxigenio em " + paineis[i].room_id); }
+	println("paineis de oxigenio: " + n_o2 + " (esperado 2)");
+}
