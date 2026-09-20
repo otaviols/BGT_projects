@@ -13,7 +13,8 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
   anfitrião escolhe **quantas das tarefas são longas** nas regras da sala.
 - **Tarefas de várias etapas.** "Abastecer os motores" agora é pegar o galão no depósito e levá-lo
   até o reator: o marcador muda de lugar sozinho, o jogo diz para onde ir, e a lista de tarefas
-  mostra em que etapa você está e onde ela é. Ser interrompido por uma reunião no meio não perde o
+  mostra em que etapa você está e onde ela é. Cada etapa tem o seu próprio marcador, para dar para
+  distinguir de ouvido onde se pega do lugar onde se entrega. Ser interrompido por uma reunião no meio não perde o
   progresso — você volta com o galão na mão.
 - **F5 recarrega a lista**, no saguão e na lista de partidas. O saguão também passa a dizer quem
   está lá assim que você entra nele.

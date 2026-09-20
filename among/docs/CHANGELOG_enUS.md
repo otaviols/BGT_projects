@@ -13,7 +13,8 @@ Everything that changed in the game, newest first.
   chooses **how many of the tasks are long** in the room rules.
 - **Multi-step tasks.** "Fuel Engines" is now picking up the can in storage and carrying it to the
   reactor: the beacon moves on its own, the game tells you where to go, and the task list shows
-  which step you are on and where it is. Being interrupted by a meeting midway loses nothing — you
+  which step you are on and where it is. Each step has its own beacon, so you can tell by ear where
+  you pick up from where you deliver. Being interrupted by a meeting midway loses nothing — you
   come back holding the can.
 - **F5 refreshes the list**, both in the hall and in the match list. The hall also says who is there
   as soon as you open it.

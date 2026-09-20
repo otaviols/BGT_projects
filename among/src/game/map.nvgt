@@ -465,8 +465,10 @@ game_map@ build_the_hub_map() {
 		OBJ_TASK_SPOT, "sounds/" + SND_MEDBAY_SCAN, "submit_scan", "", SND_TASK_BEACON_SUBMIT_SCAN));
 	m.objects.insert_last(map_object("task_manifolds_medbay", "task.unlock_manifolds.name", -33, -28, "medbay",
 		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "unlock_manifolds", "", SND_TASK_BEACON_UNLOCK_MANIFOLDS));
-	m.objects.insert_last(map_object("task_fuel_storage", "task.fuel_engines.name", -3, -53, "storage",
-		OBJ_TASK_SPOT, "sounds/" + SND_PULLING_GARBAGE_LEVER, "fuel_engines", "", SND_TASK_BEACON_FUEL_ENGINES));
+	// A primeira fase tem nome e marcador próprios: na lista de tarefas e no anúncio da etapa, "pegar
+	// o combustível, no depósito" diz o que fazer - "abastecer os motores, no depósito" não diria.
+	m.objects.insert_last(map_object("task_fuel_storage", "task.fuel_engines.pickup_name", -3, -53, "storage",
+		OBJ_TASK_SPOT, "sounds/" + SND_FUEL_GRAB, "fuel_engines", "", SND_TASK_BEACON_GRAB_FUEL));
 	m.objects.insert_last(map_object("task_fuel_reactor", "task.fuel_engines.name", -27, -78, "reactor",
 		OBJ_TASK_SPOT, "sounds/" + SND_PULLING_GARBAGE_LEVER, "fuel_engines", "", SND_TASK_BEACON_FUEL_ENGINES));
 	// Abastecer os motores é a primeira tarefa de duas fases: pegar o galão no depósito e levá-lo

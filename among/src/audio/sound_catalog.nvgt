@@ -108,6 +108,10 @@ const string SND_TASK_BEACON_ALIGN_ENGINE = "sounds/beacons/align_engine_pannel.
 const string SND_TASK_BEACON_SWIPE_CARD = "sounds/beacons/swipe_card_pannel.ogg";
 const string SND_TASK_BEACON_UNLOCK_MANIFOLDS = "sounds/beacons/unlock_collectors_pannel.ogg";
 const string SND_TASK_BEACON_FUEL_ENGINES = "sounds/beacons/fuel_pannel.ogg";
+// As duas fases de abastecer os motores têm marcadores DIFERENTES de propósito: sem ver, a única
+// forma de distinguir "onde eu pego" de "onde eu entrego" é o som do lugar. Com o mesmo marcador
+// nos dois pontos, a tarefa viraria uma caça ao tesouro sem pista.
+const string SND_TASK_BEACON_GRAB_FUEL = "sounds/beacons/grab_fuel.ogg";
 const string SND_TASK_BEACON_CLEAR_ASTEROIDS = "sounds/beacons/asteroid_pannel.ogg";
 const string SND_TASK_BEACON_ROLL_DICE = "sounds/beacons/games_pannel.ogg";
 const string SND_TASK_BEACON_WATER_PLANTS = "sounds/beacons/plants_pannel.ogg";
@@ -115,9 +119,8 @@ const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.ogg
 const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
-// Pegar o galão de combustível no depósito (primeira fase de abastecer os motores). Provisório: usa
-// o som da alavanca até entrar um som próprio.
-const string SND_FUEL_GRAB = SND_PULLING_GARBAGE_LEVER;
+// Pegar o galão de combustível no depósito (primeira fase de abastecer os motores).
+const string SND_FUEL_GRAB = "tasks/fuel_grab.ogg";
 const string SND_TASK_INPROGRESS = "tasks/task_inprogress.ogg"; // abriu uma task, ou fechou sem terminar
 const string SND_TASK_COMPLETE = "tasks/task_complete.ogg";     // fechou a task terminada
 const string SND_BEEP = "tasks/beep.ogg";
@@ -301,6 +304,8 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_PANEL_BEACON_COMMS);
 	list.insert_last(SND_TASK_BEACON_UNLOCK_MANIFOLDS);
 	list.insert_last(SND_TASK_BEACON_FUEL_ENGINES);
+	list.insert_last(SND_TASK_BEACON_GRAB_FUEL);
+	list.insert_last("sounds/" + SND_FUEL_GRAB);
 	list.insert_last(SND_TASK_BEACON_CLEAR_ASTEROIDS);
 	list.insert_last(SND_TASK_BEACON_ROLL_DICE);
 	list.insert_last(SND_TASK_BEACON_WATER_PLANTS);
