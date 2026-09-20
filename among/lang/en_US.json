@@ -25,6 +25,7 @@
 	"update.manual_platform": "A new version is out. On this system updating is still manual: opening the download page.",
 	"volume.music": "Music",
 	"volume.voices": "Other players' voices",
+	"volume.emergency": "Emergency meeting alarm",
 	"menu.explore_map": "Explore the map",
 	"explore.intro": "You are in the cafeteria, alone on the ship. Walk with the movement keys; each room is named as you enter it. Tab lists what is in the room, Enter says what the nearest object is, and ESC returns to the menu.",
 	"explore.object_hint": "In a match, Enter here would open this.",

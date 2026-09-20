@@ -6,6 +6,12 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.29.1
+
+- **A volume of its own for the emergency meeting alarm.** It is the loudest and most sudden sound in
+  the game, and until now turning it down also turned down deaths, body reports and victory, which
+  share the same category.
+
 ## 0.29.0
 
 - **Tasks are now short, long or common**, and the list (T key) says which is which — you can plan

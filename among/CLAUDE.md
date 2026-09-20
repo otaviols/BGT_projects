@@ -307,6 +307,12 @@ não nos arquivos, para ajustar sem reconverter. Duas armadilhas na medição: R
 inclui o silêncio do fim e subestima som curto (medir só o que está acima de 1% do pico), e mesmo a
 medida certa erra para mais - o Tile pedia +17,6 pela conta e ficou alto demais, voltando para +15.
 
+**Família de volume nova entra em QUATRO lugares.** `SOUND_FAMILY_<NOME>` (índice), `..._COUNT`,
+`SOUND_FAMILY_IDS` (o id vai para o disco como `volume_<id>`, então acrescente sempre no FIM para
+não mexer no que o jogador já ajustou), `SOUND_FAMILY_NAME_KEYS`, e `FAMILY_PREVIEW_SOUNDS` em
+`ui/settings_screens.nvgt` - as três listas são indexadas pelo mesmo número, e uma menor que
+`COUNT` é leitura fora do array na tela de volumes. Mais as chaves de texto nos dois idiomas.
+
 **Piso novo entra em DUAS tabelas, e esquecer uma falha calado.** `footstep_variant_count` tem um
 fallback de 2 variantes: um piso com oito arquivos que não esteja na tabela toca sempre os dois
 mesmos passos, e nada acusa - o som existe, só soa repetitivo. `FOOTSTEP_FLOOR_PREFIXES` é a outra:

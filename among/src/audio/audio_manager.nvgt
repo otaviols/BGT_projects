@@ -207,7 +207,9 @@ class audio_manager {
 	}
 
 	// Toca uma vez pra nave inteira quando alguém aperta o botão de emergência (reunião chamada).
-	void play_meeting_alarm() { spatial.play_ui(SND_MEETING_ALARM, false, family_db(SOUND_FAMILY_EVENTS)); }
+	// Família própria (ver SOUND_FAMILY_EMERGENCY): é o som mais alto do jogo, e abaixá-lo não pode
+	// custar o som da morte nem o do corpo encontrado.
+	void play_meeting_alarm() { spatial.play_ui(SND_MEETING_ALARM, false, family_db(SOUND_FAMILY_EMERGENCY)); }
 
 	// Sabotagem de luzes reduz o alcance de audição ambiente (decisão de design).
 	// Zumbido da sala sob observação. Um só de cada vez: só existe um posto de câmeras, então só
