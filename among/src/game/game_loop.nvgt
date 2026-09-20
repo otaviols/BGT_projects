@@ -105,13 +105,10 @@ void apply_sabotage_effects(audio_manager@ audio, meeting_ui@ mui, game_map@ map
 	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, role, alive);
 }
 
-// Liga ou corta o rádio deste jogador pela regra da sala mais a sabotagem de comunicações.
-// Devolve true quando o rádio ACABOU de cair, para quem chama avisar o jogador uma única vez.
-bool apply_voice_permission(bool room_allows, const string&in active_sabotage, bool alive) {
-	bool down = voice_down_for(active_sabotage, alive);
-	bool was_allowed = g_voice.allowed;
-	g_voice.allowed = room_allows && !down;
-	return room_allows && down && was_allowed;
+// O rádio acabou de cair para este jogador? Serve só para avisá-lo uma vez; quem liga e desliga a
+// captura é o laço principal, a cada quadro (ver g_voice.allowed lá).
+bool voice_just_went_down(bool room_allows, const string&in active_sabotage, bool alive) {
+	return room_allows && g_voice.allowed && voice_down_for(active_sabotage, alive);
 }
 
 // Espera o retrato da sala reaberta que o servidor manda logo depois do fim da partida. Devolve
@@ -424,6 +421,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// A regra da sala vale para a partida inteira; o que muda no meio é a sabotagem de comunicações,
 	// que derruba o rádio enquanto durar (ver voice_down_for).
 	bool voice_room_allows = start_pkt.get_bool("voice_chat", false);
+	// Servidor antigo não manda: nele a reunião nunca era atingida, que era o comportamento de lá.
+	bool voice_comms_affects_meeting = start_pkt.get_bool("comms_affects_meeting", false);
 	g_voice.begin_match(roster, client.my_peer_id, voice_room_allows);
 
 	// Cooldown de kill acompanhado localmente (só é preciso de verdade pro impostor) - o servidor
@@ -607,8 +606,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// Virou fantasma: sabotagem não atinge morto, então o que estava ligado sai agora.
 					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 						my_role, is_impostor, alive, known_body_peers, known_body_positions);
-					apply_voice_permission(voice_room_allows, active_sabotage_id, alive);
-					// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
+						// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
 					// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
 					// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
 					string killed_text = you_were_killed_text(pkt, roster);
@@ -675,8 +673,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					mui.alive = false; // virou fantasma: sabotagem deixa de atingi-lo (ver apply_sabotage_effects)
 					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 						my_role, is_impostor, alive, known_body_peers, known_body_positions);
-					apply_voice_permission(voice_room_allows, active_sabotage_id, alive);
-				}
+					}
 				// O servidor rearma o cooldown de kill de todo impostor ao fim da votação (ver
 				// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
 				// falharia calada.
@@ -693,7 +690,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// saem todos daqui, para o fantasma e o vivo nunca discordarem sobre o que está ligado.
 				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 					my_role, is_impostor, alive, known_body_peers, known_body_positions);
-				if (apply_voice_permission(voice_room_allows, active_sabotage_id, alive)) {
+				if (voice_just_went_down(voice_room_allows, active_sabotage_id, alive)) {
 					string radio_text = tr("sabotage.comms.voice_down");
 					speak(radio_text);
 					events_log.add("", radio_text);
@@ -752,7 +749,6 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				active_sabotage_id = "";
 				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 					my_role, is_impostor, alive, known_body_peers, known_body_positions);
-				apply_voice_permission(voice_room_allows, active_sabotage_id, alive);
 				if (my_role.can_sabotage) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 			} else if (t == S_VENT_STATE) {
 				bool was_vented = is_vented;
@@ -878,6 +874,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// estão na mesma mesa, e o fantasma fica onde morreu - com posição, ele ouvia a discussão (e
 		// os outros fantasmas, espalhados pelo mapa) de longe, quase inaudível. Morto não tem lugar.
 		g_voice.spatial = alive && !movement_frozen;
+		// E se o microfone pode abrir. Por quadro pelo mesmo motivo: começar e acabar uma reunião
+		// também muda isto, e decidir só nas transições de sabotagem deixava o microfone fechado a
+		// reunião inteira quando as comunicações caíam antes dela.
+		bool radio_down = voice_down_for(active_sabotage_id, alive, movement_frozen, voice_comms_affects_meeting);
+		g_voice.allowed = voice_room_allows && !radio_down;
 
 		if (my_role.can_kill && my_kill_cooldown_remaining > 0.0) {
 			my_kill_cooldown_remaining -= delta;

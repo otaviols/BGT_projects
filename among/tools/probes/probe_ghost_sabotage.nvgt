@@ -1,0 +1,54 @@
+// Sonda do impostor morto: ele continua sabotando (como no jogo original), o tripulante morto não,
+// e a regra é a mesma nos dois lados (a capacidade local que oferece a tecla, e o servidor que
+// decide de fato). Testada direto no estado da partida, sem depender de orquestrar uma partida.
+//   nvgt tools/probes/probe_ghost_sabotage.nvgt
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+void caso(const string&in o_que, bool obtido, bool esperado) {
+	println((obtido == esperado ? "ok   " : "FALHA ") + o_que + ": " + obtido + " (esperado " + esperado + ")");
+}
+
+void main() {
+	println("--- a capacidade local (e o que oferece a tecla ao jogador) ---");
+	caso("impostor morto sabota", player_abilities(role_from_flag(true), false).can_sabotage(), true);
+	caso("impostor morto mata", player_abilities(role_from_flag(true), false).can_kill(), false);
+	caso("impostor morto ventila", player_abilities(role_from_flag(true), false).can_vent(), false);
+	caso("impostor morto fecha portas", player_abilities(role_from_flag(true), false).can_close_doors(), false);
+	caso("tripulante morto sabota", player_abilities(role_from_flag(false), false).can_sabotage(), false);
+
+	println("--- e o que o SERVIDOR decide (game_state.trigger_sabotage) ---");
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	lobby.sabotage_cooldown_remaining = 0.0;
+
+	game_player@ imp = game_player(1, "impostor");
+	imp.is_impostor = true;
+	imp.alive = false; // morto
+	game_player@ crew = game_player(2, "tripulante");
+	crew.alive = false;
+	lobby.players.insert_last(imp);
+	lobby.players.insert_last(crew);
+
+	net_packet@ ev;
+	string motivo;
+	caso("impostor MORTO consegue sabotar", lobby.trigger_sabotage(1, "lights", ev, motivo), true);
+	if (motivo != "") println("   motivo da recusa: " + motivo);
+
+	lobby.active_sabotage = "";
+	lobby.last_sabotage_id = "";
+	caso("tripulante morto consegue sabotar", lobby.trigger_sabotage(2, "lights", ev, motivo), false);
+
+	// Fechar portas continua exigindo estar vivo - a trava foi mexida por engano uma vez (uma linha
+	// idêntica na função vizinha), e é o tipo de coisa que passa despercebida.
+	array<string>@ fechadas;
+	lobby.doors_cooldown_remaining = 0.0;
+	caso("impostor MORTO fecha portas", lobby.close_doors_of_room(1, "cafeteria", fechadas), false);
+	game_player@ vivo = game_player(3, "impostor vivo");
+	vivo.is_impostor = true;
+	vivo.alive = true;
+	lobby.players.insert_last(vivo);
+	caso("impostor VIVO fecha portas", lobby.close_doors_of_room(3, "cafeteria", fechadas), true);
+}

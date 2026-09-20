@@ -6,6 +6,13 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.29.2
+
+- Corrigido: com a regra "comunicações sabotadas calam a reunião" **desligada**, a voz continuava
+  cortada na reunião assim mesmo.
+- **O impostor morto volta a sabotar**, como no jogo original. É o que lhe resta — matar, ventilar e
+  trancar portas acabam com a morte —, e sem isso morrer cedo como impostor era virar espectador.
+
 ## 0.29.1
 
 - **Volume só para o alarme de sabotagem** — aquele que fica tocando enquanto a sabotagem está no

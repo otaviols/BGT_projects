@@ -405,6 +405,21 @@ meio da partida que vários jogadores relataram. Duas correções: `game_client.
 já viaja pelo canal não confiável; descartar um EVENTO deixaria o cliente contando uma partida que
 não existe. Ao escrever qualquer tela bloqueante nova, nada de varrer `client.incoming` por quadro.
 
+**Regra que o cliente também aplica tem que morar numa função só.** O cliente decide se ABRE o
+microfone e o servidor decide QUEM ouve; quando as duas decisões são escritas separadas, elas
+divergem e vence a mais restritiva - foi assim que a regra "comunicações calam a reunião", mesmo
+DESLIGADA, continuava calando a reunião: o servidor deixava a voz passar e o cliente nem capturava.
+Hoje as duas perguntam a `voice_down_for` (em `core/sabotage_rules.nvgt`), que recebe se está em
+reunião e o que a sala escolheu; a regra da sala viaja no `S_GAME_START` justamente para o cliente
+poder responder igual. Sonda: `tools/probes/probe_voice_meeting.nvgt`.
+
+**Sabotar é a única capacidade que sobrevive à morte.** O impostor morto continua sabotando (como
+no original) - matar, ventilar e fechar portas acabam com ele. A regra está em dois lugares que
+precisam concordar: `player_abilities.can_sabotage()` (que oferece a tecla) e
+`game_state.trigger_sabotage` (que decide). Cuidado ao editar: `close_doors_of_room` tem uma linha
+de guarda IDÊNTICA à da sabotagem, e uma substituição descuidada troca a função errada sem que nada
+acuse - a sonda `tools/probes/probe_ghost_sabotage.nvgt` cobre as duas justamente por isso.
+
 **Voz posicionada é só para quem está VIVO e andando.** `g_voice.spatial = alive && !movement_frozen`
 é decidido a cada quadro, e não em cada transição: são três (morrer, começar a reunião, acabar a
 votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na reunião todo mundo está

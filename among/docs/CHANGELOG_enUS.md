@@ -6,6 +6,14 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.29.2
+
+- Fixed: with the "sabotaged comms silence the meeting" rule **off**, voices were still cut during
+  meetings anyway.
+- **Dead impostors can sabotage again**, as in the original game. It is what they have left — killing,
+  venting and locking doors end with death — and without it, dying early as an impostor meant
+  becoming a spectator.
+
 ## 0.29.1
 
 - **A volume of its own for the sabotage alarm** — the one that keeps ringing while a sabotage is

@@ -32,6 +32,14 @@ bool lights_out_for(const string&in active, bool is_impostor, bool alive) {
 // que o impostor NÃO tem imunidade. Com imunidade, durante o apagão de comunicações só ele
 // conseguiria falar: quem abrisse a boca estaria se entregando, e a sabotagem viraria um detector
 // de impostor em vez de uma cegueira. Fantasma continua conversando, como em toda sabotagem.
-bool voice_down_for(const string&in active, bool alive) {
-	return active == "comms" && alive;
+//
+// Na REUNIÃO a sabotagem só alcança a voz se a sala tiver escolhido isso (regra
+// `comms_affects_meeting`). A reunião precisa entrar aqui, e não ficar como um `if` no servidor:
+// o cliente também decide se abre o microfone, e as duas decisões têm que ser a MESMA - foi por
+// discordarem que a regra desligada continuava calando a reunião (o servidor deixava a voz passar,
+// o cliente nem capturava).
+bool voice_down_for(const string&in active, bool alive, bool in_meeting = false,
+		bool comms_affects_meeting = false) {
+	if (active != "comms" || !alive) return false;
+	return !in_meeting || comms_affects_meeting;
 }

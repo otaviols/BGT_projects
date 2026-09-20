@@ -1,0 +1,26 @@
+// Sonda da regra "comunicações calam a reunião": com ela DESLIGADA, a voz tem que passar na reunião
+// mesmo com as comunicações sabotadas; com ela LIGADA, tem que ser cortada. E fora da reunião o
+// rádio cai nos dois casos. É a mesma função que o cliente usa para decidir se abre o microfone.
+//   nvgt tools/probes/probe_voice_meeting.nvgt
+#include "../../src/core/sabotage_rules.nvgt"
+
+void caso(const string&in o_que, bool obtido, bool esperado) {
+	println((obtido == esperado ? "ok   " : "FALHA ") + o_que + ": " + obtido + " (esperado " + esperado + ")");
+}
+
+void main() {
+	// voice_down_for(sabotagem, vivo, em_reuniao, regra_liga_reuniao)
+	println("--- regra DESLIGADA (a reuniao e' intocavel) ---");
+	caso("andando pela nave, comms fora", voice_down_for("comms", true, false, false), true);
+	caso("na reuniao, comms fora", voice_down_for("comms", true, true, false), false);
+	println("--- regra LIGADA (a sabotagem alcanca a reuniao) ---");
+	caso("andando pela nave, comms fora", voice_down_for("comms", true, false, true), true);
+	caso("na reuniao, comms fora", voice_down_for("comms", true, true, true), true);
+	println("--- sem sabotagem, nunca cai ---");
+	caso("andando, sem sabotagem", voice_down_for("", true, false, true), false);
+	caso("na reuniao, sem sabotagem", voice_down_for("", true, true, true), false);
+	caso("outra sabotagem (luzes)", voice_down_for("lights", true, false, true), false);
+	println("--- fantasma nao e' atingido por sabotagem ---");
+	caso("morto, comms fora, na nave", voice_down_for("comms", false, false, true), false);
+	caso("morto, comms fora, na reuniao", voice_down_for("comms", false, true, true), false);
+}

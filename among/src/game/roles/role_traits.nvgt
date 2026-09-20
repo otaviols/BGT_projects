@@ -101,7 +101,10 @@ class player_abilities {
 	// --- Ações: todas exigem estar vivo ---
 	bool can_kill() const { return alive && role.can_kill; }
 	bool can_vent() const { return alive && role.can_vent; }
-	bool can_sabotage() const { return alive && role.can_sabotage; }
+	// A ÚNICA capacidade que sobrevive à morte, como no jogo original: o impostor morto continua
+	// sabotando. É o que ele ainda tem a oferecer ao time - matar, ventilar e fechar portas acabam
+	// com ele, e sem isto morrer cedo como impostor era virar espectador puro.
+	bool can_sabotage() const { return role.can_sabotage; }
 	bool can_close_doors() const { return alive && role.can_close_doors; }
 	bool can_report_bodies() const { return alive && role.can_report_bodies; }
 	bool can_call_meeting() const { return alive && role.can_call_meeting; }

@@ -854,6 +854,9 @@ class game_server {
 			// Regra de voz da sala: sem ela o cliente capturaria e mandaria áudio que o servidor iria
 			// descartar - microfone aberto à toa.
 			start.set_bool("voice_chat", lobby.config.voice_chat);
+			// O cliente decide sozinho se abre o microfone, e precisa da MESMA regra que o servidor
+			// usa para decidir quem ouve - senão ele cala a reunião que o servidor deixaria passar.
+			start.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
 			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
 			// um ou três, senão a discussão da reunião é chute puro.
 			start.set_int("impostor_count", impostor_count);

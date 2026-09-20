@@ -478,7 +478,10 @@ class game_state {
 	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event, string&out fail_key) {
 		fail_key = "game.sabotage_unavailable";
 		game_player@ impostor = find_player(impostor_peer);
-		if (@impostor == null || !impostor.is_impostor || !impostor.alive) return false;
+		// Não exige estar VIVO: o impostor morto continua sabotando, como no jogo original. É o que
+		// lhe resta - matar, ventilar e fechar portas acabam com ele -, e sem isso morrer cedo como
+		// impostor era virar espectador. Ver can_sabotage em game/roles/role_traits.nvgt.
+		if (@impostor == null || !impostor.is_impostor) return false;
 		if (!config.sabotages_enabled) return false; // preset "rápido" desliga sabotagem (ver config/presets.nvgt)
 		if (sabotage_id != "lights" && sabotage_id != "oxygen" && sabotage_id != "comms") return false;
 		if (state != "in_progress") return false;
@@ -603,15 +606,13 @@ class game_state {
 		if (state == "waiting" || state == "ended") return true;
 		if (!talker.alive) return !listener.alive;
 		if (!listener.alive) return true;
-		// A reunião normalmente é intocável - é a discussão, e o tempo da sabotagem nem corre durante
-		// ela. Com a regra `comms_affects_meeting` ligada, a sala escolheu que as comunicações
-		// sabotadas calam o rádio também ali, e a reunião passa a ser só por texto.
+		// Comunicações sabotadas derrubam o rádio de todos os vivos, impostor incluído; na reunião,
+		// só se a sala tiver escolhido isso. Toda essa decisão está em voice_down_for, para o cliente
+		// poder tomar exatamente a mesma.
 		bool in_meeting = state == "meeting" || state == "voting";
-		if (in_meeting && !config.comms_affects_meeting) return true;
-		// Comunicações sabotadas derrubam o rádio de todos os vivos, impostor incluído (o porquê da
-		// exceção à imunidade está em core/sabotage_rules.nvgt).
-		if (voice_down_for(active_sabotage, talker.alive) || voice_down_for(active_sabotage, listener.alive)) return false;
-		if (in_meeting) return true; // sem sabotagem, a reunião é toda no mesmo lugar
+		if (voice_down_for(active_sabotage, talker.alive, in_meeting, config.comms_affects_meeting)) return false;
+		if (voice_down_for(active_sabotage, listener.alive, in_meeting, config.comms_affects_meeting)) return false;
+		if (in_meeting) return true; // na reunião todo mundo está no mesmo lugar: sem distância
 		return distance_2d(talker.x, talker.y, listener.x, listener.y) <= VOICE_RANGE;
 	}
 

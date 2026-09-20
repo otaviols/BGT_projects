@@ -1,9 +1,9 @@
 {
-	"version": "0.29.1",
+	"version": "0.29.2",
 	"url": "AmongUs.zip",
-	"notes": "A volume of its own for the sabotage alarm — the one that keeps ringing while a sabotage is up. It is the only sound in the game that never stops, and until now turning it down also turned down deaths, body reports and victory, which share the same category.",
+	"notes": "Fixed: with the \"sabotaged comms silence the meeting\" rule off, voices were still cut during meetings anyway. Dead impostors can sabotage again, as in the original game. It is what they have left — killing, venting and locking doors end with death — and without it, dying early as an impostor meant becoming a spectator.",
 	"notes_by_language": {
-		"pt_BR": "Volume só para o alarme de sabotagem — aquele que fica tocando enquanto a sabotagem está no ar. É o único som do jogo que não para, e até agora abaixá-lo custava abaixar também a morte, o corpo encontrado e a vitória, que estão na mesma categoria.",
-		"en_US": "A volume of its own for the sabotage alarm — the one that keeps ringing while a sabotage is up. It is the only sound in the game that never stops, and until now turning it down also turned down deaths, body reports and victory, which share the same category."
+		"pt_BR": "Corrigido: com a regra \"comunicações sabotadas calam a reunião\" desligada, a voz continuava cortada na reunião assim mesmo. O impostor morto volta a sabotar, como no jogo original. É o que lhe resta — matar, ventilar e trancar portas acabam com a morte —, e sem isso morrer cedo como impostor era virar espectador.",
+		"en_US": "Fixed: with the \"sabotaged comms silence the meeting\" rule off, voices were still cut during meetings anyway. Dead impostors can sabotage again, as in the original game. It is what they have left — killing, venting and locking doors end with death — and without it, dying early as an impostor meant becoming a spectator."
 	}
 }
