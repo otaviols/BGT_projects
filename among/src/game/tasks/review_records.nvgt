@@ -33,7 +33,7 @@ bool run_review_records_task(game_client@ client) {
 	// passo que não dá para contar.
 	if (!wait_for_task_sound(task_sound(SND_VIDEO_OPENING), client)) return false;
 	if (!wait_for_task_sound(task_sound(SND_TAPE_REWIND), client)) return false;
-	wait(300); // respiro entre a fita parar e a gravação começar
+	if (!task_wait(300, client)) return false; // respiro entre a fita parar e a gravação começar
 
 	uint people = uint(random(int(MIN_PEOPLE), int(MAX_PEOPLE)));
 

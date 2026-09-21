@@ -59,15 +59,29 @@ void shuffle_int_list(array<int>@ arr) {
 //
 // Devolve o som que começou a tocar, para quem precisar esperar ele acabar (ver
 // wait_for_task_sound). Quem não precisa simplesmente ignora o retorno.
-sound@ task_sound(const string&in filename, float pan = 0.0) {
-	return task_sound_path("sounds/" + filename, pan);
+sound@ task_sound(const string&in filename, float pan = 0.0, float pitch = 100.0) {
+	return task_sound_path("sounds/" + filename, pan, 0.0, pitch);
 }
 
 // Igual, mas com o caminho COMPLETO. Serve para os sons que já vêm montados de outro lugar - os
 // passos, por exemplo, cujo caminho sai de footstep_sound_path() e já inclui a pasta.
-sound@ task_sound_path(const string&in path, float pan = 0.0, float extra_db = 0.0) {
+sound@ task_sound_path(const string&in path, float pan = 0.0, float extra_db = 0.0, float pitch = 100.0) {
 	return sound_play(path, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX),
-		g_settings.volume_db(SOUND_FAMILY_TASKS) + extra_db, pan);
+		g_settings.volume_db(SOUND_FAMILY_TASKS) + extra_db, pan, pitch);
+}
+
+// Pausa dentro de uma minigame. Existe pelo mesmo motivo de wait_for_task_sound: um `wait(600)`
+// seco deixa a rede sem ACK e o cancelamento sem resposta durante a pausa, e uma task que encadeia
+// várias dessas pausas (a sequência dos coletores) fica segundos sem reagir a nada - foi o "não
+// responde" do recado #97. Devolve false se a task foi cancelada nesse meio-tempo.
+bool task_wait(uint ms, game_client@ client) {
+	timer t;
+	while (t.elapsed < int(ms)) {
+		wait(10);
+		if (@client != null) client.update();
+		if (task_tick(client)) return false;
+	}
+	return true;
 }
 
 // Espera um som de task terminar antes de seguir.
@@ -88,7 +102,9 @@ bool wait_for_task_sound(sound@ s, game_client@ client, uint max_wait_ms = 15000
 	while (@s != null && s.playing && limit.elapsed < int(max_wait_ms)) {
 		wait(20);
 		if (@client != null) client.update();
-		if (task_cancel_requested(client)) return false;
+		// task_tick, e não só o cancelamento: a espera por um som é um quadro da minigame como outro
+		// qualquer, e o que chega durante ela (chat, oxigênio) tem que ser dito do mesmo jeito.
+		if (task_tick(client)) return false;
 	}
 	return true;
 }

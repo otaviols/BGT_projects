@@ -2,6 +2,13 @@
 // Task de destravar os coletores: o painel toca uma sequência de tons e o jogador repete ela nas
 // teclas 1 a 4. Cada tecla tem o seu próprio tom (grave até agudo), então dá pra conferir "de
 // ouvido" o que se está digitando - a task inteira é memória sonora, sem nada visual por trás.
+//
+// Nada aqui BLOQUEIA. A primeira versão tocava cada tom com play_wait(), que prende a thread
+// inteira até o som acabar: durante a sequência (uns 2,5 s) e a cada eco de tecla (até 0,5 s) o
+// jogo não bombeava rede, não respondia ao ESC e - o pior - não via as teclas. Quem decorou a
+// sequência digita rápido, e o "2" apertado enquanto o eco do "1" ainda tocava simplesmente se
+// perdia; o jogador ficava esperando uma resposta que não vinha. Foi o "o jogo não responde ao
+// fazer a tarefa dos coletores" do recado #97.
 
 #include "task_common.nvgt"
 
@@ -9,12 +16,9 @@
 const array<float> MANIFOLD_PITCHES = {75.0, 100.0, 130.0, 170.0};
 const uint MANIFOLD_SEQUENCE_LENGTH = 4;
 
-void play_manifold_tone(int index) {
-	if (index < 0 || index >= int(MANIFOLD_PITCHES.length())) return;
-	sound tone;
-	if (!tone.load("sounds/" + SND_BEEP)) return;
-	tone.pitch = MANIFOLD_PITCHES[index];
-	tone.play_wait(); // play_wait pra sequência sair uma nota DEPOIS da outra, não todas juntas
+sound@ play_manifold_tone(int index) {
+	if (index < 0 || index >= int(MANIFOLD_PITCHES.length())) return null;
+	return task_sound(SND_BEEP, 0.0, MANIFOLD_PITCHES[index]);
 }
 
 bool run_unlock_manifolds_task(game_client@ client) {
@@ -23,10 +27,12 @@ bool run_unlock_manifolds_task(game_client@ client) {
 	array<int> sequence;
 	for (uint i = 0; i < MANIFOLD_SEQUENCE_LENGTH; i++) sequence.insert_last(random(0, int(MANIFOLD_PITCHES.length()) - 1));
 
-	wait(600); // respiro antes de começar a tocar, senão a sequência atropela a instrução falada
+	// Respiro antes de começar a tocar, senão a sequência atropela a instrução falada.
+	if (!task_wait(600, client)) return false;
 	for (uint i = 0; i < sequence.length(); i++) {
-		play_manifold_tone(sequence[i]);
-		wait(150);
+		// Uma nota DEPOIS da outra: espera cada uma acabar, mas sem parar de servir a rede.
+		if (!wait_for_task_sound(play_manifold_tone(sequence[i]), client)) return false;
+		if (!task_wait(150, client)) return false;
 	}
 
 	uint typed = 0;
@@ -42,7 +48,9 @@ bool run_unlock_manifolds_task(game_client@ client) {
 		else if (key_pressed(KEY_4)) pressed = 3;
 		if (pressed == -1) continue;
 
-		play_manifold_tone(pressed); // ecoa a tecla apertada pro jogador conferir o que digitou
+		// Ecoa a tecla pro jogador conferir o que digitou - e NÃO espera o eco acabar: a próxima
+		// tecla pode vir antes disso, e ela tem que ser vista.
+		play_manifold_tone(pressed);
 		if (pressed != sequence[typed]) {
 			task_sound(SND_CARD_ERROR);
 			speak(tr("task.failed"));

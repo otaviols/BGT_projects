@@ -266,6 +266,15 @@ esperava 1200 — os primeiros passos, que a task pede para CONTAR, tocavam por 
 false sem parar de bombear `client.update()`. Som que não existe devolve handle nulo, e a espera
 passa direto.
 
+**`play_wait()` e `wait(n)` seco não têm lugar dentro de uma minigame.** `play_wait` prende a
+thread inteira até o som acabar: nada de rede, nada de ESC, e - o sintoma que chegou no recado #97
+como "o jogo não responde na tarefa dos coletores" - nenhuma tecla é vista. Quem decorou a
+sequência digita rápido, e a tecla apertada durante o eco da anterior simplesmente sumia; o
+jogador ficava esperando uma resposta que não vinha. Som que precisa acabar antes do próximo
+passo: `wait_for_task_sound(task_sound(..., pitch), client)`; pausa: `task_wait(ms, client)`; eco
+de tecla: toca e NÃO espera. Medido em `tools/probes/probe_play_wait.nvgt`: o `play_wait` em si
+volta direito (504 ms no tom grave), o problema é o que não acontece enquanto ele não volta.
+
 **Task visível (o scan) é prova porque o SERVIDOR a anuncia, não o cliente.** O cliente manda
 `C_START_TASK` ao abrir qualquer minigame; só para o scan o servidor confere que aquele jogador tem a
 task pendente e está vivo, e então manda `S_TASK_VISIBLE` a todos menos a ele. Impostor não tem a

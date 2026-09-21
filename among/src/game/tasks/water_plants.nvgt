@@ -38,7 +38,7 @@ bool run_water_plants_task(game_client@ client) {
 	const float TICK_SECONDS = 0.28;     // intervalo entre um gole e outro
 
 	speak(tr("task.water_plants.instructions"));
-	wait(500);
+	if (!task_wait(500, client)) return false;
 
 	uint can_position = WATERING_CAN_START;
 
@@ -101,7 +101,7 @@ bool run_water_plants_task(game_client@ client) {
 			watered = true;
 		}
 
-		wait(300); // respiro entre um canteiro e outro
+		if (!task_wait(300, client)) return false; // respiro entre um canteiro e outro
 	}
 
 	speak(tr("task.completed"));

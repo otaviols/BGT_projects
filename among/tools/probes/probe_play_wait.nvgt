@@ -1,0 +1,29 @@
+// Sonda do play_wait(): quanto tempo ele bloqueia, e se volta, para o bipe dos coletores em cada
+// um dos quatro tons. Nasceu do recado #97 ("o jogo não responde ao fazer a tarefa de destravar
+// coletores"): a task era a única do jogo a usar play_wait(), que bloqueia a thread inteira - sem
+// bombear a janela nem a rede.
+//   nvgt tools/probes/probe_play_wait.nvgt
+#include "../../src/audio/sound_catalog.nvgt"
+
+const array<float> PITCHES = {75.0, 100.0, 130.0, 170.0};
+
+void main() {
+	if (!directory_exists("sounds")) chdir("..");
+	if (!directory_exists("sounds")) chdir("..");
+	for (uint i = 0; i < PITCHES.length(); i++) {
+		sound tone;
+		bool ok = tone.load("sounds/" + SND_BEEP);
+		tone.pitch = PITCHES[i];
+		timer t;
+		bool r = tone.play_wait();
+		println("pitch " + PITCHES[i] + ": load=" + ok + " play_wait=" + r + " em " + t.elapsed + " ms (arquivo 370 ms)");
+	}
+	// O mesmo som, tocado sem bloquear, medindo quando `playing` vira false.
+	sound s;
+	s.load("sounds/" + SND_BEEP);
+	s.pitch = 75;
+	s.play();
+	timer t2;
+	while (s.playing && t2.elapsed < 5000) wait(5);
+	println("play() + playing: parou em " + t2.elapsed + " ms (esperado ~500)");
+}

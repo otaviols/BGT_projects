@@ -41,14 +41,10 @@ bool run_fuel_fill(game_client@ client) {
 	// nada - que é exatamente o que se quer evitar.
 	float target_pitch = float(random(110, 165));
 
-	sound reference;
-	if (reference.load("sounds/" + SND_FILLING)) {
-		reference.pitch = target_pitch;
-		// play_wait: a referência tem que terminar ANTES de o jogador poder começar a encher, senão
-		// ela se sobrepõe ao enchimento e não sobra o que comparar.
-		reference.play_wait();
-	}
-	wait(400);
+	// A referência tem que terminar ANTES de o jogador poder começar a encher, senão ela se sobrepõe
+	// ao enchimento e não sobra o que comparar. Espera bombeando a rede, não com play_wait.
+	if (!wait_for_task_sound(task_sound(SND_FILLING, 0.0, target_pitch), client)) return false;
+	if (!task_wait(400, client)) return false;
 
 	sound filling;
 	if (!filling.load("sounds/" + SND_FILLING)) return false;

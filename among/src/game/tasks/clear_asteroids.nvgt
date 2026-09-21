@@ -26,7 +26,7 @@ bool run_clear_asteroids_task(game_client@ client) {
 	const float REACTION_SECONDS = 1.9;
 
 	speak(tr("task.clear_asteroids.instructions"));
-	wait(600);
+	if (!task_wait(600, client)) return false;
 
 	for (uint i = 0; i < ASTEROID_COUNT; i++) {
 		wait(random(300, 1200)); // intervalo irregular: sem isso dá pra acertar no ritmo, sem ouvir

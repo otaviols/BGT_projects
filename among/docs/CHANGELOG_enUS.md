@@ -8,6 +8,10 @@ Everything that changed in the game, newest first.
 
 ## 0.29.5
 
+- Fixed: in the unlock manifolds task, the game stopped responding while it played the sequence
+  and the echo of each key, and a key pressed too quickly was lost. You can now type the sequence
+  at your own pace, and Escape and match announcements work the whole time. The same care went
+  into the dice in the game room and the fuel reference tone.
 - Groundwork for what comes next: the game now introduces itself to the server when you log in.
   When a version becomes too old to play, the game will say it needs updating and open the
   download page, instead of claiming your password is wrong. Nothing changes for now.

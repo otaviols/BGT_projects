@@ -8,6 +8,10 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ## 0.29.5
 
+- Corrigido: na tarefa de destravar os coletores, o jogo ficava sem responder enquanto tocava a
+  sequência e o eco de cada tecla, e uma tecla apertada rápido demais se perdia. Agora dá para
+  digitar a sequência no seu ritmo, e o ESC e os avisos da partida funcionam o tempo todo. O mesmo
+  cuidado foi aplicado ao dado da sala de jogos e à referência do combustível.
 - Preparação para as próximas novidades: o jogo agora se apresenta ao servidor ao entrar. Quando
   uma versão ficar velha demais para jogar, o jogo avisa que precisa atualizar e abre a página
   de download, em vez de dizer que a senha está errada. Nada muda por enquanto.
