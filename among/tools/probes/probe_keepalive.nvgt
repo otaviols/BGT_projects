@@ -1,0 +1,68 @@
+// Sonda do "cai da sala ao abrir as configurações": uma tela que bloqueia sem servir a rede faz o
+// servidor concluir que o jogador caiu (o NVGT configura o peer para desistir entre 10 e 35
+// segundos sem resposta). Aqui um cliente fica parado e outro bombeia - que é exatamente a
+// diferença que a correção faz.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_keepalive.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ entra(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+// Quanto tempo o cliente `quieto` sobrevive. `bombeia` diz se ele serve a rede (a correção) ou não.
+void mede(server_address addr, bool bombeia) {
+	string sfx = "" + random(1000, 9999);
+	game_client@ ativo = entra(addr, "ka_a" + sfx);
+	game_client@ quieto = entra(addr, "ka_b" + sfx);
+	if (@ativo == null || @quieto == null) { println("login falhou"); return; }
+	lobby_overrides ov;
+	ativo.send_create_lobby("keepalive", "classic", ov);
+	net_packet@ st = wf(ativo, S_LOBBY_STATE, 5000);
+	quieto.send_join_lobby(st.get_string("lobby_id"));
+	wf(quieto, S_JOIN_RESULT, 5000);
+
+	// 40 segundos: o outro conversa (o servidor manda pacotes confiáveis, que precisam de resposta)
+	// e o "quieto" ou serve a rede, ou não.
+	// Quem sabe se o jogador ainda está na sala é o SERVIDOR, não o cliente parado - ele nem olhou
+	// a rede para descobrir que caiu. O sinal honesto é o S_PLAYER_LEFT chegando a quem ficou.
+	bool expulso = false;
+	int segundos = 0;
+	timer total, fala;
+	while (total.elapsed < 45000 && !expulso) {
+		ativo.update();
+		net_packet@ p = ativo.poll_message();
+		while (@p != null) {
+			if (p.type == S_PLAYER_LEFT) { expulso = true; segundos = int(total.elapsed) / 1000; }
+			@p = ativo.poll_message();
+		}
+		if (fala.elapsed > 1000) { fala.restart(); ativo.send_chat_message("oi"); }
+		if (bombeia) { quieto.update(); quieto.clear_incoming(); }
+		wait(5);
+	}
+	println((bombeia ? "servindo a rede (com a correcao): " : "parado (como era a tela antiga): ")
+		+ (expulso ? "o servidor tirou o jogador da sala aos " + segundos + " s" : "o jogador continuou na sala os 45 s")
+		+ (bombeia ? "  (esperado: continuou)" : "  (esperado: foi tirado)"));
+	ativo.disconnect(); quieto.disconnect();
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	mede(addr, false);
+	mede(addr, true);
+}

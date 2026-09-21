@@ -723,7 +723,9 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		// F3 abre as configurações sem sair da sala: antes, mudar um volume ou uma tecla no meio da
 		// espera custava desconectar e entrar de novo - e perder a sala.
 		if (key_pressed(KEY_F3)) {
-			run_settings_menu();
+			// O cliente vai junto: sem alguém servindo a rede, vinte segundos mexendo num volume
+			// bastavam para o servidor concluir que o jogador caiu e tirá-lo da sala.
+			run_settings_menu(client);
 			speak(tr("lobby.back_from_settings"));
 		}
 		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players));

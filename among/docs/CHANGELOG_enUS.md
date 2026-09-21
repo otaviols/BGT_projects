@@ -6,6 +6,14 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.29.3
+
+- Fixed: opening the settings from inside the waiting room dropped you out of it. The screen held the
+  game without talking to the server, and in under twenty seconds it concluded you had disconnected.
+- The **speech and screen reader** screen was rewritten and now speaks your language — it used to be
+  the engine's default screen, always in English. Picking a voice or changing the rate now speaks a
+  sample right away.
+
 ## 0.29.2
 
 - **One account, one session.** Signing in with the same account somewhere else disconnects the

@@ -26,7 +26,30 @@ const array<string> FAMILY_PREVIEW_SOUNDS = {
 	SND_SABOTAGE_ALARM      // alarme da sabotagem
 };
 
-void run_settings_menu() {
+// A rede tem que continuar sendo servida enquanto estas telas estão abertas.
+//
+// O NVGT configura o peer para desistir entre 10 e 35 segundos sem resposta (enet_peer_timeout), e
+// uma tela que bloqueia sem chamar client.update() não manda ACK nem keepalive nenhum: o servidor
+// conclui que o jogador caiu e o tira da sala. Era o que acontecia ao abrir as configurações de
+// dentro da sala de espera - a pessoa mexia num volume por vinte segundos e voltava para o
+// navegador de partidas sem entender por quê.
+//
+// Fora de uma partida (menu inicial) não há cliente nenhum, e aí isto não faz nada.
+game_client@ g_settings_pump_client;
+
+void pump_client_during_settings(menu@ m, string data) {
+	if (@g_settings_pump_client != null) g_settings_pump_client.update();
+}
+
+// O mesmo, para os laços de audio_form (que não têm callback de fundo).
+void pump_settings_client() {
+	if (@g_settings_pump_client != null) g_settings_pump_client.update();
+}
+
+// `client` é quem mantém a conexão viva enquanto o jogador mexe nas configurações; null quando não
+// há partida (menu inicial).
+void run_settings_menu(game_client@ client = null) {
+	@g_settings_pump_client = client;
 	while (true) {
 		menu m;
 		m.intro_text = tr("menu.settings");
@@ -40,6 +63,7 @@ void run_settings_menu() {
 		m.add_item(tr("settings.output_device"), "output");
 		m.add_item(tr("settings.language"), "language");
 		m.add_item(tr("menu.back"), "back");
+		@m.background_callback = @pump_client_during_settings;
 		m.run();
 
 		string id = m.selected_item_id;
@@ -77,6 +101,7 @@ void run_volume_screen() {
 
 	while (true) {
 		wait(5);
+		pump_settings_client();
 		f.monitor();
 
 		if (f.is_pressed(f_cancel)) {
@@ -130,6 +155,7 @@ void run_keys_screen() {
 		}
 		m.add_item(tr("settings.restore_defaults"), "defaults");
 		m.add_item(tr("menu.back"), "back");
+		@m.background_callback = @pump_client_during_settings;
 		m.run();
 
 		string id = m.selected_item_id;
@@ -159,6 +185,7 @@ void capture_key_for(int action) {
 
 	while (true) {
 		wait(5);
+		pump_settings_client();
 		array<int>@ pressed = keys_pressed();
 		if (pressed.length() == 0) continue;
 
@@ -228,6 +255,7 @@ void run_language_screen() {
 		m.add_item(label, codes[i]);
 	}
 	m.add_item(tr("menu.back"), "back");
+	@m.background_callback = @pump_client_during_settings;
 	m.run();
 
 	string chosen = m.selected_item_id;
@@ -251,13 +279,65 @@ void run_language_screen() {
 }
 
 // --- Voz ---
-// O speech.nvgt já traz uma tela de configuração de voz pronta e acessível (escolher voz,
-// velocidade, volume, e se deve usar o leitor de tela quando houver um). Reaproveitamos ela inteira
-// e só cuidamos de guardar o resultado - é a tela que o jogador de audiogame já conhece de outros
-// jogos NVGT, então não vale a pena inventar outra.
+// Esta tela era a do speech.nvgt (tts_config), reaproveitada inteira. Ela teve que ser reescrita
+// por um motivo simples: o laço dela é fechado, sem nenhum gancho, então a rede não podia ser
+// servida enquanto ela estivesse aberta - e abrir a configuração de voz de dentro da sala de espera
+// derrubava o jogador dela em poucos segundos.
+//
+// A reescrita trouxe de graça o que faltava: a tela de lá é em inglês fixo, e esta fala o idioma do
+// jogador. Os valores continuam saindo e entrando pelo mesmo tts_dump_config/tts_load_config, então
+// nada do que já estava salvo se perde.
 void run_voice_screen() {
-	tts_config(tts, true);
-	g_settings.save();
+	audio_form f;
+	f.create_window(tr("settings.voice"), false);
+	int f_use_sr = f.create_checkbox(tr("settings.voice_use_screen_reader"), use_sr);
+	int f_voices = f.create_list(tr("settings.voice_voice"));
+	array<string>@ voice_names = tts.list_voices();
+	for (uint i = 0; i < voice_names.length(); i++) {
+		f.add_list_item(f_voices, voice_names[i] != "" ? voice_names[i] : tr("settings.voice_unknown"));
+	}
+	if (tts.voice > -1) f.set_list_position(f_voices, tts.voice);
+	int f_rate = f.create_slider(tr("settings.voice_rate"), tts.rate, -10, 10);
+	int f_volume = f.create_slider(tr("settings.voice_volume"), tts.volume, 0, 100);
+	int f_save = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_use_sr); // audio_form nasce sem foco nenhum
+
+	// Guardados para desfazer no cancelar: os valores valem NA HORA (é assim que se ajusta uma voz
+	// de ouvido - mexer e escutar), então cancelar precisa ter para onde voltar.
+	bool orig_use_sr = use_sr;
+	int orig_voice = tts.voice;
+	int orig_rate = tts.rate;
+	int orig_volume = tts.volume;
+	int last_voice = tts.voice, last_rate = tts.rate, last_volume = tts.volume;
+
+	while (true) {
+		wait(5);
+		pump_settings_client();
+		f.monitor();
+
+		use_sr = f.is_checked(f_use_sr);
+		int voice = f.get_list_position(f_voices);
+		if (voice != last_voice && voice > -1) { last_voice = voice; tts.set_voice(voice); speak(tr("settings.voice_sample")); }
+		int rate = int(f.get_slider(f_rate));
+		if (rate != last_rate) { last_rate = rate; tts.set_rate(rate); speak(tr("settings.voice_sample")); }
+		int volume = int(f.get_slider(f_volume));
+		if (volume != last_volume) { last_volume = volume; tts.set_volume(volume); speak(tr("settings.voice_sample")); }
+
+		if (f.is_pressed(f_cancel)) {
+			use_sr = orig_use_sr;
+			if (tts.voice != orig_voice) tts.set_voice(orig_voice);
+			if (tts.rate != orig_rate) tts.set_rate(orig_rate);
+			if (tts.volume != orig_volume) tts.set_volume(orig_volume);
+			speak(tr("settings.cancelled"));
+			return;
+		}
+		if (f.is_pressed(f_save)) {
+			g_settings.save();
+			speak(tr("settings.saved"));
+			return;
+		}
+	}
 }
 
 // --- Chat de voz ---
@@ -300,6 +380,7 @@ void run_voice_chat_screen() {
 
 	while (true) {
 		wait(5);
+		pump_settings_client();
 		f.monitor();
 		// Os valores valem na hora, porque o teste de microfone usa exatamente o que está na tela.
 		g_settings.voice_chat_enabled = f.is_checked(f_enabled);
@@ -313,7 +394,7 @@ void run_voice_chat_screen() {
 		if (testing != g_voice.monitoring) {
 			if (testing) g_voice.start_monitor(); else g_voice.stop_monitor();
 		}
-		g_voice.tick(); // fora de partida ninguém bombeia o cliente; o teste precisa disto
+		if (@g_settings_pump_client == null) g_voice.tick(); // fora de partida, o teste precisa disto
 
 		if (f.is_pressed(f_cancel)) {
 			g_voice.stop_monitor();
@@ -353,6 +434,7 @@ void run_output_device_screen() {
 		m.add_item(label, outputs[i]);
 	}
 	m.add_item(tr("menu.back"), "back");
+	@m.background_callback = @pump_client_during_settings;
 	m.run();
 	string chosen = m.selected_item_id;
 	if (chosen == "" || chosen == "back") return;

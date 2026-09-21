@@ -6,6 +6,15 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.29.3
+
+- Corrigido: abrir as configurações de dentro da sala de espera derrubava você dela. A tela prendia
+  o jogo sem conversar com o servidor, e em menos de vinte segundos ele concluía que você tinha
+  caído.
+- A tela de **voz e leitor de tela** foi refeita e agora fala o seu idioma — antes era a tela padrão
+  do motor, sempre em inglês. Ao escolher uma voz ou mexer na velocidade, ela fala uma amostra na
+  hora.
+
 ## 0.29.2
 
 - **Uma conta, uma sessão.** Entrar com a mesma conta em outro lugar desconecta a sessão anterior,

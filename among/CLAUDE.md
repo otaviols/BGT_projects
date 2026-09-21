@@ -405,6 +405,21 @@ meio da partida que vários jogadores relataram. Duas correções: `game_client.
 já viaja pelo canal não confiável; descartar um EVENTO deixaria o cliente contando uma partida que
 não existe. Ao escrever qualquer tela bloqueante nova, nada de varrer `client.incoming` por quadro.
 
+**Tela aberta com o jogador CONECTADO tem que servir a rede - o prazo é de 18 segundos.** O NVGT
+configura o peer com `enet_peer_timeout(128, 10000, 35000)`: sem `client.update()`, nenhum ACK sai,
+e o servidor tira o jogador da sala. Medido em `tools/probes/probe_keepalive.nvgt`: 18 segundos com
+a sala conversando - o tempo de mexer num controle de volume. Foi assim que abrir as configurações
+de dentro da sala derrubava o jogador dela. Todo menu ganha `background_callback` e todo laço de
+`audio_form` ganha um `update()`; quem chama passa o cliente (null no menu inicial, onde não há
+conexão). E cuidado com o que a sonda mede: perguntar ao CLIENTE parado se ele ainda está conectado
+responde sempre que sim, porque ele nem olhou a rede - o sinal honesto é o servidor mandando
+`S_PLAYER_LEFT` a quem ficou.
+
+**Tela de fora com laço fechado não dá para consertar - reescreva.** `tts_config` (speech.nvgt) não
+tem gancho nenhum, então a configuração de voz não tinha como servir a rede. Foi reescrita aqui
+(`run_voice_screen`), o que de quebra resolveu ela ser em inglês fixo; os valores continuam saindo
+e entrando por `tts_dump_config`/`tts_load_config`, então nada do que estava salvo se perde.
+
 **Uma conta, uma sessão - e a entrada NOVA derruba a velha, não o contrário.** Recusar a segunda
 entrada parece mais educado e é pior: uma conexão que caiu feio continua de pé para o servidor até o
 ENet desistir dela, e a pessoa ficaria sem conseguir voltar ao próprio jogo. `drop_other_sessions`
