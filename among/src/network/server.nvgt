@@ -1718,6 +1718,18 @@ class game_server {
 		broadcast_to_lobby(lobby, msg);
 	}
 
+	// Avisa a partida de que UM painel saiu do caminho, sem a sabotagem ter acabado. É o que permite
+	// ao cliente não oferecer de novo um painel já resolvido.
+	void broadcast_sabotage_progress(game_state@ lobby, const string&in sabotage_id,
+			const string&in object_id, int fixed, int required) {
+		net_packet@ pkt = net_packet(S_SABOTAGE_PROGRESS);
+		pkt.set_string("sabotage_id", sabotage_id);
+		pkt.set_string("object_id", object_id);
+		pkt.set_int("fixed", fixed);
+		pkt.set_int("required", required);
+		broadcast_to_lobby(lobby, pkt);
+	}
+
 	void on_interact(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
@@ -1737,6 +1749,9 @@ class game_server {
 			p.set("fixed", "" + panels_fixed);
 			p.set("required", "" + panels_required);
 			send_error(peer_id, "sabotage.panel_progress", p);
+			// E a partida inteira fica sabendo QUAL painel saiu do caminho: é o que impede outra
+			// pessoa de atravessar a nave para resolver um painel que já está resolvido.
+			broadcast_sabotage_progress(lobby, lobby.active_sabotage, object_id, panels_fixed, panels_required);
 		}
 	}
 

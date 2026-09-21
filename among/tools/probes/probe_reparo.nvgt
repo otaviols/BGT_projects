@@ -1,0 +1,61 @@
+// Sonda dos três consertos: o scanner de um de cada vez, o fantasma fora das sabotagens, e o painel
+// já resolvido não aceitando ser resolvido de novo. Tudo no estado da partida, que é quem decide.
+//   nvgt tools/probes/probe_reparo.nvgt
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+void caso(const string&in o_que, bool obtido, bool esperado) {
+	println((obtido == esperado ? "ok   " : "FALHA ") + o_que + ": " + obtido + " (esperado " + esperado + ")");
+}
+
+game_state@ monta() {
+	game_state@ l = game_state();
+	@l.config = lobby_config();
+	@l.map = build_the_hub_map();
+	l.state = "in_progress";
+	return l;
+}
+game_player@ poe(game_state@ l, uint64 id, const string&in nome, float x, float y, bool vivo = true) {
+	game_player@ p = game_player(id, nome);
+	p.alive = vivo; p.x = x; p.y = y;
+	l.players.insert_last(p);
+	return p;
+}
+
+void main() {
+	println("--- o scanner e' de um de cada vez ---");
+	game_state@ l = monta();
+	map_object@ scanner = l.map.find_object("task_scan_medbay");
+	if (@scanner == null) {
+		array<map_object@>@ spots = l.map.objects_by_type(OBJ_TASK_SPOT);
+		for (uint i = 0; i < spots.length(); i++) if (spots[i].task_type == "submit_scan") @scanner = spots[i];
+	}
+	game_player@ a = poe(l, 1, "a", scanner.x, scanner.y);
+	game_player@ b = poe(l, 2, "b", scanner.x, scanner.y);
+	player_task ta; ta.object_id = scanner.id; ta.task_type = "submit_scan"; a.tasks.insert_last(ta);
+	player_task tb; tb.object_id = scanner.id; tb.task_type = "submit_scan"; b.tasks.insert_last(tb);
+	caso("o primeiro entra no scanner", l.try_start_visible_task(1, scanner.id), true);
+	caso("o segundo e' recusado enquanto o primeiro esta nele", l.try_start_visible_task(2, scanner.id), false);
+	l.end_visible_task(1);
+	caso("depois que o primeiro sai, o segundo entra", l.try_start_visible_task(2, scanner.id), true);
+
+	println("--- fantasma e sabotagem ---");
+	game_state@ l2 = monta();
+	game_player@ vivo = poe(l2, 1, "vivo", 6, -20);
+	game_player@ morto = poe(l2, 2, "morto", 6, -20, false);
+	net_packet@ ev; string motivo;
+	l2.active_sabotage = "oxygen";
+	int feitos, precisa;
+	caso("fantasma conserta painel", l2.try_fix_sabotage_panel(2, "panel_oxygen_admin", ev, feitos, precisa, motivo), false);
+	caso("vivo conserta painel", l2.try_fix_sabotage_panel(1, "panel_oxygen_admin", ev, feitos, precisa, motivo), false);
+	println("   (o oxigenio pede " + precisa + " paineis; " + feitos + " feito)");
+
+	println("--- painel ja resolvido nao aceita de novo ---");
+	caso("o MESMO painel de novo", l2.try_fix_sabotage_panel(1, "panel_oxygen_admin", ev, feitos, precisa, motivo), false);
+	println("   motivo: " + motivo + " (esperado sabotage.panel_already_fixed)");
+	// o outro painel fecha a sabotagem
+	game_player@ outro = poe(l2, 3, "outro", -16, -44);
+	bool acabou = l2.try_fix_sabotage_panel(3, "panel_oxygen_o2room", ev, feitos, precisa, motivo);
+	caso("o segundo painel encerra a sabotagem", acabou, true);
+	caso("a sabotagem ficou sem estar ativa", l2.active_sabotage == "", true);
+}

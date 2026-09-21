@@ -58,6 +58,10 @@ map_object@ find_interactable(game_map@ map, float x, float y, array<player_task
 		// deixá-lo "interativo" só servia pra ele roubar o Enter de uma task/vent que estivesse no
 		// mesmo alcance e pra ser anunciado como se desse pra usar.
 		if (o.obj_type == OBJ_SABOTAGE_PANEL && o.task_type != active_sabotage_id) continue;
+		// Fantasma não conserta painel - o servidor recusa (ver try_fix_sabotage_panel). Oferecer a
+		// ele era deixá-lo resolver a minigame inteira para ouvir que não valeu, e ainda roubava o
+		// Enter de uma task que estivesse no mesmo alcance.
+		if (o.obj_type == OBJ_SABOTAGE_PANEL && !alive) continue;
 		// Com as luzes apagadas o botão de emergência simplesmente não existe: não é anunciado, não
 		// responde ao Enter e não aparece no radar de objetos (o servidor recusa de qualquer jeito,
 		// ver emergency_button_block_reason).
@@ -464,6 +468,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// recusa a sabotagem cedo demais.
 	float my_sabotage_cooldown_remaining = start_pkt.get_float("sabotage_cooldown_seconds");
 	string active_sabotage_id = "";
+	// Painéis desta sabotagem que já foram resolvidos por alguém (o oxigênio pede dois), e se o
+	// scanner da enfermaria está ocupado. Os dois existem para o jogador não gastar uma travessia da
+	// nave - ou dez segundos parado - por algo que já está resolvido ou não vai valer.
+	array<string> fixed_sabotage_panels;
+	bool scanner_busy = false;
 	string oxygen_code = ""; // código desta sabotagem de oxigênio, dito ao abrir o painel // "" = nenhuma sabotagem em andamento
 	int team_task_percent = 0; // andamento das tasks da equipe inteira, atualizado por S_TASK_PROGRESS
 	bool is_vented = false;
@@ -714,6 +723,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				mui.on_sabotage_started(pkt);
 				string sabotage_id = pkt.get_string("sabotage_id");
 				active_sabotage_id = sabotage_id;
+				fixed_sabotage_panels.resize(0); // sabotagem nova, painéis todos de pé outra vez
 				// Os efeitos (corpos calados, alcance de audição, beacons dos painéis desta sabotagem)
 				// saem todos daqui, para o fantasma e o vivo nunca discordarem sobre o que está ligado.
 				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
@@ -770,11 +780,17 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			} else if (t == S_CAMERA_WATCHING) {
 				watched_room_id = pkt.get_string("room_id");
 				refresh_camera_watching_beacon(audio, map, watched_room_id);
+			} else if (t == S_SABOTAGE_PROGRESS) {
+				// Um painel saiu do caminho, mas a sabotagem continua. Guardar QUAL evita mandar alguém
+				// atravessar a nave para resolver o que já está resolvido.
+				string done_id = pkt.get_string("object_id");
+				if (done_id != "" && fixed_sabotage_panels.find(done_id) == -1) fixed_sabotage_panels.insert_last(done_id);
 			} else if (t == S_SABOTAGE_COUNTDOWN) {
 				mui.on_sabotage_countdown(pkt);
 			} else if (t == S_SABOTAGE_FIXED) {
 				mui.on_sabotage_fixed(pkt);
 				active_sabotage_id = "";
+				fixed_sabotage_panels.resize(0);
 				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 					my_role, is_impostor, alive, known_body_peers, known_body_positions);
 				if (my_role.can_sabotage) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
@@ -826,6 +842,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// Alguém (não eu) está no scanner. O som toca no ponto da task, para quem estiver perto
 				// ouvir; o nome é dito só para quem está na mesma sala - de longe, o scanner é só um
 				// som, e é indo até lá que se confere quem é.
+				// O scanner é de um de cada vez: este mesmo aviso diz se ele está ocupado agora.
+				scanner_busy = pkt.get_bool("active");
 				if (pkt.get_bool("active")) {
 					map_object@ spot = map.find_object(pkt.get_string("object_id"));
 					if (@spot != null) {
@@ -1066,7 +1084,14 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		if (!movement_frozen && !is_vented) {
 			if (action_pressed(ACTION_INTERACT)) {
 				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(), active_sabotage_id, alive);
-				if (@obj != null) {
+				// Duas recusas que poupam trabalho jogado fora: o scanner é de um de cada vez (o
+				// servidor recusa o segundo, e o scan dele não valeria de prova para ninguém), e um
+				// painel já resolvido não tem mais o que resolver.
+				if (@obj != null && obj.obj_type == OBJ_TASK_SPOT && obj.task_type == "submit_scan" && scanner_busy) {
+					speak(tr("task.scanner_busy"));
+				} else if (@obj != null && obj.obj_type == OBJ_SABOTAGE_PANEL && fixed_sabotage_panels.find(obj.id) != -1) {
+					speak(tr("sabotage.panel_already_fixed"));
+				} else if (@obj != null) {
 					speak(object_name(obj));
 					if (obj.obj_type == OBJ_TASK_SPOT) {
 						// Avisa que abriu: para o scan, é isto que faz o servidor contar a quem está

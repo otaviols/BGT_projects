@@ -579,6 +579,10 @@ class game_state {
 	bool try_start_visible_task(uint64 peer, const string&in object_id) {
 		game_player@ p = find_player(peer);
 		if (@p == null || !p.alive) return false;
+		// O scanner é de um de cada vez. Sem isto, três pessoas entrando juntas se sobrescreviam aqui:
+		// o servidor passava a acompanhar só a última, o fim do scan das outras não avisava ninguém, e
+		// o som do scanner ficava tocando (ou parava cedo) sem relação com quem estava nele.
+		if (visible_task_peer != 0 && visible_task_peer != peer) return false;
 		map_object@ spot = map.find_object(object_id);
 		if (@spot == null || spot.obj_type != OBJ_TASK_SPOT || spot.task_type != "submit_scan") return false;
 		bool pending = false;
@@ -686,7 +690,10 @@ class game_state {
 		// de forma aleatória mesmo com o jogador colado no painel (mesmo motivo do botão de reunião).
 		if (distance_2d(p.x, p.y, obj.x, obj.y) > PLAYER_INTERACT_RANGE * 2.0) { fail_key = "sabotage.too_far"; return false; }
 
-		if (sabotage_fixed_panels.find(object_id) == -1) sabotage_fixed_panels.insert_last(object_id);
+		// Este painel já foi consertado por alguém (o oxigênio pede dois, e nada impedia de voltar ao
+		// mesmo): dizer isso é o que evita a pessoa digitar o código de novo achando que está ajudando.
+		if (sabotage_fixed_panels.find(object_id) != -1) { fail_key = "sabotage.panel_already_fixed"; return false; }
+		sabotage_fixed_panels.insert_last(object_id);
 		panels_fixed = int(sabotage_fixed_panels.length());
 		panels_required = required_panels_for(active_sabotage);
 		if (panels_fixed < panels_required) return false;

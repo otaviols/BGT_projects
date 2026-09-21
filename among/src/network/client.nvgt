@@ -44,6 +44,10 @@ class game_client {
 	// partida)? As minigames precisam saber disso a cada quadro, e descobrir varrendo a fila custava
 	// o quadro inteiro quando ela crescia (ver MAX_INCOMING_PACKETS). Marcado na chegada, custa nada.
 	bool interrupt_pending = false;
+	// A sabotagem que estava de pé acabou de ser consertada (por qualquer um). O painel de reparo é
+	// uma tela bloqueante: sem este aviso, quem estava digitando o código continuava ali depois de
+	// outra pessoa ter resolvido, e só descobria ao terminar.
+	bool sabotage_ended = false;
 
 	bool connect_to(const string&in host, uint16 port) {
 		@net = network();
@@ -97,6 +101,7 @@ class game_client {
 	private void enqueue(net_packet@ pkt) {
 		string type = pkt.type;
 		if (type == S_MEETING_STARTED || type == S_BODY_REPORTED || type == S_GAME_OVER) interrupt_pending = true;
+		if (type == S_SABOTAGE_FIXED) sabotage_ended = true;
 		incoming.insert_last(pkt);
 		if (incoming.length() > MAX_INCOMING_PACKETS) drop_oldest_position();
 	}
@@ -119,12 +124,15 @@ class game_client {
 	void clear_incoming() {
 		incoming.resize(0);
 		interrupt_pending = false;
+		sabotage_ended = false;
 	}
 
 	// Retira a próxima mensagem recebida da fila, ou null se não houver nenhuma.
 	net_packet@ poll_message() {
 		if (incoming.length() == 0) {
-			interrupt_pending = false; // fila vazia: o que interrompia já foi entregue e tratado
+			// Fila vazia: o que interrompia já foi entregue e tratado.
+			interrupt_pending = false;
+			sabotage_ended = false;
 			return null;
 		}
 		net_packet@ pkt = incoming[0];

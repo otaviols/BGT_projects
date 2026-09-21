@@ -17,8 +17,17 @@
 
 // Roda o conserto da sabotagem `sabotage_id`. Devolve true se o jogador terminou; false se desistiu
 // ou foi interrompido. `oxygen_code` é o código desta sabotagem, vindo do servidor.
+// Alguém (qualquer um) consertou a sabotagem enquanto este painel estava aberto? Então não há mais
+// o que consertar aqui - continuar digitando o código seria trabalho para o lixo, e a pessoa só
+// descobriria ao terminar. Avisa uma vez e fecha.
+bool panel_closed_by_others(game_client@ client) {
+	if (@client == null || !client.sabotage_ended) return false;
+	speak(tr("sabotage.already_fixed_by_others"));
+	return true;
+}
+
 bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const string&in oxygen_code) {
-	if (task_tick(client)) return false;
+	if (task_tick(client) || panel_closed_by_others(client)) return false;
 	bool ok = false;
 	if (sabotage_id == "lights") ok = run_lights_panel(client);
 	else if (sabotage_id == "oxygen") ok = run_oxygen_panel(client, oxygen_code);
@@ -48,7 +57,7 @@ bool run_lights_panel(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_tick(client)) return false;
+		if (task_tick(client) || panel_closed_by_others(client)) return false;
 		int pressed = -1;
 		if (key_pressed(KEY_1)) pressed = 0;
 		else if (key_pressed(KEY_2)) pressed = 1;
@@ -99,7 +108,7 @@ bool run_oxygen_panel(game_client@ client, const string&in code) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_tick(client)) return false;
+		if (task_tick(client) || panel_closed_by_others(client)) return false;
 		if (key_pressed(KEY_SPACE)) { speak(tr("sabotage.oxygen.repeat", p)); continue; }
 		int digit = pressed_digit();
 		if (digit == -1) continue;
@@ -163,7 +172,7 @@ bool run_comms_panel(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_tick(client)) { stop_radio(voice, noise); return false; }
+		if (task_tick(client) || panel_closed_by_others(client)) { stop_radio(voice, noise); return false; }
 		if (@voice != null && !voice.playing) voice.play();
 		if (@noise != null && !noise.playing) noise.play();
 

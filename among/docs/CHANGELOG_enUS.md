@@ -8,6 +8,13 @@ Everything that changed in the game, newest first.
 
 ## 0.29.3
 
+- **Fixing a sabotage as a group now makes sense.** The panel closes by itself when somebody solves
+  it before you, an already fixed panel says so instead of letting you type the code for nothing,
+  and this works for both oxygen and comms.
+- **The medbay scanner takes one player at a time.** If someone is being scanned, the game says it is
+  busy instead of letting everyone pile in and scramble the scan.
+- Ghosts are no longer bothered by sabotages: no more alarm, and no more being offered a panel they
+  cannot fix.
 - Fixed for good: players who did not press Enter on the results screen were still left out of the
   next round. The screen already closed by itself, but the notice that the match had started was
   being discarded right afterwards.

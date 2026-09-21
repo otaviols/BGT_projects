@@ -193,6 +193,10 @@ class meeting_ui {
 	void on_sabotage_started(net_packet@ pkt) {
 		string sabotage_id = pkt.get_string("sabotage_id");
 		announce(sabotage_started_text(pkt), !pkt.announced);
+		// O alarme é para quem pode fazer algo a respeito. Fantasma não conserta painel, e um alarme
+		// contínuo sobre algo que ele não pode resolver é só barulho por cima do resto da partida -
+		// sabotagem não atinge morto (ver core/sabotage_rules.nvgt).
+		if (!alive) return;
 		audio.start_sabotage_alarm();
 		if (lights_out_for(sabotage_id, is_impostor, alive)) audio.apply_lights_out(true, NORMAL_AUDIO_MAX_DISTANCE);
 	}

@@ -8,6 +8,13 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ## 0.29.3
 
+- **Consertar sabotagem em grupo agora se entende.** O painel fecha sozinho quando alguém resolve
+  antes de você, um painel já consertado avisa em vez de deixar você digitar o código à toa, e vale
+  para o oxigênio e para as comunicações.
+- **O scanner da enfermaria é de um de cada vez.** Se alguém está sendo escaneado, o jogo diz que ele
+  está ocupado em vez de deixar todo mundo entrar junto e embaralhar o scan.
+- Fantasma deixou de ser incomodado pelas sabotagens: não ouve mais o alarme e não é mais levado a
+  abrir um painel que ele não pode consertar.
 - Corrigido de vez: quem não apertava Enter na tela de resultado continuava ficando de fora da
   rodada seguinte. A tela já fechava sozinha, mas o aviso de que a partida tinha começado era
   descartado logo depois.

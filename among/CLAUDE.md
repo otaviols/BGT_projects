@@ -458,6 +458,21 @@ Hoje as duas perguntam a `voice_down_for` (em `core/sabotage_rules.nvgt`), que r
 reunião e o que a sala escolheu; a regra da sala viaja no `S_GAME_START` justamente para o cliente
 poder responder igual. Sonda: `tools/probes/probe_voice_meeting.nvgt`.
 
+**Recurso de UM de cada vez precisa ser recusado no servidor E anunciado ao cliente.** O scanner da
+enfermaria guarda um `visible_task_peer` só; com três pessoas entrando juntas, elas se sobrescreviam
+ali e o fim do scan de uma não avisava ninguém - o som ficava tocando sem relação com quem estava
+nele. Hoje `try_start_visible_task` recusa o segundo, e o cliente sabe que está ocupado pelo mesmo
+`S_TASK_VISIBLE` que já recebia, então nem abre a minigame. A mesma forma do posto de câmeras.
+
+**Trabalho que o servidor vai recusar não pode ser oferecido ao jogador.** Duas versões disso no
+mesmo lugar: o fantasma abria o painel de sabotagem, resolvia a minigame inteira e só então ouvia
+que não valia (o servidor exige estar vivo), e quem chegasse num painel de oxigênio já resolvido
+digitava o código para nada. O cliente agora sabe dos dois - pelo `alive` que já tinha e pelo
+`S_SABOTAGE_PROGRESS`, que diz QUAL painel saiu do caminho - e recusa na hora, explicando. E o
+painel aberto fecha sozinho quando alguém resolve antes (`sabotage_ended` no game_client, marcado na
+chegada como o `interrupt_pending`, porque varrer a fila por quadro já travou o jogo uma vez).
+Sonda: `tools/probes/probe_reparo.nvgt`.
+
 **Sabotar é a única capacidade que sobrevive à morte.** O impostor morto continua sabotando (como
 no original) - matar, ventilar e fechar portas acabam com ele. A regra está em dois lugares que
 precisam concordar: `player_abilities.can_sabotage()` (que oferece a tecla) e

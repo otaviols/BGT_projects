@@ -158,6 +158,10 @@ const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejec
 const string S_VOTE_CAST = "s_vote_cast";                 // {voter_peer, voter_name} - só avisa QUE votou, nunca em quem
 const string S_SABOTAGE_STARTED = "s_sabotage_started";   // {sabotage_id, timer}
 const string S_SABOTAGE_FIXED = "s_sabotage_fixed";       // {sabotage_id}
+// Um painel foi consertado, mas a sabotagem ainda não acabou (o oxigênio pede dois). Existe para o
+// cliente saber QUAIS painéis já estão prontos: sem isso, quem chegasse no painel já resolvido
+// digitava o código inteiro para o servidor dizer no fim que não valia nada.
+const string S_SABOTAGE_PROGRESS = "s_sabotage_progress"; // {sabotage_id, object_id, fixed, required}
 // Lembrete de quanto falta numa sabotagem crítica. Quem decide QUANDO avisar é o servidor (a cada
 // 30 segundos, e a cada segundo nos 10 finais), e não cada cliente com um relógio próprio: assim
 // todo mundo ouve o mesmo número no mesmo instante, que é o que permite combinar "vai você no de
