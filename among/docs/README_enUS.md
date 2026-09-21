@@ -180,6 +180,7 @@ your file and English — worth sending a message about it.
 | Key | Action |
 |---|---|
 | R | report a body (you must be near it) |
+| G | say which sabotage is in progress and where to fix it |
 | Enter at the button | call an emergency meeting (one per player) |
 
 **Impostor**

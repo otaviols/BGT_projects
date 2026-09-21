@@ -177,6 +177,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | Tecla | Ação |
 |---|---|
 | R | reportar um corpo (precisa estar perto dele) |
+| G | dizer qual sabotagem está em andamento e onde consertar |
 | Enter no botão | chamar reunião de emergência (uma por jogador) |
 
 **Impostor**

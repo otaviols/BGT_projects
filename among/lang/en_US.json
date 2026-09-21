@@ -280,6 +280,7 @@
 	"sabotage.fix_hint": "Go to: {rooms}.",
 	"sabotage.panel_progress": "Panel fixed: {fixed} of {required}.",
 	"sabotage.no_active": "There is no sabotage to fix right now.",
+	"sabotage.none_active": "No sabotage in progress.",
 	"sabotage.wrong_panel": "This is not the panel for this sabotage.",
 	"sabotage.panel_already_fixed": "This panel is already fixed. The other one is still down.",
 	"sabotage.already_fixed_by_others": "Someone fixed it before you. Panel closed.",

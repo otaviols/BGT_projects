@@ -8,6 +8,9 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ## 0.29.5
 
+- Tripulante: a tecla G diz qual sabotagem está em andamento e para onde ir consertar, pulando
+  o painel que alguém já resolveu. Serve para quem estava numa tarefa quando o aviso tocou. Para o
+  impostor, o aviso de "já tem uma sabotagem" agora diz qual.
 - Corrigido: na tarefa de destravar os coletores, o jogo ficava sem responder enquanto tocava a
   sequência e o eco de cada tecla, e uma tecla apertada rápido demais se perdia. Agora dá para
   digitar a sequência no seu ritmo, e o ESC e os avisos da partida funcionam o tempo todo. O mesmo

@@ -8,6 +8,9 @@ Everything that changed in the game, newest first.
 
 ## 0.29.5
 
+- Crewmate: the G key says which sabotage is in progress and where to go fix it, skipping the
+  panel someone has already fixed. Meant for whoever was in a task when the alert played. For the
+  impostor, the "there is already a sabotage" notice now says which one.
 - Fixed: in the unlock manifolds task, the game stopped responding while it played the sequence
   and the echo of each key, and a key pressed too quickly was lost. You can now type the sequence
   at your own pace, and Escape and match announcements work the whole time. The same care went

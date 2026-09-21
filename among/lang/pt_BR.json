@@ -280,6 +280,7 @@
 	"sabotage.fix_hint": "Vá até: {rooms}.",
 	"sabotage.panel_progress": "Painel consertado: {fixed} de {required}.",
 	"sabotage.no_active": "Não tem nenhuma sabotagem pra consertar agora.",
+	"sabotage.none_active": "Nenhuma sabotagem em andamento.",
 	"sabotage.wrong_panel": "Este painel não é o desta sabotagem.",
 	"sabotage.panel_already_fixed": "Este painel já foi consertado. Falta o outro.",
 	"sabotage.already_fixed_by_others": "Alguém consertou antes de você. Painel fechado.",

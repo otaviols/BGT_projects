@@ -177,6 +177,26 @@ void refresh_landmark_beacons(audio_manager@ audio, game_map@ map, array<string>
 	audio.start_landmark_beacons(map, task_ids, active_sabotage_id);
 }
 
+// "Vá até: Elétrica, Reator." - em que sala(s) fica o painel certo desta sabotagem. Sem isso o
+// anúncio só diz QUAL sabotagem, não para ONDE ir consertar. Painéis já consertados ficam de fora:
+// mandar alguém atravessar a nave para um painel que já saiu do caminho é o que o
+// S_SABOTAGE_PROGRESS existe para evitar. Devolve "" se não há painel a listar.
+string sabotage_fix_hint_text(game_map@ map, const string&in sabotage_id, array<string>@ fixed_panel_ids) {
+	array<string> fix_room_names;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type != OBJ_SABOTAGE_PANEL || o.task_type != sabotage_id) continue;
+		if (@fixed_panel_ids != null && fixed_panel_ids.find(o.id) != -1) continue;
+		map_zone@ z = map.find_zone(o.room_id);
+		string room_name = @z != null ? tr(z.name_key) : "";
+		if (room_name != "" && fix_room_names.find(room_name) == -1) fix_room_names.insert_last(room_name);
+	}
+	if (fix_room_names.length() == 0) return "";
+	dictionary@ hint_params = dictionary();
+	hint_params.set("rooms", join(fix_room_names, ", "));
+	return tr("sabotage.fix_hint", hint_params);
+}
+
 // Som simples de interface do posto de câmeras (sem posição: quem ouve é quem está operando).
 void task_sound_simple(const string&in path) {
 	sound_play(path, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), g_settings.volume_db(SOUND_FAMILY_TASKS), 0.0);
@@ -742,22 +762,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					events_log.add("", radio_text);
 				}
 
-				// Dica de conserto: fala em qual(is) sala(s) fica o painel certo pra essa sabotagem -
-				// sem isso o anúncio só dizia QUAL sabotagem, não pra ONDE ir consertar.
-				array<string> fix_room_names;
-				for (uint i = 0; i < map.objects.length(); i++) {
-					map_object@ o = map.objects[i];
-					if (o.obj_type != OBJ_SABOTAGE_PANEL || o.task_type != sabotage_id) continue;
-					map_zone@ z = map.find_zone(o.room_id);
-					string room_name = @z != null ? tr(z.name_key) : "";
-					if (room_name != "" && fix_room_names.find(room_name) == -1) fix_room_names.insert_last(room_name);
-				}
-				if (fix_room_names.length() > 0) {
-					string joined_rooms = fix_room_names[0];
-					for (uint i = 1; i < fix_room_names.length(); i++) joined_rooms += ", " + fix_room_names[i];
-					dictionary@ hint_params = dictionary();
-					hint_params.set("rooms", joined_rooms);
-					string hint_text = tr("sabotage.fix_hint", hint_params);
+				string hint_text = sabotage_fix_hint_text(map, sabotage_id, fixed_sabotage_panels);
+				if (hint_text != "") {
 					speak(hint_text);
 					events_log.add("", hint_text);
 				}
@@ -1173,6 +1179,21 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				speak(tr("game.location_info", p));
 			}
 
+			// G para quem NÃO sabota: o estado da sabotagem (recado #98). O anúncio dela é um só, na
+			// hora em que começa, e quem estava numa task ou chegou no meio da conversa não tem como
+			// perguntar de novo - "está escuro, mas por quê?" é a pergunta que isto responde. A mesma
+			// tecla do menu de sabotagem, de propósito: G é "sabotagem" para todo mundo, e o que ela faz
+			// depende de quem aperta. Os painéis já consertados saem da dica, porque o cliente sabe quais.
+			if (!player_abilities(my_role, alive).can_sabotage() && action_pressed(ACTION_SABOTAGE)) {
+				if (active_sabotage_id == "") speak(tr("sabotage.none_active"));
+				else {
+					string status = tr("sabotage." + active_sabotage_id + ".name") + ".";
+					string hint = sabotage_fix_hint_text(map, active_sabotage_id, fixed_sabotage_panels);
+					if (hint != "") status += " " + hint;
+					speak(status);
+				}
+			}
+
 			player_abilities me(my_role, alive);
 			if (me.can_kill() || me.can_sabotage() || me.can_close_doors()) {
 				if (me.can_kill() && action_pressed(ACTION_KILL)) {
@@ -1196,7 +1217,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 
 				if (me.can_sabotage() && action_pressed(ACTION_SABOTAGE)) {
 					if (active_sabotage_id != "") {
-						speak(tr("game.sabotage_already_active"));
+						// Diz QUAL: o impostor morto que voltou de uma task também perde o anúncio.
+						speak(tr("game.sabotage_already_active") + " " + tr("sabotage." + active_sabotage_id + ".name") + ".");
 					} else if (my_sabotage_cooldown_remaining > 0.0) {
 						dictionary@ cd = dictionary();
 						cd.set("seconds", "" + int(my_sabotage_cooldown_remaining + 0.5));
