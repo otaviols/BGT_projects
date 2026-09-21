@@ -1,0 +1,33 @@
+// Sonda do limbo do fim de partida.
+//
+// O bug: quem deixava a tela de resultado aberta (sem apertar Enter) não era puxado para a rodada
+// seguinte. O S_GAME_START chegava e ficava na fila sem ninguém para lê-lo; a pessoa ouvia as vozes
+// da partida nova acontecendo sem ela e não conseguia jogar.
+//
+// Esta sonda testa a correção de verdade: run_menu_until_next_match tem que DEVOLVER sozinho quando
+// um S_GAME_START aparece na fila, sem o jogador tocar em nada. Testar isso pelo fluxo completo de
+// uma partida não pegaria o bug - a fila sobrevive dos dois jeitos; o que estava quebrado era a
+// tela nunca fechar.
+//   nvgt tools/probes/probe_limbo.nvgt
+#include "../../src/core/crash_log.nvgt"
+#include "../../src/game/game_loop.nvgt"
+
+void main() {
+	show_window("sonda do limbo");
+	game_client@ c = game_client();
+
+	menu m;
+	m.intro_text = "tela de resultado (a sonda nao aperta nada)";
+	m.add_item("um item qualquer", "x");
+
+	// Ninguém vai apertar tecla nenhuma: se a tela só fechasse por Enter, isto ficaria preso para
+	// sempre - que é exatamente o que acontecia com o jogador.
+	c.incoming.insert_last(net_packet(S_PLAYER_MOVED)); // ruído: a fila nunca tem só o que interessa
+	c.incoming.insert_last(net_packet(S_GAME_START));
+
+	timer t;
+	run_menu_until_next_match(m, c);
+	println("a tela fechou sozinha em " + t.elapsed + " ms (esperado: quase imediato)");
+	println(t.elapsed < 2000 ? "ok: o jogador e' puxado para a rodada seguinte"
+		: "FALHA: ficou preso na tela de resultado");
+}

@@ -8,6 +8,9 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ## 0.29.2
 
+- Corrigido: quem deixava a tela de resultado aberta sem apertar Enter não era puxado para a rodada
+  seguinte. A pessoa ficava ouvindo a partida acontecer sem ela e não conseguia jogar. Agora a tela
+  fecha sozinha quando a partida nova começa.
 - Corrigido: com a regra "comunicações sabotadas calam a reunião" **desligada**, a voz continuava
   cortada na reunião assim mesmo.
 - **O impostor morto volta a sabotar**, como no jogo original. É o que lhe resta — matar, ventilar e

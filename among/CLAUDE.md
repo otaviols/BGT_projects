@@ -405,6 +405,17 @@ meio da partida que vários jogadores relataram. Duas correções: `game_client.
 já viaja pelo canal não confiável; descartar um EVENTO deixaria o cliente contando uma partida que
 não existe. Ao escrever qualquer tela bloqueante nova, nada de varrer `client.incoming` por quadro.
 
+**Tela que o jogador pode deixar aberta precisa saber fechar sozinha.** A de resultado é a única
+sem pressa - dá para sair para atender o telefone com ela aberta -, e `menu.run()` só sai por tecla.
+Quando o anfitrião começava a rodada seguinte, o `S_GAME_START` chegava e ficava na fila sem ninguém
+para lê-lo: a pessoa ouvia as vozes da partida nova acontecendo sem ela e não conseguia jogar.
+`run_menu_until_next_match` abre o laço do menu e devolve quando esse pacote aparece. Duas coisas
+aprendidas junto: a fila é examinada a partir de um CURSOR que só cresce (ninguém a consome com o
+menu aberto), porque varrê-la inteira por quadro é o que já travou o jogo; e **uma sonda que
+reimplementa a lógica que testa não testa nada** - a primeira versão desta passava com o código
+quebrado, e só virou teste de verdade quando passou a chamar a função real e a ser conferida contra
+a versão sem a correção (onde ela trava).
+
 **Regra que o cliente também aplica tem que morar numa função só.** O cliente decide se ABRE o
 microfone e o servidor decide QUEM ouve; quando as duas decisões são escritas separadas, elas
 divergem e vence a mais restritiva - foi assim que a regra "comunicações calam a reunião", mesmo

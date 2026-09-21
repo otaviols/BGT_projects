@@ -122,10 +122,15 @@ net_packet@ wait_for_reopened_lobby(game_client@ client) {
 	while (t.elapsed < 4000) {
 		client.update();
 		if (!client.connected) return null;
-		net_packet@ pkt = client.poll_message();
-		while (@pkt != null) {
-			if (pkt.type == S_LOBBY_STATE) return pkt;
-			@pkt = client.poll_message();
+		// Tira da fila SÓ o retrato, deixando o resto intacto. Com poll_message isto engolia tudo o
+		// que viesse junto - e o que vem junto pode ser o S_GAME_START da rodada seguinte, se o
+		// anfitrião já a iniciou. Perdido ele, o jogador voltava para a sala de espera ouvindo o chat
+		// de uma partida que já estava rolando sem ele: o limbo em que ele não conseguia jogar.
+		for (uint i = 0; i < client.incoming.length(); i++) {
+			if (client.incoming[i].type != S_LOBBY_STATE) continue;
+			net_packet@ retrato = client.incoming[i];
+			client.incoming.remove_at(i);
+			return retrato;
 		}
 		wait(10);
 	}
@@ -382,7 +387,30 @@ void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 		m.add_item(tr(impostors_json.length() == 1 ? "game.impostor_was" : "game.impostors_were", names_params), "impostor_names");
 	}
 
-	m.run();
+	run_menu_until_next_match(m, client);
+}
+
+// Roda um menu até o jogador sair dele OU até a partida seguinte começar.
+//
+// A tela de resultado é a única que alguém deixa aberta por minutos - ela não tem pressa nenhuma, e
+// é comum sair para atender o telefone com ela na tela. Se o anfitrião iniciar a rodada seguinte
+// nesse meio-tempo, o S_GAME_START chega e fica esperando na fila sem ninguém para lê-lo: a pessoa
+// ouvia o chat da partida nova sem estar nela, e não conseguia jogar. Fechar a tela sozinho é o que
+// a puxa para dentro da rodada.
+//
+// A fila é examinada a partir de onde paramos, e não do começo: ninguém a consome enquanto o menu
+// está aberto, então o cursor só cresce - e varrer tudo a cada quadro é justamente o que já travou
+// o jogo uma vez (ver MAX_INCOMING_PACKETS).
+void run_menu_until_next_match(menu@ m, game_client@ client) {
+	uint conferidos = 0;
+	while (m.monitor()) {
+		wait(5);
+		if (@client == null) continue;
+		while (conferidos < client.incoming.length()) {
+			if (client.incoming[conferidos].type == S_GAME_START) return;
+			conferidos++;
+		}
+	}
 }
 
 // Executa uma partida inteira a partir do pacote S_GAME_START. Bloqueia até o fim da partida

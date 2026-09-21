@@ -8,6 +8,9 @@ Everything that changed in the game, newest first.
 
 ## 0.29.2
 
+- Fixed: players who left the results screen open without pressing Enter were not pulled into the
+  next round. They were left hearing the match happen without them, unable to play. The screen now
+  closes by itself when the new match starts.
 - Fixed: with the "sabotaged comms silence the meeting" rule **off**, voices were still cut during
   meetings anyway.
 - **Dead impostors can sabotage again**, as in the original game. It is what they have left — killing,
