@@ -404,6 +404,18 @@ class game_server {
 		string token = pkt.get_string("token");
 		net_packet@ result = net_packet(S_LOGIN_RESULT);
 
+		// O corte por protocolo vem ANTES de conferir a senha: a resposta é a mesma S_LOGIN_RESULT que
+		// todo cliente já entende, só que com o motivo certo. Recusar aqui, e não na conexão, é o que
+		// deixa o cliente ouvir o porquê - na conexão ele só veria a rede cair.
+		int protocol = pkt.get_int("protocol", 0);
+		if (protocol < MIN_PROTOCOL_VERSION) {
+			result.set_bool("ok", false);
+			result.set_string("message", "login.update_required");
+			send_to(peer_id, result);
+			println("[login] protocolo " + protocol + " recusado (minimo " + MIN_PROTOCOL_VERSION + ")");
+			return;
+		}
+
 		bool ok;
 		if (token != "") {
 			username = g_user_db.session_user(token);
@@ -416,6 +428,7 @@ class game_server {
 			if (@conn != null) {
 				conn.username = username;
 				conn.authenticated = true;
+				conn.protocol_version = protocol;
 			}
 			result.set_bool("ok", true);
 			result.set_string("message", "login.success");

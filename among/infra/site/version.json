@@ -1,9 +1,9 @@
 {
-	"version": "0.29.4",
+	"version": "0.29.5",
 	"url": "AmongUs.zip",
-	"notes": "Fixed: ghosts started hearing the sabotage alarm again after a meeting, and kept hearing it when they died in the middle of one. Sabotage no longer bothers the dead at any point.",
+	"notes": "Groundwork for what comes next: the game now introduces itself to the server when you log in. When a version becomes too old to play, the game will say it needs updating and open the download page, instead of claiming your password is wrong. Nothing changes for now.",
 	"notes_by_language": {
-		"pt_BR": "Corrigido: o fantasma voltava a ouvir o alarme de sabotagem depois de uma reunião, e continuava ouvindo quando morria no meio de uma. Sabotagem não incomoda mais quem já morreu, em momento nenhum.",
-		"en_US": "Fixed: ghosts started hearing the sabotage alarm again after a meeting, and kept hearing it when they died in the middle of one. Sabotage no longer bothers the dead at any point."
+		"pt_BR": "Preparação para as próximas novidades: o jogo agora se apresenta ao servidor ao entrar. Quando uma versão ficar velha demais para jogar, o jogo avisa que precisa atualizar e abre a página de download, em vez de dizer que a senha está errada. Nada muda por enquanto.",
+		"en_US": "Groundwork for what comes next: the game now introduces itself to the server when you log in. When a version becomes too old to play, the game will say it needs updating and open the download page, instead of claiming your password is wrong. Nothing changes for now."
 	}
 }

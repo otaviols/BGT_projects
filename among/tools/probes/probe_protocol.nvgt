@@ -1,0 +1,59 @@
+// Sonda da versão de protocolo: o servidor recusa o login de quem declara protocolo abaixo do
+// mínimo, com o motivo "login.update_required" no S_LOGIN_RESULT, e aceita quem manda o atual.
+//
+// A recusa é testada mandando -1 à mão (abaixo de qualquer mínimo), e não mexendo nas constantes:
+// assim a sonda vale contra o servidor de produção, onde MIN_PROTOCOL_VERSION pode ser 0.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_protocol.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	return c.connected ? c : null;
+}
+
+// Login "à mão", para poder mandar um protocolo que o cliente de verdade nunca mandaria.
+net_packet@ login_com_protocolo(game_client@ c, const string&in nome, int protocolo, bool com_campo = true) {
+	net_packet@ p = net_packet(C_LOGIN);
+	p.set_string("username", nome);
+	p.set_string("password", "probe123");
+	if (com_campo) p.set_int("protocol", protocolo);
+	// Direto pela rede: o send() do cliente é privado, e abri-lo só para a sonda seria expor ao jogo
+	// um caminho que ele não deve usar.
+	c.net.send_reliable(c.local_peer_id, p.to_wire(), CHANNEL_RELIABLE);
+	return wf(c, S_LOGIN_RESULT, 5000);
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string nome = "proto_" + random(1000, 9999);
+
+	game_client@ a = conecta(addr);
+	if (@a == null) { println("nao conectou"); return; }
+	a.send_register(nome, "probe123"); wf(a, S_REGISTER_RESULT, 3000);
+
+	// 1. Protocolo velho demais: recusado com o motivo certo
+	net_packet@ r = login_com_protocolo(a, nome, -1);
+	println("protocolo -1: ok=" + (@r != null && r.get_bool("ok")) + " motivo='" + (@r != null ? r.get_string("message") : "(sem resposta)")
+		+ "' (esperado ok=false, login.update_required)");
+
+	// 2. Sem o campo (cliente anterior a 0.29.5): conta como 0, e passa enquanto o minimo for 0
+	net_packet@ r0 = login_com_protocolo(a, nome, 0, false);
+	println("sem campo: ok=" + (@r0 != null && r0.get_bool("ok")) + " (esperado " + (MIN_PROTOCOL_VERSION <= 0) + ", minimo " + MIN_PROTOCOL_VERSION + ")");
+
+	// 3. Protocolo atual, pelo caminho do jogo de verdade
+	game_client@ b = conecta(addr);
+	b.send_login(nome, "probe123");
+	net_packet@ r1 = wf(b, S_LOGIN_RESULT, 5000);
+	println("protocolo " + PROTOCOL_VERSION + ": ok=" + (@r1 != null && r1.get_bool("ok")) + " (esperado true)");
+
+	a.disconnect(); b.disconnect();
+}

@@ -6,6 +6,12 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.29.5
+
+- Groundwork for what comes next: the game now introduces itself to the server when you log in.
+  When a version becomes too old to play, the game will say it needs updating and open the
+  download page, instead of claiming your password is wrong. Nothing changes for now.
+
 ## 0.29.4
 
 - Fixed: ghosts started hearing the sabotage alarm again after a meeting, and kept hearing it when

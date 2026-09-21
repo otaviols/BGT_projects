@@ -420,6 +420,19 @@ tem gancho nenhum, então a configuração de voz não tinha como servir a rede.
 (`run_voice_screen`), o que de quebra resolveu ela ser em inglês fixo; os valores continuam saindo
 e entrando por `tts_dump_config`/`tts_load_config`, então nada do que estava salvo se perde.
 
+**Versão de PROTOCOLO é separada da versão do jogo, e o corte se faz em UM número.**
+`PROTOCOL_VERSION` (o que o cliente manda no `C_LOGIN`) e `MIN_PROTOCOL_VERSION` (o que o servidor
+aceita), em `config/game_constants.nvgt`. Cliente anterior à 0.29.5 não manda o campo e conta
+como 0. Mudança incompatível de rede (a primeira serão os papéis): sobe `PROTOCOL_VERSION`, e
+sobe `MIN_PROTOCOL_VERSION` **só depois** que a base de jogadores já tiver passado pela 0.29.5 -
+os clientes até a 0.29.4 IGNORAM o motivo da falha de login e dizem "usuário ou senha inválidos",
+então cortá-los cedo demais é mandar a pessoa rever a senha. A recusa é um `S_LOGIN_RESULT` com
+`ok=false` e `message = login.update_required` (o cliente novo avisa e abre a página de download),
+e não uma desconexão: na desconexão o cliente só veria a rede cair. O servidor guarda o protocolo
+de cada conexão (`game_player.protocol_version`) para poder, por sala, decidir o que oferecer a
+quem. Sonda: `tools/probes/probe_protocol.nvgt` (testa a recusa mandando -1, então vale contra
+produção com mínimo 0).
+
 **Uma conta, uma sessão - e a entrada NOVA derruba a velha, não o contrário.** Recusar a segunda
 entrada parece mais educado e é pior: uma conexão que caiu feio continua de pé para o servidor até o
 ENet desistir dela, e a pessoa ficaria sem conseguir voltar ao próprio jogo. `drop_other_sessions`

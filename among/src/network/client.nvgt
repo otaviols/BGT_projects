@@ -159,6 +159,7 @@ class game_client {
 		p.set_string("username", username);
 		p.set_string("password", password);
 		p.set_bool("remember", remember);
+		p.set_int("protocol", PROTOCOL_VERSION);
 		send(p);
 	}
 
@@ -166,6 +167,7 @@ class game_client {
 	void send_login_token(const string&in token) {
 		net_packet@ p = net_packet(C_LOGIN);
 		p.set_string("token", token);
+		p.set_int("protocol", PROTOCOL_VERSION);
 		send(p);
 	}
 

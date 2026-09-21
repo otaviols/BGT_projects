@@ -168,6 +168,7 @@
 	"login.password": "Password",
 	"login.submit": "Log in",
 	"login.invalid_credentials": "Invalid username or password.",
+	"login.update_required": "This version of the game is too old for the server. Update the game to continue. Opening the download page.",
 	"login.session_replaced": "This account signed in somewhere else. You were disconnected.",
 	"login.success": "Logged in successfully.",
 	"login.username_taken": "That username is already taken.",

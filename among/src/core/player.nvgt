@@ -20,6 +20,10 @@ class game_player {
 	uint64 peer_id;
 	string username;
 	bool authenticated = false;
+	// Versão do protocolo que ESTE cliente declarou no login (0 = anterior ao campo). Fica na conexão
+	// para o servidor poder decidir, por sala, o que oferecer a quem: uma sala com recurso que só o
+	// cliente novo entende precisa saber quem é novo.
+	int protocol_version = 0;
 	string lobby_id = "";
 	int color = COLOR_RED;
 	float x = 0.0;

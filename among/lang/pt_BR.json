@@ -168,6 +168,7 @@
 	"login.password": "Senha",
 	"login.submit": "Entrar",
 	"login.invalid_credentials": "Usuário ou senha inválidos.",
+	"login.update_required": "Esta versão do jogo ficou velha demais para o servidor. Atualize o jogo para continuar. Vou abrir a página de download.",
 	"login.session_replaced": "Esta conta entrou em outro computador. Você foi desconectado.",
 	"login.success": "Login realizado com sucesso.",
 	"login.username_taken": "Esse usuário já existe.",

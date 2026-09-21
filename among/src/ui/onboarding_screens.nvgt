@@ -243,6 +243,16 @@ bool wait_for_auth_result(game_client@ client, bool was_register, const string&i
 				wait_clock.restart();
 			} else if (pkt.type == S_LOGIN_RESULT) {
 				if (!pkt.get_bool("ok")) {
+					// O servidor manda a chave do motivo, mas até a 0.29.4 o cliente a ignorava e
+					// dizia "credenciais inválidas" para qualquer falha. A recusa por protocolo velho
+					// é o caso em que isso engana de verdade: a pessoa reveria a senha em vez de
+					// atualizar. Ela faz o que o updater faz quando não consegue instalar: avisa e
+					// abre a página de download.
+					if (pkt.get_string("message") == "login.update_required") {
+						speak(tr("login.update_required"));
+						urlopen(DOWNLOAD_PAGE_URL);
+						return false;
+					}
 					speak(tr(by_token ? "login.remembered_failed" : "login.invalid_credentials"));
 					return false;
 				}

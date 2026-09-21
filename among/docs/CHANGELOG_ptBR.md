@@ -6,6 +6,12 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.29.5
+
+- Preparação para as próximas novidades: o jogo agora se apresenta ao servidor ao entrar. Quando
+  uma versão ficar velha demais para jogar, o jogo avisa que precisa atualizar e abre a página
+  de download, em vez de dizer que a senha está errada. Nada muda por enquanto.
+
 ## 0.29.4
 
 - Corrigido: o fantasma voltava a ouvir o alarme de sabotagem depois de uma reunião, e continuava
