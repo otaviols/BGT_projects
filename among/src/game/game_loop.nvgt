@@ -1138,7 +1138,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 						// O conserto é uma minigame (ver sabotage_panels.nvgt); só o resultado vai ao
 						// servidor, que continua decidindo se o painel conta.
 						audio.play_object_interact(obj);
-						if (run_sabotage_panel(client, active_sabotage_id, oxygen_code)) imp.fix_sabotage_panel(obj.id);
+						if (run_sabotage_panel(client, active_sabotage_id, oxygen_code, obj.id)) imp.fix_sabotage_panel(obj.id);
 					} else if (obj.obj_type == OBJ_SECURITY_CAMERAS) {
 						// Só pede; quem decide é o servidor (o posto é de um de cada vez).
 						client.send_camera_enter();

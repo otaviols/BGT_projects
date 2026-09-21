@@ -48,6 +48,10 @@ class game_client {
 	// uma tela bloqueante: sem este aviso, quem estava digitando o código continuava ali depois de
 	// outra pessoa ter resolvido, e só descobria ao terminar.
 	bool sabotage_ended = false;
+	// Qual painel acabou de ser resolvido por alguém, sem a sabotagem ter acabado (o oxigênio pede
+	// dois). Serve para fechar o painel de quem estava no MESMO - dois entram juntos, um termina
+	// primeiro, e o outro continuaria digitando um código que já não conta.
+	string panel_fixed_id = "";
 
 	bool connect_to(const string&in host, uint16 port) {
 		@net = network();
@@ -102,6 +106,7 @@ class game_client {
 		string type = pkt.type;
 		if (type == S_MEETING_STARTED || type == S_BODY_REPORTED || type == S_GAME_OVER) interrupt_pending = true;
 		if (type == S_SABOTAGE_FIXED) sabotage_ended = true;
+		if (type == S_SABOTAGE_PROGRESS) panel_fixed_id = pkt.get_string("object_id");
 		incoming.insert_last(pkt);
 		if (incoming.length() > MAX_INCOMING_PACKETS) drop_oldest_position();
 	}
@@ -125,6 +130,7 @@ class game_client {
 		incoming.resize(0);
 		interrupt_pending = false;
 		sabotage_ended = false;
+		panel_fixed_id = "";
 	}
 
 	// Retira a próxima mensagem recebida da fila, ou null se não houver nenhuma.
@@ -133,6 +139,7 @@ class game_client {
 			// Fila vazia: o que interrompia já foi entregue e tratado.
 			interrupt_pending = false;
 			sabotage_ended = false;
+			panel_fixed_id = "";
 			return null;
 		}
 		net_packet@ pkt = incoming[0];

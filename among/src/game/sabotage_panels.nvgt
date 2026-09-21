@@ -20,14 +20,27 @@
 // Alguém (qualquer um) consertou a sabotagem enquanto este painel estava aberto? Então não há mais
 // o que consertar aqui - continuar digitando o código seria trabalho para o lixo, e a pessoa só
 // descobriria ao terminar. Avisa uma vez e fecha.
-bool panel_closed_by_others(game_client@ client) {
-	if (@client == null || !client.sabotage_ended) return false;
+bool panel_closed_by_others(game_client@ client, const string&in panel_id = "") {
+	if (@client == null) return false;
+	// Duas formas de perder a corrida: a sabotagem inteira acabou, ou alguém terminou ESTE painel
+	// antes (o oxigênio pede dois, e nada impede duas pessoas de escolherem o mesmo).
+	bool acabou = client.sabotage_ended;
+	bool este_painel = panel_id != "" && client.panel_fixed_id == panel_id;
+	if (!acabou && !este_painel) return false;
 	speak(tr("sabotage.already_fixed_by_others"));
 	return true;
 }
 
-bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const string&in oxygen_code) {
-	if (task_tick(client) || panel_closed_by_others(client)) return false;
+// Qual painel o jogador está consertando agora. Fica aqui, e não numa assinatura, porque os laços
+// de cada painel (luzes, oxigênio, comunicações) são independentes e todos precisam da mesma
+// resposta: "alguém terminou este painel antes de mim?".
+string g_panel_being_fixed = "";
+
+// `panel_id` é o ponto do mapa que está sendo consertado; vazio no treino, que não tem mapa.
+bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const string&in oxygen_code,
+		const string&in panel_id = "") {
+	g_panel_being_fixed = panel_id;
+	if (task_tick(client) || panel_closed_by_others(client, panel_id)) return false;
 	bool ok = false;
 	if (sabotage_id == "lights") ok = run_lights_panel(client);
 	else if (sabotage_id == "oxygen") ok = run_oxygen_panel(client, oxygen_code);
@@ -57,7 +70,7 @@ bool run_lights_panel(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_tick(client) || panel_closed_by_others(client)) return false;
+		if (task_tick(client) || panel_closed_by_others(client, g_panel_being_fixed)) return false;
 		int pressed = -1;
 		if (key_pressed(KEY_1)) pressed = 0;
 		else if (key_pressed(KEY_2)) pressed = 1;
@@ -108,7 +121,7 @@ bool run_oxygen_panel(game_client@ client, const string&in code) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_tick(client) || panel_closed_by_others(client)) return false;
+		if (task_tick(client) || panel_closed_by_others(client, g_panel_being_fixed)) return false;
 		if (key_pressed(KEY_SPACE)) { speak(tr("sabotage.oxygen.repeat", p)); continue; }
 		int digit = pressed_digit();
 		if (digit == -1) continue;
@@ -172,7 +185,7 @@ bool run_comms_panel(game_client@ client) {
 	while (true) {
 		wait(5);
 		client.update();
-		if (task_tick(client) || panel_closed_by_others(client)) { stop_radio(voice, noise); return false; }
+		if (task_tick(client) || panel_closed_by_others(client, g_panel_being_fixed)) { stop_radio(voice, noise); return false; }
 		if (@voice != null && !voice.playing) voice.play();
 		if (@noise != null && !noise.playing) noise.play();
 

@@ -3,6 +3,7 @@
 //   nvgt tools/probes/probe_reparo.nvgt
 #include "../../src/core/game_state.nvgt"
 #include "../../src/game/roles/role_traits.nvgt"
+#include "../../src/game/sabotage_panels.nvgt"
 
 void caso(const string&in o_que, bool obtido, bool esperado) {
 	println((obtido == esperado ? "ok   " : "FALHA ") + o_que + ": " + obtido + " (esperado " + esperado + ")");
@@ -58,4 +59,16 @@ void main() {
 	bool acabou = l2.try_fix_sabotage_panel(3, "panel_oxygen_o2room", ev, feitos, precisa, motivo);
 	caso("o segundo painel encerra a sabotagem", acabou, true);
 	caso("a sabotagem ficou sem estar ativa", l2.active_sabotage == "", true);
+
+	println("--- o painel aberto fecha quando outro resolve ---");
+	game_client c;
+	caso("nada aconteceu ainda: o painel fica aberto", panel_closed_by_others(c, "panel_oxygen_admin"), false);
+	// Alguém terminou O MESMO painel em que eu estou
+	c.panel_fixed_id = "panel_oxygen_admin";
+	caso("terminaram ESTE painel: fecha", panel_closed_by_others(c, "panel_oxygen_admin"), true);
+	caso("terminaram o OUTRO painel: continuo no meu", panel_closed_by_others(c, "panel_oxygen_o2room"), false);
+	// A sabotagem inteira acabou: fecha qualquer painel
+	c.panel_fixed_id = "";
+	c.sabotage_ended = true;
+	caso("a sabotagem acabou: fecha qualquer painel", panel_closed_by_others(c, "panel_oxygen_o2room"), true);
 }
