@@ -193,12 +193,9 @@ class meeting_ui {
 	void on_sabotage_started(net_packet@ pkt) {
 		string sabotage_id = pkt.get_string("sabotage_id");
 		announce(sabotage_started_text(pkt), !pkt.announced);
-		// O alarme é para quem pode fazer algo a respeito. Fantasma não conserta painel, e um alarme
-		// contínuo sobre algo que ele não pode resolver é só barulho por cima do resto da partida -
-		// sabotagem não atinge morto (ver core/sabotage_rules.nvgt).
-		if (!alive) return;
-		audio.start_sabotage_alarm();
-		if (lights_out_for(sabotage_id, is_impostor, alive)) audio.apply_lights_out(true, NORMAL_AUDIO_MAX_DISTANCE);
+		// O alarme e o alcance de audição NÃO são ligados aqui: quem manda neles é
+		// apply_sabotage_effects (game/game_loop.nvgt), que é reavaliado também quando o jogador
+		// morre e quando a reunião acaba. Com dois donos, cada caminho esquecia um deles.
 	}
 
 	// Lembrete de quanto falta na sabotagem crítica (marcos de 30 em 30) e a contagem dos 10 finais.
@@ -218,8 +215,7 @@ class meeting_ui {
 
 	void on_sabotage_fixed(net_packet@ pkt) {
 		announce(sabotage_fixed_text(), !pkt.announced);
-		audio.stop_sabotage_alarm();
-		audio.apply_lights_out(false, NORMAL_AUDIO_MAX_DISTANCE);
+		// Desligar o alarme e devolver o alcance de audição é de apply_sabotage_effects (ver acima).
 	}
 
 	void on_player_killed(net_packet@ pkt) {

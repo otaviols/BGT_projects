@@ -6,6 +6,12 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.29.4
+
+- Corrigido: o fantasma voltava a ouvir o alarme de sabotagem depois de uma reunião, e continuava
+  ouvindo quando morria no meio de uma. Sabotagem não incomoda mais quem já morreu, em momento
+  nenhum.
+
 ## 0.29.3
 
 - **Consertar sabotagem em grupo agora se entende.** O painel fecha sozinho quando alguém resolve

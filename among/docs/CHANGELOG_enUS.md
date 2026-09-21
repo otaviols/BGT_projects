@@ -6,6 +6,11 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.29.4
+
+- Fixed: ghosts started hearing the sabotage alarm again after a meeting, and kept hearing it when
+  they died in the middle of one. Sabotage no longer bothers the dead at any point.
+
 ## 0.29.3
 
 - **Fixing a sabotage as a group now makes sense.** The panel closes by itself when somebody solves

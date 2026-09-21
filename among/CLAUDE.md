@@ -458,6 +458,14 @@ Hoje as duas perguntam a `voice_down_for` (em `core/sabotage_rules.nvgt`), que r
 reunião e o que a sala escolheu; a regra da sala viaja no `S_GAME_START` justamente para o cliente
 poder responder igual. Sonda: `tools/probes/probe_voice_meeting.nvgt`.
 
+**Som contínuo precisa de UM dono, e o dono é quem reavalia o estado.** O alarme de sabotagem era
+ligado em três lugares (início da sabotagem, volta da reunião) e desligado em outros, e cada caminho
+esquecia um: quem morria no meio da sabotagem continuava ouvindo, e a volta da reunião religava para
+todo mundo, vivo ou não - foi o recado #96, chegado JÁ com a correção parcial no ar. Hoje quem manda
+no alarme é `apply_sabotage_effects`, o mesmo lugar que decide os outros efeitos, e que roda no
+começo, no conserto, na MORTE e na volta da reunião. O `meeting_ui` não toca mais nele. Sonda:
+`tools/probes/probe_alarme_fantasma.nvgt`, que chama a função de verdade e olha o slot do som.
+
 **Recurso de UM de cada vez precisa ser recusado no servidor E anunciado ao cliente.** O scanner da
 enfermaria guarda um `visible_task_peer` só; com três pessoas entrando juntas, elas se sobrescreviam
 ali e o fim do scan de uma não avisava ninguém - o som ficava tocando sem relação com quem estava

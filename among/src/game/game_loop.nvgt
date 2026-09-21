@@ -103,6 +103,12 @@ void apply_sabotage_effects(audio_manager@ audio, meeting_ui@ mui, game_map@ map
 		array<string>@ my_task_object_ids, const string&in active_sabotage_id, role_traits@ role,
 		bool is_impostor, bool alive, array<uint64>@ known_body_peers, array<vector>@ known_body_positions) {
 	bool lights_out = lights_out_for(active_sabotage_id, is_impostor, alive);
+	// O alarme toca para quem PODE fazer algo a respeito. O fantasma não conserta painel, então ele
+	// é só barulho por cima do resto da partida - e era ligado em três lugares diferentes, o que
+	// fazia cada caminho esquecer um deles: quem morria no meio da sabotagem continuava ouvindo, e
+	// a volta da reunião religava o alarme para todo mundo, vivo ou não (recado #96).
+	if (active_sabotage_id != "" && alive) audio.start_sabotage_alarm();
+	else audio.stop_sabotage_alarm();
 	mui.body_sounds_enabled = !lights_out;
 	audio.apply_lights_out(lights_out, NORMAL_AUDIO_MAX_DISTANCE);
 	refresh_body_beacons(audio, known_body_peers, known_body_positions, lights_out);
@@ -716,8 +722,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// falharia calada.
 				if (my_role.can_kill) my_kill_cooldown_remaining = kill_cooldown_config;
 				audio.start_room_ambience(map);
-				refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
-				if (active_sabotage_id != "") audio.start_sabotage_alarm(); // sabotagem continua de pé depois da reunião
+				// A sabotagem continua de pé depois da reunião: os efeitos dela voltam por aqui, que é
+				// o único lugar que sabe se este jogador ainda está vivo para ser atingido por ela.
+				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+					my_role, is_impostor, alive, known_body_peers, known_body_positions);
 			} else if (t == S_SABOTAGE_STARTED) {
 				oxygen_code = pkt.get_string("oxygen_code", "");
 				mui.on_sabotage_started(pkt);
