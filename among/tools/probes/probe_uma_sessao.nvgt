@@ -1,0 +1,110 @@
+// Sonda de "uma conta, uma sessão": entrar de novo com o mesmo nome derruba a sessão anterior, e
+// quem foi derrubado ouve o porquê antes de cair. E a lista do saguão não pode ficar com o mesmo
+// nome duas vezes.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_uma_sessao.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	return c.connected ? c : null;
+}
+
+// Entra e guarda o id que o SERVIDOR usa para este cliente - sem isso, toda comparação de peer_id
+// da sonda é contra zero (a mesma armadilha que o jogo já teve).
+net_packet@ wf_login(game_client@ c, const string&in nome) {
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr != null && lr.get_bool("ok")) c.my_peer_id = lr.get_uint64("peer_id");
+	return lr;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string nome = "sess1_" + random(1000, 9999);
+
+	game_client@ a = conecta(addr);
+	a.send_register(nome, "probe123"); wf(a, S_REGISTER_RESULT, 3000);
+	a.send_login(nome, "probe123");
+	net_packet@ lr = wf(a, S_LOGIN_RESULT, 5000);
+	println("primeira entrada: " + (@lr != null && lr.get_bool("ok")) + " (esperado true)");
+
+	// Alguém entra com a MESMA conta de outro lugar
+	game_client@ b = conecta(addr);
+	b.send_login(nome, "probe123");
+	net_packet@ lr2 = wf(b, S_LOGIN_RESULT, 5000);
+	println("segunda entrada: " + (@lr2 != null && lr2.get_bool("ok")) + " (esperado true: a nova entra)");
+
+	// A primeira tem que ouvir o motivo e cair
+	string motivo = "";
+	bool caiu = false;
+	timer t;
+	while (t.elapsed < 8000 && !caiu) {
+		a.update();
+		net_packet@ p = a.poll_message();
+		while (@p != null) {
+			if (p.type == S_ERROR) motivo = p.get_string("message_key");
+			@p = a.poll_message();
+		}
+		if (!a.connected) caiu = true;
+		wait(10);
+	}
+	println("a primeira ouviu o motivo: '" + motivo + "' (esperado login.session_replaced)");
+	println("a primeira caiu: " + caiu + " (esperado true)");
+
+	// E o saguão não pode listar o mesmo nome duas vezes
+	b.clear_incoming();
+	game_client@ c = conecta(addr);
+	string outro = "sess2_" + random(1000, 9999);
+	c.send_register(outro, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(outro, "probe123"); wf(c, S_LOGIN_RESULT, 5000);
+	net_packet@ hall = wf(b, S_HALL_STATE, 5000);
+	if (@hall == null) { println("sem retrato do saguao"); return; }
+	json_array@ nomes = hall.get_array("players");
+	uint vezes = 0;
+	for (uint i = 0; i < nomes.length(); i++) if (string(nomes[i]) == nome) vezes++;
+	println("o nome aparece " + vezes + " vez(es) no saguao (esperado 1)");
+	a.disconnect(); b.disconnect(); c.disconnect();
+
+	// O caso que o jogador vive de verdade: a sessão derrubada estava DENTRO de uma sala. Ela tem
+	// que sair de lá direito, senão a sala fica com um jogador que não existe mais.
+	println("--- derrubado estando numa sala ---");
+	string dono = "sala1_" + random(1000, 9999);
+	string amigo = "sala2_" + random(1000, 9999);
+	game_client@ d = conecta(addr);
+	d.send_register(dono, "probe123"); wf(d, S_REGISTER_RESULT, 3000);
+	d.send_login(dono, "probe123"); wf(d, S_LOGIN_RESULT, 5000);
+	lobby_overrides ov;
+	d.send_create_lobby("sessao", "classic", ov);
+	net_packet@ st = wf(d, S_LOBBY_STATE, 5000);
+	string lobby_id = st.get_string("lobby_id");
+	game_client@ e = conecta(addr);
+	e.send_register(amigo, "probe123"); wf(e, S_REGISTER_RESULT, 3000);
+	net_packet@ lre = wf_login(e, amigo);
+	e.send_join_lobby(lobby_id); wf(e, S_JOIN_RESULT, 5000);
+	e.clear_incoming();
+
+	// O dono da sala entra de novo de outro lugar
+	game_client@ f = conecta(addr);
+	f.send_login(dono, "probe123");
+	net_packet@ lr3 = wf(f, S_LOGIN_RESULT, 5000);
+	println("entrou de novo: " + (@lr3 != null && lr3.get_bool("ok")));
+	net_packet@ saiu = wf(e, S_PLAYER_LEFT, 6000);
+	println("quem ficou soube que ele saiu: " + (@saiu != null) + " (esperado true)");
+	net_packet@ retrato = wf(e, S_LOBBY_STATE, 6000);
+	if (@retrato != null) {
+		json_array@ ps = retrato.get_array("players");
+		println("a sala ficou com " + ps.length() + " jogador(es) (esperado 1)");
+		println("o anfitriao passou a ser quem ficou: " + (retrato.get_uint64("host_peer_id") == e.my_peer_id));
+	} else println("sem retrato novo da sala");
+	d.disconnect(); e.disconnect(); f.disconnect();
+}

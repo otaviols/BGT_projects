@@ -405,6 +405,15 @@ meio da partida que vários jogadores relataram. Duas correções: `game_client.
 já viaja pelo canal não confiável; descartar um EVENTO deixaria o cliente contando uma partida que
 não existe. Ao escrever qualquer tela bloqueante nova, nada de varrer `client.incoming` por quadro.
 
+**Uma conta, uma sessão - e a entrada NOVA derruba a velha, não o contrário.** Recusar a segunda
+entrada parece mais educado e é pior: uma conexão que caiu feio continua de pé para o servidor até o
+ENet desistir dela, e a pessoa ficaria sem conseguir voltar ao próprio jogo. `drop_other_sessions`
+usa `disconnect_peer_softly` (o ENet entrega o que está na fila antes de desligar, então o aviso do
+porquê chega) e chama `on_disconnect` na mão: os três `disconnect_peer*` já tiram o peer do mapa da
+rede, então esperar o evento deixaria a sessão velha pendurada na sala. Sonda:
+`tools/probes/probe_uma_sessao.nvgt`, que cobre também o caso que o jogador vive - ser derrubado
+estando dentro de uma sala, com o anfitrião passando para quem ficou.
+
 **Tela que o jogador pode deixar aberta precisa saber fechar sozinha.** A de resultado é a única
 sem pressa - dá para sair para atender o telefone com ela aberta -, e `menu.run()` só sai por tecla.
 Quando o anfitrião começava a rodada seguinte, o `S_GAME_START` chegava e ficava na fila sem ninguém

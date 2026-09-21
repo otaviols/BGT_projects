@@ -8,6 +8,8 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ## 0.29.2
 
+- **Uma conta, uma sessão.** Entrar com a mesma conta em outro lugar desconecta a sessão anterior,
+  que ouve o motivo antes de cair. Antes o mesmo nome podia estar conectado quantas vezes quisesse.
 - Corrigido: quem deixava a tela de resultado aberta sem apertar Enter não era puxado para a rodada
   seguinte. A pessoa ficava ouvindo a partida acontecer sem ela e não conseguia jogar. Agora a tela
   fecha sozinha quando a partida nova começa.

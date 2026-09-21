@@ -8,6 +8,9 @@ Everything that changed in the game, newest first.
 
 ## 0.29.2
 
+- **One account, one session.** Signing in with the same account somewhere else disconnects the
+  previous session, which hears why before dropping. Before, the same name could be connected as
+  many times as it liked.
 - Fixed: players who left the results screen open without pressing Enter were not pulled into the
   next round. They were left hearing the match happen without them, unable to play. The screen now
   closes by itself when the new match starts.

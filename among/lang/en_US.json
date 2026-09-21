@@ -162,6 +162,7 @@
 	"login.password": "Password",
 	"login.submit": "Log in",
 	"login.invalid_credentials": "Invalid username or password.",
+	"login.session_replaced": "This account signed in somewhere else. You were disconnected.",
 	"login.success": "Logged in successfully.",
 	"login.username_taken": "That username is already taken.",
 	"login.register_success": "Registered successfully.",

@@ -431,8 +431,36 @@ class game_server {
 			result.set_string("message", "login.invalid_credentials");
 		}
 		send_to(peer_id, result);
-		// Depois de responder, e não antes: assim quem acabou de entrar já se vê na lista do saguão.
-		if (ok) send_hall_state();
+		if (ok) {
+			// Antes do retrato do saguão: a sessão velha tem que sair da lista de quem está online,
+			// senão o mesmo nome apareceria duas vezes nela.
+			drop_other_sessions(peer_id, username);
+			// Depois de responder, e não antes: assim quem acabou de entrar já se vê na lista.
+			send_hall_state();
+		}
+	}
+
+	// Uma conta, uma sessão: entrar de novo DERRUBA a anterior.
+	//
+	// A alternativa - recusar a entrada nova - parece mais educada e é pior na prática: uma conexão
+	// que caiu feio (queda de luz, cabo arrancado, jogo fechado no braço) continua de pé para o
+	// servidor até o ENet desistir dela, e nesse meio-tempo a pessoa não conseguiria voltar ao
+	// próprio jogo. Derrubando, reconectar simplesmente funciona - e quem empresta a conta descobre
+	// na hora que duas pessoas não cabem nela.
+	//
+	// `softly` porque o ENet entrega o que está na fila antes de desligar: assim o aviso do porquê
+	// chega a quem foi derrubado, em vez de ele só ver a conexão cair sem explicação.
+	void drop_other_sessions(uint64 keep_peer_id, const string&in username) {
+		for (int i = int(connections.length()) - 1; i >= 0; i--) {
+			game_player@ other = connections[i];
+			if (other.peer_id == keep_peer_id || !other.authenticated || other.username != username) continue;
+			send_error(other.peer_id, "login.session_replaced");
+			net.disconnect_peer_softly(other.peer_id);
+			// A limpeza é feita AQUI, e não deixada para o evento de desconexão: o peer já saiu do
+			// mapa da rede, e sem isto a sessão velha continuaria pendurada na sala (contando como
+			// jogador, recebendo pacotes que ninguém lê) até o ENet avisar.
+			on_disconnect(other.peer_id);
+		}
 	}
 
 	void on_logout(uint64 peer_id, net_packet@ pkt) {

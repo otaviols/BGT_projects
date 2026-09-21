@@ -162,6 +162,7 @@
 	"login.password": "Senha",
 	"login.submit": "Entrar",
 	"login.invalid_credentials": "Usuário ou senha inválidos.",
+	"login.session_replaced": "Esta conta entrou em outro computador. Você foi desconectado.",
 	"login.success": "Login realizado com sucesso.",
 	"login.username_taken": "Esse usuário já existe.",
 	"login.register_success": "Cadastro realizado com sucesso.",
