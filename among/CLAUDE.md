@@ -593,6 +593,13 @@ partidas seguidas na mesma sala) e `probe_leavemid.nvgt` (anfitrião sai no meio
 quem está na sala (tecla P) sai do último retrato; só o S_PLAYER_LEFT não a atualiza, e quem saiu
 continuava listado. `remove_from_lobby` manda o retrato quando não há partida em curso.
 
+**"Não consegui extrair server_main.zip" no deploy = servidor compilado SEM `-plinux`.** Para
+conferir que o servidor compila, é tentador rodar `nvgt -c server_main.nvgt` - isso gera um
+`server_main.zip` WINDOWS, mais novo que o `server_main.tar.gz` Linux, e o `deploy.ps1` escolhe
+o pacote mais novo. Ele falha na extração por sorte (o zip não tem o binário `server_main`); se
+não falhasse, publicaria um executável Windows no contêiner. Apague o zip e gere com
+`nvgt -c -plinux server_main.nvgt`. Para só conferir que compila, use `-plinux` também.
+
 **"docker build falhou" logo no começo do deploy = Docker Desktop parado** (a máquina reiniciou).
 `Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"` e esperar `docker info`
 responder; o deploy não inicia o Docker sozinho.
