@@ -429,6 +429,16 @@ rede, então esperar o evento deixaria a sessão velha pendurada na sala. Sonda:
 `tools/probes/probe_uma_sessao.nvgt`, que cobre também o caso que o jogador vive - ser derrubado
 estando dentro de uma sala, com o anfitrião passando para quem ficou.
 
+**Quando a partida acaba, o laço de pacotes PARA de drenar a fila.** O que vem logo atrás do
+`S_GAME_OVER` já é da próxima rodada - o retrato da sala reaberta e, se o anfitrião não esperou, o
+`S_GAME_START`. Como nenhuma condição do laço de partida trata um início de partida, continuar
+drenando o jogava fora em silêncio, e quem tinha ficado na tela de resultado ficava de fora da
+rodada. São TRÊS peças para esse caminho funcionar, e ele só funciona com as três: a tela fecha
+sozinha (`run_menu_until_next_match`), o laço para de drenar (o `break` dentro do while), e a sala
+de espera pega o `S_GAME_START` que estava na fila. Uma sonda por peça:
+`probe_limbo`, `probe_fim_para_proxima` e `probe_entra_na_partida` - as três conferidas contra a
+versão sem a correção, onde falham.
+
 **Tela que o jogador pode deixar aberta precisa saber fechar sozinha.** A de resultado é a única
 sem pressa - dá para sair para atender o telefone com ela aberta -, e `menu.run()` só sai por tecla.
 Quando o anfitrião começava a rodada seguinte, o `S_GAME_START` chegava e ficava na fila sem ninguém

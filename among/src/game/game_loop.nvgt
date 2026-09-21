@@ -875,6 +875,12 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			catch {
 				log_crash("pacote " + t);
 			}
+			// A partida acabou: PARA de drenar aqui. O que ainda está na fila já é da próxima - o
+			// retrato da sala reaberta (tirado logo acima) e, se o anfitrião não esperou, o
+			// S_GAME_START da rodada seguinte. Continuar o laço jogava esse início fora, porque
+			// nenhuma condição daqui o trata, e quem não apertava Enter na tela de resultado ficava
+			// de fora da partida nova ouvindo ela acontecer.
+			if (game_over) break;
 			@pkt = client.poll_message();
 		}
 		if (game_over) break;

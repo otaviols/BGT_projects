@@ -8,6 +8,9 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ## 0.29.3
 
+- Corrigido de vez: quem não apertava Enter na tela de resultado continuava ficando de fora da
+  rodada seguinte. A tela já fechava sozinha, mas o aviso de que a partida tinha começado era
+  descartado logo depois.
 - Corrigido: abrir as configurações de dentro da sala de espera derrubava você dela. A tela prendia
   o jogo sem conversar com o servidor, e em menos de vinte segundos ele concluía que você tinha
   caído.

@@ -8,6 +8,9 @@ Everything that changed in the game, newest first.
 
 ## 0.29.3
 
+- Fixed for good: players who did not press Enter on the results screen were still left out of the
+  next round. The screen already closed by itself, but the notice that the match had started was
+  being discarded right afterwards.
 - Fixed: opening the settings from inside the waiting room dropped you out of it. The screen held the
   game without talking to the server, and in under twenty seconds it concluded you had disconnected.
 - The **speech and screen reader** screen was rewritten and now speaks your language — it used to be

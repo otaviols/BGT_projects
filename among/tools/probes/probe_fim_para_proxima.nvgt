@@ -1,0 +1,66 @@
+// Sonda da primeira metade do caminho do limbo: ao terminar a partida, o laço de pacotes tem que
+// PARAR de drenar a fila. O que vem logo atrás do fim de jogo já é da próxima rodada - o retrato da
+// sala reaberta e, se o anfitrião não esperou, o início da partida nova. Continuar drenando jogava
+// esse início fora (nenhuma condição do laço o trata), e o jogador ficava de fora da rodada.
+//
+// A fila é montada à mão na ordem exata em que o servidor manda, e run_game é chamado de verdade.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_fim_para_proxima.nvgt
+#include "../../src/core/crash_log.nvgt"
+#include "../../src/game/game_loop.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+net_packet@ faz_inicio(uint64 me) {
+	net_packet@ p = net_packet(S_GAME_START);
+	p.set_uint64("your_peer_id", me);
+	p.set_bool("your_role_impostor", false);
+	p.set_float("your_x", 0.0);
+	p.set_float("your_y", 0.0);
+	p.set_float("kill_cooldown_seconds", 30.0);
+	return p;
+}
+
+void main() {
+	show_window("sonda: fim de partida para a proxima");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	string nome = "fimprox" + random(1000, 9999);
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+	c.my_peer_id = lr.get_uint64("peer_id");
+	c.clear_incoming();
+
+	// Exatamente o que chega ao jogador que ficou parado na tela de resultado:
+	net_packet@ fim = net_packet(S_GAME_OVER);
+	fim.set_string("winner", "crewmates");
+	net_packet@ retrato = net_packet(S_LOBBY_STATE);
+	retrato.set_string("lobby_id", "lobby_1");
+	retrato.set_uint64("host_peer_id", 999);
+	c.incoming.insert_last(fim);
+	c.incoming.insert_last(retrato);
+	c.incoming.insert_last(faz_inicio(c.my_peer_id));
+
+	// run_game de verdade: ele trata o fim, abre a tela de resultado (que fecha sozinha porque o
+	// inicio da proxima ja esta na fila) e devolve o retrato da sala.
+	net_packet@ devolvido = run_game(c, faz_inicio(c.my_peer_id));
+
+	println("devolveu o retrato da sala reaberta: " + (@devolvido != null && devolvido.type == S_LOBBY_STATE) + " (esperado true)");
+	bool sobreviveu = false;
+	for (uint i = 0; i < c.incoming.length(); i++) if (c.incoming[i].type == S_GAME_START) sobreviveu = true;
+	println("o inicio da proxima partida SOBREVIVEU na fila: " + sobreviveu + " (esperado true)");
+	println(sobreviveu && @devolvido != null ? "ok: o jogador sera levado para a rodada seguinte"
+		: "FALHA: ele ficaria de fora da partida nova");
+	c.disconnect();
+}

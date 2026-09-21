@@ -1,0 +1,53 @@
+// Sonda da segunda metade do caminho do limbo: um S_GAME_START que já está ESPERANDO na fila tem
+// que levar o jogador para dentro da partida assim que a sala de espera abre.
+//
+// É o que fecha o buraco junto com as outras duas peças: a tela de resultado fechando sozinha
+// (probe_limbo) e o laço de pacotes parando de drenar quando a partida acaba - sem isso o início
+// da rodada seguinte era descartado antes de chegar aqui.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_entra_na_partida.nvgt
+#include "../../src/core/crash_log.nvgt"
+#include "../../src/game/game_loop.nvgt"
+#include "../../src/ui/lobby_screens.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	show_window("sonda: entrar na partida");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	string nome = "entra" + random(1000, 9999);
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+	c.my_peer_id = lr.get_uint64("peer_id");
+
+	// O início da rodada seguinte, já esperando na fila - exatamente como fica quando o anfitrião
+	// começa enquanto o jogador ainda está na tela de resultado.
+	net_packet@ inicio = net_packet(S_GAME_START);
+	inicio.set_uint64("your_peer_id", c.my_peer_id);
+	inicio.set_bool("your_role_impostor", false);
+	inicio.set_float("your_x", 0.0);
+	inicio.set_float("your_y", 0.0);
+	c.incoming.insert_last(inicio);
+
+	// A sala de espera tem que devolver ESSE pacote, sem o jogador tocar em nada.
+	timer espera;
+	net_packet@ devolvido = run_waiting_room_screen(c, false, null);
+	println("a sala de espera devolveu o inicio da partida: " + (@devolvido != null && devolvido.type == S_GAME_START)
+		+ " em " + espera.elapsed + " ms (esperado true, quase imediato)");
+	println(@devolvido != null && devolvido.type == S_GAME_START && espera.elapsed < 3000
+		? "ok: o jogador e' levado para dentro da partida" : "FALHA: ficaria parado na sala de espera");
+	c.disconnect();
+}
