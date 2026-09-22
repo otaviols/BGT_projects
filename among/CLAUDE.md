@@ -802,6 +802,21 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
 
 ## Pendências conhecidas
 
+- **Fila de configurações de áudio pedidas** (decididas, ainda não feitas):
+  - **Bip de alvo ao alcance**, para quem tem kill ou habilidade mirada (impostor, xerife, anjo):
+    toca quando alguém entra no alcance. É o equivalente sonoro do botão de matar acendendo no jogo
+    original. Som já gravado. Ouvinte: **só quem tem a capacidade** - tocar para o alvo entregaria
+    o jogo. Configurável, e vale como preferência pessoal (e não regra de sala) porque não cria
+    informação nova: a posição de todos já chega ao cliente, isto é só apresentação.
+  - **Radar travado (Q): bipe contínuo ou único**, a escolher nas configurações. Hoje é sempre
+    contínuo enquanto travado; o Tab já é o bipe único. Definir com o usuário o que "único" faz na
+    trava antes de implementar.
+  - **Pitch dos passos alheios**: **já existe** (`SPATIAL_SOUTH_PITCH_DECREASE`, 6%, aplicado pelo
+    `sound_pool` a tudo que passa por `spatial.play_once`, passos inclusive). O que falta é torná-lo
+    **configurável** (desligar, ou subir a intensidade) - não implementar de novo. O radar aplica
+    ainda um passo próprio de ±20% por cima disso (`RADAR_PITCH_DIRECTION_STEP`), porque o bip é
+    curto e precisa ser inequívoco na primeira vez.
+
 - **Recados do beta ainda sem resposta** (ver `infra\read_feedback.ps1`): pedidos repetidos de
   personagem/passos mais rápidos (#30, #32, #40, #43, #54 - decidido: virar configuração da sala,
   validada no servidor, com o padrão um pouco maior; ainda não feito); avisos que interrompem a
