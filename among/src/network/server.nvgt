@@ -1172,6 +1172,20 @@ class game_server {
 			}
 			end_visible_task(lobby, victim_peer); // morreu no scanner: o scanner para
 			broadcast_to_lobby(lobby, event);
+
+			// Papel que anuncia a própria morte (alarmista). DEPOIS do pacote da morte, para o som
+			// do assassinato vir antes do aviso - a ordem inversa contaria o que aconteceu e só
+			// então deixaria ouvir. Sai da capacidade, não do id: um papel futuro pode fazer igual.
+			game_player@ victim = lobby.find_player(victim_peer);
+			if (@victim != null && victim.role().announces_own_death) {
+				net_packet@ alarm = net_packet(S_DEATH_ALARM);
+				alarm.set_string("name", victim.username);
+				map_zone@ zone = lobby.map.find_zone(lobby.map.room_id_at(victim.x, victim.y));
+				// A SALA, e não a posição: o aviso diz onde procurar, não entrega o ponto exato -
+				// quem quiser mais que isso tem que ir até lá. E nunca diz quem matou.
+				alarm.set_string("room_key", @zone != null ? zone.name_key : "");
+				broadcast_to_lobby(lobby, alarm);
+			}
 			// O tiro errado é dito SÓ a quem errou, depois do pacote da morte: para todos os outros
 			// (inclusive para quem ele mirou) aquilo foi um assassinato qualquer, e é isso que
 			// mantém o xerife sendo uma aposta em vez de um detector.

@@ -348,6 +348,13 @@ qualquer vizinho, e não tem como saber que era ela na mira.
 Isso faz do xerife uma aposta, não um detector. Errar custa duas pessoas à tripulação de uma vez —
 o inocente que continua sob suspeita e o xerife que não está mais lá para defendê-lo.
 
+**Alarmista** (tripulação). Um tripulante comum em tudo — até morrer. Quando ele morre, **a nave
+inteira ouve que ele morreu e em que sala**, de onde quer que cada um esteja: no meio de uma
+tarefa, do outro lado do mapa, na câmera.
+
+O aviso **não** diz quem matou. E ninguém sabe quem é o alarmista — nem ele tem como avisar que é.
+Para o impostor, isso muda a conta de matar num canto escondido: qualquer vítima pode ser ela.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

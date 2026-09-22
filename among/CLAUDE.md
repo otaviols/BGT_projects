@@ -342,6 +342,17 @@ mirou, que nem sabe que foi mirado - aquilo é um assassinato qualquer. E `you_w
 trata o caso de o assassino ser a própria vítima, senão a fala é "você foi eliminado por <seu
 nome>". Sonda: `tools/probes/probe_sheriff.nvgt`.
 
+**Alarmista: o aviso sai da CAPACIDADE (`announces_own_death`) e depois do pacote da morte.** A
+ordem importa - invertida, o texto contaria o que aconteceu antes de o som do assassinato tocar. O
+`S_DEATH_ALARM` diz nome e SALA, nunca quem matou nem a posição exata: quem quiser mais que isso
+tem que ir até lá. E ele entra em `background_event_text`, senão quem estivesse numa task - que é
+exatamente onde a pessoa está quando o impostor escolhe matar longe de todos - não ouviria o único
+aviso que o papel existe para dar. Sonda: `tools/probes/probe_noisemaker.nvgt`.
+
+**Sonda que monta texto traduzido precisa CARREGAR o idioma** (`g_i18n.load_language`), senão
+`tr()` devolve a própria chave e a sonda "passa" mostrando `role.noisemaker_alarm` como se fosse a
+frase. Aconteceu na primeira versão da sonda do alarmista.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

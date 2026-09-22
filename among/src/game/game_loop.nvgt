@@ -800,6 +800,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					string motivo = pkt.get_string("message_key");
 					if (motivo != "") speak(tr(motivo));
 				}
+			} else if (t == S_DEATH_ALARM) {
+				string alarm_text = death_alarm_text(pkt);
+				// `!pkt.announced`: se uma tela bloqueante já disse isto, não repete ao fechá-la.
+				if (!pkt.announced) speak(alarm_text);
+				events_log.add("", alarm_text); // dá para reler: é a informação mais valiosa da partida
 			} else if (t == S_ABILITY_RESULT) {
 				// Deu: a recarga começa a contar aqui, com o valor que o SERVIDOR mandou. O efeito em
 				// si (o conserto, o tiro) chega pelos pacotes de sempre - não há "som de habilidade"

@@ -28,6 +28,7 @@ const string ROLE_CREWMATE = "crewmate";
 const string ROLE_IMPOSTOR = "impostor";
 const string ROLE_ENGINEER = "engineer";
 const string ROLE_SHERIFF = "sheriff";
+const string ROLE_NOISEMAKER = "noisemaker";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -39,7 +40,7 @@ const string TEAM_IMPOSTOR = "impostor";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
-const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF};
+const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER};
 
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
@@ -76,6 +77,11 @@ class role_traits {
 	float ability_cooldown_seconds = 0.0;
 	// Se a habilidade sobrevive à morte. Quase nenhuma: o anjo da guarda é justamente a exceção.
 	bool ability_usable_dead = false;
+
+	// Ao morrer, a nave inteira ouve que ele morreu e ONDE. É a informação que este jogo não dá de
+	// graça em lugar nenhum: normalmente o corpo precisa ser encontrado, e quem está longe não sabe
+	// de nada. Ver role_noisemaker.
+	bool announces_own_death = false;
 
 	// --- Time ---
 	bool wins_with_crew = true;
@@ -144,8 +150,26 @@ role_traits@ role_sheriff() {
 	return t;
 }
 
+// Alarmista: tripulante comum em tudo, menos na morte - quando ele cai, a nave inteira ouve que
+// ele morreu e em que sala.
+//
+// É o papel mais barato de descrever e o que mais mexe com o jogo, porque ataca a regra que
+// sustenta tudo: normalmente um corpo só existe para quem tropeça nele, e o impostor escolhe onde
+// matar contando com isso. Matar o alarmista num canto escondido deixa de ser seguro - e como
+// ninguém sabe quem ele é, TODA vítima poderia ser ele.
+//
+// O aviso não diz quem matou nem para onde ele foi: diz onde o corpo está. Quem quiser mais que
+// isso tem que ir até lá.
+role_traits@ role_noisemaker() {
+	role_traits t;
+	t.id = ROLE_NOISEMAKER;
+	t.announces_own_death = true;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
+	if (role_id == ROLE_NOISEMAKER) return role_noisemaker();
 	if (role_id == ROLE_ENGINEER) return role_engineer();
 	if (role_id == ROLE_SHERIFF) return role_sheriff();
 	return role_crewmate(); // desconhecido cai em tripulante: o papel mais inofensivo dos dois

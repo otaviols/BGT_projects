@@ -348,6 +348,14 @@ them, like any neighbor, with no way to know they were the target.
 That makes the sheriff a bet, not a detector. Being wrong costs the crew two people at once — the
 innocent still under suspicion, and the sheriff who is no longer around to defend them.
 
+**Noisemaker** (crew). An ordinary crewmate in everything — until they die. When they do, **the
+whole ship hears that they died and in which room**, wherever each person happens to be: in the
+middle of a task, across the map, at the cameras.
+
+The alert does **not** say who killed them. And nobody knows who the noisemaker is — not even a way
+for them to say so. For the impostor, that changes the math of killing in a hidden corner: any
+victim could be that one.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

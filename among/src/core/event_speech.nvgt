@@ -73,6 +73,16 @@ string you_were_killed_text(net_packet@ pkt, client_roster@ roster) {
 	return tr("game.you_were_killed_by", p);
 }
 
+// "Fulano morreu na elétrica." - o alarme de quem anuncia a própria morte (ver role_noisemaker).
+// Mora aqui, e não no laço da partida, porque dois lugares o dizem: o laço e as telas bloqueantes.
+string death_alarm_text(net_packet@ pkt) {
+	dictionary@ p = dictionary();
+	p.set("name", pkt.get_string("name"));
+	string room_key = pkt.get_string("room_key");
+	p.set("room", room_key != "" ? tr(room_key) : tr("game.unknown_room"));
+	return tr("role.noisemaker_alarm", p);
+}
+
 // O que uma tela bloqueante deve dizer por este pacote, ou "" se ele não é para ser anunciado ali.
 //
 // Fica de fora o que a própria tela já trata (reunião, corpo reportado e fim de partida cancelam a
@@ -86,6 +96,9 @@ string background_event_text(net_packet@ pkt, game_client@ client) {
 	if (t == S_SABOTAGE_FIXED) return sabotage_fixed_text();
 	if (t == S_PLAYER_LEFT) return player_left_text(pkt);
 	if (t == S_ERROR) return tr_server_message(pkt);
+	// O alarme é ouvido de onde quer que a pessoa esteja - inclusive de dentro de uma task, que é
+	// justamente onde ela estaria quando o impostor escolheu matar longe de todos.
+	if (t == S_DEATH_ALARM) return death_alarm_text(pkt);
 	// A morte só é anunciada para a própria vítima: para os outros, o assassinato é o som, não o texto.
 	if (t == S_PLAYER_KILLED && @client != null && pkt.get_uint64("peer_id") == client.my_peer_id) {
 		return you_were_killed_text(pkt, g_match_roster);
