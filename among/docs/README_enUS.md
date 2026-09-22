@@ -181,6 +181,7 @@ your file and English — worth sending a message about it.
 |---|---|
 | R | report a body (you must be near it) |
 | G | say which sabotage is in progress and where to fix it |
+| H | use your role's ability (if your role has one) |
 | Enter at the button | call an emergency meeting (one per player) |
 
 **Impostor**
@@ -317,6 +318,27 @@ or voting already running. Outside a meeting, T is your task list as always.
 
 Chat only exists in the waiting room and during meetings. There is no chat during the match — not
 even between impostors.
+
+## Special roles
+
+Besides crewmate and impostor, a room can turn on **special roles** — jobs with an ability of their
+own. They come **turned off**: a room that doesn't touch this plays exactly the game you know.
+
+Whoever creates the room chooses, for each role, **how many** there are and the **chance** each one
+appears (empty = always). The chance matters: at 50%, nobody can assume the role is in play, and
+that doubt is what makes it interesting. The room rules (**O** key) say what is turned on and at
+what chance — but never say who got it.
+
+Anyone with an ability uses the **H** key.
+
+**Engineer** (crew). Does tasks like any crewmate and counts toward the team's win. Two things set
+them apart:
+
+- **Uses the vents**, like the impostor. The lid sounds the same — whoever hears it doesn't know
+  which of the two it was. That helps you move, and hurts your defense in a meeting.
+- **Fixes the sabotage in progress from wherever they are**, with the H key, without reaching the
+  panel. The recharge is long (two minutes), so it's one save per match, not an undo button. And
+  everyone notices: the sabotage ends without anyone having reached the panel.
 
 ## Sabotage (impostor)
 

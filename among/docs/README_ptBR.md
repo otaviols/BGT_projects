@@ -178,6 +178,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 |---|---|
 | R | reportar um corpo (precisa estar perto dele) |
 | G | dizer qual sabotagem está em andamento e onde consertar |
+| H | usar a habilidade do seu papel (se o seu papel tiver uma) |
 | Enter no botão | chamar reunião de emergência (uma por jogador) |
 
 **Impostor**
@@ -316,6 +317,28 @@ votação já está correndo. Fora da reunião, T continua sendo a sua lista de 
 
 O chat só existe na sala de espera e durante as reuniões. Não há chat durante a partida — nem entre
 impostores.
+
+## Papéis especiais
+
+Além de tripulante e impostor, a sala pode ligar **papéis especiais** — profissões com uma
+habilidade própria. Eles vêm **desligados**: uma sala que não mexer nisso joga exatamente o jogo de
+sempre.
+
+Quem cria a sala escolhe, para cada papel, **quantos** existem e a **chance** de cada um aparecer
+(vazio = sempre). A chance importa: com 50%, ninguém pode assumir que o papel está em jogo, e é
+essa dúvida que o torna interessante. As regras da sala (tecla **O**) dizem o que está ligado e com
+que chance — mas nunca dizem quem saiu.
+
+Quem tem um papel com habilidade usa a tecla **H**.
+
+**Engenheiro** (tripulação). Faz tarefas como qualquer tripulante e conta para a vitória do time.
+Duas coisas o diferenciam:
+
+- **Usa os dutos**, como o impostor. O som da tampa é o mesmo — quem ouvir não sabe qual dos dois
+  é. Isso ajuda você a se mover, e atrapalha a sua defesa numa reunião.
+- **Conserta a sabotagem em andamento de onde estiver**, com a tecla H, sem precisar chegar ao
+  painel. A recarga é longa (dois minutos), então é uma salvada por partida, não um desfazer. E
+  todo mundo percebe: a sabotagem acaba sem ninguém ter chegado ao painel.
 
 ## Sabotagem (impostor)
 

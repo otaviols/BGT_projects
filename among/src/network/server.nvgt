@@ -432,6 +432,19 @@ class game_server {
 	// id; o papel novo acrescenta o dele aqui e em role_traits, e nada mais.
 	bool run_ability(game_state@ lobby, game_player@ p, const string&in ability, net_packet@ pkt,
 			string&out fail_key, dictionary@ fail_params) {
+		if (ability == ABILITY_REMOTE_FIX) {
+			net_packet@ fixed;
+			if (!lobby.try_remote_fix_sabotage(p.peer_id, fixed, fail_key)) return false;
+			// O MESMO pacote do conserto normal, para a partida inteira: o resto do jogo (alarme,
+			// marcadores, painel aberto de quem estava consertando) já sabe tratá-lo, e nada precisa
+			// aprender que existe um segundo jeito de a sabotagem acabar.
+			//
+			// Ninguém é avisado de QUEM consertou, e isso é deliberado: o sinal é a sabotagem
+			// terminar sem ninguém ter chegado ao painel. Quem estava correndo para lá ouve isso e
+			// tira as próprias conclusões - inclusive a errada, que é metade da graça.
+			broadcast_to_lobby(lobby, fixed);
+			return true;
+		}
 		fail_key = "role.ability_unavailable";
 		return false;
 	}
@@ -892,7 +905,9 @@ class game_server {
 			p.x = float(random(-30, 30)) / 10.0;
 			p.y = float(random(-30, 30)) / 10.0;
 
-			if (!p.is_impostor) {
+			// Quem tem tarefas é quem as tem CONTANDO para o time (ver role_traits): o engenheiro faz
+			// tarefas como qualquer tripulante, e o impostor só finge fazê-las.
+			if (p.role().tasks_count_for_crew) {
 				// Primeiro as comuns, IGUAIS pra todo mundo (mesmo ponto do mapa, inclusive).
 				for (uint c = 0; c < common_spots.length(); c++) {
 					player_task pt;
@@ -1137,7 +1152,7 @@ class game_server {
 		// saber se foi cooldown, alcance, ou alvo já morto) - agora pelo menos o caso mais comum
 		// (cooldown) avisa por quê.
 		game_player@ killer = lobby.find_player(peer_id);
-		if (@killer != null && killer.is_impostor && killer.alive && killer.kill_cooldown_remaining > 0.0) {
+		if (@killer != null && killer.role().can_kill && killer.alive && killer.kill_cooldown_remaining > 0.0) {
 			send_error(peer_id, "game.kill_on_cooldown");
 			return;
 		}
@@ -1286,7 +1301,9 @@ class game_server {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
 		game_player@ p = lobby.find_player(peer_id);
-		if (@p == null || !p.alive || !p.is_impostor || p.vented) return;
+		// Capacidade, e não identidade: o engenheiro também usa os dutos (ver role_traits). Perguntar
+		// "é impostor?" aqui era o que obrigaria cada papel novo a revisitar este ponto.
+		if (@p == null || p.vented || !player_abilities(p.role(), p.alive).can_vent()) return;
 
 		string vent_id = pkt.get_string("vent_id");
 		map_object@ vent = lobby.map.find_object(vent_id);
@@ -1376,7 +1393,9 @@ class game_server {
 	// quem está perto de você.
 	array<game_player@>@ radar_targets(game_state@ lobby, game_player@ me, string&out fail_key) {
 		fail_key = "";
-		bool blinded_by_sabotage = !me.is_impostor;
+		// Quem é cegado pelas comunicações sai do papel, não de "é impostor?" - o engenheiro é
+		// tripulante e sofre igual, mas um papel futuro pode não sofrer.
+		bool blinded_by_sabotage = !me.role().immune_to_comms;
 		if (blinded_by_sabotage && lobby.active_sabotage == "comms") {
 			fail_key = "sabotage.comms.radar_down";
 			return null;

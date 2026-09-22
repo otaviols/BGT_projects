@@ -322,6 +322,16 @@ ou cheia de bots, que nunca recebem papel especial) o que não couber simplesmen
 do lado de quem joga isso é indistinguível de uma chance que não saiu, e é isso que o torna
 seguro.
 
+**Engenheiro: o duto dele custa uma dedução, e isso foi pago de propósito.** "A tampa abriu na
+navegação, então ele saiu em armas ou no reator" deixa de provar impostor. O som da tampa continua
+IGUAL para os dois - fazer um som diferente devolveria a certeza e mataria o papel. O conserto
+remoto (`ABILITY_REMOTE_FIX`) acaba com a sabotagem inteira de qualquer lugar, com recarga de
+120 s (`ENGINEER_FIX_COOLDOWN_SECONDS`, maior que a recarga da sabotagem de propósito: consertar
+toda sabotagem que aparece transformaria a habilidade num botão de desfazer). Ele sai pelo MESMO
+`S_SABOTAGE_FIXED` do conserto normal - o resto do jogo não precisa saber que há um segundo jeito
+de a sabotagem acabar - e **sem dizer quem consertou**: o sinal é a sabotagem terminar sem ninguém
+ter chegado ao painel. Sonda: `tools/probes/probe_engineer.nvgt`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

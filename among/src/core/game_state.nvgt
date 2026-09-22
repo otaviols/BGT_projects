@@ -706,6 +706,31 @@ class game_state {
 		return true;
 	}
 
+	// Conserto REMOTO da sabotagem inteira, de onde quer que o jogador esteja (habilidade do
+	// engenheiro). Resolve TODOS os painéis que faltavam de uma vez - resolver um só deixaria o
+	// engenheiro atravessando a nave para o outro, que é exatamente o que a habilidade evita.
+	//
+	// Não é try_fix_sabotage_panel com a distância relaxada: aquele é o conserto NORMAL, que exige
+	// estar no painel, e as duas coisas têm regras diferentes de propósito. O que elas compartilham
+	// é o efeito, e por isso o pacote de fim de sabotagem é o MESMO (S_SABOTAGE_FIXED): o resto do
+	// jogo não precisa saber por que a sabotagem acabou.
+	//
+	// Quem conserta daqui precisa estar VIVO: a habilidade não está na lista das que sobrevivem à
+	// morte, e o fantasma não opera equipamento (mesma regra do scanner e da câmera).
+	bool try_remote_fix_sabotage(uint64 peer_id, net_packet@&out out_event, string&out fail_key) {
+		fail_key = "";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (active_sabotage == "") { fail_key = "sabotage.no_active"; return false; }
+
+		@out_event = net_packet(S_SABOTAGE_FIXED);
+		out_event.set_string("sabotage_id", active_sabotage);
+		active_sabotage = "";
+		sabotage_fixed_panels.resize(0);
+		sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
+		return true;
+	}
+
 	// --- IA dos bots ---
 	// Bot vivo faz três coisas: anda até a próxima task dele, "faz" a task parado por alguns
 	// segundos, e quando não tem mais task passeia entre as salas. Em reunião ele vota pular depois

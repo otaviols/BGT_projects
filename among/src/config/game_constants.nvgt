@@ -132,6 +132,13 @@ const float SABOTAGE_COOLDOWN_SECONDS = 30.0;
 // Cooldown já contando no começo da partida: sem isso o impostor podia sabotar no primeiro segundo,
 // antes de qualquer um ter tido tempo de sair da cafeteria ou começar uma task.
 const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
+// Papéis
+// Recarga do conserto remoto do engenheiro. Longa de propósito, e mais longa que a recarga da
+// sabotagem (30 s): se ele pudesse consertar toda sabotagem que aparecesse, sabotar deixaria de
+// ser uma jogada e a habilidade viraria um botão de desfazer. Com 120 s ele salva UMA crise - a
+// crítica em que ninguém chega a tempo - e nas outras a nave se vira como sempre.
+const float ENGINEER_FIX_COOLDOWN_SECONDS = 120.0;
+
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
 // Alcance de audição normal, fora de apagão. Era um 40 solto repetido em cada ponto que liga e
 // desliga o efeito das luzes - bastava mudar um para o jogador voltar do apagão com outro alcance.

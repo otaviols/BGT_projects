@@ -26,6 +26,10 @@
 
 const string ROLE_CREWMATE = "crewmate";
 const string ROLE_IMPOSTOR = "impostor";
+const string ROLE_ENGINEER = "engineer";
+
+// Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
+const string ABILITY_REMOTE_FIX = "remote_fix";
 
 // Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
 // papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
@@ -34,7 +38,7 @@ const string TEAM_IMPOSTOR = "impostor";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
-const array<string> CONFIGURABLE_ROLE_IDS = {};
+const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER};
 
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
@@ -103,8 +107,29 @@ role_traits@ role_impostor() {
 	return t;
 }
 
+// Engenheiro: tripulante que usa os dutos e conserta a sabotagem em andamento de qualquer lugar.
+//
+// Os dutos dele são o preço em dedução: "a tampa abriu na navegação, então ele saiu em armas ou no
+// reator" deixa de provar impostor. A troca é deliberada - o som da tampa continua o mesmo para os
+// dois, então o que a tripulação perde em certeza ganha em ter uma explicação alternativa que o
+// impostor pode usar como álibi... e que o engenheiro paga sendo confundido com ele.
+//
+// O conserto remoto tem recarga longa (ver ENGINEER_FIX_COOLDOWN_SECONDS): ele existe para salvar a
+// nave de uma sabotagem crítica quando ninguém chega a tempo, não para anular a sabotagem como
+// mecânica. E ele é público do jeito mais sonoro possível - a sabotagem acaba sem ninguém ter
+// chegado ao painel, e quem estava a caminho ouve isso.
+role_traits@ role_engineer() {
+	role_traits t;
+	t.id = ROLE_ENGINEER;
+	t.can_vent = true;
+	t.ability_id = ABILITY_REMOTE_FIX;
+	t.ability_cooldown_seconds = ENGINEER_FIX_COOLDOWN_SECONDS;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
+	if (role_id == ROLE_ENGINEER) return role_engineer();
 	return role_crewmate(); // desconhecido cai em tripulante: o papel mais inofensivo dos dois
 }
 
