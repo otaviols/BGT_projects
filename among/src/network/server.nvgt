@@ -28,12 +28,6 @@ void shuffle_int_array(array<int>@ arr) {
 	}
 }
 
-// Primeiro índice >= from, abaixo de limit, que não seja bot. Devolve limit se não houver.
-uint next_human_index(array<game_player@>@ arr, uint from, uint limit) {
-	while (from < limit && arr[from].is_bot) from++;
-	return from;
-}
-
 void shuffle_player_array(array<game_player@>@ arr) {
 	for (int i = int(arr.length()) - 1; i > 0; i--) {
 		int j = random(0, i);
@@ -867,25 +861,16 @@ class game_server {
 		// impostor, e cada papel de impostor sai entre eles; os de tripulação, entre o resto. Como a
 		// lista já está embaralhada, "os primeiros de cada time" é um sorteio. A configuração pode
 		// pedir mais papéis do que há gente no time (a sala foi validada pela LOTAÇÃO, não por quem
-		// veio): o que não couber simplesmente não sai. Bot nunca recebe papel especial: a IA dele
-		// não sabe usar a habilidade, e um bot com um papel que não exerce é um papel a menos na sala.
-		array<string> role_of(shuffled.length(), "");
-		uint next_impostor = 0, next_crew = uint(impostor_count);
-		for (uint r = 0; r < CONFIGURABLE_ROLE_IDS.length(); r++) {
-			string rid = CONFIGURABLE_ROLE_IDS[r];
-			bool impostor_side = role_for(rid).team == TEAM_IMPOSTOR;
-			for (int n = lobby.config.role_count(rid); n > 0; n--) {
-				if (impostor_side) {
-					next_impostor = next_human_index(shuffled, next_impostor, uint(impostor_count));
-					if (next_impostor >= uint(impostor_count)) break;
-					role_of[next_impostor++] = rid;
-				} else {
-					next_crew = next_human_index(shuffled, next_crew, shuffled.length());
-					if (next_crew >= shuffled.length()) break;
-					role_of[next_crew++] = rid;
-				}
-			}
-		}
+		// veio): quem não couber não sai. A regra inteira - chance por vaga, bot fora, quem não cabe
+		// - mora em draw_special_roles (game/roles/role_traits.nvgt), para a sonda poder chamar a
+		// MESMA função em vez de reimplementá-la e passar com o código quebrado.
+		//
+		// O S_GAME_START anuncia o que a sala CONFIGUROU, nunca o que saiu daqui: dizer o resultado
+		// entregaria de graça a dedução que a chance existe para criar.
+		array<bool> bot_flags;
+		for (uint i = 0; i < shuffled.length(); i++) bot_flags.insert_last(shuffled[i].is_bot);
+		array<string> role_of = draw_special_roles(shuffled.length(), uint(impostor_count), bot_flags,
+			lobby.config.role_counts, lobby.config.role_chances);
 
 		for (uint i = 0; i < shuffled.length(); i++) {
 			game_player@ p = shuffled[i];
@@ -993,9 +978,13 @@ class game_server {
 			start.set_string("map_name", lobby.map.name);
 			start.set_bool("your_role_impostor", p.is_impostor); // clientes até o protocolo 1
 			start.set_string("your_role", p.role_id);
-			// Quais papéis especiais existem nesta partida (id -> quantos), para todo mundo: assim como
-			// o número de impostores, saber que "há um xerife" muda a leitura de tudo o que acontece.
-			start.set_object("role_counts", lobby.config.to_json(lobby.players.length()).get_object("role_counts"));
+			// O que a SALA configurou (id -> quantos, e a chance de cada um), para todo mundo: assim
+			// como o número de impostores, saber que "pode haver um xerife" muda a leitura de tudo o
+			// que acontece. É a configuração, e nunca o resultado do sorteio: dizer o que realmente
+			// saiu entregaria a dedução que a chance existe para criar.
+			json_object@ cfg_json = lobby.config.to_json(lobby.players.length());
+			start.set_object("role_counts", cfg_json.get_object("role_counts"));
+			start.set_object("role_chances", cfg_json.get_object("role_chances"));
 			start.set_int("your_color", p.color);
 			start.set_uint64("your_peer_id", p.peer_id);
 			start.set_float("your_x", p.x);

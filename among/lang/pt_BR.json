@@ -510,6 +510,7 @@
 	"lobby.info.impostors_automatic": "(automático, depende de quantos entrarem)",
 	"lobby.info.roles_in_play": "Papéis em jogo: {roles}",
 	"lobby.info.role_count": "{count} {role}",
+	"lobby.info.role_chance": "com {percent}% de chance",
 	"lobby.info.max_players": "até {count} jogadores",
 	"lobby.info.tasks": "{count} tarefas por tripulante",
 	"lobby.info.kill_cooldown": "recarga do kill de {seconds} segundos",

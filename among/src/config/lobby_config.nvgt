@@ -46,6 +46,8 @@ class lobby_overrides {
 	// branco não é tocado, como todo o resto. -1 nunca aparece: um papel ausente do dicionário É o
 	// "não mexi".
 	dictionary role_counts;
+	// Chance de cada vaga sair, em por cento (ausente = não mexi; 100 = sempre).
+	dictionary role_chances;
 
 	// Aplica o que foi preenchido sobre uma configuração vinda do preset. O que ficou de fora não é
 	// tocado. A validação continua sendo feita depois, por lobby_config.validate(): estes valores
@@ -56,6 +58,11 @@ class lobby_overrides {
 		for (uint i = 0; i < ids.length(); i++) {
 			int n = 0;
 			if (role_counts.get(ids[i], n)) cfg.set_role_count(ids[i], n);
+		}
+		array<string>@ chance_ids = role_chances.get_keys();
+		for (uint i = 0; i < chance_ids.length(); i++) {
+			int c = 0;
+			if (role_chances.get(chance_ids[i], c)) cfg.set_role_chance(chance_ids[i], c);
 		}
 		if (max_players > 0) cfg.max_players = uint(max_players);
 		if (impostor_count > 0) cfg.impostor_count = impostor_count;
@@ -102,6 +109,13 @@ class lobby_overrides {
 			if (role_counts.get(ids[i], n)) roles.set(ids[i], n);
 		}
 		pkt.set_object("role_counts", roles);
+		json_object@ chances = json_object();
+		array<string>@ chance_ids = role_chances.get_keys();
+		for (uint i = 0; i < chance_ids.length(); i++) {
+			int c = 0;
+			if (role_chances.get(chance_ids[i], c)) chances.set(chance_ids[i], c);
+		}
+		pkt.set_object("role_chances", chances);
 	}
 
 	void read_from_packet(net_packet@ pkt) {
@@ -113,6 +127,14 @@ class lobby_overrides {
 			for (uint i = 0; i < ids.length(); i++) {
 				// Só ids conhecidos: o resto vem da máquina do jogador e não tem o que fazer aqui.
 				if (CONFIGURABLE_ROLE_IDS.find(ids[i]) != -1) role_counts.set(ids[i], int(roles[ids[i]]));
+			}
+		}
+		role_chances.delete_all();
+		json_object@ chances = pkt.get_object("role_chances");
+		if (@chances != null) {
+			array<string>@ ids = chances.get_keys();
+			for (uint i = 0; i < ids.length(); i++) {
+				if (CONFIGURABLE_ROLE_IDS.find(ids[i]) != -1) role_chances.set(ids[i], int(chances[ids[i]]));
 			}
 		}
 		max_players = pkt.get_int("max_players", -1);
@@ -169,6 +191,11 @@ class lobby_config {
 	// Papéis especiais em jogo: id -> quantos. Ausente = zero. TUDO desligado por padrão, em todo
 	// preset: quem não mexer joga o jogo de sempre, e é isso que torna a chegada dos papéis segura.
 	dictionary role_counts;
+	// Chance de CADA vaga do papel sair, em por cento. Ausente = 100. É o que separa "há um xerife"
+	// de "pode haver um xerife": com chance abaixo de 100, a tripulação não pode assumir que ele
+	// existe, e é justamente essa dúvida que faz o papel valer a pena. As chances são públicas (vão
+	// nas regras da sala); o RESULTADO do sorteio é que não é.
+	dictionary role_chances;
 
 	int role_count(const string&in role_id) const {
 		int n = 0;
@@ -180,6 +207,20 @@ class lobby_config {
 	void set_role_count(const string&in role_id, int n) {
 		if (n <= 0) role_counts.delete(role_id);
 		else role_counts.set(role_id, n);
+	}
+
+	int role_chance(const string&in role_id) const {
+		int c = 100;
+		if (!role_chances.exists(role_id)) return 100;
+		role_chances.get(role_id, c);
+		return c;
+	}
+
+	void set_role_chance(const string&in role_id, int percent) {
+		// 100 não é guardado: ausência JÁ significa "sempre", e um campo a menos no pacote é um
+		// campo a menos para divergir.
+		if (percent >= 100) role_chances.delete(role_id);
+		else role_chances.set(role_id, percent);
 	}
 
 	// Se algum papel especial está ligado. É o que decide se a sala exige cliente novo.
@@ -224,6 +265,16 @@ class lobby_config {
 			set_role_count(ids[i], n);
 			if (impostor_side) impostor_roles += n; else crew_roles += n;
 		}
+		// Chances: dentro de 0 a 100, e só de papéis que estão realmente em jogo - uma chance
+		// pendurada num papel com zero vagas seria lida nas regras como se o papel existisse.
+		array<string>@ chance_ids = role_chances.get_keys();
+		for (uint i = 0; i < chance_ids.length(); i++) {
+			if (role_count(chance_ids[i]) <= 0) { role_chances.delete(chance_ids[i]); changed = true; continue; }
+			int c = role_chance(chance_ids[i]);
+			if (c < 0) { c = 0; changed = true; }
+			if (c > 100) { c = 100; changed = true; }
+			set_role_chance(chance_ids[i], c);
+		}
 		return changed;
 	}
 
@@ -260,9 +311,14 @@ class lobby_config {
 		// Sempre presente, mesmo vazio: é como o cliente distingue "sala sem papéis" de "servidor
 		// antigo que nem sabe o que é papel".
 		json_object@ roles = json_object();
+		json_object@ chances = json_object();
 		array<string>@ ids = role_counts.get_keys();
-		for (uint i = 0; i < ids.length(); i++) roles.set(ids[i], role_count(ids[i]));
+		for (uint i = 0; i < ids.length(); i++) {
+			roles.set(ids[i], role_count(ids[i]));
+			if (role_chance(ids[i]) < 100) chances.set(ids[i], role_chance(ids[i]));
+		}
 		o.set("role_counts", roles);
+		o.set("role_chances", chances);
 		return o;
 	}
 }

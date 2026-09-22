@@ -117,6 +117,46 @@ string base_role_of_team(const string&in team) {
 	return team == TEAM_IMPOSTOR ? ROLE_IMPOSTOR : ROLE_CREWMATE;
 }
 
+// O sorteio dos papéis especiais, numa função para o servidor e a sonda chamarem a MESMA coisa.
+//
+// Recebe quantos jogadores há, quantos deles são impostores (os `impostor_count` PRIMEIROS da lista
+// já embaralhada), quem é bot, e a configuração da sala. Devolve o papel de cada posição ("" = o
+// papel-base do time dela).
+//
+// Três regras que parecem detalhe e não são:
+//   1. cada VAGA rola a própria chance - "2 xerifes a 50%" pode dar zero, um ou dois;
+//   2. vaga sorteada para fora NÃO gasta jogador, senão ela tiraria alguém do sorteio dos outros
+//      papéis sem nada ter aparecido;
+//   3. bot nunca recebe papel especial (a IA não sabe usá-lo), então numa sala cheia de bots pode
+//      não sobrar gente para todos os papéis ligados - e o que não couber não sai, calado. Do lado
+//      de quem joga isso é indistinguível de uma chance que não saiu, e é isso que o torna seguro.
+array<string> draw_special_roles(uint player_count, uint impostor_count, const array<bool>&in is_bot,
+		const dictionary&in role_counts, const dictionary&in role_chances) {
+	array<string> role_of(player_count, "");
+	uint next_impostor = 0, next_crew = impostor_count;
+	for (uint r = 0; r < CONFIGURABLE_ROLE_IDS.length(); r++) {
+		string rid = CONFIGURABLE_ROLE_IDS[r];
+		int vagas = 0;
+		if (!role_counts.get(rid, vagas) || vagas <= 0) continue;
+		int chance = 100;
+		if (role_chances.exists(rid)) role_chances.get(rid, chance);
+		bool impostor_side = role_for(rid).team == TEAM_IMPOSTOR;
+		for (int n = vagas; n > 0; n--) {
+			if (chance < 100 && random(1, 100) > chance) continue;
+			if (impostor_side) {
+				while (next_impostor < impostor_count && is_bot[next_impostor]) next_impostor++;
+				if (next_impostor >= impostor_count) break;
+				role_of[next_impostor++] = rid;
+			} else {
+				while (next_crew < player_count && is_bot[next_crew]) next_crew++;
+				if (next_crew >= player_count) break;
+				role_of[next_crew++] = rid;
+			}
+		}
+	}
+	return role_of;
+}
+
 // Compatibilidade: o S_GAME_START ainda manda o booleano ("your_role_impostor") para os clientes
 // anteriores ao id do papel, e um servidor antigo só manda ele. Quem tem o id usa o id.
 role_traits@ role_from_flag(bool is_impostor) {

@@ -11,10 +11,13 @@
 #include "../network/packet.nvgt"
 #include "../game/roles/role_traits.nvgt"
 
-// "Papéis em jogo: 1 engenheiro, 2 xerifes." - ou "" quando não há nenhum. Percorre
-// CONFIGURABLE_ROLE_IDS, e não as chaves do objeto, para a ordem ser sempre a mesma que a do
-// formulário: quem ouve as regras aprende uma ordem e a reencontra ao editar.
-string roles_in_play_text(json_object@ role_counts) {
+// "Papéis em jogo: 1 engenheiro, 2 xerifes com 50% de chance." - ou "" quando não há nenhum.
+// Percorre CONFIGURABLE_ROLE_IDS, e não as chaves do objeto, para a ordem ser sempre a mesma que a
+// do formulário: quem ouve as regras aprende uma ordem e a reencontra ao editar.
+//
+// A chance só é dita quando é MENOR que 100: no caso comum ("sempre") ela não acrescenta nada e só
+// alongaria a fala. E o que se diz é sempre a CONFIGURAÇÃO da sala, nunca quem realmente saiu.
+string roles_in_play_text(json_object@ role_counts, json_object@ role_chances = null) {
 	if (@role_counts == null) return "";
 	array<string> partes;
 	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
@@ -25,7 +28,13 @@ string roles_in_play_text(json_object@ role_counts) {
 		dictionary@ p = dictionary();
 		p.set("count", "" + n);
 		p.set("role", tr("role." + id));
-		partes.insert_last(tr("lobby.info.role_count", p));
+		string parte = tr("lobby.info.role_count", p);
+		if (@role_chances != null && role_chances.exists(id) && int(role_chances[id]) < 100) {
+			dictionary@ cp = dictionary();
+			cp.set("percent", "" + int(role_chances[id]));
+			parte += " " + tr("lobby.info.role_chance", cp);
+		}
+		partes.insert_last(parte);
 	}
 	if (partes.length() == 0) return "";
 	dictionary@ p = dictionary();
@@ -83,7 +92,7 @@ string lobby_config_text(json_object@ cfg) {
 	partes.insert_last(impostores);
 	// Logo depois dos impostores, porque é a mesma pergunta: "contra o que estou jogando?".
 	// Sem papéis, não diz nada - a sala de sempre não ganhou uma frase nova para ouvir.
-	string papeis = roles_in_play_text(cfg.get_object("role_counts"));
+	string papeis = roles_in_play_text(cfg.get_object("role_counts"), cfg.get_object("role_chances"));
 	if (papeis != "") partes.insert_last(papeis);
 
 	dictionary@ mp = dictionary();

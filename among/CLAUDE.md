@@ -303,11 +303,24 @@ escritos separados - é o que impede um papel de impostor (shapeshifter) de cont
 na vitória, ou um papel de tripulação de virar alvo proibido de kill. Nada deve atribuir
 `is_impostor` direto; quem fizer isso deixa os dois discordando sem que nada acuse (a sonda
 `probe_ghost_sabotage` já foi corrigida por causa disso). A sala guarda os papéis em
-`lobby_config.role_counts` (id -> quantos, **vazio por padrão em todo preset**), o sorteio é
-DENTRO de cada time (`on_start_game`) e nunca cai em bot, e a habilidade ativa é um pacote só
+`lobby_config.role_counts` (id -> quantos, **vazio por padrão em todo preset**) e
+`role_chances` (chance de CADA vaga sair, 100 por padrão), o sorteio inteiro mora em
+`draw_special_roles` - chamada pelo servidor E pela sonda, porque reimplementá-la na sonda passaria
+com o servidor quebrado -, e a habilidade ativa é um pacote só
 (`C_USE_ABILITY` -> `run_ability`, um caso por id) em vez de um pacote por papel. Sala com papel
 ligado exige `ROLES_MIN_PROTOCOL` e recusa cliente velho na PORTA (entrar) e no INÍCIO (quem já
 estava dentro), dizendo quem precisa atualizar. Sonda: `tools/probes/probe_roles.nvgt`.
+
+**Papel ligado NÃO é papel garantido, e isso é de propósito.** Cada vaga rola a própria chance
+(`role_chance`, 100 = sempre), como no original: com chance abaixo de 100 a tripulação não pode
+assumir que o xerife existe, e é essa dúvida que faz o papel valer. Três consequências que
+precisam continuar verdadeiras juntas: o `S_GAME_START` anuncia o que a sala **configurou**, nunca
+o que saiu (anunciar o resultado entrega de graça a dedução que a chance cria); uma vaga sorteada
+para fora **não gasta jogador**, senão "2 xerifes a 50%" tiraria duas pessoas do sorteio dos
+outros papéis sem xerife nenhum aparecer; e quando não há gente para todos os papéis (sala pequena,
+ou cheia de bots, que nunca recebem papel especial) o que não couber simplesmente não sai, calado -
+do lado de quem joga isso é indistinguível de uma chance que não saiu, e é isso que o torna
+seguro.
 
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso

@@ -510,6 +510,7 @@
 	"lobby.info.impostors_automatic": "(automatic, depends on how many join)",
 	"lobby.info.roles_in_play": "Roles in play: {roles}",
 	"lobby.info.role_count": "{count} {role}",
+	"lobby.info.role_chance": "at {percent}% chance",
 	"lobby.info.max_players": "up to {count} players",
 	"lobby.info.tasks": "{count} tasks per crewmate",
 	"lobby.info.kill_cooldown": "{seconds} second kill cooldown",

@@ -394,13 +394,21 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	// Um campo por papel especial, logo depois dos impostores (é a mesma pergunta: quem joga contra
 	// quem). Vazio = zero, e zero é o jogo de sempre. A lista vem de CONFIGURABLE_ROLE_IDS, então um
 	// papel novo aparece aqui sozinho.
+	// Cada papel são DOIS campos: quantas vagas e a chance de cada uma sair. A chance é o que
+	// impede a tripulação de assumir que o papel existe; vazia (ou 100) é "sempre", que é o
+	// comportamento óbvio para quem só quer ligar o papel e jogar.
 	json_object@ current_roles = @current != null ? current.get_object("role_counts") : null;
+	json_object@ current_chances = @current != null ? current.get_object("role_chances") : null;
 	array<int> f_roles;
+	array<int> f_role_chances;
 	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
 		string id = CONFIGURABLE_ROLE_IDS[i];
 		string atual = "";
 		if (@current_roles != null && current_roles.exists(id) && int(current_roles[id]) > 0) atual = "" + int(current_roles[id]);
 		f_roles.insert_last(f.create_input_box(tr("lobby.role_count." + id), atual));
+		string chance = "";
+		if (@current_chances != null && current_chances.exists(id) && int(current_chances[id]) < 100) chance = "" + int(current_chances[id]);
+		f_role_chances.insert_last(f.create_input_box(tr("lobby.role_chance." + id), chance));
 	}
 	int f_tasks = f.create_input_box(tr("lobby.task_count_override"), current_int_text(current, "task_count_per_crewmate"));
 	int f_long_tasks = f.create_input_box(tr("lobby.long_task_count_override"), current_int_text(current, "long_task_count"));
@@ -466,6 +474,10 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			for (uint i = 0; i < f_roles.length(); i++) {
 				int n = text_to_int_or_default(f.get_text(f_roles[i]));
 				r.ov.role_counts.set(CONFIGURABLE_ROLE_IDS[i], n < 0 ? 0 : n);
+				// Chance vazia = 100 ("sempre"), que é o que quem só ligou o papel espera. O servidor
+				// ainda recorta para 0..100 e descarta chance de papel sem vaga.
+				int c = text_to_int_or_default(f.get_text(f_role_chances[i]));
+				r.ov.role_chances.set(CONFIGURABLE_ROLE_IDS[i], c < 0 ? 100 : c);
 			}
 			r.ov.task_count_per_crewmate = text_to_int_or_default(f.get_text(f_tasks));
 			r.ov.long_task_count = text_to_int_or_default(f.get_text(f_long_tasks));

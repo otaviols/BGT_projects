@@ -584,7 +584,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	}
 	// Papéis especiais desta partida, para todo mundo, na mesma fala: como o número de impostores,
 	// "há um xerife a bordo" muda a leitura de tudo que vier depois.
-	string roles_text = roles_in_play_text(start_pkt.get_object("role_counts"));
+	string roles_text = roles_in_play_text(start_pkt.get_object("role_counts"), start_pkt.get_object("role_chances"));
 	if (roles_text != "") role_text += " " + roles_text;
 	speak(role_text);
 	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
