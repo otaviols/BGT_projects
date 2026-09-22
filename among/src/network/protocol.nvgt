@@ -101,6 +101,11 @@ const string C_CAMERA_SWITCH = "c_camera_switch"; // {room_id} - apontar para ou
 // disso. Contar essa pessoa entregava justamente a dedução que o duto existe para esconder; mandar o
 // estado de duto para todos os clientes resolveria o sintoma criando um vazamento pior.
 const string C_CAMERA_SCAN = "c_camera_scan";     // {} - quem está na sala que estou observando
+// Habilidade ativa do papel (ver game/roles/role_traits.nvgt). Um pacote só para todas: o servidor
+// confere se o papel do jogador TEM aquela habilidade e se ela está fora de recarga, e cada papel
+// novo acrescenta um caso ao despacho, não um pacote ao protocolo. target_peer_id/object_id são
+// opcionais, conforme a habilidade.
+const string C_USE_ABILITY = "c_use_ability";     // {ability, target_peer_id?, object_id?}
 
 // Recado do jogador para quem faz o jogo. Vai pelo MESMO canal do resto: a sessão já está
 // autenticada, então o servidor sabe de quem veio sem o jogador digitar nada, e nenhum endereço ou
@@ -194,6 +199,9 @@ const string S_CAMERA_WATCHING = "s_camera_watching";       // {room_id}
 // Resposta ao C_CAMERA_SCAN: os nomes de quem está na sala observada, em ordem. Nomes não são texto
 // traduzível - são identidade, e viajam como estão (ver "Nada de identidade é traduzido").
 const string S_CAMERA_PLAYERS = "s_camera_players";         // {names: [...]}
+// Resposta PRIVADA a C_USE_ABILITY: deu ou não, e o porquê como chave. O que a habilidade faz no
+// mundo (som, estado) viaja pelos pacotes que já existem para aquilo - isto aqui é só o retorno.
+const string S_ABILITY_RESULT = "s_ability_result";         // {ability, ok, message_key, message_params?, cooldown_seconds}
 
 // --- Mensagens traduzíveis vindas do servidor -------------------------------
 //

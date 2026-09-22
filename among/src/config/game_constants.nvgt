@@ -20,7 +20,9 @@ const string GAME_VERSION = "0.29.5";
 // primeira mudança incompatível de verdade (os papéis): subir o número aqui É o corte, e ele só
 // pode acontecer depois que a base de jogadores já estiver em versões que sabem explicar a recusa -
 // os clientes até a 0.29.4 ignoram o motivo do login falhar e dizem "credenciais inválidas".
-const int PROTOCOL_VERSION = 1;
+// Histórico: 1 = o campo passou a existir (0.29.5); 2 = o cliente lê `your_role` e o formulário da
+// sala manda `role_counts` (ver ROLES_MIN_PROTOCOL em game/roles/role_traits.nvgt).
+const int PROTOCOL_VERSION = 2;
 const int MIN_PROTOCOL_VERSION = 0;
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).

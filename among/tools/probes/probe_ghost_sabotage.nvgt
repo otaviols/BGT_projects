@@ -25,7 +25,7 @@ void main() {
 	lobby.sabotage_cooldown_remaining = 0.0;
 
 	game_player@ imp = game_player(1, "impostor");
-	imp.is_impostor = true;
+	imp.set_role(ROLE_IMPOSTOR);
 	imp.alive = false; // morto
 	game_player@ crew = game_player(2, "tripulante");
 	crew.alive = false;
@@ -47,7 +47,7 @@ void main() {
 	lobby.doors_cooldown_remaining = 0.0;
 	caso("impostor MORTO fecha portas", lobby.close_doors_of_room(1, "cafeteria", fechadas), false);
 	game_player@ vivo = game_player(3, "impostor vivo");
-	vivo.is_impostor = true;
+	vivo.set_role(ROLE_IMPOSTOR);
 	vivo.alive = true;
 	lobby.players.insert_last(vivo);
 	caso("impostor VIVO fecha portas", lobby.close_doors_of_room(3, "cafeteria", fechadas), true);

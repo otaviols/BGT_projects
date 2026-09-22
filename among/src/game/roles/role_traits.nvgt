@@ -12,17 +12,38 @@
 //
 // Um papel novo entra em três passos:
 //   1. uma função `role_traits@ role_<nome>()` abaixo, declarando o que ele pode;
-//   2. o id dele em role_for();
-//   3. as chaves de texto "role.<id>" e "role.assigned_<id>" nos arquivos de idioma.
-// Nada mais no cliente precisa saber que ele existe.
+//   2. o id dele em role_for() e, se for sorteável pela sala, em CONFIGURABLE_ROLE_IDS;
+//   3. as chaves de texto "role.<id>", "role.assigned_<id>" e "lobby.role_count.<id>" nos
+//      arquivos de idioma.
+// Nada mais no cliente precisa saber que ele existe: o sorteio (servidor), o formulário da sala e
+// a leitura das regras percorrem CONFIGURABLE_ROLE_IDS.
+//
+// Os dois papéis-base (tripulante e impostor) não entram na lista: eles são o que sobra depois que
+// os papéis especiais são sorteados dentro de cada time. O que a sala configura é "quantos
+// engenheiros entre os tripulantes", nunca "quantos tripulantes".
 
 #include "../../config/game_constants.nvgt"
 
 const string ROLE_CREWMATE = "crewmate";
 const string ROLE_IMPOSTOR = "impostor";
 
+// Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
+// papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
+const string TEAM_CREW = "crew";
+const string TEAM_IMPOSTOR = "impostor";
+
+// Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
+// Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
+const array<string> CONFIGURABLE_ROLE_IDS = {};
+
+// Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
+// versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
+// como tripulante comum sem saber que não é.
+const int ROLES_MIN_PROTOCOL = 2;
+
 class role_traits {
 	string id;
+	string team = TEAM_CREW;
 
 	// --- O que pode fazer ---
 	bool can_kill = false;
@@ -41,6 +62,15 @@ class role_traits {
 	// derrubou; as luzes ele sofre igual, e é isso que impede apagar a nave de ser escolha sem custo.
 	bool immune_to_comms = false;
 	bool immune_to_lights = false;
+
+	// --- Habilidade ativa ---
+	// Uma por papel, usada pela tecla de habilidade e despachada no servidor por este id (ver
+	// on_use_ability). "" = o papel não tem. A recarga é do papel, não da sala, pelo menos por
+	// enquanto: uma configuração por habilidade viraria uma tela de regras impossível de ouvir.
+	string ability_id = "";
+	float ability_cooldown_seconds = 0.0;
+	// Se a habilidade sobrevive à morte. Quase nenhuma: o anjo da guarda é justamente a exceção.
+	bool ability_usable_dead = false;
 
 	// --- Time ---
 	bool wins_with_crew = true;
@@ -61,6 +91,7 @@ role_traits@ role_crewmate() {
 role_traits@ role_impostor() {
 	role_traits t;
 	t.id = ROLE_IMPOSTOR;
+	t.team = TEAM_IMPOSTOR;
 	t.can_kill = true;
 	t.can_vent = true;
 	t.can_sabotage = true;
@@ -77,8 +108,17 @@ role_traits@ role_for(const string&in role_id) {
 	return role_crewmate(); // desconhecido cai em tripulante: o papel mais inofensivo dos dois
 }
 
-// Compatibilidade com o protocolo atual, que ainda manda um booleano ("your_role_impostor").
-// Quando ele passar a mandar o id do papel, só esta função muda.
+bool role_id_is_known(const string&in role_id) {
+	return role_id == ROLE_CREWMATE || role_id == ROLE_IMPOSTOR || CONFIGURABLE_ROLE_IDS.find(role_id) != -1;
+}
+
+// O papel-base de um time: o que sobra para quem não foi sorteado num papel especial.
+string base_role_of_team(const string&in team) {
+	return team == TEAM_IMPOSTOR ? ROLE_IMPOSTOR : ROLE_CREWMATE;
+}
+
+// Compatibilidade: o S_GAME_START ainda manda o booleano ("your_role_impostor") para os clientes
+// anteriores ao id do papel, e um servidor antigo só manda ele. Quem tem o id usa o id.
 role_traits@ role_from_flag(bool is_impostor) {
 	return is_impostor ? role_impostor() : role_crewmate();
 }
@@ -110,6 +150,8 @@ class player_abilities {
 	bool can_call_meeting() const { return alive && role.can_call_meeting; }
 	// Votar é o único direito que a morte tira sem exceção, e por isso não olha o papel.
 	bool can_vote() const { return alive; }
+	// Tem uma habilidade ativa E pode usá-la neste estado. A recarga é conferida no servidor.
+	bool has_ability() const { return role.ability_id != "" && (alive || role.ability_usable_dead); }
 
 	// --- Tarefas ---
 	// NÃO exige estar vivo: fantasma continua fazendo tarefas, e elas continuam contando para a

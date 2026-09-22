@@ -297,6 +297,18 @@ graça aos vizinhos e fazia a vítima ouvir a própria morte como se fosse de ou
 **Fantasma não é atingido por sabotagem.** Ele já perdeu o que tinha a perder, e continua fazendo
 tarefas pelo time — cegá-lo não cria tensão, só torna tedioso o que ainda ajuda.
 
+**O papel do jogador tem UMA fonte, e `is_impostor` é derivado dela.** `game_player.role_id` é o
+que vale; `set_role()` recalcula `is_impostor` a partir do time do papel. Os dois nunca são
+escritos separados - é o que impede um papel de impostor (shapeshifter) de contar como tripulante
+na vitória, ou um papel de tripulação de virar alvo proibido de kill. Nada deve atribuir
+`is_impostor` direto; quem fizer isso deixa os dois discordando sem que nada acuse (a sonda
+`probe_ghost_sabotage` já foi corrigida por causa disso). A sala guarda os papéis em
+`lobby_config.role_counts` (id -> quantos, **vazio por padrão em todo preset**), o sorteio é
+DENTRO de cada time (`on_start_game`) e nunca cai em bot, e a habilidade ativa é um pacote só
+(`C_USE_ABILITY` -> `run_ability`, um caso por id) em vez de um pacote por papel. Sala com papel
+ligado exige `ROLES_MIN_PROTOCOL` e recusa cliente velho na PORTA (entrar) e no INÍCIO (quem já
+estava dentro), dizendo quem precisa atualizar. Sonda: `tools/probes/probe_roles.nvgt`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

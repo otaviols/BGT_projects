@@ -461,11 +461,18 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	uint64 my_peer_id = start_pkt.get_uint64("your_peer_id", client.my_peer_id);
 	if (my_peer_id != 0) client.my_peer_id = my_peer_id;
 
-	bool is_impostor = start_pkt.get_bool("your_role_impostor");
 	// O papel diz o que este jogador PODE; o resto do laço pergunta por capacidade ("posso
 	// ventilar?"), não por identidade ("sou impostor?"). É o que permite acrescentar um papel novo
 	// sem revisitar cada condição do jogo - ver game/roles/role_traits.nvgt.
-	role_traits@ my_role = role_from_flag(is_impostor);
+	// O id vem do servidor; sem ele (servidor antigo) vale o booleano de sempre.
+	role_traits@ my_role = start_pkt.exists("your_role")
+		? role_for(start_pkt.get_string("your_role"))
+		: role_from_flag(start_pkt.get_bool("your_role_impostor"));
+	// "Time impostor", derivado do papel: é o que a reunião e as regras de sabotagem ainda perguntam.
+	bool is_impostor = my_role.team == TEAM_IMPOSTOR;
+	// Recarga da habilidade do papel, acompanhada localmente como a do kill: o servidor é quem
+	// decide, isto é só para responder na hora sem viagem de rede.
+	float my_ability_cooldown_remaining = 0.0;
 	// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
 	// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
 	bool alive = true;
@@ -575,6 +582,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		count_params.set("count", "" + impostor_count);
 		role_text += " " + tr(impostor_count == 1 ? "role.impostor_count_one" : "role.impostor_count_many", count_params);
 	}
+	// Papéis especiais desta partida, para todo mundo, na mesma fala: como o número de impostores,
+	// "há um xerife a bordo" muda a leitura de tudo que vier depois.
+	string roles_text = roles_in_play_text(start_pkt.get_object("role_counts"));
+	if (roles_text != "") role_text += " " + roles_text;
 	speak(role_text);
 	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
 	audio.update_listener(my_x, my_y);
@@ -789,6 +800,17 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					string motivo = pkt.get_string("message_key");
 					if (motivo != "") speak(tr(motivo));
 				}
+			} else if (t == S_ABILITY_RESULT) {
+				// Deu: a recarga começa a contar aqui, com o valor que o SERVIDOR mandou. O efeito em
+				// si (o conserto, o tiro) chega pelos pacotes de sempre - não há "som de habilidade"
+				// genérico, porque cada uma tem um ouvinte e um som próprios. Não deu: o motivo vem
+				// como chave, e a recarga fica como estava.
+				if (pkt.get_bool("ok")) {
+					my_ability_cooldown_remaining = pkt.get_float("cooldown_seconds", 0.0);
+				} else {
+					string motivo = tr_server_message(pkt);
+					if (motivo != "") speak(motivo);
+				}
 			} else if (t == S_CAMERA_PLAYERS) {
 				speak(watched_room_players_text(pkt.get_array("names")));
 			} else if (t == S_CAMERA_WATCHING) {
@@ -953,6 +975,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		if (my_role.can_sabotage && my_sabotage_cooldown_remaining > 0.0) {
 			my_sabotage_cooldown_remaining -= delta;
 			if (my_sabotage_cooldown_remaining < 0.0) my_sabotage_cooldown_remaining = 0.0;
+		}
+		if (my_ability_cooldown_remaining > 0.0) {
+			my_ability_cooldown_remaining -= delta;
+			if (my_ability_cooldown_remaining < 0.0) my_ability_cooldown_remaining = 0.0;
 		}
 
 		if (!movement_frozen && !is_vented) {
@@ -1184,6 +1210,22 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			// perguntar de novo - "está escuro, mas por quê?" é a pergunta que isto responde. A mesma
 			// tecla do menu de sabotagem, de propósito: G é "sabotagem" para todo mundo, e o que ela faz
 			// depende de quem aperta. Os painéis já consertados saem da dica, porque o cliente sabe quais.
+			// Habilidade do papel. Quem não tem ouve isso na hora, em vez de silêncio: uma tecla que
+			// não faz nada parece tecla quebrada. O servidor confere tudo de novo (ver on_use_ability);
+			// a recarga local só poupa a viagem de rede quando a resposta é óbvia.
+			if (action_pressed(ACTION_ABILITY)) {
+				player_abilities me_now(my_role, alive);
+				if (my_role.ability_id == "") speak(tr("role.no_ability"));
+				else if (!me_now.has_ability()) speak(tr("game.ghost_cannot_interact"));
+				else if (my_ability_cooldown_remaining > 0.0) {
+					dictionary@ cd = dictionary();
+					cd.set("seconds", "" + int(my_ability_cooldown_remaining + 0.5));
+					speak(tr("role.ability_cooldown", cd));
+				} else {
+					client.send_use_ability(my_role.ability_id);
+				}
+			}
+
 			if (!player_abilities(my_role, alive).can_sabotage() && action_pressed(ACTION_SABOTAGE)) {
 				if (active_sabotage_id == "") speak(tr("sabotage.none_active"));
 				else {

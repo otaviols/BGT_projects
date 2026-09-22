@@ -5,6 +5,7 @@
 
 #include "../config/game_constants.nvgt"
 #include "../config/colors.nvgt"
+#include "../game/roles/role_traits.nvgt"
 
 class player_task {
 	// O ponto da fase ATUAL - ele muda quando a tarefa avança (ver game_state.advance_task).
@@ -30,10 +31,16 @@ class game_player {
 	float y = 0.0;
 	uint32 last_move_seq = 0;
 	bool alive = true;
+	// O papel é a fonte; is_impostor é DERIVADO dele em set_role() e existe porque o resto do servidor
+	// ainda pergunta pelo time em dezenas de lugares (contagem de vivos, vitória, alvo de kill). Os
+	// dois nunca são escritos separados - é o que impede um shapeshifter de contar como tripulante.
+	string role_id = ROLE_CREWMATE;
 	bool is_impostor = false;
 	bool vented = false;
 	string current_vent_id = ""; // qual vent ele está "dentro" agora, só relevante enquanto vented
 	float kill_cooldown_remaining = 0.0;
+	// Recarga da habilidade do papel (ver role_traits.ability_id). Uma só, porque o papel tem uma só.
+	float ability_cooldown_remaining = 0.0;
 	uint meetings_called = 0;
 	int radar_index = -1;
 	float last_move_time = 0.0;
@@ -116,11 +123,22 @@ class game_player {
 			kill_cooldown_remaining -= delta_seconds;
 			if (kill_cooldown_remaining < 0.0) kill_cooldown_remaining = 0.0;
 		}
+		if (ability_cooldown_remaining > 0.0) {
+			ability_cooldown_remaining -= delta_seconds;
+			if (ability_cooldown_remaining < 0.0) ability_cooldown_remaining = 0.0;
+		}
 	}
 
 	bool can_kill() const {
-		return is_impostor && alive && kill_cooldown_remaining <= 0.0;
+		return role().can_kill && alive && kill_cooldown_remaining <= 0.0;
 	}
+
+	void set_role(const string&in id) {
+		role_id = id;
+		is_impostor = role_for(id).team == TEAM_IMPOSTOR;
+	}
+
+	role_traits@ role() const { return role_for(role_id); }
 
 	// Apaga tudo que é de UMA partida, deixando o objeto pronto pra próxima. Isto existe porque o
 	// game_player é o objeto de CONEXÃO: ele sobrevive à partida, à lobby, e vai junto com o jogador
@@ -129,11 +147,12 @@ class game_player {
 	void reset_match_state() {
 		alive = true;
 		left_match = false;
-		is_impostor = false;
+		set_role(ROLE_CREWMATE);
 		vented = false;
 		current_vent_id = "";
 		tasks.resize(0);
 		kill_cooldown_remaining = 0.0;
+		ability_cooldown_remaining = 0.0;
 		meetings_called = 0;
 		radar_index = -1;
 		last_move_time = 0.0;

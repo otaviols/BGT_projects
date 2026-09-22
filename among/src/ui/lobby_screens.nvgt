@@ -391,6 +391,17 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	int f_max_players = f.create_input_box(tr("lobby.max_players_override"), current_int_text(current, "max_players"));
 	bool auto_impostors = @current != null && bool(current["impostors_automatic"]);
 	int f_impostors = f.create_input_box(tr("lobby.impostor_count_override"), auto_impostors ? "" : current_int_text(current, "impostor_count"));
+	// Um campo por papel especial, logo depois dos impostores (é a mesma pergunta: quem joga contra
+	// quem). Vazio = zero, e zero é o jogo de sempre. A lista vem de CONFIGURABLE_ROLE_IDS, então um
+	// papel novo aparece aqui sozinho.
+	json_object@ current_roles = @current != null ? current.get_object("role_counts") : null;
+	array<int> f_roles;
+	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
+		string id = CONFIGURABLE_ROLE_IDS[i];
+		string atual = "";
+		if (@current_roles != null && current_roles.exists(id) && int(current_roles[id]) > 0) atual = "" + int(current_roles[id]);
+		f_roles.insert_last(f.create_input_box(tr("lobby.role_count." + id), atual));
+	}
 	int f_tasks = f.create_input_box(tr("lobby.task_count_override"), current_int_text(current, "task_count_per_crewmate"));
 	int f_long_tasks = f.create_input_box(tr("lobby.long_task_count_override"), current_int_text(current, "long_task_count"));
 	int f_discussion = f.create_input_box(tr("lobby.discussion_time_override"), current_float_text(current, "discussion_time_seconds"));
@@ -449,6 +460,13 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.kill_cooldown_seconds = text_to_float_or_default(f.get_text(f_kill_cooldown));
 			r.ov.max_players = text_to_int_or_default(f.get_text(f_max_players));
 			r.ov.impostor_count = text_to_int_or_default(f.get_text(f_impostors));
+			// Papéis: vazio significa ZERO, e não "não mexi" - é a única forma de o anfitrião
+			// desligar um papel que estava ligado (apagando o número). Por isso o campo é mandado
+			// sempre, com 0 quando vazio.
+			for (uint i = 0; i < f_roles.length(); i++) {
+				int n = text_to_int_or_default(f.get_text(f_roles[i]));
+				r.ov.role_counts.set(CONFIGURABLE_ROLE_IDS[i], n < 0 ? 0 : n);
+			}
 			r.ov.task_count_per_crewmate = text_to_int_or_default(f.get_text(f_tasks));
 			r.ov.long_task_count = text_to_int_or_default(f.get_text(f_long_tasks));
 			r.ov.discussion_time_seconds = text_to_float_or_default(f.get_text(f_discussion));

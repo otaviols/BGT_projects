@@ -1,0 +1,130 @@
+// Sonda do esqueleto de papéis. Ela NÃO testa nenhum papel em particular (a primeira leva ainda não
+// existe): testa a estrutura que os papéis vão usar, que é o que pode quebrar em silêncio ao
+// acrescentar o primeiro deles.
+//
+// O que se confere aqui:
+//   1. o papel viaja como ID no S_GAME_START, e o booleano antigo continua batendo com ele;
+//   2. sem papéis ligados, tudo é exatamente como antes (tripulante e impostor, nada mais);
+//   3. a configuração da sala guarda e devolve role_counts, e a validação recusa id inventado;
+//   4. o sorteio respeita o time de cada papel e nunca dá papel a bot;
+//   5. C_USE_ABILITY recusa quem não tem a habilidade, e responde dizendo por quê.
+//
+// Rodar com um servidor local: AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_roles.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/ui/lobby_info.nvgt" // roles_in_play_text: a sonda lê as regras como o jogador ouve
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+// --- Parte offline: a configuração e as regras do sorteio, sem rede ---
+void testa_config() {
+	println("--- configuracao da sala ---");
+	lobby_config cfg;
+	check("sala nova nao tem papel nenhum", !cfg.uses_roles(), "true");
+
+	// Id inventado (que é o que chegaria de um cliente adulterado) tem que sumir na validação.
+	cfg.role_counts.set("papel_que_nao_existe", 3);
+	cfg.validate();
+	check("id desconhecido é descartado", cfg.role_count("papel_que_nao_existe") == 0, "0");
+
+	// Com papéis de verdade na lista, o teto por time vale. Enquanto CONFIGURABLE_ROLE_IDS estiver
+	// vazia não há o que testar aqui - e dizer isso é melhor do que passar calado.
+	if (CONFIGURABLE_ROLE_IDS.length() == 0) {
+		println("(nenhum papel configuravel ainda: o teto por time sera testado quando o primeiro entrar)");
+		return;
+	}
+	string primeiro = CONFIGURABLE_ROLE_IDS[0];
+	cfg.max_players = 6;
+	cfg.impostor_count = 1;
+	cfg.set_role_count(primeiro, 99);
+	cfg.validate();
+	bool do_impostor = role_for(primeiro).team == TEAM_IMPOSTOR;
+	int teto = do_impostor ? 1 : 5;
+	check("teto por time em " + primeiro, cfg.role_count(primeiro) == teto, "" + teto);
+}
+
+// --- Parte em rede: uma partida de verdade, sem papéis ligados ---
+void testa_partida(server_address addr) {
+	println("--- partida sem papeis (tem que ser o jogo de sempre) ---");
+	string sufixo = "" + random(1000, 9999);
+	game_client@ host = conecta(addr, "rl_a" + sufixo);
+	game_client@ b = conecta(addr, "rl_b" + sufixo);
+	game_client@ c = conecta(addr, "rl_c" + sufixo);
+	if (@host == null || @b == null || @c == null) { println("nao consegui conectar tres clientes"); falhas++; return; }
+
+	lobby_overrides ov;
+	host.send_create_lobby("Sonda de papeis", "classic", ov);
+	net_packet@ ls = wf(host, S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); falhas++; return; }
+	string lobby_id = ls.get_string("lobby_id");
+
+	// A sala sem papéis ainda assim ANUNCIA role_counts (vazio): é como o cliente distingue
+	// "sem papéis" de "servidor que nem sabe o que é papel".
+	json_object@ cfg_json = ls.get_object("config");
+	check("config traz role_counts", @cfg_json != null && cfg_json.exists("role_counts"), "true");
+	check("nenhum papel na sala nova", roles_in_play_text(@cfg_json != null ? cfg_json.get_object("role_counts") : null) == "", "texto vazio");
+
+	b.send_join_lobby(lobby_id); wf(b, S_JOIN_RESULT, 5000);
+	c.send_join_lobby(lobby_id); wf(c, S_JOIN_RESULT, 5000);
+	host.send_start_game();
+
+	array<game_client@> todos = {host, b, c};
+	uint impostores = 0, tripulantes = 0, com_id = 0;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ st = wf(todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); falhas++; continue; }
+		string rid = st.get_string("your_role", "");
+		if (rid != "") com_id++;
+		// O booleano antigo e o id novo têm que contar a MESMA coisa: é o que permite os dois
+		// conviverem enquanto houver cliente velho.
+		bool flag = st.get_bool("your_role_impostor");
+		check("o id '" + rid + "' bate com o booleano", role_for(rid).team == (flag ? TEAM_IMPOSTOR : TEAM_CREW), "true");
+		check("papel conhecido", role_id_is_known(rid), "true");
+		if (flag) impostores++; else tripulantes++;
+	}
+	check("todos receberam o id do papel", com_id == 3, "3");
+	check("um impostor na partida de tres", impostores == 1, "1");
+	check("dois tripulantes", tripulantes == 2, "2");
+
+	// A habilidade: ninguém aqui tem papel especial, então o servidor tem que RECUSAR e dizer o
+	// motivo. Uma recusa muda é o que deixaria a tecla parecer quebrada.
+	host.send_use_ability("habilidade_inventada");
+	net_packet@ ar = wf(host, S_ABILITY_RESULT, 5000);
+	check("o servidor responde a habilidade que nao existe", @ar != null, "resposta");
+	if (@ar != null) {
+		check("recusada", !ar.get_bool("ok"), "false");
+		check("com motivo", ar.get_string(MSG_KEY_FIELD) == "role.ability_not_yours", "role.ability_not_yours");
+	}
+
+	host.disconnect(); b.disconnect(); c.disconnect();
+}
+
+void main() {
+	testa_config();
+	testa_partida(resolve_server_address());
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

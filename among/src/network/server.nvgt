@@ -28,6 +28,12 @@ void shuffle_int_array(array<int>@ arr) {
 	}
 }
 
+// Primeiro índice >= from, abaixo de limit, que não seja bot. Devolve limit se não houver.
+uint next_human_index(array<game_player@>@ arr, uint from, uint limit) {
+	while (from < limit && arr[from].is_bot) from++;
+	return from;
+}
+
 void shuffle_player_array(array<game_player@>@ arr) {
 	for (int i = int(arr.length()) - 1; i > 0; i--) {
 		int j = random(0, i);
@@ -304,7 +310,7 @@ class game_server {
 			if (@p != null) {
 				game_player@ record = game_player(p.peer_id, p.username);
 				record.color = p.color;
-				record.is_impostor = p.is_impostor;
+				record.set_role(p.role_id);
 				record.tasks = p.tasks;
 				record.x = p.x;
 				record.y = p.y;
@@ -394,6 +400,57 @@ class game_server {
 		else if (t == C_CAMERA_LEAVE) on_camera_leave(peer_id, pkt);
 		else if (t == C_CAMERA_SWITCH) on_camera_switch(peer_id, pkt);
 		else if (t == C_CAMERA_SCAN) on_camera_scan(peer_id, pkt);
+		else if (t == C_USE_ABILITY) on_use_ability(peer_id, pkt);
+	}
+
+	// --- Habilidades dos papéis ---
+
+	// A porta única das habilidades. O que é comum a todas fica aqui - partida em andamento, o papel
+	// TEM esta habilidade, está vivo (ou ela vale morto), fora de recarga - e o que cada uma faz
+	// fica em run_ability, um caso por id. A recarga só começa se a habilidade DEU: uma tentativa
+	// recusada (alvo fora do alcance, nada para consertar) não pode custar o cooldown inteiro.
+	void on_use_ability(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null) return;
+		string ability = pkt.get_string("ability");
+		role_traits@ role = p.role();
+		if (ability == "" || role.ability_id != ability) { send_ability_result(peer_id, ability, false, "role.ability_not_yours"); return; }
+		if (!p.alive && !role.ability_usable_dead) { send_ability_result(peer_id, ability, false, "game.ghost_cannot_interact"); return; }
+		if (p.ability_cooldown_remaining > 0.0) {
+			dictionary@ params = dictionary();
+			params.set("seconds", "" + int(p.ability_cooldown_remaining + 0.5));
+			send_ability_result(peer_id, ability, false, "role.ability_cooldown", params);
+			return;
+		}
+		string fail_key = "";
+		dictionary@ fail_params = dictionary();
+		if (!run_ability(lobby, p, ability, pkt, fail_key, fail_params)) {
+			send_ability_result(peer_id, ability, false, fail_key != "" ? fail_key : "role.ability_unavailable", fail_params);
+			return;
+		}
+		p.ability_cooldown_remaining = role.ability_cooldown_seconds;
+		send_ability_result(peer_id, ability, true, "", null, role.ability_cooldown_seconds);
+	}
+
+	// O que cada habilidade FAZ. Devolve false com fail_key preenchida quando não dá. Um caso por
+	// id; o papel novo acrescenta o dele aqui e em role_traits, e nada mais.
+	bool run_ability(game_state@ lobby, game_player@ p, const string&in ability, net_packet@ pkt,
+			string&out fail_key, dictionary@ fail_params) {
+		fail_key = "role.ability_unavailable";
+		return false;
+	}
+
+	void send_ability_result(uint64 peer_id, const string&in ability, bool ok, const string&in message_key,
+			dictionary@ params = null, float cooldown_seconds = 0.0) {
+		net_packet@ r = net_packet(S_ABILITY_RESULT);
+		r.set_string("ability", ability);
+		r.set_bool("ok", ok);
+		r.set_string(MSG_KEY_FIELD, message_key);
+		if (@params != null) r.set_params(MSG_PARAMS_FIELD, params);
+		r.set_float("cooldown_seconds", cooldown_seconds);
+		send_to(peer_id, r);
 	}
 
 	// --- Autenticação ---
@@ -573,6 +630,11 @@ class game_server {
 		}
 		if (@lobby != null && lobby.state != "waiting") { @lobby = null; fail_key = "lobby.in_progress"; }
 		if (@lobby != null && lobby.players.length() >= lobby.config.max_players) { @lobby = null; fail_key = "lobby.full"; }
+		// Sala com papéis especiais só recebe cliente que sabe o que eles são. Recusar na porta, e
+		// não no início da partida: quem entrasse ficaria esperando uma partida que nunca ia começar
+		// por causa dele, sem saber. (O cliente velho ouve a chave crua, e é o melhor que dá: ele
+		// não tem o texto. O updater já avisou antes.)
+		if (@lobby != null && lobby.config.uses_roles() && conn.protocol_version < ROLES_MIN_PROTOCOL) { @lobby = null; fail_key = "lobby.needs_update"; }
 
 		if (@lobby == null) {
 			result.set_bool("ok", false);
@@ -753,6 +815,22 @@ class game_server {
 			send_error(peer_id, "lobby.min_players_warning", p);
 			return;
 		}
+		// Papéis ligados DEPOIS de alguém velho já estar dentro (a porta só barra quem chega): a partida
+		// não começa, e o anfitrião ouve QUEM precisa atualizar - senão ele desligaria os papéis sem
+		// saber por quê, ou expulsaria a pessoa errada.
+		if (lobby.config.uses_roles()) {
+			array<string> outdated;
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				game_player@ p = lobby.players[i];
+				if (!p.is_bot && p.protocol_version < ROLES_MIN_PROTOCOL) outdated.insert_last(p.username);
+			}
+			if (outdated.length() > 0) {
+				dictionary@ p = dictionary();
+				p.set("names", join(outdated, ", "));
+				send_error(peer_id, "lobby.roles_need_update", p);
+				return;
+			}
+		}
 
 		// Sorteio dos papéis, bot e gente no mesmo bolo: a IA de impostor caça, mata quando ninguém
 		// está vendo e sabota (ver game_state.update_bot_impostor), então um bot impostor é uma
@@ -785,15 +863,43 @@ class game_server {
 			if (chosen_common_types.find(spot.task_type) != -1) common_spots.insert_last(spot);
 		}
 
+		// Papéis especiais, sorteados DENTRO de cada time: os N primeiros do embaralhamento são o time
+		// impostor, e cada papel de impostor sai entre eles; os de tripulação, entre o resto. Como a
+		// lista já está embaralhada, "os primeiros de cada time" é um sorteio. A configuração pode
+		// pedir mais papéis do que há gente no time (a sala foi validada pela LOTAÇÃO, não por quem
+		// veio): o que não couber simplesmente não sai. Bot nunca recebe papel especial: a IA dele
+		// não sabe usar a habilidade, e um bot com um papel que não exerce é um papel a menos na sala.
+		array<string> role_of(shuffled.length(), "");
+		uint next_impostor = 0, next_crew = uint(impostor_count);
+		for (uint r = 0; r < CONFIGURABLE_ROLE_IDS.length(); r++) {
+			string rid = CONFIGURABLE_ROLE_IDS[r];
+			bool impostor_side = role_for(rid).team == TEAM_IMPOSTOR;
+			for (int n = lobby.config.role_count(rid); n > 0; n--) {
+				if (impostor_side) {
+					next_impostor = next_human_index(shuffled, next_impostor, uint(impostor_count));
+					if (next_impostor >= uint(impostor_count)) break;
+					role_of[next_impostor++] = rid;
+				} else {
+					next_crew = next_human_index(shuffled, next_crew, shuffled.length());
+					if (next_crew >= shuffled.length()) break;
+					role_of[next_crew++] = rid;
+				}
+			}
+		}
+
 		for (uint i = 0; i < shuffled.length(); i++) {
 			game_player@ p = shuffled[i];
-			p.is_impostor = int(i) < impostor_count;
+			string team = int(i) < impostor_count ? TEAM_IMPOSTOR : TEAM_CREW;
+			p.set_role(role_of[i] != "" ? role_of[i] : base_role_of_team(team));
 			p.color = color_ids[i % color_ids.length()];
 			p.alive = true;
 			p.left_match = false;
 			p.vented = false;
 			p.current_vent_id = "";
 			p.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
+			// A habilidade começa PRONTA, como no original. Não é o cooldown do kill: aquele existe
+			// para o primeiro corpo não aparecer no segundo um da partida.
+			p.ability_cooldown_remaining = 0.0;
 			p.meetings_called = 0;
 			p.radar_index = -1;
 			p.last_move_time = 0.0;
@@ -885,7 +991,11 @@ class game_server {
 			if (p.is_bot) continue; // não tem pra quem mandar
 			net_packet@ start = net_packet(S_GAME_START);
 			start.set_string("map_name", lobby.map.name);
-			start.set_bool("your_role_impostor", p.is_impostor);
+			start.set_bool("your_role_impostor", p.is_impostor); // clientes até o protocolo 1
+			start.set_string("your_role", p.role_id);
+			// Quais papéis especiais existem nesta partida (id -> quantos), para todo mundo: assim como
+			// o número de impostores, saber que "há um xerife" muda a leitura de tudo o que acontece.
+			start.set_object("role_counts", lobby.config.to_json(lobby.players.length()).get_object("role_counts"));
 			start.set_int("your_color", p.color);
 			start.set_uint64("your_peer_id", p.peer_id);
 			start.set_float("your_x", p.x);
