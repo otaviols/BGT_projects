@@ -815,10 +815,17 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// O escudo é a única habilidade com som próprio, e ele toca SEM posição: é a
 					// confirmação de que saiu, não um evento do mundo. No ponto do protegido, quem
 					// estivesse por perto ouviria que alguém acabou de ser blindado.
-					if (pkt.get_string("ability") == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
-					// Quem ele protegeu (ou o que a habilidade tiver a dizer) vem do servidor.
-					string retorno = tr_server_message(pkt);
-					if (retorno != "") speak(retorno);
+					string qual = pkt.get_string("ability");
+					if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
+					// O que a habilidade tem a dizer vem do servidor. O exame monta a frase à parte
+					// porque a lista de salas chega como CHAVES, para serem traduzidas aqui.
+					string retorno = qual == ABILITY_EXAMINE ? examine_result_text(pkt) : tr_server_message(pkt);
+					if (retorno != "") {
+						speak(retorno);
+						// No registro de eventos: é uma pista, e o jogador vai querer reler antes de
+						// falar na reunião.
+						events_log.add("", retorno);
+					}
 				} else {
 					string motivo = tr_server_message(pkt);
 					if (motivo != "") speak(motivo);

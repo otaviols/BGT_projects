@@ -18,6 +18,18 @@ class body_info {
 	uint64 victim_peer_id;
 	float x, y;
 	string room_id;
+
+	// --- O que o detetive lê no corpo (ver try_examine_body) ---
+	// Quando a pessoa morreu, no relógio da partida. Vira "há quanto tempo" na hora do exame.
+	float death_time = 0.0;
+	// Por onde o assassino passou nos segundos seguintes à morte, em ordem, sem repetir sala
+	// seguida. É o rastro FRIO: ele para de crescer depois de KILLER_TRAIL_SECONDS, e é isso que
+	// faz a informação do detetive virar testemunho (uma frase que ainda vale na reunião) em vez de
+	// caçada (uma direção que apodrece em dez segundos).
+	array<string> killer_trail;
+	uint64 killer_peer_id = 0;   // só para gravar o rastro; NUNCA sai daqui
+	float trail_until = 0.0;     // até quando gravar, no relógio da partida
+	bool examined = false;       // um exame por corpo: cada corpo é uma pista, não uma consulta
 }
 
 class vote_entry {
@@ -261,6 +273,13 @@ class game_state {
 		body.x = victim.x;
 		body.y = victim.y;
 		body.room_id = map.room_id_at(victim.x, victim.y);
+		// Para o detetive. Quem matou fica guardado só para gravar por onde ele anda daqui a pouco -
+		// o nome dele NUNCA sai deste objeto. No tiro errado do xerife, quem "matou" é o próprio
+		// morto, então o rastro nasce vazio e o exame não aponta ninguém: correto, porque não houve
+		// assassino para rastrear.
+		body.death_time = elapsed_time;
+		body.killer_peer_id = killer.peer_id;
+		body.trail_until = elapsed_time + KILLER_TRAIL_SECONDS;
 		bodies.insert_last(body);
 
 		@out_event = net_packet(S_PLAYER_KILLED);
@@ -764,6 +783,62 @@ class game_state {
 		return true;
 	}
 
+	// Grava por onde o assassino anda nos primeiros segundos depois de cada morte recente.
+	//
+	// Roda por quadro e custa quase nada: no máximo um corpo ou dois estão gravando ao mesmo tempo,
+	// e cada um só olha o jogador que o matou.
+	//
+	// DENTRO DO DUTO nada é gravado - nem a sala onde ele entrou de novo, nem para onde saiu.
+	// Estado de duto é privado (é a mesma regra que impede o radar e a câmera de contarem quem está
+	// escondido), e sem isso o rastro denunciaria uma viagem de duto a quem não estava lá para ouvir
+	// a tampa. Na prática, ventilar vira a contra-jogada natural contra o detetive: some do rastro,
+	// ao custo do barulho para quem estiver por perto.
+	private void tick_killer_trails() {
+		for (uint i = 0; i < bodies.length(); i++) {
+			body_info@ b = bodies[i];
+			if (b.trail_until <= 0.0 || elapsed_time > b.trail_until) continue;
+			if (b.killer_trail.length() >= KILLER_TRAIL_MAX_ROOMS) continue;
+			game_player@ k = find_player(b.killer_peer_id);
+			if (@k == null || k.vented) continue;
+			// Corredor não entra: o rastro é para ser DITO, e "corredor da navegação para armas" no
+			// meio da frase a torna impossível de acompanhar de ouvido. As salas bastam para o rumo -
+			// e `room_id_at` devolve corredor também, então o filtro é explícito.
+			map_zone@ z = map.zone_at(k.x, k.y);
+			if (@z == null || z.is_corridor) continue;
+			string room = z.id;
+			if (room == b.room_id) continue; // a sala do corpo é o ponto de partida, não o rastro
+			if (b.killer_trail.length() > 0 && b.killer_trail[b.killer_trail.length() - 1] == room) continue;
+			b.killer_trail.insert_last(room);
+		}
+	}
+
+	// O detetive examina o corpo mais próximo: há quanto tempo a pessoa morreu e por onde o
+	// assassino passou depois (ver tick_killer_trails).
+	//
+	// UM exame por corpo, e é o `examined` do próprio corpo que garante isso: cada corpo vira uma
+	// pista única, e não uma fonte que se consulta de novo a cada dúvida. Quem chega num corpo já
+	// examinado ouve isso, em vez de um silêncio que pareceria bug.
+	//
+	// O rastro NÃO diz quem matou, e nem poderia: ele é uma lista de salas, e quem estava nelas por
+	// acaso entra na conta junto com o culpado. É essa ambiguidade que faz a pista valer uma
+	// discussão em vez de encerrar a partida.
+	bool try_examine_body(uint64 peer_id, int&out seconds_ago, array<string>&out trail, string&out fail_key) {
+		fail_key = "";
+		seconds_ago = 0;
+		trail.resize(0);
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+
+		body_info@ body = find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
+		if (@body == null) { fail_key = "role.examine_no_body"; return false; }
+		if (body.examined) { fail_key = "role.examine_already_done"; return false; }
+
+		body.examined = true;
+		seconds_ago = int(elapsed_time - body.death_time + 0.5);
+		trail = body.killer_trail;
+		return true;
+	}
+
 	// Escudo do anjo da guarda sobre alguém vivo. Devolve o NOME do protegido, porque é a única
 	// coisa que o anjo ouve de volta - ninguém mais é avisado de nada.
 	//
@@ -1072,6 +1147,7 @@ class game_state {
 
 		for (uint i = 0; i < players.length(); i++) players[i].tick_cooldowns(delta_seconds);
 		tick_bots(delta_seconds, events);
+		tick_killer_trails();
 
 		if (doors_cooldown_remaining > 0.0) {
 			doors_cooldown_remaining -= delta_seconds;

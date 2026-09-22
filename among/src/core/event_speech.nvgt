@@ -83,6 +83,27 @@ string death_alarm_text(net_packet@ pkt) {
 	return tr("role.noisemaker_alarm", p);
 }
 
+// O resultado do exame do detetive, montado no idioma DESTE cliente.
+//
+// O servidor manda o número e as CHAVES das salas separadas por "|", nunca a frase pronta: numa
+// partida com gente em idiomas diferentes, quem sabe o idioma de cada um é o cliente dele. É a
+// mesma regra de todo o resto que vem do servidor - só que aqui a substituição é uma lista, e
+// tr_server_message colocaria "room.electrical|room.storage" cru dentro da frase.
+string examine_result_text(net_packet@ pkt) {
+	dictionary@ p = pkt.get_params(MSG_PARAMS_FIELD);
+	string chaves = "";
+	p.get("rooms", chaves);
+	if (chaves != "") {
+		array<string>@ partes = chaves.split("|");
+		array<string> nomes;
+		for (uint i = 0; i < partes.length(); i++) {
+			if (partes[i] != "") nomes.insert_last(tr(partes[i]));
+		}
+		p.set("rooms", join(nomes, ", "));
+	}
+	return tr(pkt.get_string(MSG_KEY_FIELD), p);
+}
+
 // O que uma tela bloqueante deve dizer por este pacote, ou "" se ele não é para ser anunciado ali.
 //
 // Fica de fora o que a própria tela já trata (reunião, corpo reportado e fim de partida cancelam a

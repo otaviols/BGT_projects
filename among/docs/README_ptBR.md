@@ -371,6 +371,17 @@ Três coisas importam aqui:
 O escudo vale contra qualquer ataque, inclusive o do xerife: mirar num inocente protegido não mata
 ninguém, nem o próprio xerife.
 
+**Detetive** (tripulação). Perto de um corpo, a tecla da habilidade **examina** sem reportar: ele
+ouve **há quanto tempo a pessoa morreu** e **por quais salas o assassino passou** nos segundos
+seguintes à morte.
+
+- **Examinar não convoca reunião.** Ele decide se chama na hora ou se guarda o que descobriu.
+- **Cada corpo só pode ser examinado uma vez** — por ele ou por outro detetive.
+- **O exame não aponta ninguém.** É uma lista de salas: quem passou por ali por acaso entra na
+  conta junto com o culpado. A pista vale uma discussão, não uma acusação pronta.
+- **Duto apaga o rastro.** Se o assassino sumiu por um duto, o exame diz só isso — e essa é a
+  contra-jogada do impostor, ao custo do barulho da tampa para quem estiver perto.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

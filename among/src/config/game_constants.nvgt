@@ -139,6 +139,20 @@ const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
 // crítica em que ninguém chega a tempo - e nas outras a nave se vira como sempre.
 const float ENGINEER_FIX_COOLDOWN_SECONDS = 120.0;
 
+// Detetive. Por quantos segundos depois da morte o rastro do assassino é gravado, e quantas salas
+// no máximo ele guarda.
+//
+// 25 segundos saiu da GEOMETRIA deste mapa, não de um chute: as salas ficam a 25-30 unidades de
+// centro a centro, e da borda da cafeteria até a borda da armaria são 22 - exatamente dez segundos
+// a PLAYER_MOVE_SPEED. Com uma janela de dez, o rastro saía vazio em quase toda morte e o papel
+// nascia morto (a sonda pegou isto de primeira). Com 25 dá para alcançar uma ou duas salas, que é
+// o rumo que o detetive precisa. Mexer no tamanho do mapa é mexer aqui junto.
+//
+// O teto de salas existe porque um impostor correndo em círculos encheria a frase de nomes e ela
+// deixaria de ser dizível de uma vez só.
+const float KILLER_TRAIL_SECONDS = 25.0;
+const uint KILLER_TRAIL_MAX_ROOMS = 3;
+
 // Anjo da guarda. O escudo dura o bastante para cobrir uma travessia perigosa (uma ida à elétrica,
 // uma tarefa longa num canto), e não a partida inteira - protegido para sempre seria um jogador
 // fora do jogo. A recarga é o dobro da duração, então há sempre mais gente desprotegida do que

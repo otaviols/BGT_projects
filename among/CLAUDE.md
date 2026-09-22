@@ -372,6 +372,24 @@ tamanho do elenco: uma sonda que mata duas pessoas numa partida de quatro ACABA 
 dela (um impostor contra um tripulante é vitória do impostor), e o kill seguinte é recusado sem
 dizer por quê.
 
+**Detetive: o rastro é frio, sai em SALAS, e a janela veio da geometria do mapa.** Ele grava por
+onde o assassino passou nos `KILLER_TRAIL_SECONDS` seguintes à morte e para - é testemunho (uma
+frase que ainda vale na reunião), não caçada (uma direção ao vivo, que apodrece em dez segundos e
+faria o detetive perseguir sozinho). **Corredor não entra**: o rastro é para ser DITO, e
+`room_id_at` devolve corredor também, então o filtro é explícito (`zone.is_corridor`). **Dentro do
+duto nada é gravado**, pela mesma regra que esconde quem está ventilado do radar e da câmera - e
+isso faz de ventilar a contra-jogada natural contra o papel. O `killer_peer_id` fica no corpo só
+para gravar e **nunca** sai dali.
+
+Os 25 segundos saíram da GEOMETRIA: da borda da cafeteria à borda da armaria são 22 unidades,
+exatamente dez segundos a `PLAYER_MOVE_SPEED`. Com a janela de dez que eu tinha posto, o rastro
+saía vazio em quase toda morte e o papel nascia morto - a sonda pegou de primeira. **Mexeu no
+tamanho do mapa, revise `KILLER_TRAIL_SECONDS`.**
+
+**Lista traduzível vem como CHAVES separadas por "|", e quem junta é o cliente.** O
+`tr_server_message` substitui parâmetro como texto cru, então uma lista de salas chegaria como
+`room.electrical|room.storage` dentro da frase. Ver `examine_result_text` em `event_speech.nvgt`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

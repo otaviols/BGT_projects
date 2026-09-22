@@ -441,6 +441,23 @@ class game_server {
 	// acrescenta o dele aqui e em role_traits, e nada mais.
 	bool run_ability(game_state@ lobby, game_player@ p, const string&in ability, net_packet@ pkt,
 			string&out message_key, dictionary@ message_params) {
+		if (ability == ABILITY_EXAMINE) {
+			int ha_quanto = 0;
+			array<string> rastro;
+			if (!lobby.try_examine_body(p.peer_id, ha_quanto, rastro, message_key)) return false;
+			// A frase é montada no CLIENTE, que é quem sabe o idioma dele: daqui saem só o número e
+			// as CHAVES das salas (ver examine_result_text). Mandar texto pronto quebraria a regra
+			// de tradução do projeto numa partida com gente em idiomas diferentes.
+			message_params.set("seconds", "" + ha_quanto);
+			array<string> chaves;
+			for (uint i = 0; i < rastro.length(); i++) {
+				map_zone@ z = lobby.map.find_zone(rastro[i]);
+				if (@z != null) chaves.insert_last(z.name_key);
+			}
+			message_params.set("rooms", join(chaves, "|")); // o cliente traduz cada uma e junta
+			message_key = chaves.length() > 0 ? "role.examine_result" : "role.examine_result_no_trail";
+			return true;
+		}
 		if (ability == ABILITY_SHIELD) {
 			string protegido;
 			if (!lobby.try_shield_player(p.peer_id, pkt.get_uint64("target_peer_id"), protegido, message_key)) return false;

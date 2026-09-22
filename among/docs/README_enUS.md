@@ -371,6 +371,17 @@ Three things matter here:
 The shield works against any attack, the sheriff's included: shooting a protected innocent kills
 nobody, not even the sheriff.
 
+**Detective** (crew). Next to a body, the ability key **examines** it without reporting: they hear
+**how long ago the person died** and **which rooms the killer went through** in the seconds after
+the murder.
+
+- **Examining does not call a meeting.** They choose whether to call one now or keep what they found.
+- **Each body can only be examined once** — by them or by another detective.
+- **The examination names nobody.** It is a list of rooms: whoever happened to walk through them is
+  counted alongside the culprit. The clue is worth an argument, not a ready-made accusation.
+- **Vents erase the trail.** If the killer vanished through a vent, that is all the examination
+  says — and that is the impostor's counter-play, at the cost of the lid's noise to anyone nearby.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

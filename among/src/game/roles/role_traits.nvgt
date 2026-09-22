@@ -30,10 +30,12 @@ const string ROLE_ENGINEER = "engineer";
 const string ROLE_SHERIFF = "sheriff";
 const string ROLE_NOISEMAKER = "noisemaker";
 const string ROLE_GUARDIAN_ANGEL = "guardian_angel";
+const string ROLE_DETECTIVE = "detective";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
 const string ABILITY_SHIELD = "shield";
+const string ABILITY_EXAMINE = "examine";
 
 // Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
 // papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
@@ -42,7 +44,8 @@ const string TEAM_IMPOSTOR = "impostor";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
-const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER, ROLE_GUARDIAN_ANGEL};
+const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
+	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE};
 
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
@@ -192,9 +195,31 @@ role_traits@ role_guardian_angel() {
 	return t;
 }
 
+// Detetive: examina um corpo e descobre HÁ QUANTO TEMPO a pessoa morreu e por quais salas o
+// assassino passou nos segundos seguintes.
+//
+// Examinar é separado de reportar de propósito: ele decide se convoca a reunião na hora ou se
+// guarda o que viu. E o exame não aponta ninguém - o rastro é uma lista de salas, e quem estava
+// nelas por acaso entra na conta junto com o culpado. É informação de DEDUÇÃO, que vale uma
+// discussão, e não de identificação, que encerraria a partida.
+//
+// Uma versão descartada: ouvir os últimos segundos do que a vítima falou. Quem morre sozinho com o
+// assassino quase nunca está falando, então na maioria das mortes o retorno seria silêncio; e se
+// estivesse falando, seria com o próprio impostor, o que dá prova quase absoluta.
+//
+// Sem recarga: o limite é um exame POR CORPO (ver try_examine_body), e corpo é escasso por
+// natureza. Uma recarga por cima só puniria quem achou dois corpos seguidos.
+role_traits@ role_detective() {
+	role_traits t;
+	t.id = ROLE_DETECTIVE;
+	t.ability_id = ABILITY_EXAMINE;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
 	if (role_id == ROLE_NOISEMAKER) return role_noisemaker();
+	if (role_id == ROLE_DETECTIVE) return role_detective();
 	if (role_id == ROLE_GUARDIAN_ANGEL) return role_guardian_angel();
 	if (role_id == ROLE_ENGINEER) return role_engineer();
 	if (role_id == ROLE_SHERIFF) return role_sheriff();
