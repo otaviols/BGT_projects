@@ -27,6 +27,7 @@
 const string ROLE_CREWMATE = "crewmate";
 const string ROLE_IMPOSTOR = "impostor";
 const string ROLE_ENGINEER = "engineer";
+const string ROLE_SHERIFF = "sheriff";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -38,7 +39,7 @@ const string TEAM_IMPOSTOR = "impostor";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
-const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER};
+const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF};
 
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
@@ -127,9 +128,26 @@ role_traits@ role_engineer() {
 	return t;
 }
 
+// Xerife: tripulante armado que erra por conta e risco.
+//
+// Ele mata com a MESMA tecla e o mesmo alcance do impostor, e o tiro soa igual para os vizinhos -
+// é isso que torna cada assassinato ouvido ambíguo, em vez de prova. Mirar em quem não é impostor
+// mata o PRÓPRIO xerife (ver try_kill): a tripulação perde duas pessoas de uma vez, e quem ele
+// mirou nem fica sabendo que foi mirado.
+//
+// Não tem habilidade ativa: a "habilidade" dele é a tecla de matar, que ele já tem por can_kill.
+// E não sabe quem são os companheiros - se soubesse, saberia também quem NÃO é impostor.
+role_traits@ role_sheriff() {
+	role_traits t;
+	t.id = ROLE_SHERIFF;
+	t.can_kill = true;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
 	if (role_id == ROLE_ENGINEER) return role_engineer();
+	if (role_id == ROLE_SHERIFF) return role_sheriff();
 	return role_crewmate(); // desconhecido cai em tripulante: o papel mais inofensivo dos dois
 }
 

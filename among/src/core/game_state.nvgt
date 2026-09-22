@@ -212,35 +212,59 @@ class game_state {
 	}
 
 	// --- Kill ---
+	//
+	// Nem todo tiro mata quem foi mirado: o xerife que atira em quem NÃO é impostor morre no lugar
+	// dele (ver role_sheriff). Por isso quem morre é decidido aqui, e não presumido - e o resto do
+	// jogo continua recebendo um S_PLAYER_KILLED só, com a vítima que de fato caiu.
 	bool try_kill(uint64 killer_peer, uint64 target_peer, net_packet@&out out_event) {
+		bool ignorado = false;
+		return try_kill(killer_peer, target_peer, out_event, ignorado);
+	}
+
+	bool try_kill(uint64 killer_peer, uint64 target_peer, net_packet@&out out_event, bool&out misfire) {
+		misfire = false;
 		game_player@ killer = find_player(killer_peer);
 		game_player@ target = find_player(target_peer);
 		if (@killer == null || @target == null) return false;
 		if (!killer.can_kill()) return false;
 		if (!target.alive || target.peer_id == killer.peer_id) return false;
+		if (distance_2d(killer.x, killer.y, target.x, target.y) > PLAYER_KILL_RANGE) return false;
+
+		bool killer_is_impostor = killer.role().team == TEAM_IMPOSTOR;
 		// Impostor não mata impostor. Além de não fazer sentido (são do mesmo time e se conhecem
 		// desde o começo da partida), um mata-mata entre parceiros por engano entregava a rodada
 		// inteira: some um impostor e a tripulação ganha de graça.
-		if (target.is_impostor) return false;
-		if (distance_2d(killer.x, killer.y, target.x, target.y) > PLAYER_KILL_RANGE) return false;
+		if (killer_is_impostor && target.is_impostor) return false;
 
-		target.alive = false;
+		// Quem atira pela TRIPULAÇÃO e erra o alvo morre no lugar dele. É o que faz o xerife ser uma
+		// aposta e não uma arma: matar o inocente custa a própria vida, e a tripulação perde duas
+		// pessoas de uma vez. O alvo não fica sabendo de nada - ele só ouve um assassinato do lado,
+		// como qualquer vizinho, e essa ambiguidade é o ponto.
+		misfire = !killer_is_impostor && !target.is_impostor;
+		game_player@ victim = misfire ? killer : target;
+
+		victim.alive = false;
 		killer.kill_cooldown_remaining = config.kill_cooldown_seconds;
 
 		body_info body;
-		body.id = "body_" + target.peer_id;
-		body.victim_peer_id = target.peer_id;
-		body.x = target.x;
-		body.y = target.y;
-		body.room_id = map.room_id_at(target.x, target.y);
+		body.id = "body_" + victim.peer_id;
+		body.victim_peer_id = victim.peer_id;
+		body.x = victim.x;
+		body.y = victim.y;
+		body.room_id = map.room_id_at(victim.x, victim.y);
 		bodies.insert_last(body);
 
 		@out_event = net_packet(S_PLAYER_KILLED);
-		out_event.set_uint64("peer_id", target.peer_id);
+		out_event.set_uint64("peer_id", victim.peer_id);
 		out_event.set_uint64("killer_peer", killer.peer_id);
 		out_event.set_int("killer_color", killer.color);
-		out_event.set_float("x", target.x);
-		out_event.set_float("y", target.y);
+		out_event.set_float("x", victim.x);
+		out_event.set_float("y", victim.y);
+		// O tiro errado NÃO entra neste pacote: ele é transmitido à partida inteira, e qualquer um
+		// leria "aquele que morreu era um xerife que errou" - de graça, sem ter visto nada. Quem
+		// precisa saber é só quem morreu, e quem avisa é o servidor, em particular (ver on_kill).
+		// Para todos os outros isto é um assassinato como qualquer outro, e é essa ambiguidade que
+		// faz o xerife valer a pena.
 		return true;
 	}
 

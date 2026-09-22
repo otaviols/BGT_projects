@@ -1158,16 +1158,24 @@ class game_server {
 		}
 
 		net_packet@ event;
-		if (lobby.try_kill(peer_id, target_peer, event)) {
+		bool misfire = false;
+		if (lobby.try_kill(peer_id, target_peer, event, misfire)) {
+			// QUEM morreu sai do pacote, e não do alvo pedido: no tiro errado do xerife quem cai é o
+			// atirador, e limpar o estado do alvo deixaria o morto de verdade preso na câmera.
+			uint64 victim_peer = event.get_uint64("peer_id");
 			// A vítima larga o posto: fantasma não opera equipamento, e um posto preso a quem morreu
 			// ficaria bloqueado para o resto da partida. Ela também precisa ser AVISADA, ou o cliente
 			// dela continua na câmera, sem andar, agora como fantasma.
-			if (lobby.release_cameras(target_peer)) {
-				send_camera_state(target_peer, false, "");
+			if (lobby.release_cameras(victim_peer)) {
+				send_camera_state(victim_peer, false, "");
 				broadcast_camera_watching(lobby);
 			}
-			end_visible_task(lobby, target_peer); // morreu no scanner: o scanner para
+			end_visible_task(lobby, victim_peer); // morreu no scanner: o scanner para
 			broadcast_to_lobby(lobby, event);
+			// O tiro errado é dito SÓ a quem errou, depois do pacote da morte: para todos os outros
+			// (inclusive para quem ele mirou) aquilo foi um assassinato qualquer, e é isso que
+			// mantém o xerife sendo uma aposta em vez de um detector.
+			if (misfire) send_error(peer_id, "role.sheriff_misfire");
 		}
 	}
 

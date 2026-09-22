@@ -340,6 +340,14 @@ them apart:
   panel. The recharge is long (two minutes), so it's one save per match, not an undo button. And
   everyone notices: the sabotage ends without anyone having reached the panel.
 
+**Sheriff** (crew). They can kill, with the **same key and the same range as the impostor** — and
+the shot sounds the same to anyone nearby. But if they shoot someone who is **not** an impostor,
+**they are the one who dies**. The person they aimed at learns nothing: they hear a murder next to
+them, like any neighbor, with no way to know they were the target.
+
+That makes the sheriff a bet, not a detector. Being wrong costs the crew two people at once — the
+innocent still under suspicion, and the sheriff who is no longer around to defend them.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

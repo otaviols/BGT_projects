@@ -332,6 +332,16 @@ toda sabotagem que aparece transformaria a habilidade num botão de desfazer). E
 de a sabotagem acabar - e **sem dizer quem consertou**: o sinal é a sabotagem terminar sem ninguém
 ter chegado ao painel. Sonda: `tools/probes/probe_engineer.nvgt`.
 
+**Xerife: quem morre no tiro é DECIDIDO, não presumido - e o erro é segredo dele.** `try_kill`
+escolhe a vítima (atirador da tripulação + alvo que não é impostor = morre o atirador), então todo
+lugar que tratava "o alvo morreu" passou a ler o `peer_id` do PACOTE - foi assim que o `on_kill`
+soltava a câmera da pessoa errada. O `misfire` **não vai no `S_PLAYER_KILLED`**: ele é transmitido
+à partida inteira, e o campo entregaria de graça que houve um xerife e que ele errou. O aviso vai
+em particular, por `S_ERROR`, só para quem atirou; para todos os outros - inclusive para quem ele
+mirou, que nem sabe que foi mirado - aquilo é um assassinato qualquer. E `you_were_killed_text`
+trata o caso de o assassino ser a própria vítima, senão a fala é "você foi eliminado por <seu
+nome>". Sonda: `tools/probes/probe_sheriff.nvgt`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

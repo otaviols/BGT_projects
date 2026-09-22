@@ -340,6 +340,14 @@ Duas coisas o diferenciam:
   painel. A recarga é longa (dois minutos), então é uma salvada por partida, não um desfazer. E
   todo mundo percebe: a sabotagem acaba sem ninguém ter chegado ao painel.
 
+**Xerife** (tripulação). Ele pode matar, com a **mesma tecla e o mesmo alcance do impostor** — e o
+tiro soa igual para quem está por perto. Mas se ele atirar em quem **não** é impostor, **quem morre
+é ele**. A pessoa que ele mirou não fica sabendo de nada: ouve um assassinato do lado, como
+qualquer vizinho, e não tem como saber que era ela na mira.
+
+Isso faz do xerife uma aposta, não um detector. Errar custa duas pessoas à tripulação de uma vez —
+o inocente que continua sob suspeita e o xerife que não está mais lá para defendê-lo.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para
