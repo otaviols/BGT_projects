@@ -384,8 +384,10 @@ seguintes à morte.
 
 **Metamorfo** (impostor). Um impostor que faz tudo o que um impostor faz, e mais uma coisa: com a
 tecla da habilidade ele escolhe um jogador vivo, de qualquer lugar do mapa, e **passa a aparecer
-com o nome dessa pessoa** — no radar, na câmera, na lista de quem está numa sala, e até para quem
-ele matar.
+com o nome dessa pessoa** — no radar, na câmera e na lista de quem está numa sala.
+
+Quem ele mata é a exceção: **a vítima descobre quem ele é de verdade.** Ela já perdeu, e não tem
+como contar a ninguém — não vota, não fala com os vivos, e fantasma só é ouvido por fantasma.
 
 Dura 45 segundos e tem uma recarga longa. Duas coisas o impedem de ser gratuito:
 

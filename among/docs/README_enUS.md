@@ -384,8 +384,11 @@ the murder.
 
 **Shapeshifter** (impostor). An impostor who does everything an impostor does, plus one thing: with
 the ability key they pick a living player, from anywhere on the map, and **start appearing under
-that person's name** — on the radar, on the cameras, in the list of who is in a room, and even to
-whoever they kill.
+that person's name** — on the radar, on the cameras, and in the list of who is in a room.
+
+Whoever they kill is the exception: **the victim learns who they really are.** They have already
+lost, and have no way to tell anyone — they don't vote, don't talk to the living, and a ghost is
+only heard by ghosts.
 
 It lasts 45 seconds and has a long recharge. Two things keep it from being free:
 

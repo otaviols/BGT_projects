@@ -288,10 +288,17 @@ class game_state {
 		@out_event = net_packet(S_PLAYER_KILLED);
 		out_event.set_uint64("peer_id", victim.peer_id);
 		out_event.set_uint64("killer_peer", killer.peer_id);
-		// O NOME de quem matou vai junto, e é o disfarçado se houver um. Sem isto o disfarce teria um
-		// buraco na única hora que mais importa: a vítima resolve o nome pelo elenco DELA (que não
-		// conhece disfarce nenhum) e ouviria quem realmente a matou.
-		out_event.set_string("killer_name", killer.display_name());
+		// O nome de quem matou NÃO viaja aqui, e isso é decisão, não esquecimento.
+		//
+		// A vítima resolve o nome pelo elenco dela, que não conhece disfarce nenhum - ou seja, quem
+		// morre para o metamorfo descobre quem ele é DE VERDADE. É de propósito: quem morreu já
+		// pagou o preço e não tem como contar a ninguém (não vota, não fala com vivo, e fantasma só
+		// é ouvido por fantasma), então mentir para ele não compra nada ao impostor e só piora o
+		// jogo de quem já perdeu. No caso normal a vítima também sabe quem a matou; fazer o
+		// contrário aqui tornaria morrer para o metamorfo pior do que morrer para um impostor comum.
+		//
+		// E o nome verdadeiro não pode entrar NESTE pacote de jeito nenhum: ele é transmitido à
+		// partida inteira. Seria o mesmo erro do `misfire` do xerife.
 		out_event.set_int("killer_color", killer.color);
 		out_event.set_float("x", victim.x);
 		out_event.set_float("y", victim.y);

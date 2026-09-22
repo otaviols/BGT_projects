@@ -244,7 +244,7 @@
 	"role.noisemaker": "Alarmista",
 	"role.guardian_angel": "Anjo da Guarda",
 	"role.shapeshifter": "Metamorfo",
-	"role.assigned_shapeshifter": "Você é o Metamorfo, um impostor. Com a tecla da habilidade você escolhe um jogador vivo e passa a aparecer com o nome dele no radar, na câmera e para quem olhar quem está na sala. A transformação faz barulho, e enquanto durar você fica sem falar no chat de voz. A reunião desfaz tudo.",
+	"role.assigned_shapeshifter": "Você é o Metamorfo, um impostor. Com a tecla da habilidade você escolhe um jogador vivo e passa a aparecer com o nome dele no radar, na câmera e para quem olhar quem está na sala. A transformação faz barulho, e enquanto durar você fica sem falar no chat de voz. Quem você matar descobre quem você é de verdade. A reunião desfaz tudo.",
 	"role.shift_menu_hint": "Escolha de quem copiar o nome.",
 	"role.shift_done": "Você agora aparece como {name}.",
 	"role.shift_active": "Você já está disfarçado. Faltam {seconds} segundos.",

@@ -87,9 +87,11 @@ void main() {
 	game_client@ copiado; uint64 cop_peer = 0; string cop_nome = ""; float cx = 0, cy = 0;
 	game_client@ vitima; uint64 vit_peer = 0; float vx = 0, vy = 0;
 	game_client@ olheiro; float ox = 0, oy = 0; // quem vai usar o radar
+	net_packet@ retrato_inicial; // o S_GAME_START de alguém, para montar um elenco como o do cliente
 	for (uint i = 0; i < todos.length(); i++) {
 		net_packet@ st = wf(todos[i], S_GAME_START, 8000);
 		if (@st == null) { println("um cliente nao recebeu o inicio"); return; }
+		if (@retrato_inicial == null) @retrato_inicial = st;
 		string rid = st.get_string("your_role", "");
 		uint64 meu = st.get_uint64("your_peer_id");
 		float px = st.get_float("your_x"), py = st.get_float("your_y");
@@ -153,9 +155,15 @@ void main() {
 	net_packet@ morte = wf(vitima, S_PLAYER_KILLED, 6000);
 	check("a vitima morreu", @morte != null && morte.get_uint64("peer_id") == vit_peer, "a vitima");
 	if (@morte != null) {
-		check("  e o pacote leva o nome COPIADO de quem matou", morte.get_string("killer_name") == cop_nome, cop_nome);
-		string frase = you_were_killed_text(morte, null); // sem elenco: prova que o campo basta
-		check("  a frase da vitima usa o nome copiado", frase.find(cop_nome) >= 0 && frase.find(morfo_nome) < 0, "o nome copiado");
+		// O pacote é transmitido à partida INTEIRA, então nome nenhum pode viajar nele - seria o
+		// mesmo erro do `misfire` do xerife, que entregava de graça o que só um devia saber.
+		check("  o pacote publico nao carrega nome de assassino", !morte.exists("killer_name"), "sem o campo");
+		// E a vítima ouve o nome VERDADEIRO, resolvido pelo elenco dela: quem morreu já pagou o
+		// preço, não tem como contar a ninguém, e mentir para ele não compra nada ao impostor.
+		client_roster elenco;
+		elenco.load_from_start_packet(retrato_inicial);
+		string frase = you_were_killed_text(morte, elenco);
+		check("  a vitima ouve o nome VERDADEIRO", frase.find(morfo_nome) >= 0, morfo_nome);
 		println("   a vitima ouve: \"" + frase + "\"");
 	}
 

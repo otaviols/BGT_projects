@@ -392,11 +392,21 @@ tamanho do mapa, revise `KILLER_TRAIL_SECONDS`.**
 
 **Metamorfo: todo nome que chega a outro jogador passa por `display_name()`.** Num jogo sem imagem,
 "parecer com alguém" é aparecer com o nome dele, e o nome só sai do SERVIDOR - radar, câmera, quem
-está na sala. Um ponto esquecido é um buraco no disfarce, sem nada acusando no código. O que
-faltava e não era óbvio: o `S_PLAYER_KILLED` leva `killer_name`, porque a vítima resolvia o nome
-pelo elenco DELA, que não conhece disfarce nenhum - o disfarce vazava justamente para quem ele
-acabou de matar. Na mesma linha, `you_were_killed_text` só consulta o elenco se o campo não veio
-(a checagem de nulo do elenco estava no topo e descartava o nome do servidor antes de olhá-lo).
+está na sala. Um ponto esquecido é um buraco no disfarce, sem nada acusando no código.
+
+**A vítima é a exceção, e é deliberada: ela ouve o nome VERDADEIRO.** Ela resolve pelo elenco
+local, que não conhece disfarce nenhum. Quem morreu já pagou o preço e não tem como contar a
+ninguém (não vota, não fala com vivo, e fantasma só é ouvido por fantasma), então mentir para ele
+não compra nada ao impostor e só piora o jogo de quem já perdeu - e no caso normal a vítima também
+sabe quem a matou, então disfarçar aqui tornaria morrer para o metamorfo pior do que morrer para um
+impostor comum. Eu tinha feito o contrário, e o usuário corrigiu. Cuidado ao mexer: o nome
+verdadeiro **não pode** entrar no `S_PLAYER_KILLED`, que é transmitido à partida inteira - seria o
+mesmo erro do `misfire` do xerife.
+
+**Pendência do disfarce: ele cobre o NOME, não a cor.** Hoje isso não vaza porque todas as cores
+usam o mesmo som de kill (os sons por cor têm fallback genérico e nenhum foi criado). No dia em que
+existir som de kill por cor, quem estiver perto vai ouvir a cor REAL do metamorfo - e o disfarce
+precisa passar a copiar a cor junto (ver `killer_color` no `S_PLAYER_KILLED`).
 
 Três coisas seguram o papel: o SOM da transformação é posicionado e **não leva nome nenhum** (quem
 ouve sabe que algo aconteceu ali, não quem nem em quem); a **voz cala** enquanto durar (ela chega

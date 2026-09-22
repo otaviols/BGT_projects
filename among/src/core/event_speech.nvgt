@@ -65,14 +65,11 @@ string you_were_killed_text(net_packet@ pkt, client_roster@ roster) {
 	// "você foi eliminado por <seu nome>" seria ridículo; o porquê chega logo atrás, em particular
 	// (role.sheriff_misfire, mandado pelo servidor só a ele).
 	if (killer_peer == pkt.get_uint64("peer_id")) return tr("game.you_were_killed");
-	// O nome vem do SERVIDOR quando ele manda: é o disfarçado, se o assassino estiver fantasiado.
-	// O elenco local não conhece disfarce nenhum, então resolver por ele aqui entregaria o
-	// shapeshifter justamente para quem ele acabou de matar. O elenco fica como plano B, para
-	// servidor mais antigo que este campo.
-	// O elenco só é consultado se o campo não veio - e a checagem de nulo mora AQUI, e não no topo
-	// da função: lá em cima ela descartava o nome que o servidor mandou antes mesmo de olhá-lo.
-	string nome = pkt.get_string("killer_name");
-	if (nome == "" && @roster != null) {
+	// O nome sai do ELENCO local, que não conhece disfarce nenhum: quem morre para o metamorfo
+	// descobre quem ele é de verdade. Ver o comentário em try_kill para o porquê - em resumo, quem
+	// morreu não tem como contar a ninguém, e mentir para ele não compra nada ao impostor.
+	string nome = "";
+	if (@roster != null) {
 		roster_entry@ killer = roster.find(killer_peer);
 		if (@killer != null) nome = killer.name;
 	}

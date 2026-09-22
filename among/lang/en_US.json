@@ -244,7 +244,7 @@
 	"role.noisemaker": "Noisemaker",
 	"role.guardian_angel": "Guardian Angel",
 	"role.shapeshifter": "Shapeshifter",
-	"role.assigned_shapeshifter": "You are the Shapeshifter, an impostor. With your ability key you pick a living player and start appearing under their name on the radar, on the cameras, and to anyone checking who is in a room. Shifting makes noise, and while it lasts you cannot speak in voice chat. A meeting undoes it.",
+	"role.assigned_shapeshifter": "You are the Shapeshifter, an impostor. With your ability key you pick a living player and start appearing under their name on the radar, on the cameras, and to anyone checking who is in a room. Shifting makes noise, and while it lasts you cannot speak in voice chat. Whoever you kill learns who you really are. A meeting undoes it.",
 	"role.shift_menu_hint": "Choose whose name to copy.",
 	"role.shift_done": "You now appear as {name}.",
 	"role.shift_active": "You are already disguised. {seconds} seconds left.",
