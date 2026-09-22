@@ -256,6 +256,11 @@ class game_server {
 		game_player@ talker = lobby.find_player(peer_id);
 		// Dentro do duto ninguém é ouvido: a voz posicionada entregaria onde o duto está.
 		if (@talker == null || talker.vented) return;
+		// Disfarçado também não: a voz chega ao cliente identificada pelo PEER, e o cliente resolve
+		// o nome pelo elenco dele - o disfarce troca o nome no radar, não no elenco. Uma frase e o
+		// shapeshifter estaria entregue. Calar o microfone é o preço da fantasia, e o cliente dele
+		// sabe disso (ver g_voice.allowed no laço da partida).
+		if (talker.disguised()) return;
 		string wire = voice_wire(peer_id, audio);
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			game_player@ p = lobby.players[i];
@@ -441,6 +446,17 @@ class game_server {
 	// acrescenta o dele aqui e em role_traits, e nada mais.
 	bool run_ability(game_state@ lobby, game_player@ p, const string&in ability, net_packet@ pkt,
 			string&out message_key, dictionary@ message_params) {
+		if (ability == ABILITY_SHAPESHIFT) {
+			string copiado;
+			if (!lobby.try_shapeshift(p.peer_id, pkt.get_uint64("target_peer_id"), copiado, message_key)) return false;
+			// O som é o que impede a fantasia de ser grátis: quem estiver por perto ouve que algo
+			// aconteceu ali, como ouviria a tampa de um duto. Vai para todos MENOS ele - o cliente
+			// dele toca na hora, sem esperar a rede.
+			broadcast_shift_sound(lobby, p);
+			message_params.set("name", copiado);
+			message_key = "role.shift_done";
+			return true;
+		}
 		if (ability == ABILITY_EXAMINE) {
 			int ha_quanto = 0;
 			array<string> rastro;
@@ -482,6 +498,27 @@ class game_server {
 		}
 		message_key = "role.ability_unavailable";
 		return false;
+	}
+
+	// O som da transformação, no ponto de quem se transformou. Não leva NOME nenhum: quem ouve sabe
+	// que alguém ali mudou de cara, não quem nem em quem - descobrir isso é o trabalho da mesa.
+	void broadcast_shift_sound(game_state@ lobby, game_player@ p) {
+		net_packet@ som = net_packet(S_SHIFT_SOUND);
+		som.set_float("x", p.x);
+		som.set_float("y", p.y);
+		broadcast_to_lobby(lobby, som, p.peer_id);
+	}
+
+	// Fantasias que venceram: a pessoa volta a ser ela, é avisada, e o som toca de novo onde ela
+	// está. Chamado do tick, junto do resto que envelhece.
+	void expire_disguises(game_state@ lobby) {
+		array<uint64>@ voltaram = lobby.expire_disguises();
+		for (uint i = 0; i < voltaram.length(); i++) {
+			game_player@ p = lobby.find_player(voltaram[i]);
+			if (@p == null) continue;
+			broadcast_shift_sound(lobby, p);
+			send_to(p.peer_id, net_packet(S_SHIFT_ENDED));
+		}
 	}
 
 	void send_ability_result(uint64 peer_id, const string&in ability, bool ok, const string&in message_key,
@@ -1119,7 +1156,7 @@ class game_server {
 		string object_id = pkt.get_string("task_id");
 		if (!lobby.try_start_visible_task(peer_id, object_id)) return;
 		game_player@ p = lobby.find_player(peer_id);
-		broadcast_task_visible(lobby, peer_id, @p != null ? p.username : "", object_id, true);
+		broadcast_task_visible(lobby, peer_id, @p != null ? p.display_name() : "", object_id, true);
 	}
 
 	void broadcast_task_visible(game_state@ lobby, uint64 peer_id, const string&in name, const string&in object_id, bool active) {
@@ -1138,7 +1175,7 @@ class game_server {
 		uint64 quem = lobby.end_visible_task(peer_id);
 		if (quem == 0) return;
 		game_player@ p = lobby.find_player(quem);
-		broadcast_task_visible(lobby, quem, @p != null ? p.username : "", "", false);
+		broadcast_task_visible(lobby, quem, @p != null ? p.display_name() : "", "", false);
 	}
 
 	void on_task_input(uint64 peer_id, net_packet@ pkt) {
@@ -1277,6 +1314,12 @@ class game_server {
 			vent_state.set_float("x", MEETING_GATHER_X);
 			vent_state.set_float("y", MEETING_GATHER_Y);
 			send_to(lobby.meeting_unvented_peers[i], vent_state);
+		}
+		// E quem teve a fantasia desfeita pela reunião, pelo mesmo motivo: sem o aviso, o
+		// shapeshifter volta da votação achando que ainda está com a cara de outro. Sem som aqui -
+		// todo mundo está junto na cafeteria, e um estalo do nada denunciaria quem era.
+		for (uint i = 0; i < lobby.meeting_unshifted_peers.length(); i++) {
+			send_to(lobby.meeting_unshifted_peers[i], net_packet(S_SHIFT_ENDED));
 		}
 		net_packet@ vs = net_packet(S_VOTING_STARTED);
 		vs.set_float("voting_time", lobby.voting_timer);
@@ -1528,7 +1571,7 @@ class game_server {
 	void fill_radar_result(net_packet@ result, game_player@ me, game_player@ target) {
 		result.set_bool("empty", false);
 		result.set_uint64("peer_id", target.peer_id);
-		result.set_string("name", target.username);
+		result.set_string("name", target.display_name()); // o disfarce do shapeshifter vale aqui
 		result.set_float("x", target.x);
 		result.set_float("y", target.y);
 		result.set_float("distance", distance_2d(me.x, me.y, target.x, target.y));
@@ -1646,7 +1689,7 @@ class game_server {
 
 		array<game_player@>@ there = lobby.players_in_room(lobby.camera_room_id, peer_id);
 		json_array@ names = json_array();
-		for (uint i = 0; i < there.length(); i++) names.add(there[i].username);
+		for (uint i = 0; i < there.length(); i++) names.add(there[i].display_name());
 
 		net_packet@ result = net_packet(S_CAMERA_PLAYERS);
 		result.set_array("names", names);
@@ -1959,6 +2002,9 @@ class game_server {
 				bool reliable = events[e].type != S_PLAYER_MOVED;
 				broadcast_to_lobby(lobby, events[e], 0, reliable);
 			}
+			// Fantasias que venceram. Fora do tick do game_state de propósito: desfazer o disfarce é
+			// estado, mas AVISAR quem voltou e tocar o som é rede, e rede é deste lado.
+			expire_disguises(lobby);
 			// A partida acabou (o S_GAME_OVER acabou de sair): a sala REABRE para a mesma turma.
 			if (lobby.state == "ended") reopen_lobby(i);
 		}

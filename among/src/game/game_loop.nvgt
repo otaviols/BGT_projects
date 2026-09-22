@@ -236,6 +236,34 @@ void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	if (room_id != "") imp.close_doors(room_id);
 }
 
+// De quem copiar o nome. Lista os VIVOS menos ele mesmo - é a única ação do jogo que alcança
+// alguém do outro lado do mapa, e é de propósito: imitar quem está longe é justamente a jogada,
+// porque a pessoa imitada não está por perto para desmentir.
+//
+// Os parceiros de impostor ficam na lista: virar o parceiro é uma jogada legítima (e arriscada,
+// porque ele também pode estar sendo visto).
+void run_shapeshift_menu(game_client@ client, client_roster@ roster) {
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("role.shift_menu_hint");
+	m.click_sound = "ui/menuclick.ogg";
+	m.select_sound = "ui/menuconfirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	for (uint i = 0; i < roster.entries.length(); i++) {
+		roster_entry@ e = roster.entries[i];
+		if (!e.alive || e.peer_id == client.my_peer_id) continue;
+		m.add_item(e.name, "" + e.peer_id);
+	}
+
+	m.run();
+	string escolhido = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (escolhido != "") client.send_use_ability(ABILITY_SHAPESHIFT, uint64(parse_int(escolhido)));
+}
+
 void run_sabotage_menu(impostor_controller@ imp) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
@@ -473,6 +501,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// Recarga da habilidade do papel, acompanhada localmente como a do kill: o servidor é quem
 	// decide, isto é só para responder na hora sem viagem de rede.
 	float my_ability_cooldown_remaining = 0.0;
+	// Quanto falta da fantasia do shapeshifter. Só para ele responder à tecla sem ir à rede; quem
+	// desfaz de verdade é o servidor, que avisa por S_SHIFT_ENDED.
+	float my_disguise_remaining = 0.0;
 	// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
 	// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
 	bool alive = true;
@@ -800,6 +831,13 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					string motivo = pkt.get_string("message_key");
 					if (motivo != "") speak(tr(motivo));
 				}
+			} else if (t == S_SHIFT_SOUND) {
+				// Alguém mudou de cara por perto. Posicionado e sem nome nenhum: quem ouve sabe que
+				// algo aconteceu ali, não quem nem em quem.
+				audio.play_shapeshift(pkt.get_float("x"), pkt.get_float("y"));
+			} else if (t == S_SHIFT_ENDED) {
+				my_disguise_remaining = 0.0;
+				speak(tr("role.shift_ended"));
 			} else if (t == S_DEATH_ALARM) {
 				string alarm_text = death_alarm_text(pkt);
 				// `!pkt.announced`: se uma tela bloqueante já disse isto, não repete ao fechá-la.
@@ -817,6 +855,14 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// estivesse por perto ouviria que alguém acabou de ser blindado.
 					string qual = pkt.get_string("ability");
 					if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
+					if (qual == ABILITY_SHAPESHIFT) {
+						my_disguise_remaining = SHAPESHIFT_DURATION_SECONDS;
+						// O som dele toca aqui, na hora, sem esperar a rede - como o do duto. Para os
+						// outros ele chega posicionado, por S_SHIFT_SOUND.
+						task_sound_simple(SND_SHAPE_SHIFT);
+						// A voz cala enquanto durar - quem decide isso é o laço, por quadro (ver
+						// g_voice.allowed mais abaixo), a partir deste mesmo contador.
+					}
 					// O que a habilidade tem a dizer vem do servidor. O exame monta a frase à parte
 					// porque a lista de salas chega como CHAVES, para serem traduzidas aqui.
 					string retorno = qual == ABILITY_EXAMINE ? examine_result_text(pkt) : tr_server_message(pkt);
@@ -985,7 +1031,12 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// também muda isto, e decidir só nas transições de sabotagem deixava o microfone fechado a
 		// reunião inteira quando as comunicações caíam antes dela.
 		bool radio_down = voice_down_for(active_sabotage_id, alive, movement_frozen, voice_comms_affects_meeting);
-		g_voice.allowed = voice_room_allows && !radio_down;
+		// Disfarçado fica MUDO. Aqui, e não só na hora de se transformar: isto é recalculado por
+		// quadro e desfaria qualquer decisão tomada numa transição - a mesma armadilha que já
+		// deixou o microfone fechado a reunião inteira. O servidor descarta a voz de quem está
+		// disfarçado de qualquer jeito (ver on_voice_frame); aqui é para não capturar à toa e para
+		// o jogador não achar que está falando.
+		g_voice.allowed = voice_room_allows && !radio_down && my_disguise_remaining <= 0.0;
 
 		if (my_role.can_kill && my_kill_cooldown_remaining > 0.0) {
 			my_kill_cooldown_remaining -= delta;
@@ -998,6 +1049,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		if (my_ability_cooldown_remaining > 0.0) {
 			my_ability_cooldown_remaining -= delta;
 			if (my_ability_cooldown_remaining < 0.0) my_ability_cooldown_remaining = 0.0;
+		}
+		if (my_disguise_remaining > 0.0) {
+			my_disguise_remaining -= delta;
+			if (my_disguise_remaining < 0.0) my_disguise_remaining = 0.0;
 		}
 
 		if (!movement_frozen && !is_vented) {
@@ -1242,6 +1297,14 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					dictionary@ cd = dictionary();
 					cd.set("seconds", "" + int(my_ability_cooldown_remaining + 0.5));
 					speak(tr("role.ability_cooldown", cd));
+				} else if (my_role.ability_id == ABILITY_SHAPESHIFT) {
+					// Já disfarçado, a tecla não abre o menu de novo: ela diz quanto tempo falta.
+					// Sem isto, apertar por engano gastaria a recarga inteira para trocar de cara.
+					if (my_disguise_remaining > 0.0) {
+						dictionary@ dp = dictionary();
+						dp.set("seconds", "" + int(my_disguise_remaining + 0.5));
+						speak(tr("role.shift_active", dp));
+					} else run_shapeshift_menu(client, roster);
 				} else if (my_role.ability_id == ABILITY_SHIELD) {
 					// Habilidade MIRADA: o alvo é quem estiver mais perto, pela mesma função da
 					// tecla de matar - o anjo tem que ir até a pessoa, como o impostor teria.

@@ -382,6 +382,20 @@ seguintes à morte.
 - **Duto apaga o rastro.** Se o assassino sumiu por um duto, o exame diz só isso — e essa é a
   contra-jogada do impostor, ao custo do barulho da tampa para quem estiver perto.
 
+**Metamorfo** (impostor). Um impostor que faz tudo o que um impostor faz, e mais uma coisa: com a
+tecla da habilidade ele escolhe um jogador vivo, de qualquer lugar do mapa, e **passa a aparecer
+com o nome dessa pessoa** — no radar, na câmera, na lista de quem está numa sala, e até para quem
+ele matar.
+
+Dura 45 segundos e tem uma recarga longa. Duas coisas o impedem de ser gratuito:
+
+- **Transformar faz barulho**, posicionado, como a tampa de um duto. Quem estiver por perto ouve
+  que algo aconteceu ali — sem saber quem, nem em quem.
+- **Enquanto disfarçado, ele não fala.** O microfone fecha. Num jogo em que a conversa é metade da
+  defesa, ficar mudo é um preço alto.
+
+A **reunião desfaz tudo**: na mesa todo mundo é quem é, porque ali se vota por nome.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

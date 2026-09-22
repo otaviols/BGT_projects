@@ -390,6 +390,21 @@ tamanho do mapa, revise `KILLER_TRAIL_SECONDS`.**
 `tr_server_message` substitui parâmetro como texto cru, então uma lista de salas chegaria como
 `room.electrical|room.storage` dentro da frase. Ver `examine_result_text` em `event_speech.nvgt`.
 
+**Metamorfo: todo nome que chega a outro jogador passa por `display_name()`.** Num jogo sem imagem,
+"parecer com alguém" é aparecer com o nome dele, e o nome só sai do SERVIDOR - radar, câmera, quem
+está na sala. Um ponto esquecido é um buraco no disfarce, sem nada acusando no código. O que
+faltava e não era óbvio: o `S_PLAYER_KILLED` leva `killer_name`, porque a vítima resolvia o nome
+pelo elenco DELA, que não conhece disfarce nenhum - o disfarce vazava justamente para quem ele
+acabou de matar. Na mesma linha, `you_were_killed_text` só consulta o elenco se o campo não veio
+(a checagem de nulo do elenco estava no topo e descartava o nome do servidor antes de olhá-lo).
+
+Três coisas seguram o papel: o SOM da transformação é posicionado e **não leva nome nenhum** (quem
+ouve sabe que algo aconteceu ali, não quem nem em quem); a **voz cala** enquanto durar (ela chega
+identificada pelo peer, e uma frase o entregaria - a decisão fica na linha do `g_voice.allowed`,
+recalculada por quadro, e não numa transição, senão o quadro seguinte a desfaz); e a **reunião
+desfaz a fantasia**, porque lá se vota por NOME e dois nomes iguais na lista não são blefe, são
+uma tela quebrada. Sonda: `tools/probes/probe_shapeshifter.nvgt`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

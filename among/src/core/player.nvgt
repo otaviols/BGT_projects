@@ -44,6 +44,12 @@ class game_player {
 	// Escudo do anjo da guarda: enquanto maior que zero, nenhum ataque contra este jogador acontece
 	// (ver try_kill). Ele NÃO sabe que está protegido, e ninguém mais sabe.
 	float shield_remaining = 0.0;
+
+	// Disfarce do shapeshifter: o nome com que ele aparece PARA OS OUTROS, e por quanto tempo ainda.
+	// Vazio = ele mesmo. Tudo que conta um nome a outro jogador passa por display_name(), e é isso
+	// que garante que o disfarce não tenha buracos - um único ponto esquecido entregaria a jogada.
+	string disguise_name = "";
+	float disguise_remaining = 0.0;
 	uint meetings_called = 0;
 	int radar_index = -1;
 	float last_move_time = 0.0;
@@ -134,10 +140,31 @@ class game_player {
 			shield_remaining -= delta_seconds;
 			if (shield_remaining < 0.0) shield_remaining = 0.0;
 		}
+		// O disfarce NÃO é desfeito aqui: quem o desfaz precisa avisar o jogador e tocar o som, e
+		// isso é do servidor (ver tick_disguises). Aqui só o relógio anda.
+		if (disguise_remaining > 0.0) {
+			disguise_remaining -= delta_seconds;
+			if (disguise_remaining < 0.0) disguise_remaining = 0.0;
+		}
 	}
 
 	bool can_kill() const {
 		return role().can_kill && alive && kill_cooldown_remaining <= 0.0;
+	}
+
+	// O nome com que ESTE jogador aparece para os outros. Todo pacote que leva nome de alguém a
+	// outra pessoa usa isto, nunca `username` direto: o radar, a câmera, a lista de quem está na
+	// sala. Um ponto esquecido é um buraco no disfarce, e o sintoma seria o pior possível - o
+	// shapeshifter descoberto por um caminho só, sem nada acusando no código.
+	string display_name() const {
+		return disguise_name != "" ? disguise_name : username;
+	}
+
+	bool disguised() const { return disguise_name != ""; }
+
+	void set_disguise(const string&in name, float seconds) {
+		disguise_name = name;
+		disguise_remaining = name != "" ? seconds : 0.0;
 	}
 
 	void set_role(const string&in id) {
@@ -161,6 +188,8 @@ class game_player {
 		kill_cooldown_remaining = 0.0;
 		ability_cooldown_remaining = 0.0;
 		shield_remaining = 0.0;
+		disguise_name = "";
+		disguise_remaining = 0.0;
 		meetings_called = 0;
 		radar_index = -1;
 		last_move_time = 0.0;

@@ -59,6 +59,9 @@ class game_state {
 	// Quem estava escondido num vent quando a última reunião começou. O servidor precisa avisar
 	// essas pessoas de que elas saíram do vent (ver broadcast_meeting_and_voting).
 	array<uint64> meeting_unvented_peers;
+	// Quem estava disfarçado quando a reunião começou: a fantasia cai, e essas pessoas precisam ser
+	// avisadas - senão o shapeshifter volta da votação achando que ainda está fantasiado.
+	array<uint64> meeting_unshifted_peers;
 	array<string> meeting_doors_opened; // portas que a reunião abriu, pra avisar os clientes
 
 	// Recarga do botão de emergência depois de uma reunião. Sem ela, o botão podia ser apertado de
@@ -285,6 +288,10 @@ class game_state {
 		@out_event = net_packet(S_PLAYER_KILLED);
 		out_event.set_uint64("peer_id", victim.peer_id);
 		out_event.set_uint64("killer_peer", killer.peer_id);
+		// O NOME de quem matou vai junto, e é o disfarçado se houver um. Sem isto o disfarce teria um
+		// buraco na única hora que mais importa: a vítima resolve o nome pelo elenco DELA (que não
+		// conhece disfarce nenhum) e ouviria quem realmente a matou.
+		out_event.set_string("killer_name", killer.display_name());
 		out_event.set_int("killer_color", killer.color);
 		out_event.set_float("x", victim.x);
 		out_event.set_float("y", victim.y);
@@ -364,6 +371,17 @@ class game_state {
 		// de vivos na votação diz), então um corpo esquecido no chão depois disso só serve pra ser
 		// "reportado" de novo e gerar uma reunião repetida pela mesma morte.
 		bodies.resize(0);
+
+		// A reunião desfaz toda fantasia. Na reunião se vota POR NOME, e dois nomes iguais na lista
+		// de votação não são um blefe: são uma tela quebrada, em que o voto pode cair na pessoa
+		// errada. Na mesa todo mundo é quem é - o disfarce serve para o que acontece na nave.
+		// A lista sai daqui para quem desfez ser avisado (ver broadcast_meeting_and_voting).
+		meeting_unshifted_peers.resize(0);
+		for (uint i = 0; i < players.length(); i++) {
+			if (!players[i].disguised()) continue;
+			players[i].set_disguise("", 0.0);
+			meeting_unshifted_peers.insert_last(players[i].peer_id);
+		}
 
 		meeting_unvented_peers.resize(0);
 		for (uint i = 0; i < players.length(); i++) {
@@ -839,6 +857,44 @@ class game_state {
 		return true;
 	}
 
+	// Assume o nome de outro jogador VIVO. Devolve o nome copiado, que é o que o shapeshifter ouve.
+	//
+	// O alvo não precisa estar perto - a jogada é justamente imitar alguém que está longe, para que
+	// a pessoa imitada não esteja por ali para desmentir. O que impede isso de ser grátis é o SOM da
+	// transformação (posicionado, ouvido por quem está do lado dele) e o microfone fechado enquanto
+	// durar (ver on_voice_frame).
+	//
+	// Morto não se transforma: fantasma não aparece no radar de ninguém, então não haveria o que
+	// disfarçar.
+	bool try_shapeshift(uint64 peer_id, uint64 target_peer, string&out copied_name, string&out fail_key) {
+		fail_key = "";
+		copied_name = "";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		game_player@ target = find_player(target_peer);
+		// Alvo morto entra no mesmo "esse não serve" de um alvo que não existe: dizer "essa pessoa
+		// está morta" contaria ao impostor um corpo que ele talvez não tivesse encontrado.
+		if (@target == null || !target.alive || target.peer_id == peer_id) { fail_key = "role.shift_bad_target"; return false; }
+
+		p.set_disguise(target.display_name(), SHAPESHIFT_DURATION_SECONDS);
+		copied_name = p.disguise_name;
+		return true;
+	}
+
+	// Desfaz as fantasias cujo tempo acabou. Devolve quem voltou ao normal, para o servidor avisar
+	// cada um e tocar o som onde ele está - a volta é tão audível quanto a ida, senão desfazer-se
+	// no meio de uma sala seria grátis.
+	array<uint64>@ expire_disguises() {
+		array<uint64> voltaram;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (!p.disguised() || p.disguise_remaining > 0.0) continue;
+			p.set_disguise("", 0.0);
+			voltaram.insert_last(p.peer_id);
+		}
+		return voltaram;
+	}
+
 	// Escudo do anjo da guarda sobre alguém vivo. Devolve o NOME do protegido, porque é a única
 	// coisa que o anjo ouve de volta - ninguém mais é avisado de nada.
 	//
@@ -1120,6 +1176,7 @@ class game_state {
 		meeting_caller = 0;
 		meeting_reason = "";
 		meeting_unvented_peers.resize(0);
+		meeting_unshifted_peers.resize(0);
 		meeting_doors_opened.resize(0);
 		meeting_cooldown_remaining = 0.0;
 		doors_cooldown_remaining = 0.0;

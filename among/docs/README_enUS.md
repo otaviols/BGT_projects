@@ -382,6 +382,21 @@ the murder.
 - **Vents erase the trail.** If the killer vanished through a vent, that is all the examination
   says — and that is the impostor's counter-play, at the cost of the lid's noise to anyone nearby.
 
+**Shapeshifter** (impostor). An impostor who does everything an impostor does, plus one thing: with
+the ability key they pick a living player, from anywhere on the map, and **start appearing under
+that person's name** — on the radar, on the cameras, in the list of who is in a room, and even to
+whoever they kill.
+
+It lasts 45 seconds and has a long recharge. Two things keep it from being free:
+
+- **Shifting makes noise**, positional, like a vent lid. Anyone nearby hears that something
+  happened there — without knowing who, or into whom.
+- **While disguised, they cannot speak.** The microphone closes. In a game where talking is half
+  your defense, going mute is a steep price.
+
+A **meeting undoes it**: at the table everyone is themselves, because that is where votes are cast
+by name.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

@@ -1,0 +1,170 @@
+// Sonda do Metamorfo. O papel é um disfarce, e disfarce se testa procurando BURACOS: qualquer
+// caminho que ainda conte o nome verdadeiro o entrega.
+//
+// O que se confere:
+//   1. transformado, o RADAR dos outros mostra o nome copiado;
+//   2. a lista de quem está na sala (câmera) também;
+//   3. quem ele MATA ouve o nome copiado, e não o dele - o cliente da vítima resolveria pelo
+//      elenco, que não conhece disfarce nenhum, e esse era o buraco mais fácil de esquecer;
+//   4. quem está perto ouve o SOM da transformação, sem nome nenhum no pacote;
+//   5. a REUNIÃO desfaz a fantasia e avisa quem estava disfarçado;
+//   6. alvo morto não serve.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_shapeshifter.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/core/event_speech.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+// Caminha de verdade: o servidor recusa saltos, e mandar o destino final não move ninguém.
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8;
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	array<string> nomes = {"mor_a", "mor_b", "mor_c", "mor_d", "mor_e"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return; }
+		todos.insert_last(c);
+	}
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_SHAPESHIFTER, 1); // o único impostor será o metamorfo
+	ov.kill_cooldown_seconds = 5.0;
+	todos[0].send_create_lobby("Sonda do metamorfo", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+	todos[0].send_start_game();
+
+	game_client@ morfo; uint64 morfo_peer = 0; string morfo_nome = ""; float mx = 0, my = 0;
+	game_client@ copiado; uint64 cop_peer = 0; string cop_nome = ""; float cx = 0, cy = 0;
+	game_client@ vitima; uint64 vit_peer = 0; float vx = 0, vy = 0;
+	game_client@ olheiro; float ox = 0, oy = 0; // quem vai usar o radar
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ st = wf(todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); return; }
+		string rid = st.get_string("your_role", "");
+		uint64 meu = st.get_uint64("your_peer_id");
+		float px = st.get_float("your_x"), py = st.get_float("your_y");
+		if (rid == ROLE_SHAPESHIFTER) { @morfo = todos[i]; morfo_peer = meu; morfo_nome = nomes[i] + sufixo; mx = px; my = py; }
+		else if (@copiado == null) { @copiado = todos[i]; cop_peer = meu; cop_nome = nomes[i] + sufixo; cx = px; cy = py; }
+		else if (@vitima == null) { @vitima = todos[i]; vit_peer = meu; vx = px; vy = py; }
+		else if (@olheiro == null) { @olheiro = todos[i]; ox = px; oy = py; }
+	}
+	if (@morfo == null || @copiado == null || @vitima == null || @olheiro == null) { println("elenco incompleto"); return; }
+	println("o metamorfo é " + morfo_nome + "; vai copiar " + cop_nome);
+
+	// 6. Alvo que não serve (ele mesmo).
+	morfo.send_use_ability(ABILITY_SHAPESHIFT, morfo_peer);
+	net_packet@ ruim = wf(morfo, S_ABILITY_RESULT, 5000);
+	check("copiar a si mesmo é recusado", @ruim != null && !ruim.get_bool("ok"), "false");
+
+	// 1 e 4. Transforma. O olheiro fica ao lado para ouvir o som e usar o radar.
+	anda_ate(todos, olheiro, ox, oy, 0.0, 0.0); ox = 0; oy = 0;
+	anda_ate(todos, morfo, mx, my, 0.5, 0.0); mx = 0.5; my = 0.0;
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+
+	morfo.send_use_ability(ABILITY_SHAPESHIFT, cop_peer);
+	net_packet@ ok = wf(morfo, S_ABILITY_RESULT, 5000);
+	check("a transformação foi aceita", @ok != null && ok.get_bool("ok"), "true");
+	if (@ok != null) {
+		dictionary@ p = ok.get_params(MSG_PARAMS_FIELD);
+		string nome = ""; p.get("name", nome);
+		check("  e diz de quem ele copiou o nome", nome == cop_nome, cop_nome);
+		println("   o metamorfo ouve: \"" + tr_server_message(ok) + "\"");
+	}
+
+	net_packet@ som = wf(olheiro, S_SHIFT_SOUND, 4000);
+	check("quem estava perto ouviu a transformação", @som != null, "S_SHIFT_SOUND");
+	check("  e o som nao carrega nome nenhum", @som != null && !som.exists("name") && !som.exists("peer_id"), "sem nome");
+
+	// 1. O radar do olheiro mostra o nome COPIADO.
+	bombeia(todos, 400);
+	olheiro.send_radar_scan(1);
+	bool viu_copiado = false, viu_verdadeiro = false;
+	timer t;
+	while (t.elapsed < 4000 && !viu_copiado) {
+		olheiro.update();
+		net_packet@ r = olheiro.poll_message();
+		while (@r != null) {
+			if (r.type == S_RADAR_RESULT && !r.get_bool("empty") && r.get_uint64("peer_id") == morfo_peer) {
+				if (r.get_string("name") == cop_nome) viu_copiado = true;
+				if (r.get_string("name") == morfo_nome) viu_verdadeiro = true;
+			}
+			@r = olheiro.poll_message();
+		}
+		if (!viu_copiado) { olheiro.send_radar_scan(1); wait(200); }
+	}
+	check("o radar mostra o nome COPIADO", viu_copiado, cop_nome);
+	check("  e nunca o nome verdadeiro", !viu_verdadeiro, "nunca " + morfo_nome);
+
+	// 3. Quem ele mata ouve o nome copiado.
+	anda_ate(todos, vitima, vx, vy, 0.5, 0.0); vx = 0.5; vy = 0.0;
+	bombeia(todos, 5500);
+	vitima.clear_incoming();
+	morfo.send_kill(vit_peer);
+	net_packet@ morte = wf(vitima, S_PLAYER_KILLED, 6000);
+	check("a vitima morreu", @morte != null && morte.get_uint64("peer_id") == vit_peer, "a vitima");
+	if (@morte != null) {
+		check("  e o pacote leva o nome COPIADO de quem matou", morte.get_string("killer_name") == cop_nome, cop_nome);
+		string frase = you_were_killed_text(morte, null); // sem elenco: prova que o campo basta
+		check("  a frase da vitima usa o nome copiado", frase.find(cop_nome) >= 0 && frase.find(morfo_nome) < 0, "o nome copiado");
+		println("   a vitima ouve: \"" + frase + "\"");
+	}
+
+	// 5. A reunião desfaz a fantasia.
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	olheiro.send_report_body("body_" + vit_peer);
+	net_packet@ fim = wf(morfo, S_SHIFT_ENDED, 6000);
+	check("a reuniao desfaz a fantasia e avisa", @fim != null, "S_SHIFT_ENDED");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

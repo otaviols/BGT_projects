@@ -31,11 +31,13 @@ const string ROLE_SHERIFF = "sheriff";
 const string ROLE_NOISEMAKER = "noisemaker";
 const string ROLE_GUARDIAN_ANGEL = "guardian_angel";
 const string ROLE_DETECTIVE = "detective";
+const string ROLE_SHAPESHIFTER = "shapeshifter";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
 const string ABILITY_SHIELD = "shield";
 const string ABILITY_EXAMINE = "examine";
+const string ABILITY_SHAPESHIFT = "shapeshift";
 
 // Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
 // papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
@@ -45,7 +47,7 @@ const string TEAM_IMPOSTOR = "impostor";
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
 const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
-	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE};
+	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER};
 
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
@@ -216,8 +218,36 @@ role_traits@ role_detective() {
 	return t;
 }
 
+// Shapeshifter: impostor que assume o NOME de outro jogador vivo por um tempo.
+//
+// Num jogo sem imagem, "parecer com alguém" é aparecer com o nome dele - e o nome só chega a outro
+// jogador por um caminho: o servidor (radar, câmera, quem está na sala). Por isso o disfarce mora
+// no servidor e o cliente do shapeshifter nem precisa saber como funciona.
+//
+// Duas coisas o mantêm honesto. A transformação FAZ SOM, posicionado, como a tampa de um duto:
+// quem estiver perto ouve e sabe que algo aconteceu ali. E o microfone dele fecha enquanto durar -
+// a voz chega identificada pelo peer, e uma frase o entregaria na hora. A fantasia custa ficar
+// mudo, que num jogo de dedução falada é um preço alto de verdade.
+role_traits@ role_shapeshifter() {
+	role_traits t;
+	t.id = ROLE_SHAPESHIFTER;
+	t.team = TEAM_IMPOSTOR;
+	t.can_kill = true;
+	t.can_vent = true;
+	t.can_sabotage = true;
+	t.can_close_doors = true;
+	t.tasks_count_for_crew = false;
+	t.immune_to_comms = true;
+	t.wins_with_crew = false;
+	t.knows_teammates = true;
+	t.ability_id = ABILITY_SHAPESHIFT;
+	t.ability_cooldown_seconds = SHAPESHIFT_COOLDOWN_SECONDS;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
+	if (role_id == ROLE_SHAPESHIFTER) return role_shapeshifter();
 	if (role_id == ROLE_NOISEMAKER) return role_noisemaker();
 	if (role_id == ROLE_DETECTIVE) return role_detective();
 	if (role_id == ROLE_GUARDIAN_ANGEL) return role_guardian_angel();
