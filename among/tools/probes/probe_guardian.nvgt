@@ -1,0 +1,198 @@
+// Sonda do Anjo da Guarda. O papel inteiro depende de duas coisas: o escudo barrar o ataque, e
+// NINGUÉM ficar sabendo disso - nem quem foi protegido, nem quem tentou matar.
+//
+// O que se confere:
+//   1. anjo VIVO aperta a habilidade: recusado (o papel só age depois de morrer);
+//   2. anjo morto longe de todos: recusado, sem gastar a recarga;
+//   3. anjo morto perto de alguém: aceito, com o nome do protegido e a recarga de volta;
+//   4. impostor tenta matar o protegido: NINGUÉM morre, ninguém recebe pacote nenhum, e a recarga
+//      de kill do impostor não é consumida (gastá-la seria um aviso indireto);
+//   5. o escudo EXPIRA: depois da duração, o mesmo kill funciona.
+//
+// O caso do xerife atirando num protegido (nem ele morre) sai da mesma linha de try_kill que o
+// caso 4, e está coberto por construção - o escudo é conferido antes de qualquer cálculo de tiro.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_guardian.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/i18n.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+// CAMINHA de verdade, interpolando o trajeto.
+//
+// O servidor valida a velocidade (PLAYER_MOVE_SPEED, 2,2 por segundo) e RECUSA um salto: mandar o
+// destino final repetidas vezes não move ninguém - foi assim que a primeira versão desta sonda
+// "testou" o anjo longe do alvo com ele parado do lado dela, e o teste passou pelo motivo errado.
+// Cada passo aqui anda menos do que a velocidade permite no intervalo.
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8; // 0,8 = folga sobre o limite
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+// Os dois ao mesmo ponto, cada um pelo seu caminho.
+void encosta(array<game_client@>@ todos, game_client@ a, float ax, float ay,
+		game_client@ b, float bx, float by, float x, float y) {
+	anda_ate(todos, a, ax, ay, x, y);
+	anda_ate(todos, b, bx, by, x, y);
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR"); // sem isto tr() devolve a chave e a frase abaixo não prova nada
+
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	// CINCO jogadores, e não quatro: a sonda mata duas pessoas (o anjo, para ele virar fantasma, e
+	// mais uma para provar a recarga), e com quatro a partida ACABAVA no meio dela - um impostor
+	// contra um tripulante é vitória do impostor, e o kill seguinte era recusado por a partida ter
+	// terminado. O sintoma era "o kill não funciona depois que o escudo expira".
+	array<string> nomes = {"anj_a", "anj_b", "anj_c", "anj_d", "anj_e"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return; }
+		todos.insert_last(c);
+	}
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_GUARDIAN_ANGEL, 1);
+	ov.kill_cooldown_seconds = 5.0;
+	todos[0].send_create_lobby("Sonda do anjo", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+	todos[0].send_start_game();
+
+	game_client@ anjo; uint64 anjo_peer = 0; float anjo_x = 0, anjo_y = 0;
+	game_client@ impostor; uint64 impostor_peer = 0; float imp_x = 0, imp_y = 0;
+	game_client@ vitima; uint64 vitima_peer = 0; string vitima_nome = ""; float vit_x = 0, vit_y = 0;
+	game_client@ outro; uint64 outro_peer = 0; float out_x = 0, out_y = 0; // o quarto: prova a recarga
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ st = wf(todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); return; }
+		string rid = st.get_string("your_role", "");
+		uint64 meu = st.get_uint64("your_peer_id");
+		// A posição inicial vem no pacote: sem ela, a caminhada partiria de um ponto errado e o
+		// primeiro passo seria um salto que o servidor recusa.
+		float px = st.get_float("your_x"), py = st.get_float("your_y");
+		if (rid == ROLE_GUARDIAN_ANGEL) { @anjo = todos[i]; anjo_peer = meu; anjo_x = px; anjo_y = py; }
+		else if (st.get_bool("your_role_impostor")) { @impostor = todos[i]; impostor_peer = meu; imp_x = px; imp_y = py; }
+		else if (@vitima == null) { @vitima = todos[i]; vitima_peer = meu; vitima_nome = nomes[i] + sufixo; vit_x = px; vit_y = py; }
+		else if (@outro == null) { @outro = todos[i]; outro_peer = meu; out_x = px; out_y = py; }
+		// O quinto não faz nada: existe só para a partida não acabar com as duas mortes acima.
+	}
+	if (@anjo == null || @impostor == null || @vitima == null || @outro == null) { println("elenco incompleto"); return; }
+
+	// 1. Vivo, o anjo é um tripulante comum.
+	anjo.send_use_ability(ABILITY_SHIELD, vitima_peer);
+	net_packet@ vivo = wf(anjo, S_ABILITY_RESULT, 5000);
+	check("anjo VIVO é recusado", @vivo != null && !vivo.get_bool("ok"), "false");
+	check("  dizendo que o papel só age morto", @vivo != null && vivo.get_string(MSG_KEY_FIELD) == "role.ability_only_dead", "role.ability_only_dead");
+
+	// O impostor mata o anjo, para ele virar fantasma. A caminhada já cobre a recarga inicial do
+	// kill (5 s, pedida na criação da sala).
+	encosta(todos, impostor, imp_x, imp_y, anjo, anjo_x, anjo_y, 0.0, 0.0);
+	imp_x = 0; imp_y = 0; anjo_x = 0; anjo_y = 0;
+	bombeia(todos, 5500);
+	impostor.send_kill(anjo_peer);
+	net_packet@ morreu = wf(anjo, S_PLAYER_KILLED, 6000);
+	check("o anjo morreu e virou fantasma", @morreu != null && morreu.get_uint64("peer_id") == anjo_peer, "o anjo");
+
+	// 2. Morto, mas longe do alvo: a vítima vai para o outro lado, e o anjo fica onde caiu.
+	anda_ate(todos, vitima, vit_x, vit_y, 8.0, 0.0);
+	vit_x = 8; vit_y = 0;
+	anjo.send_use_ability(ABILITY_SHIELD, vitima_peer);
+	net_packet@ longe = wf(anjo, S_ABILITY_RESULT, 5000);
+	check("longe do alvo é recusado", @longe != null && !longe.get_bool("ok"), "false");
+	check("  por nao haver ninguem perto", @longe != null && longe.get_string(MSG_KEY_FIELD) == "role.shield_no_target", "role.shield_no_target");
+
+	// O impostor e o quarto jogador vão para perto da vítima ANTES do escudo: o escudo dura 30 s, e
+	// deixar a caminhada para depois de lançá-lo gastaria metade da duração andando.
+	anda_ate(todos, impostor, imp_x, imp_y, 8.0, 0.6);
+	imp_x = 8; imp_y = 0.6;
+	anda_ate(todos, outro, out_x, out_y, 8.0, 1.0);
+	out_x = 8; out_y = 1.0;
+	bombeia(todos, 5500); // a recarga do kill, gasta ao matar o anjo
+
+	// 3. Morto e perto: aceito.
+	anda_ate(todos, anjo, anjo_x, anjo_y, 8.0, 0.0);
+	anjo_x = 8; anjo_y = 0;
+	anjo.send_use_ability(ABILITY_SHIELD, vitima_peer);
+	net_packet@ ok = wf(anjo, S_ABILITY_RESULT, 5000);
+	check("perto do alvo é aceito", @ok != null && ok.get_bool("ok"), "true");
+	if (@ok != null) {
+		check("  com a recarga do papel", ok.get_float("cooldown_seconds") == GUARDIAN_SHIELD_COOLDOWN_SECONDS, "" + int(GUARDIAN_SHIELD_COOLDOWN_SECONDS));
+		string frase = tr_server_message(ok);
+		check("  e o nome do protegido, na frase montada", frase.find(vitima_nome) >= 0 && frase.find("role.") < 0, "uma frase com o nome");
+		println("   o anjo ouve: \"" + frase + "\"");
+	}
+
+	// 4. O ataque ao protegido não acontece - e ninguém fica sabendo. Todos já estão no lugar, e a
+	// recarga do kill já passou: o escudo acabou de ser lançado e tem a duração inteira pela frente.
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	impostor.send_kill(vitima_peer);
+	bombeia(todos, 2500);
+	uint souberam = 0;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { if (p.type == S_PLAYER_KILLED || p.type == S_DEATH_ALARM) souberam++; @p = todos[i].poll_message(); }
+	}
+	check("ninguem morreu e ninguem soube de nada", souberam == 0, "0 pacotes");
+
+	// A recarga do impostor NÃO pode ter sido gasta na tentativa barrada: se fosse, o silêncio
+	// viraria um aviso ("gastei o cooldown e não saiu som de kill = tinha escudo"). A prova, sem
+	// espiar o servidor, é matar OUTRA pessoa na hora: se a recarga tivesse sido consumida, este
+	// kill seria recusado por cooldown.
+	impostor.send_kill(outro_peer);
+	net_packet@ outro_morreu = wf(impostor, S_PLAYER_KILLED, 5000);
+	check("a recarga do impostor nao foi gasta na tentativa barrada",
+		@outro_morreu != null && outro_morreu.get_uint64("peer_id") == outro_peer, "o outro morre na hora");
+
+	// 5. O escudo expira: esperando a duração, o mesmo kill funciona.
+	println("esperando o escudo expirar (" + int(GUARDIAN_SHIELD_DURATION_SECONDS) + "s)...");
+	bombeia(todos, int(GUARDIAN_SHIELD_DURATION_SECONDS * 1000.0) + 3000);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	impostor.send_kill(vitima_peer);
+	net_packet@ agora_vai = wf(vitima, S_PLAYER_KILLED, 6000);
+	check("depois de expirar, o kill funciona", @agora_vai != null && agora_vai.get_uint64("peer_id") == vitima_peer, "a vitima morre");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

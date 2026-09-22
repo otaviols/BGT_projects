@@ -230,6 +230,15 @@ class game_state {
 		if (!target.alive || target.peer_id == killer.peer_id) return false;
 		if (distance_2d(killer.x, killer.y, target.x, target.y) > PLAYER_KILL_RANGE) return false;
 
+		// Escudo do anjo da guarda: o ataque simplesmente NÃO acontece.
+		//
+		// Aqui em cima de propósito, antes de qualquer outra coisa. Antes da recarga porque gastá-la
+		// seria um aviso indireto - "apertei, não saiu som de kill e meu cooldown zerou" só pode
+		// significar escudo. E antes do cálculo do tiro errado porque o escudo vale contra QUALQUER
+		// ataque: o xerife que mira num inocente protegido também não morre. Uma regra só, sem
+		// exceção para explicar no manual.
+		if (target.shield_remaining > 0.0) return false;
+
 		bool killer_is_impostor = killer.role().team == TEAM_IMPOSTOR;
 		// Impostor não mata impostor. Além de não fazer sentido (são do mesmo time e se conhecem
 		// desde o começo da partida), um mata-mata entre parceiros por engano entregava a rodada
@@ -752,6 +761,30 @@ class game_state {
 		active_sabotage = "";
 		sabotage_fixed_panels.resize(0);
 		sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
+		return true;
+	}
+
+	// Escudo do anjo da guarda sobre alguém vivo. Devolve o NOME do protegido, porque é a única
+	// coisa que o anjo ouve de volta - ninguém mais é avisado de nada.
+	//
+	// Exige o anjo MORTO (o papel só age depois de morrer) e o alvo perto: o fantasma tem que
+	// atravessar a nave até quem quer salvar, e é esse custo que o impede de cobrir todo mundo.
+	bool try_shield_player(uint64 angel_peer, uint64 target_peer, string&out target_name, string&out fail_key) {
+		fail_key = "";
+		target_name = "";
+		game_player@ angel = find_player(angel_peer);
+		game_player@ target = find_player(target_peer);
+		if (@angel == null) return false;
+		if (angel.alive) { fail_key = "role.ability_only_dead"; return false; }
+		// Alvo morto ou ele mesmo: some no "ninguém por perto", sem uma recusa própria. Uma mensagem
+		// específica para "esse já está morto" diria ao anjo algo que ele talvez não soubesse.
+		if (@target == null || !target.alive || target.peer_id == angel.peer_id) { fail_key = "role.shield_no_target"; return false; }
+		if (distance_2d(angel.x, angel.y, target.x, target.y) > GUARDIAN_SHIELD_RANGE) { fail_key = "role.shield_no_target"; return false; }
+
+		// Relançar sobre quem já está protegido simplesmente renova - não é erro, e recusar
+		// contaria ao anjo que aquela pessoa já está blindada por outro anjo.
+		target.shield_remaining = GUARDIAN_SHIELD_DURATION_SECONDS;
+		target_name = target.username;
 		return true;
 	}
 

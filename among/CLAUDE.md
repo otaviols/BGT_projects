@@ -353,6 +353,25 @@ aviso que o papel existe para dar. Sonda: `tools/probes/probe_noisemaker.nvgt`.
 `tr()` devolve a própria chave e a sonda "passa" mostrando `role.noisemaker_alarm` como se fosse a
 frase. Aconteceu na primeira versão da sonda do alarmista.
 
+**Anjo da guarda: o escudo é conferido no TOPO do `try_kill`, e o lugar dele ali é a regra.** Antes
+de consumir a recarga do atacante, porque gastá-la seria um aviso indireto ("apertei, não saiu som
+de kill e meu cooldown zerou" só pode significar escudo); e antes do cálculo do tiro errado do
+xerife, o que faz o escudo valer contra QUALQUER ataque - uma regra só, sem exceção para explicar.
+Nada é transmitido ao lançar: nem ao protegido, nem à partida. O anjo ouve só o nome de quem
+protegeu, e **nunca** fica sabendo se o escudo serviu de algo - saber que ele barrou um ataque
+seria saber que havia um impostor ali, e fantasma não pode ter essa informação (ele conversa com
+outros fantasmas por voz). `ability_usable_alive`/`ability_usable_dead` são DOIS campos porque há
+três casos: só vivo, vivo e morto, e só morto - este. Sonda: `tools/probes/probe_guardian.nvgt`.
+
+**Sonda que precisa mover alguém tem que CAMINHAR, não teleportar.** `send_move` com o destino
+final é recusado pelo anti-cheat de velocidade (`PLAYER_MOVE_SPEED`, 2,2/s) e o jogador não sai do
+lugar - repetir o pacote não adianta. O sintoma é o pior possível: o teste passa pelo motivo
+errado, porque os dois continuam colados. Interpole o trajeto (ver `anda_ate` em
+`probe_guardian.nvgt`) partindo do `your_x`/`your_y` que o `S_GAME_START` manda. E cuidado com o
+tamanho do elenco: uma sonda que mata duas pessoas numa partida de quatro ACABA a partida no meio
+dela (um impostor contra um tripulante é vitória do impostor), e o kill seguinte é recusado sem
+dizer por quê.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

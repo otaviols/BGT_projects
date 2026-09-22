@@ -139,6 +139,16 @@ const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
 // crítica em que ninguém chega a tempo - e nas outras a nave se vira como sempre.
 const float ENGINEER_FIX_COOLDOWN_SECONDS = 120.0;
 
+// Anjo da guarda. O escudo dura o bastante para cobrir uma travessia perigosa (uma ida à elétrica,
+// uma tarefa longa num canto), e não a partida inteira - protegido para sempre seria um jogador
+// fora do jogo. A recarga é o dobro da duração, então há sempre mais gente desprotegida do que
+// protegida, e o anjo escolhe QUEM salvar em vez de cobrir todo mundo.
+const float GUARDIAN_SHIELD_DURATION_SECONDS = 30.0;
+const float GUARDIAN_SHIELD_COOLDOWN_SECONDS = 60.0;
+// Alcance para lançar. É o mesmo do kill: o anjo precisa chegar tão perto quanto o impostor
+// precisaria - constante própria só para poder ajustar um sem mexer no outro.
+const float GUARDIAN_SHIELD_RANGE = PLAYER_KILL_RANGE;
+
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
 // Alcance de audição normal, fora de apagão. Era um 40 solto repetido em cada ponto que liga e
 // desliga o efeito das luzes - bastava mudar um para o jogador voltar do apagão com outro alcance.

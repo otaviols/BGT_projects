@@ -66,6 +66,10 @@ const string SND_OPEN_PANEL = "sounds/world/openPanel.ogg";
 const string SND_DOOR_CLOSE = "sounds/world/CloseDoor.ogg";
 const string SND_DOOR_OPEN = "sounds/world/OpenDoor.ogg";
 const string SND_DOOR_SWITCH = "sounds/world/door_switch.ogg"; // reservado: interruptor para reabrir porta trancada, ideia para um mapa futuro (não usado neste)
+// Anjo da guarda lançando o escudo. Só o anjo ouve, e SEM posição: é a confirmação de que a
+// habilidade saiu, não um evento do mundo - se tocasse no ponto do protegido, quem estivesse por
+// perto ouviria e saberia que alguém acabou de ser blindado.
+const string SND_SHIELD_CAST = "sounds/world/Protect_cast_shield.ogg";
 
 // --- Painéis de reparo (o que toca DENTRO do conserto - ver game/sabotage_panels.nvgt) ---
 const string SND_BREAKER_SWITCH = "world/breaker_switch.ogg";     // luzes: estalo de um disjuntor
@@ -366,6 +370,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_TASK_INPROGRESS);
 	list.insert_last("sounds/" + SND_TASK_COMPLETE);
 	list.insert_last(SND_DOOR_SWITCH);
+	list.insert_last(SND_SHIELD_CAST);
 	list.insert_last(SND_VOTE_SELECT);
 	list.insert_last(SND_VOTE_TIMER);
 	list.insert_last(SND_VICTORY_DISCONNECT);

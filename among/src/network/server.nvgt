@@ -411,30 +411,48 @@ class game_server {
 		string ability = pkt.get_string("ability");
 		role_traits@ role = p.role();
 		if (ability == "" || role.ability_id != ability) { send_ability_result(peer_id, ability, false, "role.ability_not_yours"); return; }
-		if (!p.alive && !role.ability_usable_dead) { send_ability_result(peer_id, ability, false, "game.ghost_cannot_interact"); return; }
+		// Capacidade, que conhece os três casos (só vivo, vivo e morto, só morto). O anjo da guarda
+		// VIVO cai aqui, e o motivo é próprio: "seu papel só age depois de morrer" - dizer a ele
+		// "fantasma não interage" seria o contrário do que acontece.
+		if (!player_abilities(role, p.alive).has_ability()) {
+			send_ability_result(peer_id, ability, false, p.alive ? "role.ability_only_dead" : "game.ghost_cannot_interact");
+			return;
+		}
 		if (p.ability_cooldown_remaining > 0.0) {
 			dictionary@ params = dictionary();
 			params.set("seconds", "" + int(p.ability_cooldown_remaining + 0.5));
 			send_ability_result(peer_id, ability, false, "role.ability_cooldown", params);
 			return;
 		}
-		string fail_key = "";
-		dictionary@ fail_params = dictionary();
-		if (!run_ability(lobby, p, ability, pkt, fail_key, fail_params)) {
-			send_ability_result(peer_id, ability, false, fail_key != "" ? fail_key : "role.ability_unavailable", fail_params);
+		// A mensagem serve aos DOIS casos: o motivo da recusa, ou o que o jogador precisa ouvir
+		// quando dá certo (o anjo ouve QUEM ele protegeu - é o único retorno que ele tem).
+		string message_key = "";
+		dictionary@ message_params = dictionary();
+		if (!run_ability(lobby, p, ability, pkt, message_key, message_params)) {
+			send_ability_result(peer_id, ability, false, message_key != "" ? message_key : "role.ability_unavailable", message_params);
 			return;
 		}
 		p.ability_cooldown_remaining = role.ability_cooldown_seconds;
-		send_ability_result(peer_id, ability, true, "", null, role.ability_cooldown_seconds);
+		send_ability_result(peer_id, ability, true, message_key, message_params, role.ability_cooldown_seconds);
 	}
 
-	// O que cada habilidade FAZ. Devolve false com fail_key preenchida quando não dá. Um caso por
-	// id; o papel novo acrescenta o dele aqui e em role_traits, e nada mais.
+	// O que cada habilidade FAZ. Devolve false com message_key preenchida quando não dá, e pode
+	// preenchê-la no sucesso com o que o jogador deve ouvir. Um caso por id; o papel novo
+	// acrescenta o dele aqui e em role_traits, e nada mais.
 	bool run_ability(game_state@ lobby, game_player@ p, const string&in ability, net_packet@ pkt,
-			string&out fail_key, dictionary@ fail_params) {
+			string&out message_key, dictionary@ message_params) {
+		if (ability == ABILITY_SHIELD) {
+			string protegido;
+			if (!lobby.try_shield_player(p.peer_id, pkt.get_uint64("target_peer_id"), protegido, message_key)) return false;
+			// NADA é transmitido: nem para o protegido, nem para a partida. O escudo só aparece
+			// como um ataque que não acontece, e quem atacou não recebe explicação nenhuma.
+			message_params.set("name", protegido);
+			message_key = "role.shield_cast";
+			return true;
+		}
 		if (ability == ABILITY_REMOTE_FIX) {
 			net_packet@ fixed;
-			if (!lobby.try_remote_fix_sabotage(p.peer_id, fixed, fail_key)) return false;
+			if (!lobby.try_remote_fix_sabotage(p.peer_id, fixed, message_key)) return false;
 			// O MESMO pacote do conserto normal, para a partida inteira: o resto do jogo (alarme,
 			// marcadores, painel aberto de quem estava consertando) já sabe tratá-lo, e nada precisa
 			// aprender que existe um segundo jeito de a sabotagem acabar.
@@ -445,7 +463,7 @@ class game_server {
 			broadcast_to_lobby(lobby, fixed);
 			return true;
 		}
-		fail_key = "role.ability_unavailable";
+		message_key = "role.ability_unavailable";
 		return false;
 	}
 

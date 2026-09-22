@@ -812,6 +812,13 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// como chave, e a recarga fica como estava.
 				if (pkt.get_bool("ok")) {
 					my_ability_cooldown_remaining = pkt.get_float("cooldown_seconds", 0.0);
+					// O escudo é a única habilidade com som próprio, e ele toca SEM posição: é a
+					// confirmação de que saiu, não um evento do mundo. No ponto do protegido, quem
+					// estivesse por perto ouviria que alguém acabou de ser blindado.
+					if (pkt.get_string("ability") == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
+					// Quem ele protegeu (ou o que a habilidade tiver a dizer) vem do servidor.
+					string retorno = tr_server_message(pkt);
+					if (retorno != "") speak(retorno);
 				} else {
 					string motivo = tr_server_message(pkt);
 					if (motivo != "") speak(motivo);
@@ -1221,11 +1228,19 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			if (action_pressed(ACTION_ABILITY)) {
 				player_abilities me_now(my_role, alive);
 				if (my_role.ability_id == "") speak(tr("role.no_ability"));
-				else if (!me_now.has_ability()) speak(tr("game.ghost_cannot_interact"));
+				// O anjo da guarda VIVO cai aqui: o papel dele só age depois de morrer, e dizer
+				// "fantasma não interage" seria exatamente o contrário do que acontece.
+				else if (!me_now.has_ability()) speak(tr(alive ? "role.ability_only_dead" : "game.ghost_cannot_interact"));
 				else if (my_ability_cooldown_remaining > 0.0) {
 					dictionary@ cd = dictionary();
 					cd.set("seconds", "" + int(my_ability_cooldown_remaining + 0.5));
 					speak(tr("role.ability_cooldown", cd));
+				} else if (my_role.ability_id == ABILITY_SHIELD) {
+					// Habilidade MIRADA: o alvo é quem estiver mais perto, pela mesma função da
+					// tecla de matar - o anjo tem que ir até a pessoa, como o impostor teria.
+					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, GUARDIAN_SHIELD_RANGE);
+					if (@alvo == null) speak(tr("role.shield_no_target")); // sem viagem de rede à toa
+					else client.send_use_ability(my_role.ability_id, alvo.peer_id);
 				} else {
 					client.send_use_ability(my_role.ability_id);
 				}

@@ -41,6 +41,9 @@ class game_player {
 	float kill_cooldown_remaining = 0.0;
 	// Recarga da habilidade do papel (ver role_traits.ability_id). Uma só, porque o papel tem uma só.
 	float ability_cooldown_remaining = 0.0;
+	// Escudo do anjo da guarda: enquanto maior que zero, nenhum ataque contra este jogador acontece
+	// (ver try_kill). Ele NÃO sabe que está protegido, e ninguém mais sabe.
+	float shield_remaining = 0.0;
 	uint meetings_called = 0;
 	int radar_index = -1;
 	float last_move_time = 0.0;
@@ -127,6 +130,10 @@ class game_player {
 			ability_cooldown_remaining -= delta_seconds;
 			if (ability_cooldown_remaining < 0.0) ability_cooldown_remaining = 0.0;
 		}
+		if (shield_remaining > 0.0) {
+			shield_remaining -= delta_seconds;
+			if (shield_remaining < 0.0) shield_remaining = 0.0;
+		}
 	}
 
 	bool can_kill() const {
@@ -153,6 +160,7 @@ class game_player {
 		tasks.resize(0);
 		kill_cooldown_remaining = 0.0;
 		ability_cooldown_remaining = 0.0;
+		shield_remaining = 0.0;
 		meetings_called = 0;
 		radar_index = -1;
 		last_move_time = 0.0;

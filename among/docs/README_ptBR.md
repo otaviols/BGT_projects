@@ -355,6 +355,22 @@ tarefa, do outro lado do mapa, na câmera.
 O aviso **não** diz quem matou. E ninguém sabe quem é o alarmista — nem ele tem como avisar que é.
 Para o impostor, isso muda a conta de matar num canto escondido: qualquer vítima pode ser ela.
 
+**Anjo da Guarda** (tripulação). Enquanto vivo, é um tripulante comum. **Depois de morrer**, ele
+ganha uma jogada: chegar perto de alguém vivo e apertar a tecla da habilidade. Por 30 segundos,
+nenhum ataque contra essa pessoa acontece — o impostor aperta para matar e simplesmente nada
+acontece.
+
+Três coisas importam aqui:
+
+- **Ele precisa ir até a pessoa**, como o impostor precisaria. Proteger custa a travessia.
+- **Ninguém fica sabendo.** Nem quem foi protegido, nem quem tentou matar. Só o anjo ouve o nome de
+  quem ele protegeu, na hora de lançar.
+- **Ele nunca descobre se serviu de algo.** Saber que o escudo salvou alguém seria saber que havia
+  um impostor ali — e um fantasma não pode ter esse tipo de informação.
+
+O escudo vale contra qualquer ataque, inclusive o do xerife: mirar num inocente protegido não mata
+ninguém, nem o próprio xerife.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

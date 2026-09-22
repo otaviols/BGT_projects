@@ -356,6 +356,21 @@ The alert does **not** say who killed them. And nobody knows who the noisemaker 
 for them to say so. For the impostor, that changes the math of killing in a hidden corner: any
 victim could be that one.
 
+**Guardian Angel** (crew). While alive, an ordinary crewmate. **After they die**, they get a move:
+walk up to someone alive and press the ability key. For 30 seconds, no attack against that person
+happens — the impostor presses to kill and simply nothing occurs.
+
+Three things matter here:
+
+- **They have to go to the person**, just as the impostor would. Protecting costs the walk.
+- **Nobody finds out.** Not the person protected, not the one who tried to kill. Only the angel
+  hears the name of who they protected, at the moment of casting.
+- **They never learn whether it helped.** Knowing the shield saved someone would mean knowing an
+  impostor was right there — and a ghost cannot hold that kind of information.
+
+The shield works against any attack, the sheriff's included: shooting a protected innocent kills
+nobody, not even the sheriff.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

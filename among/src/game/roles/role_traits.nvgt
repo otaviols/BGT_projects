@@ -29,9 +29,11 @@ const string ROLE_IMPOSTOR = "impostor";
 const string ROLE_ENGINEER = "engineer";
 const string ROLE_SHERIFF = "sheriff";
 const string ROLE_NOISEMAKER = "noisemaker";
+const string ROLE_GUARDIAN_ANGEL = "guardian_angel";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
+const string ABILITY_SHIELD = "shield";
 
 // Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
 // papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
@@ -40,7 +42,7 @@ const string TEAM_IMPOSTOR = "impostor";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
-const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER};
+const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER, ROLE_GUARDIAN_ANGEL};
 
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
@@ -75,7 +77,10 @@ class role_traits {
 	// enquanto: uma configuração por habilidade viraria uma tela de regras impossível de ouvir.
 	string ability_id = "";
 	float ability_cooldown_seconds = 0.0;
-	// Se a habilidade sobrevive à morte. Quase nenhuma: o anjo da guarda é justamente a exceção.
+	// EM QUE ESTADO a habilidade funciona. Os dois separados, e não um booleano "vale morto",
+	// porque há os três casos: só vivo (o normal), vivo e morto, e SÓ morto - o anjo da guarda,
+	// que é um tripulante comum até morrer.
+	bool ability_usable_alive = true;
 	bool ability_usable_dead = false;
 
 	// Ao morrer, a nave inteira ouve que ele morreu e ONDE. É a informação que este jogo não dá de
@@ -167,9 +172,30 @@ role_traits@ role_noisemaker() {
 	return t;
 }
 
+// Anjo da guarda: tripulante comum enquanto vivo, e DEPOIS de morrer pode blindar alguém.
+//
+// Existe por causa de um problema velho do jogo: quem morre cedo fica só com as tarefas. O anjo dá
+// a quem morreu uma jogada que ainda importa, sem devolver a ele poder de dedução - ele continua
+// sem votar, sem falar com vivos, e não descobre nada sobre quem é quem.
+//
+// O escudo é INVISÍVEL para todo mundo, inclusive para quem foi protegido e para quem tentou
+// matar: a tecla do impostor simplesmente não faz nada (ver try_kill). Avisar qualquer um dos dois
+// transformaria o anjo num detector de impostor - "protegi fulano e ele foi atacado" é exatamente
+// a informação que um fantasma não pode ter.
+role_traits@ role_guardian_angel() {
+	role_traits t;
+	t.id = ROLE_GUARDIAN_ANGEL;
+	t.ability_id = ABILITY_SHIELD;
+	t.ability_cooldown_seconds = GUARDIAN_SHIELD_COOLDOWN_SECONDS;
+	t.ability_usable_alive = false; // vivo ele é um tripulante como outro qualquer
+	t.ability_usable_dead = true;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
 	if (role_id == ROLE_NOISEMAKER) return role_noisemaker();
+	if (role_id == ROLE_GUARDIAN_ANGEL) return role_guardian_angel();
 	if (role_id == ROLE_ENGINEER) return role_engineer();
 	if (role_id == ROLE_SHERIFF) return role_sheriff();
 	return role_crewmate(); // desconhecido cai em tripulante: o papel mais inofensivo dos dois
@@ -258,7 +284,10 @@ class player_abilities {
 	// Votar é o único direito que a morte tira sem exceção, e por isso não olha o papel.
 	bool can_vote() const { return alive; }
 	// Tem uma habilidade ativa E pode usá-la neste estado. A recarga é conferida no servidor.
-	bool has_ability() const { return role.ability_id != "" && (alive || role.ability_usable_dead); }
+	bool has_ability() const {
+		if (role.ability_id == "") return false;
+		return alive ? role.ability_usable_alive : role.ability_usable_dead;
+	}
 
 	// --- Tarefas ---
 	// NÃO exige estar vivo: fantasma continua fazendo tarefas, e elas continuam contando para a
