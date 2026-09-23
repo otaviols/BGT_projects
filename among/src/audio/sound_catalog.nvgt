@@ -61,6 +61,9 @@ const string SND_AMBIENT_OXYGEN = "sounds/ambience/ambient_oxygen.ogg";
 const string SND_VENT_DOOR_1 = "sounds/world/vent_door1.ogg";
 const string SND_VENT_DOOR_2 = "sounds/world/vent_door2.ogg";
 const string SND_OPEN_PANEL = "sounds/world/panel_open.ogg";
+// A tampa fechando. Existia sem nunca ser tocada: o painel abria com som e terminava em silencio.
+// O de comunicacoes tem o par proprio (SND_COMMS_PANEL_*) e nao usa este.
+const string SND_PANEL_CLOSE = "sounds/world/panel_close.ogg";
 // Portas fechando/abrindo: tocam posicionados no corredor afetado, então quem está por perto ouve
 // exatamente qual passagem foi trancada.
 const string SND_DOOR_CLOSE = "sounds/world/door_close.ogg";
@@ -359,6 +362,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_VENT_DOOR_1);
 	list.insert_last(SND_VENT_DOOR_2);
 	list.insert_last(SND_OPEN_PANEL);
+	list.insert_last(SND_PANEL_CLOSE);
 	list.insert_last(SND_DOOR_CLOSE);
 	list.insert_last(SND_DOOR_OPEN);
 	list.insert_last(SND_RADAR_BEEP);

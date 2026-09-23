@@ -45,6 +45,13 @@ bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const 
 	if (sabotage_id == "lights") ok = run_lights_panel(client);
 	else if (sabotage_id == "oxygen") ok = run_oxygen_panel(client, oxygen_code);
 	else if (sabotage_id == "comms") ok = run_comms_panel(client);
+	// O painel que ABRE com um som tem que FECHAR com um: sem isso a pessoa ouvia a tampa abrindo e
+	// a tela terminava em silêncio, sem marcar que acabou. Vale nos dois fins - concluído ou
+	// desistido - porque o som é da tampa, não do resultado.
+	//
+	// O de comunicações fica de fora: ele tem o par próprio (SND_COMMS_PANEL_OPEN/CLOSE) e já toca o
+	// dele no lugar certo; tocar os dois seria a mesma tampa fechando duas vezes.
+	if (sabotage_id != "comms") task_sound_path(SND_PANEL_CLOSE);
 	// O som de "concluído" é o mesmo das tasks, e toca num lugar só - cada painel toca só o que é
 	// dele (o estalo, o código aceito, o rádio fechando).
 	if (ok) task_sound(SND_TASK_COMPLETE);

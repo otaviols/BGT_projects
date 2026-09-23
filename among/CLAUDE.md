@@ -493,6 +493,14 @@ rodando do fonte, que é o pior jeito de descobrir). E o ganho do piso se MEDE: 
 acima da referência, com picos a -1,7 dB - sem correção, uma sala de seis por seis viraria a mais
 barulhenta do mapa por acidente de gravação. Sonda: `tools/probes/probe_floor.nvgt`.
 
+**Tela que ABRE com som tem que FECHAR com som.** Os painéis de luzes e de oxigênio abriam com a
+tampa (`SND_OPEN_PANEL`, o som de interagir com o objeto no mapa) e terminavam em silêncio - nada
+marcava o fim, nem ao concluir nem ao desistir. O `panel_close.ogg` existia no repositório e nunca
+tinha sido tocado; hoje sai em `run_sabotage_panel`, nos dois fins, porque o som é da TAMPA e não do
+resultado. O de comunicações fica de fora: ele tem o par próprio (`SND_COMMS_PANEL_*`) e tocar os
+dois seria a mesma tampa fechando duas vezes. As tasks já tinham o par (`SND_TASK_INPROGRESS` ao
+abrir, `SND_TASK_COMPLETE` ao terminar) - a assimetria era só dos painéis.
+
 **Nome de arquivo de som é `snake_case`, e a PASTA diz o que o som É** - não onde ele toca:
 `events/` é acontecimento do mundo (morte, alarme, transformação, vitória), `beacons/` é marcador
 posicionado contínuo (o corpo no chão está aqui, não em events), `ui/` é interface (menu, votação,
@@ -931,8 +939,7 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
   `steps/CarpetTile*` e `steps/SnowTile*` são pisos que o mapa ainda não tem - quando houver uma
   sala de carpete ou de neve, eles entram em `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes
   (ver "piso novo entra em DUAS tabelas"); `world/nearbeep.wav` é o bip de alvo ao alcance, que está
-  na fila (converter para `.ogg` ao usar, como todo o resto); `world/panel_close.ogg` é o par do
-  `panel_open` e nunca foi tocado.
+  na fila (converter para `.ogg` ao usar, como todo o resto).
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em
   versões até a 0.11.1.
 - **Jogadores em versões anteriores à 0.9.x** precisam baixar manualmente uma vez: a build deles é
