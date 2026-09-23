@@ -64,6 +64,12 @@ class game_settings {
 	// (só no modo automático: 0 = só grito, 100 = qualquer sopro). Os dispositivos são guardados pelo
 	// NOME, e não pelo índice: a ordem da lista muda quando se liga um fone, e o índice apontaria
 	// para outro aparelho. "" = o padrão do sistema.
+	// Radar contínuo (tecla Q durante a partida). Ligado, o alvo escolhido com Tab fica bipando até
+	// sair de alcance; desligado, o Tab bipa uma vez e cala. É gosto, e divide opinião: uns querem
+	// acompanhar a pessoa sem apertar nada, outros acham o bipe constante um ruído por cima do que
+	// vieram escutar. Fica guardado porque é escolha que se faz uma vez, não a cada partida.
+	bool radar_continuous = false;
+
 	bool voice_chat_enabled = true;
 	string voice_mode = VOICE_MODE_KEY;
 	int voice_sensitivity = 50;
@@ -173,6 +179,7 @@ class game_settings {
 		if (language == "") language = DEFAULT_LANGUAGE;
 		string voice_config = store.read_string("tts", "");
 		if (voice_config != "") tts_load_config(voice_config, tts);
+		radar_continuous = store.read_number("radar_continuous", 0) != 0;
 		voice_chat_enabled = store.read_number("voice_chat_enabled", 1) != 0;
 		voice_mode = store.read_string("voice_mode", VOICE_MODE_KEY);
 		if (voice_mode != VOICE_MODE_AUTO) voice_mode = VOICE_MODE_KEY;
@@ -247,6 +254,7 @@ class game_settings {
 		store.write_string("session_token", session_token);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));
+		store.write_number("radar_continuous", radar_continuous ? 1 : 0);
 		store.write_number("voice_chat_enabled", voice_chat_enabled ? 1 : 0);
 		store.write_string("voice_mode", voice_mode);
 		store.write_number("voice_sensitivity", voice_sensitivity);

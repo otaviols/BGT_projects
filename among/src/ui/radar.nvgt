@@ -26,21 +26,26 @@ class radar_ui {
 	private string object_room_id = ""; // sala do último ciclo de objetos, pra reiniciar ao trocar de sala
 	private int object_index = -1;
 
-	// Radar travado (tecla Q): o último alvo apontado passa a bipar sozinho, com o tom pela
-	// distância, até sair do alcance ou ser solto. Substitui o "apertar Tab sem parar" para
-	// acompanhar alguém - que era o que os jogadores faziam, e pediram para não precisar fazer.
+	// Radar CONTÍNUO (tecla Q): não é uma trava num alvo, é um MODO. Ligado, o alvo que o Tab
+	// escolher fica bipando sozinho até sair de alcance; desligado, o Tab bipa uma vez e cala.
+	//
+	// Era uma trava por alvo antes: o Q só funcionava depois de um Tab, e perder o alvo desligava
+	// tudo. Como modo, a escolha é feita uma vez (e guardada nas preferências) e o Tab passa a
+	// mandar sozinho - trocar de alvo transfere o bipe, perder o alvo não desliga o modo. Os
+	// jogadores se dividem nisso: uns querem acompanhar alguém sem apertar nada, outros acham o
+	// bipe constante um ruído por cima do que vieram escutar.
 	//
 	// Continua limitado pela mesma regra do radar: mesma sala. Seguir alguém pela nave inteira de
-	// graça seria forte demais; a trava tira o spam, não o limite.
-	private uint64 last_target_peer = 0; // quem o Tab apontou por último - é nele que o Q trava
+	// graça seria forte demais; o modo tira o spam de tecla, não o limite.
+	private uint64 last_target_peer = 0; // quem o Tab apontou por último
 	private string last_target_name = "";
-	uint64 locked_peer = 0;
+	uint64 tracked_peer = 0;             // quem está bipando agora (0 = ninguém)
 	private timer track_clock;
-	// A trava vale nos dois modos. Em objetos ela é local (o objeto não sai do lugar): o bip toca no
-	// ponto do objeto com o tom pela distância até ONDE EU ESTOU, e cai quando saio da sala - o
-	// radar de objetos é da sala em que se está, e a trava não pode enxergar mais longe que ele.
+	// Vale nos dois modos. Em objetos o bipe é local (o objeto não sai do lugar): toca no ponto dele
+	// e cai quando saio da sala - o radar de objetos é da sala em que se está, e o contínuo não pode
+	// enxergar mais longe que ele.
 	private map_object@ last_target_object = null;
-	map_object@ locked_object = null;
+	map_object@ tracked_object = null;
 
 	radar_ui(game_client@ client, audio_manager@ audio) {
 		@this.client = client;
@@ -50,49 +55,65 @@ class radar_ui {
 	void toggle_mode() {
 		mode = mode == RADAR_MODE_PLAYERS ? RADAR_MODE_OBJECTS : RADAR_MODE_PLAYERS;
 		object_index = -1;
-		unlock(false); // a trava é do modo em que foi feita: trocar de modo é começar do zero
+		// O alvo é do modo em que foi escolhido; o MODO contínuo continua como está.
+		stop_tracking();
 		speak(tr(mode == RADAR_MODE_PLAYERS ? "radar.mode_players" : "radar.mode_objects"));
 	}
 
-	// Q: trava no último alvo do Tab (pessoa ou objeto, conforme o modo), ou solta se já estava.
-	void toggle_lock() {
-		if (locked_peer != 0 || @locked_object != null) { unlock(true); return; }
-		dictionary@ p = dictionary();
-		if (mode == RADAR_MODE_OBJECTS) {
-			if (@last_target_object == null) { speak(tr("radar.lock_no_target")); return; }
-			@locked_object = last_target_object;
-			p.set("name", object_name(locked_object));
-		} else {
-			if (last_target_peer == 0) { speak(tr("radar.lock_no_target")); return; }
-			locked_peer = last_target_peer;
-			p.set("name", last_target_name);
-			client.send_radar_track(locked_peer);
+	// Q: liga/desliga o radar contínuo. Não depende de haver um alvo - é uma preferência, e fica
+	// guardada. Se já houver um alvo apontado, ele começa a bipar na hora, para a tecla ter efeito
+	// audível imediato em vez de só valer "da próxima vez".
+	void toggle_continuous() {
+		g_settings.radar_continuous = !g_settings.radar_continuous;
+		g_settings.save();
+		if (!g_settings.radar_continuous) {
+			stop_tracking();
+			speak(tr("radar.continuous_off"));
+			return;
 		}
-		track_clock.restart();
-		speak(tr("radar.lock_on", p));
+		speak(tr("radar.continuous_on"));
+		start_tracking_last_target();
 	}
 
-	void unlock(bool announce) {
-		if (locked_peer == 0 && @locked_object == null) return;
-		locked_peer = 0;
-		@locked_object = null;
-		if (announce) speak(tr("radar.lock_off"));
+	// Passa a bipar o último alvo do Tab, se houver um. Chamado ao ligar o modo e a cada Tab.
+	private void start_tracking_last_target() {
+		if (!g_settings.radar_continuous) return;
+		if (mode == RADAR_MODE_OBJECTS) {
+			if (@last_target_object == null) return;
+			@tracked_object = last_target_object;
+		} else {
+			if (last_target_peer == 0) return;
+			tracked_peer = last_target_peer;
+			client.send_radar_track(tracked_peer);
+		}
+		track_clock.restart();
 	}
+
+	private void stop_tracking() {
+		tracked_peer = 0;
+		@tracked_object = null;
+	}
+
+	// Para o bipe sem desligar o modo. Usado pela reunião, que teleporta todo mundo: o alvo deixa de
+	// fazer sentido, mas a preferência do jogador não muda por causa disso.
+	void stop_tracking_public() { stop_tracking(); }
 
 	// Chamar a cada quadro, com a posição de quem ouve. Pessoa travada: pergunta ao servidor de
 	// tempos em tempos e a resposta (S_RADAR_RESULT com track) vira só o bip. Objeto travado: bipa
 	// aqui mesmo, e solta sozinho quando saio da sala do objeto.
 	void tick(game_map@ map, float x, float y) {
 		if (float(track_clock.elapsed) / 1000.0 < RADAR_TRACK_INTERVAL_SECONDS) return;
-		if (@locked_object != null) {
+		if (@tracked_object != null) {
 			track_clock.restart();
-			if (map.room_id_at(x, y) != locked_object.room_id) { @locked_object = null; speak(tr("radar.lock_lost")); return; }
-			audio.play_radar_beep(locked_object.x, locked_object.y);
+			// Perder o alvo NÃO desliga o modo contínuo: ele continua ligado esperando o próximo
+			// Tab. Antes isto era uma trava, e perdê-la obrigava a apertar Q de novo.
+			if (map.room_id_at(x, y) != tracked_object.room_id) { @tracked_object = null; speak(tr("radar.lock_lost")); return; }
+			audio.play_radar_beep(tracked_object.x, tracked_object.y);
 			return;
 		}
-		if (locked_peer == 0) return;
+		if (tracked_peer == 0) return;
 		track_clock.restart();
-		client.send_radar_track(locked_peer);
+		client.send_radar_track(tracked_peer);
 	}
 
 	void scan_next(game_map@ map, float x, float y, array<string>@ my_task_object_ids, const string&in active_sabotage_id) {
@@ -125,7 +146,9 @@ class radar_ui {
 
 		map_object@ target = objects[object_index];
 		@last_target_object = target;
-		if (@locked_object != null) @locked_object = target; // travado: o Tab move a trava, como com pessoas
+		// No contínuo, o Tab TRANSFERE o bipe para o alvo novo - é o que o jogador está dizendo ao
+		// apertar. Fora dele, o bipe abaixo é o único, e cala em seguida.
+		start_tracking_last_target();
 		audio.play_radar_beep(target.x, target.y);
 		speak(object_name(target));
 	}
@@ -135,9 +158,10 @@ class radar_ui {
 		bool tracking = pkt.get_bool("track", false);
 		if (pkt.get_bool("empty", true)) {
 			if (tracking) {
-				// O alvo travado saiu de alcance (outra sala, duto, escuro) - a trava cai e avisa,
-				// senão o silêncio pareceria o jogo travado.
-				if (locked_peer != 0 && pkt.get_bool("lost", false)) { locked_peer = 0; speak(tr("radar.lock_lost")); }
+				// O alvo saiu de alcance (outra sala, duto, escuro): o bipe para e avisa, senão o
+				// silêncio pareceria o jogo travado. O MODO contínuo continua ligado, esperando o
+				// próximo Tab - perder alguém de vista não é motivo para desligar a preferência.
+				if (tracked_peer != 0 && pkt.get_bool("lost", false)) { tracked_peer = 0; speak(tr("radar.lock_lost")); }
 				return;
 			}
 			speak(tr("radar.no_players_nearby"));
@@ -148,13 +172,13 @@ class radar_ui {
 		string name = pkt.get_string("name");
 		float distance = pkt.get_float("distance", -1.0);
 		if (tracking) {
-			if (locked_peer != 0) audio.play_radar_beep(x, y); // só o bip: o nome já foi dito ao travar
+			if (tracked_peer != 0) audio.play_radar_beep(x, y); // só o bip: o nome já foi dito no Tab
 			return;
 		}
 		last_target_peer = pkt.get_uint64("peer_id");
 		last_target_name = name;
-		// Apontar outro alvo com o Tab move a trava junto: o jogador está dizendo "este agora".
-		if (locked_peer != 0) { locked_peer = last_target_peer; track_clock.restart(); }
+		// No contínuo, o Tab TRANSFERE o bipe para quem acabou de ser apontado.
+		start_tracking_last_target();
 		audio.play_radar_beep(x, y);
 		// A contagem de "passos" (distância em unidades de mundo) não tinha uma correspondência
 		// confiável com o que se ouve andando - em vez de reportar um número que engana, só fala o

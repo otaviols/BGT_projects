@@ -739,7 +739,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// A limpeza dos corpos não é feita aqui e sim no S_MEETING_STARTED logo abaixo, que
 				// chega em seguida: lá TODOS somem de uma vez, não só o que foi reportado.
 			} else if (t == S_MEETING_STARTED) {
-				radar.unlock(false); // a reunião teleporta todo mundo: a trava não faz mais sentido
+				// A reunião teleporta todo mundo: o alvo que estava bipando não faz mais sentido. O
+				// MODO contínuo continua ligado - é preferência do jogador, não estado de partida.
+				radar.stop_tracking_public();
 				// Todo corpo some do mapa quando a reunião começa - é o que o servidor faz com a lista
 				// dele (ver start_meeting). Sem isto o cliente continuava ouvindo o som de um corpo que
 				// não existe mais e anunciando "você encontrou o corpo de fulano" em cima dele.
@@ -1184,7 +1186,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// falando por cima. Era esse o "radar continua sendo o do jogador".
 		// Q trava/solta o radar no último alvo; enquanto travado, o radar pergunta e bipa sozinho.
 		if (!movement_frozen && !cameras.active) {
-			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_lock();
+			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_continuous();
 			radar.tick(map, my_x, my_y);
 		}
 		// A tecla de falar e seus modificadores, lidos num lugar só (duas leituras de key_pressed no

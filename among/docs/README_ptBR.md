@@ -166,7 +166,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | Tab | radar: próximo alvo |
 | Shift + Tab | radar: alvo anterior |
 | Ctrl + Tab | trocar o modo do radar (jogadores / objetos da sala) |
-| Q | travar o radar no último alvo apontado (ou soltar) |
+| Q | radar contínuo: liga e desliga (ligado, o alvo do Tab fica bipando) |
 | C | dizer em que sala você está |
 | T | lista das suas tarefas, seu progresso e o do time |
 | F1 | medir o ping com o servidor |
@@ -213,12 +213,19 @@ se você a trocar nas configurações):
 - **Objetos da sala** — cicla pelo que existe na sala onde você está (tarefas, dutos, painéis,
   botão). Serve para conhecer o lugar e saber onde fica cada coisa.
 
-**Travar num alvo (Q):** depois de apontar alguém com o Tab, aperte **Q** e o radar passa a bipar
-sozinho naquela pessoa, sem precisar ficar apertando Tab. O tom do bipe sobe conforme ela se
-aproxima e desce quando se afasta. A trava continua valendo só dentro da mesma sala: se a pessoa
-sair da sala, entrar num duto ou sumir no escuro, o radar avisa e solta. Apontar outra pessoa com o
-Tab move a trava para ela; **Q** de novo solta. No modo de objetos a trava funciona igual: bipa no
-objeto marcado até você sair da sala.
+**Radar contínuo (Q):** a tecla **Q** liga e desliga o radar contínuo, e a sua escolha fica
+guardada para as próximas partidas.
+
+- **Desligado** (padrão): o Tab aponta alguém, bipa **uma vez** e cala.
+- **Ligado:** quem o Tab apontar fica **bipando sozinho**, sem precisar apertar mais nada. Apontar
+  outra pessoa com o Tab passa o bipe para ela.
+
+Vale só dentro da mesma sala, como o resto do radar: se a pessoa sair, entrar num duto ou sumir no
+escuro, o jogo avisa e o bipe para — mas o modo continua ligado, esperando o próximo Tab. No modo de
+objetos funciona igual: bipa no objeto apontado até você sair da sala.
+
+Os dois jeitos existem porque isso é gosto: tem quem queira acompanhar alguém sem apertar nada, e
+quem ache o bipe constante um ruído por cima do que veio escutar.
 
 O radar não funciona com as comunicações sabotadas, em nenhum dos dois modos.
 

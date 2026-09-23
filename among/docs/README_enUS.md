@@ -169,7 +169,7 @@ your file and English — worth sending a message about it.
 | Tab | radar: next target |
 | Shift + Tab | radar: previous target |
 | Ctrl + Tab | switch radar mode (players / room objects) |
-| Q | lock the radar on the last target pointed at (or release it) |
+| Q | continuous radar: on and off (when on, the Tab target keeps beeping) |
 | C | say which room you are in |
 | T | your task list, your progress and the team's |
 | F1 | measure ping to the server |
@@ -216,12 +216,20 @@ remap it in settings):
 - **Room objects** — cycles through what exists in the room you are in (tasks, vents, panels,
   button). Useful for learning a room and knowing where everything is.
 
-**Locking on a target (Q):** after pointing at someone with Tab, press **Q** and the radar keeps
-beeping at that person on its own, with no need to keep pressing Tab. The beep's pitch rises as they
-get closer and falls as they move away. The lock still only works within the same room: if the
-person leaves the room, enters a vent or vanishes in the dark, the radar says so and releases.
-Pointing at someone else with Tab moves the lock to them; **Q** again releases it. In objects mode
-the lock works the same way: it beeps at the marked object until you leave the room.
+**Continuous radar (Q):** the **Q** key turns the continuous radar on and off, and your choice is
+remembered for later matches.
+
+- **Off** (default): Tab points at someone, beeps **once** and goes quiet.
+- **On:** whoever Tab points at **keeps beeping** on its own, with nothing else to press. Pointing
+  at someone else with Tab hands the beep over to them.
+
+It only works within the same room, like the rest of the radar: if the person leaves, enters a vent
+or vanishes in the dark, the game says so and the beeping stops — but the mode stays on, waiting for
+the next Tab. In objects mode it works the same way: it beeps at the object you pointed at until you
+leave the room.
+
+Both ways exist because this is a matter of taste: some people want to follow someone without
+pressing anything, and some find constant beeping noise on top of what they came to listen to.
 
 The radar does not work while communications are sabotaged, in either mode.
 
