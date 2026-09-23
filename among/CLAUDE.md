@@ -415,6 +415,19 @@ recalculada por quadro, e não numa transição, senão o quadro seguinte a desf
 desfaz a fantasia**, porque lá se vota por NOME e dois nomes iguais na lista não são blefe, são
 uma tela quebrada. Sonda: `tools/probes/probe_shapeshifter.nvgt`.
 
+**Fantasma: a invisibilidade reaproveita a semântica do DUTO, nos mesmos três pontos.** "Presente
+mas imperceptível" já existia, e pendurar `invisible()` ao lado de `vented` em `players_in_room`
+(radar E câmera de uma vez), `on_move` (a posição é o que os outros clientes viram PASSOS - sem
+isto ele seria invisível no radar e continuaria pisando alto) e `on_voice_frame` cobre tudo sem
+inventar condição nova. Um quarto ponto esquecido seria um caminho que continua denunciando ele, e
+o silêncio do código não acusaria nada.
+
+Duas sutilezas: **matar devolve ele na hora** (senão não há jogo do outro lado), e a **reunião
+também** - invisível não é ouvido, e ficar mudo na mesa sem explicação é um sinal luminoso de quem
+é o fantasma. E `was_invisible` existe porque `invisible_remaining == 0` não distingue "acabou de
+voltar" de "nunca sumiu": sem a marca, o som da volta tocaria para todo mundo, o tempo todo. Sonda:
+`tools/probes/probe_phantom.nvgt`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a
@@ -869,6 +882,10 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
   oferecida por Bauti (#31) - já existe um `es_LATAM` em uso; responder pelo `reply_feedback.ps1`.
   Já atendidos: mapa/orientação (Conhecer o mapa), regras na sala (O), radar travado (Q), partidas
   privadas.
+- **`sounds/world/phantom_vanish.ogg` não existe** (branch `roles`). É o som de o fantasma sumir e
+  voltar - o ÚNICO sinal que a tripulação tem dele, ou seja, o preço inteiro da habilidade. O
+  `check_sounds` acusa a cada build. **Não reaproveite o `shape_shift.ogg`**: aquele já significa
+  "alguém mudou de cara", e dois eventos com o mesmo som deixam os dois ilegíveis.
 - **`sounds/ejected.ogg` não existe.** Está no catálogo, o `build_pack` avisa a cada build, e o jogo
   compilado sai sem o som de alguém ser expulso na votação.
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em

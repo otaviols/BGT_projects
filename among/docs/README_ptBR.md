@@ -398,6 +398,20 @@ Dura 45 segundos e tem uma recarga longa. Duas coisas o impedem de ser gratuito:
 
 A **reunião desfaz tudo**: na mesa todo mundo é quem é, porque ali se vota por nome.
 
+**Fantasma** (impostor). Com a tecla da habilidade ele **some por 20 segundos**: não aparece no
+radar, não aparece na câmera, **não faz som de passos** e não é ouvido no chat de voz. É o único
+papel que tira som em vez de mudar o que ele significa — e, num jogo em que o passo alheio é a
+pista principal, alguém atravessando a nave sem pisar é a coisa mais perigosa que existe.
+
+O preço é alto:
+
+- **Sumir e voltar fazem barulho**, no lugar onde ele está. Quem estiver perto ouve — e sabe que
+  por alguns segundos tem alguém ali que não vai ouvir mais.
+- **Matar devolve ele na hora.** O instante do crime acaba com a invisibilidade, com som e tudo.
+- Enquanto sumido, **ele também não fala.**
+
+A reunião também o devolve.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

@@ -50,6 +50,16 @@ class game_player {
 	// que garante que o disfarce não tenha buracos - um único ponto esquecido entregaria a jogada.
 	string disguise_name = "";
 	float disguise_remaining = 0.0;
+
+	// Invisibilidade do fantasma. Enquanto durar, este jogador é "presente mas imperceptível" - a
+	// MESMA semântica de quem está dentro de um duto, e por isso pendurada nos mesmos três pontos
+	// (players_in_room, on_move e on_voice_frame) em vez de espalhada em condições novas.
+	float invisible_remaining = 0.0;
+	bool invisible() const { return invisible_remaining > 0.0; }
+	// Ele ESTAVA invisível e ainda não foi avisado de que voltou. Sem esta marca não dá para
+	// distinguir "acabou de reaparecer" de "nunca sumiu": os dois têm o contador em zero, e o
+	// servidor tocaria o som de volta para todo mundo, o tempo todo.
+	bool was_invisible = false;
 	uint meetings_called = 0;
 	int radar_index = -1;
 	float last_move_time = 0.0;
@@ -141,10 +151,16 @@ class game_player {
 			if (shield_remaining < 0.0) shield_remaining = 0.0;
 		}
 		// O disfarce NÃO é desfeito aqui: quem o desfaz precisa avisar o jogador e tocar o som, e
-		// isso é do servidor (ver tick_disguises). Aqui só o relógio anda.
+		// isso é do servidor (ver tick_disguises). Aqui só o relógio anda. O mesmo vale para a
+		// invisibilidade.
 		if (disguise_remaining > 0.0) {
 			disguise_remaining -= delta_seconds;
 			if (disguise_remaining < 0.0) disguise_remaining = 0.0;
+		}
+		if (invisible_remaining > 0.0) {
+			was_invisible = true; // quem zerar isto é quem AVISAR que ele voltou (expire_invisibility)
+			invisible_remaining -= delta_seconds;
+			if (invisible_remaining < 0.0) invisible_remaining = 0.0;
 		}
 	}
 
@@ -190,6 +206,8 @@ class game_player {
 		shield_remaining = 0.0;
 		disguise_name = "";
 		disguise_remaining = 0.0;
+		invisible_remaining = 0.0;
+		was_invisible = false;
 		meetings_called = 0;
 		radar_index = -1;
 		last_move_time = 0.0;

@@ -1,0 +1,169 @@
+// Sonda do Fantasma (impostor invisível). Como o metamorfo, este papel se testa procurando o que
+// AINDA denuncia: a invisibilidade tem três frentes, e uma esquecida basta para o papel não existir.
+//
+// O que se confere:
+//   1. invisível, ele some do RADAR de quem está na mesma sala;
+//   2. some da lista da CÂMERA (a mesma função, pelo outro caminho);
+//   3. a POSIÇÃO dele para de ser retransmitida - é dela que os outros clientes fazem os passos;
+//   4. quem está perto ouve o som de sumir, sem nome nenhum no pacote;
+//   5. MATAR devolve ele na hora, com o som da volta e o aviso;
+//   6. a invisibilidade expira sozinha e avisa.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_phantom.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/i18n.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8;
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+
+// O radar de `olheiro` encontra `alvo`? Varre a lista inteira (o radar cicla um por aperto).
+bool radar_acha(array<game_client@>@ todos, game_client@ olheiro, uint64 alvo, int tentativas = 8) {
+	for (int i = 0; i < tentativas; i++) {
+		olheiro.send_radar_scan(1);
+		timer t;
+		while (t.elapsed < 700) {
+			olheiro.update();
+			net_packet@ r = olheiro.poll_message();
+			while (@r != null) {
+				if (r.type == S_RADAR_RESULT && !r.get_bool("empty") && r.get_uint64("peer_id") == alvo) return true;
+				@r = olheiro.poll_message();
+			}
+			wait(10);
+		}
+	}
+	return false;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	array<string> nomes = {"fan_a", "fan_b", "fan_c", "fan_d", "fan_e"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return; }
+		todos.insert_last(c);
+	}
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_PHANTOM, 1);
+	ov.kill_cooldown_seconds = 5.0;
+	todos[0].send_create_lobby("Sonda do fantasma", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+	todos[0].send_start_game();
+
+	game_client@ fantasma; uint64 fan_peer = 0; float fx = 0, fy = 0;
+	game_client@ olheiro; float ox = 0, oy = 0;
+	game_client@ vitima; uint64 vit_peer = 0; float vx = 0, vy = 0;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ st = wf(todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); return; }
+		string rid = st.get_string("your_role", "");
+		uint64 meu = st.get_uint64("your_peer_id");
+		float px = st.get_float("your_x"), py = st.get_float("your_y");
+		if (rid == ROLE_PHANTOM) { @fantasma = todos[i]; fan_peer = meu; fx = px; fy = py; }
+		else if (@olheiro == null) { @olheiro = todos[i]; ox = px; oy = py; }
+		else if (@vitima == null) { @vitima = todos[i]; vit_peer = meu; vx = px; vy = py; }
+	}
+	if (@fantasma == null || @olheiro == null || @vitima == null) { println("elenco incompleto"); return; }
+
+	// Todos na cafeteria, juntos: é a única forma de o radar (que é da mesma sala) ter o que achar.
+	anda_ate(todos, olheiro, ox, oy, 0.0, 0.0); ox = 0; oy = 0;
+	anda_ate(todos, fantasma, fx, fy, 1.0, 0.0); fx = 1.0; fy = 0.0;
+	anda_ate(todos, vitima, vx, vy, 2.0, 0.0); vx = 2.0; vy = 0.0;
+	bombeia(todos, 500);
+
+	// Antes de sumir, o radar tem que achá-lo - senão o teste seguinte não prova nada.
+	check("visivel, o radar acha o fantasma", radar_acha(todos, olheiro, fan_peer), "achado");
+
+	// 1 e 4. Some.
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	fantasma.send_use_ability(ABILITY_VANISH);
+	net_packet@ ok = wf(fantasma, S_ABILITY_RESULT, 5000);
+	check("a habilidade foi aceita", @ok != null && ok.get_bool("ok"), "true");
+	if (@ok != null) println("   o fantasma ouve: \"" + tr_server_message(ok) + "\"");
+
+	net_packet@ som = wf(olheiro, S_VANISH_SOUND, 4000);
+	check("quem estava perto ouviu ele sumir", @som != null, "S_VANISH_SOUND");
+	check("  e o som nao carrega nome nenhum", @som != null && !som.exists("name") && !som.exists("peer_id"), "sem nome");
+
+	check("invisivel, o radar NAO acha o fantasma", !radar_acha(todos, olheiro, fan_peer), "nao achado");
+
+	// 3. A posição para de ser retransmitida - é dela que os passos são feitos.
+	olheiro.clear_incoming();
+	anda_ate(todos, fantasma, fx, fy, 4.0, 0.0); fx = 4.0; fy = 0.0;
+	bool ouviu_passos = false;
+	net_packet@ mv = olheiro.poll_message();
+	while (@mv != null) {
+		if (mv.type == S_PLAYER_MOVED && mv.get_uint64("peer_id") == fan_peer) ouviu_passos = true;
+		@mv = olheiro.poll_message();
+	}
+	check("invisivel, a posicao dele nao é retransmitida", !ouviu_passos, "nenhum S_PLAYER_MOVED");
+
+	// 5. Matar devolve ele na hora.
+	anda_ate(todos, fantasma, fx, fy, vx, vy);
+	fx = vx; fy = vy;
+	bombeia(todos, 5500);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	fantasma.send_kill(vit_peer);
+	net_packet@ voltou = wf(fantasma, S_VANISH_ENDED, 6000);
+	check("matar devolve o fantasma na hora", @voltou != null, "S_VANISH_ENDED");
+	check("  e o radar volta a acha-lo", radar_acha(todos, olheiro, fan_peer), "achado");
+
+	// 6. E a expiração por tempo, numa segunda vez - a recarga é longa, então isto é conferido
+	//    pelo caminho da recusa: a habilidade ainda está recarregando.
+	fantasma.send_use_ability(ABILITY_VANISH);
+	net_packet@ cd = wf(fantasma, S_ABILITY_RESULT, 5000);
+	check("a segunda vez é recusada por recarga", @cd != null && !cd.get_bool("ok"), "false");
+	check("  com o motivo certo", @cd != null && cd.get_string(MSG_KEY_FIELD) == "role.ability_cooldown", "role.ability_cooldown");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

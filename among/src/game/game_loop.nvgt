@@ -504,6 +504,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// Quanto falta da fantasia do shapeshifter. Só para ele responder à tecla sem ir à rede; quem
 	// desfaz de verdade é o servidor, que avisa por S_SHIFT_ENDED.
 	float my_disguise_remaining = 0.0;
+	// Idem para a invisibilidade do fantasma: o servidor é quem manda, isto é só para a tecla
+	// responder na hora e para o microfone não abrir à toa.
+	float my_invisible_remaining = 0.0;
 	// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
 	// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
 	bool alive = true;
@@ -831,6 +834,13 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					string motivo = pkt.get_string("message_key");
 					if (motivo != "") speak(tr(motivo));
 				}
+			} else if (t == S_VANISH_SOUND) {
+				// O fantasma sumindo ou voltando, no ponto dele. Sem nome: quem ouve sabe que algo
+				// aconteceu ali, e a partir de agora (ou até agora) não vai ouvir mais nada dele.
+				audio.play_vanish(pkt.get_float("x"), pkt.get_float("y"));
+			} else if (t == S_VANISH_ENDED) {
+				my_invisible_remaining = 0.0;
+				speak(tr("role.vanish_ended"));
 			} else if (t == S_SHIFT_SOUND) {
 				// Alguém mudou de cara por perto. Posicionado e sem nome nenhum: quem ouve sabe que
 				// algo aconteceu ali, não quem nem em quem.
@@ -855,6 +865,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// estivesse por perto ouviria que alguém acabou de ser blindado.
 					string qual = pkt.get_string("ability");
 					if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
+					if (qual == ABILITY_VANISH) {
+						my_invisible_remaining = PHANTOM_INVISIBLE_SECONDS;
+						task_sound_simple(SND_VANISH); // o dele toca na hora; para os outros vem posicionado
+					}
 					if (qual == ABILITY_SHAPESHIFT) {
 						my_disguise_remaining = SHAPESHIFT_DURATION_SECONDS;
 						// O som dele toca aqui, na hora, sem esperar a rede - como o do duto. Para os
@@ -1036,7 +1050,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// deixou o microfone fechado a reunião inteira. O servidor descarta a voz de quem está
 		// disfarçado de qualquer jeito (ver on_voice_frame); aqui é para não capturar à toa e para
 		// o jogador não achar que está falando.
-		g_voice.allowed = voice_room_allows && !radio_down && my_disguise_remaining <= 0.0;
+		g_voice.allowed = voice_room_allows && !radio_down
+			&& my_disguise_remaining <= 0.0 && my_invisible_remaining <= 0.0;
 
 		if (my_role.can_kill && my_kill_cooldown_remaining > 0.0) {
 			my_kill_cooldown_remaining -= delta;
@@ -1053,6 +1068,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		if (my_disguise_remaining > 0.0) {
 			my_disguise_remaining -= delta;
 			if (my_disguise_remaining < 0.0) my_disguise_remaining = 0.0;
+		}
+		if (my_invisible_remaining > 0.0) {
+			my_invisible_remaining -= delta;
+			if (my_invisible_remaining < 0.0) my_invisible_remaining = 0.0;
 		}
 
 		if (!movement_frozen && !is_vented) {
@@ -1297,6 +1316,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					dictionary@ cd = dictionary();
 					cd.set("seconds", "" + int(my_ability_cooldown_remaining + 0.5));
 					speak(tr("role.ability_cooldown", cd));
+				} else if (my_role.ability_id == ABILITY_VANISH && my_invisible_remaining > 0.0) {
+					// Já invisível: diz quanto falta em vez de gastar a recarga de novo.
+					dictionary@ vp = dictionary();
+					vp.set("seconds", "" + int(my_invisible_remaining + 0.5));
+					speak(tr("role.vanish_active", vp));
 				} else if (my_role.ability_id == ABILITY_SHAPESHIFT) {
 					// Já disfarçado, a tecla não abre o menu de novo: ela diz quanto tempo falta.
 					// Sem isto, apertar por engano gastaria a recarga inteira para trocar de cara.

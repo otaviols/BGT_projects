@@ -400,6 +400,20 @@ It lasts 45 seconds and has a long recharge. Two things keep it from being free:
 A **meeting undoes it**: at the table everyone is themselves, because that is where votes are cast
 by name.
 
+**Phantom** (impostor). With the ability key they **vanish for 20 seconds**: no radar, no cameras,
+**no footstep sound**, and not heard in voice chat. It is the only role that removes sound instead
+of changing what it means — and in a game where other people's footsteps are the main clue, someone
+crossing the ship without stepping is the most dangerous thing there is.
+
+The price is steep:
+
+- **Vanishing and returning both make noise**, where they stand. Anyone nearby hears it — and knows
+  that for a few seconds there is someone there they will not hear again.
+- **Killing brings them back at once.** The moment of the crime ends the invisibility, noise and all.
+- While vanished, **they cannot speak either.**
+
+A meeting also brings them back.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

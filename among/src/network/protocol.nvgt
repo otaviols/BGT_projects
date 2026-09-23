@@ -165,6 +165,11 @@ const string S_DEATH_ALARM = "s_death_alarm";            // {name, room_key}
 const string S_SHIFT_SOUND = "s_shift_sound";            // {x, y}
 // Só para o próprio shapeshifter: a fantasia acabou (tempo, ou reunião começando).
 const string S_SHIFT_ENDED = "s_shift_ended";            // {}
+// O fantasma sumiu, ou voltou. O SOM vai a quem está perto, sem nome nenhum - quem ouve sabe que
+// algo aconteceu ali, e ao sumir ele para de existir para o radar, para os passos e para a voz.
+const string S_VANISH_SOUND = "s_vanish_sound";          // {x, y}
+// Só para o próprio fantasma: a invisibilidade acabou (tempo, matar, ou reunião).
+const string S_VANISH_ENDED = "s_vanish_ended";          // {}
 const string S_MEETING_STARTED = "s_meeting_started";     // {reason, caller_peer, discussion_time}
 const string S_VOTING_STARTED = "s_voting_started";       // {voting_time, candidates: [...]}
 const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejected_name, was_impostor, tie, vote_breakdown: [{voter_name, target_name, skipped}]}

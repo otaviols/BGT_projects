@@ -261,6 +261,9 @@ class game_server {
 		// shapeshifter estaria entregue. Calar o microfone é o preço da fantasia, e o cliente dele
 		// sabe disso (ver g_voice.allowed no laço da partida).
 		if (talker.disguised()) return;
+		// Invisível também não: a voz é posicionada, então uma frase diria exatamente onde ele está -
+		// e ele acabou de pagar uma habilidade para não estar em lugar nenhum.
+		if (talker.invisible()) return;
 		string wire = voice_wire(peer_id, audio);
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			game_player@ p = lobby.players[i];
@@ -446,6 +449,14 @@ class game_server {
 	// acrescenta o dele aqui e em role_traits, e nada mais.
 	bool run_ability(game_state@ lobby, game_player@ p, const string&in ability, net_packet@ pkt,
 			string&out message_key, dictionary@ message_params) {
+		if (ability == ABILITY_VANISH) {
+			if (!lobby.try_vanish(p.peer_id, message_key)) return false;
+			// Sumir faz barulho onde ele está, como a tampa de um duto. Quem estiver perto sabe que
+			// algo aconteceu ali - e é o último sinal que vai ter dele por um tempo.
+			broadcast_vanish_sound(lobby, p);
+			message_key = "role.vanish_done";
+			return true;
+		}
 		if (ability == ABILITY_SHAPESHIFT) {
 			string copiado;
 			if (!lobby.try_shapeshift(p.peer_id, pkt.get_uint64("target_peer_id"), copiado, message_key)) return false;
@@ -507,6 +518,26 @@ class game_server {
 		som.set_float("x", p.x);
 		som.set_float("y", p.y);
 		broadcast_to_lobby(lobby, som, p.peer_id);
+	}
+
+	// O som de sumir/voltar do fantasma, no ponto dele. Sem nome nenhum, como o da transformação.
+	void broadcast_vanish_sound(game_state@ lobby, game_player@ p) {
+		net_packet@ som = net_packet(S_VANISH_SOUND);
+		som.set_float("x", p.x);
+		som.set_float("y", p.y);
+		broadcast_to_lobby(lobby, som, p.peer_id);
+	}
+
+	// Quem voltou a ser percebido: por tempo, por ter matado, ou porque a reunião começou. Os três
+	// caminhos passam por aqui, e é isso que garante que o som da volta toque em todos eles.
+	void expire_invisibility(game_state@ lobby) {
+		array<uint64>@ voltaram = lobby.expire_invisibility();
+		for (uint i = 0; i < voltaram.length(); i++) {
+			game_player@ p = lobby.find_player(voltaram[i]);
+			if (@p == null) continue;
+			broadcast_vanish_sound(lobby, p);
+			send_to(p.peer_id, net_packet(S_VANISH_ENDED));
+		}
 	}
 
 	// Fantasias que venceram: a pessoa volta a ser ela, é avisada, e o som toca de novo onde ela
@@ -1136,7 +1167,11 @@ class game_server {
 		if (!lobby.try_move_player(peer_id, x, y)) return;
 
 		game_player@ p = lobby.find_player(peer_id);
-		if (@p == null || p.vented) return; // jogador escondido no vent não transmite posição
+		// Escondido no duto ou invisível não transmite posição - e é a posição que os outros clientes
+		// transformam em PASSOS. Sem isto, o fantasma seria invisível no radar e continuaria pisando
+		// alto pela nave, que num jogo em que o passo é a pista principal não é invisibilidade
+		// nenhuma.
+		if (@p == null || p.vented || p.invisible()) return;
 
 		net_packet@ moved = net_packet(S_PLAYER_MOVED);
 		moved.set_uint64("peer_id", peer_id);
@@ -2005,6 +2040,7 @@ class game_server {
 			// Fantasias que venceram. Fora do tick do game_state de propósito: desfazer o disfarce é
 			// estado, mas AVISAR quem voltou e tocar o som é rede, e rede é deste lado.
 			expire_disguises(lobby);
+			expire_invisibility(lobby);
 			// A partida acabou (o S_GAME_OVER acabou de sair): a sala REABRE para a mesma turma.
 			if (lobby.state == "ended") reopen_lobby(i);
 		}

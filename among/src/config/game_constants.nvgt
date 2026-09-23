@@ -139,6 +139,13 @@ const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
 // crítica em que ninguém chega a tempo - e nas outras a nave se vira como sempre.
 const float ENGINEER_FIX_COOLDOWN_SECONDS = 120.0;
 
+// Fantasma (impostor invisível). Mais curto que a fantasia do metamorfo: sumir do radar, dos passos
+// e da voz é forte demais para durar muito, e 20 segundos são o bastante para atravessar uma sala e
+// chegar em alguém. A recarga é longa porque o preço dele não é o tempo, é a exposição - ele sai da
+// invisibilidade no instante em que mata.
+const float PHANTOM_INVISIBLE_SECONDS = 20.0;
+const float PHANTOM_COOLDOWN_SECONDS = 90.0;
+
 // Shapeshifter. A fantasia dura o bastante para atravessar uma sala, matar e sumir - não a partida
 // inteira: viver disfarçado tiraria o custo da jogada, e a graça está em decidir QUANDO gastar a
 // janela. A recarga é o dobro, então ele tem duas ou três fantasias por partida, não uma por

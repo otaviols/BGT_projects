@@ -183,7 +183,8 @@ class game_state {
 		return players_in_room(map.room_id_at(me.x, me.y), peer_id);
 	}
 
-	// Quem está numa sala e pode ser percebido: vivo, fora de duto, e não é quem está perguntando.
+	// Quem está numa sala e pode ser percebido: vivo, fora de duto, visível, e não é quem está
+	// perguntando.
 	//
 	// A regra mora aqui e não em cada lugar que precisa dela. O radar e a câmera de segurança são
 	// duas perguntas diferentes sobre a MESMA coisa, e enquanto a câmera respondia sozinha, do lado
@@ -193,7 +194,9 @@ class game_state {
 		array<game_player@> result;
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ p = players[i];
-			if (p.peer_id == except_peer || !p.alive || p.vented) continue;
+			// `invisible()` entra ao lado de `vented` porque é a mesma ideia: presente, mas
+			// imperceptível. Pendurar aqui é o que faz o radar E a câmera concordarem de graça.
+			if (p.peer_id == except_peer || !p.alive || p.vented || p.invisible()) continue;
 			if (map.room_id_at(p.x, p.y) == room_id) result.insert_last(p);
 		}
 		return result;
@@ -269,6 +272,11 @@ class game_state {
 
 		victim.alive = false;
 		killer.kill_cooldown_remaining = config.kill_cooldown_seconds;
+		// Matar REVELA o fantasma. É o preço inteiro do papel: ele atravessa a nave sem ser
+		// percebido, mas o instante do crime o devolve ao mundo - com som, no lugar onde está, para
+		// quem estiver por perto. Sem isto ele mataria e sumiria de novo, e não haveria jogo do
+		// outro lado. Quem avisa é o servidor, pelo mesmo caminho da invisibilidade que expira.
+		if (killer.invisible()) killer.invisible_remaining = 0.0;
 
 		body_info body;
 		body.id = "body_" + victim.peer_id;
@@ -388,6 +396,14 @@ class game_state {
 			if (!players[i].disguised()) continue;
 			players[i].set_disguise("", 0.0);
 			meeting_unshifted_peers.insert_last(players[i].peer_id);
+		}
+
+		// E a invisibilidade cai junto, pelo mesmo motivo e por mais um: invisível não é ouvido, e
+		// ficar mudo na reunião sem explicação seria um sinal luminoso de quem é o fantasma - o
+		// oposto do que a habilidade existe para fazer. Quem volta é avisado pelo caminho de sempre
+		// (was_invisible + expire_invisibility no tick), então o som da volta toca aqui também.
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].invisible()) players[i].invisible_remaining = 0.0;
 		}
 
 		meeting_unvented_peers.resize(0);
@@ -886,6 +902,31 @@ class game_state {
 		p.set_disguise(target.display_name(), SHAPESHIFT_DURATION_SECONDS);
 		copied_name = p.disguise_name;
 		return true;
+	}
+
+	// O fantasma some. Devolve false só se ele não puder agora (morto, ou já invisível).
+	bool try_vanish(uint64 peer_id, string&out fail_key) {
+		fail_key = "";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (p.invisible()) { fail_key = "role.vanish_already"; return false; }
+		p.invisible_remaining = PHANTOM_INVISIBLE_SECONDS;
+		return true;
+	}
+
+	// Desfaz as invisibilidades que venceram, e devolve quem voltou a ser percebido - o servidor
+	// avisa cada um e toca o som onde ele está.
+	array<uint64>@ expire_invisibility() {
+		array<uint64> voltaram;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			// `invisible_remaining == 0` não basta para saber que ele ESTAVA invisível: é preciso um
+			// sinal de que acabou AGORA. O `was_invisible` é escrito no tick, junto do relógio.
+			if (!p.was_invisible || p.invisible()) continue;
+			p.was_invisible = false;
+			voltaram.insert_last(p.peer_id);
+		}
+		return voltaram;
 	}
 
 	// Desfaz as fantasias cujo tempo acabou. Devolve quem voltou ao normal, para o servidor avisar

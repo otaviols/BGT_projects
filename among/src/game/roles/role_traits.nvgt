@@ -32,12 +32,14 @@ const string ROLE_NOISEMAKER = "noisemaker";
 const string ROLE_GUARDIAN_ANGEL = "guardian_angel";
 const string ROLE_DETECTIVE = "detective";
 const string ROLE_SHAPESHIFTER = "shapeshifter";
+const string ROLE_PHANTOM = "phantom";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
 const string ABILITY_SHIELD = "shield";
 const string ABILITY_EXAMINE = "examine";
 const string ABILITY_SHAPESHIFT = "shapeshift";
+const string ABILITY_VANISH = "vanish";
 
 // Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
 // papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
@@ -47,7 +49,7 @@ const string TEAM_IMPOSTOR = "impostor";
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
 const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
-	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER};
+	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM};
 
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
@@ -245,9 +247,37 @@ role_traits@ role_shapeshifter() {
 	return t;
 }
 
+// Fantasma: impostor que some por completo - do radar, dos passos e da voz - por alguns segundos.
+//
+// É o inverso exato da moeda do jogo. Todos os outros papéis mexem no que o som SIGNIFICA; este
+// tira o som. Num jogo em que a pista principal é o passo alheio, alguém que atravessa a nave sem
+// pisar é a coisa mais assustadora que existe - e por isso ele paga caro: sai da invisibilidade no
+// instante em que mata, e o ato de sumir e de voltar fazem barulho, no ponto onde ele está.
+//
+// A invisibilidade reaproveita a semântica do duto ("presente mas imperceptível") e fica pendurada
+// nos MESMOS três pontos - players_in_room, on_move e on_voice_frame. Não há condição nova
+// espalhada pelo código, e é isso que impede um caminho esquecido de continuar denunciando ele.
+role_traits@ role_phantom() {
+	role_traits t;
+	t.id = ROLE_PHANTOM;
+	t.team = TEAM_IMPOSTOR;
+	t.can_kill = true;
+	t.can_vent = true;
+	t.can_sabotage = true;
+	t.can_close_doors = true;
+	t.tasks_count_for_crew = false;
+	t.immune_to_comms = true;
+	t.wins_with_crew = false;
+	t.knows_teammates = true;
+	t.ability_id = ABILITY_VANISH;
+	t.ability_cooldown_seconds = PHANTOM_COOLDOWN_SECONDS;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
 	if (role_id == ROLE_SHAPESHIFTER) return role_shapeshifter();
+	if (role_id == ROLE_PHANTOM) return role_phantom();
 	if (role_id == ROLE_NOISEMAKER) return role_noisemaker();
 	if (role_id == ROLE_DETECTIVE) return role_detective();
 	if (role_id == ROLE_GUARDIAN_ANGEL) return role_guardian_angel();
