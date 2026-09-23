@@ -171,7 +171,7 @@ const string SND_TAPE_REWIND = "tasks/rewinding_tape.mp3";      // rebobina a fi
 // fix_wiring usa 3 variantes numeradas - ver electrical_string_sound() abaixo.
 const uint ELECTRICAL_STRING_VARIANT_COUNT = 3;
 string electrical_string_sound(int variant_1_based) {
-	return "tasks/eletricalString" + variant_1_based + ".ogg";
+	return "tasks/electrical_string" + variant_1_based + ".ogg";
 }
 
 // --- Morte / kill (ver config/colors.nvgt pra fallback por cor) ---
