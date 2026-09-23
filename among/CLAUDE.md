@@ -493,6 +493,19 @@ rodando do fonte, que é o pior jeito de descobrir). E o ganho do piso se MEDE: 
 acima da referência, com picos a -1,7 dB - sem correção, uma sala de seis por seis viraria a mais
 barulhenta do mapa por acidente de gravação. Sonda: `tools/probes/probe_floor.nvgt`.
 
+**Nome de arquivo de som é `snake_case`, e a PASTA diz o que o som É** - não onde ele toca:
+`events/` é acontecimento do mundo (morte, alarme, transformação, vitória), `beacons/` é marcador
+posicionado contínuo (o corpo no chão está aqui, não em events), `ui/` é interface (menu, votação,
+chat), `world/` é objeto do cenário (porta, painel, esbarrão), `ambience/`, `steps/`, `tasks/`. Os
+nomes foram uniformizados de uma vez (`bodyReport` -> `body_reported`, `emergence` ->
+`sabotage_alarm`, `killed<N>` -> `death<N>`, que se confundia com `kill`); só `steps/` ficou como
+estava, porque os nomes ali são PREFIXOS lidos pelo código (`FOOTSTEP_FLOOR_PREFIXES`).
+
+Renomear som é seguro **desde que** o `check_sounds` rode depois: ele compara catálogo e disco nos
+dois sentidos e é a única coisa que pega um caminho errado - som que não carrega falha em silêncio.
+Cuidado com as referências CONCATENADAS (`"sounds/events/death" + i + ".ogg"`, o prefixo em
+`sound_variants_list`): elas não aparecem numa busca pelo caminho inteiro.
+
 **Som novo vai na subpasta certa de `sounds/`** (`steps`, `ambience`, `beacons`, `tasks`, `events`,
 `ui`, `world`) e o caminho no catálogo inclui a pasta. Depois de mexer em som, rode
 `nvgt tools/check_sounds.nvgt`: ele compara o catálogo com o disco **nos dois sentidos** e é a única

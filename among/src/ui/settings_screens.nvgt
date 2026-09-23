@@ -53,8 +53,8 @@ void run_settings_menu(game_client@ client = null) {
 	while (true) {
 		menu m;
 		m.intro_text = tr("menu.settings");
-		m.click_sound = "ui/menuclick.ogg";
-		m.select_sound = "ui/menuconfirm.ogg";
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 		m.add_item(tr("settings.volumes"), "volumes");
 		m.add_item(tr("settings.keys"), "keys");
@@ -142,8 +142,8 @@ void run_keys_screen() {
 	while (true) {
 		menu m;
 		m.intro_text = tr("settings.keys_hint");
-		m.click_sound = "ui/menuclick.ogg";
-		m.select_sound = "ui/menuconfirm.ogg";
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 
 		for (uint i = 0; i < g_keys.bindings.length(); i++) {
@@ -232,8 +232,8 @@ void run_language_screen() {
 
 	menu m;
 	m.intro_text = tr("settings.language_hint");
-	m.click_sound = "ui/menuclick.ogg";
-	m.select_sound = "ui/menuconfirm.ogg";
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 
 	for (uint i = 0; i < codes.length(); i++) {
@@ -424,8 +424,8 @@ void run_output_device_screen() {
 	const array<string>@ outputs = get_sound_output_devices();
 	menu m;
 	m.intro_text = tr("settings.output_device_hint");
-	m.click_sound = "ui/menuclick.ogg";
-	m.select_sound = "ui/menuconfirm.ogg";
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 	m.add_item(tr("settings.device_default") + (g_settings.audio_output_device == "" ? " " + tr("settings.device_current") : ""), "default");
 	for (uint i = 0; i < outputs.length(); i++) {

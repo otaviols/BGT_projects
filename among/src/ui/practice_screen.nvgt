@@ -46,8 +46,8 @@ void run_practice_screen() {
 	while (true) {
 		menu m;
 		m.intro_text = tr("practice.hint");
-		m.click_sound = "ui/menuclick.ogg";
-		m.select_sound = "ui/menuconfirm.ogg";
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 		for (uint i = 0; i < PRACTICE_TASKS.length(); i++) {
 			m.add_item(tr("task." + PRACTICE_TASKS[i] + ".name"), "task:" + PRACTICE_TASKS[i]);

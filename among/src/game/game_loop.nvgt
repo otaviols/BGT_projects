@@ -221,8 +221,8 @@ void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.doors_menu_hint");
-	m.click_sound = "ui/menuclick.ogg";
-	m.select_sound = "ui/menuconfirm.ogg";
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = imp.client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -246,8 +246,8 @@ void run_shapeshift_menu(game_client@ client, client_roster@ roster) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("role.shift_menu_hint");
-	m.click_sound = "ui/menuclick.ogg";
-	m.select_sound = "ui/menuconfirm.ogg";
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -268,8 +268,8 @@ void run_sabotage_menu(impostor_controller@ imp) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.sabotage_menu_hint");
-	m.click_sound = "ui/menuclick.ogg";
-	m.select_sound = "ui/menuconfirm.ogg";
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = imp.client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -291,8 +291,8 @@ void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.vent_menu_hint");
-	m.click_sound = "ui/menuclick.ogg";
-	m.select_sound = "ui/menuconfirm.ogg";
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = imp.client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -360,8 +360,8 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
 	m.intro_text = tr("game.tasks_menu_hint");
-	m.click_sound = "ui/menuclick.ogg";
-	m.select_sound = "ui/menuconfirm.ogg";
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -414,8 +414,8 @@ void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 
 	menu m;
 	m.intro_text = tr(crewmates_won ? "game.crewmates_win" : "game.impostors_win");
-	m.click_sound = "ui/menuclick.ogg";
-	m.select_sound = "ui/menuconfirm.ogg";
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = client;
 	@m.background_callback = @pump_client_during_game_menu;
@@ -855,6 +855,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				my_disguise_remaining = 0.0;
 				speak(tr("role.shift_ended"));
 			} else if (t == S_DEATH_ALARM) {
+				// O alarme toca SEM posição, para a nave inteira: ele não marca um lugar - a sala vai
+				// dita na fala logo em seguida -, é o aviso de que aconteceu. Antes da fala, para o
+				// som chamar a atenção e o texto explicar.
+				task_sound_simple(SND_NOISEMAKER_ALARM);
 				string alarm_text = death_alarm_text(pkt);
 				// `!pkt.announced`: se uma tela bloqueante já disse isto, não repete ao fechá-la.
 				if (!pkt.announced) speak(alarm_text);

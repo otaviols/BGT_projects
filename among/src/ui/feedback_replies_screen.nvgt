@@ -51,8 +51,8 @@ void run_feedback_replies_screen(game_client@ client, json_array@ replies) {
 	while (@replies != null && replies.length() > 0) {
 		menu m;
 		m.intro_text = tr("feedback.replies_hint");
-		m.click_sound = "ui/menuclick.ogg";
-		m.select_sound = "ui/menuconfirm.ogg";
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 		@g_replies_pump_client = client;
 		@m.background_callback = @pump_client_during_replies_menu;

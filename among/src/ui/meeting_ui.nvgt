@@ -261,7 +261,7 @@ class meeting_ui {
 		ui_sound(SND_DIALOG_OPEN);
 		menu vote_menu;
 		vote_menu.intro_text = tr("game.meeting_voting");
-		vote_menu.click_sound = "ui/menuclick.ogg";
+		vote_menu.click_sound = "ui/menu_click.ogg";
 		vote_menu.select_sound = ""; // os sons de marcar e confirmar são os do voto, tocados abaixo
 		vote_menu.sounds_prefix = "sounds/";
 		@g_vote_pump_client = client;

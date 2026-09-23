@@ -9,26 +9,26 @@
 #include "../config/colors.nvgt"
 
 // --- UI / menus (sem posição) ---
-const string SND_MENU_CLICK = "sounds/ui/menuclick.ogg";
-const string SND_MENU_CONFIRM = "sounds/ui/menuconfirm.ogg";
+const string SND_MENU_CLICK = "sounds/ui/menu_click.ogg";
+const string SND_MENU_CONFIRM = "sounds/ui/menu_confirm.ogg";
 const string SND_INTRO = "sounds/ui/intro.ogg";
-const string SND_PLAYER_ENTER = "sounds/ui/PlayerEnter.ogg";
-const string SND_PLAYER_LEAVE = "sounds/ui/PlayerLeave.ogg";
-const string SND_START_GAME = "sounds/events/startGame.ogg";
+const string SND_PLAYER_ENTER = "sounds/ui/player_enter.ogg";
+const string SND_PLAYER_LEAVE = "sounds/ui/player_leave.ogg";
+const string SND_START_GAME = "sounds/events/start_game.ogg";
 // Fim de partida: um jingle por TIME vencedor, para todo mundo - como no original, onde a música do
 // fim diz quem ganhou, não se VOCÊ ganhou. A derrota é ouvir a música do outro time.
 const string SND_VICTORY_CREW = "sounds/events/victory_crew.ogg";
 const string SND_VICTORY_IMPOSTOR = "sounds/events/victory_impostor.ogg";
 const string SND_VICTORY_DISCONNECT = "sounds/events/victory_disconnect.ogg"; // reservado: vitória por desistência do outro lado
-const string SND_MEETING_RESULT = "sounds/events/meetingResult.ogg"; // toca assim que o resultado da votação chega, antes de saber quem foi expulso
+const string SND_MEETING_RESULT = "sounds/events/meeting_result.ogg"; // toca assim que o resultado da votação chega, antes de saber quem foi expulso
 const string SND_EJECTED = "sounds/events/ejected.ogg"; // toca 1x pra nave inteira logo depois, só quando alguém É expulso
-const string SND_MEETING_ALARM = "sounds/events/emergence_button_alarm.ogg"; // toca (ship-wide) quando o botão de emergência chama a reunião
-const string SND_VOTE_SELECT = "sounds/events/voteSelect.ogg";   // marcou um nome (ainda não votou)
-const string SND_VOTE_CONFIRM = "sounds/events/voteConfirm.ogg"; // confirmou o voto
-const string SND_VOTE_TIMER = "sounds/events/vote_timer.ogg";    // tique dos últimos segundos da votação
-const string SND_BODY_REPORTED = "sounds/events/bodyReport.ogg"; // toca 1x pra nave inteira quando o corpo é reportado
-const string SND_MESSAGE_SENT = "sounds/ui/MessageSent.ogg";       // toca pra quem manda uma msg no chat
-const string SND_MESSAGE_RECEIVED = "sounds/ui/MessageReceived.ogg"; // toca pra quem recebe uma msg de outro jogador
+const string SND_MEETING_ALARM = "sounds/events/meeting_alarm.ogg"; // toca (ship-wide) quando o botão de emergência chama a reunião
+const string SND_VOTE_SELECT = "sounds/ui/vote_select.ogg";   // marcou um nome (ainda não votou)
+const string SND_VOTE_CONFIRM = "sounds/ui/vote_confirm.ogg"; // confirmou o voto
+const string SND_VOTE_TIMER = "sounds/ui/vote_timer.ogg";    // tique dos últimos segundos da votação
+const string SND_BODY_REPORTED = "sounds/events/body_reported.ogg"; // toca 1x pra nave inteira quando o corpo é reportado
+const string SND_MESSAGE_SENT = "sounds/ui/message_sent.ogg";       // toca pra quem manda uma msg no chat
+const string SND_MESSAGE_RECEIVED = "sounds/ui/message_received.ogg"; // toca pra quem recebe uma msg de outro jogador
 
 // --- Diálogos (menus dentro da partida, votação) ---
 // Os arquivos antigos (openDialog/closeDialog) eram na verdade os sons de task concluída e de task
@@ -39,11 +39,11 @@ const string SND_DIALOG_CLOSE = "sounds/ui/panel_disappear.ogg";
 
 // --- Cenário / ambiente ---
 const string SND_SHIP_AMBIENCE = "sounds/ambience/ambience.ogg";     // loop, nave inteira, toca a partida inteira
-const string SND_SABOTAGE_ALARM = "sounds/events/emergence.ogg";   // loop, nave inteira, enquanto sabotagem ativa
+const string SND_SABOTAGE_ALARM = "sounds/events/sabotage_alarm.ogg";   // loop, nave inteira, enquanto sabotagem ativa
 const string SND_PASSAGE = "sounds/ambience/passage.ogg";            // loop, um arquivo só, em todo corredor
 const string SND_WALL_BUMP = "sounds/world/wall_bump.ogg";        // toca ao esbarrar fora de sala/corredor
 const string SND_DOOR_BUMP = "sounds/world/door_bump.ogg";        // esbarrão numa PORTA trancada (não é parede: abre sozinha daqui a pouco)
-const string SND_BODY_ON_FLOOR = "sounds/events/body.ogg";         // loop no local do corpo até ser reportado
+const string SND_BODY_ON_FLOOR = "sounds/beacons/body.ogg";         // loop no local do corpo até ser reportado
 const string SND_AMBIENT_CAFETERIA = "sounds/ambience/ambient_cafeteria.ogg";
 const string SND_AMBIENT_WEAPONS = "sounds/ambience/ambient_weapons.ogg";
 const string SND_AMBIENT_NAVIGATION = "sounds/ambience/ambient_navigation.ogg";
@@ -58,26 +58,29 @@ const string SND_AMBIENT_SECURITY = "sounds/ambience/ambient_security.ogg";
 const string SND_AMBIENT_OXYGEN = "sounds/ambience/ambient_oxygen.ogg";
 
 // --- Objetos do mapa (som de UMA VEZ ao usar - abrir painel, entrar/sair do vent) ---
-const string SND_VENT_DOOR_1 = "sounds/world/ventDoor1.ogg";
-const string SND_VENT_DOOR_2 = "sounds/world/ventDoor2.ogg";
-const string SND_OPEN_PANEL = "sounds/world/openPanel.ogg";
+const string SND_VENT_DOOR_1 = "sounds/world/vent_door1.ogg";
+const string SND_VENT_DOOR_2 = "sounds/world/vent_door2.ogg";
+const string SND_OPEN_PANEL = "sounds/world/panel_open.ogg";
 // Portas fechando/abrindo: tocam posicionados no corredor afetado, então quem está por perto ouve
 // exatamente qual passagem foi trancada.
-const string SND_DOOR_CLOSE = "sounds/world/CloseDoor.ogg";
-const string SND_DOOR_OPEN = "sounds/world/OpenDoor.ogg";
+const string SND_DOOR_CLOSE = "sounds/world/door_close.ogg";
+const string SND_DOOR_OPEN = "sounds/world/door_open.ogg";
 const string SND_DOOR_SWITCH = "sounds/world/door_switch.ogg"; // reservado: interruptor para reabrir porta trancada, ideia para um mapa futuro (não usado neste)
 // Anjo da guarda lançando o escudo. Só o anjo ouve, e SEM posição: é a confirmação de que a
 // habilidade saiu, não um evento do mundo - se tocasse no ponto do protegido, quem estivesse por
 // perto ouviria e saberia que alguém acabou de ser blindado.
-const string SND_SHIELD_CAST = "sounds/world/Protect_cast_shield.ogg";
+const string SND_SHIELD_CAST = "sounds/events/shield_cast.ogg";
 // Shapeshifter mudando de cara (e voltando). Posicionado para quem está por perto, como a tampa de
 // um duto: é o que impede a fantasia de ser grátis. Quem ouve sabe que algo aconteceu ali, nunca
 // quem nem em quem.
-const string SND_SHAPE_SHIFT = "sounds/world/shape_shift.ogg";
+const string SND_SHAPE_SHIFT = "sounds/events/shapeshift.ogg";
 // Fantasma sumindo e voltando. SÓ ELE ouve, e sem posição: é o aviso de que o estado mudou, não um
 // acontecimento do mundo. Sumir não faz som nenhum para quem está por perto - decisão de jogo, e é
 // o que torna o fantasma diferente do duto, que denuncia nas duas pontas.
-const string SND_VANISH = "sounds/world/Phantom_role_reveal.ogg";
+const string SND_VANISH = "sounds/events/phantom_vanish.ogg";
+// O alarme do alarmista, quando ele morre. Vai para a nave INTEIRA e sem posicao: ele nao marca
+// um lugar (a sala vai dita na fala), e' o aviso de que aconteceu.
+const string SND_NOISEMAKER_ALARM = "sounds/events/noisemaker_alarm.ogg";
 
 // --- Painéis de reparo (o que toca DENTRO do conserto - ver game/sabotage_panels.nvgt) ---
 const string SND_BREAKER_SWITCH = "world/breaker_switch.ogg";     // luzes: estalo de um disjuntor
@@ -137,10 +140,10 @@ const string SND_FUEL_GRAB = "tasks/fuel_grab.ogg";
 const string SND_TASK_INPROGRESS = "tasks/task_inprogress.ogg"; // abriu uma task, ou fechou sem terminar
 const string SND_TASK_COMPLETE = "tasks/task_complete.ogg";     // fechou a task terminada
 const string SND_BEEP = "tasks/beep.ogg";
-const string SND_BEEP_COMPLETE = "tasks/BeepComplet.ogg"; // etapa dentro de uma task (ex.: lixo puxado); NÃO é "task concluída" - isso é SND_TASK_COMPLETE, tocado pelo task_manager
-const string SND_CARD_ERROR = "tasks/CardError.ogg";
-const string SND_CARD_COMPLETE = "tasks/CardComplet.ogg"; // o leitor aceitou o cartão - só na task do cartão
-const string SND_GET_CARD = "tasks/GetCard.ogg";
+const string SND_BEEP_COMPLETE = "tasks/beep_complete.ogg"; // etapa dentro de uma task (ex.: lixo puxado); NÃO é "task concluída" - isso é SND_TASK_COMPLETE, tocado pelo task_manager
+const string SND_CARD_ERROR = "tasks/card_error.ogg";
+const string SND_CARD_COMPLETE = "tasks/card_complete.ogg"; // o leitor aceitou o cartão - só na task do cartão
+const string SND_GET_CARD = "tasks/get_card.ogg";
 const string SND_PULLING_GARBAGE_LEVER = "tasks/pulling_garbage_lever.ogg"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
 const string SND_ASTEROID_FIRE = "tasks/asteroid_fire.ogg"; // cada tiro na task de limpar asteroides
 const uint ASTEROID_HIT_VARIANT_COUNT = 3;                   // asteroid_hit1..3: o acerto, variado para não virar bipe
@@ -151,7 +154,7 @@ const string SND_MEDBAY_SCAN = "tasks/medbay_scan.ogg";     // o scanner da enfe
 const string SND_DICE = "tasks/dice.ogg";                       // dado rolando na sala de jogos
 const string SND_WATER_FLOW = "tasks/waterflow.ogg";            // loop: água correndo enquanto se rega uma muda
 const string SND_FILLING = "tasks/filling.ogg";                 // começou a regar este canteiro
-const string SND_FILLING_COMPLETE = "tasks/filling_complet.ogg"; // o canteiro encheu: é a hora de soltar
+const string SND_FILLING_COMPLETE = "tasks/filling_complete.ogg"; // o canteiro encheu: é a hora de soltar
 
 // Goles de água: marcam cada etapa do canteiro enchendo. São variantes justamente pra não virar um
 // bipe repetido - mesma ideia dos passos por piso.
@@ -381,6 +384,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_SHIELD_CAST);
 	list.insert_last(SND_SHAPE_SHIFT);
 	list.insert_last(SND_VANISH);
+	list.insert_last(SND_NOISEMAKER_ALARM);
 	list.insert_last(SND_VOTE_SELECT);
 	list.insert_last(SND_VOTE_TIMER);
 	list.insert_last(SND_VICTORY_DISCONNECT);
@@ -398,7 +402,7 @@ array<string>@ all_sound_paths() {
 		list.insert_last("sounds/" + electrical_string_sound(i));
 	}
 	for (uint i = 1; i <= KILLED_VARIANT_COUNT_FOR_CATALOG; i++) {
-		list.insert_last("sounds/events/killed" + i + ".ogg");
+		list.insert_last("sounds/events/death" + i + ".ogg");
 	}
 
 	// Passos por piso, montados pelas MESMAS funções que o jogo usa para tocar. Escritos à mão aqui,
@@ -434,7 +438,7 @@ array<string>@ optional_sound_paths() {
 // conferidor de sons - e o modo como falhou é o perigoso: o conferidor passou a dizer que TODOS os
 // sons sumiram, quando eles estavam ali do lado.
 //
-// Os caminhos voltam relativos à raiz do projeto ("sounds/ui/menuclick.ogg"), que é a mesma forma
+// Os caminhos voltam relativos à raiz do projeto ("sounds/ui/menu_click.ogg"), que é a mesma forma
 // usada no catálogo e no jogo.
 array<string>@ all_sound_files_on_disk(const string&in base = "sounds") {
 	array<string> result;

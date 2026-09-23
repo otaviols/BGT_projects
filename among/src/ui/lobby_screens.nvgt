@@ -115,8 +115,8 @@ void run_hall_screen(game_client@ client) {
 		// Quem está no saguão é a informação que se vem buscar aqui: ela abre a tela, e é o que se
 		// ouve de novo a cada F5.
 		m.intro_text = hall_people_text();
-		m.click_sound = "ui/menuclick.ogg";
-		m.select_sound = "ui/menuconfirm.ogg";
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 		@g_lobby_pump_client = client;
 		@m.background_callback = @pump_client_during_menu;
@@ -193,8 +193,8 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		}
 
 		menu m;
-		m.click_sound = "ui/menuclick.ogg";
-		m.select_sound = "ui/menuconfirm.ogg";
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 		m.intro_text = @lobbies == null || lobbies.length() == 0 ? tr("lobby.no_lobbies") : tr("menu.join_lobby");
 		@g_lobby_pump_client = client;
