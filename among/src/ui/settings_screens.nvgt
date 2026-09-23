@@ -57,6 +57,9 @@ void run_settings_menu(game_client@ client = null) {
 		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 		m.add_item(tr("settings.volumes"), "volumes");
+		// Separado dos volumes de propósito: o que está aqui muda a INFORMAÇÃO que o som carrega
+		// (para onde é o sul, se há alguém ao alcance), e não o quão alto ele é.
+		m.add_item(tr("settings.hearing"), "hearing");
 		m.add_item(tr("settings.keys"), "keys");
 		m.add_item(tr("settings.voice"), "voice");
 		m.add_item(tr("settings.voice_chat"), "voice_chat");
@@ -68,12 +71,48 @@ void run_settings_menu(game_client@ client = null) {
 
 		string id = m.selected_item_id;
 		if (id == "volumes") run_volume_screen();
+		else if (id == "hearing") run_hearing_screen();
 		else if (id == "keys") run_keys_screen();
 		else if (id == "voice") run_voice_screen();
 		else if (id == "voice_chat") run_voice_chat_screen();
 		else if (id == "output") run_output_device_screen();
 		else if (id == "language") run_language_screen();
 		else return; // "back", ESC ou fechou sem escolher
+	}
+}
+
+// --- Como eu ouço o jogo ---
+//
+// Separado dos volumes porque o que está aqui muda a INFORMAÇÃO que o som carrega, não o quão alto
+// ele é: para onde fica o sul, e se há alguém ao alcance da sua ação.
+void run_hearing_screen() {
+	audio_form f;
+	f.create_window(tr("settings.hearing"), false);
+	int f_pitch = f.create_input_box(tr("settings.spatial_pitch"), "" + g_settings.spatial_pitch_percent);
+	int f_beep = f.create_checkbox(tr("settings.target_range_beep"), g_settings.target_range_beep);
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_pitch); // audio_form nasce sem foco - ver CLAUDE.md
+	speak(tr("settings.hearing_hint"));
+
+	while (true) {
+		wait(5);
+		if (@g_settings_pump_client != null) g_settings_pump_client.update(); // a sala continua viva
+		f.monitor();
+		if (f.is_pressed(f_cancel)) { speak(tr("settings.cancelled")); return; }
+		if (f.is_pressed(f_ok)) {
+			int p = parse_int(f.get_text(f_pitch));
+			if (p < 0) p = 0;
+			if (p > SPATIAL_PITCH_MAX_PERCENT) p = SPATIAL_PITCH_MAX_PERCENT;
+			g_settings.spatial_pitch_percent = p;
+			g_settings.target_range_beep = f.is_checked(f_beep);
+			g_settings.save();
+			// O pool GUARDA o valor do tom: sem reaplicar, o ajuste só valeria na partida seguinte -
+			// e o jogador testaria achando que não funcionou.
+			if (@g_active_spatial != null) g_active_spatial.apply_pitch_setting();
+			speak(tr("settings.saved"));
+			return;
+		}
 	}
 }
 

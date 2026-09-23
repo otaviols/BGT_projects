@@ -507,6 +507,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// Idem para a invisibilidade do fantasma: o servidor é quem manda, isto é só para a tecla
 	// responder na hora e para o microfone não abrir à toa.
 	float my_invisible_remaining = 0.0;
+	// Bip de alvo ao alcance: guarda se havia alguém no quadro anterior, para o bip tocar na
+	// TRANSIÇÃO e não a cada quadro.
+	bool target_was_in_range = false;
+	roster_entry@ target_in_range_entry = null;
 	// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
 	// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
 	bool alive = true;
@@ -1082,6 +1086,35 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		if (my_invisible_remaining > 0.0) {
 			my_invisible_remaining -= delta;
 			if (my_invisible_remaining < 0.0) my_invisible_remaining = 0.0;
+		}
+
+		// Bip de alvo ao alcance: SÓ para quem pode agir sobre alguém (matar, atirar, proteger), e só
+		// na TRANSIÇÃO de "ninguém por perto" para "alguém ao alcance". É o equivalente sonoro do
+		// botão de matar acendendo no jogo original.
+		//
+		// Não cria informação nova - a posição de todos já chega ao cliente, e isto é só
+		// apresentação -, por isso pode ser preferência pessoal e não regra da sala. E é SEMPRE só
+		// de quem age: tocar no alvo avisaria a vítima de que o impostor está do lado dela.
+		//
+		// Na transição, e não contínuo, pelo mesmo motivo de todo o resto: num jogo em que se está
+		// tentando ouvir passos, um bip repetido por cima é ruído, não ajuda.
+		if (g_settings.target_range_beep && !movement_frozen && !is_vented) {
+			player_abilities agora(my_role, alive);
+			float alcance = 0.0;
+			if (agora.can_kill()) alcance = PLAYER_KILL_RANGE;
+			else if (agora.has_ability() && my_role.ability_id == ABILITY_SHIELD) alcance = GUARDIAN_SHIELD_RANGE;
+			bool tem_alvo = false;
+			if (alcance > 0.0) {
+				// A mesma função (e as mesmas exclusões) da tecla que vai agir: assim o bip nunca
+				// promete um alvo que a tecla depois recusa.
+				// Os parceiros de impostor entram na exclusão sempre: para quem não é impostor a lista
+				// está vazia, e passá-la de qualquer jeito evita um ternário entre tipos diferentes.
+				@target_in_range_entry = roster.nearest_alive(my_x, my_y, client.my_peer_id, alcance,
+					impostor_partner_peers);
+				tem_alvo = @target_in_range_entry != null;
+			}
+			if (tem_alvo && !target_was_in_range) ui_sound(SND_TARGET_IN_RANGE);
+			target_was_in_range = tem_alvo;
 		}
 
 		if (!movement_frozen && !is_vented) {

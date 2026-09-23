@@ -188,6 +188,10 @@ const int NORMAL_AUDIO_MAX_DISTANCE = 40;
 // está pro sul. 6% é cerca de um semitom: dá pra perceber sem virar efeito sonoro.
 // 0.0 desliga o recurso.
 const float SPATIAL_SOUTH_PITCH_DECREASE = 6.0;
+// Teto do ajuste do jogador (ver game_settings.spatial_pitch_percent). Acima disso os passos
+// deixam de soar como passos e viram efeito sonoro - o piso, que se reconhece pelo timbre, some
+// atras da variacao de tom.
+const int SPATIAL_PITCH_MAX_PERCENT = 25;
 
 // Bots (jogadores controlados pelo próprio servidor, adicionados pelo anfitrião na sala de espera
 // com B / Shift+B). Não são clientes de verdade: não têm conexão, então nada é ENVIADO pra eles.

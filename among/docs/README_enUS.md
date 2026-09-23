@@ -101,6 +101,12 @@ radar, tasks, deaths and alarms, and menus. Moving a slider plays a sample of th
 volume, so you can tune everything by ear without entering a match. If other people's footsteps are
 getting lost under the ambience, this is where you fix it.
 
+**How I hear the game** — two settings that change the *information* the sound carries, not the
+volume: how much lower things to the south sound (6% is the default; raise it if you have trouble
+telling north from south, or set 0 to turn it off), and whether the game should **beep when someone
+comes within range of your action** — kill, shoot or protect, depending on your role. That beep is
+yours alone: nobody else hears it, least of all the person who walked into range.
+
 **Keys** — every in-game key can be remapped. Pick the action, press Enter, then press the new key.
 If the key is already taken, the game tells you which action owns it instead of letting two actions
 fight over it. There is also "Restore default keys". The keys listed in this manual are the

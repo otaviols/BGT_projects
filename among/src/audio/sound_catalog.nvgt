@@ -109,6 +109,10 @@ const string SND_CAMERA_WATCHING = "sounds/beacons/camera_watching.ogg";
 
 // --- Radar ---
 const string SND_RADAR_BEEP = "sounds/ui/sonar.ogg";
+// Alguem entrou no alcance da sua acao (matar, atirar, proteger). SO quem PODE agir ouve - tocar
+// para o alvo entregaria o jogo. E' o equivalente sonoro do botao de matar acendendo no original:
+// nao cria informacao nova (a posicao de todos ja chega ao cliente), so muda a apresentacao.
+const string SND_TARGET_IN_RANGE = "sounds/ui/target_in_range.ogg";
 
 // --- Beacons (som CONTÍNUO posicionado, tocando a partida inteira, pra achar o objeto de longe) ---
 // Identidade por TIPO de objeto, não por sala (a mesma lógica dos passos por piso e do alarme de
@@ -366,6 +370,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_DOOR_CLOSE);
 	list.insert_last(SND_DOOR_OPEN);
 	list.insert_last(SND_RADAR_BEEP);
+	list.insert_last(SND_TARGET_IN_RANGE);
 	list.insert_last(SND_CAMERA_BEACON);
 	list.insert_last(SND_CAMERA_ON);
 	list.insert_last(SND_CAMERA_OFF);

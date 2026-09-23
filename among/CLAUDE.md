@@ -755,6 +755,23 @@ proporção exata. A configuração é **total + quantas longas** (não uma cont
 curtas são o resto, ninguém faz conta, e as versões anteriores, que só mandavam o total, continuam
 entendidas. Sonda: `tools/probes/probe_task_mix.nvgt`.
 
+**O bip de alvo ao alcance é SÓ de quem pode agir, e só na TRANSIÇÃO.** Impostor, xerife e anjo
+ouvem quando alguém entra no alcance da ação deles - é o equivalente sonoro do botão de matar
+acendendo no original. Tocar no ALVO avisaria a vítima de que o impostor está do lado dela, então
+ele nunca sai para mais ninguém. Na transição, e não contínuo, pela regra de sempre: num jogo em que
+se está tentando ouvir passos, um bip repetido por cima é ruído. E ele usa a MESMA
+`roster.nearest_alive` (com as mesmas exclusões) da tecla que vai agir, senão prometeria um alvo que
+a tecla depois recusa. Pode ser preferência pessoal, e não regra da sala, porque **não cria
+informação nova**: a posição de todos já chega ao cliente, isto é só apresentação.
+
+**O quanto o tom cai para o sul é do JOGADOR** (`spatial_pitch_percent`, padrão 6%, teto 25%): há
+quem não distinga norte de sul com o padrão e queira reforçar, e quem ache que variar o tom
+descaracteriza os passos - o piso se reconhece pelo timbre - e prefira desligar. O `sound_pool`
+GUARDA o valor, então mexer na preferência exige `apply_pitch_setting()` no pool que está tocando
+(`g_active_spatial`); sem isso o ajuste só valeria na partida seguinte e o jogador testaria achando
+que não funcionou. Os dois ajustes ficam numa tela PRÓPRIA ("Como eu ouço o jogo"), separada dos
+volumes: eles mudam a INFORMAÇÃO que o som carrega, não o quão alto ele é.
+
 **Um sinal sonoro, um significado.** O tom do bip do radar dizia a DISTÂNCIA (130 perto, 80 longe)
 enquanto o tom de todo o resto do jogo diz NORTE/SUL (`SPATIAL_SOUTH_PITCH_DECREASE`, 6%). Os 50%
 da distância engoliam os 6% da direção, e o radar deixava de responder à única pergunta que o
@@ -923,21 +940,6 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
 
 ## Pendências conhecidas
 
-- **Fila de configurações de áudio pedidas** (decididas, ainda não feitas):
-  - **Bip de alvo ao alcance**, para quem tem kill ou habilidade mirada (impostor, xerife, anjo):
-    toca quando alguém entra no alcance. É o equivalente sonoro do botão de matar acendendo no jogo
-    original. Som já gravado. Ouvinte: **só quem tem a capacidade** - tocar para o alvo entregaria
-    o jogo. Configurável, e vale como preferência pessoal (e não regra de sala) porque não cria
-    informação nova: a posição de todos já chega ao cliente, isto é só apresentação.
-  - **Radar travado (Q): bipe contínuo ou único**, a escolher nas configurações. Hoje é sempre
-    contínuo enquanto travado; o Tab já é o bipe único. Definir com o usuário o que "único" faz na
-    trava antes de implementar.
-  - **Pitch dos passos alheios**: **já existe** (`SPATIAL_SOUTH_PITCH_DECREASE`, 6%, aplicado pelo
-    `sound_pool` a tudo que passa por `spatial.play_once`, passos inclusive). O que falta é torná-lo
-    **configurável** (desligar, ou subir a intensidade) - não implementar de novo. O radar aplica
-    ainda um passo próprio de ±20% por cima disso (`RADAR_PITCH_DIRECTION_STEP`), porque o bip é
-    curto e precisa ser inequívoco na primeira vez.
-
 - **Recados do beta ainda sem resposta** (ver `infra\read_feedback.ps1`): pedidos repetidos de
   personagem/passos mais rápidos (#30, #32, #40, #43, #54 - decidido: virar configuração da sala,
   validada no servidor, com o padrão um pouco maior; ainda não feito); avisos que interrompem a
@@ -950,8 +952,8 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
 - **Sons sem uso, de propósito** (o `check_sounds` os lista a cada execução; não são lixo):
   `steps/CarpetTile*` e `steps/SnowTile*` são pisos que o mapa ainda não tem - quando houver uma
   sala de carpete ou de neve, eles entram em `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes
-  (ver "piso novo entra em DUAS tabelas"); `world/nearbeep.wav` é o bip de alvo ao alcance, que está
-  na fila (converter para `.ogg` ao usar, como todo o resto).
+  (ver "piso novo entra em DUAS tabelas"). É a única sobra hoje - o `nearbeep.wav` virou o
+  `ui/target_in_range.ogg` e está em uso.
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em
   versões até a 0.11.1.
 - **Jogadores em versões anteriores à 0.9.x** precisam baixar manualmente uma vez: a build deles é

@@ -70,6 +70,18 @@ class game_settings {
 	// vieram escutar. Fica guardado porque é escolha que se faz uma vez, não a cada partida.
 	bool radar_continuous = false;
 
+	// Bip quando alguém entra no alcance da sua ação (matar, atirar, proteger). Só quem PODE agir
+	// ouve. É o equivalente sonoro do botão de matar acendendo no original, e pode ser preferência
+	// pessoal porque não cria informação nova: a posição de todos já chega ao cliente.
+	bool target_range_beep = true;
+
+	// Quanto o tom cai para o que está ao SUL (em %), aplicado a todo som posicionado - passos
+	// alheios inclusive. O padrão do jogo são 6%, cerca de um semitom; quem tem dificuldade em
+	// distinguir norte de sul pode reforçar, e quem acha que isso descaracteriza os sons pode
+	// desligar. É o único ajuste de áudio que muda a INFORMAÇÃO e não o volume - por isso fica aqui
+	// e não na tela de volumes.
+	int spatial_pitch_percent = int(SPATIAL_SOUTH_PITCH_DECREASE);
+
 	// Configurações de sala salvas pelo jogador, como um objeto JSON serializado
 	// (ver config/lobby_presets.nvgt). Fica aqui, junto das teclas e dos volumes, porque é
 	// preferência de quem joga - não depende de conta, de servidor nem de migração de banco.
@@ -186,6 +198,10 @@ class game_settings {
 		if (voice_config != "") tts_load_config(voice_config, tts);
 		radar_continuous = store.read_number("radar_continuous", 0) != 0;
 		lobby_presets = store.read_string("lobby_presets", "");
+		target_range_beep = store.read_number("target_range_beep", 1) != 0;
+		spatial_pitch_percent = int(store.read_number("spatial_pitch_percent", SPATIAL_SOUTH_PITCH_DECREASE));
+		if (spatial_pitch_percent < 0) spatial_pitch_percent = 0;
+		if (spatial_pitch_percent > SPATIAL_PITCH_MAX_PERCENT) spatial_pitch_percent = SPATIAL_PITCH_MAX_PERCENT;
 		voice_chat_enabled = store.read_number("voice_chat_enabled", 1) != 0;
 		voice_mode = store.read_string("voice_mode", VOICE_MODE_KEY);
 		if (voice_mode != VOICE_MODE_AUTO) voice_mode = VOICE_MODE_KEY;
@@ -262,6 +278,8 @@ class game_settings {
 		store.write_string("tts", tts_dump_config(tts, true));
 		store.write_number("radar_continuous", radar_continuous ? 1 : 0);
 		store.write_string("lobby_presets", lobby_presets);
+		store.write_number("target_range_beep", target_range_beep ? 1 : 0);
+		store.write_number("spatial_pitch_percent", spatial_pitch_percent);
 		store.write_number("voice_chat_enabled", voice_chat_enabled ? 1 : 0);
 		store.write_string("voice_mode", voice_mode);
 		store.write_number("voice_sensitivity", voice_sensitivity);

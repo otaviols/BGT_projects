@@ -5,6 +5,10 @@
 
 #include "sound_pool.nvgt"
 #include "../config/game_constants.nvgt"
+// g_settings: o quanto o tom cai para o sul e' preferencia do jogador, nao constante do jogo.
+#include "../config/game_settings.nvgt"
+
+spatial_audio@ g_active_spatial = null;
 
 class spatial_audio {
 	sound_pool@ pool;
@@ -22,7 +26,21 @@ class spatial_audio {
 		// trata NORTE como "à frente" invertendo o sinal de y ao falar com o pool (ver world_to_pool_y).
 		// Assim "atrás" vira "ao sul", que é uma informação constante e aprendível.
 		// O padrão do pool é 0.25%, ou seja, inaudível na prática - por isso isto nunca soou.
-		pool.behind_pitch_decrease = SPATIAL_SOUTH_PITCH_DECREASE;
+		//
+		// Quem decide o quanto é o JOGADOR (ver game_settings.spatial_pitch_percent): há quem não
+		// distinga norte de sul com os 6% padrão e queira reforçar, e há quem ache que variar o tom
+		// descaracteriza os passos - o piso se reconhece pelo timbre - e prefira desligar.
+		apply_pitch_setting();
+		// A tela de configurações precisa alcançar o pool que está tocando AGORA para o ajuste de tom
+		// valer na hora (o pool guarda o valor). Um ponteiro global em vez de passar o audio_manager
+		// por cinco telas: existe no máximo um destes vivo por vez.
+		@g_active_spatial = this;
+	}
+
+	// Relê a preferência de tom. Chamada no construtor e sempre que o jogador mexe no ajuste, porque
+	// o pool guarda o valor: mudar a preferência sem isto só valeria na partida seguinte.
+	void apply_pitch_setting() {
+		pool.behind_pitch_decrease = float(g_settings.spatial_pitch_percent);
 	}
 
 	// O mundo cresce em y pro SUL (W = norte = y menor, ver game_loop). O pool entende +y como "à

@@ -98,6 +98,12 @@ marcadores de objetos e radar, tarefas, mortes e alarmes, e menus. Ao mexer num 
 uma amostra daquela família no volume novo, então dá para ajustar tudo de ouvido sem entrar numa
 partida. Se os passos alheios estão sumindo no meio do ambiente, é aqui que se resolve.
 
+**Como eu ouço o jogo** — dois ajustes que mudam a *informação* que o som carrega, e não o volume:
+o quanto as coisas ao sul soam mais graves (6% é o padrão; aumente se tiver dificuldade em
+distinguir norte de sul, ou ponha 0 para desligar), e se o jogo deve **bipar quando alguém entrar no
+alcance da sua ação** — matar, atirar ou proteger, conforme o seu papel. Esse bip é só seu: ninguém
+mais ouve, e muito menos a pessoa que entrou no alcance.
+
 **Teclas** — todas as teclas de jogo podem ser trocadas. Escolha a ação, aperte Enter e depois
 aperte a tecla nova. Se a tecla já estiver em uso, o jogo avisa de quem ela é em vez de deixar duas
 ações brigando. Há também "Restaurar teclas padrão". As teclas listadas neste manual são as de
