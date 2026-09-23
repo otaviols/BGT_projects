@@ -137,13 +137,39 @@ void main() {
 	// O impostor sabota. A sabotagem tem recarga inicial, então esperamos ela liberar.
 	println("esperando a recarga inicial da sabotagem (" + int(SABOTAGE_INITIAL_COOLDOWN_SECONDS) + "s)...");
 	timer espera;
+	bool acabou = false;
 	while (espera.elapsed < int(SABOTAGE_INITIAL_COOLDOWN_SECONDS * 1000.0) + 2000) {
-		for (uint i = 0; i < jogadores.length(); i++) { jogadores[i].update(); jogadores[i].clear_incoming(); }
+		for (uint i = 0; i < jogadores.length(); i++) {
+			jogadores[i].update();
+			// A fila é esvaziada olhando o que passa: uma partida que ACABA durante a espera faz a
+			// sabotagem ser recusada sem erro nenhum (o servidor só atende com state=in_progress), e
+			// sem isto a sonda acusaria "a sabotagem não começou" sem dizer o porquê.
+			net_packet@ p = jogadores[i].poll_message();
+			while (@p != null) {
+				if (p.type == S_GAME_OVER) acabou = true;
+				@p = jogadores[i].poll_message();
+			}
+		}
 		wait(20);
 	}
-	imp.send_trigger_sabotage("lights");
-	net_packet@ comecou = wf(eng, S_SABOTAGE_STARTED, 8000);
-	check("a sabotagem comecou", @comecou != null, "S_SABOTAGE_STARTED");
+	check("a partida continua em andamento na hora de sabotar", !acabou, "sem S_GAME_OVER");
+
+	// INSISTE em vez de chutar o instante. A recarga corre no relógio do SERVIDOR, que avança por
+	// tick e fica para trás do relógio de parede quando ele está ocupado - com cinco clientes da
+	// sonda martelando, os 2 s de margem que eu tinha posto falhavam em uma tentativa a cada três,
+	// e o sintoma era "a sabotagem não começou", sem dizer que era a recarga.
+	//
+	// Os dois pacotes juntos: se o servidor recusar, o motivo chega ao impostor como S_ERROR, e
+	// esperar só o sucesso esconderia a explicação.
+	net_packet@ comecou; net_packet@ recusa;
+	timer tentativas;
+	while (@comecou == null && tentativas.elapsed < 20000) {
+		@recusa = null;
+		imp.send_trigger_sabotage("lights");
+		wf2(imp, S_SABOTAGE_STARTED, S_ERROR, comecou, recusa, 2500);
+	}
+	check("a sabotagem comecou", @comecou != null,
+		@recusa != null ? "S_SABOTAGE_STARTED (recusado: " + recusa.get_string(MSG_KEY_FIELD) + ")" : "S_SABOTAGE_STARTED");
 	if (@comecou == null) return;
 
 	// O conserto remoto: acaba com ela para TODA a partida, pelo pacote de sempre.

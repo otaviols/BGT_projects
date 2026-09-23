@@ -349,6 +349,14 @@ tem que ir até lá. E ele entra em `background_event_text`, senão quem estives
 exatamente onde a pessoa está quando o impostor escolhe matar longe de todos - não ouviria o único
 aviso que o papel existe para dar. Sonda: `tools/probes/probe_noisemaker.nvgt`.
 
+**Sonda que espera uma RECARGA tem que insistir, não chutar o instante.** As recargas correm no
+relógio do SERVIDOR, que avança por tick e fica para trás do relógio de parede quando ele está
+ocupado - com cinco clientes de sonda martelando, uma margem de 2 s sobre os 30 s da sabotagem
+falhava numa tentativa a cada três. Pior: o sintoma é "a ação não aconteceu", sem dizer que foi a
+recarga. Repita a ação até ela ser aceita, com um prazo generoso (ver a sabotagem em
+`probe_engineer.nvgt`), e capture o `S_ERROR` junto do sucesso - esperar só o sucesso esconde a
+explicação. **Sonda intermitente é pior que sonda que falha**: ela ensina a ignorar o vermelho.
+
 **Sonda que monta texto traduzido precisa CARREGAR o idioma** (`g_i18n.load_language`), senão
 `tr()` devolve a própria chave e a sonda "passa" mostrando `role.noisemaker_alarm` como se fosse a
 frase. Aconteceu na primeira versão da sonda do alarmista.

@@ -746,7 +746,19 @@ class game_server {
 			result.set_string("message", "lobby_unavailable");
 			// O motivo vai como chave: "não deu" não diz ao jogador se errou o código, se a sala
 			// encheu ou se a partida já começou - e cada um desses pede uma reação diferente dele.
-			result.set_string(MSG_KEY_FIELD, fail_key);
+			//
+			// "lobby.needs_update" é a exceção, e por um motivo que só aparece no dia do lançamento:
+			// ela NASCEU nesta versão, então o cliente que precisa ouvi-la é exatamente o que não a
+			// tem - e falaria a chave crua ("lobby.needs_update") na cara do jogador. Por isso o
+			// campo de sempre leva um motivo que todo cliente já conhece, e o detalhe vai num campo
+			// novo que só o cliente novo lê. Quando não houver mais ninguém abaixo do protocolo 2,
+			// isto pode virar uma linha só de novo.
+			if (fail_key == "lobby.needs_update") {
+				result.set_string(MSG_KEY_FIELD, "lobby.join_failed");
+				result.set_string("detail_key", fail_key);
+			} else {
+				result.set_string(MSG_KEY_FIELD, fail_key);
+			}
 			send_to(peer_id, result);
 			return;
 		}

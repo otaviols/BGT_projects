@@ -6,6 +6,36 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.30.0
+
+**Papéis especiais.** Além de tripulante e impostor, quem cria a partida pode ligar profissões, cada
+uma com uma habilidade própria. São sete:
+
+- **Engenheiro** — usa os dutos e conserta a sabotagem em andamento de onde estiver.
+- **Xerife** — pode matar; se atirar em quem não é impostor, quem morre é ele.
+- **Detetive** — examina um corpo sem reportar e descobre há quanto tempo a pessoa morreu e por
+  quais salas o assassino passou.
+- **Alarmista** — quando ele morre, a nave inteira ouve que ele morreu e em que sala.
+- **Anjo da Guarda** — depois de morrer, protege alguém vivo: por um tempo, nenhum ataque contra
+  essa pessoa acontece.
+- **Metamorfo** (impostor) — passa a aparecer com o nome de outro jogador.
+- **Fantasma** (impostor) — some do radar, dos passos e da voz por alguns segundos.
+
+Quem tem uma habilidade usa a tecla **H**. Nas regras da sala você escolhe **quantos** de cada papel
+existem e a **chance** de cada um aparecer — com chance abaixo de 100%, ninguém pode ter certeza de
+que aquele papel está em jogo, e é essa dúvida que faz valer a pena.
+
+**Tudo vem desligado.** Uma sala que não mexer nisso joga exatamente o jogo de sempre. E uma sala
+com papéis ligados só aceita quem já atualizou.
+
+> Esta é a maior mudança desde o começo do beta, e ela ainda **vai ter bugs**. Se algo soar errado,
+> travar ou simplesmente não fazer sentido, mande um recado pelo jogo — vai junto tudo que eu
+> preciso para consertar. Jogar com os papéis desligados continua sendo o jogo estável de antes.
+
+**Radar contínuo (Q).** A tecla Q agora liga e desliga o radar contínuo, em vez de travar num alvo,
+e a sua escolha fica guardada. Ligado, quem o Tab apontar fica bipando sozinho; desligado, o Tab
+bipa uma vez e cala. Perder o alvo de vista para o bipe, mas não desliga mais o modo.
+
 ## 0.29.5
 
 - Tripulante: a tecla G diz qual sabotagem está em andamento e para onde ir consertar, pulando
