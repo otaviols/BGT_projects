@@ -281,12 +281,6 @@ class audio_manager {
 		spatial.play_once(SND_SHAPE_SHIFT, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
-	// O fantasma sumindo ou voltando, ouvido por quem está perto. Mesma família e mesma ideia da
-	// transformação: é um acontecimento do mundo.
-	void play_vanish(float x, float y) {
-		spatial.play_once(SND_VANISH, x, y, family_db(SOUND_FAMILY_EVENTS));
-	}
-
 	void play_radar_beep(float x, float y) {
 		float dy = spatial.listener_y - y; // o y do mundo cresce para o SUL
 		float pitch = 100.0;

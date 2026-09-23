@@ -451,9 +451,8 @@ class game_server {
 			string&out message_key, dictionary@ message_params) {
 		if (ability == ABILITY_VANISH) {
 			if (!lobby.try_vanish(p.peer_id, message_key)) return false;
-			// Sumir faz barulho onde ele está, como a tampa de um duto. Quem estiver perto sabe que
-			// algo aconteceu ali - e é o último sinal que vai ter dele por um tempo.
-			broadcast_vanish_sound(lobby, p);
+			// NADA é transmitido: sumir é silencioso para todo mundo menos para ele, que ouve o
+			// próprio som no cliente dele. Ver expire_invisibility para o porquê.
 			message_key = "role.vanish_done";
 			return true;
 		}
@@ -520,22 +519,18 @@ class game_server {
 		broadcast_to_lobby(lobby, som, p.peer_id);
 	}
 
-	// O som de sumir/voltar do fantasma, no ponto dele. Sem nome nenhum, como o da transformação.
-	void broadcast_vanish_sound(game_state@ lobby, game_player@ p) {
-		net_packet@ som = net_packet(S_VANISH_SOUND);
-		som.set_float("x", p.x);
-		som.set_float("y", p.y);
-		broadcast_to_lobby(lobby, som, p.peer_id);
-	}
-
 	// Quem voltou a ser percebido: por tempo, por ter matado, ou porque a reunião começou. Os três
-	// caminhos passam por aqui, e é isso que garante que o som da volta toque em todos eles.
+	// caminhos passam por aqui, e é isso que garante que o aviso chegue em todos eles.
+	//
+	// O som de sumir e de voltar é SÓ DELE, e nada é transmitido a quem está por perto. Foi decisão
+	// do jogo, contra a minha versão inicial (em que o som vazava para os vizinhos e era o único
+	// sinal que a tripulação tinha dele): o fantasma some de verdade, sem rastro nenhum. O que
+	// ainda o revela é matar - e o som do assassinato, esse sim, é ouvido por quem está perto.
 	void expire_invisibility(game_state@ lobby) {
 		array<uint64>@ voltaram = lobby.expire_invisibility();
 		for (uint i = 0; i < voltaram.length(); i++) {
 			game_player@ p = lobby.find_player(voltaram[i]);
 			if (@p == null) continue;
-			broadcast_vanish_sound(lobby, p);
 			send_to(p.peer_id, net_packet(S_VANISH_ENDED));
 		}
 	}

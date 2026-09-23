@@ -834,12 +834,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					string motivo = pkt.get_string("message_key");
 					if (motivo != "") speak(tr(motivo));
 				}
-			} else if (t == S_VANISH_SOUND) {
-				// O fantasma sumindo ou voltando, no ponto dele. Sem nome: quem ouve sabe que algo
-				// aconteceu ali, e a partir de agora (ou até agora) não vai ouvir mais nada dele.
-				audio.play_vanish(pkt.get_float("x"), pkt.get_float("y"));
 			} else if (t == S_VANISH_ENDED) {
 				my_invisible_remaining = 0.0;
+				// O som da volta é dele e de mais ninguém - sem posição, porque não é um evento do
+				// mundo: é o aviso de que ele voltou a ser percebido.
+				task_sound_simple(SND_VANISH);
 				speak(tr("role.vanish_ended"));
 			} else if (t == S_SHIFT_SOUND) {
 				// Alguém mudou de cara por perto. Posicionado e sem nome nenhum: quem ouve sabe que

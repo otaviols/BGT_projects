@@ -403,12 +403,15 @@ radar, não aparece na câmera, **não faz som de passos** e não é ouvido no c
 papel que tira som em vez de mudar o que ele significa — e, num jogo em que o passo alheio é a
 pista principal, alguém atravessando a nave sem pisar é a coisa mais perigosa que existe.
 
-O preço é alto:
+Sumir é **silencioso**: ninguém ouve nada, nem quem estiver do lado dele. Quem está perto
+simplesmente deixa de ouvir os passos daquela pessoa, sem saber por quê.
 
-- **Sumir e voltar fazem barulho**, no lugar onde ele está. Quem estiver perto ouve — e sabe que
-  por alguns segundos tem alguém ali que não vai ouvir mais.
-- **Matar devolve ele na hora.** O instante do crime acaba com a invisibilidade, com som e tudo.
+O preço é o resto:
+
+- **Matar devolve ele na hora.** O instante do crime acaba com a invisibilidade — e o som do
+  assassinato, esse sim, é ouvido por quem está por perto.
 - Enquanto sumido, **ele também não fala.**
+- São 20 segundos, com uma recarga longa. Some para chegar em alguém, não para viver assim.
 
 A reunião também o devolve.
 

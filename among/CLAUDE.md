@@ -422,9 +422,15 @@ isto ele seria invisível no radar e continuaria pisando alto) e `on_voice_frame
 inventar condição nova. Um quarto ponto esquecido seria um caminho que continua denunciando ele, e
 o silêncio do código não acusaria nada.
 
-Duas sutilezas: **matar devolve ele na hora** (senão não há jogo do outro lado), e a **reunião
-também** - invisível não é ouvido, e ficar mudo na mesa sem explicação é um sinal luminoso de quem
-é o fantasma. E `was_invisible` existe porque `invisible_remaining == 0` não distingue "acabou de
+**Sumir é silencioso para todo mundo menos para ele**, e isso é decisão de jogo, não esquecimento:
+não existe pacote de "som de sumir" para os vizinhos. Eu tinha feito o contrário (o som vazava,
+como a tampa do duto) e o usuário corrigiu - o fantasma some de verdade, sem rastro. Quem estava
+perto simplesmente para de ouvir os passos daquela pessoa. **Se um dia isso soar forte demais, o
+conserto é devolver o som aos vizinhos**, e não enfraquecer a invisibilidade por outro caminho.
+
+Duas sutilezas: **matar devolve ele na hora** (senão não há jogo do outro lado - e o som do
+assassinato, esse sim, é público), e a **reunião também** - invisível não é ouvido, e ficar mudo na
+mesa sem explicação é um sinal luminoso de quem é o fantasma. E `was_invisible` existe porque `invisible_remaining == 0` não distingue "acabou de
 voltar" de "nunca sumiu": sem a marca, o som da volta tocaria para todo mundo, o tempo todo. Sonda:
 `tools/probes/probe_phantom.nvgt`.
 

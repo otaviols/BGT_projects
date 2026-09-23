@@ -130,9 +130,16 @@ void main() {
 	check("a habilidade foi aceita", @ok != null && ok.get_bool("ok"), "true");
 	if (@ok != null) println("   o fantasma ouve: \"" + tr_server_message(ok) + "\"");
 
-	net_packet@ som = wf(olheiro, S_VANISH_SOUND, 4000);
-	check("quem estava perto ouviu ele sumir", @som != null, "S_VANISH_SOUND");
-	check("  e o som nao carrega nome nenhum", @som != null && !som.exists("name") && !som.exists("peer_id"), "sem nome");
+	// Sumir é SILENCIOSO para quem está por perto: o som é só dele. Quem estava do lado não pode
+	// receber pacote nenhum - nem som, nem movimento, nada que diga que algo aconteceu ali.
+	bombeia(todos, 1500);
+	uint recebeu = 0;
+	net_packet@ q = olheiro.poll_message();
+	while (@q != null) {
+		if (q.type != S_PLAYER_MOVED || q.get_uint64("peer_id") == fan_peer) recebeu++;
+		@q = olheiro.poll_message();
+	}
+	check("quem estava perto NAO recebeu nada ao ele sumir", recebeu == 0, "0 pacotes");
 
 	check("invisivel, o radar NAO acha o fantasma", !radar_acha(todos, olheiro, fan_peer), "nao achado");
 

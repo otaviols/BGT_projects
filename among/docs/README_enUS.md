@@ -405,12 +405,15 @@ by name.
 of changing what it means — and in a game where other people's footsteps are the main clue, someone
 crossing the ship without stepping is the most dangerous thing there is.
 
-The price is steep:
+Vanishing is **silent**: nobody hears a thing, not even someone standing right next to them.
+Whoever is nearby simply stops hearing that person's footsteps, without knowing why.
 
-- **Vanishing and returning both make noise**, where they stand. Anyone nearby hears it — and knows
-  that for a few seconds there is someone there they will not hear again.
-- **Killing brings them back at once.** The moment of the crime ends the invisibility, noise and all.
+The price is everything else:
+
+- **Killing brings them back at once.** The moment of the crime ends the invisibility — and the
+  sound of the murder itself *is* heard by anyone nearby.
 - While vanished, **they cannot speak either.**
+- It lasts 20 seconds, with a long recharge. You vanish to reach someone, not to live that way.
 
 A meeting also brings them back.
 
