@@ -87,6 +87,39 @@ void testa_config() {
 	cfg.set_role_count(primeiro, 0);
 	cfg.validate();
 	check("chance de papel sem vaga é descartada", !cfg.role_chances.exists(primeiro), "ausente");
+
+	// --- Tempos ajustáveis (recarga, duração, rastro) ---
+	println("--- tempos dos papeis ---");
+	// Sem ninguém mexer, o valor é o PADRÃO declarado pelo papel: é isso que faz mudar um padrão no
+	// código valer para todas as salas antigas, em vez de congelar o número na criação.
+	role_traits@ eng = role_for(ROLE_ENGINEER);
+	check("sem mexer, vale o padrao do papel",
+		cfg.role_value(ROLE_ENGINEER, TUNABLE_COOLDOWN) == eng.tunable_default(TUNABLE_COOLDOWN),
+		"" + int(eng.tunable_default(TUNABLE_COOLDOWN)));
+
+	cfg.set_role_value(ROLE_ENGINEER, TUNABLE_COOLDOWN, 200.0);
+	cfg.validate();
+	check("o valor mexido fica", cfg.role_value(ROLE_ENGINEER, TUNABLE_COOLDOWN) == 200.0, "200");
+
+	// Os limites moram no PAPEL, porque só ele sabe o que é absurdo no caso dele - recarga do
+	// engenheiro abaixo da recarga da sabotagem faz sabotar deixar de ser jogada.
+	cfg.set_role_value(ROLE_ENGINEER, TUNABLE_COOLDOWN, 1.0);
+	cfg.validate();
+	check("abaixo do minimo do papel é cortado", cfg.role_value(ROLE_ENGINEER, TUNABLE_COOLDOWN) == 30.0, "30");
+	cfg.set_role_value(ROLE_ENGINEER, TUNABLE_COOLDOWN, 99999.0);
+	cfg.validate();
+	check("acima do maximo do papel é cortado", cfg.role_value(ROLE_ENGINEER, TUNABLE_COOLDOWN) == 600.0, "600");
+
+	// Par inventado (papel sem aquele número) some, como id de papel inventado.
+	cfg.role_values.set(ROLE_NOISEMAKER + "." + TUNABLE_DURATION, 42.0);
+	cfg.validate();
+	check("numero que o papel nao declara é descartado",
+		!cfg.role_values.exists(ROLE_NOISEMAKER + "." + TUNABLE_DURATION), "ausente");
+
+	// Zero no tiro do xerife é legítimo: significa "a mesma recarga da sala".
+	cfg.set_role_value(ROLE_SHERIFF, TUNABLE_KILL_COOLDOWN, 0.0);
+	cfg.validate();
+	check("zero no tiro do xerife sobrevive", cfg.role_value(ROLE_SHERIFF, TUNABLE_KILL_COOLDOWN) == 0.0, "0");
 }
 
 // --- Parte em rede: uma partida de verdade, sem papéis ligados ---

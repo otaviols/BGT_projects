@@ -872,11 +872,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					string qual = pkt.get_string("ability");
 					if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
 					if (qual == ABILITY_VANISH) {
-						my_invisible_remaining = PHANTOM_INVISIBLE_SECONDS;
+						my_invisible_remaining = pkt.get_float("duration_seconds", PHANTOM_INVISIBLE_SECONDS);
 						task_sound_simple(SND_VANISH); // o dele toca na hora; para os outros vem posicionado
 					}
 					if (qual == ABILITY_SHAPESHIFT) {
-						my_disguise_remaining = SHAPESHIFT_DURATION_SECONDS;
+						my_disguise_remaining = pkt.get_float("duration_seconds", SHAPESHIFT_DURATION_SECONDS);
 						// O som dele toca aqui, na hora, sem esperar a rede - como o do duto. Para os
 						// outros ele chega posicionado, por S_SHIFT_SOUND.
 						task_sound_simple(SND_SHAPE_SHIFT);

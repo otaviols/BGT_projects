@@ -48,6 +48,8 @@ class lobby_overrides {
 	dictionary role_counts;
 	// Chance de cada vaga sair, em por cento (ausente = não mexi; 100 = sempre).
 	dictionary role_chances;
+	// Números dos papéis, por "<papel>.<número>" (ausente = usa o padrão do papel).
+	dictionary role_values;
 
 	// Aplica o que foi preenchido sobre uma configuração vinda do preset. O que ficou de fora não é
 	// tocado. A validação continua sendo feita depois, por lobby_config.validate(): estes valores
@@ -63,6 +65,11 @@ class lobby_overrides {
 		for (uint i = 0; i < chance_ids.length(); i++) {
 			int c = 0;
 			if (role_chances.get(chance_ids[i], c)) cfg.set_role_chance(chance_ids[i], c);
+		}
+		array<string>@ value_keys = role_values.get_keys();
+		for (uint i = 0; i < value_keys.length(); i++) {
+			float v = 0.0;
+			if (role_values.get(value_keys[i], v)) cfg.role_values.set(value_keys[i], v);
 		}
 		if (max_players > 0) cfg.max_players = uint(max_players);
 		if (impostor_count > 0) cfg.impostor_count = impostor_count;
@@ -116,6 +123,13 @@ class lobby_overrides {
 			if (role_chances.get(chance_ids[i], c)) chances.set(chance_ids[i], c);
 		}
 		pkt.set_object("role_chances", chances);
+		json_object@ valores = json_object();
+		array<string>@ value_keys = role_values.get_keys();
+		for (uint i = 0; i < value_keys.length(); i++) {
+			float v = 0.0;
+			if (role_values.get(value_keys[i], v)) valores.set(value_keys[i], v);
+		}
+		pkt.set_object("role_values", valores);
 	}
 
 	void read_from_packet(net_packet@ pkt) {
@@ -136,6 +150,14 @@ class lobby_overrides {
 			for (uint i = 0; i < ids.length(); i++) {
 				if (CONFIGURABLE_ROLE_IDS.find(ids[i]) != -1) role_chances.set(ids[i], int(chances[ids[i]]));
 			}
+		}
+		// Os valores não são filtrados aqui: a chave é composta ("papel.numero"), e quem confere se o
+		// par existe é o validate() do lobby_config, com os limites que o próprio papel declarou.
+		role_values.delete_all();
+		json_object@ valores = pkt.get_object("role_values");
+		if (@valores != null) {
+			array<string>@ keys = valores.get_keys();
+			for (uint i = 0; i < keys.length(); i++) role_values.set(keys[i], float(valores[keys[i]]));
 		}
 		max_players = pkt.get_int("max_players", -1);
 		impostor_count = pkt.get_int("impostor_count", -1);
@@ -223,6 +245,24 @@ class lobby_config {
 		else role_chances.set(role_id, percent);
 	}
 
+	// Números ajustáveis de cada papel (recarga, duração, janela do rastro), guardados por
+	// "<papel>.<número>". Só o que foi MEXIDO entra aqui: o resto vem do padrão declarado pelo papel
+	// (ver role_tunable), e assim mudar um padrão no código vale para todas as salas antigas.
+	dictionary role_values;
+
+	float role_value(const string&in role_id, const string&in key) const {
+		string k = role_id + "." + key;
+		if (role_values.exists(k)) {
+			float v = 0.0;
+			if (role_values.get(k, v)) return v;
+		}
+		return role_for(role_id).tunable_default(key);
+	}
+
+	void set_role_value(const string&in role_id, const string&in key, float v) {
+		role_values.set(role_id + "." + key, v);
+	}
+
 	// Se algum papel especial está ligado. É o que decide se a sala exige cliente novo.
 	bool uses_roles() const {
 		return role_counts.get_size() > 0;
@@ -265,6 +305,34 @@ class lobby_config {
 			if (n > int(max_players)) { n = int(max_players); changed = true; }
 			set_role_count(ids[i], n);
 		}
+		// Números dos papéis: dentro dos limites que o PAPEL declarou, e só de pares conhecidos. Os
+		// limites moram no papel porque só ele sabe o que é absurdo no caso dele - recarga do
+		// engenheiro menor que a da sabotagem, janela do detetive curta demais para o mapa.
+		array<string>@ value_keys = role_values.get_keys();
+		for (uint i = 0; i < value_keys.length(); i++) {
+			int ponto = value_keys[i].find_first_of(".");
+			if (ponto <= 0) { role_values.delete(value_keys[i]); changed = true; continue; }
+			string rid = value_keys[i].substr(0, ponto);
+			string tk = value_keys[i].substr(ponto + 1);
+			role_traits@ rt = role_for(rid);
+			bool conhecido = false;
+			float lo = 0.0, hi = 0.0;
+			for (uint t = 0; t < rt.tunables.length(); t++) {
+				if (rt.tunables[t].key != tk) continue;
+				conhecido = true;
+				lo = rt.tunables[t].min_value;
+				hi = rt.tunables[t].max_value;
+				break;
+			}
+			if (!conhecido) { role_values.delete(value_keys[i]); changed = true; continue; }
+			float v = 0.0;
+			role_values.get(value_keys[i], v);
+			// Zero passa quando o papel admite zero como "usa o padrão da sala" (o tiro do xerife).
+			if (v < lo && !(v == 0.0 && lo == 0.0)) { v = lo; changed = true; }
+			if (v > hi) { v = hi; changed = true; }
+			role_values.set(value_keys[i], v);
+		}
+
 		// Chances: dentro de 0 a 100, e só de papéis que estão realmente em jogo - uma chance
 		// pendurada num papel com zero vagas seria lida nas regras como se o papel existisse.
 		array<string>@ chance_ids = role_chances.get_keys();
@@ -319,6 +387,17 @@ class lobby_config {
 		}
 		o.set("role_counts", roles);
 		o.set("role_chances", chances);
+		// Os números vão RESOLVIDOS (com o padrão do papel já aplicado), e só dos papéis em jogo: é
+		// assim que a leitura das regras diz "engenheiro, recarga de 120 segundos" sem o cliente
+		// precisar conhecer os padrões, e é o que o servidor manda ao cliente na partida.
+		json_object@ valores = json_object();
+		for (uint i = 0; i < ids.length(); i++) {
+			role_traits@ rt = role_for(ids[i]);
+			for (uint t = 0; t < rt.tunables.length(); t++) {
+				valores.set(ids[i] + "." + rt.tunables[t].key, role_value(ids[i], rt.tunables[t].key));
+			}
+		}
+		o.set("role_values", valores);
 		return o;
 	}
 }

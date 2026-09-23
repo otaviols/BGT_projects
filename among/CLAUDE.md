@@ -311,6 +311,24 @@ com o servidor quebrado -, e a habilidade ativa é um pacote só
 ligado exige `ROLES_MIN_PROTOCOL` e recusa cliente velho na PORTA (entrar) e no INÍCIO (quem já
 estava dentro), dizendo quem precisa atualizar. Sonda: `tools/probes/probe_roles.nvgt`.
 
+**Número de papel que a sala ajusta: o PAPEL declara, e o servidor pergunta.** `role_traits.tunables`
+lista recarga, duração e janela de gravação com o padrão e os LIMITES (que moram no papel porque só
+ele sabe o que é absurdo no caso dele - recarga do engenheiro abaixo da recarga da sabotagem faz
+sabotar deixar de ser jogada). A sala guarda em `role_values` **só o que foi mexido**, então mudar
+um padrão no código vale para todas as salas antigas em vez de ficar congelado na criação. Nada
+disso toca o protocolo: um papel novo com um número novo custa uma linha na declaração e uma chave
+de texto - o formulário, a validação, a leitura das regras e o `to_json` percorrem a lista.
+
+O servidor lê por `config.role_value(papel, chave)`, **nunca a constante**; a constante virou só o
+padrão. E o cliente recebe a duração de volta no `S_ABILITY_RESULT` (`duration_seconds`), porque ele
+acompanha a fantasia e a invisibilidade localmente e não conhece a configuração da sala.
+
+**A sala guarda a INTENÇÃO; quem lida com a realidade é o sorteio.** `validate()` NÃO recorta as
+vagas por time nem por quanta gente veio - só pelo absurdo (mais vagas do que a lotação). Recortar
+ali reescrevia em silêncio o que o anfitrião digitou, e de um jeito que não voltava: baixar a
+lotação apagava os papéis, e subi-la de volta não os trazia. Quem sabe quantos vieram é
+`draw_special_roles`, que já deixa de fora o que não couber.
+
 **Papel ligado NÃO é papel garantido, e isso é de propósito.** Cada vaga rola a própria chance
 (`role_chance`, 100 = sempre), como no original: com chance abaixo de 100 a tripulação não pode
 assumir que o xerife existe, e é essa dúvida que faz o papel valer. Três consequências que

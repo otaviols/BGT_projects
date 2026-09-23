@@ -56,9 +56,49 @@ const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_N
 // como tripulante comum sem saber que não é.
 const int ROLES_MIN_PROTOCOL = 2;
 
+// Um número do papel que a SALA pode ajustar (recarga, duração, janela de gravação).
+//
+// O papel declara quais tem, com o padrão e os limites; a configuração da sala guarda só o que foi
+// mexido, o formulário monta os campos percorrendo esta lista, e o servidor lê o valor por aqui em
+// vez de ler a constante. Um papel novo com um número novo custa uma linha na declaração dele e uma
+// chave de texto - nada no protocolo, nada na tela, nada na validação.
+const string TUNABLE_COOLDOWN = "cooldown";           // recarga da habilidade
+const string TUNABLE_DURATION = "duration";           // quanto o efeito dura
+const string TUNABLE_KILL_COOLDOWN = "kill_cooldown"; // recarga do tiro (xerife), separada da do impostor
+const string TUNABLE_TRAIL = "trail";                 // por quanto tempo o rastro do assassino é gravado
+
+class role_tunable {
+	string key;
+	float default_value;
+	float min_value;
+	float max_value;
+
+	role_tunable() {}
+	role_tunable(const string&in key, float default_value, float min_value, float max_value) {
+		this.key = key;
+		this.default_value = default_value;
+		this.min_value = min_value;
+		this.max_value = max_value;
+	}
+
+	// Chave de texto do campo na tela, derivada do par papel/número - sem segunda lista para manter
+	// em sincronia (o mesmo truque do name_key do papel).
+	string label_key(const string&in role_id) const { return "lobby.role_tunable." + role_id + "." + key; }
+}
+
 class role_traits {
 	string id;
 	string team = TEAM_CREW;
+	// Os números que a sala pode ajustar neste papel. Vazio = não há o que ajustar (o alarmista, por
+	// exemplo, é instantâneo).
+	array<role_tunable> tunables;
+
+	float tunable_default(const string&in key) const {
+		for (uint i = 0; i < tunables.length(); i++) {
+			if (tunables[i].key == key) return tunables[i].default_value;
+		}
+		return 0.0;
+	}
 
 	// --- O que pode fazer ---
 	bool can_kill = false;
@@ -143,6 +183,9 @@ role_traits@ role_engineer() {
 	t.can_vent = true;
 	t.ability_id = ABILITY_REMOTE_FIX;
 	t.ability_cooldown_seconds = ENGINEER_FIX_COOLDOWN_SECONDS;
+	// O piso de 30 s não é capricho: com recarga menor que a da sabotagem (30 s), ele conserta tudo
+	// que aparecer e sabotar deixa de ser jogada.
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, ENGINEER_FIX_COOLDOWN_SECONDS, 30.0, 600.0));
 	return t;
 }
 
@@ -159,6 +202,10 @@ role_traits@ role_sheriff() {
 	role_traits t;
 	t.id = ROLE_SHERIFF;
 	t.can_kill = true;
+	// Recarga do tiro DELE, separada da do impostor. O padrão é 0, que significa "a mesma da sala":
+	// é o campo vazio do formulário, e evita ter de repetir o número em toda sala só para o xerife
+	// acompanhar o impostor. Quem quiser um xerife mais lento (ou mais rápido) põe um valor.
+	t.tunables.insert_last(role_tunable(TUNABLE_KILL_COOLDOWN, 0.0, 0.0, 300.0));
 	return t;
 }
 
@@ -194,6 +241,8 @@ role_traits@ role_guardian_angel() {
 	t.id = ROLE_GUARDIAN_ANGEL;
 	t.ability_id = ABILITY_SHIELD;
 	t.ability_cooldown_seconds = GUARDIAN_SHIELD_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_DURATION, GUARDIAN_SHIELD_DURATION_SECONDS, 5.0, 300.0));
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, GUARDIAN_SHIELD_COOLDOWN_SECONDS, 10.0, 600.0));
 	t.ability_usable_alive = false; // vivo ele é um tripulante como outro qualquer
 	t.ability_usable_dead = true;
 	return t;
@@ -217,6 +266,10 @@ role_traits@ role_detective() {
 	role_traits t;
 	t.id = ROLE_DETECTIVE;
 	t.ability_id = ABILITY_EXAMINE;
+	// A janela de gravação do rastro. O piso de 5 s existe porque abaixo disso o rastro sai vazio em
+	// quase toda morte neste mapa (da borda de uma sala à outra são ~10 s de caminhada), e o papel
+	// nasceria morto - ver KILLER_TRAIL_SECONDS.
+	t.tunables.insert_last(role_tunable(TUNABLE_TRAIL, KILLER_TRAIL_SECONDS, 5.0, 120.0));
 	return t;
 }
 
@@ -244,6 +297,8 @@ role_traits@ role_shapeshifter() {
 	t.knows_teammates = true;
 	t.ability_id = ABILITY_SHAPESHIFT;
 	t.ability_cooldown_seconds = SHAPESHIFT_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_DURATION, SHAPESHIFT_DURATION_SECONDS, 5.0, 300.0));
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, SHAPESHIFT_COOLDOWN_SECONDS, 10.0, 600.0));
 	return t;
 }
 
@@ -271,6 +326,8 @@ role_traits@ role_phantom() {
 	t.knows_teammates = true;
 	t.ability_id = ABILITY_VANISH;
 	t.ability_cooldown_seconds = PHANTOM_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_DURATION, PHANTOM_INVISIBLE_SECONDS, 5.0, 300.0));
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, PHANTOM_COOLDOWN_SECONDS, 10.0, 600.0));
 	return t;
 }
 

@@ -440,8 +440,13 @@ class game_server {
 			send_ability_result(peer_id, ability, false, message_key != "" ? message_key : "role.ability_unavailable", message_params);
 			return;
 		}
-		p.ability_cooldown_remaining = role.ability_cooldown_seconds;
-		send_ability_result(peer_id, ability, true, message_key, message_params, role.ability_cooldown_seconds);
+		// A recarga vem da SALA (o padrão do papel é só o ponto de partida - ver role_value), e a
+		// duração vai junto na resposta: o cliente precisa saber quanto dura a fantasia ou a
+		// invisibilidade para responder à tecla sem ir à rede, e ele não conhece a configuração.
+		float recarga = lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN);
+		p.ability_cooldown_remaining = recarga;
+		send_ability_result(peer_id, ability, true, message_key, message_params, recarga,
+			lobby.config.role_value(p.role_id, TUNABLE_DURATION));
 	}
 
 	// O que cada habilidade FAZ. Devolve false com message_key preenchida quando não dá, e pode
@@ -548,13 +553,14 @@ class game_server {
 	}
 
 	void send_ability_result(uint64 peer_id, const string&in ability, bool ok, const string&in message_key,
-			dictionary@ params = null, float cooldown_seconds = 0.0) {
+			dictionary@ params = null, float cooldown_seconds = 0.0, float duration_seconds = 0.0) {
 		net_packet@ r = net_packet(S_ABILITY_RESULT);
 		r.set_string("ability", ability);
 		r.set_bool("ok", ok);
 		r.set_string(MSG_KEY_FIELD, message_key);
 		if (@params != null) r.set_params(MSG_PARAMS_FIELD, params);
 		r.set_float("cooldown_seconds", cooldown_seconds);
+		r.set_float("duration_seconds", duration_seconds);
 		send_to(peer_id, r);
 	}
 

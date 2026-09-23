@@ -75,6 +75,34 @@ string lobby_summary_text(json_object@ entry) {
 	return text;
 }
 
+// "Engenheiro: recarga do conserto à distância, 120 segundos." - os tempos dos papéis em jogo.
+//
+// Percorre CONFIGURABLE_ROLE_IDS e os tunables declarados por cada papel, então um papel novo com
+// um número novo aparece aqui sozinho. Os valores chegam RESOLVIDOS do servidor (com o padrão já
+// aplicado), porque o cliente não tem por que conhecer os padrões de cada papel.
+string role_tunables_text(json_object@ role_counts, json_object@ role_values) {
+	if (@role_counts == null || @role_values == null) return "";
+	array<string> partes;
+	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
+		string id = CONFIGURABLE_ROLE_IDS[i];
+		if (!role_counts.exists(id) || int(role_counts[id]) <= 0) continue;
+		role_traits@ rt = role_for(id);
+		for (uint t = 0; t < rt.tunables.length(); t++) {
+			string chave = id + "." + rt.tunables[t].key;
+			if (!role_values.exists(chave)) continue;
+			float v = float(role_values[chave]);
+			// Zero é "usa o valor da sala" (o tiro do xerife): dizer "0 segundos" seria mentira.
+			if (v <= 0.0) continue;
+			dictionary@ p = dictionary();
+			p.set("what", tr(rt.tunables[t].label_key(id)));
+			p.set("seconds", seconds_text(v));
+			partes.insert_last(tr("lobby.info.role_tunable", p));
+		}
+	}
+	if (partes.length() == 0) return "";
+	return join(partes, ". ");
+}
+
 // Leitura COMPLETA da configuração, para a tecla de configurações na sala de espera.
 //
 // Aqui vale ser detalhado: o jogador pediu esta informação explicitamente, está parado esperando a
@@ -93,7 +121,14 @@ string lobby_config_text(json_object@ cfg) {
 	// Logo depois dos impostores, porque é a mesma pergunta: "contra o que estou jogando?".
 	// Sem papéis, não diz nada - a sala de sempre não ganhou uma frase nova para ouvir.
 	string papeis = roles_in_play_text(cfg.get_object("role_counts"), cfg.get_object("role_chances"));
-	if (papeis != "") partes.insert_last(papeis);
+	if (papeis != "") {
+		partes.insert_last(papeis);
+		// E os tempos de cada um. Eles mudam o jogo tanto quanto o número de vagas - um metamorfo
+		// com 10 segundos de fantasia e outro com 120 são papéis diferentes -, então quem entra
+		// numa sala alheia precisa poder ouvir isso antes de a partida começar.
+		string tempos = role_tunables_text(cfg.get_object("role_counts"), cfg.get_object("role_values"));
+		if (tempos != "") partes.insert_last(tempos);
+	}
 
 	dictionary@ mp = dictionary();
 	mp.set("count", "" + int(cfg["max_players"]));

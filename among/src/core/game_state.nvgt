@@ -229,6 +229,14 @@ class game_state {
 		return ok;
 	}
 
+	// A recarga do tiro DESTE jogador. O xerife pode ter a dele, separada da do impostor (ver o
+	// tunable do papel); zero ali significa "a mesma da sala", que é o campo vazio do formulário.
+	float kill_cooldown_for(game_player@ p) const {
+		if (@p == null) return config.kill_cooldown_seconds;
+		float propria = config.role_value(p.role_id, TUNABLE_KILL_COOLDOWN);
+		return propria > 0.0 ? propria : config.kill_cooldown_seconds;
+	}
+
 	// --- Kill ---
 	//
 	// Nem todo tiro mata quem foi mirado: o xerife que atira em quem NÃO é impostor morre no lugar
@@ -271,7 +279,7 @@ class game_state {
 		game_player@ victim = misfire ? killer : target;
 
 		victim.alive = false;
-		killer.kill_cooldown_remaining = config.kill_cooldown_seconds;
+		killer.kill_cooldown_remaining = kill_cooldown_for(killer);
 		// Matar REVELA o fantasma. É o preço inteiro do papel: ele atravessa a nave sem ser
 		// percebido, mas o instante do crime o devolve ao mundo - com som, no lugar onde está, para
 		// quem estiver por perto. Sem isto ele mataria e sumiria de novo, e não haveria jogo do
@@ -290,7 +298,7 @@ class game_state {
 		// assassino para rastrear.
 		body.death_time = elapsed_time;
 		body.killer_peer_id = killer.peer_id;
-		body.trail_until = elapsed_time + KILLER_TRAIL_SECONDS;
+		body.trail_until = elapsed_time + config.role_value(ROLE_DETECTIVE, TUNABLE_TRAIL);
 		bodies.insert_last(body);
 
 		@out_event = net_packet(S_PLAYER_KILLED);
@@ -553,8 +561,10 @@ class game_state {
 		// a melhor jogada do impostor: o cooldown de kill corria durante a discussão inteira e ele
 		// saía da votação com a faca pronta, ao lado de todo mundo - bastava apertar matar. E o botão
 		// de emergência podia ser apertado de novo no mesmo instante.
+		// Vale para TODO mundo que pode matar, e não só para o impostor: o xerife sai da votação com
+		// a arma recarregando pelo mesmo motivo, e com a recarga DELE (ver kill_cooldown_for).
 		for (uint i = 0; i < players.length(); i++) {
-			if (players[i].is_impostor) players[i].kill_cooldown_remaining = config.kill_cooldown_seconds;
+			if (players[i].role().can_kill) players[i].kill_cooldown_remaining = kill_cooldown_for(players[i]);
 		}
 		meeting_cooldown_remaining = config.emergency_cooldown_seconds;
 
@@ -899,7 +909,7 @@ class game_state {
 		// está morta" contaria ao impostor um corpo que ele talvez não tivesse encontrado.
 		if (@target == null || !target.alive || target.peer_id == peer_id) { fail_key = "role.shift_bad_target"; return false; }
 
-		p.set_disguise(target.display_name(), SHAPESHIFT_DURATION_SECONDS);
+		p.set_disguise(target.display_name(), config.role_value(ROLE_SHAPESHIFTER, TUNABLE_DURATION));
 		copied_name = p.disguise_name;
 		return true;
 	}
@@ -910,7 +920,7 @@ class game_state {
 		game_player@ p = find_player(peer_id);
 		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
 		if (p.invisible()) { fail_key = "role.vanish_already"; return false; }
-		p.invisible_remaining = PHANTOM_INVISIBLE_SECONDS;
+		p.invisible_remaining = config.role_value(ROLE_PHANTOM, TUNABLE_DURATION);
 		return true;
 	}
 
@@ -962,7 +972,7 @@ class game_state {
 
 		// Relançar sobre quem já está protegido simplesmente renova - não é erro, e recusar
 		// contaria ao anjo que aquela pessoa já está blindada por outro anjo.
-		target.shield_remaining = GUARDIAN_SHIELD_DURATION_SECONDS;
+		target.shield_remaining = config.role_value(ROLE_GUARDIAN_ANGEL, TUNABLE_DURATION);
 		target_name = target.username;
 		return true;
 	}

@@ -353,6 +353,73 @@ string run_join_code_screen(game_client@ client) {
 	return ""; // inalcançável
 }
 
+// Segunda tela da criação: os TEMPOS de cada profissão (recarga, duração, janela do rastro).
+//
+// Só aparece para os papéis que acabaram de ser ligados na tela anterior, e só se algum foi: numa
+// tela única seriam nove campos a mais para percorrer de ouvido mesmo numa sala sem papel nenhum -
+// e o número cresce a cada papel novo. Quem não ligou nada nunca vê esta tela.
+//
+// Os campos saem de `role_traits.tunables`: um papel novo que declare um número ganha o campo aqui
+// sozinho, sem ninguém lembrar de vir editar esta função.
+//
+// Devolve false se o anfitrião desistiu (ESC/cancelar), para a criação inteira ser cancelada em vez
+// de criar a sala com metade do que ele pediu.
+bool run_role_tunables_form(game_client@ client, lobby_overrides@ ov, json_object@ current) {
+	// Quem foi ligado agora, na ordem de sempre.
+	array<string> ligados;
+	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
+		string id = CONFIGURABLE_ROLE_IDS[i];
+		int n = 0;
+		if (ov.role_counts.get(id, n) && n > 0 && role_for(id).tunables.length() > 0) ligados.insert_last(id);
+	}
+	if (ligados.length() == 0) return true; // nada ligado: a tela nem abre
+
+	json_object@ atuais = @current != null ? current.get_object("role_values") : null;
+
+	audio_form f;
+	f.create_window(tr("lobby.role_tunables_title"), false);
+	array<int> campos;
+	array<string> chaves; // "papel.numero", na mesma ordem dos campos
+	for (uint i = 0; i < ligados.length(); i++) {
+		role_traits@ rt = role_for(ligados[i]);
+		for (uint t = 0; t < rt.tunables.length(); t++) {
+			string chave = ligados[i] + "." + rt.tunables[t].key;
+			// Pré-preenchido com o que a sala já usa (na edição) ou com o padrão do papel (na
+			// criação): aqui o campo vazio NÃO é "não mexi", é um número que precisa existir, então
+			// mostrar o valor de partida é o que evita o anfitrião apagar sem querer e ficar com
+			// zero.
+			float valor = rt.tunables[t].default_value;
+			if (@atuais != null && atuais.exists(chave)) valor = float(atuais[chave]);
+			campos.insert_last(f.create_input_box(tr(rt.tunables[t].label_key(ligados[i])), seconds_text(valor)));
+			chaves.insert_last(chave);
+		}
+	}
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(campos[0]); // audio_form nasce sem foco - ver CLAUDE.md
+	speak(tr("lobby.role_tunables_hint"));
+
+	g_voice.typing = true; // a tecla de falar é uma letra; aqui ela é texto
+	while (true) {
+		wait(5);
+		client.update(); // a sala continua viva enquanto ele preenche (ver o prazo de 18 s no CLAUDE.md)
+		f.monitor();
+		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return false; }
+		if (f.is_pressed(f_ok)) {
+			g_voice.typing = false;
+			for (uint i = 0; i < campos.length(); i++) {
+				float v = text_to_float_or_default(f.get_text(campos[i]));
+				// Campo apagado volta ao padrão do papel, em vez de virar zero: zero numa duração é
+				// uma habilidade que não faz nada, e ninguém pede isso de propósito.
+				if (v < 0.0) continue;
+				ov.role_values.set(chaves[i], v);
+			}
+			return true;
+		}
+	}
+	return true; // inalcançável
+}
+
 // O que sai do formulário de regras: os ajustes (o que ficou em branco vem como -1/"") e, na
 // criação, o nome, o código e o preset.
 class lobby_form_result {
@@ -499,6 +566,10 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.emergency_cooldown_seconds = text_to_float_or_default(f.get_text(f_emergency_cd));
 			int cm_index = f.get_list_position(f_comms_meeting);
 			r.ov.comms_in_meeting = cm_index >= 0 ? f.get_list_item_id(f_comms_meeting, cm_index) : "";
+				// Os tempos das profissoes vem numa SEGUNDA tela, e so das que foram ligadas aqui: numa
+				// tela so seriam mais nove campos para percorrer de ouvido mesmo numa sala sem papel
+				// nenhum. Quem nao ligou nada nao ve tela nenhuma.
+				if (!run_role_tunables_form(client, r.ov, current)) { r.ok = false; return r; }
 			return r;
 		}
 	}
