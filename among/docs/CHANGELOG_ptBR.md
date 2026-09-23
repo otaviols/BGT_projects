@@ -6,6 +6,41 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.31.0
+
+**Guardar as regras que você gosta.** A tela de criar partida ficou grande, e ninguém quer percorrer
+tudo toda vez. Agora ela termina com **"Salvar estas regras com o nome"**, e na próxima vez o jogo
+pergunta de qual configuração você quer partir: uma das suas, **a última que você usou** (guardada
+sozinha) ou as regras padrão. O mesmo menu apaga uma configuração salva. O nome da sala e o código de
+acesso não são guardados.
+
+**Os tempos das profissões agora são seus.** Recarga do engenheiro, do xerife, do anjo, do metamorfo
+e do fantasma; quanto tempo o escudo, a fantasia e a invisibilidade duram; e por quanto tempo o
+rastro do assassino é gravado para o detetive. Tudo aparece numa segunda tela ao criar a partida, e
+só das profissões que você ligou.
+
+**Como eu ouço o jogo**, uma seção nova nas configurações, com dois ajustes:
+
+- **O quanto o som fica mais grave para o sul.** Sempre existiu (6%), agora dá para reforçar se você
+  tem dificuldade em distinguir norte de sul, ou desligar se preferir os sons sem variação.
+- **Bipar quando alguém entrar no alcance da sua ação** — matar, atirar ou proteger, conforme o seu
+  papel. O bip é só seu: ninguém mais ouve, muito menos quem entrou no alcance.
+
+**Sons:**
+
+- O painel de luzes e o de oxigênio agora **fecham com o som da tampa**, como já faziam ao abrir.
+- A tarefa de conectar fiação abre um painel antes de começar.
+- Corrigido: o clique dos menus estava **sem som**.
+- Corrigido: a primeira nota da tarefa de fiação **não tocava** — a que serve de referência para
+  achar o par.
+- O alarme do alarmista ficou mais curto, sem o silêncio no fim.
+
+**Correções nas profissões:**
+
+- As profissões ligadas na sala **não somem mais** quando você diminui a lotação.
+- O jogo deixou de anunciar, no início da partida, quais profissões estão em jogo — isso já está nas
+  regras da sala, e o anúncio atrapalhava ouvir qual é o SEU papel.
+
 ## 0.30.0
 
 **Papéis especiais.** Além de tripulante e impostor, quem cria a partida pode ligar profissões, cada

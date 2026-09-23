@@ -6,6 +6,41 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.31.0
+
+**Saving the rules you like.** The create-match screen grew, and nobody wants to walk through all of
+it every time. It now ends with **"Save these rules under the name"**, and next time the game asks
+which configuration you want to start from: one of yours, **the last one you used** (kept
+automatically) or the default rules. The same menu deletes a saved one. The match name and the
+access code are not kept.
+
+**Role timings are yours now.** Recharge for the engineer, the sheriff, the guardian angel, the
+shapeshifter and the phantom; how long the shield, the disguise and the invisibility last; and how
+long the killer's trail is recorded for the detective. It all appears on a second screen when
+creating the match, and only for the roles you turned on.
+
+**How I hear the game**, a new section in settings, with two adjustments:
+
+- **How much lower things to the south sound.** It has always been there (6%); now you can raise it
+  if you have trouble telling north from south, or turn it off if you prefer sounds unaltered.
+- **Beep when someone comes within range of your action** — kill, shoot or protect, depending on
+  your role. The beep is yours alone: nobody else hears it, least of all the person who walked in.
+
+**Sounds:**
+
+- The lights and oxygen panels now **close with the lid sound**, as they already did when opening.
+- The wiring task opens a panel before it starts.
+- Fixed: the menu click had **no sound**.
+- Fixed: the first note of the wiring task **did not play** — the one that serves as the reference
+  for finding the matching pair.
+- The noisemaker's alarm is shorter now, without the silence at the end.
+
+**Role fixes:**
+
+- Roles turned on in a room **no longer disappear** when you lower the player limit.
+- The game no longer announces which roles are in play at the start of a match — that is already in
+  the room rules, and the announcement got in the way of hearing what YOUR role is.
+
 ## 0.30.0
 
 **Special roles.** Besides crewmate and impostor, whoever creates the match can turn on jobs, each
