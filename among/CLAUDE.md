@@ -927,8 +927,12 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
   oferecida por Bauti (#31) - já existe um `es_LATAM` em uso; responder pelo `reply_feedback.ps1`.
   Já atendidos: mapa/orientação (Conhecer o mapa), regras na sala (O), radar travado (Q), partidas
   privadas.
-- **`sounds/ejected.ogg` não existe.** Está no catálogo, o `build_pack` avisa a cada build, e o jogo
-  compilado sai sem o som de alguém ser expulso na votação.
+- **Sons sem uso, de propósito** (o `check_sounds` os lista a cada execução; não são lixo):
+  `steps/CarpetTile*` e `steps/SnowTile*` são pisos que o mapa ainda não tem - quando houver uma
+  sala de carpete ou de neve, eles entram em `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes
+  (ver "piso novo entra em DUAS tabelas"); `world/nearbeep.wav` é o bip de alvo ao alcance, que está
+  na fila (converter para `.ogg` ao usar, como todo o resto); `world/panel_close.ogg` é o par do
+  `panel_open` e nunca foi tocado.
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em
   versões até a 0.11.1.
 - **Jogadores em versões anteriores à 0.9.x** precisam baixar manualmente uma vez: a build deles é
