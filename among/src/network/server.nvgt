@@ -256,6 +256,14 @@ class game_server {
 		game_player@ talker = lobby.find_player(peer_id);
 		// Dentro do duto ninguém é ouvido: a voz posicionada entregaria onde o duto está.
 		if (@talker == null || talker.vented) return;
+		// Disfarçado também não: a voz chega ao cliente identificada pelo PEER, e o cliente resolve
+		// o nome pelo elenco dele - o disfarce troca o nome no radar, não no elenco. Uma frase e o
+		// shapeshifter estaria entregue. Calar o microfone é o preço da fantasia, e o cliente dele
+		// sabe disso (ver g_voice.allowed no laço da partida).
+		if (talker.disguised()) return;
+		// Invisível também não: a voz é posicionada, então uma frase diria exatamente onde ele está -
+		// e ele acabou de pagar uma habilidade para não estar em lugar nenhum.
+		if (talker.invisible()) return;
 		string wire = voice_wire(peer_id, audio);
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			game_player@ p = lobby.players[i];
@@ -304,7 +312,7 @@ class game_server {
 			if (@p != null) {
 				game_player@ record = game_player(p.peer_id, p.username);
 				record.color = p.color;
-				record.is_impostor = p.is_impostor;
+				record.set_role(p.role_id);
 				record.tasks = p.tasks;
 				record.x = p.x;
 				record.y = p.y;
@@ -394,6 +402,160 @@ class game_server {
 		else if (t == C_CAMERA_LEAVE) on_camera_leave(peer_id, pkt);
 		else if (t == C_CAMERA_SWITCH) on_camera_switch(peer_id, pkt);
 		else if (t == C_CAMERA_SCAN) on_camera_scan(peer_id, pkt);
+		else if (t == C_USE_ABILITY) on_use_ability(peer_id, pkt);
+	}
+
+	// --- Habilidades dos papéis ---
+
+	// A porta única das habilidades. O que é comum a todas fica aqui - partida em andamento, o papel
+	// TEM esta habilidade, está vivo (ou ela vale morto), fora de recarga - e o que cada uma faz
+	// fica em run_ability, um caso por id. A recarga só começa se a habilidade DEU: uma tentativa
+	// recusada (alvo fora do alcance, nada para consertar) não pode custar o cooldown inteiro.
+	void on_use_ability(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null) return;
+		string ability = pkt.get_string("ability");
+		role_traits@ role = p.role();
+		if (ability == "" || role.ability_id != ability) { send_ability_result(peer_id, ability, false, "role.ability_not_yours"); return; }
+		// Capacidade, que conhece os três casos (só vivo, vivo e morto, só morto). O anjo da guarda
+		// VIVO cai aqui, e o motivo é próprio: "seu papel só age depois de morrer" - dizer a ele
+		// "fantasma não interage" seria o contrário do que acontece.
+		if (!player_abilities(role, p.alive).has_ability()) {
+			send_ability_result(peer_id, ability, false, p.alive ? "role.ability_only_dead" : "game.ghost_cannot_interact");
+			return;
+		}
+		if (p.ability_cooldown_remaining > 0.0) {
+			dictionary@ params = dictionary();
+			params.set("seconds", "" + int(p.ability_cooldown_remaining + 0.5));
+			send_ability_result(peer_id, ability, false, "role.ability_cooldown", params);
+			return;
+		}
+		// A mensagem serve aos DOIS casos: o motivo da recusa, ou o que o jogador precisa ouvir
+		// quando dá certo (o anjo ouve QUEM ele protegeu - é o único retorno que ele tem).
+		string message_key = "";
+		dictionary@ message_params = dictionary();
+		if (!run_ability(lobby, p, ability, pkt, message_key, message_params)) {
+			send_ability_result(peer_id, ability, false, message_key != "" ? message_key : "role.ability_unavailable", message_params);
+			return;
+		}
+		p.ability_cooldown_remaining = role.ability_cooldown_seconds;
+		send_ability_result(peer_id, ability, true, message_key, message_params, role.ability_cooldown_seconds);
+	}
+
+	// O que cada habilidade FAZ. Devolve false com message_key preenchida quando não dá, e pode
+	// preenchê-la no sucesso com o que o jogador deve ouvir. Um caso por id; o papel novo
+	// acrescenta o dele aqui e em role_traits, e nada mais.
+	bool run_ability(game_state@ lobby, game_player@ p, const string&in ability, net_packet@ pkt,
+			string&out message_key, dictionary@ message_params) {
+		if (ability == ABILITY_VANISH) {
+			if (!lobby.try_vanish(p.peer_id, message_key)) return false;
+			// NADA é transmitido: sumir é silencioso para todo mundo menos para ele, que ouve o
+			// próprio som no cliente dele. Ver expire_invisibility para o porquê.
+			message_key = "role.vanish_done";
+			return true;
+		}
+		if (ability == ABILITY_SHAPESHIFT) {
+			string copiado;
+			if (!lobby.try_shapeshift(p.peer_id, pkt.get_uint64("target_peer_id"), copiado, message_key)) return false;
+			// O som é o que impede a fantasia de ser grátis: quem estiver por perto ouve que algo
+			// aconteceu ali, como ouviria a tampa de um duto. Vai para todos MENOS ele - o cliente
+			// dele toca na hora, sem esperar a rede.
+			broadcast_shift_sound(lobby, p);
+			message_params.set("name", copiado);
+			message_key = "role.shift_done";
+			return true;
+		}
+		if (ability == ABILITY_EXAMINE) {
+			int ha_quanto = 0;
+			array<string> rastro;
+			if (!lobby.try_examine_body(p.peer_id, ha_quanto, rastro, message_key)) return false;
+			// A frase é montada no CLIENTE, que é quem sabe o idioma dele: daqui saem só o número e
+			// as CHAVES das salas (ver examine_result_text). Mandar texto pronto quebraria a regra
+			// de tradução do projeto numa partida com gente em idiomas diferentes.
+			message_params.set("seconds", "" + ha_quanto);
+			array<string> chaves;
+			for (uint i = 0; i < rastro.length(); i++) {
+				map_zone@ z = lobby.map.find_zone(rastro[i]);
+				if (@z != null) chaves.insert_last(z.name_key);
+			}
+			message_params.set("rooms", join(chaves, "|")); // o cliente traduz cada uma e junta
+			message_key = chaves.length() > 0 ? "role.examine_result" : "role.examine_result_no_trail";
+			return true;
+		}
+		if (ability == ABILITY_SHIELD) {
+			string protegido;
+			if (!lobby.try_shield_player(p.peer_id, pkt.get_uint64("target_peer_id"), protegido, message_key)) return false;
+			// NADA é transmitido: nem para o protegido, nem para a partida. O escudo só aparece
+			// como um ataque que não acontece, e quem atacou não recebe explicação nenhuma.
+			message_params.set("name", protegido);
+			message_key = "role.shield_cast";
+			return true;
+		}
+		if (ability == ABILITY_REMOTE_FIX) {
+			net_packet@ fixed;
+			if (!lobby.try_remote_fix_sabotage(p.peer_id, fixed, message_key)) return false;
+			// O MESMO pacote do conserto normal, para a partida inteira: o resto do jogo (alarme,
+			// marcadores, painel aberto de quem estava consertando) já sabe tratá-lo, e nada precisa
+			// aprender que existe um segundo jeito de a sabotagem acabar.
+			//
+			// Ninguém é avisado de QUEM consertou, e isso é deliberado: o sinal é a sabotagem
+			// terminar sem ninguém ter chegado ao painel. Quem estava correndo para lá ouve isso e
+			// tira as próprias conclusões - inclusive a errada, que é metade da graça.
+			broadcast_to_lobby(lobby, fixed);
+			return true;
+		}
+		message_key = "role.ability_unavailable";
+		return false;
+	}
+
+	// O som da transformação, no ponto de quem se transformou. Não leva NOME nenhum: quem ouve sabe
+	// que alguém ali mudou de cara, não quem nem em quem - descobrir isso é o trabalho da mesa.
+	void broadcast_shift_sound(game_state@ lobby, game_player@ p) {
+		net_packet@ som = net_packet(S_SHIFT_SOUND);
+		som.set_float("x", p.x);
+		som.set_float("y", p.y);
+		broadcast_to_lobby(lobby, som, p.peer_id);
+	}
+
+	// Quem voltou a ser percebido: por tempo, por ter matado, ou porque a reunião começou. Os três
+	// caminhos passam por aqui, e é isso que garante que o aviso chegue em todos eles.
+	//
+	// O som de sumir e de voltar é SÓ DELE, e nada é transmitido a quem está por perto. Foi decisão
+	// do jogo, contra a minha versão inicial (em que o som vazava para os vizinhos e era o único
+	// sinal que a tripulação tinha dele): o fantasma some de verdade, sem rastro nenhum. O que
+	// ainda o revela é matar - e o som do assassinato, esse sim, é ouvido por quem está perto.
+	void expire_invisibility(game_state@ lobby) {
+		array<uint64>@ voltaram = lobby.expire_invisibility();
+		for (uint i = 0; i < voltaram.length(); i++) {
+			game_player@ p = lobby.find_player(voltaram[i]);
+			if (@p == null) continue;
+			send_to(p.peer_id, net_packet(S_VANISH_ENDED));
+		}
+	}
+
+	// Fantasias que venceram: a pessoa volta a ser ela, é avisada, e o som toca de novo onde ela
+	// está. Chamado do tick, junto do resto que envelhece.
+	void expire_disguises(game_state@ lobby) {
+		array<uint64>@ voltaram = lobby.expire_disguises();
+		for (uint i = 0; i < voltaram.length(); i++) {
+			game_player@ p = lobby.find_player(voltaram[i]);
+			if (@p == null) continue;
+			broadcast_shift_sound(lobby, p);
+			send_to(p.peer_id, net_packet(S_SHIFT_ENDED));
+		}
+	}
+
+	void send_ability_result(uint64 peer_id, const string&in ability, bool ok, const string&in message_key,
+			dictionary@ params = null, float cooldown_seconds = 0.0) {
+		net_packet@ r = net_packet(S_ABILITY_RESULT);
+		r.set_string("ability", ability);
+		r.set_bool("ok", ok);
+		r.set_string(MSG_KEY_FIELD, message_key);
+		if (@params != null) r.set_params(MSG_PARAMS_FIELD, params);
+		r.set_float("cooldown_seconds", cooldown_seconds);
+		send_to(peer_id, r);
 	}
 
 	// --- Autenticação ---
@@ -573,13 +735,30 @@ class game_server {
 		}
 		if (@lobby != null && lobby.state != "waiting") { @lobby = null; fail_key = "lobby.in_progress"; }
 		if (@lobby != null && lobby.players.length() >= lobby.config.max_players) { @lobby = null; fail_key = "lobby.full"; }
+		// Sala com papéis especiais só recebe cliente que sabe o que eles são. Recusar na porta, e
+		// não no início da partida: quem entrasse ficaria esperando uma partida que nunca ia começar
+		// por causa dele, sem saber. (O cliente velho ouve a chave crua, e é o melhor que dá: ele
+		// não tem o texto. O updater já avisou antes.)
+		if (@lobby != null && lobby.config.uses_roles() && conn.protocol_version < ROLES_MIN_PROTOCOL) { @lobby = null; fail_key = "lobby.needs_update"; }
 
 		if (@lobby == null) {
 			result.set_bool("ok", false);
 			result.set_string("message", "lobby_unavailable");
 			// O motivo vai como chave: "não deu" não diz ao jogador se errou o código, se a sala
 			// encheu ou se a partida já começou - e cada um desses pede uma reação diferente dele.
-			result.set_string(MSG_KEY_FIELD, fail_key);
+			//
+			// "lobby.needs_update" é a exceção, e por um motivo que só aparece no dia do lançamento:
+			// ela NASCEU nesta versão, então o cliente que precisa ouvi-la é exatamente o que não a
+			// tem - e falaria a chave crua ("lobby.needs_update") na cara do jogador. Por isso o
+			// campo de sempre leva um motivo que todo cliente já conhece, e o detalhe vai num campo
+			// novo que só o cliente novo lê. Quando não houver mais ninguém abaixo do protocolo 2,
+			// isto pode virar uma linha só de novo.
+			if (fail_key == "lobby.needs_update") {
+				result.set_string(MSG_KEY_FIELD, "lobby.join_failed");
+				result.set_string("detail_key", fail_key);
+			} else {
+				result.set_string(MSG_KEY_FIELD, fail_key);
+			}
 			send_to(peer_id, result);
 			return;
 		}
@@ -753,6 +932,22 @@ class game_server {
 			send_error(peer_id, "lobby.min_players_warning", p);
 			return;
 		}
+		// Papéis ligados DEPOIS de alguém velho já estar dentro (a porta só barra quem chega): a partida
+		// não começa, e o anfitrião ouve QUEM precisa atualizar - senão ele desligaria os papéis sem
+		// saber por quê, ou expulsaria a pessoa errada.
+		if (lobby.config.uses_roles()) {
+			array<string> outdated;
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				game_player@ p = lobby.players[i];
+				if (!p.is_bot && p.protocol_version < ROLES_MIN_PROTOCOL) outdated.insert_last(p.username);
+			}
+			if (outdated.length() > 0) {
+				dictionary@ p = dictionary();
+				p.set("names", join(outdated, ", "));
+				send_error(peer_id, "lobby.roles_need_update", p);
+				return;
+			}
+		}
 
 		// Sorteio dos papéis, bot e gente no mesmo bolo: a IA de impostor caça, mata quando ninguém
 		// está vendo e sabota (ver game_state.update_bot_impostor), então um bot impostor é uma
@@ -785,15 +980,34 @@ class game_server {
 			if (chosen_common_types.find(spot.task_type) != -1) common_spots.insert_last(spot);
 		}
 
+		// Papéis especiais, sorteados DENTRO de cada time: os N primeiros do embaralhamento são o time
+		// impostor, e cada papel de impostor sai entre eles; os de tripulação, entre o resto. Como a
+		// lista já está embaralhada, "os primeiros de cada time" é um sorteio. A configuração pode
+		// pedir mais papéis do que há gente no time (a sala foi validada pela LOTAÇÃO, não por quem
+		// veio): quem não couber não sai. A regra inteira - chance por vaga, bot fora, quem não cabe
+		// - mora em draw_special_roles (game/roles/role_traits.nvgt), para a sonda poder chamar a
+		// MESMA função em vez de reimplementá-la e passar com o código quebrado.
+		//
+		// O S_GAME_START anuncia o que a sala CONFIGUROU, nunca o que saiu daqui: dizer o resultado
+		// entregaria de graça a dedução que a chance existe para criar.
+		array<bool> bot_flags;
+		for (uint i = 0; i < shuffled.length(); i++) bot_flags.insert_last(shuffled[i].is_bot);
+		array<string> role_of = draw_special_roles(shuffled.length(), uint(impostor_count), bot_flags,
+			lobby.config.role_counts, lobby.config.role_chances);
+
 		for (uint i = 0; i < shuffled.length(); i++) {
 			game_player@ p = shuffled[i];
-			p.is_impostor = int(i) < impostor_count;
+			string team = int(i) < impostor_count ? TEAM_IMPOSTOR : TEAM_CREW;
+			p.set_role(role_of[i] != "" ? role_of[i] : base_role_of_team(team));
 			p.color = color_ids[i % color_ids.length()];
 			p.alive = true;
 			p.left_match = false;
 			p.vented = false;
 			p.current_vent_id = "";
 			p.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
+			// A habilidade começa PRONTA, como no original. Não é o cooldown do kill: aquele existe
+			// para o primeiro corpo não aparecer no segundo um da partida.
+			p.ability_cooldown_remaining = 0.0;
 			p.meetings_called = 0;
 			p.radar_index = -1;
 			p.last_move_time = 0.0;
@@ -801,7 +1015,9 @@ class game_server {
 			p.x = float(random(-30, 30)) / 10.0;
 			p.y = float(random(-30, 30)) / 10.0;
 
-			if (!p.is_impostor) {
+			// Quem tem tarefas é quem as tem CONTANDO para o time (ver role_traits): o engenheiro faz
+			// tarefas como qualquer tripulante, e o impostor só finge fazê-las.
+			if (p.role().tasks_count_for_crew) {
 				// Primeiro as comuns, IGUAIS pra todo mundo (mesmo ponto do mapa, inclusive).
 				for (uint c = 0; c < common_spots.length(); c++) {
 					player_task pt;
@@ -885,7 +1101,15 @@ class game_server {
 			if (p.is_bot) continue; // não tem pra quem mandar
 			net_packet@ start = net_packet(S_GAME_START);
 			start.set_string("map_name", lobby.map.name);
-			start.set_bool("your_role_impostor", p.is_impostor);
+			start.set_bool("your_role_impostor", p.is_impostor); // clientes até o protocolo 1
+			start.set_string("your_role", p.role_id);
+			// O que a SALA configurou (id -> quantos, e a chance de cada um), para todo mundo: assim
+			// como o número de impostores, saber que "pode haver um xerife" muda a leitura de tudo o
+			// que acontece. É a configuração, e nunca o resultado do sorteio: dizer o que realmente
+			// saiu entregaria a dedução que a chance existe para criar.
+			json_object@ cfg_json = lobby.config.to_json(lobby.players.length());
+			start.set_object("role_counts", cfg_json.get_object("role_counts"));
+			start.set_object("role_chances", cfg_json.get_object("role_chances"));
 			start.set_int("your_color", p.color);
 			start.set_uint64("your_peer_id", p.peer_id);
 			start.set_float("your_x", p.x);
@@ -950,7 +1174,11 @@ class game_server {
 		if (!lobby.try_move_player(peer_id, x, y)) return;
 
 		game_player@ p = lobby.find_player(peer_id);
-		if (@p == null || p.vented) return; // jogador escondido no vent não transmite posição
+		// Escondido no duto ou invisível não transmite posição - e é a posição que os outros clientes
+		// transformam em PASSOS. Sem isto, o fantasma seria invisível no radar e continuaria pisando
+		// alto pela nave, que num jogo em que o passo é a pista principal não é invisibilidade
+		// nenhuma.
+		if (@p == null || p.vented || p.invisible()) return;
 
 		net_packet@ moved = net_packet(S_PLAYER_MOVED);
 		moved.set_uint64("peer_id", peer_id);
@@ -970,7 +1198,7 @@ class game_server {
 		string object_id = pkt.get_string("task_id");
 		if (!lobby.try_start_visible_task(peer_id, object_id)) return;
 		game_player@ p = lobby.find_player(peer_id);
-		broadcast_task_visible(lobby, peer_id, @p != null ? p.username : "", object_id, true);
+		broadcast_task_visible(lobby, peer_id, @p != null ? p.display_name() : "", object_id, true);
 	}
 
 	void broadcast_task_visible(game_state@ lobby, uint64 peer_id, const string&in name, const string&in object_id, bool active) {
@@ -989,7 +1217,7 @@ class game_server {
 		uint64 quem = lobby.end_visible_task(peer_id);
 		if (quem == 0) return;
 		game_player@ p = lobby.find_player(quem);
-		broadcast_task_visible(lobby, quem, @p != null ? p.username : "", "", false);
+		broadcast_task_visible(lobby, quem, @p != null ? p.display_name() : "", "", false);
 	}
 
 	void on_task_input(uint64 peer_id, net_packet@ pkt) {
@@ -1038,22 +1266,44 @@ class game_server {
 		// saber se foi cooldown, alcance, ou alvo já morto) - agora pelo menos o caso mais comum
 		// (cooldown) avisa por quê.
 		game_player@ killer = lobby.find_player(peer_id);
-		if (@killer != null && killer.is_impostor && killer.alive && killer.kill_cooldown_remaining > 0.0) {
+		if (@killer != null && killer.role().can_kill && killer.alive && killer.kill_cooldown_remaining > 0.0) {
 			send_error(peer_id, "game.kill_on_cooldown");
 			return;
 		}
 
 		net_packet@ event;
-		if (lobby.try_kill(peer_id, target_peer, event)) {
+		bool misfire = false;
+		if (lobby.try_kill(peer_id, target_peer, event, misfire)) {
+			// QUEM morreu sai do pacote, e não do alvo pedido: no tiro errado do xerife quem cai é o
+			// atirador, e limpar o estado do alvo deixaria o morto de verdade preso na câmera.
+			uint64 victim_peer = event.get_uint64("peer_id");
 			// A vítima larga o posto: fantasma não opera equipamento, e um posto preso a quem morreu
 			// ficaria bloqueado para o resto da partida. Ela também precisa ser AVISADA, ou o cliente
 			// dela continua na câmera, sem andar, agora como fantasma.
-			if (lobby.release_cameras(target_peer)) {
-				send_camera_state(target_peer, false, "");
+			if (lobby.release_cameras(victim_peer)) {
+				send_camera_state(victim_peer, false, "");
 				broadcast_camera_watching(lobby);
 			}
-			end_visible_task(lobby, target_peer); // morreu no scanner: o scanner para
+			end_visible_task(lobby, victim_peer); // morreu no scanner: o scanner para
 			broadcast_to_lobby(lobby, event);
+
+			// Papel que anuncia a própria morte (alarmista). DEPOIS do pacote da morte, para o som
+			// do assassinato vir antes do aviso - a ordem inversa contaria o que aconteceu e só
+			// então deixaria ouvir. Sai da capacidade, não do id: um papel futuro pode fazer igual.
+			game_player@ victim = lobby.find_player(victim_peer);
+			if (@victim != null && victim.role().announces_own_death) {
+				net_packet@ alarm = net_packet(S_DEATH_ALARM);
+				alarm.set_string("name", victim.username);
+				map_zone@ zone = lobby.map.find_zone(lobby.map.room_id_at(victim.x, victim.y));
+				// A SALA, e não a posição: o aviso diz onde procurar, não entrega o ponto exato -
+				// quem quiser mais que isso tem que ir até lá. E nunca diz quem matou.
+				alarm.set_string("room_key", @zone != null ? zone.name_key : "");
+				broadcast_to_lobby(lobby, alarm);
+			}
+			// O tiro errado é dito SÓ a quem errou, depois do pacote da morte: para todos os outros
+			// (inclusive para quem ele mirou) aquilo foi um assassinato qualquer, e é isso que
+			// mantém o xerife sendo uma aposta em vez de um detector.
+			if (misfire) send_error(peer_id, "role.sheriff_misfire");
 		}
 	}
 
@@ -1106,6 +1356,12 @@ class game_server {
 			vent_state.set_float("x", MEETING_GATHER_X);
 			vent_state.set_float("y", MEETING_GATHER_Y);
 			send_to(lobby.meeting_unvented_peers[i], vent_state);
+		}
+		// E quem teve a fantasia desfeita pela reunião, pelo mesmo motivo: sem o aviso, o
+		// shapeshifter volta da votação achando que ainda está com a cara de outro. Sem som aqui -
+		// todo mundo está junto na cafeteria, e um estalo do nada denunciaria quem era.
+		for (uint i = 0; i < lobby.meeting_unshifted_peers.length(); i++) {
+			send_to(lobby.meeting_unshifted_peers[i], net_packet(S_SHIFT_ENDED));
 		}
 		net_packet@ vs = net_packet(S_VOTING_STARTED);
 		vs.set_float("voting_time", lobby.voting_timer);
@@ -1187,7 +1443,9 @@ class game_server {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
 		game_player@ p = lobby.find_player(peer_id);
-		if (@p == null || !p.alive || !p.is_impostor || p.vented) return;
+		// Capacidade, e não identidade: o engenheiro também usa os dutos (ver role_traits). Perguntar
+		// "é impostor?" aqui era o que obrigaria cada papel novo a revisitar este ponto.
+		if (@p == null || p.vented || !player_abilities(p.role(), p.alive).can_vent()) return;
 
 		string vent_id = pkt.get_string("vent_id");
 		map_object@ vent = lobby.map.find_object(vent_id);
@@ -1277,7 +1535,9 @@ class game_server {
 	// quem está perto de você.
 	array<game_player@>@ radar_targets(game_state@ lobby, game_player@ me, string&out fail_key) {
 		fail_key = "";
-		bool blinded_by_sabotage = !me.is_impostor;
+		// Quem é cegado pelas comunicações sai do papel, não de "é impostor?" - o engenheiro é
+		// tripulante e sofre igual, mas um papel futuro pode não sofrer.
+		bool blinded_by_sabotage = !me.role().immune_to_comms;
 		if (blinded_by_sabotage && lobby.active_sabotage == "comms") {
 			fail_key = "sabotage.comms.radar_down";
 			return null;
@@ -1353,7 +1613,7 @@ class game_server {
 	void fill_radar_result(net_packet@ result, game_player@ me, game_player@ target) {
 		result.set_bool("empty", false);
 		result.set_uint64("peer_id", target.peer_id);
-		result.set_string("name", target.username);
+		result.set_string("name", target.display_name()); // o disfarce do shapeshifter vale aqui
 		result.set_float("x", target.x);
 		result.set_float("y", target.y);
 		result.set_float("distance", distance_2d(me.x, me.y, target.x, target.y));
@@ -1471,7 +1731,7 @@ class game_server {
 
 		array<game_player@>@ there = lobby.players_in_room(lobby.camera_room_id, peer_id);
 		json_array@ names = json_array();
-		for (uint i = 0; i < there.length(); i++) names.add(there[i].username);
+		for (uint i = 0; i < there.length(); i++) names.add(there[i].display_name());
 
 		net_packet@ result = net_packet(S_CAMERA_PLAYERS);
 		result.set_array("names", names);
@@ -1784,6 +2044,10 @@ class game_server {
 				bool reliable = events[e].type != S_PLAYER_MOVED;
 				broadcast_to_lobby(lobby, events[e], 0, reliable);
 			}
+			// Fantasias que venceram. Fora do tick do game_state de propósito: desfazer o disfarce é
+			// estado, mas AVISAR quem voltou e tocar o som é rede, e rede é deste lado.
+			expire_disguises(lobby);
+			expire_invisibility(lobby);
 			// A partida acabou (o S_GAME_OVER acabou de sair): a sala REABRE para a mesma turma.
 			if (lobby.state == "ended") reopen_lobby(i);
 		}

@@ -1,0 +1,150 @@
+// Sonda do Alarmista: quando ele morre, a nave INTEIRA ouve - e ouve o quê, exatamente.
+//
+// O que se confere:
+//   1. matando o alarmista, todo mundo recebe o alarme, com o nome e a SALA dele;
+//   2. o alarme NÃO diz quem matou (é o que o impostor perderia de graça);
+//   3. matando um tripulante COMUM, alarme nenhum é disparado - senão o papel não seria segredo;
+//   4. o texto que o jogador ouve sai montado, com a sala traduzida.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_noisemaker.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/core/event_speech.nvgt" // death_alarm_text: a sonda lê o que o jogador ouve
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+
+class elenco {
+	game_client@ alarmista; uint64 alarmista_peer; string alarmista_nome;
+	game_client@ impostor; uint64 impostor_peer;
+	game_client@ comum; uint64 comum_peer;
+	array<game_client@> todos;
+	bool ok = false;
+}
+
+elenco@ monta_partida(server_address addr, const string&in sufixo) {
+	elenco e;
+	array<string> nomes = {"ala_a", "ala_b", "ala_c", "ala_d"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return e; }
+		e.todos.insert_last(c);
+	}
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_NOISEMAKER, 1);
+	ov.kill_cooldown_seconds = 5.0; // a partida comeca com o kill em recarga; 5 s é o mínimo aceito
+	e.todos[0].send_create_lobby("Sonda do alarmista", "classic", ov);
+	net_packet@ ls = wf(e.todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return e; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < e.todos.length(); i++) {
+		e.todos[i].send_join_lobby(lobby_id);
+		wf(e.todos[i], S_JOIN_RESULT, 5000);
+	}
+	e.todos[0].send_start_game();
+
+	for (uint i = 0; i < e.todos.length(); i++) {
+		net_packet@ st = wf(e.todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); return e; }
+		string rid = st.get_string("your_role", "");
+		uint64 meu = st.get_uint64("your_peer_id");
+		if (rid == ROLE_NOISEMAKER) { @e.alarmista = e.todos[i]; e.alarmista_peer = meu; e.alarmista_nome = nomes[i] + sufixo; }
+		else if (st.get_bool("your_role_impostor")) { @e.impostor = e.todos[i]; e.impostor_peer = meu; }
+		else if (@e.comum == null) { @e.comum = e.todos[i]; e.comum_peer = meu; }
+	}
+	e.ok = @e.alarmista != null && @e.impostor != null && @e.comum != null;
+	return e;
+}
+
+// Leva dois jogadores ao mesmo ponto e espera a recarga do kill passar (a caminhada serve de
+// espera: o servidor valida a velocidade, então o trajeto é em passos de qualquer jeito).
+void encosta(elenco@ e, game_client@ a, game_client@ b, float x, float y) {
+	for (uint passo = 0; passo < 110; passo++) {
+		a.send_move(x, y);
+		b.send_move(x, y);
+		bombeia(e.todos, 60);
+	}
+}
+
+void main() {
+	// Sem isto o tr() devolve a própria chave, e a linha que mostra o que o jogador ouve não prova
+	// nada - foi assim na primeira versão desta sonda.
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	server_address addr = resolve_server_address();
+
+	// --- O alarmista morre: a nave inteira ouve ---
+	println("--- o impostor mata o alarmista ---");
+	elenco@ e1 = monta_partida(addr, "" + random(1000, 9999));
+	if (!e1.ok) { println("nao consegui montar a partida"); return; }
+	encosta(e1, e1.impostor, e1.alarmista, 0.0, 0.0);
+	e1.impostor.send_kill(e1.alarmista_peer);
+
+	uint ouviram = 0;
+	bool contou_assassino = false;
+	string texto = "";
+	for (uint i = 0; i < e1.todos.length(); i++) {
+		net_packet@ al = wf(e1.todos[i], S_DEATH_ALARM, 6000);
+		if (@al == null) continue;
+		ouviram++;
+		if (al.exists("killer_peer") || al.exists("killer_color")) contou_assassino = true;
+		if (texto == "") texto = death_alarm_text(al);
+		if (i == 0) {
+			check("o alarme diz o nome de quem morreu", al.get_string("name") == e1.alarmista_nome, e1.alarmista_nome);
+			check("e diz a sala", al.get_string("room_key") != "", "uma chave de sala");
+		}
+	}
+	// TODO mundo, inclusive o impostor que matou e o próprio morto: o alarme é da nave.
+	check("a nave inteira ouviu (" + ouviram + ")", ouviram == e1.todos.length(), "" + e1.todos.length());
+	check("o alarme nao entrega quem matou", !contou_assassino, "false");
+	// A frase montada, e não só os campos: um texto que saia como chave crua ("role.noisemaker_alarm")
+	// passaria em todos os testes acima e seria ininteligível no jogo.
+	check("o texto sai montado, com nome e sala", texto.find(e1.alarmista_nome) >= 0 && texto.find("role.") < 0, "uma frase");
+	println("   o jogador ouve: \"" + texto + "\"");
+	for (uint i = 0; i < e1.todos.length(); i++) e1.todos[i].disconnect();
+
+	// --- Um tripulante comum morre: silêncio ---
+	println("--- o impostor mata um tripulante comum ---");
+	elenco@ e2 = monta_partida(addr, "" + random(1000, 9999));
+	if (!e2.ok) { println("nao consegui montar a segunda partida"); return; }
+	encosta(e2, e2.impostor, e2.comum, 0.0, 0.0);
+	e2.comum.clear_incoming();
+	e2.impostor.send_kill(e2.comum_peer);
+	net_packet@ morreu = wf(e2.alarmista, S_PLAYER_KILLED, 6000);
+	check("a morte aconteceu", @morreu != null, "S_PLAYER_KILLED");
+	net_packet@ silencio = wf(e2.alarmista, S_DEATH_ALARM, 2500);
+	check("morte de tripulante comum NAO dispara alarme", @silencio == null, "nenhum alarme");
+
+	for (uint i = 0; i < e2.todos.length(); i++) e2.todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

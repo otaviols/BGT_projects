@@ -39,6 +39,9 @@ const int ACTION_RADAR_LOCK = 19;
 // Falar no chat de voz (só no modo "segurando a tecla"; no automático o microfone abre sozinho).
 // Segurada, não apertada: soltar é o que fecha o microfone.
 const int ACTION_TALK = 20;
+// Habilidade do papel (engenheiro, xerife...). UMA tecla para todos os papéis: o que ela faz é o
+// papel quem diz, e quem não tem papel especial ouve isso ao apertar.
+const int ACTION_ABILITY = 21;
 
 class key_binding {
 	string id;        // usado no arquivo de configuração - não mude depois de publicado
@@ -79,6 +82,7 @@ class keybinding_table {
 		bindings.insert_last(key_binding("chat_switch", "keys.chat_switch", KEY_PAGEUP));
 		bindings.insert_last(key_binding("radar_lock", "keys.radar_lock", KEY_Q));
 		bindings.insert_last(key_binding("talk", "keys.talk", KEY_X));
+		bindings.insert_last(key_binding("ability", "keys.ability", KEY_H));
 	}
 
 	int key(int action) const {

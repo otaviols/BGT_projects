@@ -60,12 +60,54 @@ string player_left_text(net_packet@ pkt) {
 
 // "Você foi eliminado por fulano" - só para a vítima, e só ela recebe o nome do assassino.
 string you_were_killed_text(net_packet@ pkt, client_roster@ roster) {
-	if (@roster == null) return tr("game.you_were_killed");
-	roster_entry@ killer = roster.find(pkt.get_uint64("killer_peer"));
-	if (@killer == null || killer.name == "") return tr("game.you_were_killed");
+	uint64 killer_peer = pkt.get_uint64("killer_peer");
+	// Quem matou é você mesmo: é o tiro errado do xerife, que morre no lugar de quem mirou. Dizer
+	// "você foi eliminado por <seu nome>" seria ridículo; o porquê chega logo atrás, em particular
+	// (role.sheriff_misfire, mandado pelo servidor só a ele).
+	if (killer_peer == pkt.get_uint64("peer_id")) return tr("game.you_were_killed");
+	// O nome sai do ELENCO local, que não conhece disfarce nenhum: quem morre para o metamorfo
+	// descobre quem ele é de verdade. Ver o comentário em try_kill para o porquê - em resumo, quem
+	// morreu não tem como contar a ninguém, e mentir para ele não compra nada ao impostor.
+	string nome = "";
+	if (@roster != null) {
+		roster_entry@ killer = roster.find(killer_peer);
+		if (@killer != null) nome = killer.name;
+	}
+	if (nome == "") return tr("game.you_were_killed");
 	dictionary@ p = dictionary();
-	p.set("name", killer.name);
+	p.set("name", nome);
 	return tr("game.you_were_killed_by", p);
+}
+
+// "Fulano morreu na elétrica." - o alarme de quem anuncia a própria morte (ver role_noisemaker).
+// Mora aqui, e não no laço da partida, porque dois lugares o dizem: o laço e as telas bloqueantes.
+string death_alarm_text(net_packet@ pkt) {
+	dictionary@ p = dictionary();
+	p.set("name", pkt.get_string("name"));
+	string room_key = pkt.get_string("room_key");
+	p.set("room", room_key != "" ? tr(room_key) : tr("game.unknown_room"));
+	return tr("role.noisemaker_alarm", p);
+}
+
+// O resultado do exame do detetive, montado no idioma DESTE cliente.
+//
+// O servidor manda o número e as CHAVES das salas separadas por "|", nunca a frase pronta: numa
+// partida com gente em idiomas diferentes, quem sabe o idioma de cada um é o cliente dele. É a
+// mesma regra de todo o resto que vem do servidor - só que aqui a substituição é uma lista, e
+// tr_server_message colocaria "room.electrical|room.storage" cru dentro da frase.
+string examine_result_text(net_packet@ pkt) {
+	dictionary@ p = pkt.get_params(MSG_PARAMS_FIELD);
+	string chaves = "";
+	p.get("rooms", chaves);
+	if (chaves != "") {
+		array<string>@ partes = chaves.split("|");
+		array<string> nomes;
+		for (uint i = 0; i < partes.length(); i++) {
+			if (partes[i] != "") nomes.insert_last(tr(partes[i]));
+		}
+		p.set("rooms", join(nomes, ", "));
+	}
+	return tr(pkt.get_string(MSG_KEY_FIELD), p);
 }
 
 // O que uma tela bloqueante deve dizer por este pacote, ou "" se ele não é para ser anunciado ali.
@@ -81,6 +123,9 @@ string background_event_text(net_packet@ pkt, game_client@ client) {
 	if (t == S_SABOTAGE_FIXED) return sabotage_fixed_text();
 	if (t == S_PLAYER_LEFT) return player_left_text(pkt);
 	if (t == S_ERROR) return tr_server_message(pkt);
+	// O alarme é ouvido de onde quer que a pessoa esteja - inclusive de dentro de uma task, que é
+	// justamente onde ela estaria quando o impostor escolheu matar longe de todos.
+	if (t == S_DEATH_ALARM) return death_alarm_text(pkt);
 	// A morte só é anunciada para a própria vítima: para os outros, o assassinato é o som, não o texto.
 	if (t == S_PLAYER_KILLED && @client != null && pkt.get_uint64("peer_id") == client.my_peer_id) {
 		return you_were_killed_text(pkt, g_match_roster);

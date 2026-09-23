@@ -166,7 +166,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | Tab | radar: próximo alvo |
 | Shift + Tab | radar: alvo anterior |
 | Ctrl + Tab | trocar o modo do radar (jogadores / objetos da sala) |
-| Q | travar o radar no último alvo apontado (ou soltar) |
+| Q | radar contínuo: liga e desliga (ligado, o alvo do Tab fica bipando) |
 | C | dizer em que sala você está |
 | T | lista das suas tarefas, seu progresso e o do time |
 | F1 | medir o ping com o servidor |
@@ -178,6 +178,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 |---|---|
 | R | reportar um corpo (precisa estar perto dele) |
 | G | dizer qual sabotagem está em andamento e onde consertar |
+| H | usar a habilidade do seu papel (se o seu papel tiver uma) |
 | Enter no botão | chamar reunião de emergência (uma por jogador) |
 
 **Impostor**
@@ -212,12 +213,19 @@ se você a trocar nas configurações):
 - **Objetos da sala** — cicla pelo que existe na sala onde você está (tarefas, dutos, painéis,
   botão). Serve para conhecer o lugar e saber onde fica cada coisa.
 
-**Travar num alvo (Q):** depois de apontar alguém com o Tab, aperte **Q** e o radar passa a bipar
-sozinho naquela pessoa, sem precisar ficar apertando Tab. O tom do bipe sobe conforme ela se
-aproxima e desce quando se afasta. A trava continua valendo só dentro da mesma sala: se a pessoa
-sair da sala, entrar num duto ou sumir no escuro, o radar avisa e solta. Apontar outra pessoa com o
-Tab move a trava para ela; **Q** de novo solta. No modo de objetos a trava funciona igual: bipa no
-objeto marcado até você sair da sala.
+**Radar contínuo (Q):** a tecla **Q** liga e desliga o radar contínuo, e a sua escolha fica
+guardada para as próximas partidas.
+
+- **Desligado** (padrão): o Tab aponta alguém, bipa **uma vez** e cala.
+- **Ligado:** quem o Tab apontar fica **bipando sozinho**, sem precisar apertar mais nada. Apontar
+  outra pessoa com o Tab passa o bipe para ela.
+
+Vale só dentro da mesma sala, como o resto do radar: se a pessoa sair, entrar num duto ou sumir no
+escuro, o jogo avisa e o bipe para — mas o modo continua ligado, esperando o próximo Tab. No modo de
+objetos funciona igual: bipa no objeto apontado até você sair da sala.
+
+Os dois jeitos existem porque isso é gosto: tem quem queira acompanhar alguém sem apertar nada, e
+quem ache o bipe constante um ruído por cima do que veio escutar.
 
 O radar não funciona com as comunicações sabotadas, em nenhum dos dois modos.
 
@@ -316,6 +324,103 @@ votação já está correndo. Fora da reunião, T continua sendo a sua lista de 
 
 O chat só existe na sala de espera e durante as reuniões. Não há chat durante a partida — nem entre
 impostores.
+
+## Papéis especiais
+
+Além de tripulante e impostor, a sala pode ligar **papéis especiais** — profissões com uma
+habilidade própria. Eles vêm **desligados**: uma sala que não mexer nisso joga exatamente o jogo de
+sempre.
+
+Quem cria a sala escolhe, para cada papel, **quantos** existem e a **chance** de cada um aparecer
+(vazio = sempre). A chance importa: com 50%, ninguém pode assumir que o papel está em jogo, e é
+essa dúvida que o torna interessante. As regras da sala (tecla **O**) dizem o que está ligado e com
+que chance — mas nunca dizem quem saiu.
+
+Quem tem um papel com habilidade usa a tecla **H**.
+
+**Engenheiro** (tripulação). Faz tarefas como qualquer tripulante e conta para a vitória do time.
+Duas coisas o diferenciam:
+
+- **Usa os dutos**, como o impostor. O som da tampa é o mesmo — quem ouvir não sabe qual dos dois
+  é. Isso ajuda você a se mover, e atrapalha a sua defesa numa reunião.
+- **Conserta a sabotagem em andamento de onde estiver**, com a tecla H, sem precisar chegar ao
+  painel. A recarga é longa (dois minutos), então é uma salvada por partida, não um desfazer. E
+  todo mundo percebe: a sabotagem acaba sem ninguém ter chegado ao painel.
+
+**Xerife** (tripulação). Ele pode matar, com a **mesma tecla e o mesmo alcance do impostor** — e o
+tiro soa igual para quem está por perto. Mas se ele atirar em quem **não** é impostor, **quem morre
+é ele**. A pessoa que ele mirou não fica sabendo de nada: ouve um assassinato do lado, como
+qualquer vizinho, e não tem como saber que era ela na mira.
+
+Isso faz do xerife uma aposta, não um detector. Errar custa duas pessoas à tripulação de uma vez —
+o inocente que continua sob suspeita e o xerife que não está mais lá para defendê-lo.
+
+**Alarmista** (tripulação). Um tripulante comum em tudo — até morrer. Quando ele morre, **a nave
+inteira ouve que ele morreu e em que sala**, de onde quer que cada um esteja: no meio de uma
+tarefa, do outro lado do mapa, na câmera.
+
+O aviso **não** diz quem matou. E ninguém sabe quem é o alarmista — nem ele tem como avisar que é.
+Para o impostor, isso muda a conta de matar num canto escondido: qualquer vítima pode ser ela.
+
+**Anjo da Guarda** (tripulação). Enquanto vivo, é um tripulante comum. **Depois de morrer**, ele
+ganha uma jogada: chegar perto de alguém vivo e apertar a tecla da habilidade. Por 30 segundos,
+nenhum ataque contra essa pessoa acontece — o impostor aperta para matar e simplesmente nada
+acontece.
+
+Três coisas importam aqui:
+
+- **Ele precisa ir até a pessoa**, como o impostor precisaria. Proteger custa a travessia.
+- **Ninguém fica sabendo.** Nem quem foi protegido, nem quem tentou matar. Só o anjo ouve o nome de
+  quem ele protegeu, na hora de lançar.
+- **Ele nunca descobre se serviu de algo.** Saber que o escudo salvou alguém seria saber que havia
+  um impostor ali — e um fantasma não pode ter esse tipo de informação.
+
+O escudo vale contra qualquer ataque, inclusive o do xerife: mirar num inocente protegido não mata
+ninguém, nem o próprio xerife.
+
+**Detetive** (tripulação). Perto de um corpo, a tecla da habilidade **examina** sem reportar: ele
+ouve **há quanto tempo a pessoa morreu** e **por quais salas o assassino passou** nos segundos
+seguintes à morte.
+
+- **Examinar não convoca reunião.** Ele decide se chama na hora ou se guarda o que descobriu.
+- **Cada corpo só pode ser examinado uma vez** — por ele ou por outro detetive.
+- **O exame não aponta ninguém.** É uma lista de salas: quem passou por ali por acaso entra na
+  conta junto com o culpado. A pista vale uma discussão, não uma acusação pronta.
+- **Duto apaga o rastro.** Se o assassino sumiu por um duto, o exame diz só isso — e essa é a
+  contra-jogada do impostor, ao custo do barulho da tampa para quem estiver perto.
+
+**Metamorfo** (impostor). Um impostor que faz tudo o que um impostor faz, e mais uma coisa: com a
+tecla da habilidade ele escolhe um jogador vivo, de qualquer lugar do mapa, e **passa a aparecer
+com o nome dessa pessoa** — no radar, na câmera e na lista de quem está numa sala.
+
+Quem ele mata é a exceção: **a vítima descobre quem ele é de verdade.** Ela já perdeu, e não tem
+como contar a ninguém — não vota, não fala com os vivos, e fantasma só é ouvido por fantasma.
+
+Dura 45 segundos e tem uma recarga longa. Duas coisas o impedem de ser gratuito:
+
+- **Transformar faz barulho**, posicionado, como a tampa de um duto. Quem estiver por perto ouve
+  que algo aconteceu ali — sem saber quem, nem em quem.
+- **Enquanto disfarçado, ele não fala.** O microfone fecha. Num jogo em que a conversa é metade da
+  defesa, ficar mudo é um preço alto.
+
+A **reunião desfaz tudo**: na mesa todo mundo é quem é, porque ali se vota por nome.
+
+**Fantasma** (impostor). Com a tecla da habilidade ele **some por 20 segundos**: não aparece no
+radar, não aparece na câmera, **não faz som de passos** e não é ouvido no chat de voz. É o único
+papel que tira som em vez de mudar o que ele significa — e, num jogo em que o passo alheio é a
+pista principal, alguém atravessando a nave sem pisar é a coisa mais perigosa que existe.
+
+Sumir é **silencioso**: ninguém ouve nada, nem quem estiver do lado dele. Quem está perto
+simplesmente deixa de ouvir os passos daquela pessoa, sem saber por quê.
+
+O preço é o resto:
+
+- **Matar devolve ele na hora.** O instante do crime acaba com a invisibilidade — e o som do
+  assassinato, esse sim, é ouvido por quem está por perto.
+- Enquanto sumido, **ele também não fala.**
+- São 20 segundos, com uma recarga longa. Some para chegar em alguém, não para viver assim.
+
+A reunião também o devolve.
 
 ## Sabotagem (impostor)
 

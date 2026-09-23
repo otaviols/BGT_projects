@@ -1,0 +1,205 @@
+// Sonda do Engenheiro: o primeiro papel especial, e por isso também a primeira prova de que o
+// esqueleto funciona de ponta a ponta contra um servidor de verdade.
+//
+// O que se confere:
+//   1. ligado com chance 100, ele SAI - e num tripulante, nunca num impostor;
+//   2. quem recebeu o papel ouve o id certo no S_GAME_START, e recebe TAREFAS (ele joga pelo time);
+//   3. o conserto remoto acaba com a sabotagem para a partida INTEIRA, pelo mesmo S_SABOTAGE_FIXED
+//      do conserto normal - e sem dizer quem consertou;
+//   4. a recarga começa e a segunda tentativa é recusada com o motivo;
+//   5. quem NÃO é engenheiro não consegue usar a habilidade dele.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_engineer.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+// Espera DOIS tipos de uma vez, guardando os dois.
+//
+// Existe porque o wf() acima descarta o que não espera - e o servidor transmite o fim da sabotagem
+// ANTES de responder a habilidade, então esperar só o resultado jogava fora o S_SABOTAGE_FIXED do
+// próprio engenheiro e a sonda acusava um pacote faltando que na verdade ela mesma comeu. (É a
+// mesma armadilha que o jogo já teve com o S_LOBBY_STATE; no cliente de verdade nada se perde,
+// porque a fila é drenada pelo laço principal.)
+void wf2(game_client@ c, const string&in a, const string&in b, net_packet@&out pa, net_packet@&out pb, int ms) {
+	timer x;
+	while (x.elapsed < ms && (@pa == null || @pb == null)) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) {
+			if (p.type == a && @pa == null) @pa = p;
+			else if (p.type == b && @pb == null) @pb = p;
+			@p = c.poll_message();
+		}
+		wait(5);
+	}
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> jogadores;
+	array<string> nomes = {"eng_a", "eng_b", "eng_c", "eng_d"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return; }
+		jogadores.insert_last(c);
+	}
+	game_client@ host = jogadores[0];
+
+	// Um engenheiro, chance 100 (vazia = sempre). Quatro jogadores, um impostor: sobram três
+	// tripulantes, então o papel cabe com folga.
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_ENGINEER, 1);
+	host.send_create_lobby("Sonda do engenheiro", "classic", ov);
+	net_packet@ ls = wf(host, S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+
+	json_object@ cfg = ls.get_object("config");
+	json_object@ contas = @cfg != null ? cfg.get_object("role_counts") : null;
+	check("a sala guardou 1 engenheiro", @contas != null && contas.exists(ROLE_ENGINEER) && int(contas[ROLE_ENGINEER]) == 1, "1");
+
+	for (uint i = 1; i < jogadores.length(); i++) {
+		jogadores[i].send_join_lobby(lobby_id);
+		wf(jogadores[i], S_JOIN_RESULT, 5000);
+	}
+	host.send_start_game();
+
+	// Quem é quem. O engenheiro é o único que pode usar a habilidade; guardo também um impostor e um
+	// tripulante comum para conferir que a habilidade é mesmo só dele.
+	int idx_engenheiro = -1, idx_impostor = -1, idx_comum = -1;
+	uint com_tarefas = 0;
+	for (uint i = 0; i < jogadores.length(); i++) {
+		net_packet@ st = wf(jogadores[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); falhas++; continue; }
+		string rid = st.get_string("your_role", "");
+		json_array@ tasks = st.get_array("tasks");
+		uint quantas = @tasks != null ? tasks.length() : 0;
+		if (rid == ROLE_ENGINEER) {
+			idx_engenheiro = int(i);
+			check("o engenheiro NAO é do time impostor", !st.get_bool("your_role_impostor"), "false");
+			check("o engenheiro recebeu tarefas (" + quantas + ")", quantas > 0, "mais de zero");
+		} else if (st.get_bool("your_role_impostor")) {
+			idx_impostor = int(i);
+		} else {
+			idx_comum = int(i);
+		}
+		if (quantas > 0) com_tarefas++;
+	}
+	check("o engenheiro saiu com chance 100", idx_engenheiro >= 0, "um engenheiro");
+	check("tres jogadores com tarefas (todos menos o impostor)", com_tarefas == 3, "3");
+	if (idx_engenheiro < 0 || idx_impostor < 0) { println("sem elenco para continuar"); return; }
+
+	game_client@ eng = jogadores[idx_engenheiro];
+	game_client@ imp = jogadores[idx_impostor];
+
+	// Tripulante comum não usa a habilidade do engenheiro - nem o impostor.
+	if (idx_comum >= 0) {
+		jogadores[idx_comum].send_use_ability(ABILITY_REMOTE_FIX);
+		net_packet@ r = wf(jogadores[idx_comum], S_ABILITY_RESULT, 5000);
+		check("tripulante comum é recusado", @r != null && !r.get_bool("ok"), "false");
+		check("  com o motivo certo", @r != null && r.get_string(MSG_KEY_FIELD) == "role.ability_not_yours", "role.ability_not_yours");
+	}
+
+	// Sem sabotagem em andamento, nem o engenheiro conserta nada - e ouve por quê.
+	eng.send_use_ability(ABILITY_REMOTE_FIX);
+	net_packet@ vazio = wf(eng, S_ABILITY_RESULT, 5000);
+	check("sem sabotagem, a habilidade é recusada", @vazio != null && !vazio.get_bool("ok"), "false");
+	check("  dizendo que nao ha sabotagem", @vazio != null && vazio.get_string(MSG_KEY_FIELD) == "sabotage.no_active", "sabotage.no_active");
+
+	// O impostor sabota. A sabotagem tem recarga inicial, então esperamos ela liberar.
+	println("esperando a recarga inicial da sabotagem (" + int(SABOTAGE_INITIAL_COOLDOWN_SECONDS) + "s)...");
+	timer espera;
+	bool acabou = false;
+	while (espera.elapsed < int(SABOTAGE_INITIAL_COOLDOWN_SECONDS * 1000.0) + 2000) {
+		for (uint i = 0; i < jogadores.length(); i++) {
+			jogadores[i].update();
+			// A fila é esvaziada olhando o que passa: uma partida que ACABA durante a espera faz a
+			// sabotagem ser recusada sem erro nenhum (o servidor só atende com state=in_progress), e
+			// sem isto a sonda acusaria "a sabotagem não começou" sem dizer o porquê.
+			net_packet@ p = jogadores[i].poll_message();
+			while (@p != null) {
+				if (p.type == S_GAME_OVER) acabou = true;
+				@p = jogadores[i].poll_message();
+			}
+		}
+		wait(20);
+	}
+	check("a partida continua em andamento na hora de sabotar", !acabou, "sem S_GAME_OVER");
+
+	// INSISTE em vez de chutar o instante. A recarga corre no relógio do SERVIDOR, que avança por
+	// tick e fica para trás do relógio de parede quando ele está ocupado - com cinco clientes da
+	// sonda martelando, os 2 s de margem que eu tinha posto falhavam em uma tentativa a cada três,
+	// e o sintoma era "a sabotagem não começou", sem dizer que era a recarga.
+	//
+	// Os dois pacotes juntos: se o servidor recusar, o motivo chega ao impostor como S_ERROR, e
+	// esperar só o sucesso esconderia a explicação.
+	net_packet@ comecou; net_packet@ recusa;
+	timer tentativas;
+	while (@comecou == null && tentativas.elapsed < 20000) {
+		@recusa = null;
+		imp.send_trigger_sabotage("lights");
+		wf2(imp, S_SABOTAGE_STARTED, S_ERROR, comecou, recusa, 2500);
+	}
+	check("a sabotagem comecou", @comecou != null,
+		@recusa != null ? "S_SABOTAGE_STARTED (recusado: " + recusa.get_string(MSG_KEY_FIELD) + ")" : "S_SABOTAGE_STARTED");
+	if (@comecou == null) return;
+
+	// O conserto remoto: acaba com ela para TODA a partida, pelo pacote de sempre.
+	eng.send_use_ability(ABILITY_REMOTE_FIX);
+	// Os dois juntos: o conserto é transmitido ANTES da resposta, e esperar um de cada vez comeria
+	// o outro (ver wf2).
+	net_packet@ ok; net_packet@ fim_do_eng;
+	wf2(eng, S_ABILITY_RESULT, S_SABOTAGE_FIXED, ok, fim_do_eng, 5000);
+	check("a habilidade foi aceita", @ok != null && ok.get_bool("ok"), "true");
+	check("  e devolveu a recarga", @ok != null && ok.get_float("cooldown_seconds") == ENGINEER_FIX_COOLDOWN_SECONDS, "" + int(ENGINEER_FIX_COOLDOWN_SECONDS));
+
+	uint souberam = 0;
+	bool contou_quem = false;
+	for (uint i = 0; i < jogadores.length(); i++) {
+		net_packet@ fim = int(i) == idx_engenheiro ? fim_do_eng : wf(jogadores[i], S_SABOTAGE_FIXED, 5000);
+		if (@fim == null) continue;
+		souberam++;
+		// O pacote NAO pode dizer quem consertou: o sinal é a sabotagem acabar sem ninguém ter
+		// chegado ao painel, e quem estava a caminho tira as próprias conclusões.
+		if (fim.exists("peer_id") || fim.exists("fixed_by")) contou_quem = true;
+	}
+	check("a partida inteira soube do conserto (" + souberam + ")", souberam == jogadores.length(), "" + jogadores.length());
+	check("sem dizer QUEM consertou", !contou_quem, "false");
+
+	// Segunda tentativa: a recarga está contando.
+	eng.send_use_ability(ABILITY_REMOTE_FIX);
+	net_packet@ cd = wf(eng, S_ABILITY_RESULT, 5000);
+	check("a segunda tentativa é recusada", @cd != null && !cd.get_bool("ok"), "false");
+	check("  por recarga", @cd != null && cd.get_string(MSG_KEY_FIELD) == "role.ability_cooldown", "role.ability_cooldown");
+
+	for (uint i = 0; i < jogadores.length(); i++) jogadores[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

@@ -3,6 +3,7 @@
 
 #include "game_constants.nvgt"
 #include "../network/packet.nvgt"
+#include "../game/roles/role_traits.nvgt"
 
 // Impostores recomendados por quantidade de jogadores.
 //
@@ -41,12 +42,28 @@ class lobby_overrides {
 	string voice_chat = ""; // "" = preset, "on" = chat de voz por proximidade, "off" = só texto
 	string comms_in_meeting = ""; // "" = preset, "on" = comunicações sabotadas calam a reunião
 	float emergency_cooldown_seconds = -1.0;
+	// Papéis especiais: id -> quantos. Só entra aqui o que o anfitrião preencheu; o que ficou em
+	// branco não é tocado, como todo o resto. -1 nunca aparece: um papel ausente do dicionário É o
+	// "não mexi".
+	dictionary role_counts;
+	// Chance de cada vaga sair, em por cento (ausente = não mexi; 100 = sempre).
+	dictionary role_chances;
 
 	// Aplica o que foi preenchido sobre uma configuração vinda do preset. O que ficou de fora não é
 	// tocado. A validação continua sendo feita depois, por lobby_config.validate(): estes valores
 	// vêm da máquina do jogador e não podem ser confiados só porque passaram por uma tela.
 	void apply_to(lobby_config@ cfg) const {
 		if (@cfg == null) return;
+		array<string>@ ids = role_counts.get_keys();
+		for (uint i = 0; i < ids.length(); i++) {
+			int n = 0;
+			if (role_counts.get(ids[i], n)) cfg.set_role_count(ids[i], n);
+		}
+		array<string>@ chance_ids = role_chances.get_keys();
+		for (uint i = 0; i < chance_ids.length(); i++) {
+			int c = 0;
+			if (role_chances.get(chance_ids[i], c)) cfg.set_role_chance(chance_ids[i], c);
+		}
 		if (max_players > 0) cfg.max_players = uint(max_players);
 		if (impostor_count > 0) cfg.impostor_count = impostor_count;
 		if (task_count_per_crewmate > 0) cfg.task_count_per_crewmate = uint(task_count_per_crewmate);
@@ -84,10 +101,42 @@ class lobby_overrides {
 		pkt.set_string("voice_chat", voice_chat);
 		pkt.set_string("comms_in_meeting", comms_in_meeting);
 		pkt.set_float("emergency_cooldown_seconds", emergency_cooldown_seconds);
+		// Um objeto {id: quantos}, e não um campo por papel: assim um papel novo não muda o protocolo.
+		json_object@ roles = json_object();
+		array<string>@ ids = role_counts.get_keys();
+		for (uint i = 0; i < ids.length(); i++) {
+			int n = 0;
+			if (role_counts.get(ids[i], n)) roles.set(ids[i], n);
+		}
+		pkt.set_object("role_counts", roles);
+		json_object@ chances = json_object();
+		array<string>@ chance_ids = role_chances.get_keys();
+		for (uint i = 0; i < chance_ids.length(); i++) {
+			int c = 0;
+			if (role_chances.get(chance_ids[i], c)) chances.set(chance_ids[i], c);
+		}
+		pkt.set_object("role_chances", chances);
 	}
 
 	void read_from_packet(net_packet@ pkt) {
 		if (@pkt == null) return;
+		role_counts.delete_all();
+		json_object@ roles = pkt.get_object("role_counts");
+		if (@roles != null) {
+			array<string>@ ids = roles.get_keys();
+			for (uint i = 0; i < ids.length(); i++) {
+				// Só ids conhecidos: o resto vem da máquina do jogador e não tem o que fazer aqui.
+				if (CONFIGURABLE_ROLE_IDS.find(ids[i]) != -1) role_counts.set(ids[i], int(roles[ids[i]]));
+			}
+		}
+		role_chances.delete_all();
+		json_object@ chances = pkt.get_object("role_chances");
+		if (@chances != null) {
+			array<string>@ ids = chances.get_keys();
+			for (uint i = 0; i < ids.length(); i++) {
+				if (CONFIGURABLE_ROLE_IDS.find(ids[i]) != -1) role_chances.set(ids[i], int(chances[ids[i]]));
+			}
+		}
 		max_players = pkt.get_int("max_players", -1);
 		impostor_count = pkt.get_int("impostor_count", -1);
 		task_count_per_crewmate = pkt.get_int("task_count_per_crewmate", -1);
@@ -139,6 +188,45 @@ class lobby_config {
 	float emergency_cooldown_seconds = EMERGENCY_MEETING_COOLDOWN_SECONDS;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
+	// Papéis especiais em jogo: id -> quantos. Ausente = zero. TUDO desligado por padrão, em todo
+	// preset: quem não mexer joga o jogo de sempre, e é isso que torna a chegada dos papéis segura.
+	dictionary role_counts;
+	// Chance de CADA vaga do papel sair, em por cento. Ausente = 100. É o que separa "há um xerife"
+	// de "pode haver um xerife": com chance abaixo de 100, a tripulação não pode assumir que ele
+	// existe, e é justamente essa dúvida que faz o papel valer a pena. As chances são públicas (vão
+	// nas regras da sala); o RESULTADO do sorteio é que não é.
+	dictionary role_chances;
+
+	int role_count(const string&in role_id) const {
+		int n = 0;
+		if (!role_counts.exists(role_id)) return 0;
+		role_counts.get(role_id, n);
+		return n;
+	}
+
+	void set_role_count(const string&in role_id, int n) {
+		if (n <= 0) role_counts.delete(role_id);
+		else role_counts.set(role_id, n);
+	}
+
+	int role_chance(const string&in role_id) const {
+		int c = 100;
+		if (!role_chances.exists(role_id)) return 100;
+		role_chances.get(role_id, c);
+		return c;
+	}
+
+	void set_role_chance(const string&in role_id, int percent) {
+		// 100 não é guardado: ausência JÁ significa "sempre", e um campo a menos no pacote é um
+		// campo a menos para divergir.
+		if (percent >= 100) role_chances.delete(role_id);
+		else role_chances.set(role_id, percent);
+	}
+
+	// Se algum papel especial está ligado. É o que decide se a sala exige cliente novo.
+	bool uses_roles() const {
+		return role_counts.get_size() > 0;
+	}
 
 	// Corrige valores fora dos limites aceitáveis. Retorna true se algo foi ajustado.
 	bool validate() {
@@ -158,6 +246,35 @@ class lobby_config {
 		if (voting_time_seconds < 5.0) { voting_time_seconds = 5.0; changed = true; }
 		if (emergency_cooldown_seconds < 0.0) { emergency_cooldown_seconds = 0.0; changed = true; }
 		if (emergency_cooldown_seconds > 300.0) { emergency_cooldown_seconds = 300.0; changed = true; }
+		// Papéis, DEPOIS de lotação e impostores estarem dentro dos limites: só ids conhecidos, e
+		// nunca mais papéis de um time do que gente naquele time. Papel de impostor conta contra o
+		// número de impostores; de tripulação, contra o que sobra da sala cheia. O sorteio ainda
+		// recorta pelo número REAL de jogadores na hora (ver o servidor) - isto aqui só impede o
+		// absurdo de ser guardado.
+		int impostors_max = resolved_impostor_count(max_players);
+		int crew_max = int(max_players) - impostors_max;
+		int impostor_roles = 0, crew_roles = 0;
+		array<string>@ ids = role_counts.get_keys();
+		for (uint i = 0; i < ids.length(); i++) {
+			if (CONFIGURABLE_ROLE_IDS.find(ids[i]) == -1) { role_counts.delete(ids[i]); changed = true; continue; }
+			bool impostor_side = role_for(ids[i]).team == TEAM_IMPOSTOR;
+			int n = role_count(ids[i]);
+			int room_left = (impostor_side ? impostors_max - impostor_roles : crew_max - crew_roles);
+			if (n > room_left) { n = room_left; changed = true; }
+			if (n < 0) { n = 0; changed = true; }
+			set_role_count(ids[i], n);
+			if (impostor_side) impostor_roles += n; else crew_roles += n;
+		}
+		// Chances: dentro de 0 a 100, e só de papéis que estão realmente em jogo - uma chance
+		// pendurada num papel com zero vagas seria lida nas regras como se o papel existisse.
+		array<string>@ chance_ids = role_chances.get_keys();
+		for (uint i = 0; i < chance_ids.length(); i++) {
+			if (role_count(chance_ids[i]) <= 0) { role_chances.delete(chance_ids[i]); changed = true; continue; }
+			int c = role_chance(chance_ids[i]);
+			if (c < 0) { c = 0; changed = true; }
+			if (c > 100) { c = 100; changed = true; }
+			set_role_chance(chance_ids[i], c);
+		}
 		return changed;
 	}
 
@@ -191,6 +308,17 @@ class lobby_config {
 		o.set("voice_chat", voice_chat);
 		o.set("comms_affects_meeting", comms_affects_meeting);
 		o.set("emergency_cooldown_seconds", emergency_cooldown_seconds);
+		// Sempre presente, mesmo vazio: é como o cliente distingue "sala sem papéis" de "servidor
+		// antigo que nem sabe o que é papel".
+		json_object@ roles = json_object();
+		json_object@ chances = json_object();
+		array<string>@ ids = role_counts.get_keys();
+		for (uint i = 0; i < ids.length(); i++) {
+			roles.set(ids[i], role_count(ids[i]));
+			if (role_chance(ids[i]) < 100) chances.set(ids[i], role_chance(ids[i]));
+		}
+		o.set("role_counts", roles);
+		o.set("role_chances", chances);
 		return o;
 	}
 }

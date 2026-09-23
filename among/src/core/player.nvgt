@@ -5,6 +5,7 @@
 
 #include "../config/game_constants.nvgt"
 #include "../config/colors.nvgt"
+#include "../game/roles/role_traits.nvgt"
 
 class player_task {
 	// O ponto da fase ATUAL - ele muda quando a tarefa avança (ver game_state.advance_task).
@@ -30,10 +31,35 @@ class game_player {
 	float y = 0.0;
 	uint32 last_move_seq = 0;
 	bool alive = true;
+	// O papel é a fonte; is_impostor é DERIVADO dele em set_role() e existe porque o resto do servidor
+	// ainda pergunta pelo time em dezenas de lugares (contagem de vivos, vitória, alvo de kill). Os
+	// dois nunca são escritos separados - é o que impede um shapeshifter de contar como tripulante.
+	string role_id = ROLE_CREWMATE;
 	bool is_impostor = false;
 	bool vented = false;
 	string current_vent_id = ""; // qual vent ele está "dentro" agora, só relevante enquanto vented
 	float kill_cooldown_remaining = 0.0;
+	// Recarga da habilidade do papel (ver role_traits.ability_id). Uma só, porque o papel tem uma só.
+	float ability_cooldown_remaining = 0.0;
+	// Escudo do anjo da guarda: enquanto maior que zero, nenhum ataque contra este jogador acontece
+	// (ver try_kill). Ele NÃO sabe que está protegido, e ninguém mais sabe.
+	float shield_remaining = 0.0;
+
+	// Disfarce do shapeshifter: o nome com que ele aparece PARA OS OUTROS, e por quanto tempo ainda.
+	// Vazio = ele mesmo. Tudo que conta um nome a outro jogador passa por display_name(), e é isso
+	// que garante que o disfarce não tenha buracos - um único ponto esquecido entregaria a jogada.
+	string disguise_name = "";
+	float disguise_remaining = 0.0;
+
+	// Invisibilidade do fantasma. Enquanto durar, este jogador é "presente mas imperceptível" - a
+	// MESMA semântica de quem está dentro de um duto, e por isso pendurada nos mesmos três pontos
+	// (players_in_room, on_move e on_voice_frame) em vez de espalhada em condições novas.
+	float invisible_remaining = 0.0;
+	bool invisible() const { return invisible_remaining > 0.0; }
+	// Ele ESTAVA invisível e ainda não foi avisado de que voltou. Sem esta marca não dá para
+	// distinguir "acabou de reaparecer" de "nunca sumiu": os dois têm o contador em zero, e o
+	// servidor tocaria o som de volta para todo mundo, o tempo todo.
+	bool was_invisible = false;
 	uint meetings_called = 0;
 	int radar_index = -1;
 	float last_move_time = 0.0;
@@ -116,11 +142,53 @@ class game_player {
 			kill_cooldown_remaining -= delta_seconds;
 			if (kill_cooldown_remaining < 0.0) kill_cooldown_remaining = 0.0;
 		}
+		if (ability_cooldown_remaining > 0.0) {
+			ability_cooldown_remaining -= delta_seconds;
+			if (ability_cooldown_remaining < 0.0) ability_cooldown_remaining = 0.0;
+		}
+		if (shield_remaining > 0.0) {
+			shield_remaining -= delta_seconds;
+			if (shield_remaining < 0.0) shield_remaining = 0.0;
+		}
+		// O disfarce NÃO é desfeito aqui: quem o desfaz precisa avisar o jogador e tocar o som, e
+		// isso é do servidor (ver tick_disguises). Aqui só o relógio anda. O mesmo vale para a
+		// invisibilidade.
+		if (disguise_remaining > 0.0) {
+			disguise_remaining -= delta_seconds;
+			if (disguise_remaining < 0.0) disguise_remaining = 0.0;
+		}
+		if (invisible_remaining > 0.0) {
+			was_invisible = true; // quem zerar isto é quem AVISAR que ele voltou (expire_invisibility)
+			invisible_remaining -= delta_seconds;
+			if (invisible_remaining < 0.0) invisible_remaining = 0.0;
+		}
 	}
 
 	bool can_kill() const {
-		return is_impostor && alive && kill_cooldown_remaining <= 0.0;
+		return role().can_kill && alive && kill_cooldown_remaining <= 0.0;
 	}
+
+	// O nome com que ESTE jogador aparece para os outros. Todo pacote que leva nome de alguém a
+	// outra pessoa usa isto, nunca `username` direto: o radar, a câmera, a lista de quem está na
+	// sala. Um ponto esquecido é um buraco no disfarce, e o sintoma seria o pior possível - o
+	// shapeshifter descoberto por um caminho só, sem nada acusando no código.
+	string display_name() const {
+		return disguise_name != "" ? disguise_name : username;
+	}
+
+	bool disguised() const { return disguise_name != ""; }
+
+	void set_disguise(const string&in name, float seconds) {
+		disguise_name = name;
+		disguise_remaining = name != "" ? seconds : 0.0;
+	}
+
+	void set_role(const string&in id) {
+		role_id = id;
+		is_impostor = role_for(id).team == TEAM_IMPOSTOR;
+	}
+
+	role_traits@ role() const { return role_for(role_id); }
 
 	// Apaga tudo que é de UMA partida, deixando o objeto pronto pra próxima. Isto existe porque o
 	// game_player é o objeto de CONEXÃO: ele sobrevive à partida, à lobby, e vai junto com o jogador
@@ -129,11 +197,17 @@ class game_player {
 	void reset_match_state() {
 		alive = true;
 		left_match = false;
-		is_impostor = false;
+		set_role(ROLE_CREWMATE);
 		vented = false;
 		current_vent_id = "";
 		tasks.resize(0);
 		kill_cooldown_remaining = 0.0;
+		ability_cooldown_remaining = 0.0;
+		shield_remaining = 0.0;
+		disguise_name = "";
+		disguise_remaining = 0.0;
+		invisible_remaining = 0.0;
+		was_invisible = false;
 		meetings_called = 0;
 		radar_index = -1;
 		last_move_time = 0.0;

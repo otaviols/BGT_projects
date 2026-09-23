@@ -6,6 +6,37 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.30.0
+
+**Special roles.** Besides crewmate and impostor, whoever creates the match can turn on jobs, each
+with an ability of its own. There are seven:
+
+- **Engineer** — uses the vents and fixes the sabotage in progress from wherever they are.
+- **Sheriff** — can kill; shoot someone who isn't an impostor and they are the one who dies.
+- **Detective** — examines a body without reporting it and learns how long ago the person died and
+  which rooms the killer went through.
+- **Noisemaker** — when they die, the whole ship hears that they died and in which room.
+- **Guardian Angel** — after dying, protects someone alive: for a while, no attack against that
+  person happens.
+- **Shapeshifter** (impostor) — starts appearing under another player's name.
+- **Phantom** (impostor) — vanishes from the radar, the footsteps and the voice for a few seconds.
+
+Anyone with an ability uses the **H** key. In the room rules you choose **how many** of each role
+there are and the **chance** each one appears — below 100%, nobody can be sure that role is in play,
+and that doubt is what makes it worth it.
+
+**Everything starts turned off.** A room that doesn't touch this plays exactly the game you know.
+And a room with roles turned on only accepts players who have updated.
+
+> This is the biggest change since the beta began, and it **will have bugs**. If something sounds
+> wrong, freezes, or simply makes no sense, send a message through the game — everything I need to
+> fix it goes along with it. Playing with roles turned off is still the stable game from before.
+
+**Continuous radar (Q).** The Q key now turns the continuous radar on and off, instead of locking
+onto a target, and your choice is remembered. On, whoever Tab points at keeps beeping; off, Tab
+beeps once and goes quiet. Losing sight of the target stops the beeping, but no longer turns the
+mode off.
+
 ## 0.29.5
 
 - Crewmate: the G key says which sabotage is in progress and where to go fix it, skipping the

@@ -12,17 +12,53 @@
 //
 // Um papel novo entra em três passos:
 //   1. uma função `role_traits@ role_<nome>()` abaixo, declarando o que ele pode;
-//   2. o id dele em role_for();
-//   3. as chaves de texto "role.<id>" e "role.assigned_<id>" nos arquivos de idioma.
-// Nada mais no cliente precisa saber que ele existe.
+//   2. o id dele em role_for() e, se for sorteável pela sala, em CONFIGURABLE_ROLE_IDS;
+//   3. as chaves de texto "role.<id>", "role.assigned_<id>" e "lobby.role_count.<id>" nos
+//      arquivos de idioma.
+// Nada mais no cliente precisa saber que ele existe: o sorteio (servidor), o formulário da sala e
+// a leitura das regras percorrem CONFIGURABLE_ROLE_IDS.
+//
+// Os dois papéis-base (tripulante e impostor) não entram na lista: eles são o que sobra depois que
+// os papéis especiais são sorteados dentro de cada time. O que a sala configura é "quantos
+// engenheiros entre os tripulantes", nunca "quantos tripulantes".
 
 #include "../../config/game_constants.nvgt"
 
 const string ROLE_CREWMATE = "crewmate";
 const string ROLE_IMPOSTOR = "impostor";
+const string ROLE_ENGINEER = "engineer";
+const string ROLE_SHERIFF = "sheriff";
+const string ROLE_NOISEMAKER = "noisemaker";
+const string ROLE_GUARDIAN_ANGEL = "guardian_angel";
+const string ROLE_DETECTIVE = "detective";
+const string ROLE_SHAPESHIFTER = "shapeshifter";
+const string ROLE_PHANTOM = "phantom";
+
+// Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
+const string ABILITY_REMOTE_FIX = "remote_fix";
+const string ABILITY_SHIELD = "shield";
+const string ABILITY_EXAMINE = "examine";
+const string ABILITY_SHAPESHIFT = "shapeshift";
+const string ABILITY_VANISH = "vanish";
+
+// Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
+// papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
+const string TEAM_CREW = "crew";
+const string TEAM_IMPOSTOR = "impostor";
+
+// Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
+// Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
+const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
+	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM};
+
+// Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
+// versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
+// como tripulante comum sem saber que não é.
+const int ROLES_MIN_PROTOCOL = 2;
 
 class role_traits {
 	string id;
+	string team = TEAM_CREW;
 
 	// --- O que pode fazer ---
 	bool can_kill = false;
@@ -41,6 +77,23 @@ class role_traits {
 	// derrubou; as luzes ele sofre igual, e é isso que impede apagar a nave de ser escolha sem custo.
 	bool immune_to_comms = false;
 	bool immune_to_lights = false;
+
+	// --- Habilidade ativa ---
+	// Uma por papel, usada pela tecla de habilidade e despachada no servidor por este id (ver
+	// on_use_ability). "" = o papel não tem. A recarga é do papel, não da sala, pelo menos por
+	// enquanto: uma configuração por habilidade viraria uma tela de regras impossível de ouvir.
+	string ability_id = "";
+	float ability_cooldown_seconds = 0.0;
+	// EM QUE ESTADO a habilidade funciona. Os dois separados, e não um booleano "vale morto",
+	// porque há os três casos: só vivo (o normal), vivo e morto, e SÓ morto - o anjo da guarda,
+	// que é um tripulante comum até morrer.
+	bool ability_usable_alive = true;
+	bool ability_usable_dead = false;
+
+	// Ao morrer, a nave inteira ouve que ele morreu e ONDE. É a informação que este jogo não dá de
+	// graça em lugar nenhum: normalmente o corpo precisa ser encontrado, e quem está longe não sabe
+	// de nada. Ver role_noisemaker.
+	bool announces_own_death = false;
 
 	// --- Time ---
 	bool wins_with_crew = true;
@@ -61,6 +114,7 @@ role_traits@ role_crewmate() {
 role_traits@ role_impostor() {
 	role_traits t;
 	t.id = ROLE_IMPOSTOR;
+	t.team = TEAM_IMPOSTOR;
 	t.can_kill = true;
 	t.can_vent = true;
 	t.can_sabotage = true;
@@ -72,13 +126,217 @@ role_traits@ role_impostor() {
 	return t;
 }
 
+// Engenheiro: tripulante que usa os dutos e conserta a sabotagem em andamento de qualquer lugar.
+//
+// Os dutos dele são o preço em dedução: "a tampa abriu na navegação, então ele saiu em armas ou no
+// reator" deixa de provar impostor. A troca é deliberada - o som da tampa continua o mesmo para os
+// dois, então o que a tripulação perde em certeza ganha em ter uma explicação alternativa que o
+// impostor pode usar como álibi... e que o engenheiro paga sendo confundido com ele.
+//
+// O conserto remoto tem recarga longa (ver ENGINEER_FIX_COOLDOWN_SECONDS): ele existe para salvar a
+// nave de uma sabotagem crítica quando ninguém chega a tempo, não para anular a sabotagem como
+// mecânica. E ele é público do jeito mais sonoro possível - a sabotagem acaba sem ninguém ter
+// chegado ao painel, e quem estava a caminho ouve isso.
+role_traits@ role_engineer() {
+	role_traits t;
+	t.id = ROLE_ENGINEER;
+	t.can_vent = true;
+	t.ability_id = ABILITY_REMOTE_FIX;
+	t.ability_cooldown_seconds = ENGINEER_FIX_COOLDOWN_SECONDS;
+	return t;
+}
+
+// Xerife: tripulante armado que erra por conta e risco.
+//
+// Ele mata com a MESMA tecla e o mesmo alcance do impostor, e o tiro soa igual para os vizinhos -
+// é isso que torna cada assassinato ouvido ambíguo, em vez de prova. Mirar em quem não é impostor
+// mata o PRÓPRIO xerife (ver try_kill): a tripulação perde duas pessoas de uma vez, e quem ele
+// mirou nem fica sabendo que foi mirado.
+//
+// Não tem habilidade ativa: a "habilidade" dele é a tecla de matar, que ele já tem por can_kill.
+// E não sabe quem são os companheiros - se soubesse, saberia também quem NÃO é impostor.
+role_traits@ role_sheriff() {
+	role_traits t;
+	t.id = ROLE_SHERIFF;
+	t.can_kill = true;
+	return t;
+}
+
+// Alarmista: tripulante comum em tudo, menos na morte - quando ele cai, a nave inteira ouve que
+// ele morreu e em que sala.
+//
+// É o papel mais barato de descrever e o que mais mexe com o jogo, porque ataca a regra que
+// sustenta tudo: normalmente um corpo só existe para quem tropeça nele, e o impostor escolhe onde
+// matar contando com isso. Matar o alarmista num canto escondido deixa de ser seguro - e como
+// ninguém sabe quem ele é, TODA vítima poderia ser ele.
+//
+// O aviso não diz quem matou nem para onde ele foi: diz onde o corpo está. Quem quiser mais que
+// isso tem que ir até lá.
+role_traits@ role_noisemaker() {
+	role_traits t;
+	t.id = ROLE_NOISEMAKER;
+	t.announces_own_death = true;
+	return t;
+}
+
+// Anjo da guarda: tripulante comum enquanto vivo, e DEPOIS de morrer pode blindar alguém.
+//
+// Existe por causa de um problema velho do jogo: quem morre cedo fica só com as tarefas. O anjo dá
+// a quem morreu uma jogada que ainda importa, sem devolver a ele poder de dedução - ele continua
+// sem votar, sem falar com vivos, e não descobre nada sobre quem é quem.
+//
+// O escudo é INVISÍVEL para todo mundo, inclusive para quem foi protegido e para quem tentou
+// matar: a tecla do impostor simplesmente não faz nada (ver try_kill). Avisar qualquer um dos dois
+// transformaria o anjo num detector de impostor - "protegi fulano e ele foi atacado" é exatamente
+// a informação que um fantasma não pode ter.
+role_traits@ role_guardian_angel() {
+	role_traits t;
+	t.id = ROLE_GUARDIAN_ANGEL;
+	t.ability_id = ABILITY_SHIELD;
+	t.ability_cooldown_seconds = GUARDIAN_SHIELD_COOLDOWN_SECONDS;
+	t.ability_usable_alive = false; // vivo ele é um tripulante como outro qualquer
+	t.ability_usable_dead = true;
+	return t;
+}
+
+// Detetive: examina um corpo e descobre HÁ QUANTO TEMPO a pessoa morreu e por quais salas o
+// assassino passou nos segundos seguintes.
+//
+// Examinar é separado de reportar de propósito: ele decide se convoca a reunião na hora ou se
+// guarda o que viu. E o exame não aponta ninguém - o rastro é uma lista de salas, e quem estava
+// nelas por acaso entra na conta junto com o culpado. É informação de DEDUÇÃO, que vale uma
+// discussão, e não de identificação, que encerraria a partida.
+//
+// Uma versão descartada: ouvir os últimos segundos do que a vítima falou. Quem morre sozinho com o
+// assassino quase nunca está falando, então na maioria das mortes o retorno seria silêncio; e se
+// estivesse falando, seria com o próprio impostor, o que dá prova quase absoluta.
+//
+// Sem recarga: o limite é um exame POR CORPO (ver try_examine_body), e corpo é escasso por
+// natureza. Uma recarga por cima só puniria quem achou dois corpos seguidos.
+role_traits@ role_detective() {
+	role_traits t;
+	t.id = ROLE_DETECTIVE;
+	t.ability_id = ABILITY_EXAMINE;
+	return t;
+}
+
+// Shapeshifter: impostor que assume o NOME de outro jogador vivo por um tempo.
+//
+// Num jogo sem imagem, "parecer com alguém" é aparecer com o nome dele - e o nome só chega a outro
+// jogador por um caminho: o servidor (radar, câmera, quem está na sala). Por isso o disfarce mora
+// no servidor e o cliente do shapeshifter nem precisa saber como funciona.
+//
+// Duas coisas o mantêm honesto. A transformação FAZ SOM, posicionado, como a tampa de um duto:
+// quem estiver perto ouve e sabe que algo aconteceu ali. E o microfone dele fecha enquanto durar -
+// a voz chega identificada pelo peer, e uma frase o entregaria na hora. A fantasia custa ficar
+// mudo, que num jogo de dedução falada é um preço alto de verdade.
+role_traits@ role_shapeshifter() {
+	role_traits t;
+	t.id = ROLE_SHAPESHIFTER;
+	t.team = TEAM_IMPOSTOR;
+	t.can_kill = true;
+	t.can_vent = true;
+	t.can_sabotage = true;
+	t.can_close_doors = true;
+	t.tasks_count_for_crew = false;
+	t.immune_to_comms = true;
+	t.wins_with_crew = false;
+	t.knows_teammates = true;
+	t.ability_id = ABILITY_SHAPESHIFT;
+	t.ability_cooldown_seconds = SHAPESHIFT_COOLDOWN_SECONDS;
+	return t;
+}
+
+// Fantasma: impostor que some por completo - do radar, dos passos e da voz - por alguns segundos.
+//
+// É o inverso exato da moeda do jogo. Todos os outros papéis mexem no que o som SIGNIFICA; este
+// tira o som. Num jogo em que a pista principal é o passo alheio, alguém que atravessa a nave sem
+// pisar é a coisa mais assustadora que existe - e por isso ele paga caro: sai da invisibilidade no
+// instante em que mata, e o ato de sumir e de voltar fazem barulho, no ponto onde ele está.
+//
+// A invisibilidade reaproveita a semântica do duto ("presente mas imperceptível") e fica pendurada
+// nos MESMOS três pontos - players_in_room, on_move e on_voice_frame. Não há condição nova
+// espalhada pelo código, e é isso que impede um caminho esquecido de continuar denunciando ele.
+role_traits@ role_phantom() {
+	role_traits t;
+	t.id = ROLE_PHANTOM;
+	t.team = TEAM_IMPOSTOR;
+	t.can_kill = true;
+	t.can_vent = true;
+	t.can_sabotage = true;
+	t.can_close_doors = true;
+	t.tasks_count_for_crew = false;
+	t.immune_to_comms = true;
+	t.wins_with_crew = false;
+	t.knows_teammates = true;
+	t.ability_id = ABILITY_VANISH;
+	t.ability_cooldown_seconds = PHANTOM_COOLDOWN_SECONDS;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
+	if (role_id == ROLE_SHAPESHIFTER) return role_shapeshifter();
+	if (role_id == ROLE_PHANTOM) return role_phantom();
+	if (role_id == ROLE_NOISEMAKER) return role_noisemaker();
+	if (role_id == ROLE_DETECTIVE) return role_detective();
+	if (role_id == ROLE_GUARDIAN_ANGEL) return role_guardian_angel();
+	if (role_id == ROLE_ENGINEER) return role_engineer();
+	if (role_id == ROLE_SHERIFF) return role_sheriff();
 	return role_crewmate(); // desconhecido cai em tripulante: o papel mais inofensivo dos dois
 }
 
-// Compatibilidade com o protocolo atual, que ainda manda um booleano ("your_role_impostor").
-// Quando ele passar a mandar o id do papel, só esta função muda.
+bool role_id_is_known(const string&in role_id) {
+	return role_id == ROLE_CREWMATE || role_id == ROLE_IMPOSTOR || CONFIGURABLE_ROLE_IDS.find(role_id) != -1;
+}
+
+// O papel-base de um time: o que sobra para quem não foi sorteado num papel especial.
+string base_role_of_team(const string&in team) {
+	return team == TEAM_IMPOSTOR ? ROLE_IMPOSTOR : ROLE_CREWMATE;
+}
+
+// O sorteio dos papéis especiais, numa função para o servidor e a sonda chamarem a MESMA coisa.
+//
+// Recebe quantos jogadores há, quantos deles são impostores (os `impostor_count` PRIMEIROS da lista
+// já embaralhada), quem é bot, e a configuração da sala. Devolve o papel de cada posição ("" = o
+// papel-base do time dela).
+//
+// Três regras que parecem detalhe e não são:
+//   1. cada VAGA rola a própria chance - "2 xerifes a 50%" pode dar zero, um ou dois;
+//   2. vaga sorteada para fora NÃO gasta jogador, senão ela tiraria alguém do sorteio dos outros
+//      papéis sem nada ter aparecido;
+//   3. bot nunca recebe papel especial (a IA não sabe usá-lo), então numa sala cheia de bots pode
+//      não sobrar gente para todos os papéis ligados - e o que não couber não sai, calado. Do lado
+//      de quem joga isso é indistinguível de uma chance que não saiu, e é isso que o torna seguro.
+array<string> draw_special_roles(uint player_count, uint impostor_count, const array<bool>&in is_bot,
+		const dictionary&in role_counts, const dictionary&in role_chances) {
+	array<string> role_of(player_count, "");
+	uint next_impostor = 0, next_crew = impostor_count;
+	for (uint r = 0; r < CONFIGURABLE_ROLE_IDS.length(); r++) {
+		string rid = CONFIGURABLE_ROLE_IDS[r];
+		int vagas = 0;
+		if (!role_counts.get(rid, vagas) || vagas <= 0) continue;
+		int chance = 100;
+		if (role_chances.exists(rid)) role_chances.get(rid, chance);
+		bool impostor_side = role_for(rid).team == TEAM_IMPOSTOR;
+		for (int n = vagas; n > 0; n--) {
+			if (chance < 100 && random(1, 100) > chance) continue;
+			if (impostor_side) {
+				while (next_impostor < impostor_count && is_bot[next_impostor]) next_impostor++;
+				if (next_impostor >= impostor_count) break;
+				role_of[next_impostor++] = rid;
+			} else {
+				while (next_crew < player_count && is_bot[next_crew]) next_crew++;
+				if (next_crew >= player_count) break;
+				role_of[next_crew++] = rid;
+			}
+		}
+	}
+	return role_of;
+}
+
+// Compatibilidade: o S_GAME_START ainda manda o booleano ("your_role_impostor") para os clientes
+// anteriores ao id do papel, e um servidor antigo só manda ele. Quem tem o id usa o id.
 role_traits@ role_from_flag(bool is_impostor) {
 	return is_impostor ? role_impostor() : role_crewmate();
 }
@@ -110,6 +368,11 @@ class player_abilities {
 	bool can_call_meeting() const { return alive && role.can_call_meeting; }
 	// Votar é o único direito que a morte tira sem exceção, e por isso não olha o papel.
 	bool can_vote() const { return alive; }
+	// Tem uma habilidade ativa E pode usá-la neste estado. A recarga é conferida no servidor.
+	bool has_ability() const {
+		if (role.ability_id == "") return false;
+		return alive ? role.ability_usable_alive : role.ability_usable_dead;
+	}
 
 	// --- Tarefas ---
 	// NÃO exige estar vivo: fantasma continua fazendo tarefas, e elas continuam contando para a

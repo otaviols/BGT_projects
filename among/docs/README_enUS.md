@@ -169,7 +169,7 @@ your file and English — worth sending a message about it.
 | Tab | radar: next target |
 | Shift + Tab | radar: previous target |
 | Ctrl + Tab | switch radar mode (players / room objects) |
-| Q | lock the radar on the last target pointed at (or release it) |
+| Q | continuous radar: on and off (when on, the Tab target keeps beeping) |
 | C | say which room you are in |
 | T | your task list, your progress and the team's |
 | F1 | measure ping to the server |
@@ -181,6 +181,7 @@ your file and English — worth sending a message about it.
 |---|---|
 | R | report a body (you must be near it) |
 | G | say which sabotage is in progress and where to fix it |
+| H | use your role's ability (if your role has one) |
 | Enter at the button | call an emergency meeting (one per player) |
 
 **Impostor**
@@ -215,12 +216,20 @@ remap it in settings):
 - **Room objects** — cycles through what exists in the room you are in (tasks, vents, panels,
   button). Useful for learning a room and knowing where everything is.
 
-**Locking on a target (Q):** after pointing at someone with Tab, press **Q** and the radar keeps
-beeping at that person on its own, with no need to keep pressing Tab. The beep's pitch rises as they
-get closer and falls as they move away. The lock still only works within the same room: if the
-person leaves the room, enters a vent or vanishes in the dark, the radar says so and releases.
-Pointing at someone else with Tab moves the lock to them; **Q** again releases it. In objects mode
-the lock works the same way: it beeps at the marked object until you leave the room.
+**Continuous radar (Q):** the **Q** key turns the continuous radar on and off, and your choice is
+remembered for later matches.
+
+- **Off** (default): Tab points at someone, beeps **once** and goes quiet.
+- **On:** whoever Tab points at **keeps beeping** on its own, with nothing else to press. Pointing
+  at someone else with Tab hands the beep over to them.
+
+It only works within the same room, like the rest of the radar: if the person leaves, enters a vent
+or vanishes in the dark, the game says so and the beeping stops — but the mode stays on, waiting for
+the next Tab. In objects mode it works the same way: it beeps at the object you pointed at until you
+leave the room.
+
+Both ways exist because this is a matter of taste: some people want to follow someone without
+pressing anything, and some find constant beeping noise on top of what they came to listen to.
 
 The radar does not work while communications are sabotaged, in either mode.
 
@@ -317,6 +326,104 @@ or voting already running. Outside a meeting, T is your task list as always.
 
 Chat only exists in the waiting room and during meetings. There is no chat during the match — not
 even between impostors.
+
+## Special roles
+
+Besides crewmate and impostor, a room can turn on **special roles** — jobs with an ability of their
+own. They come **turned off**: a room that doesn't touch this plays exactly the game you know.
+
+Whoever creates the room chooses, for each role, **how many** there are and the **chance** each one
+appears (empty = always). The chance matters: at 50%, nobody can assume the role is in play, and
+that doubt is what makes it interesting. The room rules (**O** key) say what is turned on and at
+what chance — but never say who got it.
+
+Anyone with an ability uses the **H** key.
+
+**Engineer** (crew). Does tasks like any crewmate and counts toward the team's win. Two things set
+them apart:
+
+- **Uses the vents**, like the impostor. The lid sounds the same — whoever hears it doesn't know
+  which of the two it was. That helps you move, and hurts your defense in a meeting.
+- **Fixes the sabotage in progress from wherever they are**, with the H key, without reaching the
+  panel. The recharge is long (two minutes), so it's one save per match, not an undo button. And
+  everyone notices: the sabotage ends without anyone having reached the panel.
+
+**Sheriff** (crew). They can kill, with the **same key and the same range as the impostor** — and
+the shot sounds the same to anyone nearby. But if they shoot someone who is **not** an impostor,
+**they are the one who dies**. The person they aimed at learns nothing: they hear a murder next to
+them, like any neighbor, with no way to know they were the target.
+
+That makes the sheriff a bet, not a detector. Being wrong costs the crew two people at once — the
+innocent still under suspicion, and the sheriff who is no longer around to defend them.
+
+**Noisemaker** (crew). An ordinary crewmate in everything — until they die. When they do, **the
+whole ship hears that they died and in which room**, wherever each person happens to be: in the
+middle of a task, across the map, at the cameras.
+
+The alert does **not** say who killed them. And nobody knows who the noisemaker is — not even a way
+for them to say so. For the impostor, that changes the math of killing in a hidden corner: any
+victim could be that one.
+
+**Guardian Angel** (crew). While alive, an ordinary crewmate. **After they die**, they get a move:
+walk up to someone alive and press the ability key. For 30 seconds, no attack against that person
+happens — the impostor presses to kill and simply nothing occurs.
+
+Three things matter here:
+
+- **They have to go to the person**, just as the impostor would. Protecting costs the walk.
+- **Nobody finds out.** Not the person protected, not the one who tried to kill. Only the angel
+  hears the name of who they protected, at the moment of casting.
+- **They never learn whether it helped.** Knowing the shield saved someone would mean knowing an
+  impostor was right there — and a ghost cannot hold that kind of information.
+
+The shield works against any attack, the sheriff's included: shooting a protected innocent kills
+nobody, not even the sheriff.
+
+**Detective** (crew). Next to a body, the ability key **examines** it without reporting: they hear
+**how long ago the person died** and **which rooms the killer went through** in the seconds after
+the murder.
+
+- **Examining does not call a meeting.** They choose whether to call one now or keep what they found.
+- **Each body can only be examined once** — by them or by another detective.
+- **The examination names nobody.** It is a list of rooms: whoever happened to walk through them is
+  counted alongside the culprit. The clue is worth an argument, not a ready-made accusation.
+- **Vents erase the trail.** If the killer vanished through a vent, that is all the examination
+  says — and that is the impostor's counter-play, at the cost of the lid's noise to anyone nearby.
+
+**Shapeshifter** (impostor). An impostor who does everything an impostor does, plus one thing: with
+the ability key they pick a living player, from anywhere on the map, and **start appearing under
+that person's name** — on the radar, on the cameras, and in the list of who is in a room.
+
+Whoever they kill is the exception: **the victim learns who they really are.** They have already
+lost, and have no way to tell anyone — they don't vote, don't talk to the living, and a ghost is
+only heard by ghosts.
+
+It lasts 45 seconds and has a long recharge. Two things keep it from being free:
+
+- **Shifting makes noise**, positional, like a vent lid. Anyone nearby hears that something
+  happened there — without knowing who, or into whom.
+- **While disguised, they cannot speak.** The microphone closes. In a game where talking is half
+  your defense, going mute is a steep price.
+
+A **meeting undoes it**: at the table everyone is themselves, because that is where votes are cast
+by name.
+
+**Phantom** (impostor). With the ability key they **vanish for 20 seconds**: no radar, no cameras,
+**no footstep sound**, and not heard in voice chat. It is the only role that removes sound instead
+of changing what it means — and in a game where other people's footsteps are the main clue, someone
+crossing the ship without stepping is the most dangerous thing there is.
+
+Vanishing is **silent**: nobody hears a thing, not even someone standing right next to them.
+Whoever is nearby simply stops hearing that person's footsteps, without knowing why.
+
+The price is everything else:
+
+- **Killing brings them back at once.** The moment of the crime ends the invisibility — and the
+  sound of the murder itself *is* heard by anyone nearby.
+- While vanished, **they cannot speak either.**
+- It lasts 20 seconds, with a long recharge. You vanish to reach someone, not to live that way.
+
+A meeting also brings them back.
 
 ## Sabotage (impostor)
 

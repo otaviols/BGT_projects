@@ -78,6 +78,8 @@ class net_packet {
 		return result;
 	}
 
+	bool exists(const string&in key) const { return obj.exists(key); }
+
 	string get_string(const string&in key, const string&in default_value = "") const {
 		if (!obj.exists(key)) return default_value;
 		return string(obj[key]);

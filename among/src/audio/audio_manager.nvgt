@@ -275,6 +275,12 @@ class audio_manager {
 	// olhar - você ouve o tom subir e sabe que está chegando.
 	// O tom diz NORTE (mais agudo) ou SUL (mais grave) - a única pergunta que o estéreo não responde
 	// sozinho. Ver RADAR_PITCH_DIRECTION_STEP para o motivo de não ser a distância.
+	// A transformação do shapeshifter, ouvida por quem está perto. Família EVENTS, a mesma da porta
+	// e da morte: é um acontecimento do mundo, não interface de quem usou.
+	void play_shapeshift(float x, float y) {
+		spatial.play_once(SND_SHAPE_SHIFT, x, y, family_db(SOUND_FAMILY_EVENTS));
+	}
+
 	void play_radar_beep(float x, float y) {
 		float dy = spatial.listener_y - y; // o y do mundo cresce para o SUL
 		float pitch = 100.0;

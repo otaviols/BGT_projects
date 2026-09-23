@@ -1,0 +1,188 @@
+// Sonda do Detetive: o que o exame de um corpo devolve, e o que ele NÃO devolve.
+//
+// O que se confere:
+//   1. sem corpo por perto, o exame é recusado com o motivo;
+//   2. com o corpo do lado, devolve há quanto tempo a pessoa morreu e as salas por onde o assassino
+//      passou - nunca o nome nem o peer dele;
+//   3. o rastro só tem SALAS (nenhum corredor) e respeita o teto;
+//   4. UM exame por corpo: o segundo é recusado;
+//   5. impostor no DUTO não deixa rastro - a viagem de duto é privada;
+//   6. a frase sai montada no idioma do cliente, com os nomes de sala traduzidos.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_detective.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/core/event_speech.nvgt"
+#include "../../src/game/map.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+// Caminha de verdade: o servidor recusa saltos (PLAYER_MOVE_SPEED), então mandar o destino final
+// não move ninguém - e o teste passaria pelo motivo errado, com os dois parados no mesmo lugar.
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8;
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	game_map@ mapa = build_the_hub_map(); // para conferir que o rastro só tem SALAS
+
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	// Cinco: a sonda mata duas pessoas, e com quatro a partida acabaria no meio dela.
+	array<string> nomes = {"det_a", "det_b", "det_c", "det_d", "det_e"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return; }
+		todos.insert_last(c);
+	}
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_DETECTIVE, 1);
+	ov.kill_cooldown_seconds = 5.0;
+	todos[0].send_create_lobby("Sonda do detetive", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+	todos[0].send_start_game();
+
+	game_client@ detetive; uint64 det_peer = 0; float det_x = 0, det_y = 0;
+	game_client@ impostor; uint64 imp_peer = 0; float imp_x = 0, imp_y = 0;
+	game_client@ vitima; uint64 vit_peer = 0; float vit_x = 0, vit_y = 0;
+	game_client@ vitima2; uint64 vit2_peer = 0; float vit2_x = 0, vit2_y = 0;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ st = wf(todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); return; }
+		string rid = st.get_string("your_role", "");
+		uint64 meu = st.get_uint64("your_peer_id");
+		float px = st.get_float("your_x"), py = st.get_float("your_y");
+		if (rid == ROLE_DETECTIVE) { @detetive = todos[i]; det_peer = meu; det_x = px; det_y = py; }
+		else if (st.get_bool("your_role_impostor")) { @impostor = todos[i]; imp_peer = meu; imp_x = px; imp_y = py; }
+		else if (@vitima == null) { @vitima = todos[i]; vit_peer = meu; vit_x = px; vit_y = py; }
+		else if (@vitima2 == null) { @vitima2 = todos[i]; vit2_peer = meu; vit2_x = px; vit2_y = py; }
+	}
+	if (@detetive == null || @impostor == null || @vitima == null || @vitima2 == null) { println("elenco incompleto"); return; }
+
+	// 1. Sem corpo por perto.
+	detetive.send_use_ability(ABILITY_EXAMINE);
+	net_packet@ sem = wf(detetive, S_ABILITY_RESULT, 5000);
+	check("sem corpo por perto é recusado", @sem != null && !sem.get_bool("ok"), "false");
+	check("  com o motivo certo", @sem != null && sem.get_string(MSG_KEY_FIELD) == "role.examine_no_body", "role.examine_no_body");
+
+	// A morte acontece na CAFETERIA (0,0), e o impostor foge para a ARMARIA - duas salas do mapa,
+	// com um corredor no meio, para o rastro ter o que gravar e o corredor ter o que ser filtrado.
+	map_zone@ armaria = mapa.find_zone("weapons");
+	if (@armaria == null) { println("mapa sem a sala de armas"); return; }
+	anda_ate(todos, impostor, imp_x, imp_y, 0.0, 0.0); imp_x = 0; imp_y = 0;
+	anda_ate(todos, vitima, vit_x, vit_y, 0.0, 0.0); vit_x = 0; vit_y = 0;
+	bombeia(todos, 5500);
+	impostor.send_kill(vit_peer);
+	net_packet@ morte = wf(impostor, S_PLAYER_KILLED, 6000);
+	check("a vitima morreu na cafeteria", @morte != null && morte.get_uint64("peer_id") == vit_peer, "a vitima");
+
+	// O impostor foge para a armaria DENTRO da janela do rastro.
+	anda_ate(todos, impostor, 0.0, 0.0, armaria.center_x, armaria.center_y);
+	imp_x = armaria.center_x; imp_y = armaria.center_y;
+
+	// 2, 3 e 6. O detetive vai ao corpo e examina.
+	anda_ate(todos, detetive, det_x, det_y, 0.0, 0.0); det_x = 0; det_y = 0;
+	detetive.send_use_ability(ABILITY_EXAMINE);
+	net_packet@ exame = wf(detetive, S_ABILITY_RESULT, 5000);
+	check("com o corpo do lado, o exame é aceito", @exame != null && exame.get_bool("ok"), "true");
+	if (@exame != null) {
+		dictionary@ p = exame.get_params(MSG_PARAMS_FIELD);
+		string segundos = ""; p.get("seconds", segundos);
+		check("  diz ha quantos segundos morreu (" + segundos + ")", segundos != "" && segundos != "0", "um numero");
+		string chaves = ""; p.get("rooms", chaves);
+		check("  e traz o rastro do assassino", chaves.find("room.weapons") >= 0, "a sala de armas");
+		// O rastro não pode ter corredor: ele é para ser DITO, e nome de corredor é impronunciável
+		// no meio de uma frase.
+		check("  sem nenhum corredor", chaves.find("corridor") < 0, "nenhum");
+		// E nunca o assassino.
+		check("  e sem dizer quem matou", !exame.exists("killer_peer") && chaves.find("det_") < 0, "nenhum nome");
+		string frase = examine_result_text(exame);
+		check("  a frase sai montada e traduzida", frase.find("role.") < 0 && frase.find("room.") < 0, "uma frase");
+		println("   o detetive ouve: \"" + frase + "\"");
+	}
+
+	// 4. Um exame por corpo.
+	detetive.send_use_ability(ABILITY_EXAMINE);
+	net_packet@ denovo = wf(detetive, S_ABILITY_RESULT, 5000);
+	check("o segundo exame no mesmo corpo é recusado", @denovo != null && !denovo.get_bool("ok"), "false");
+	check("  dizendo que ja foi examinado", @denovo != null && denovo.get_string(MSG_KEY_FIELD) == "role.examine_already_done", "role.examine_already_done");
+
+	// 5. Duto não deixa rastro: o impostor mata e entra num duto em vez de andar.
+	map_object@ duto = mapa.find_object("vent_weapons");
+	if (@duto != null) {
+		anda_ate(todos, vitima2, vit2_x, vit2_y, duto.x, duto.y); vit2_x = duto.x; vit2_y = duto.y;
+		anda_ate(todos, impostor, imp_x, imp_y, duto.x, duto.y); imp_x = duto.x; imp_y = duto.y;
+		bombeia(todos, 5500);
+		impostor.send_kill(vit2_peer);
+		net_packet@ m2 = wf(impostor, S_PLAYER_KILLED, 6000);
+		if (@m2 != null) {
+			impostor.send_use_vent("vent_weapons");
+			wf(impostor, S_VENT_STATE, 4000);
+			// VIAJA para o duto do reator. Sem isto o teste não provaria nada: parado no duto da
+			// armaria ele estaria na sala do próprio corpo, que o rastro ignora de qualquer jeito.
+			// Viajando, ele passa a estar no REATOR - uma sala que o rastro gravaria na hora se o
+			// estado de duto não fosse respeitado.
+			impostor.send_vent_travel("vent_reactor");
+			bombeia(todos, 1000);
+			// Espera a janela do rastro fechar, tudo isso escondido.
+			bombeia(todos, int(KILLER_TRAIL_SECONDS * 1000.0) + 1500);
+			anda_ate(todos, detetive, det_x, det_y, duto.x, duto.y); det_x = duto.x; det_y = duto.y;
+			detetive.send_use_ability(ABILITY_EXAMINE);
+			net_packet@ ex2 = wf(detetive, S_ABILITY_RESULT, 5000);
+			check("exame do corpo de quem morreu perto do duto", @ex2 != null && ex2.get_bool("ok"), "true");
+			if (@ex2 != null) {
+				dictionary@ p2 = ex2.get_params(MSG_PARAMS_FIELD);
+				string chaves2 = ""; p2.get("rooms", chaves2);
+				check("  impostor no duto nao deixa rastro", chaves2 == "", "rastro vazio");
+				println("   o detetive ouve: \"" + examine_result_text(ex2) + "\"");
+			}
+		}
+	}
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

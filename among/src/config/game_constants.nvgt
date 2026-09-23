@@ -9,7 +9,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.29.5";
+const string GAME_VERSION = "0.30.0";
 
 // Versão do PROTOCOLO de rede, separada da versão do jogo de propósito: a maioria das versões não
 // muda o que viaja pela rede, e as que mudam de um jeito incompatível são raras e precisam de um
@@ -20,7 +20,9 @@ const string GAME_VERSION = "0.29.5";
 // primeira mudança incompatível de verdade (os papéis): subir o número aqui É o corte, e ele só
 // pode acontecer depois que a base de jogadores já estiver em versões que sabem explicar a recusa -
 // os clientes até a 0.29.4 ignoram o motivo do login falhar e dizem "credenciais inválidas".
-const int PROTOCOL_VERSION = 1;
+// Histórico: 1 = o campo passou a existir (0.29.5); 2 = o cliente lê `your_role` e o formulário da
+// sala manda `role_counts` (ver ROLES_MIN_PROTOCOL em game/roles/role_traits.nvgt).
+const int PROTOCOL_VERSION = 2;
 const int MIN_PROTOCOL_VERSION = 0;
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
@@ -130,6 +132,51 @@ const float SABOTAGE_COOLDOWN_SECONDS = 30.0;
 // Cooldown já contando no começo da partida: sem isso o impostor podia sabotar no primeiro segundo,
 // antes de qualquer um ter tido tempo de sair da cafeteria ou começar uma task.
 const float SABOTAGE_INITIAL_COOLDOWN_SECONDS = 30.0;
+// Papéis
+// Recarga do conserto remoto do engenheiro. Longa de propósito, e mais longa que a recarga da
+// sabotagem (30 s): se ele pudesse consertar toda sabotagem que aparecesse, sabotar deixaria de
+// ser uma jogada e a habilidade viraria um botão de desfazer. Com 120 s ele salva UMA crise - a
+// crítica em que ninguém chega a tempo - e nas outras a nave se vira como sempre.
+const float ENGINEER_FIX_COOLDOWN_SECONDS = 120.0;
+
+// Fantasma (impostor invisível). Mais curto que a fantasia do metamorfo: sumir do radar, dos passos
+// e da voz é forte demais para durar muito, e 20 segundos são o bastante para atravessar uma sala e
+// chegar em alguém. A recarga é longa porque o preço dele não é o tempo, é a exposição - ele sai da
+// invisibilidade no instante em que mata.
+const float PHANTOM_INVISIBLE_SECONDS = 20.0;
+const float PHANTOM_COOLDOWN_SECONDS = 90.0;
+
+// Shapeshifter. A fantasia dura o bastante para atravessar uma sala, matar e sumir - não a partida
+// inteira: viver disfarçado tiraria o custo da jogada, e a graça está em decidir QUANDO gastar a
+// janela. A recarga é o dobro, então ele tem duas ou três fantasias por partida, não uma por
+// oportunidade.
+const float SHAPESHIFT_DURATION_SECONDS = 45.0;
+const float SHAPESHIFT_COOLDOWN_SECONDS = 90.0;
+
+// Detetive. Por quantos segundos depois da morte o rastro do assassino é gravado, e quantas salas
+// no máximo ele guarda.
+//
+// 25 segundos saiu da GEOMETRIA deste mapa, não de um chute: as salas ficam a 25-30 unidades de
+// centro a centro, e da borda da cafeteria até a borda da armaria são 22 - exatamente dez segundos
+// a PLAYER_MOVE_SPEED. Com uma janela de dez, o rastro saía vazio em quase toda morte e o papel
+// nascia morto (a sonda pegou isto de primeira). Com 25 dá para alcançar uma ou duas salas, que é
+// o rumo que o detetive precisa. Mexer no tamanho do mapa é mexer aqui junto.
+//
+// O teto de salas existe porque um impostor correndo em círculos encheria a frase de nomes e ela
+// deixaria de ser dizível de uma vez só.
+const float KILLER_TRAIL_SECONDS = 25.0;
+const uint KILLER_TRAIL_MAX_ROOMS = 3;
+
+// Anjo da guarda. O escudo dura o bastante para cobrir uma travessia perigosa (uma ida à elétrica,
+// uma tarefa longa num canto), e não a partida inteira - protegido para sempre seria um jogador
+// fora do jogo. A recarga é o dobro da duração, então há sempre mais gente desprotegida do que
+// protegida, e o anjo escolhe QUEM salvar em vez de cobrir todo mundo.
+const float GUARDIAN_SHIELD_DURATION_SECONDS = 30.0;
+const float GUARDIAN_SHIELD_COOLDOWN_SECONDS = 60.0;
+// Alcance para lançar. É o mesmo do kill: o anjo precisa chegar tão perto quanto o impostor
+// precisaria - constante própria só para poder ajustar um sem mexer no outro.
+const float GUARDIAN_SHIELD_RANGE = PLAYER_KILL_RANGE;
+
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
 // Alcance de audição normal, fora de apagão. Era um 40 solto repetido em cada ponto que liga e
 // desliga o efeito das luzes - bastava mudar um para o jogador voltar do apagão com outro alcance.

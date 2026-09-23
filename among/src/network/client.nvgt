@@ -184,6 +184,15 @@ class game_client {
 		send(p);
 	}
 
+	// --- Habilidade do papel ---
+	void send_use_ability(const string&in ability, uint64 target_peer_id = 0, const string&in object_id = "") {
+		net_packet@ p = net_packet(C_USE_ABILITY);
+		p.set_string("ability", ability);
+		if (target_peer_id != 0) p.set_uint64("target_peer_id", target_peer_id);
+		if (object_id != "") p.set_string("object_id", object_id);
+		send(p);
+	}
+
 	// --- Câmeras de segurança ---
 	void send_camera_enter() { send(net_packet(C_CAMERA_ENTER)); }
 	void send_camera_leave() { send(net_packet(C_CAMERA_LEAVE)); }

@@ -1,0 +1,174 @@
+// Sonda do Xerife. O papel inteiro se resume a uma pergunta - QUEM morre quando ele atira - e a
+// uma segunda, mais fácil de errar: quem fica sabendo o quê.
+//
+// O que se confere:
+//   1. atirando num IMPOSTOR, morre o impostor;
+//   2. atirando em quem NÃO é impostor, morre o PRÓPRIO xerife;
+//   3. o tiro errado NÃO aparece no pacote que vai para a partida - ninguém além dele descobre que
+//      foi um tiro errado, nem o inocente que ele mirou;
+//   4. o inocente mirado continua VIVO e sem saber de nada;
+//   5. quem não é xerife nem impostor não mata ninguém.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_sheriff.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+// Espera dois tipos de uma vez: o wf() acima descarta o que não espera, e a morte e o aviso
+// particular do tiro errado chegam quase juntos.
+void wf2(game_client@ c, const string&in a, const string&in b, net_packet@&out pa, net_packet@&out pb, int ms) {
+	timer x;
+	while (x.elapsed < ms && (@pa == null || @pb == null)) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) {
+			if (p.type == a && @pa == null) @pa = p;
+			else if (p.type == b && @pb == null) @pb = p;
+			@p = c.poll_message();
+		}
+		wait(5);
+	}
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+
+// Um "elenco" de uma partida começada: quem é o quê, e o cliente de cada um.
+class elenco {
+	game_client@ xerife; uint64 xerife_peer;
+	game_client@ impostor; uint64 impostor_peer;
+	game_client@ inocente; uint64 inocente_peer;
+	array<game_client@> todos;
+	bool ok = false;
+}
+
+// Monta uma partida com um xerife garantido e devolve quem é quem. Repete até o sorteio dar um
+// xerife que não seja o próprio impostor (times diferentes, mas quem recebe o quê é sorteio).
+elenco@ monta_partida(server_address addr, const string&in sufixo) {
+	elenco e;
+	array<string> nomes = {"xer_a", "xer_b", "xer_c", "xer_d"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return e; }
+		e.todos.insert_last(c);
+	}
+	game_client@ host = e.todos[0];
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_SHERIFF, 1);
+	// A partida começa com o kill em recarga, e a sonda atira logo: 5 s é o mínimo que a sala
+	// aceita (ver lobby_config.validate), e é o que torna a espera abaixo curta.
+	ov.kill_cooldown_seconds = 5.0;
+	host.send_create_lobby("Sonda do xerife", "classic", ov);
+	net_packet@ ls = wf(host, S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return e; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < e.todos.length(); i++) {
+		e.todos[i].send_join_lobby(lobby_id);
+		wf(e.todos[i], S_JOIN_RESULT, 5000);
+	}
+	host.send_start_game();
+
+	for (uint i = 0; i < e.todos.length(); i++) {
+		net_packet@ st = wf(e.todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); return e; }
+		string rid = st.get_string("your_role", "");
+		uint64 meu = st.get_uint64("your_peer_id");
+		if (rid == ROLE_SHERIFF) { @e.xerife = e.todos[i]; e.xerife_peer = meu; }
+		else if (st.get_bool("your_role_impostor")) { @e.impostor = e.todos[i]; e.impostor_peer = meu; }
+		else if (@e.inocente == null) { @e.inocente = e.todos[i]; e.inocente_peer = meu; }
+	}
+	e.ok = @e.xerife != null && @e.impostor != null && @e.inocente != null;
+	return e;
+}
+
+// Põe dois jogadores no mesmo ponto (o kill exige alcance) e espera o servidor registrar.
+void encosta(elenco@ e, game_client@ a, game_client@ b, float x, float y) {
+	// Em passos: o servidor valida a velocidade do movimento, e um salto de dez metros de uma vez
+	// seria recusado como trapaça. A caminhada também serve de espera para a recarga inicial do
+	// kill (5 s, pedida na criação da sala) - sem ela o tiro é recusado e a sonda acusa uma morte
+	// que não aconteceu, sem dizer que foi a recarga.
+	for (uint passo = 0; passo < 110; passo++) {
+		a.send_move(x, y);
+		b.send_move(x, y);
+		bombeia(e.todos, 60);
+	}
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+
+	// --- Tiro CERTO: o impostor morre ---
+	println("--- o xerife atira no impostor ---");
+	elenco@ e1 = monta_partida(addr, "" + random(1000, 9999));
+	if (!e1.ok) { println("nao consegui montar a partida"); return; }
+	encosta(e1, e1.xerife, e1.impostor, 0.0, 0.0);
+	e1.xerife.send_kill(e1.impostor_peer);
+	net_packet@ morte = wf(e1.xerife, S_PLAYER_KILLED, 6000);
+	check("alguem morreu", @morte != null, "S_PLAYER_KILLED");
+	if (@morte != null) {
+		check("quem morreu foi o IMPOSTOR", morte.get_uint64("peer_id") == e1.impostor_peer, "o impostor");
+		check("o xerife consta como quem matou", morte.get_uint64("killer_peer") == e1.xerife_peer, "o xerife");
+		check("nao é tiro errado", !morte.exists("misfire"), "sem o campo");
+	}
+	for (uint i = 0; i < e1.todos.length(); i++) e1.todos[i].disconnect();
+
+	// --- Tiro ERRADO: o xerife morre no lugar ---
+	println("--- o xerife atira num inocente ---");
+	elenco@ e2 = monta_partida(addr, "" + random(1000, 9999));
+	if (!e2.ok) { println("nao consegui montar a segunda partida"); return; }
+	encosta(e2, e2.xerife, e2.inocente, 0.0, 0.0);
+	e2.xerife.send_kill(e2.inocente_peer);
+
+	net_packet@ morte2; net_packet@ aviso;
+	wf2(e2.xerife, S_PLAYER_KILLED, S_ERROR, morte2, aviso, 6000);
+	check("alguem morreu", @morte2 != null, "S_PLAYER_KILLED");
+	if (@morte2 != null) {
+		check("quem morreu foi o PROPRIO XERIFE", morte2.get_uint64("peer_id") == e2.xerife_peer, "o xerife");
+		check("o inocente NAO morreu", morte2.get_uint64("peer_id") != e2.inocente_peer, "nao ele");
+		// O campo não pode existir: este pacote vai para a partida inteira.
+		check("o pacote publico nao denuncia o tiro errado", !morte2.exists("misfire"), "sem o campo");
+	}
+	check("o xerife foi avisado em particular", @aviso != null && aviso.get_string(MSG_KEY_FIELD) == "role.sheriff_misfire", "role.sheriff_misfire");
+
+	// O inocente vê o mesmo pacote que todos - e nada mais. Para ele foi um assassinato qualquer.
+	net_packet@ visto_pelo_inocente = wf(e2.inocente, S_PLAYER_KILLED, 5000);
+	check("o inocente soube da morte", @visto_pelo_inocente != null, "S_PLAYER_KILLED");
+	if (@visto_pelo_inocente != null) {
+		check("  e o pacote dele tambem nao denuncia nada", !visto_pelo_inocente.exists("misfire"), "sem o campo");
+	}
+	// E ele continua vivo: se o servidor tivesse matado o alvo também, isto pegaria.
+	e2.inocente.send_kill(e2.xerife_peer); // tripulante comum nao mata ninguem
+	net_packet@ nada = wf(e2.inocente, S_PLAYER_KILLED, 2500);
+	check("tripulante comum nao mata", @nada == null, "nenhuma morte");
+
+	for (uint i = 0; i < e2.todos.length(); i++) e2.todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}
