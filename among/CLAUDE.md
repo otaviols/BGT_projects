@@ -323,6 +323,18 @@ O servidor lê por `config.role_value(papel, chave)`, **nunca a constante**; a c
 padrão. E o cliente recebe a duração de volta no `S_ABILITY_RESULT` (`duration_seconds`), porque ele
 acompanha a fantasia e a invisibilidade localmente e não conhece a configuração da sala.
 
+**Preset de sala salvo = `lobby_overrides` + o preset-base, no MESMO formato do protocolo.** Os
+ajustes são serializados por `write_to_packet`/`read_from_packet` (`config/lobby_presets.nvgt`), e
+não por uma serialização própria: assim um campo novo na sala entra no preset sozinho, sem uma
+segunda lista para esquecer de atualizar. Ficam na máquina do jogador (`game_settings.lobby_presets`,
+junto das teclas e volumes) - não dependem de conta nem de banco, e o preço assumido é que trocar de
+computador os perde. **Nome da sala e código de acesso não entram**: o nome se quer variar, e um
+código salvo seria um código que nunca muda. A última usada é gravada sozinha sob o nome VAZIO, que
+o formulário recusa - por isso ela convive com as nomeadas sem poder ser sobrescrita. E a leitura
+fica em try/catch: o arquivo é do jogador, pode estar truncado, e `parse_json` LANÇA. Sonda:
+`tools/probes/probe_presets.nvgt` (a ida e volta é o que falha calado - um campo que não sobrevive
+vira uma sala com regra diferente da escolhida, sem nada acusando).
+
 **A sala guarda a INTENÇÃO; quem lida com a realidade é o sorteio.** `validate()` NÃO recorta as
 vagas por time nem por quanta gente veio - só pelo absurdo (mais vagas do que a lotação). Recortar
 ali reescrevia em silêncio o que o anfitrião digitou, e de um jeito que não voltava: baixar a

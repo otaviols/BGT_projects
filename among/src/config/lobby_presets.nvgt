@@ -1,0 +1,106 @@
+// lobby_presets.nvgt
+// Configurações de sala salvas pelo jogador, para não preencher o formulário inteiro a cada partida.
+//
+// A tela de criar sala passou de meia dúzia de campos para quase trinta - regras, vagas e chances de
+// sete profissões, e os tempos de cada uma. Quem joga sempre do mesmo jeito estava percorrendo tudo
+// isso de ouvido toda vez.
+//
+// Ficam na MÁQUINA do jogador, junto das teclas e dos volumes (ver game_settings.lobby_presets):
+// não dependem de conta, de servidor nem de migração de banco, e funcionam na primeira vez. O preço
+// é que trocar de computador perde os presets - foi escolha consciente.
+//
+// O que é salvo são os AJUSTES (lobby_overrides) mais o preset-base sobre o qual eles valem. Nome da
+// sala e código de acesso NÃO entram: o nome se quer variar, e um código salvo seria um código que
+// nunca muda.
+
+#include "lobby_config.nvgt"
+// get_preset(): os presets-base (classico/rapido/caos) sao a referencia sobre a qual os ajustes
+// salvos valem, e o cliente precisa deles para pre-preencher o formulario.
+#include "presets.nvgt"
+#include "game_settings.nvgt"
+#include "../network/packet.nvgt"
+
+// A última configuração usada é guardada sozinha, sob um nome que o jogador não consegue digitar
+// (o formulário recusa nome vazio). Assim ela convive com os presets nomeados na mesma lista sem
+// poder ser sobrescrita por acidente.
+const string LOBBY_PRESET_LAST_USED = "";
+
+class lobby_preset {
+	string preset_id = "classic"; // o preset do servidor sobre o qual os ajustes valem
+	lobby_overrides ov;
+}
+
+// Tudo que está salvo, como objeto JSON. Nunca devolve null.
+//
+// O conteúdo vem do arquivo de preferências do próprio jogador, que pode estar truncado ou editado à
+// mão - e `parse_json` LANÇA exceção em JSON malformado (ver CLAUDE.md), então a leitura fica em
+// try/catch. Um arquivo corrompido custa os presets, nunca o jogo.
+json_object@ lobby_presets_root() {
+	if (g_settings.lobby_presets == "") return json_object();
+	try {
+		json_object@ o = parse_json(g_settings.lobby_presets);
+		return @o != null ? o : json_object();
+	} catch {
+		return json_object();
+	}
+	return json_object();
+}
+
+void lobby_presets_store(json_object@ root) {
+	g_settings.lobby_presets = @root != null ? root.stringify() : "";
+	g_settings.save();
+}
+
+// Os nomes salvos, sem a última usada (que não tem nome e é oferecida à parte).
+array<string> lobby_preset_names() {
+	array<string> nomes;
+	json_object@ root = lobby_presets_root();
+	array<string>@ chaves = root.get_keys();
+	for (uint i = 0; i < chaves.length(); i++) {
+		if (chaves[i] == LOBBY_PRESET_LAST_USED) continue;
+		nomes.insert_last(chaves[i]);
+	}
+	return nomes;
+}
+
+bool lobby_preset_exists(const string&in nome) {
+	return lobby_presets_root().exists(nome);
+}
+
+// Lê um preset salvo. Devolve false se não existe ou se está corrompido - e nesse caso quem chamou
+// segue com os padrões, em vez de criar uma sala com metade das regras.
+bool lobby_preset_load(const string&in nome, lobby_preset@ destino) {
+	json_object@ root = lobby_presets_root();
+	if (!root.exists(nome)) return false;
+	json_object@ entrada = root.get_object(nome);
+	if (@entrada == null) return false;
+	destino.preset_id = entrada.exists("preset") ? string(entrada["preset"]) : "classic";
+	// Os ajustes viajam no MESMO formato do protocolo (write_to_packet/read_from_packet), e não num
+	// formato próprio: assim um campo novo na sala aparece no preset sozinho, e não há uma segunda
+	// serialização para esquecer de atualizar.
+	json_object@ ajustes = entrada.get_object("overrides");
+	if (@ajustes == null) return false;
+	net_packet p("preset");
+	array<string>@ campos = ajustes.get_keys();
+	for (uint i = 0; i < campos.length(); i++) p.obj.set(campos[i], ajustes[campos[i]]);
+	destino.ov.read_from_packet(p);
+	return true;
+}
+
+void lobby_preset_save(const string&in nome, const string&in preset_id, const lobby_overrides&in ov) {
+	net_packet p("preset");
+	ov.write_to_packet(p);
+	json_object@ entrada = json_object();
+	entrada.set("preset", preset_id);
+	entrada.set("overrides", p.obj);
+	json_object@ root = lobby_presets_root();
+	root.set(nome, entrada);
+	lobby_presets_store(root);
+}
+
+void lobby_preset_delete(const string&in nome) {
+	json_object@ root = lobby_presets_root();
+	if (!root.exists(nome)) return;
+	root.remove(nome);
+	lobby_presets_store(root);
+}

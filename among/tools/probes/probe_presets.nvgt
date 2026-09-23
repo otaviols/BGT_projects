@@ -1,0 +1,92 @@
+// Sonda das configurações de sala salvas. Não precisa de servidor: o que pode quebrar aqui é a
+// IDA E VOLTA (salvar, ler de novo e obter exatamente o que foi salvo), e isso é tudo local.
+//
+// É o tipo de coisa que falha calado: um campo que não sobrevive à volta vira uma sala criada com
+// regra diferente da que o anfitrião escolheu, sem nada acusando.
+//
+//   nvgt tools/probes/probe_presets.nvgt
+#include "../../src/config/lobby_presets.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	// A sonda mexe no MESMO armazenamento do jogo, então guarda o que havia e devolve no fim - senão
+	// rodar a sonda apagaria as configurações de quem está desenvolvendo.
+	g_settings.load();
+	string guardado = g_settings.lobby_presets;
+	g_settings.lobby_presets = "";
+
+	println("--- vazio ---");
+	check("sem nada salvo, a lista é vazia", lobby_preset_names().length() == 0, "0");
+	check("a ultima usada nao existe", !lobby_preset_exists(LOBBY_PRESET_LAST_USED), "false");
+
+	println("--- ida e volta ---");
+	lobby_overrides ov;
+	ov.max_players = 8;
+	ov.impostor_count = 2;
+	ov.kill_cooldown_seconds = 17.5;
+	ov.sabotages = "off";
+	ov.voice_chat = "on";
+	ov.role_counts.set(ROLE_ENGINEER, 1);
+	ov.role_counts.set(ROLE_SHERIFF, 2);
+	ov.role_chances.set(ROLE_SHERIFF, 40);
+	ov.role_values.set(ROLE_ENGINEER + "." + TUNABLE_COOLDOWN, 200.0);
+	lobby_preset_save("teste", "chaos", ov);
+
+	check("o nome aparece na lista", lobby_preset_names().find("teste") == 0, "na lista");
+
+	lobby_preset lido;
+	check("o preset é lido de volta", lobby_preset_load("teste", lido), "true");
+	check("  o preset-base sobrevive", lido.preset_id == "chaos", "chaos");
+	check("  numero inteiro sobrevive", lido.ov.max_players == 8, "8");
+	check("  numero quebrado sobrevive", lido.ov.kill_cooldown_seconds == 17.5, "17,5");
+	check("  texto sobrevive", lido.ov.sabotages == "off" && lido.ov.voice_chat == "on", "off/on");
+	int n = 0;
+	lido.ov.role_counts.get(ROLE_ENGINEER, n);
+	check("  vagas de papel sobrevivem", n == 1, "1");
+	lido.ov.role_counts.get(ROLE_SHERIFF, n);
+	check("  e do segundo papel tambem", n == 2, "2");
+	int c = 0;
+	lido.ov.role_chances.get(ROLE_SHERIFF, c);
+	check("  chance sobrevive", c == 40, "40");
+	float v = 0.0;
+	lido.ov.role_values.get(ROLE_ENGINEER + "." + TUNABLE_COOLDOWN, v);
+	check("  tempo de papel sobrevive", v == 200.0, "200");
+
+	println("--- a ultima usada convive com as nomeadas ---");
+	lobby_overrides outra;
+	outra.max_players = 5;
+	lobby_preset_save(LOBBY_PRESET_LAST_USED, "classic", outra);
+	check("a ultima usada existe", lobby_preset_exists(LOBBY_PRESET_LAST_USED), "true");
+	// Ela NÃO pode aparecer entre os nomes: é oferecida à parte, e listá-la mostraria um item de
+	// nome vazio no menu.
+	check("mas nao aparece entre os nomes", lobby_preset_names().length() == 1, "1");
+	lobby_preset ultima;
+	lobby_preset_load(LOBBY_PRESET_LAST_USED, ultima);
+	check("e nao sobrescreveu a nomeada", ultima.ov.max_players == 5, "5");
+	lobby_preset_load("teste", lido);
+	check("  (a nomeada continua inteira)", lido.ov.max_players == 8, "8");
+
+	println("--- apagar ---");
+	lobby_preset_delete("teste");
+	check("some da lista", lobby_preset_names().length() == 0, "0");
+	check("e nao e' mais lido", !lobby_preset_load("teste", lido), "false");
+	check("a ultima usada nao foi junto", lobby_preset_exists(LOBBY_PRESET_LAST_USED), "true");
+
+	println("--- arquivo corrompido ---");
+	// parse_json LANÇA exceção em JSON malformado (ver CLAUDE.md): um arquivo de preferências
+	// truncado não pode derrubar o jogo, só custar os presets.
+	g_settings.lobby_presets = "{isto nao e' json";
+	check("lista vazia em vez de exceção", lobby_preset_names().length() == 0, "0");
+	check("leitura devolve false", !lobby_preset_load("teste", lido), "false");
+
+	g_settings.lobby_presets = guardado;
+	g_settings.save();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

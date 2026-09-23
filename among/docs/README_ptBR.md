@@ -26,6 +26,15 @@ partida não aparece na lista, e só entra quem escolher **Entrar em partida pri
 digitar o mesmo código. Maiúsculas e minúsculas não fazem diferença, então pode ditar de viva voz.
 Dentro da sala, a tecla **C** relembra o código para você passar adiante.
 
+**Guardar as regras que você gosta:** a tela de criar partida tem muitos campos, e ninguém quer
+percorrer todos toda vez. No fim dela há **"Salvar estas regras com o nome"** — preencha e aquela
+configuração fica guardada nesta máquina. Da próxima vez que criar uma partida, o jogo pergunta **de
+qual configuração partir**: uma das suas, **a última que você usou** (guardada sozinha, sem você
+pedir), ou as regras padrão. O mesmo menu apaga uma configuração salva.
+
+O nome da sala e o código de acesso **não** são salvos: o nome você vai querer variar, e um código
+guardado seria um código que nunca muda.
+
 **Praticar:** o menu inicial tem **Praticar tarefas e reparos**: qualquer tarefa ou reparo de
 sabotagem, sozinho, sem partida — para aprender cada uma com calma antes de valer.
 

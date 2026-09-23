@@ -27,6 +27,15 @@ the match does not show up in the list, and the only way in is choosing **Join a
 with a code** and typing the same code. Case does not matter, so you can say it out loud. Inside
 the room, the **C** key repeats the code so you can pass it on.
 
+**Saving the rules you like:** the create-match screen has a lot of fields, and nobody wants to walk
+through all of them every time. At the end of it there is **"Save these rules under the name"** —
+fill it in and that configuration is kept on this machine. Next time you create a match, the game
+asks **which configuration to start from**: one of yours, **the last one you used** (kept
+automatically, without you asking), or the default rules. The same menu deletes a saved one.
+
+The match name and the access code are **not** saved: you will want to vary the name, and a saved
+code would be a code that never changes.
+
 **Practice:** the main menu has **Practice tasks and repairs**: any task or sabotage repair, alone,
 with no match — to learn each one calmly before it counts.
 
