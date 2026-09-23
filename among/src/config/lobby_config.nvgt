@@ -246,24 +246,24 @@ class lobby_config {
 		if (voting_time_seconds < 5.0) { voting_time_seconds = 5.0; changed = true; }
 		if (emergency_cooldown_seconds < 0.0) { emergency_cooldown_seconds = 0.0; changed = true; }
 		if (emergency_cooldown_seconds > 300.0) { emergency_cooldown_seconds = 300.0; changed = true; }
-		// Papéis, DEPOIS de lotação e impostores estarem dentro dos limites: só ids conhecidos, e
-		// nunca mais papéis de um time do que gente naquele time. Papel de impostor conta contra o
-		// número de impostores; de tripulação, contra o que sobra da sala cheia. O sorteio ainda
-		// recorta pelo número REAL de jogadores na hora (ver o servidor) - isto aqui só impede o
-		// absurdo de ser guardado.
-		int impostors_max = resolved_impostor_count(max_players);
-		int crew_max = int(max_players) - impostors_max;
-		int impostor_roles = 0, crew_roles = 0;
+		// Papéis: só ids conhecidos, e um teto absoluto pela lotação da sala. Nada além disso.
+		//
+		// NÃO se recorta por time nem pela quantidade de gente presente, e isso é decisão. O que a
+		// sala guarda é a INTENÇÃO do anfitrião; quem lida com a realidade é o sorteio, que já sabe
+		// quantos vieram e deixa de fora o que não couber (ver draw_special_roles). Recortar aqui
+		// reescrevia em silêncio o que ele digitou - e pior, de um jeito que não voltava: baixar a
+		// lotação para quatro apagava os papéis, e subir de volta não os trazia.
+		//
+		// Com chance abaixo de 100 isso ficava ainda mais errado: "3 xerifes a 30%" é um pedido
+		// legítimo numa sala pequena, porque quase nunca saem três.
 		array<string>@ ids = role_counts.get_keys();
 		for (uint i = 0; i < ids.length(); i++) {
 			if (CONFIGURABLE_ROLE_IDS.find(ids[i]) == -1) { role_counts.delete(ids[i]); changed = true; continue; }
-			bool impostor_side = role_for(ids[i]).team == TEAM_IMPOSTOR;
 			int n = role_count(ids[i]);
-			int room_left = (impostor_side ? impostors_max - impostor_roles : crew_max - crew_roles);
-			if (n > room_left) { n = room_left; changed = true; }
 			if (n < 0) { n = 0; changed = true; }
+			// Mais vagas de um papel do que gente cabe na sala não é intenção, é engano de digitação.
+			if (n > int(max_players)) { n = int(max_players); changed = true; }
 			set_role_count(ids[i], n);
-			if (impostor_side) impostor_roles += n; else crew_roles += n;
 		}
 		// Chances: dentro de 0 a 100, e só de papéis que estão realmente em jogo - uma chance
 		// pendurada num papel com zero vagas seria lida nas regras como se o papel existisse.

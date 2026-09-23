@@ -616,10 +616,15 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		count_params.set("count", "" + impostor_count);
 		role_text += " " + tr(impostor_count == 1 ? "role.impostor_count_one" : "role.impostor_count_many", count_params);
 	}
-	// Papéis especiais desta partida, para todo mundo, na mesma fala: como o número de impostores,
-	// "há um xerife a bordo" muda a leitura de tudo que vier depois.
-	string roles_text = roles_in_play_text(start_pkt.get_object("role_counts"), start_pkt.get_object("role_chances"));
-	if (roles_text != "") role_text += " " + roles_text;
+	// Os papéis em jogo NÃO são anunciados aqui, e isso é decisão.
+	//
+	// Eles já estão nas regras da sala (tecla C na sala de espera), que qualquer um lê antes de
+	// começar: repetir na abertura era uma parede de texto por cima do anúncio do papel, que é a
+	// única coisa que o jogador precisa ouvir naquele instante.
+	//
+	// O `role_counts`/`role_chances` continua chegando no pacote porque o cliente não tem outro
+	// acesso à configuração da sala depois que a partida começa - quem um dia quiser uma tecla que
+	// responda "o que está em jogo aqui?" já tem o dado à mão (ver roles_in_play_text).
 	speak(role_text);
 	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
 	audio.update_listener(my_x, my_y);

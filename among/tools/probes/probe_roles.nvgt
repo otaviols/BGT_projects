@@ -60,11 +60,18 @@ void testa_config() {
 	string primeiro = CONFIGURABLE_ROLE_IDS[0];
 	cfg.max_players = 6;
 	cfg.impostor_count = 1;
+
+	// A configuração guarda a INTENÇÃO do anfitrião: ela NÃO é recortada por time nem por quanta
+	// gente veio. Quem lida com a realidade é o sorteio, que deixa de fora o que não couber. Antes
+	// isto era cortado aqui, e o corte não voltava - baixar a lotação apagava os papéis de vez.
+	cfg.set_role_count(primeiro, 5);
+	cfg.validate();
+	check("cinco vagas numa sala de seis sobrevivem", cfg.role_count(primeiro) == 5, "5");
+
+	// O único teto que resta é o absurdo: mais vagas do que gente cabe na sala é erro de digitação.
 	cfg.set_role_count(primeiro, 99);
 	cfg.validate();
-	bool do_impostor = role_for(primeiro).team == TEAM_IMPOSTOR;
-	int teto = do_impostor ? 1 : 5;
-	check("teto por time em " + primeiro, cfg.role_count(primeiro) == teto, "" + teto);
+	check("acima da lotacao é cortado na lotacao", cfg.role_count(primeiro) == 6, "6");
 
 	// Chance: 100 é o padrão e NÃO é guardada (ausência já significa "sempre").
 	check("chance padrao", cfg.role_chance(primeiro) == 100, "100");
@@ -195,7 +202,9 @@ void testa_sorteio() {
 	}
 	check("chance 50 saiu entre 150 e 250 em 400 (" + metade + ")", metade >= 150 && metade <= 250, "~200");
 
-	// 4. MAIS VAGAS DO QUE GENTE no time: o que não couber não sai, e nada quebra.
+	// 4. MAIS VAGAS DO QUE GENTE no time: o que não couber não sai, e nada quebra. É AQUI que a
+	//    realidade entra - a configuração guarda o que o anfitrião pediu, o sorteio entrega o que
+	//    cabe.
 	chances.delete_all();
 	contas.set(rid, 9);
 	array<string> apertado = draw_special_roles(6, 1, sem_bots, contas, chances);
