@@ -74,12 +74,16 @@ const string SND_SHIELD_CAST = "sounds/world/Protect_cast_shield.ogg";
 // um duto: é o que impede a fantasia de ser grátis. Quem ouve sabe que algo aconteceu ali, nunca
 // quem nem em quem.
 const string SND_SHAPE_SHIFT = "sounds/world/shape_shift.ogg";
-// Fantasma sumindo e voltando. PENDENTE: o arquivo ainda não existe, e o `check_sounds` acusa isso
-// a cada build - sem ele o papel fica sem o único sinal que a tripulação tem dele, que é o preço da
-// habilidade. NÃO reaproveite o shape_shift: aquele som já significa "alguém mudou de cara", e dois
+// Fantasma sumindo e voltando - o mesmo som nos dois, como a tampa do duto que abre e fecha igual.
+// É o ÚNICO sinal que a tripulação tem dele, ou seja, o preço inteiro da habilidade.
+//
+// NÃO reaproveite o shape_shift aqui: aquele som já significa "alguém mudou de cara", e dois
 // eventos diferentes com o mesmo som deixam os dois ilegíveis (ver "um sinal sonoro, um
 // significado" no CLAUDE.md).
-const string SND_VANISH = "sounds/world/phantom_vanish.ogg";
+//
+// O arquivo dura 9,3 s, mas o som de verdade acaba em 5,25 s - o resto é silêncio. Nada espera ele
+// terminar (é play_once, tocado e esquecido), então isso não quebra nada; só ocupa pacote à toa.
+const string SND_VANISH = "sounds/world/Phantom_role_reveal.ogg";
 
 // --- Painéis de reparo (o que toca DENTRO do conserto - ver game/sabotage_panels.nvgt) ---
 const string SND_BREAKER_SWITCH = "world/breaker_switch.ogg";     // luzes: estalo de um disjuntor

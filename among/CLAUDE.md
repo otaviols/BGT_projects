@@ -882,10 +882,6 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
   oferecida por Bauti (#31) - já existe um `es_LATAM` em uso; responder pelo `reply_feedback.ps1`.
   Já atendidos: mapa/orientação (Conhecer o mapa), regras na sala (O), radar travado (Q), partidas
   privadas.
-- **`sounds/world/phantom_vanish.ogg` não existe** (branch `roles`). É o som de o fantasma sumir e
-  voltar - o ÚNICO sinal que a tripulação tem dele, ou seja, o preço inteiro da habilidade. O
-  `check_sounds` acusa a cada build. **Não reaproveite o `shape_shift.ogg`**: aquele já significa
-  "alguém mudou de cara", e dois eventos com o mesmo som deixam os dois ilegíveis.
 - **`sounds/ejected.ogg` não existe.** Está no catálogo, o `build_pack` avisa a cada build, e o jogo
   compilado sai sem o som de alguém ser expulso na votação.
 - **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em
