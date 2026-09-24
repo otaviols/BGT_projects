@@ -6,6 +6,30 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.33.0
+
+**Tarefa nova: limpar o filtro.** A câmara do filtro tem folhas presas, e você leva o aspirador pelas
+posições com as setas. Cada posição responde: um tique seco é lugar vazio, um tique com um farfalho
+logo atrás é uma folha. Enter numa folha e a sucção a leva. As folhas que sobram se mexem a cada
+aspirada, então não adianta decorar a câmara de uma vez. Há dois filtros na nave: um na sala do
+oxigênio, que até agora não tinha tarefa nenhuma, e outro na estufa — que é onde as folhas caem.
+
+**Uma sala nova: a sala de motor**, depois da estufa, com chão de vidro. Vale a pena conhecer o som
+dela em "Conhecer o mapa".
+
+**Abastecer os motores deixou de ter um caminho só.** O galão continua no depósito, mas o destino
+agora varia: às vezes o reator, às vezes a sala de motor nova, do outro lado da nave. Cada tripulante
+recebe o seu. Isso muda o que "eu estava indo abastecer" prova numa reunião — antes todo mundo sabia
+por onde essa pessoa teria que passar.
+
+**As tarefas se espalham melhor pela nave** e o scanner ficou mais raro (mudanças da versão anterior
+que agora se sentem, com mais lugares para onde ir).
+
+**Correção importante do duto.** Ninguém mata mais de dentro do duto, e ninguém morre dentro dele.
+Quem era morto escondido ficava preso no lugar pelo resto da partida, sem conseguir andar nem sair.
+
+**Espanhol completo e turco atualizado**, enviados por jogadores pelo próprio jogo.
+
 ## 0.32.0
 
 **O metamorfo não se entrega mais ao chegar perto.** Quem se aproximava dele ouvia o nome

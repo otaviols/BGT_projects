@@ -609,6 +609,12 @@ game_map@ build_the_hub_map() {
 	// virarem um borrão só de perto.
 	m.objects.insert_last(map_object("task_filter_o2room", "task.clean_o2_filter.name", -18, -42, "oxygen",
 		OBJ_TASK_SPOT, SND_TASK_BEACON_CLEAN_O2_FILTER, "clean_o2_filter", "", SND_TASK_BEACON_CLEAN_O2_FILTER));
+	// Segundo filtro, na estufa: é o lugar do mapa onde caem folhas de verdade, então a tarefa que
+	// tira folhas de um duto ganha ali o sentido que no oxigênio é só técnico. Dois pontos do MESMO
+	// tipo é o padrão do jogo (o lixo tem três) - só tarefa COMUM é que existe num lugar só, porque
+	// ela precisa ser verificável ("fui no outro" não pode ser escapatória).
+	m.objects.insert_last(map_object("task_filter_greenhouse", "task.clean_o2_filter.name", 29, 21, "greenhouse",
+		OBJ_TASK_SPOT, SND_TASK_BEACON_CLEAN_O2_FILTER, "clean_o2_filter", "", SND_TASK_BEACON_CLEAN_O2_FILTER));
 
 	// Sabotagens
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -27, -53, "electrical",

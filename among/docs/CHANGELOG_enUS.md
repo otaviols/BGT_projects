@@ -6,6 +6,32 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.33.0
+
+**New task: clean the filter.** The filter chamber has leaves stuck in it, and you move the nozzle
+across the positions with the arrows. Each position answers: a dry tick is an empty spot, a tick with
+a rustle right behind it is a leaf. Press Enter on a leaf and the suction takes it. The remaining
+leaves shift after every one you remove, so mapping the chamber once does not help. There are two
+filters on the ship: one in the oxygen room, which had no task at all until now, and one in the
+greenhouse — where the leaves come from.
+
+**A new room: the engine room**, beyond the greenhouse, with a glass floor. Worth learning its sound
+in "Learn the map".
+
+**Fuelling the engines no longer has a single route.** The canister is still in storage, but the
+destination now varies: sometimes the reactor, sometimes the new engine room on the other side of the
+ship. Each crewmate gets their own. That changes what "I was on my way to refuel" proves in a
+meeting — before, everyone knew which way that person had to go.
+
+**Tasks spread out better across the ship**, and the scanner is rarer (changes from the previous
+version that you feel now, with more places to go).
+
+**An important vent fix.** Nobody can kill from inside a vent any more, and nobody dies inside one.
+Anyone killed while hidden used to be stuck in place for the rest of the match, unable to move or get
+out.
+
+**Complete Spanish and updated Turkish**, sent in by players through the game itself.
+
 ## 0.32.0
 
 **The shapeshifter no longer gives himself away up close.** Walking near him announced his real

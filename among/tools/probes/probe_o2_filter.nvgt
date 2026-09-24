@@ -108,6 +108,28 @@ void main() {
 		check("  nao esta em cima do painel de sabotagem da sala", d >= 1.5, "pelo menos 1.5, e' " + d);
 	}
 
+	// O segundo ponto, na estufa. Cada um é conferido do mesmo jeito: um ponto novo cuja sala
+	// declarada não bate com a geometria faz o jogo anunciar a sala errada, sem erro nenhum.
+	map_object@ estufa = mapa.find_object("task_filter_greenhouse");
+	check("o segundo ponto (estufa) existe", @estufa != null, "task_filter_greenhouse");
+	if (@estufa != null) {
+		map_zone@ z2 = mapa.zone_at(estufa.x, estufa.y);
+		check("  a geometria concorda com a sala declarada",
+			@z2 != null && z2.id == estufa.room_id && z2.id == "greenhouse", "zone_at diz 'greenhouse'");
+		check("  e' o mesmo tipo de tarefa", estufa.task_type == TIPO, TIPO);
+		// Longe dos outros objetos da estufa: dois beacons colados viram um borrão só, e a interação
+		// pega o que for encontrado primeiro.
+		float menor = 1000.0;
+		array<map_object@>@ todos_objs = mapa.objects;
+		for (uint i = 0; i < todos_objs.length(); i++) {
+			if (todos_objs[i].id == estufa.id || todos_objs[i].room_id != "greenhouse") continue;
+			if (todos_objs[i].obj_type == OBJ_DECORATION) continue; // a ambiência fica no centro de propósito
+			float d = distance_2d(estufa.x, estufa.y, todos_objs[i].x, todos_objs[i].y);
+			if (d < menor) menor = d;
+		}
+		check("  nao esta colado noutro objeto da estufa", menor >= 3.0, "pelo menos 3, e' " + menor);
+	}
+
 	check("  esta' classificada como curta", !task_is_long(TIPO), "fora de LONG_TASK_TYPES");
 	check("  nao e' tarefa comum", !task_is_common(TIPO), "fora de COMMON_TASK_TYPES");
 	check("  nao e' tarefa visivel (nao serve de alibi)", !task_is_visible(TIPO), "fora de VISIBLE_TASK_TYPES");
