@@ -770,6 +770,24 @@ jogador anda (`zone_at`/`can_move` são puramente retangulares, e zonas não pod
 o jogo diz a sala errada conforme qual for encontrada primeiro), e o GRAFO decide por onde o bot
 anda. Sonda: `tools/probes/probe_o2room.nvgt`.
 
+**Ninguém mata de dentro do duto, e ninguém morre dentro dele - a regra vale para as duas pontas
+e mora no topo do `try_kill`.** A razão é uma só: a posição de quem está num duto (ou invisível)
+PARA de ser transmitida (ver `on_move`), então o atacante está mirando o último lugar conhecido, e
+não onde a pessoa está - matar por posição congelada é matar através da parede.
+
+Do lado do ATACANTE foi um recado de jogador: escondido, fora do radar e da câmera, ele alcançava
+quem passasse ao lado da tampa - assassinato sem contra-jogada, porque não havia como saber que ele
+estava ali. **Invisível não entra nessa linha**: matar é justamente o que devolve o fantasma ao
+mundo, e proibir seria tirar o preço que torna a habilidade uma decisão.
+
+Do lado do ALVO era pior do que parece, e é o "bugando" do recado: o morto continuava com `vented`
+ligado, e **fantasma ventilado não anda** (`try_move_player` recusa) **nem sai** (o menu do duto
+exige estar vivo) - travava no lugar pelo resto da partida, sem mensagem nenhuma. É a MESMA armadilha
+que a reunião já tinha tido, aparecendo por outra porta; quando aparecer uma terceira, o lugar de
+consertar continua sendo a origem, não o sintoma. Sonda: `tools/probes/probe_vent_kill.nvgt`, que
+confere também que o mesmo kill funciona um instante depois com os dois fora do duto - sem isso, uma
+recusa por recarga ou alcance passaria por "o duto protegeu".
+
 **Duas redes de dutos, e elas não podem se tocar.** A rede se declara nos `linked_object_id` de
 cada duto (lista separada por vírgula), e é o que permite ao jogador deduzir para onde alguém pode
 ter ido: "a tampa abriu na navegação, então ele saiu em armas ou no reator". Ligar todos os dutos
@@ -1016,6 +1034,13 @@ execuções seguidas do mesmo servidor sem teto nenhum deram 30% e 13%: a segund
 Quando os números permitem, prefira a garantia DURA ("ninguém passou de 2") e escreva ao lado por
 que ela é legítima - em `probe_task_limits` é porque 11 salas × 2 vagas cabem folgadamente nas 8
 tarefas pedidas, e quem mudar esse número precisa afrouxar a linha junto.
+
+**Sonda que testa que algo NÃO acontece precisa limpar as filas ANTES de provocar.** O
+`S_PLAYER_KILLED` vai para a partida inteira, e o `wf` que esperou uma morte num cliente esvaziou só
+a fila DELE: a morte anterior ficava parada nas dos outros e era lida como se fosse a morte que a
+sonda estava tentando impedir - a `probe_vent_kill` reprovou um servidor correto por isso. E a
+limpeza vai antes do `send`, nunca dentro da função que mede: ali ela já apagaria a resposta de
+verdade se ela chegasse depressa.
 
 **Sonda que mede um relógio precisa medir o RELÓGIO DE PAREDE junto.** "O anjo tem 53 s de 60" não
 diz nada sozinho: pode ser "não rearmou" (certo) ou "não passou tempo nenhum" (sonda quebrada). Uma

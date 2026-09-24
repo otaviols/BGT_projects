@@ -1,0 +1,182 @@
+// Sonda do assassinato e o duto - as duas pontas, que são bugs diferentes com a mesma causa.
+//
+//   1. ATACANTE dentro do duto não mata. Foi o recado do jogador: lá dentro ele já está fora do
+//      radar e da câmera, e ainda alcançava quem passasse ao lado da tampa.
+//   2. ALVO dentro do duto não morre. Este era o pior: o morto continuava com `vented` ligado, e
+//      fantasma ventilado não anda nem sai do duto - travava no lugar pelo resto da partida.
+//
+// Nos dois casos a sonda confere também que o kill funciona um instante DEPOIS, com as mesmas duas
+// pessoas fora do duto: sem isso, um kill recusado por outro motivo qualquer (recarga, alcance)
+// passaria por "o duto protegeu".
+//
+// O alvo ventilado precisa de um ENGENHEIRO: ele é o único papel de tripulação que entra em duto.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_vent_kill.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/map.nvgt"
+#include "../../src/i18n.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+// CAMINHA de verdade: o servidor recusa salto de velocidade, e mandar o destino final só deixa o
+// jogador parado - com o teste passando pelo motivo errado (ver probe_guardian).
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8;
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+// Ninguém morreu no intervalo? Olha a caixa de TODOS: o S_PLAYER_KILLED é transmitido à partida
+// inteira, então basta um cliente tê-lo recebido para a morte ter acontecido.
+// Quem chama LIMPA as filas antes de mandar o kill (ver limpa_filas): o S_PLAYER_KILLED é
+// transmitido a todos, e o `wf` que espera uma morte num cliente só esvazia a fila DELE - a morte
+// anterior ficava parada na fila dos outros e era lida aqui como se fosse a morte que a sonda estava
+// tentando impedir. A limpeza não pode ficar DENTRO desta função: aqui ela já correria depois do
+// `send_kill`, e apagaria a morte de verdade se ela chegasse depressa.
+bool alguem_morreu(array<game_client@>@ todos, int ms) {
+	timer t;
+	bool morreu = false;
+	while (t.elapsed < ms) {
+		for (uint i = 0; i < todos.length(); i++) {
+			todos[i].update();
+			net_packet@ p = todos[i].poll_message();
+			while (@p != null) { if (p.type == S_PLAYER_KILLED) morreu = true; @p = todos[i].poll_message(); }
+		}
+		wait(10);
+	}
+	return morreu;
+}
+void limpa_filas(array<game_client@>@ todos) {
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	game_map@ mapa = build_the_hub_map();
+
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	// SEIS: a sonda mata duas pessoas, e uma partida pequena demais acaba no meio dela - o kill
+	// seguinte seria recusado por a partida ter terminado, e o motivo não apareceria em lugar nenhum.
+	array<string> nomes = {"vk_a", "vk_b", "vk_c", "vk_d", "vk_e", "vk_f"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return; }
+		todos.insert_last(c);
+	}
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_ENGINEER, 1); // o único papel de tripulação que entra em duto
+	ov.kill_cooldown_seconds = 5.0;
+	todos[0].send_create_lobby("Sonda do duto", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+	todos[0].send_start_game();
+
+	game_client@ impostor; uint64 imp_peer = 0; float ix = 0, iy = 0;
+	game_client@ engenheiro; uint64 eng_peer = 0; float ex = 0, ey = 0;
+	game_client@ vitima; uint64 vit_peer = 0; float vx = 0, vy = 0;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ st = wf(todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); return; }
+		string rid = st.get_string("your_role", "");
+		uint64 meu = st.get_uint64("your_peer_id");
+		float px = st.get_float("your_x"), py = st.get_float("your_y");
+		if (role_for(rid).team == TEAM_IMPOSTOR) { @impostor = todos[i]; imp_peer = meu; ix = px; iy = py; }
+		else if (rid == ROLE_ENGINEER) { @engenheiro = todos[i]; eng_peer = meu; ex = px; ey = py; }
+		else if (@vitima == null) { @vitima = todos[i]; vit_peer = meu; vx = px; vy = py; }
+	}
+	if (@impostor == null || @engenheiro == null || @vitima == null) { println("elenco incompleto"); return; }
+
+	// Um duto de verdade do mapa, e a posição dele sai do MAPA - inventar coordenada aqui faria o
+	// servidor recusar a entrada por distância, e a recusa pareceria a regra sendo testada.
+	map_object@ duto = mapa.find_object("vent_navigation");
+	if (@duto == null) { println("o duto vent_navigation nao existe mais no mapa"); return; }
+	println("duto de teste: " + duto.id + " em " + duto.room_id);
+
+	// --- 1. Atacante DENTRO do duto ---
+	anda_ate(todos, impostor, ix, iy, duto.x, duto.y); ix = duto.x; iy = duto.y;
+	// A vítima encosta na tampa: dentro do alcance de kill, que é o caso do recado.
+	anda_ate(todos, vitima, vx, vy, duto.x + 0.5, duto.y); vx = duto.x + 0.5; vy = duto.y;
+	bombeia(todos, 5500); // recarga inicial do kill
+
+	impostor.send_use_vent(duto.id);
+	net_packet@ entrou = wf(impostor, S_VENT_STATE, 5000);
+	check("o impostor entrou no duto", @entrou != null && entrou.get_bool("vented"), "vented=true");
+
+	limpa_filas(todos);
+	impostor.send_kill(vit_peer);
+	check("de dentro do duto ele NAO mata", !alguem_morreu(todos, 3000), "ninguem morre");
+
+	// A prova de que a recusa foi o DUTO: saindo dali, o mesmo kill nas mesmas posições funciona.
+	impostor.send_vent_travel("");
+	wf(impostor, S_VENT_STATE, 5000);
+	bombeia(todos, 500);
+	impostor.send_kill(vit_peer);
+	net_packet@ morreu = wf(vitima, S_PLAYER_KILLED, 6000);
+	check("fora do duto, o mesmo kill funciona", @morreu != null && morreu.get_uint64("peer_id") == vit_peer,
+		"a vitima morre");
+
+	// --- 2. Alvo DENTRO do duto ---
+	bombeia(todos, 5500); // a recarga gasta agora mesmo
+	anda_ate(todos, engenheiro, ex, ey, duto.x, duto.y); ex = duto.x; ey = duto.y;
+	engenheiro.send_use_vent(duto.id);
+	net_packet@ eng_entrou = wf(engenheiro, S_VENT_STATE, 5000);
+	check("o engenheiro entrou no duto", @eng_entrou != null && eng_entrou.get_bool("vented"), "vented=true");
+
+	limpa_filas(todos);
+	impostor.send_kill(eng_peer);
+	check("quem esta DENTRO do duto nao morre", !alguem_morreu(todos, 3000), "ninguem morre");
+
+	// E a mesma prova do outro lado: saindo, ele morre - o que também garante que o engenheiro não
+	// ficou num estado esquisito por ter sido alvo de um kill recusado.
+	engenheiro.send_vent_travel("");
+	wf(engenheiro, S_VENT_STATE, 5000);
+	bombeia(todos, 500);
+	impostor.send_kill(eng_peer);
+	net_packet@ eng_morreu = wf(engenheiro, S_PLAYER_KILLED, 6000);
+	check("fora do duto, ele morre normalmente", @eng_morreu != null && eng_morreu.get_uint64("peer_id") == eng_peer,
+		"o engenheiro morre");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

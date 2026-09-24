@@ -256,6 +256,30 @@ class game_state {
 		if (!target.alive || target.peer_id == killer.peer_id) return false;
 		if (distance_2d(killer.x, killer.y, target.x, target.y) > PLAYER_KILL_RANGE) return false;
 
+		// Ninguém mata DE DENTRO do duto: era o recado do jogador. Lá dentro ele já está fora do radar
+		// e da câmera, e ainda alcançava quem passasse ao lado da tampa - assassinato sem nenhuma
+		// contra-jogada possível, porque não havia como saber que ele estava ali.
+		//
+		// Invisível NÃO entra nesta linha, e a diferença é o desenho do fantasma: matar é justamente o
+		// que o devolve ao mundo (ver logo abaixo). Se ele não pudesse matar invisível, a habilidade
+		// seria só uma capa, sem o preço que a torna uma decisão.
+		if (killer.vented) return false;
+
+		// E ninguém morre escondido, pela razão que vale para os dois casos: a posição de quem está num
+		// duto ou invisível PAROU de ser transmitida (ver on_move), então o atacante está mirando o
+		// último lugar conhecido, e não onde a pessoa está - matar por posição congelada é matar
+		// através da parede.
+		//
+		// No duto isso era pior do que parece: o morto continuava com `vented` ligado, e fantasma
+		// ventilado não anda (try_move_player recusa) nem sai (o menu do duto exige estar vivo) -
+		// ficava travado no lugar pelo resto da partida, sem mensagem nenhuma. É a mesma armadilha que
+		// a reunião já teve, e é por isso que ela é barrada aqui, na origem.
+		//
+		// O preço assumido do lado do invisível: o xerife não acerta um fantasma sumido. É defesa
+		// perfeita enquanto dura, e ainda assim honesta - o tiro na posição velha só acertaria por
+		// sorte, e o fantasma paga por ela reaparecendo no instante em que atacar.
+		if (target.vented || target.invisible()) return false;
+
 		// Escudo do anjo da guarda: o ataque simplesmente NÃO acontece.
 		//
 		// Aqui em cima de propósito, antes de qualquer outra coisa. Antes da recarga porque gastá-la
