@@ -70,6 +70,15 @@ class user_database {
 			"created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
 		) != SQLITE_OK) return false;
 
+		// `resolved_at` marca o recado já tratado (implementado, respondido, ou os dois). Ele some da
+		// leitura padrão e continua no banco - arquivar, não apagar: o contexto de um recado (versão,
+		// papel, sala, crash.log) vale justamente quando o problema volta meses depois.
+		//
+		// ADD COLUMN separado do CREATE TABLE porque o banco em produção já existe: o CREATE só roda
+		// na primeira vez, e quem já tem a tabela nunca veria a coluna nova. O erro é ignorado de
+		// propósito - rodar de novo num banco que já tem a coluna devolve erro, e isso é o esperado.
+		db.execute("ALTER TABLE feedback ADD COLUMN resolved_at DATETIME");
+
 		// Respostas de quem faz o jogo aos recados. Fecham o ciclo com quem está testando: sem isto o
 		// jogador manda um recado e nunca fica sabendo se alguém leu, e quem oferece ajuda (uma
 		// tradução, por exemplo) não tem como ser respondido sem sair do jogo.
@@ -209,6 +218,46 @@ class user_database {
 	// Grava uma resposta a um recado. Devolve o usuário dono do recado (para avisá-lo na hora se
 	// estiver conectado), ou "" se o recado não existe - responder a um id inventado não pode gravar
 	// uma resposta órfã que ninguém nunca vai ouvir.
+	// Marca recados como tratados (implementados, respondidos, ou os dois). Com `until_id`, marca
+	// TODOS até aquele id - é como se limpa uma caixa que acumulou meses de recados sem clicar um
+	// por um. Devolve quantos foram marcados.
+	//
+	// Arquiva, não apaga: o contexto de um recado (versão, papel, sala, crash.log) é justamente o
+	// que falta quando o mesmo problema volta meses depois.
+	int resolve_feedback(int id, bool until = false) {
+		if (@db == null) return 0;
+		// Conta ANTES de mexer: o plugin de SQLite do NVGT não expõe o total de linhas alteradas, e
+		// devolver um número é o que deixa a ferramenta dizer "3 recados arquivados" em vez de um
+		// "pronto" que não prova nada.
+		string onde = (until ? "id <= ?" : "id = ?") + " AND resolved_at IS NULL";
+		int quantos = count_feedback(onde, id);
+		if (quantos == 0) return 0;
+		sqlite3statement@ st = db.prepare("UPDATE feedback SET resolved_at = CURRENT_TIMESTAMP WHERE " + onde);
+		if (@st == null) return 0;
+		st.bind_int(1, id);
+		st.step();
+		return quantos;
+	}
+
+	// Quantos recados casam com a condição. `onde` NUNCA vem de fora: são as duas formas fixas acima.
+	private int count_feedback(const string&in onde, int id) {
+		sqlite3statement@ st = db.prepare("SELECT COUNT(*) FROM feedback WHERE " + onde);
+		if (@st == null) return 0;
+		st.bind_int(1, id);
+		return st.step() == SQLITE_ROW ? st.column_int(0) : 0;
+	}
+
+	// Desmarca, para quando um recado voltar a ser assunto.
+	int unresolve_feedback(int id) {
+		if (@db == null) return 0;
+		int quantos = count_feedback("id = ? AND resolved_at IS NOT NULL", id);
+		if (quantos == 0) return 0;
+		sqlite3statement@ st = db.prepare("UPDATE feedback SET resolved_at = NULL WHERE id = ?");
+		if (@st == null) return 0;
+		st.bind_int(1, id);
+		st.step();
+		return quantos;
+	}
 	string save_feedback_reply(int feedback_id, const string&in text) {
 		if (@db == null) return "";
 		sqlite3statement@ dono = db.prepare("SELECT username FROM feedback WHERE id = ?");

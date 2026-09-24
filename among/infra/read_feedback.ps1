@@ -25,6 +25,9 @@ param(
 	[int]$Limit = 0,
 	[int]$After = 0,
 	[switch]$WithCrashLog,
+	# Por padrão os recados ARQUIVADOS ficam de fora (ver infra\resolve_feedback.ps1): a caixa mostra
+	# o que ainda pede atenção. -All traz tudo de volta, com os arquivados marcados.
+	[switch]$All,
 	[string]$Namespace = "amongus",
 	[string]$Out = ""
 )
@@ -55,11 +58,24 @@ import sqlite3, sys
 limite = int(sys.argv[1])       # 0 = sem limite
 depois_de = int(sys.argv[2])    # 0 = desde o comeco
 mostrar_crash = sys.argv[3] == '1'
+mostrar_tudo = sys.argv[4] == '1'
 db = sqlite3.connect('feedback.db')
 try:
-    sql = 'SELECT id, username, text, version, language, in_match, role, room, crash_log, created_at FROM feedback WHERE id > ? ORDER BY id DESC'
-    if limite > 0: sql += ' LIMIT %d' % limite
-    rows = list(db.execute(sql, (depois_de,)))
+    base = 'id, username, text, version, language, in_match, role, room, crash_log, created_at'
+    # A coluna resolved_at so existe depois que o servidor da 0.32.0 subiu (ele a acrescenta ao
+    # abrir o banco). Esta ferramenta e' usada ANTES e DEPOIS desse deploy, entao ela tenta com a
+    # coluna e cai para o formato antigo - onde nada esta arquivado. Sem isto, rodar o leitor com um
+    # banco antigo dizia "a tabela nem existe", que e' mentira e manda investigar a coisa errada.
+    def consulta(com_resolvido):
+        sql = 'SELECT %s FROM feedback WHERE id > ?' % (base + (', resolved_at' if com_resolvido else ''))
+        if com_resolvido and not mostrar_tudo: sql += ' AND resolved_at IS NULL'
+        sql += ' ORDER BY id DESC'
+        if limite > 0: sql += ' LIMIT %d' % limite
+        return list(db.execute(sql, (depois_de,)))
+    try:
+        rows = consulta(True)
+    except sqlite3.OperationalError:
+        rows = [tuple(r) + (None,) for r in consulta(False)]
 except sqlite3.OperationalError:
     print('Nenhum recado ainda (a tabela nem existe: ninguem enviou nada).')
     sys.exit()
@@ -68,10 +84,10 @@ if not rows:
     sys.exit()
 print('%d recado(s), do mais recente (#%d) para o mais antigo (#%d):' % (len(rows), rows[0][0], rows[-1][0]))
 for r in rows:
-    rid, user, text, ver, lang, in_match, role, room, crash, when = r
+    rid, user, text, ver, lang, in_match, role, room, crash, when, resolvido = r
     print('')
     print('=' * 70)
-    print('#%s  %s  |  %s  |  versao %s  |  %s' % (rid, when, user or '(sem conta)', ver or '?', lang or '?'))
+    print('#%s  %s  |  %s  |  versao %s  |  %s%s' % (rid, when, user or '(sem conta)', ver or '?', lang or '?', '  [ARQUIVADO]' if resolvido else ''))
     onde = []
     if in_match: onde.append('em partida')
     if role: onde.append('papel: ' + role)
@@ -92,12 +108,13 @@ for r in rows:
 	$env:PYTHONIOENCODING = "utf-8"
 	[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 	$flagCrash = if ($WithCrashLog) { "1" } else { "0" }
+$flagAll = if ($All) { "1" } else { "0" }
 	if ($Out -ne "") {
 		$destino = if ([System.IO.Path]::IsPathRooted($Out)) { $Out } else { Join-Path $origem $Out }
-		python "ler.py" $Limit $After $flagCrash | Out-File -FilePath $destino -Encoding utf8
+		python "ler.py" $Limit $After $flagCrash $flagAll | Out-File -FilePath $destino -Encoding utf8
 		Write-Host "Gravado em $destino"
 	} else {
-		python "ler.py" $Limit $After $flagCrash
+		python "ler.py" $Limit $After $flagCrash $flagAll
 	}
 }
 finally {

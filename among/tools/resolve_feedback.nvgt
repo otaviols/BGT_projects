@@ -1,0 +1,66 @@
+// tools/resolve_feedback.nvgt
+// Arquiva recados já tratados (implementados, respondidos, ou os dois). Não rode direto: use
+// infra\resolve_feedback.ps1, que busca o token no cluster e chama isto.
+//
+//   nvgt tools/resolve_feedback.nvgt <id> [until|undo]
+//   (o token vem da variável de ambiente AMONGUS_ADMIN_TOKEN)
+//
+// `until` arquiva TODOS os recados até aquele id - é como se limpa uma caixa com meses de acúmulo
+// sem marcar um por um. `undo` desarquiva.
+//
+// ARQUIVA, não apaga: o recado sai da leitura padrão e continua no banco. O contexto dele (versão,
+// papel, sala, crash.log) é justamente o que falta quando o mesmo problema volta meses depois.
+//
+// Quem mexe no banco é o SERVIDOR, não este programa: ele mantém o SQLite aberto o tempo todo, e
+// duas mãos no mesmo arquivo é pedir corrupção.
+
+#include "../src/network/client.nvgt"
+#include "../src/config/game_constants.nvgt"
+#include "../src/config/server_address.nvgt"
+
+void main() {
+	if (ARGS.length() < 2) {
+		println("uso: nvgt tools/resolve_feedback.nvgt <id> [until|undo]");
+		return;
+	}
+	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+	if (token == "") {
+		println("AMONGUS_ADMIN_TOKEN nao esta definido. Use infra\\resolve_feedback.ps1, que busca o token no cluster.");
+		return;
+	}
+	int feedback_id = parse_int(ARGS[1]);
+	string modo = ARGS.length() > 2 ? ARGS[2] : "";
+
+	server_address address = resolve_server_address();
+	game_client c;
+	if (!c.connect_to(address.host, address.port)) { println("nao conectou em " + address.display); return; }
+	timer t;
+	while (!c.connected && t.elapsed < 8000) { c.update(); wait(10); }
+	if (!c.connected) { println("sem resposta do servidor em " + address.display); return; }
+
+	c.send_admin_resolve_feedback(token, feedback_id, modo == "until", modo == "undo");
+
+	timer espera;
+	while (espera.elapsed < 8000) {
+		c.update();
+		net_packet@ r = c.poll_message();
+		while (@r != null) {
+			if (r.type == S_ADMIN_RESULT) {
+				if (r.get_bool("ok")) {
+					int n = r.get_int("count", 0);
+					if (modo == "undo") println(n > 0 ? "recado #" + feedback_id + " desarquivado." : "esse recado nao estava arquivado.");
+					else if (n == 0) println("nenhum recado para arquivar (ja estavam todos).");
+					else println(n + " recado(s) arquivado(s).");
+				} else {
+					println("recusado: " + r.get_string("message"));
+				}
+				c.disconnect();
+				return;
+			}
+			@r = c.poll_message();
+		}
+		wait(10);
+	}
+	println("sem resposta do servidor.");
+	c.disconnect();
+}

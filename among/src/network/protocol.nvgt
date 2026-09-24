@@ -134,6 +134,9 @@ const string C_ADMIN_DELETE_TRANSLATION = "c_admin_delete_translation"; // {toke
 // todo mundo. O deploy então AVISA com antecedência (todo jogador conectado ouve "o servidor vai
 // reiniciar em N minutos"), proíbe partidas novas de começar, e espera as que estão rolando
 // acabarem - ou o prazo - antes de trocar o servidor. Ver infra/deploy.ps1.
+// Arquiva recados ja tratados: um por id, ou TODOS ate um id (until). Nao apaga - ver
+// resolve_feedback em database/user_db.nvgt.
+const string C_ADMIN_RESOLVE_FEEDBACK = "c_admin_resolve_feedback"; // {token, feedback_id, until, undo}
 const string C_ADMIN_DRAIN = "c_admin_drain";     // {token, seconds}
 const string C_ADMIN_STATUS = "c_admin_status";   // {token}
 

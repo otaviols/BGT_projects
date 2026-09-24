@@ -884,8 +884,18 @@ compilava: `protocol.nvgt` usa `tr()` e `game_constants.nvgt` usa `DEFAULT_LANGU
 vinham por ordem de inclusão. Agora os dois incluem `i18n.nvgt`. Sintoma: "No matching symbol 'tr'"
 numa ferramenta nova, com o jogo compilando normalmente.
 
-**`read_feedback.ps1` mostra tudo por padrão; use `-After <id>` para retomar.** O padrão era "os 20
-mais recentes", e isso pareceu truncamento: os recados chegam em dezenas por dia.
+**`read_feedback.ps1` mostra os recados PENDENTES; `-All` traz os arquivados junto.** O padrão já
+foi "os 20 mais recentes", e isso pareceu truncamento - os recados chegam em dezenas por dia; hoje o
+filtro é por estado, não por quantidade. `-After <id>` continua servindo para retomar de onde parou.
+
+**Recado tratado se ARQUIVA, não se apaga** (`infra\resolve_feedback.ps1 -Id 42` ou `-Until 96`, e
+`-Undo` desfaz). O contexto de um recado - versão, papel, sala, crash.log - é justamente o que falta
+quando o mesmo problema volta meses depois. Quem escreve no banco é o SERVIDOR, por comando de rede
+(`C_ADMIN_RESOLVE_FEEDBACK`, mesmo token do `reply_feedback`), e nunca uma ferramenta mexendo no
+arquivo por fora: ele mantém o SQLite aberto o tempo todo, e duas mãos no mesmo arquivo é pedir
+corrupção. A coluna entra por `ALTER TABLE` ao abrir o banco, porque o `CREATE TABLE IF NOT EXISTS`
+não roda num banco que já existe - e o `read_feedback` tolera os dois formatos, já que é usado antes
+e depois do deploy que acrescenta a coluna.
 
 **Fora do git:** `terraform.tfvars`, `*.tfstate`, `sounds.dat`, `*.zip`, `*.exe`, `crash.log`,
 `among_users.db`, `server.txt`.

@@ -396,6 +396,7 @@ class game_server {
 		else if (t == C_SEND_TRANSLATION) on_send_translation(peer_id, pkt);
 		else if (t == C_ADMIN_LIST_TRANSLATIONS) on_admin_list_translations(peer_id, pkt);
 		else if (t == C_ADMIN_DELETE_TRANSLATION) on_admin_delete_translation(peer_id, pkt);
+		else if (t == C_ADMIN_RESOLVE_FEEDBACK) on_admin_resolve_feedback(peer_id, pkt);
 		else if (t == C_ADMIN_DRAIN) on_admin_drain(peer_id, pkt);
 		else if (t == C_ADMIN_STATUS) on_admin_status(peer_id, pkt);
 		else if (t == C_CAMERA_ENTER) on_camera_enter(peer_id, pkt);
@@ -1758,6 +1759,32 @@ class game_server {
 	//
 	// Se o dono do recado estiver conectado, ele recebe a resposta na hora; senão, na próxima vez que
 	// entrar (ver on_feedback_replies_get).
+	// Arquiva recados já tratados. Quem faz a limpeza é o SERVIDOR, e não uma ferramenta mexendo no
+	// arquivo por fora: o banco está aberto por ele o tempo todo, e duas mãos no mesmo SQLite é
+	// pedir corrupção.
+	void on_admin_resolve_feedback(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		string expected = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+		if (expected == "" || pkt.get_string("token", "") != expected) {
+			result.set_bool("ok", false);
+			result.set_string("message", expected == "" ? "server_has_no_token" : "bad_token");
+			send_to(peer_id, result);
+			return;
+		}
+		int feedback_id = pkt.get_int("feedback_id", 0);
+		if (feedback_id <= 0 || @g_user_db == null) {
+			result.set_bool("ok", false);
+			result.set_string("message", "bad_request");
+			send_to(peer_id, result);
+			return;
+		}
+		int quantos = pkt.get_bool("undo")
+			? g_user_db.unresolve_feedback(feedback_id)
+			: g_user_db.resolve_feedback(feedback_id, pkt.get_bool("until"));
+		result.set_bool("ok", true);
+		result.set_int("count", quantos);
+		send_to(peer_id, result);
+	}
 	void on_admin_reply(uint64 peer_id, net_packet@ pkt) {
 		net_packet@ result = net_packet(S_ADMIN_RESULT);
 		string expected = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
