@@ -39,7 +39,11 @@ const uint O2_LEAF_COUNT = 3;
 const float O2_VENT_PAN = 95.0;
 
 // Balanço, em dB sobre o volume da família de tasks.
-const float O2_AIR_DB = -6.0;    // o contínuo fica embaixo de tudo: é referência, não evento
+// +3, e não um valor negativo, porque o ARQUIVO é baixo: ele é primeiro um beacon, e como beacon
+// estava alto demais no mapa (era o 4º mais alto de 22, e destoava). Foi baixado 9 dB para perto da
+// mediana dos outros, e a task devolve esses dB aqui - o mesmo som serve aos dois usos com o volume
+// certo em cada um. Mexeu num, confira o outro.
+const float O2_AIR_DB = 3.0;     // o contínuo fica embaixo dos transientes: é referência, não evento
 const float O2_TICK_DB = -6.0;   // o tique só diz ONDE
 const float O2_LEAF_DB = 2.0;    // o farfalho é o SINAL - tem que saltar do tique
 const float O2_GRAB_DB = -2.0;
