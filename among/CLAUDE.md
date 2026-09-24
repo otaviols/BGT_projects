@@ -838,6 +838,32 @@ array, e comparar com `destino.length()` cru fazia a segunda achar a cota cumpri
 jogador só com as tarefas longas, sem erro nenhum. Sonda: `tools/probes/probe_task_limits.nvgt`
 (`probe_task_mix` não pegou porque só IMPRIME o que saiu, sem cobrar o total).
 
+**Tarefa NOVA entra em OITO lugares, e a maioria falha em silêncio.** Na ordem em que se esquece:
+o minigame (`game/tasks/<tipo>.nvgt`), o `#include` **e** o `else if` do `task_manager` (só o
+include compila e a task nunca abre), o ponto no `map.nvgt` com beacon, `PRACTICE_TASKS` em
+`ui/practice_screen.nvgt` (sem isso não dá para testá-la sem montar partida), o beacon em
+`ui/onboarding_screens.nvgt` ("Conhecer o mapa"), as constantes **e a lista do build_pack** em
+`audio/sound_catalog.nvgt` (sem a lista, o som não entra no `sounds.dat` e a task fica muda só no
+jogo compilado), as chaves nos DOIS idiomas, e a seção de tarefas dos dois `docs/README_*`. Decida
+também se ela é longa (`LONG_TASK_TYPES`) - o padrão é curta.
+
+**SOM CONTÍNUO NÃO SE LOCALIZA, e vários ao mesmo tempo viram parede.** Isto custou uma tarefa
+inteira, escrita e revertida (`stabilize_lines`, commit 53341d0 e a reversão logo atrás - dá para
+recuperar o código de lá se um dia servir). A ideia era "ouvir para dentro de uma mistura": quatro
+linhas zumbindo juntas, cada uma numa posição, e o jogador diria qual estava oscilando. O veredito
+de quem ouviu foi "uma miscelânea de sons todos juntos, não está localizado, ficou horrível" - e
+estava certo.
+
+O erro é de acústica, não de ajuste: **o ouvido localiza por ATAQUE**. Um zumbido constante quase
+não tem transiente, então mesmo panoramizado ele vira um borrão largo em vez de um ponto; quatro
+deles se mascaram e o resultado é ruído. Mistura de verdade - um passo por cima da ambiência da sala,
+que é o que o jogo faz o tempo todo - funciona porque há **um fundo estável e UMA coisa intermitente
+dentro dele**. Quatro primeiros planos não são uma mistura, são uma parede.
+
+Regra que sai daí, para qualquer tarefa futura: som que precisa ser localizado tem que ter ataque, e
+no máximo um elemento contínuo por vez. Antes de escrever a task, monte a ideia com `ffmpeg` e ouça
+- misturar quatro arquivos e escutar custa um minuto, escrever a task custou uma sessão.
+
 **Tarefa longa vale mais aqui do que no jogo original.** `LONG_TASK_TYPES` (em
 `config/game_constants.nvgt`) marca as tarefas que fazem atravessar a nave ou ficar parado um bom
 tempo; o que não é comum nem longo é CURTO, sem terceira lista para sair de sincronia. O motivo não
