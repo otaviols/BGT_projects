@@ -700,7 +700,12 @@ class game_state {
 			if (t.object_id != object_id || t.completed) continue;
 			if (t.phase + 1 < t.phase_count) {
 				t.phase++;
-				t.object_id = map.chain_object_at(t.task_type, t.phase);
+				// A corrente DESTE jogador, não a do mapa: o mesmo tipo pode ter destinos diferentes
+				// (ver player_task.chain). O mapa fica de reserva para tarefa antiga sem corrente
+				// própria - nunca acontece hoje, mas devolver "" aqui pararia a tarefa em silêncio.
+				t.object_id = t.phase < t.chain.length()
+					? t.chain[t.phase]
+					: map.chain_object_at(t.task_type, t.phase);
 				next_object_id = t.object_id;
 				phase = t.phase;
 				return true;

@@ -265,6 +265,10 @@ The eleven tasks:
 - **Fuel engines** — the panel first plays the **tone of a full tank**. Then hold Space: the filling
   sound rises, and you release when it reaches that same tone. Releasing early means too little
   fuel; going past it overflows. The game does not signal the moment — you judge it.
+  It has **two stages**: pick the canister up in storage and carry it to an engine. **The destination
+  varies** — sometimes the reactor, down on the left, sometimes the engine room beyond the
+  greenhouse. Each crewmate gets their own, so two people with the same task may be crossing the ship
+  in opposite directions: "I was going to refuel" does not say which way they went.
 - **Clear asteroids** — each asteroid comes from one direction: left, **ahead** or right. The
   sound centred between both ears is the one from ahead; shoot with the matching arrow (left, **up**
   or right).

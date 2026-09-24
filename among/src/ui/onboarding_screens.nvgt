@@ -73,6 +73,7 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.ambient_prefix") + tr("room.storage"), SND_AMBIENT_STORAGE);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.electrical"), SND_AMBIENT_ELECTRICAL);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.reactor"), SND_AMBIENT_REACTOR);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.engine"), SND_AMBIENT_ENGINE);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.games"), SND_AMBIENT_GAMES);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.greenhouse"), SND_AMBIENT_GREENHOUSE);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.security"), SND_AMBIENT_SECURITY);

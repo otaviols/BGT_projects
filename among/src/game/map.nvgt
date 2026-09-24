@@ -121,6 +121,25 @@ class game_map {
 		return ids.length() == 0 ? 1 : ids.length();
 	}
 
+	// TODAS as correntes deste tipo que começam neste ponto.
+	//
+	// Um tipo pode ter mais de uma corrente, com destinos diferentes a partir do mesmo começo - é
+	// assim que abastecer os motores deixa de ser sempre a mesma travessia. Quem escolhe é o servidor,
+	// no sorteio (ver on_start_game), e a escolhida fica guardada no `player_task`: o mapa não pode
+	// decidir, porque a resposta precisa ser diferente para cada jogador.
+	//
+	// Filtrar pelo ponto de início, e não só pelo tipo, é o que mantém isto correto se um dia houver
+	// duas correntes do mesmo tipo começando em lugares diferentes.
+	array<array<string>@>@ chains_starting_at(const string&in task_type, const string&in start_id) const {
+		array<array<string>@> resultado;
+		for (uint i = 0; i < chains.length(); i++) {
+			if (chains[i].task_type != task_type) continue;
+			if (chains[i].object_ids.length() == 0 || chains[i].object_ids[0] != start_id) continue;
+			resultado.insert_last(chains[i].object_ids);
+		}
+		return resultado;
+	}
+
 	// O ponto de uma fase, ou "" se a tarefa não tem essa fase.
 	string chain_object_at(const string&in task_type, uint phase) const {
 		array<string>@ ids = chain_for(task_type);
@@ -414,6 +433,21 @@ game_map@ build_the_hub_map() {
 	m.zones.insert_last(map_zone("games", "room.games", 0, 25, 10, 8, "Tile"));
 	m.zones.insert_last(map_zone("greenhouse", "room.greenhouse", 35, 25, 8, 8, "EarthTile"));
 	m.zones.insert_last(map_zone("security", "room.security", 25, -25, 8, 8, "MetalTile"));
+	// Sala de motor leste, depois da estufa. Existe para o abastecimento deixar de ser sempre a mesma
+	// travessia: até aqui, quem pegava o galão no depósito ia SEMPRE ao reator, no canto oposto e
+	// inferior - rota única é rota previsível, e num jogo de dedução saber por onde alguém teria que
+	// passar é informação de graça.
+	//
+	// À DIREITA da estufa, e não pendurada no corredor navegação-estufa, por uma razão de mecânica e
+	// não de estética: o grafo dos bots sai do NOME do corredor (`corridor_<a>_<b>`), e uma sala
+	// pendurada num corredor não cabe nessa forma - precisaria de `extra_link` à mão, que é
+	// exatamente a armadilha que a sala do oxigênio pagou (bots que simplesmente nunca vão lá, sem
+	// erro nenhum). Assim, `corridor_greenhouse_engine` funciona sozinho.
+	//
+	// Piso de VIDRO: a ala leste já tem terra (estufa) e metal (navegação), e o terceiro timbre dá à
+	// sala identidade imediata. Ele é quase 20 dB mais baixo que a referência e leva correção em
+	// footstep_volume_db - ver a nota lá.
+	m.zones.insert_last(map_zone("engine", "room.engine", 57, 25, 8, 8, "GlassTile"));
 
 	// Corredores (ligam as salas acima). Cada um tem NOME PRÓPRIO: o jogo anuncia o nome da zona toda
 	// vez que se entra nela, na tecla C, e no aviso de corpo encontrado - com todos chamados
@@ -448,6 +482,10 @@ game_map@ build_the_hub_map() {
 	m.zones.insert_last(map_zone("corridor_cafeteria_games", "corridor.games", 0, 12.5, 3, 4.5, "Tile", true));
 	m.zones.insert_last(map_zone("corridor_navigation_greenhouse", "corridor.greenhouse", 35, 12.5, 3, 4.5, "MetalTile", true));
 	m.zones.insert_last(map_zone("corridor_games_greenhouse", "corridor.south", 18.5, 25, 8.5, 3, "EarthTile", true));
+	// Estufa (x até 43) -> motor (x a partir de 49). O corredor preenche exatamente o vão, sem
+	// sobrepor nenhuma das duas: zonas sobrepostas fazem o jogo anunciar a sala errada conforme qual
+	// for encontrada primeiro, e nada acusa (ver probe_o2room, que confere isso no mapa inteiro).
+	m.zones.insert_last(map_zone("corridor_greenhouse_engine", "corridor.engine", 46, 25, 3, 3, "GlassTile", true));
 	m.zones.insert_last(map_zone("corridor_admin_security", "corridor.security", 12.5, -25, 4.5, 3, "Tile", true));
 
 	// Vents: uma rede só, com as três bocas totalmente conectadas entre si (não é uma corrente de um
@@ -528,10 +566,20 @@ game_map@ build_the_hub_map() {
 		OBJ_TASK_SPOT, "sounds/" + SND_FUEL_GRAB, "fuel_engines", "", SND_TASK_BEACON_GRAB_FUEL));
 	m.objects.insert_last(map_object("task_fuel_reactor", "task.fuel_engines.name", -27, -78, "reactor",
 		OBJ_TASK_SPOT, "sounds/" + SND_PULLING_GARBAGE_LEVER, "fuel_engines", "", SND_TASK_BEACON_FUEL_ENGINES));
-	// Abastecer os motores é a primeira tarefa de duas fases: pegar o galão no depósito e levá-lo
-	// até o reator. A travessia é o ponto da tarefa - é ela que faz barulho e produz informação.
-	array<string> fuel_chain = {"task_fuel_storage", "task_fuel_reactor"};
-	m.chains.insert_last(task_chain("fuel_engines", fuel_chain));
+	m.objects.insert_last(map_object("task_fuel_engine", "task.fuel_engines.name", 59, 22, "engine",
+		OBJ_TASK_SPOT, "sounds/" + SND_PULLING_GARBAGE_LEVER, "fuel_engines", "", SND_TASK_BEACON_FUEL_ENGINES));
+	// Abastecer os motores é a tarefa de duas fases: pegar o galão no depósito e levá-lo até um motor.
+	// A travessia é o ponto da tarefa - é ela que faz barulho e produz informação.
+	//
+	// DUAS correntes para o mesmo tipo, e é a razão de a sala de motor leste existir: com uma só, o
+	// galão ia SEMPRE do depósito ao reator, no canto oposto e inferior, e todo mundo sabia por onde
+	// quem estava abastecendo teria que passar. Rota única é informação de graça. Quem recebe a tarefa
+	// sorteia uma das correntes (ver on_start_game), e o destino fica guardado no `player_task` dele -
+	// dois jogadores com a mesma tarefa podem estar atravessando a nave em direções opostas.
+	array<string> fuel_chain_reactor = {"task_fuel_storage", "task_fuel_reactor"};
+	m.chains.insert_last(task_chain("fuel_engines", fuel_chain_reactor));
+	array<string> fuel_chain_engine = {"task_fuel_storage", "task_fuel_engine"};
+	m.chains.insert_last(task_chain("fuel_engines", fuel_chain_engine));
 	m.objects.insert_last(map_object("task_asteroids_weapons", "task.clear_asteroids.name", -27, -3, "weapons",
 		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "clear_asteroids", "", SND_TASK_BEACON_CLEAR_ASTEROIDS));
 	m.objects.insert_last(map_object("task_asteroids_navigation", "task.clear_asteroids.name", 32, 3, "navigation",
@@ -595,6 +643,10 @@ game_map@ build_the_hub_map() {
 		OBJ_DECORATION, SND_AMBIENT_ELECTRICAL));
 	m.objects.insert_last(map_object("ambient_reactor", "room.reactor", -30, -75, "reactor",
 		OBJ_DECORATION, SND_AMBIENT_REACTOR));
+	// Toda sala tem ambiência; sem esta, a de motor seria a única muda - e num jogo sem imagem, sala
+	// calada é sala sem identidade. É também o que o menu "Conhecer o mapa" toca para ensinar o lugar.
+	m.objects.insert_last(map_object("ambient_engine", "room.engine", 57, 25, "engine",
+		OBJ_DECORATION, SND_AMBIENT_ENGINE));
 	m.objects.insert_last(map_object("ambient_games", "room.games", 0, 25, "games",
 		OBJ_DECORATION, SND_AMBIENT_GAMES));
 	m.objects.insert_last(map_object("ambient_greenhouse", "room.greenhouse", 35, 25, "greenhouse",

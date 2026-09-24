@@ -449,6 +449,8 @@
   "room.reactor": "Reator",
   "room.games": "Sala de jogos",
   "room.greenhouse": "Estufa",
+  "room.engine": "Sala de motor",
+  "corridor.engine": "Corredor do motor",
   "room.security": "Segurança",
   "room.oxygen": "Sala do oxigênio",
   "corridor": "Corredor",

@@ -15,6 +15,13 @@ class player_task {
 	// Tarefa de várias fases (ver task_chain em game/map.nvgt). phase_count = 1 é o caso comum.
 	uint phase = 0;
 	uint phase_count = 1;
+	// Os pontos desta tarefa, na ordem, PARA ESTE JOGADOR. Vazio quando a tarefa tem uma fase só.
+	//
+	// Mora aqui, e não no mapa, porque um tipo pode ter mais de uma corrente: abastecer os motores
+	// leva o galão ao reator OU ao motor leste, sorteado por jogador. Antes o destino saía de
+	// `map.chain_object_at(tipo, fase)`, que é global - dois jogadores com a mesma tarefa iam
+	// obrigatoriamente ao mesmo lugar, e a rota virava informação de graça para quem deduz.
+	array<string> chain;
 }
 
 class game_player {

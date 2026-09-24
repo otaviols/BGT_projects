@@ -54,11 +54,20 @@ void main() {
 		c.send_start_task(fuel_id);
 		c.send_task_input(fuel_id, true);
 		net_packet@ r1 = wf(c, S_TASK_RESULT, 5000);
-		println("apos a fase 1: proximo ponto = " + r1.get_string("next_object_id") + " (esperado task_fuel_reactor), progresso " + r1.get_int("progress") + "%");
+		if (@r1 == null) { println("FALHA: a primeira fase nao respondeu"); c.disconnect(); continue; }
+		// O destino sai da RESPOSTA, e não de um id fixo aqui: abastecer tem duas correntes agora
+		// (reator e motor leste, sorteadas por jogador), e um destino fixo na sonda mandava o ponto
+		// errado em metade das partidas - o servidor não achava a tarefa, não respondia, e a sonda
+		// ficava esperando até o prazo. Sintoma: a sonda "trava" de vez em quando, sem dizer por quê.
+		string proximo = r1.get_string("next_object_id");
+		bool destino_valido = proximo == "task_fuel_reactor" || proximo == "task_fuel_engine";
+		println("apos a fase 1: proximo ponto = " + proximo +
+			(destino_valido ? "  ok" : "  FALHA: esperado task_fuel_reactor ou task_fuel_engine") +
+			", progresso " + r1.get_int("progress") + "%");
 
-		// Conclui a segunda
-		c.send_start_task("task_fuel_reactor");
-		c.send_task_input("task_fuel_reactor", true);
+		// Conclui a segunda, no ponto que o servidor mandou
+		c.send_start_task(proximo);
+		c.send_task_input(proximo, true);
 		net_packet@ r2 = wf(c, S_TASK_RESULT, 5000);
 		println("apos a fase 2: proximo ponto = '" + r2.get_string("next_object_id") + "' (esperado vazio), progresso " + r2.get_int("progress") + "%");
 		c.disconnect();

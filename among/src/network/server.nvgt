@@ -1122,6 +1122,16 @@ class game_server {
 					pt.object_id = escolhidos[t].id;
 					pt.task_type = escolhidos[t].task_type;
 					pt.phase_count = lobby.map.phase_count_of(pt.task_type);
+					// Tarefa de várias fases: a CORRENTE é sorteada por jogador, entre as que começam
+					// neste ponto. É o que faz o abastecimento variar de destino - dois tripulantes com
+					// a mesma tarefa podem atravessar a nave em direções opostas, e quem deduz deixa de
+					// saber de antemão por onde eles vão passar.
+					array<array<string>@>@ correntes = lobby.map.chains_starting_at(pt.task_type, pt.object_id);
+					if (correntes.length() > 0) {
+						array<string>@ escolhida = correntes[random(0, int(correntes.length()) - 1)];
+						pt.chain = escolhida;
+						pt.phase_count = escolhida.length();
+					}
 					p.tasks.insert_last(pt);
 					if (task_is_visible(pt.task_type)) visiveis_dadas++;
 				}

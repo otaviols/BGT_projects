@@ -262,6 +262,10 @@ As onze tarefas:
 - **Abastecer motores** — o painel toca primeiro o **tom do tanque cheio**. Depois segure Espaço: o
   som do enchimento vai subindo, e você solta quando ele chegar naquele mesmo tom. Soltar cedo é
   pouco combustível; passar do ponto transborda. O jogo não avisa a hora — quem julga é você.
+  Ela tem **duas etapas**: pegar o galão no depósito e levá-lo até um motor. **O destino varia** —
+  às vezes é o reator, lá embaixo à esquerda, às vezes a sala de motor, do outro lado da estufa. Cada
+  tripulante recebe o seu, então dois que tenham a mesma tarefa podem estar atravessando a nave em
+  direções opostas: "eu estava indo abastecer" não diz por onde a pessoa passou.
 - **Limpar asteroides** — cada asteroide vem de uma direção: esquerda, **frente** ou direita. O som
   centralizado nos dois ouvidos é o que vem de frente; atire com a seta correspondente (esquerda,
   **para cima** ou direita).

@@ -508,6 +508,15 @@ não mexer no que o jogador já ajustou), `SOUND_FAMILY_NAME_KEYS`, e `FAMILY_PR
 `ui/settings_screens.nvgt` - as três listas são indexadas pelo mesmo número, e uma menor que
 `COUNT` é leitura fora do array na tela de volumes. Mais as chaves de texto nos dois idiomas.
 
+**A medição de piso virou ferramenta: `python tools/measure_footsteps.py <prefixo>`.** Ela dá o corpo
+em dBFS, a correção sugerida contra o MetalTile (a referência) e - o número que decide - o **ruído de
+fundo** depois da correção. Um piso muito baixo só pode ser levantado se o silêncio entre as batidas
+for silêncio de verdade: o vidro pediu +19,2 dB e isso só passou porque o ruído dele está em -70,5
+dBFS, indo para -53 com o ganho, praticamente o mesmo -54,8 do próprio MetalTile. Ela reproduz os
+números que já estavam no código (EarthTile, O2Tile) dentro de ~1,5 dB, e a diferença é sempre a
+mesma: **a conta exagera e o ouvido puxa de volta** (o Tile pedia +17,6 e ficou em +15; o vidro pede
++19,2 e ficou em +17). Aplique a conta, depois confira de ouvido.
+
 **Piso novo entra em DUAS tabelas, e esquecer uma falha calado.** `footstep_variant_count` tem um
 fallback de 2 variantes: um piso com oito arquivos que não esteja na tabela toca sempre os dois
 mesmos passos, e nada acusa - o som existe, só soa repetitivo. `FOOTSTEP_FLOOR_PREFIXES` é a outra:
@@ -801,6 +810,25 @@ segurança) é SEPARADA da antiga, e a sonda `tools/probes/probe_vents.nvgt` con
 uma não alcança a outra. Duto em corredor tem um custo que duto em sala não tem: o som da tampa é
 ouvido por quem está passando. E rede de dois dutos é determinística de propósito (quem ouve sabe
 onde ele vai sair) - é a troca de velocidade por previsibilidade.
+
+**Um tipo pode ter VÁRIAS correntes, e a escolhida mora no JOGADOR.** O destino saía de
+`map.chain_object_at(tipo, fase)`, que é global: todo mundo com "abastecer os motores" ia ao mesmo
+lugar, e rota única é informação de graça para quem deduz - sabia-se de antemão por onde quem estava
+abastecendo teria que passar. Hoje o mapa declara duas correntes para `fuel_engines` (depósito ->
+reator e depósito -> motor leste), `map.chains_starting_at()` devolve as que começam no ponto
+sorteado, o servidor escolhe UMA no sorteio e ela fica em `player_task.chain`. **O cliente não mudou
+nada**: ele já só seguia o `object_id` da fase atual.
+
+Duas coisas para lembrar ao acrescentar uma corrente alternativa: as alternativas têm que começar no
+MESMO ponto (senão o sorteio entrega uma tarefa que começa noutro lugar - por isso o filtro é por
+ponto de início, e não só por tipo), e **sonda que fixa o destino quebra**. A `probe_phases` mandava
+`task_fuel_reactor` na segunda fase; com dois destinos ela acertava metade das vezes e, na outra
+metade, o servidor não achava a tarefa, não respondia, e a sonda ficava esperando até o prazo -
+sintoma "a sonda trava de vez em quando". Hoje ela usa o `next_object_id` que a resposta traz.
+
+E uma propriedade que a sonda do motor descobriu: **o servidor NÃO confere distância para concluir
+tarefa** - ele confia no cliente, que só abre a minigame quando está perto. Isso torna a sonda barata
+(dá para avançar fases sem caminhar), e é bom saber que está assim de propósito ou não.
 
 **Tarefa de VÁRIAS FASES: a sequência mora no mapa, a fase mora no servidor.** `task_chain`
 (`game/map.nvgt`) lista os pontos de uma tarefa na ordem, junto dos objetos - separada deles, um id

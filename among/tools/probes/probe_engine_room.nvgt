@@ -1,0 +1,236 @@
+// Sonda da sala de motor leste e do abastecimento com DOIS destinos.
+//
+// A sala existe por uma razão só: até ela, o galão do depósito ia SEMPRE ao reator, e rota única é
+// informação de graça para quem deduz. Então a sonda cobra as duas coisas que fazem isso ser
+// verdade, e as duas falham em silêncio:
+//
+//   1. MAPA - a sala existe, não se sobrepõe a nenhuma outra zona, o ponto de abastecer está DENTRO
+//      dela pela geometria, e o grafo alcança a sala nos dois sentidos a partir das salas relevantes.
+//      O grafo é o que mais engana: ele sai do NOME do corredor (`corridor_<a>_<b>`), então um nome
+//      fora do padrão deixa a sala inalcançável para os bots sem erro nenhum.
+//   2. SORTEIO - ao longo de várias partidas, os DOIS destinos aparecem. Com uma corrente só
+//      sobrevivendo por engano, a sonda veria sempre o mesmo destino e a sala nova seria decoração.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_engine_room.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/map.nvgt"
+#include "../../src/i18n.nvgt"
+
+const string SALA = "engine";
+const string PONTO_MOTOR = "task_fuel_engine";
+const string PONTO_REATOR = "task_fuel_reactor";
+const string PONTO_GALAO = "task_fuel_storage";
+const uint RODADAS = 8;
+const uint JOGADORES = 6;
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+array<array<net_packet@>@> caixa;
+void prepara_caixa(uint n) { caixa.resize(0); for (uint i = 0; i < n; i++) caixa.insert_last(array<net_packet@>()); }
+void esvazia_caixa() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+void drena(array<game_client@>@ todos) {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+net_packet@ achado(uint i, const string&in tipo) {
+	for (uint k = 0; k < caixa[i].length(); k++) { if (caixa[i][k].type == tipo) return caixa[i][k]; }
+	return null;
+}
+bool todos_recebem(array<game_client@>@ todos, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		bool completo = true;
+		for (uint i = 0; i < todos.length(); i++) { if (@achado(i, tipo) == null) { completo = false; break; } }
+		if (completo) return true;
+		wait(5);
+	}
+	return false;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	// --- 1. O mapa ---
+	game_map@ m = build_the_hub_map();
+
+	map_zone@ sala = m.find_zone(SALA);
+	check("a sala existe", @sala != null, SALA);
+	if (@sala == null) return;
+	println("   piso: " + sala.floor_sound_prefix + ", em (" + sala.center_x + ", " + sala.center_y + ")");
+	check("  o piso dela esta nas DUAS tabelas de piso",
+		FOOTSTEP_FLOOR_PREFIXES.find(sala.floor_sound_prefix) != -1 &&
+		footstep_variant_count(sala.floor_sound_prefix) > 2,
+		"em FOOTSTEP_FLOOR_PREFIXES e com contagem propria em footstep_variant_count");
+
+	// Nenhuma zona pode se sobrepor a outra: `zone_at` devolve a primeira que contiver o ponto, então
+	// duas sobrepostas fazem o jogo anunciar a sala errada, e nada acusa.
+	uint sobrepostas = 0;
+	for (uint i = 0; i < m.zones.length(); i++) {
+		for (uint j = i + 1; j < m.zones.length(); j++) {
+			map_zone@ a = m.zones[i];
+			map_zone@ b = m.zones[j];
+			bool x = (a.center_x - a.half_w) < (b.center_x + b.half_w) && (b.center_x - b.half_w) < (a.center_x + a.half_w);
+			bool y = (a.center_y - a.half_h) < (b.center_y + b.half_h) && (b.center_y - b.half_h) < (a.center_y + a.half_h);
+			if (x && y) { sobrepostas++; println("   sobrepostas: " + a.id + " e " + b.id); }
+		}
+	}
+	check("nenhuma zona se sobrepoe", sobrepostas == 0, "0");
+
+	map_object@ motor = m.find_object(PONTO_MOTOR);
+	check("o ponto de abastecer no motor existe", @motor != null, PONTO_MOTOR);
+	if (@motor != null) {
+		map_zone@ onde = m.zone_at(motor.x, motor.y);
+		check("  a geometria concorda com a sala declarada",
+			@onde != null && onde.id == motor.room_id && onde.id == SALA, "zone_at diz '" + SALA + "'");
+		check("  tem beacon", motor.beacon_sound_path != "", "um caminho de som");
+	}
+
+	// O grafo, nos dois sentidos, a partir das salas que importam. `zone_path` é o mesmo caminho que
+	// os bots percorrem: se ele não acha, eles nunca vão à sala.
+	array<string> origens = {"storage", "cafeteria", "greenhouse", "reactor"};
+	for (uint i = 0; i < origens.length(); i++) {
+		array<string>@ ida = m.zone_path(origens[i], SALA);
+		array<string>@ volta = m.zone_path(SALA, origens[i]);
+		check("  o grafo liga " + origens[i] + " ao motor (e de volta)",
+			ida.length() > 0 && volta.length() > 0, "caminho nos dois sentidos");
+		if (ida.length() > 0) println("   " + origens[i] + " -> motor: " + ida.length() + " zonas");
+	}
+
+	// As duas correntes existem e começam no MESMO ponto - é isso que permite ao sorteio escolher sem
+	// que o jogador receba uma tarefa que começa em outro lugar.
+	array<array<string>@>@ correntes = m.chains_starting_at("fuel_engines", PONTO_GALAO);
+	check("ha' DUAS correntes de abastecer saindo do galao", correntes.length() == 2, "2");
+	if (correntes.length() == 2) {
+		bool tem_reator = correntes[0][1] == PONTO_REATOR || correntes[1][1] == PONTO_REATOR;
+		bool tem_motor = correntes[0][1] == PONTO_MOTOR || correntes[1][1] == PONTO_MOTOR;
+		check("  uma vai ao reator e a outra ao motor", tem_reator && tem_motor, "os dois destinos");
+	}
+
+	// --- 2. O sorteio, contra o servidor de verdade ---
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (uint i = 0; i < JOGADORES; i++) {
+		game_client@ c = conecta(addr, "eng" + i + sufixo);
+		if (@c == null) { println("nao conectou eng" + i); return; }
+		todos.insert_last(c);
+	}
+	prepara_caixa(todos.length());
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.task_count_per_crewmate = 8;
+	ov.long_task_count = 4; // abastecer é LONGA: pedir muitas longas faz ela sair quase sempre
+	todos[0].send_create_lobby("Sonda do motor", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+
+	// O DESTINO não vem no S_GAME_START: o cliente só recebe o ponto da fase atual, que é sempre o
+	// galão. Então a sonda CONCLUI a primeira fase e lê o `next_object_id` do S_TASK_RESULT - é a
+	// única forma de ver para onde o servidor está mandando cada jogador, e sem isso a sonda provaria
+	// só que as duas correntes existem no mapa, não que o sorteio usa as duas (um sorteio que
+	// escolhesse sempre a primeira passaria).
+	//
+	// Não é preciso andar até o depósito: o servidor não confere distância para concluir tarefa (ele
+	// confia no cliente, que só abre a minigame quando está perto). Isso encurta a sonda de minutos
+	// de caminhada para nada.
+	uint com_tarefa = 0;
+	uint destino_reator = 0;
+	uint destino_motor = 0;
+	uint rodadas_ok = 0;
+	for (uint r = 0; r < RODADAS; r++) {
+		todos[0].send_start_game();
+		if (!todos_recebem(todos, S_GAME_START, 10000)) { println("rodada " + (r + 1) + ": nem todos comecaram"); break; }
+		uint64 impostor_peer = 0;
+		for (uint i = 0; i < todos.length(); i++) {
+			net_packet@ st = achado(i, S_GAME_START);
+			json_array@ tarefas = st.get_array("tasks");
+			if (@tarefas == null || tarefas.length() == 0) { impostor_peer = st.get_uint64("your_peer_id"); continue; }
+			for (uint t = 0; t < tarefas.length(); t++) {
+				json_object@ tj = tarefas.get_object(t);
+				if (@tj == null) continue;
+				if (string(tj["task_type"]) != "fuel_engines") continue;
+				com_tarefa++;
+				if (string(tj["object_id"]) != PONTO_GALAO) check("a tarefa comeca no galao", false, PONTO_GALAO);
+				if (int(tj["phase_count"]) != 2) check("a tarefa tem duas fases", false, "2");
+				todos[i].send_task_input(PONTO_GALAO, true);
+				break;
+			}
+		}
+
+		// As respostas de todos, e só depois a contagem: mandar e esperar um por um deixaria os outros
+		// sem update() (ver a armadilha do keepalive).
+		todos_recebem(todos, S_TASK_RESULT, 8000);
+		for (uint i = 0; i < todos.length(); i++) {
+			net_packet@ res = achado(i, S_TASK_RESULT);
+			if (@res == null) continue;
+			string destino = res.get_string("next_object_id");
+			if (destino == PONTO_REATOR) destino_reator++;
+			else if (destino == PONTO_MOTOR) destino_motor++;
+			else if (destino != "") check("destino conhecido", false, "reator ou motor, veio '" + destino + "'");
+		}
+		rodadas_ok++;
+		esvazia_caixa();
+
+		todos[0].send_call_meeting();
+		todos_recebem(todos, S_VOTING_STARTED, 10000);
+		bombeia(todos, 300);
+		for (uint i = 0; i < todos.length(); i++) todos[i].send_cast_vote(int64(impostor_peer));
+		todos_recebem(todos, S_VOTE_RESULT, 40000);
+		if (!todos_recebem(todos, S_GAME_OVER, 30000)) break;
+		if (!todos_recebem(todos, S_LOBBY_STATE, 15000)) break;
+		bombeia(todos, 300);
+		esvazia_caixa();
+	}
+
+	check("rodaram todas as rodadas", rodadas_ok == RODADAS, "" + RODADAS);
+	check("o servidor entregou a tarefa de abastecer", com_tarefa > 0,
+		"pelo menos uma vez em " + rodadas_ok + " rodadas, foram " + com_tarefa);
+	println("destinos sorteados: reator " + destino_reator + ", motor leste " + destino_motor +
+		" (de " + (destino_reator + destino_motor) + " tarefas concluidas)");
+	// Os DOIS têm que aparecer: é a prova de que o sorteio usa as duas correntes, e não de que elas
+	// existem no arquivo. Com uma vintena de observações, um sorteio honesto sair todo para o mesmo
+	// lado é praticamente impossível - e com um sorteio quebrado (sempre a primeira) isto reprova
+	// sempre, que é a diferença entre um teste e um enfeite.
+	check("o sorteio usa os DOIS destinos", destino_reator > 0 && destino_motor > 0,
+		"pelo menos um de cada");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}
