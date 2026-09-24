@@ -1,0 +1,177 @@
+// Sonda da tarefa nova (estabilizar as linhas), nos dois lados que falham em silêncio.
+//
+//   1. MAPA: o ponto existe, a sala declarada bate com a GEOMETRIA (`zone_at`), ele não se sobrepõe
+//      ao painel de sabotagem que já mora ali, e tem beacon. Um ponto cuja sala declarada não bate
+//      com a geometria faz o jogo dizer a sala errada, sem erro nenhum; um sem beacon vira caça ao
+//      tesouro sem pista.
+//   2. SORTEIO: o servidor realmente entrega a tarefa a alguém. Um tipo novo pode não sair por
+//      motivos que não aparecem em lugar nenhum - ficar marcado como meio de corrente, cair fora do
+//      monte de curtas, ou ser cortado por um teto - e o sintoma é uma tarefa que existe no mapa e
+//      nunca chega a ninguém.
+//
+// É sorteio, então uma partida só não prova nada: a sonda joga várias rodadas e cobra que o tipo
+// apareça em pelo menos uma. Com 25 pontos no mapa e 8 tarefas por pessoa em 5 tripulantes, não sair
+// nenhuma vez em 6 rodadas é praticamente impossível se o sorteio estiver certo.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_stabilize_lines.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/map.nvgt"
+#include "../../src/i18n.nvgt"
+
+const string TIPO = "stabilize_lines";
+const string PONTO = "task_lines_o2room";
+const uint RODADAS = 6;
+const uint JOGADORES = 6;
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+array<array<net_packet@>@> caixa;
+void prepara_caixa(uint n) { caixa.resize(0); for (uint i = 0; i < n; i++) caixa.insert_last(array<net_packet@>()); }
+void esvazia_caixa() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+void drena(array<game_client@>@ todos) {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+net_packet@ achado(uint i, const string&in tipo) {
+	for (uint k = 0; k < caixa[i].length(); k++) { if (caixa[i][k].type == tipo) return caixa[i][k]; }
+	return null;
+}
+// Espera bombeando TODOS: esperar cliente por cliente deixa os outros sem ACK, e 18 s bastam para o
+// servidor tirá-los da sala (ver a armadilha do keepalive no CLAUDE.md).
+bool todos_recebem(array<game_client@>@ todos, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		bool completo = true;
+		for (uint i = 0; i < todos.length(); i++) { if (@achado(i, tipo) == null) { completo = false; break; } }
+		if (completo) return true;
+		wait(5);
+	}
+	return false;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	// --- 1. O mapa ---
+	game_map@ mapa = build_the_hub_map();
+	map_object@ ponto = mapa.find_object(PONTO);
+	check("o ponto existe no mapa", @ponto != null, PONTO);
+	if (@ponto == null) { println("sem o ponto, o resto nao prova nada"); return; }
+
+	check("  e' um ponto de tarefa do tipo certo",
+		ponto.obj_type == OBJ_TASK_SPOT && ponto.task_type == TIPO, "OBJ_TASK_SPOT / " + TIPO);
+	check("  tem beacon (senao e' caca ao tesouro sem pista)", ponto.beacon_sound_path != "", "um caminho de som");
+
+	// A GEOMETRIA tem que concordar com o room_id declarado. São duas coisas independentes no mapa, e
+	// quando discordam o jogo diz a sala errada sem nada acusar (ver CLAUDE.md, zone_at).
+	map_zone@ onde = mapa.zone_at(ponto.x, ponto.y);
+	check("  a geometria concorda com a sala declarada",
+		@onde != null && onde.id == ponto.room_id, "zone_at diz '" + ponto.room_id + "'");
+	if (@onde != null) println("   o ponto esta em " + onde.id + " (" + ponto.x + ", " + ponto.y + ")");
+
+	// Não pode nascer em cima do painel de sabotagem que já mora na sala: de perto, dois beacons no
+	// mesmo lugar são um só borrão, e a interação pegaria o objeto que fosse encontrado primeiro.
+	map_object@ painel = mapa.find_object("panel_oxygen_o2room");
+	if (@painel != null) {
+		float d = distance_2d(ponto.x, ponto.y, painel.x, painel.y);
+		check("  nao esta em cima do painel de sabotagem da sala", d >= 1.5, "pelo menos 1.5 de distancia, e' " + d);
+	}
+
+	// A tarefa é CURTA (não está em LONG_TASK_TYPES). Não é obrigatório, mas é decisão: conferir aqui
+	// impede que um dia ela vire longa por acidente de edição sem ninguém decidir isso.
+	check("  esta' classificada como curta", !task_is_long(TIPO), "fora de LONG_TASK_TYPES");
+	check("  nao e' tarefa comum", !task_is_common(TIPO), "fora de COMMON_TASK_TYPES");
+
+	// --- 2. O sorteio, contra o servidor de verdade ---
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (uint i = 0; i < JOGADORES; i++) {
+		game_client@ c = conecta(addr, "sl" + i + sufixo);
+		if (@c == null) { println("nao conectou sl" + i); return; }
+		todos.insert_last(c);
+	}
+	prepara_caixa(todos.length());
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.task_count_per_crewmate = 8;
+	todos[0].send_create_lobby("Sonda das linhas", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+
+	uint rodadas_com_a_tarefa = 0;
+	uint rodadas_ok = 0;
+	for (uint r = 0; r < RODADAS; r++) {
+		todos[0].send_start_game();
+		if (!todos_recebem(todos, S_GAME_START, 10000)) { println("rodada " + (r + 1) + ": nem todos comecaram"); break; }
+		uint quantos = 0;
+		uint64 impostor_peer = 0;
+		for (uint i = 0; i < todos.length(); i++) {
+			net_packet@ st = achado(i, S_GAME_START);
+			json_array@ tarefas = st.get_array("tasks");
+			if (@tarefas == null || tarefas.length() == 0) { impostor_peer = st.get_uint64("your_peer_id"); continue; }
+			for (uint t = 0; t < tarefas.length(); t++) {
+				json_object@ tj = tarefas.get_object(t);
+				if (@tj != null && string(tj["task_type"]) == TIPO) { quantos++; break; }
+			}
+		}
+		if (quantos > 0) rodadas_com_a_tarefa++;
+		println("  rodada " + (r + 1) + ": " + quantos + " tripulante(s) com a tarefa nova");
+		rodadas_ok++;
+		esvazia_caixa();
+
+		todos[0].send_call_meeting();
+		todos_recebem(todos, S_VOTING_STARTED, 10000);
+		bombeia(todos, 300);
+		for (uint i = 0; i < todos.length(); i++) todos[i].send_cast_vote(int64(impostor_peer));
+		todos_recebem(todos, S_VOTE_RESULT, 40000);
+		if (!todos_recebem(todos, S_GAME_OVER, 30000)) break;
+		if (!todos_recebem(todos, S_LOBBY_STATE, 15000)) break;
+		bombeia(todos, 300);
+		esvazia_caixa();
+	}
+
+	check("rodaram todas as rodadas", rodadas_ok == RODADAS, "" + RODADAS);
+	check("o servidor entrega a tarefa nova", rodadas_com_a_tarefa > 0,
+		"pelo menos 1 de " + rodadas_ok + " rodadas, foi " + rodadas_com_a_tarefa);
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

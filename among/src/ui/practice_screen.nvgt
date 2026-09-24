@@ -23,7 +23,8 @@
 // ("task.<tipo>.name"), a mesma que a partida usa.
 const array<string> PRACTICE_TASKS = {
 	"fix_wiring", "download_data", "empty_garbage", "align_engine", "swipe_card", "unlock_manifolds",
-	"fuel_engines", "clear_asteroids", "roll_dice", "water_plants", "review_records", "submit_scan"
+	"fuel_engines", "clear_asteroids", "roll_dice", "water_plants", "review_records", "submit_scan",
+	"stabilize_lines"
 };
 const array<string> PRACTICE_SABOTAGES = {"lights", "oxygen", "comms"};
 

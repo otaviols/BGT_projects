@@ -12,6 +12,7 @@
 #include "tasks/clear_asteroids.nvgt"
 #include "tasks/roll_dice.nvgt"
 #include "tasks/water_plants.nvgt"
+#include "tasks/stabilize_lines.nvgt"
 #include "tasks/review_records.nvgt"
 #include "tasks/submit_scan.nvgt"
 #include "../audio/sound_catalog.nvgt"
@@ -38,6 +39,7 @@ bool run_task_minigame(game_client@ client, const string&in task_type, uint phas
 	else if (task_type == "clear_asteroids") result = run_clear_asteroids_task(client);
 	else if (task_type == "roll_dice") result = run_roll_dice_task(client);
 	else if (task_type == "water_plants") result = run_water_plants_task(client);
+	else if (task_type == "stabilize_lines") result = run_stabilize_lines_task(client);
 	else if (task_type == "review_records") result = run_review_records_task(client);
 	else if (task_type == "submit_scan") result = run_submit_scan_task(client);
 	// Fechou: terminada tem um som, fechada pela metade (ESC, reunião, erro) tem outro - o mesmo de

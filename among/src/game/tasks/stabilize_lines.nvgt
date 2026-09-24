@@ -1,0 +1,190 @@
+// stabilize_lines.nvgt
+// Task da sala de oxigênio: quatro linhas de suprimento zumbem AO MESMO TEMPO, cada uma numa posição
+// diferente entre os ouvidos. Uma delas está oscilando, e o jogador diz QUAL.
+//
+// É a única task do jogo que pede para ouvir DENTRO de uma mistura. Todas as outras apresentam um
+// som de cada vez - o asteroide vem de um lado, o tom sobe sozinho, os passos da gravação são
+// separados por silêncio -, e a pergunta é sempre sobre aquele som. Aqui os quatro tocam juntos o
+// tempo inteiro, e a dificuldade não é reconhecer um som: é separar um do resto.
+//
+// Isso não é exercício abstrato. É exatamente a habilidade que decide a partida: perceber um passo
+// alheio por cima da ambiência da sala. A task treina de forma concentrada o que o jogo cobra o
+// tempo todo de forma diluída.
+//
+// Por que a resposta é o NOME da linha, e não o lado de onde vem a oscilação: dizer o lado seria a
+// mesma pergunta que a task dos asteroides já faz (de onde veio?), e ela é de reflexo. Aqui o
+// jogador precisa ouvir a oscilação, notar ONDE ela está, e lembrar qual linha foi anunciada
+// naquela posição - as posições são sorteadas a cada execução, então decorar não adianta.
+//
+// Errar não é derrota: custa uma espera com a mistura tocando, e a oscilação MUDA de linha. As duas
+// coisas juntas são o que impede resolver a task apertando 1, 2, 3, 4 em sequência - sem elas, a
+// força bruta acerta em no máximo quatro tentativas e a habilidade não vale nada. E o custo é a
+// moeda do próprio jogo: tempo parado num lugar só, que é o que interessa a quem estiver de olho.
+
+#include "task_common.nvgt"
+
+// Onde cada linha fica entre os ouvidos. Quatro posições, e não três: com três, a do meio é o
+// "centro" e as outras duas são "os lados", o que dá só duas perguntas de verdade. Com quatro,
+// nenhuma cai no centro e todas exigem julgar QUANTO para o lado.
+const array<float> SUPPLY_PANS = {-100.0, -38.0, 38.0, 100.0};
+
+// Os arquivos, na ordem FIXA em que o jogador responde (1 a 4). A ordem da resposta nunca muda; o
+// que muda a cada execução é em que posição cada linha toca.
+const array<string> SUPPLY_LINE_SOUNDS = {
+	SND_SUPPLY_LINE_AIR, SND_SUPPLY_LINE_WATER, SND_SUPPLY_LINE_COOLANT, SND_SUPPLY_LINE_POWER
+};
+
+// Nome falado de cada linha, na mesma ordem. Array, e não chave montada com o índice concatenado,
+// pelo mesmo motivo do water_plants: uma chave faltando aparece na hora de traduzir, e não como um
+// texto vazio descoberto só quando a task roda.
+const array<string> SUPPLY_LINE_NAME_KEYS = {
+	"task.stabilize_lines.line_air",
+	"task.stabilize_lines.line_water",
+	"task.stabilize_lines.line_coolant",
+	"task.stabilize_lines.line_power"
+};
+
+// Como cada posição é dita ao anunciar o painel, na ordem de SUPPLY_PANS.
+const array<string> SUPPLY_POSITION_KEYS = {
+	"task.stabilize_lines.pos_far_left",
+	"task.stabilize_lines.pos_left",
+	"task.stabilize_lines.pos_right",
+	"task.stabilize_lines.pos_far_right"
+};
+
+const uint SUPPLY_LINE_COUNT = 4;
+const uint SUPPLY_ROUNDS = 3;              // três linhas estabilizadas; a quarta fica de sobra
+const float SUPPLY_WOBBLE_HZ = 2.0;        // oscilações por segundo
+const float SUPPLY_WOBBLE_DEPTH_DB = 12.0; // quanto a linha oscilante cai no fundo do ciclo
+const uint SUPPLY_WRONG_LOCKOUT_MS = 1200; // o custo de errar: ouvir de novo antes de poder responder
+
+// Escolhe uma linha ainda instável, diferente de `evitar` quando houver alternativa. O `evitar`
+// existe para o erro: repetir a mesma linha depois de um palpite errado transformaria a task numa
+// eliminação em quatro tentativas.
+int pick_unstable_line(const array<bool>@ stable, int evitar) {
+	array<int> candidatos;
+	for (uint i = 0; i < SUPPLY_LINE_COUNT; i++) {
+		if (!stable[i] && int(i) != evitar) candidatos.insert_last(int(i));
+	}
+	// Só sobrou a que se queria evitar: melhor repetir do que não ter oscilação nenhuma.
+	if (candidatos.length() == 0) {
+		for (uint i = 0; i < SUPPLY_LINE_COUNT; i++) { if (!stable[i]) candidatos.insert_last(int(i)); }
+	}
+	if (candidatos.length() == 0) return -1;
+	return candidatos[random(0, int(candidatos.length()) - 1)];
+}
+
+bool run_stabilize_lines_task(game_client@ client) {
+	// Em que posição cada linha toca nesta execução. Sorteado: com posições fixas, o jogador decoraria
+	// "a água é a da esquerda" e a pergunta viraria de onde vem, e não qual é.
+	array<int> pan_of_line;
+	for (uint i = 0; i < SUPPLY_LINE_COUNT; i++) pan_of_line.insert_last(int(i));
+	shuffle_int_list(pan_of_line);
+
+	speak(tr("task.stabilize_lines.instructions"));
+	if (!task_wait(700, client)) return false;
+
+	// O painel se apresenta: qual linha está em qual posição. É dito UMA vez, de propósito - guardar
+	// isso é parte da task, e é o que faz a resposta ser sobre a linha e não sobre o lado.
+	for (uint i = 0; i < SUPPLY_LINE_COUNT; i++) {
+		dictionary@ p = dictionary();
+		p.set("line", tr(SUPPLY_LINE_NAME_KEYS[i]));
+		p.set("position", tr(SUPPLY_POSITION_KEYS[pan_of_line[i]]));
+		speak(tr("task.stabilize_lines.announce", p));
+		if (!task_wait(900, client)) return false;
+	}
+
+	// As quatro tocam em loop do começo ao fim. Nada é solado em momento nenhum: solar destruiria a
+	// task, porque a pergunta deixaria de ser "qual delas, no meio das outras" e viraria "esta está
+	// oscilando?" quatro vezes seguidas.
+	array<sound@> lines;
+	float base_db = g_settings.volume_db(SOUND_FAMILY_TASKS);
+	for (uint i = 0; i < SUPPLY_LINE_COUNT; i++) {
+		sound@ s = sound();
+		if (!s.load("sounds/" + SUPPLY_LINE_SOUNDS[i])) {
+			// Um arquivo faltando deixaria a mistura incompleta e a task insolúvel em silêncio - que é
+			// o pior jeito de falhar (ver check_sounds). Melhor desistir e devolver a task pendente.
+			for (uint k = 0; k < lines.length(); k++) lines[k].stop();
+			return false;
+		}
+		s.pan = SUPPLY_PANS[pan_of_line[i]];
+		s.volume = base_db;
+		s.play_looped();
+		lines.insert_last(s);
+	}
+
+	array<bool> stable;
+	for (uint i = 0; i < SUPPLY_LINE_COUNT; i++) stable.insert_last(false);
+
+	bool ok = true;
+	uint rounds_done = 0;
+	int wobbling = pick_unstable_line(stable, -1);
+	timer wobble_clock;
+	timer lockout; // enquanto não passar SUPPLY_WRONG_LOCKOUT_MS depois de um erro, respostas não contam
+	bool locked = false;
+
+	while (rounds_done < SUPPLY_ROUNDS && ok) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) { ok = false; break; }
+
+		// A oscilação: a linha instável sobe e desce de volume continuamente. Modulada aqui, por
+		// quadro, e não gravada no arquivo - assim a profundidade e a velocidade são números que dá
+		// para ajustar de ouvido sem reconverter som nenhum (a mesma decisão do ganho dos pisos).
+		if (wobbling >= 0) {
+			float fase = float(wobble_clock.elapsed) / 1000.0 * SUPPLY_WOBBLE_HZ * 2.0 * 3.14159265;
+			float queda = (1.0 - cos(fase)) * 0.5 * SUPPLY_WOBBLE_DEPTH_DB; // 0 no topo, DEPTH no fundo
+			lines[wobbling].volume = base_db - queda;
+		}
+
+		if (locked) {
+			if (lockout.elapsed < int(SUPPLY_WRONG_LOCKOUT_MS)) continue;
+			locked = false;
+		}
+
+		// Cada tecla lida UMA vez por quadro e guardada: key_pressed é consumo de evento, não consulta
+		// de estado, e perguntar duas vezes no mesmo quadro pode dar respostas diferentes.
+		int answer = 0;
+		if (key_pressed(KEY_1)) answer = 1;
+		else if (key_pressed(KEY_2)) answer = 2;
+		else if (key_pressed(KEY_3)) answer = 3;
+		else if (key_pressed(KEY_4)) answer = 4;
+		if (answer == 0) continue;
+
+		int escolhida = answer - 1;
+		if (escolhida == wobbling) {
+			// Acertou: a linha volta ao volume cheio e para de oscilar. O som de etapa sai NA POSIÇÃO
+			// dela - é a confirmação de que era aquela, e não uma medalha genérica.
+			lines[wobbling].volume = base_db;
+			stable[wobbling] = true;
+			task_sound(SND_BEEP_COMPLETE, SUPPLY_PANS[pan_of_line[wobbling]]);
+			dictionary@ p = dictionary();
+			p.set("line", tr(SUPPLY_LINE_NAME_KEYS[wobbling]));
+			speak(tr("task.stabilize_lines.stabilized", p));
+			rounds_done++;
+			if (rounds_done >= SUPPLY_ROUNDS) break;
+			wobbling = pick_unstable_line(stable, -1);
+			wobble_clock.restart();
+			continue;
+		}
+
+		// Errou: a linha que ele apontou volta ao volume cheio (ela nunca esteve oscilando), a
+		// oscilação PULA para outra, e ele espera ouvindo. Ver o comentário do cabeçalho: é isto que
+		// impede resolver a task por eliminação.
+		lines[escolhida].volume = base_db;
+		task_sound(SND_CARD_ERROR, SUPPLY_PANS[pan_of_line[escolhida]]);
+		speak(tr("task.stabilize_lines.wrong_line"));
+		int anterior = wobbling;
+		if (wobbling >= 0) lines[wobbling].volume = base_db;
+		wobbling = pick_unstable_line(stable, anterior);
+		wobble_clock.restart();
+		lockout.restart();
+		locked = true;
+	}
+
+	for (uint i = 0; i < lines.length(); i++) lines[i].stop();
+	if (!ok) return false;
+
+	speak(tr("task.completed"));
+	return true;
+}

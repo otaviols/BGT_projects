@@ -838,6 +838,36 @@ array, e comparar com `destino.length()` cru fazia a segunda achar a cota cumpri
 jogador só com as tarefas longas, sem erro nenhum. Sonda: `tools/probes/probe_task_limits.nvgt`
 (`probe_task_mix` não pegou porque só IMPRIME o que saiu, sem cobrar o total).
 
+**Tarefa NOVA entra em OITO lugares, e a maioria falha em silêncio.** Na ordem em que se esquece:
+o minigame (`game/tasks/<tipo>.nvgt`), o `#include` **e** o `else if` do `task_manager` (só o
+include compila e a task nunca abre), o ponto no `map.nvgt` com beacon, `PRACTICE_TASKS` em
+`ui/practice_screen.nvgt` (sem isso não dá para testá-la sem montar partida), o beacon em
+`ui/onboarding_screens.nvgt` ("Conhecer o mapa"), as constantes **e a lista do build_pack** em
+`audio/sound_catalog.nvgt` (sem a lista, o som não entra no `sounds.dat` e a task fica muda só no
+jogo compilado), as chaves nos DOIS idiomas, e a seção de tarefas dos dois `docs/README_*`. Decida
+também se ela é longa (`LONG_TASK_TYPES`) - o padrão é curta. Sonda:
+`tools/probes/probe_stabilize_lines.nvgt`, que confere a ponta do mapa (geometria concordando com a
+sala declarada, beacon presente, sem sobrepor outro objeto) e a ponta do servidor (a tarefa
+realmente sai no sorteio - um tipo novo pode nunca chegar a ninguém sem nada acusar).
+
+**A mecânica de ouvido é o que se escolhe primeiro numa tarefa nova, não o tema.** As doze primeiras
+tarefas cobrem: centralizar entre os ouvidos, direção com reflexo, contar eventos que se sobrepõem,
+casar um tom com uma referência, saber onde está o cursor, memória de sequência, segurar e soltar, e
+tempo parado. Trocar o tema sem trocar a pergunta produz "mais do mesmo" - foi a primeira leva de
+ideias que eu propus, e foi recusada com razão. Continuam por usar: ritmo, timbre (achar o
+diferente), varrer até encontrar, memória de conteúdo e julgar duração.
+
+`stabilize_lines` (sala do oxigênio) usa a primeira que faltava com nome próprio: **ouvir para
+DENTRO de uma mistura**. As quatro linhas tocam JUNTAS o tempo inteiro e nenhuma é solada em momento
+nenhum - solar mataria a task, porque a pergunta viraria "esta está oscilando?" quatro vezes. A
+resposta é o NOME da linha e não o lado de onde vem a oscilação, senão seria a mesma pergunta dos
+asteroides; as posições são sorteadas a cada execução, então o jogador precisa ouvir onde está,
+lembrar o que foi anunciado ali, e responder. Errar não é derrota: custa uma espera com a mistura
+tocando e a oscilação MUDA de linha - sem essas duas coisas juntas, apertar 1, 2, 3, 4 resolve em
+quatro tentativas e a habilidade não vale nada. A oscilação é modulada no código (profundidade e
+velocidade em constantes), e não gravada no arquivo, pelo mesmo motivo do ganho dos pisos: dá para
+ajustar de ouvido sem reconverter som.
+
 **Tarefa longa vale mais aqui do que no jogo original.** `LONG_TASK_TYPES` (em
 `config/game_constants.nvgt`) marca as tarefas que fazem atravessar a nave ou ficar parado um bom
 tempo; o que não é comum nem longo é CURTO, sem terceira lista para sair de sincronia. O motivo não

@@ -276,6 +276,13 @@ The eleven tasks:
   to — that is how you know where it is. Pressing Space at the wrong bed waters nothing.
 - **Review records** (security) — listen to the corridor recording and count how many people walked
   past. Each one crosses from one side, with their own floor and rhythm. Answer with keys 1 to 6.
+- **Stabilize the supply lines** (oxygen room) — four lines hum **at the same time**, each on its own
+  side, and the panel tells you up front which is where. One of them starts wavering, and you say
+  which by pressing its number: 1 air, 2 water, 3 coolant, 4 power. The positions change every time,
+  so memorising does not help. Getting it wrong does not fail the task, but the wavering jumps to
+  another line and you wait a moment before trying again — listening beats guessing. It is the task
+  that most resembles the rest of the game: the hard part is not recognising a sound, it is picking
+  one sound out of the others playing alongside it.
 - **Submit scan** (medbay) — stand still on the scanner until it finishes. The easiest task in the
   game and the most valuable: **anyone nearby hears the scanner running and the game says who is
   being scanned** — and impostors cannot do tasks, so seeing someone scanned proves they are crew. An

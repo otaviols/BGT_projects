@@ -555,6 +555,12 @@ game_map@ build_the_hub_map() {
 	// de cartão, "eu fiz o cartão" deixaria de ser uma afirmação verificável na reunião.
 	m.objects.insert_last(map_object("task_wiring_security", "task.fix_wiring.name", 28, -22, "security",
 		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
+	// A sala do oxigênio era a ÚNICA sem tarefa nenhuma - ninguém tinha motivo para ir lá a não ser
+	// consertar a sabotagem, e uma sala aonde só se vai sob alarme não produz informação nenhuma no
+	// resto da partida. Fica afastada do painel de sabotagem (que está no centro, em -16,-44) para os
+	// dois beacons não se confundirem de perto.
+	m.objects.insert_last(map_object("task_lines_o2room", "task.stabilize_lines.name", -18, -42, "oxygen",
+		OBJ_TASK_SPOT, "sounds/" + SND_SUPPLY_LINE_AIR, "stabilize_lines", "", SND_TASK_BEACON_STABILIZE_LINES));
 
 	// Sabotagens
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -27, -53, "electrical",

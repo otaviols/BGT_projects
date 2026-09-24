@@ -273,6 +273,13 @@ As onze tarefas:
   assim que você sabe onde ele está. Apertar Espaço no canteiro errado não rega nada.
 - **Revisar as gravações** (segurança) — ouça o trecho gravado do corredor e conte quantas pessoas
   passaram. Cada uma atravessa por um lado, com o piso e o ritmo dela. Responda nas teclas 1 a 6.
+- **Estabilizar as linhas de suprimento** (sala do oxigênio) — quatro linhas zumbem **ao mesmo
+  tempo**, cada uma num lado, e o painel diz de início qual está onde. Uma delas começa a oscilar, e
+  você diz qual apertando o número dela: 1 ar, 2 água, 3 refrigerante, 4 energia. As posições mudam a
+  cada vez, então não adianta decorar. Errar não perde a tarefa, mas a oscilação pula para outra
+  linha e você espera um pouco antes de tentar de novo — vale mais ouvir do que chutar. É a tarefa
+  que mais se parece com o resto do jogo: o difícil não é reconhecer um som, é separar um som dos
+  outros que estão tocando junto.
 - **Fazer o exame médico** (enfermaria) — fique parado no scanner até ele terminar. É a tarefa
   mais fácil do jogo e a mais valiosa: **quem estiver por perto ouve o scanner rodando e o jogo diz
   quem está sendo examinado** — e impostor não faz tarefa, então ver alguém no exame prova que é
