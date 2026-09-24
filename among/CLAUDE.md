@@ -690,6 +690,30 @@ reimplementa a lógica que testa não testa nada** - a primeira versão desta pa
 quebrado, e só virou teste de verdade quando passou a chamar a função real e a ser conferida contra
 a versão sem a correção (onde ela trava).
 
+**A reunião é uma PAUSA, e o que não funciona nela não pode recarregar dentro dela.** Ninguém mata,
+ninguém usa habilidade e ninguém anda durante a discussão - então todo relógio que continue correndo
+ali é tempo ganho de graça, e a reunião vira a melhor jogada de quem tem o relógio mais caro. O
+cooldown de kill já era rearmado no fim da votação; a habilidade do papel não era, e o metamorfo saía
+da mesa pronto para virar alguém no meio de todo mundo. Hoje quem decide é o PAPEL
+(`ability_cooldown_resets_on_meeting`, padrão `true`), e não um `if (é impostor)`: as habilidades de
+DEFESA se recusam, com o motivo escrito em cada uma - a sabotagem atravessa a reunião intacta, então
+rearmar o engenheiro junto entregaria ao impostor, pelo outro lado, exatamente o que a regra queria
+tirar dele. Efeito ATIVO é outra coisa: disfarce, invisibilidade e escudo **caem** ao começar a
+reunião, e cada um por um motivo próprio (dois nomes iguais na lista de votação são uma tela
+quebrada; invisível não é ouvido e ficar mudo na mesa denuncia o fantasma; um escudo mantido só
+queima o relógio numa fase em que ninguém ataca, e quanto sobra dependia do tamanho da discussão).
+Regra prática ao acrescentar qualquer timer de partida: decida as DUAS coisas separadamente - a
+reunião apaga o efeito? a reunião rearma a recarga? - e escreva as duas no mesmo commit. Sonda:
+`tools/probes/probe_meeting_reset.nvgt`.
+
+**A DISCUSSÃO é contada no cliente, não no servidor.** O `S_VOTING_STARTED` sai colado no
+`S_MEETING_STARTED`; o servidor manda `discussion_time` dentro do pacote da reunião e é o cliente que
+segura o voto até o tempo passar (o `voting_timer` do servidor é discussão + votação juntas, só como
+prazo máximo). Consequência para quem escreve sonda: votar assim que a votação abre produz uma
+reunião de UM segundo, e aí "a recarga não andou" e "a recarga foi rearmada" dão exatamente o mesmo
+número - a primeira versão da `probe_meeting_reset` "reprovou" a correção certa por isso. Quem quiser
+medir o efeito de uma reunião precisa esperar a discussão como um jogador esperaria.
+
 **Regra que o cliente também aplica tem que morar numa função só.** O cliente decide se ABRE o
 microfone e o servidor decide QUEM ouve; quando as duas decisões são escritas separadas, elas
 divergem e vence a mais restritiva - foi assim que a regra "comunicações calam a reunião", mesmo
@@ -952,6 +976,12 @@ falhava numa tentativa a cada três. Pior: o sintoma é "a ação não aconteceu
 recarga. Repita a ação até ela ser aceita, com um prazo generoso (ver a sabotagem em
 `probe_engineer.nvgt`), e capture o `S_ERROR` junto do sucesso - esperar só o sucesso esconde a
 explicação. **Sonda intermitente é pior que sonda que falha**: ela ensina a ignorar o vermelho.
+
+**Sonda que mede um relógio precisa medir o RELÓGIO DE PAREDE junto.** "O anjo tem 53 s de 60" não
+diz nada sozinho: pode ser "não rearmou" (certo) ou "não passou tempo nenhum" (sonda quebrada). Uma
+linha imprimindo quanto tempo de verdade correu desde o evento separa as duas na hora - sem ela, a
+`probe_meeting_reset` acusou de errado um código que estava certo, e o caminho até descobrir passou
+por reler três arquivos do servidor.
 
 **Sonda que monta texto traduzido precisa CARREGAR o idioma** (`g_i18n.load_language`), senão
 `tr()` devolve a própria chave e a sonda "passa" mostrando `role.noisemaker_alarm` como se fosse a

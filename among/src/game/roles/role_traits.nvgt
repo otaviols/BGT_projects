@@ -120,8 +120,8 @@ class role_traits {
 
 	// --- Habilidade ativa ---
 	// Uma por papel, usada pela tecla de habilidade e despachada no servidor por este id (ver
-	// on_use_ability). "" = o papel não tem. A recarga é do papel, não da sala, pelo menos por
-	// enquanto: uma configuração por habilidade viraria uma tela de regras impossível de ouvir.
+	// on_use_ability). "" = o papel não tem. O valor aqui é o PADRÃO: a sala pode mudá-lo pelos
+	// `tunables` abaixo, e quem lê a recarga na partida lê de config.role_value, nunca daqui.
 	string ability_id = "";
 	float ability_cooldown_seconds = 0.0;
 	// EM QUE ESTADO a habilidade funciona. Os dois separados, e não um booleano "vale morto",
@@ -129,6 +129,14 @@ class role_traits {
 	// que é um tripulante comum até morrer.
 	bool ability_usable_alive = true;
 	bool ability_usable_dead = false;
+	// A recarga volta do zero quando a votação acaba. É a mesma guarda que o cooldown de kill já
+	// tinha (ver end_meeting): a habilidade não pode ser usada durante a reunião, então sem isso a
+	// discussão inteira recarrega de graça e o metamorfo sai da votação pronto pra virar alguém, no
+	// meio de todo mundo. O padrão é o conservador - ninguém sai da mesa com o gatilho armado -, e
+	// quem se recusa tem que dizer por quê: as habilidades de DEFESA não resetam, senão a reunião
+	// passa a ser jogada do impostor pelo outro lado - a sabotagem dele atravessa a reunião intacta
+	// e o engenheiro sai da mesa sem poder consertá-la.
+	bool ability_cooldown_resets_on_meeting = true;
 
 	// Ao morrer, a nave inteira ouve que ele morreu e ONDE. É a informação que este jogo não dá de
 	// graça em lugar nenhum: normalmente o corpo precisa ser encontrado, e quem está longe não sabe
@@ -186,6 +194,9 @@ role_traits@ role_engineer() {
 	// O piso de 30 s não é capricho: com recarga menor que a da sabotagem (30 s), ele conserta tudo
 	// que aparecer e sabotar deixa de ser jogada.
 	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, ENGINEER_FIX_COOLDOWN_SECONDS, 30.0, 600.0));
+	// A sabotagem sobrevive à reunião; a recarga dele não pode ser zerada junto, ou chamar reunião
+	// vira a forma barata de garantir que ninguém conserta nada por mais dois minutos.
+	t.ability_cooldown_resets_on_meeting = false;
 	return t;
 }
 
@@ -245,6 +256,10 @@ role_traits@ role_guardian_angel() {
 	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, GUARDIAN_SHIELD_COOLDOWN_SECONDS, 10.0, 600.0));
 	t.ability_usable_alive = false; // vivo ele é um tripulante como outro qualquer
 	t.ability_usable_dead = true;
+	// A reunião já APAGA o escudo que ele tinha lançado; zerar a recarga junto seria cobrar duas
+	// vezes pela mesma reunião, de um papel que não ataca ninguém. Ele sai da votação podendo
+	// proteger de novo - que é exatamente o que a proteção perdida pede.
+	t.ability_cooldown_resets_on_meeting = false;
 	return t;
 }
 

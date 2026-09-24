@@ -1119,6 +1119,10 @@ class game_server {
 			start.set_float("your_x", p.x);
 			start.set_float("your_y", p.y);
 			start.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
+			// A recarga da habilidade DESTE papel, pela mesma razão do kill: o servidor a rearma no fim
+			// da votação, e o cliente precisa acompanhar sem ter usado a habilidade nenhuma vez ainda
+			// (é por S_ABILITY_RESULT que ele descobriria, e esse só chega depois do primeiro uso).
+			start.set_float("ability_cooldown_seconds", lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN));
 			start.set_float("sabotage_cooldown_seconds", lobby.sabotage_cooldown_remaining);
 			// Regra de voz da sala: sem ela o cliente capturaria e mandaria áudio que o servidor iria
 			// descartar - microfone aberto à toa.

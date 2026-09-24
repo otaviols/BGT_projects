@@ -498,6 +498,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// Recarga da habilidade do papel, acompanhada localmente como a do kill: o servidor é quem
 	// decide, isto é só para responder na hora sem viagem de rede.
 	float my_ability_cooldown_remaining = 0.0;
+	float ability_cooldown_config = start_pkt.get_float("ability_cooldown_seconds");
 	// Quanto falta da fantasia do shapeshifter. Só para ele responder à tecla sem ir à rede; quem
 	// desfaz de verdade é o servidor, que avisa por S_SHIFT_ENDED.
 	float my_disguise_remaining = 0.0;
@@ -794,6 +795,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
 				// falharia calada.
 				if (my_role.can_kill) my_kill_cooldown_remaining = kill_cooldown_config;
+				// E a habilidade, pelos mesmos motivos e para quem o papel declara (ver
+				// ability_cooldown_resets_on_meeting em role_traits).
+				if (my_role.ability_id != "" && my_role.ability_cooldown_resets_on_meeting)
+					my_ability_cooldown_remaining = ability_cooldown_config;
 				audio.start_room_ambience(map);
 				// A sabotagem continua de pé depois da reunião: os efeitos dela voltam por aqui, que é
 				// o único lugar que sabe se este jogador ainda está vivo para ser atingido por ela.

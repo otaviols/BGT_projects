@@ -414,6 +414,16 @@ class game_state {
 			if (players[i].invisible()) players[i].invisible_remaining = 0.0;
 		}
 
+		// E o escudo do anjo, pela regra geral: o que a reunião não desfaz, ela recarrega de graça.
+		// Ninguém mata durante a votação, então um escudo mantido só queima o relógio dele na mesa e
+		// chega do outro lado com um resto imprevisível - quanto sobra dependia do tamanho da
+		// discussão, que não é decisão de ninguém. Cortado, a proteção vale para a fase em que foi
+		// lançada, e o anjo sai da votação podendo lançar outra (ver ability_cooldown_resets_on_meeting).
+		// Como ninguém é avisado do escudo, ninguém é avisado de perdê-lo: não há pacote aqui.
+		for (uint i = 0; i < players.length(); i++) {
+			players[i].shield_remaining = 0.0;
+		}
+
 		meeting_unvented_peers.resize(0);
 		for (uint i = 0; i < players.length(); i++) {
 			if (!players[i].alive) continue;
@@ -563,8 +573,17 @@ class game_state {
 		// de emergência podia ser apertado de novo no mesmo instante.
 		// Vale para TODO mundo que pode matar, e não só para o impostor: o xerife sai da votação com
 		// a arma recarregando pelo mesmo motivo, e com a recarga DELE (ver kill_cooldown_for).
+		// A habilidade ativa segue a mesma regra, e por quem o PAPEL diz (ver
+		// ability_cooldown_resets_on_meeting): nenhuma habilidade funciona durante a reunião, então
+		// deixar a recarga correndo na discussão é recarregar de graça - o metamorfo saía da votação
+		// pronto pra virar alguém no meio da multidão. As de defesa se recusam, e cada uma diz por quê
+		// no próprio papel.
 		for (uint i = 0; i < players.length(); i++) {
 			if (players[i].role().can_kill) players[i].kill_cooldown_remaining = kill_cooldown_for(players[i]);
+			role_traits@ rt = players[i].role();
+			if (rt.ability_id != "" && rt.ability_cooldown_resets_on_meeting) {
+				players[i].ability_cooldown_remaining = config.role_value(players[i].role_id, TUNABLE_COOLDOWN);
+			}
 		}
 		meeting_cooldown_remaining = config.emergency_cooldown_seconds;
 

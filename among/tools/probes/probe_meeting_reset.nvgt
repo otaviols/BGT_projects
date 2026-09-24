@@ -1,0 +1,208 @@
+// Sonda do que a reunião DESFAZ e do que ela recarrega.
+//
+// A reunião é uma pausa em que nenhuma habilidade funciona. Sem cuidado, ela vira a melhor jogada
+// do impostor: a discussão inteira recarrega de graça e ele sai da votação com tudo pronto, ao lado
+// de todo mundo. O cooldown de kill já tinha guarda contra isso; a habilidade do papel não tinha.
+//
+// O que se confere, tudo contra o servidor de verdade:
+//   1. o ESCUDO do anjo cai na reunião - depois dela o mesmo kill funciona, mesmo com o escudo
+//      configurado para durar 300 s (sem o corte, ele atravessaria a reunião intacto);
+//   2. a recarga do METAMORFO volta INTEIRA no fim da votação (papel que ataca: reseta);
+//   3. a recarga do ANJO não volta - ela correu durante a reunião, como deve (papel que defende:
+//      não reseta, ver ability_cooldown_resets_on_meeting em role_traits).
+//
+// 2 e 3 são medidos pelos SEGUNDOS que o servidor informa ao recusar por recarga, e não por
+// "aceitou/recusou": é o único jeito de separar "resetou" de "não resetou" sem espiar o processo.
+// Os dois valores são escolhidos para que a resposta certa e a errada fiquem longe uma da outra.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_meeting_reset.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/i18n.nvgt"
+
+// A reunião dura o suficiente para uma recarga curta expirar dentro dela - é isso que torna o caso 3
+// uma medida, e não um palpite.
+const float DISCUSSAO = 40.0;
+const float ESCUDO_DURACAO = 300.0;  // atravessaria a partida inteira se a reunião não o cortasse
+const float ANJO_RECARGA = 60.0;     // expira em boa parte DENTRO da reunião
+const float MORFO_RECARGA = 120.0;   // longa: sobra muito depois da reunião, resetada ou não
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+// CAMINHA de verdade: o servidor valida a velocidade e RECUSA um salto (ver probe_guardian, onde
+// isso já fez um teste passar pelo motivo errado).
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8;
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+
+// Segundos que o servidor informa ao recusar por recarga. -1 = não foi recusa de recarga.
+// `exists` antes de `get`: com a chave ausente o &out do AngelScript devolve LIXO, e a sonda
+// "mediria" um número inventado (ver CLAUDE.md).
+int segundos_de_recarga(net_packet@ pkt) {
+	if (@pkt == null || pkt.get_bool("ok")) return -1;
+	dictionary@ params = pkt.get_params(MSG_PARAMS_FIELD);
+	if (@params == null || !params.exists("seconds")) return -1;
+	string s = "";
+	if (!params.get("seconds", s)) return -1;
+	return parse_int(s);
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	// SEIS jogadores: o anjo morre para poder usar a habilidade e a vítima morre no fim, e a partida
+	// não pode acabar no meio da sonda (um impostor contra um tripulante já é vitória dele).
+	array<string> nomes = {"reu_a", "reu_b", "reu_c", "reu_d", "reu_e", "reu_f"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		game_client@ c = conecta(addr, nomes[i] + sufixo);
+		if (@c == null) { println("nao conectou " + nomes[i]); return; }
+		todos.insert_last(c);
+	}
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.role_counts.set(ROLE_SHAPESHIFTER, 1);    // o único impostor é o metamorfo
+	ov.role_counts.set(ROLE_GUARDIAN_ANGEL, 1);
+	ov.kill_cooldown_seconds = 5.0;
+	ov.discussion_time_seconds = DISCUSSAO;
+	ov.voting_time_seconds = 30.0;
+	ov.role_values.set(ROLE_GUARDIAN_ANGEL + "." + TUNABLE_DURATION, ESCUDO_DURACAO);
+	ov.role_values.set(ROLE_GUARDIAN_ANGEL + "." + TUNABLE_COOLDOWN, ANJO_RECARGA);
+	ov.role_values.set(ROLE_SHAPESHIFTER + "." + TUNABLE_COOLDOWN, MORFO_RECARGA);
+	todos[0].send_create_lobby("Sonda da reuniao", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+	todos[0].send_start_game();
+
+	game_client@ morfo; uint64 morfo_peer = 0; float mx = 0, my = 0;
+	game_client@ anjo; uint64 anjo_peer = 0; float ax = 0, ay = 0;
+	game_client@ vitima; uint64 vitima_peer = 0; float vx = 0, vy = 0;
+	game_client@ copiado; uint64 copiado_peer = 0; float cx = 0, cy = 0; // quem o metamorfo imita
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ st = wf(todos[i], S_GAME_START, 8000);
+		if (@st == null) { println("um cliente nao recebeu o inicio"); return; }
+		string rid = st.get_string("your_role", "");
+		uint64 meu = st.get_uint64("your_peer_id");
+		float px = st.get_float("your_x"), py = st.get_float("your_y");
+		if (rid == ROLE_SHAPESHIFTER) { @morfo = todos[i]; morfo_peer = meu; mx = px; my = py; }
+		else if (rid == ROLE_GUARDIAN_ANGEL) { @anjo = todos[i]; anjo_peer = meu; ax = px; ay = py; }
+		else if (@vitima == null) { @vitima = todos[i]; vitima_peer = meu; vx = px; vy = py; }
+		else if (@copiado == null) { @copiado = todos[i]; copiado_peer = meu; cx = px; cy = py; }
+	}
+	if (@morfo == null || @anjo == null || @vitima == null || @copiado == null) { println("elenco incompleto"); return; }
+
+	// O anjo precisa estar MORTO para proteger alguém.
+	anda_ate(todos, morfo, mx, my, 0.0, 0.0); mx = 0; my = 0;
+	anda_ate(todos, anjo, ax, ay, 0.0, 0.0); ax = 0; ay = 0;
+	bombeia(todos, 5500); // recarga inicial do kill
+	morfo.send_kill(anjo_peer);
+	net_packet@ caiu = wf(anjo, S_PLAYER_KILLED, 6000);
+	check("o anjo morreu e virou fantasma", @caiu != null && caiu.get_uint64("peer_id") == anjo_peer, "o anjo");
+
+	// O anjo protege a vítima: escudo de 300 s, que só a reunião pode tirar dentro desta sonda.
+	anda_ate(todos, vitima, vx, vy, 6.0, 0.0); vx = 6; vy = 0;
+	anda_ate(todos, anjo, ax, ay, 6.0, 0.0); ax = 6; ay = 0;
+	anjo.send_use_ability(ABILITY_SHIELD, vitima_peer);
+	net_packet@ prot = wf(anjo, S_ABILITY_RESULT, 5000);
+	check("o anjo protegeu a vitima", @prot != null && prot.get_bool("ok"), "true");
+	// O relógio de parede desde o lançamento: é contra ELE que os segundos informados no fim fazem
+	// sentido. Sem esta medida, "53 de 60" tanto pode ser "não resetou" quanto "não correu".
+	timer desde_o_escudo;
+
+	// E o metamorfo se disfarça, para a recarga DELE estar correndo quando a reunião começar.
+	anda_ate(todos, copiado, cx, cy, -6.0, 0.0); cx = -6; cy = 0;
+	anda_ate(todos, morfo, mx, my, -6.0, 0.0); mx = -6; my = 0;
+	morfo.send_use_ability(ABILITY_SHAPESHIFT, copiado_peer);
+	net_packet@ virou = wf(morfo, S_ABILITY_RESULT, 5000);
+	check("o metamorfo se disfarcou", @virou != null && virou.get_bool("ok"), "true");
+
+	// --- A reunião ---
+	copiado.send_call_meeting();
+	net_packet@ reuniao = wf(copiado, S_MEETING_STARTED, 8000);
+	check("a reuniao comecou", @reuniao != null, "S_MEETING_STARTED");
+	if (@reuniao == null) { println("sem reuniao, o resto nao prova nada"); return; }
+	net_packet@ votacao = wf(copiado, S_VOTING_STARTED, 15000);
+	check("a votacao comecou", @votacao != null, "S_VOTING_STARTED");
+	// A DISCUSSÃO é contada no cliente: o servidor manda S_VOTING_STARTED colado no
+	// S_MEETING_STARTED, com `discussion_time` dentro do pacote da reunião, e é o cliente que segura
+	// o voto até o tempo passar. Uma sonda que vota na hora faz uma reunião de um segundo - e então
+	// "a recarga não andou" e "a recarga foi rearmada" dão exatamente o mesmo número.
+	println("discutindo por " + int(DISCUSSAO) + "s, como uma reuniao de verdade...");
+	bombeia(todos, int(DISCUSSAO * 1000.0));
+	for (uint i = 0; i < todos.length(); i++) todos[i].send_cast_vote(-1); // todos pulam
+	net_packet@ resultado = wf(copiado, S_VOTE_RESULT, 40000);
+	check("a votacao terminou sem expulsar ninguem", @resultado != null && @resultado != null && resultado.get_uint64("ejected_peer") == 0, "ninguem expulso");
+	if (@resultado == null) return;
+
+	println("   passaram-se " + int(desde_o_escudo.elapsed / 1000) + "s de relogio desde o escudo");
+
+	// 2 e 3 são medidos AGORA, colados no fim da votação: cada segundo que passa aproxima os dois
+	// números e estraga a medida.
+	morfo.send_use_ability(ABILITY_SHAPESHIFT, copiado_peer);
+	net_packet@ r_morfo = wf(morfo, S_ABILITY_RESULT, 5000);
+	int falta_morfo = segundos_de_recarga(r_morfo);
+	println("   o metamorfo tem " + falta_morfo + "s de recarga (configurado: " + int(MORFO_RECARGA) + "s)");
+	check("a recarga do metamorfo voltou inteira na votacao",
+		falta_morfo >= int(MORFO_RECARGA) - 8, "perto de " + int(MORFO_RECARGA) + "s, nao de " + int(MORFO_RECARGA - DISCUSSAO) + "s");
+
+	anjo.send_use_ability(ABILITY_SHIELD, vitima_peer);
+	net_packet@ r_anjo = wf(anjo, S_ABILITY_RESULT, 5000);
+	int falta_anjo = segundos_de_recarga(r_anjo);
+	println("   o anjo tem " + falta_anjo + "s de recarga (configurado: " + int(ANJO_RECARGA) + "s)");
+	check("a recarga do anjo NAO foi rearmada pela reuniao",
+		falta_anjo >= 0 && falta_anjo <= int(ANJO_RECARGA - DISCUSSAO) + 8, "bem abaixo de " + int(ANJO_RECARGA) + "s");
+
+	// 1. O escudo caiu junto com a reunião: todo mundo vivo está na cafeteria, colado, e a recarga de
+	// kill foi rearmada pelo fim da votação - esperar por ela é o suficiente.
+	bombeia(todos, 6500);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	morfo.send_kill(vitima_peer);
+	net_packet@ morreu = wf(vitima, S_PLAYER_KILLED, 6000);
+	check("depois da reuniao o escudo nao existe mais",
+		@morreu != null && morreu.get_uint64("peer_id") == vitima_peer, "a vitima morre");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}
