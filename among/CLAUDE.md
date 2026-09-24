@@ -997,6 +997,27 @@ commit, push -> responder ao jogador com `reply_feedback.ps1` se ele mandou reca
 traz. O `build_clients.ps1` recolhe a caixa de entrada sozinho e PARA se houver algo para revisar
 (`-SkipInbox` pula). Pull request no repositório também serve para quem sabe usar GitHub.
 
+**O deploy CONFERE as traduções antes de qualquer outra coisa, e recusa.**
+`python tools/check_translations_all.py` (exit 1 = não sobe). A regra de o que é erro vem de quem
+mantém cada idioma: `pt_BR` fora de sincronia com `en_US` - em qualquer direção, faltando ou
+sobrando - é defeito NOSSO e barra o deploy; idioma da comunidade atrasado é só aviso com a
+contagem, porque chave faltando cai no inglês de propósito; e **envio de jogador parado em
+`translations_inbox/` barra**. Existe `-SkipTranslations`, para emergência, e usar é escolher subir
+no escuro.
+
+Isso nasceu de um erro: a **0.32.0 subiu com um espanhol COMPLETO parado na caixa** (614 chaves,
+zero faltando) enquanto o jogo distribuía um de 518 com 96 buracos. O `build_clients` já conferia -
+mas tem `-SkipInbox`, e eu pulei. Por isso o portão de verdade fica no DEPLOY, que é o que vai ao
+ar, e por isso ele **recolhe do servidor junto** (`read_translations.ps1`): uma tradução que o
+jogador mandou ontem e ninguém baixou está tão atrasada quanto uma ignorada.
+
+Duas coisas aprendidas ao processar aqueles envios: o envio pelo jogo pode vir com
+`language.translator` **vazio** (o turco veio), e gravar por cima assim apaga o crédito de quem
+traduziu de graça - reponha do arquivo que estava em uso; e dois envios do mesmo idioma podem ser o
+mesmo arquivo com nomes diferentes, então compare pela CONTAGEM de chaves antes de escolher.
+Processado, o arquivo vai para `translations_inbox/processadas/` - a subpasta não dispara o portão e
+guarda quem mandou o quê.
+
 **`parse_json` LANÇA exceção em JSON malformado** (não devolve null). Já derrubou o servidor inteiro
 num teste - um envio com `{` solto matou o processo. Todo `parse_json` de conteúdo que vem de fora
 (rede, arquivo de idioma, version.json) fica em try/catch; ver `validate_translation_json`.

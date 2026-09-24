@@ -20,11 +20,36 @@ param(
 	[switch]$SkipSite,
 	# Reinício anunciado: quanto tempo avisar os jogadores e esperar as partidas em andamento
 	# acabarem antes de trocar o servidor. 0 = trocar na hora (derruba quem estiver jogando).
-	[int]$DrainSeconds = 300
+	[int]$DrainSeconds = 300,
+	# Pula a conferência de traduções. Só para emergência (um conserto de servidor que não pode
+	# esperar tradutor) - em release normal, não use.
+	[switch]$SkipTranslations
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+
+# --- Traduções, ANTES de tudo ---
+#
+# Primeiro de propósito: recusar aqui custa zero, enquanto recusar depois de construir a imagem e
+# avisar os jogadores do reinício custa o tempo de todo mundo.
+#
+# Isto existe porque a 0.32.0 subiu com um espanhol COMPLETO parado na caixa de entrada: o
+# build_clients já conferia, mas tem `-SkipInbox`, e quem pula uma vez pula sempre. O portão de
+# verdade é aqui, no que vai ao ar.
+#
+# Recolher do servidor faz parte da conferência: uma tradução que o jogador mandou ontem e ninguém
+# baixou está tão atrasada quanto uma ignorada. `read_translations.ps1` traz e APAGA do servidor,
+# então o que vier fica em translations_inbox/ e o conferidor abaixo recusa até alguém tratar.
+if (-not $SkipTranslations) {
+	Write-Host "Conferindo traducoes..."
+	& (Join-Path $PSScriptRoot "read_translations.ps1") | Out-Host
+	if ($LASTEXITCODE -ne 0) { throw "Nao consegui recolher as traducoes do servidor. Resolva, ou rode com -SkipTranslations." }
+	python (Join-Path $root "tools\check_translations_all.py") | Out-Host
+	if ($LASTEXITCODE -ne 0) {
+		throw "As traducoes nao estao em dia (veja acima). Trate o que falta - CLAUDE.md, secao Traducoes - ou rode com -SkipTranslations."
+	}
+}
 
 if (-not $SkipServer) {
 	# A imagem é etiquetada com o commit atual, e a etiqueta só diz a verdade se o que está sendo
