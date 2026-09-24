@@ -224,20 +224,19 @@ const string S_ABILITY_RESULT = "s_ability_result";         // {ability, ok, mes
 // diferentes. Traduzindo no servidor, todo mundo receberia o idioma DELE, e a escolha de idioma no
 // jogo viraria mentira para tudo que viesse da rede.
 //
-// Os pacotes levam também um campo `message` com o texto já traduzido no idioma padrão do servidor.
-// Ele existe SÓ para os clientes antigos (até a 0.11.1), que leem esse campo e não conhecem
-// `message_key`; sem ele, esses jogadores veriam avisos em branco. Pode ser removido quando não
-// houver mais ninguém nessas versões.
-const string MSG_KEY_FIELD = "message_key";      // chave de tradução, ex.: "chat.only_in_meeting"
+const string MSG_KEY_FIELD = "message_key";       // chave de tradução, ex.: "chat.only_in_meeting"
 const string MSG_PARAMS_FIELD = "message_params"; // objeto {nome: valor} com as substituições
-const string MSG_LEGACY_TEXT_FIELD = "message";   // texto pronto, só para clientes até a 0.11.1
 
 // Traduz uma mensagem recebida do servidor no idioma DESTE cliente.
-// Cai no texto pronto se o pacote não trouxer chave (servidor mais antigo que o cliente).
+//
+// Sem chave, devolve vazio: o servidor SEMPRE manda a chave (ver build_message), e um pacote sem
+// ela é um pacote quebrado - falar um texto pronto em cima disso mascararia o defeito. Havia aqui
+// um campo com o texto já traduzido, para clientes anteriores à 0.11.1; ele saiu na 0.31.0, junto
+// com o corte de protocolo que impede essas versões de entrar.
 string tr_server_message(net_packet@ pkt) {
 	if (@pkt == null) return "";
 	string key = pkt.get_string(MSG_KEY_FIELD);
-	if (key == "") return pkt.get_string(MSG_LEGACY_TEXT_FIELD);
+	if (key == "") return "";
 	return tr(key, pkt.get_params(MSG_PARAMS_FIELD));
 }
 const string S_VENT_STATE = "s_vent_state";                 // {vented, x, y} - resposta privada (só pra quem usou o vent)

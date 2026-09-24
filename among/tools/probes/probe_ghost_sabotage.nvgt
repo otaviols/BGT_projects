@@ -11,11 +11,11 @@ void caso(const string&in o_que, bool obtido, bool esperado) {
 
 void main() {
 	println("--- a capacidade local (e o que oferece a tecla ao jogador) ---");
-	caso("impostor morto sabota", player_abilities(role_from_flag(true), false).can_sabotage(), true);
-	caso("impostor morto mata", player_abilities(role_from_flag(true), false).can_kill(), false);
-	caso("impostor morto ventila", player_abilities(role_from_flag(true), false).can_vent(), false);
-	caso("impostor morto fecha portas", player_abilities(role_from_flag(true), false).can_close_doors(), false);
-	caso("tripulante morto sabota", player_abilities(role_from_flag(false), false).can_sabotage(), false);
+	caso("impostor morto sabota", player_abilities(role_impostor(), false).can_sabotage(), true);
+	caso("impostor morto mata", player_abilities(role_impostor(), false).can_kill(), false);
+	caso("impostor morto ventila", player_abilities(role_impostor(), false).can_vent(), false);
+	caso("impostor morto fecha portas", player_abilities(role_impostor(), false).can_close_doors(), false);
+	caso("tripulante morto sabota", player_abilities(role_crewmate(), false).can_sabotage(), false);
 
 	println("--- e o que o SERVIDOR decide (game_state.trigger_sabotage) ---");
 	game_state@ lobby = game_state();

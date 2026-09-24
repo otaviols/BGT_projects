@@ -56,7 +56,7 @@ int jogar_ate_o_fim(array<peer@>@ all) {
 			for (uint k = 0; k < all[i].c.incoming.length(); k++) {
 				net_packet@ p = all[i].c.incoming[k];
 				if (p.type != S_GAME_START) continue;
-				all[i].impostor = p.get_bool("your_role_impostor");
+				all[i].impostor = role_for(p.get_string("your_role")).team == TEAM_IMPOSTOR;
 				if (all[i].impostor) impostor = int(i);
 				all[i].c.incoming.remove_at(k);
 				recebidos++;
@@ -114,7 +114,7 @@ void main() {
 			for (uint k = 0; k < all[i].c.incoming.length(); k++) {
 				net_packet@ p = all[i].c.incoming[k];
 				if (p.type != S_GAME_START) continue;
-				all[i].impostor = p.get_bool("your_role_impostor");
+				all[i].impostor = role_for(p.get_string("your_role")).team == TEAM_IMPOSTOR;
 				if (all[i].impostor) impostor = int(i);
 				all[i].c.incoming.remove_at(k); recebidos++; break;
 			}

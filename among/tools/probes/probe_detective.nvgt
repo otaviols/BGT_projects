@@ -97,7 +97,7 @@ void main() {
 		uint64 meu = st.get_uint64("your_peer_id");
 		float px = st.get_float("your_x"), py = st.get_float("your_y");
 		if (rid == ROLE_DETECTIVE) { @detetive = todos[i]; det_peer = meu; det_x = px; det_y = py; }
-		else if (st.get_bool("your_role_impostor")) { @impostor = todos[i]; imp_peer = meu; imp_x = px; imp_y = py; }
+		else if (role_for(st.get_string("your_role")).team == TEAM_IMPOSTOR) { @impostor = todos[i]; imp_peer = meu; imp_x = px; imp_y = py; }
 		else if (@vitima == null) { @vitima = todos[i]; vit_peer = meu; vit_x = px; vit_y = py; }
 		else if (@vitima2 == null) { @vitima2 = todos[i]; vit2_peer = meu; vit2_x = px; vit2_y = py; }
 	}

@@ -3,7 +3,7 @@
 // acrescentar o primeiro deles.
 //
 // O que se confere aqui:
-//   1. o papel viaja como ID no S_GAME_START, e o booleano antigo continua batendo com ele;
+//   1. o papel viaja como ID no S_GAME_START;
 //   2. sem papéis ligados, tudo é exatamente como antes (tripulante e impostor, nada mais);
 //   3. a configuração da sala guarda e devolve role_counts, e a validação recusa id inventado;
 //   4. o sorteio respeita o time de cada papel e nunca dá papel a bot;
@@ -155,10 +155,10 @@ void testa_partida(server_address addr) {
 		if (@st == null) { println("um cliente nao recebeu o inicio"); falhas++; continue; }
 		string rid = st.get_string("your_role", "");
 		if (rid != "") com_id++;
-		// O booleano antigo e o id novo têm que contar a MESMA coisa: é o que permite os dois
-		// conviverem enquanto houver cliente velho.
-		bool flag = st.get_bool("your_role_impostor");
-		check("o id '" + rid + "' bate com o booleano", role_for(rid).team == (flag ? TEAM_IMPOSTOR : TEAM_CREW), "true");
+		// O time sai do PAPEL: o booleano que viajava ao lado dele saiu na 0.31.0, junto com o corte
+		// de protocolo que impede clientes antigos de entrar.
+		bool flag = role_for(rid).team == TEAM_IMPOSTOR;
+		check("o id '" + rid + "' tem time", role_for(rid).team != "", "crew ou impostor");
 		check("papel conhecido", role_id_is_known(rid), "true");
 		if (flag) impostores++; else tripulantes++;
 	}

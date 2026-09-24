@@ -104,9 +104,9 @@ void main() {
 		uint quantas = @tasks != null ? tasks.length() : 0;
 		if (rid == ROLE_ENGINEER) {
 			idx_engenheiro = int(i);
-			check("o engenheiro NAO é do time impostor", !st.get_bool("your_role_impostor"), "false");
+			check("o engenheiro NAO é do time impostor", role_for(rid).team != TEAM_IMPOSTOR, "true");
 			check("o engenheiro recebeu tarefas (" + quantas + ")", quantas > 0, "mais de zero");
-		} else if (st.get_bool("your_role_impostor")) {
+		} else if (role_for(rid).team == TEAM_IMPOSTOR) {
 			idx_impostor = int(i);
 		} else {
 			idx_comum = int(i);

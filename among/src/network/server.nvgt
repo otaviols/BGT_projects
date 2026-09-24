@@ -753,18 +753,7 @@ class game_server {
 			// O motivo vai como chave: "não deu" não diz ao jogador se errou o código, se a sala
 			// encheu ou se a partida já começou - e cada um desses pede uma reação diferente dele.
 			//
-			// "lobby.needs_update" é a exceção, e por um motivo que só aparece no dia do lançamento:
-			// ela NASCEU nesta versão, então o cliente que precisa ouvi-la é exatamente o que não a
-			// tem - e falaria a chave crua ("lobby.needs_update") na cara do jogador. Por isso o
-			// campo de sempre leva um motivo que todo cliente já conhece, e o detalhe vai num campo
-			// novo que só o cliente novo lê. Quando não houver mais ninguém abaixo do protocolo 2,
-			// isto pode virar uma linha só de novo.
-			if (fail_key == "lobby.needs_update") {
-				result.set_string(MSG_KEY_FIELD, "lobby.join_failed");
-				result.set_string("detail_key", fail_key);
-			} else {
-				result.set_string(MSG_KEY_FIELD, fail_key);
-			}
+			result.set_string(MSG_KEY_FIELD, fail_key);
 			send_to(peer_id, result);
 			return;
 		}
@@ -880,14 +869,12 @@ class game_server {
 		send_to(peer_id, build_message(S_ERROR, message_key, params));
 	}
 
-	// Monta um pacote de mensagem traduzível. Além da chave e das substituições, inclui o texto já
-	// traduzido no idioma do servidor - isso é só para os clientes até a 0.11.1, que não conhecem a
-	// chave e mostrariam um aviso em branco sem esse campo.
+	// Monta um pacote de mensagem traduzivel: a CHAVE e as substituicoes, nunca a frase pronta - quem
+	// traduz e' o cliente, no idioma daquele jogador (ver tr_server_message).
 	net_packet@ build_message(const string&in packet_type, const string&in message_key, dictionary@ params = null) {
 		net_packet@ pkt = net_packet(packet_type);
 		pkt.set_string(MSG_KEY_FIELD, message_key);
 		if (@params != null) pkt.set_params(MSG_PARAMS_FIELD, params);
-		pkt.set_string(MSG_LEGACY_TEXT_FIELD, @params != null ? tr(message_key, params) : tr(message_key));
 		return pkt;
 	}
 
@@ -1107,7 +1094,6 @@ class game_server {
 			if (p.is_bot) continue; // não tem pra quem mandar
 			net_packet@ start = net_packet(S_GAME_START);
 			start.set_string("map_name", lobby.map.name);
-			start.set_bool("your_role_impostor", p.is_impostor); // clientes até o protocolo 1
 			start.set_string("your_role", p.role_id);
 			// O que a SALA configurou (id -> quantos, e a chance de cada um), para todo mundo: assim
 			// como o número de impostores, saber que "pode haver um xerife" muda a leitura de tudo o

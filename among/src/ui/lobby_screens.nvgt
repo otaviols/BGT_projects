@@ -320,11 +320,7 @@ bool wait_for_join_result(game_client@ client) {
 		while (@pkt != null) {
 			if (pkt.type == S_JOIN_RESULT) {
 				if (pkt.get_bool("ok")) return true;
-				// `detail_key` vem quando o motivo é novo demais para os clientes antigos entenderem
-				// (ver on_join_lobby): eles leem o campo de sempre, que é uma chave que já existia,
-				// e nós lemos o detalhe.
-				string motivo = pkt.get_string("detail_key", "");
-				if (motivo == "") motivo = pkt.get_string(MSG_KEY_FIELD, "");
+				string motivo = pkt.get_string(MSG_KEY_FIELD, "");
 				speak(tr(motivo != "" ? motivo : "lobby.join_failed"));
 				return false;
 			}

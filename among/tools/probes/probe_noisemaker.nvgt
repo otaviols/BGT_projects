@@ -77,7 +77,7 @@ elenco@ monta_partida(server_address addr, const string&in sufixo) {
 		string rid = st.get_string("your_role", "");
 		uint64 meu = st.get_uint64("your_peer_id");
 		if (rid == ROLE_NOISEMAKER) { @e.alarmista = e.todos[i]; e.alarmista_peer = meu; e.alarmista_nome = nomes[i] + sufixo; }
-		else if (st.get_bool("your_role_impostor")) { @e.impostor = e.todos[i]; e.impostor_peer = meu; }
+		else if (role_for(st.get_string("your_role")).team == TEAM_IMPOSTOR) { @e.impostor = e.todos[i]; e.impostor_peer = meu; }
 		else if (@e.comum == null) { @e.comum = e.todos[i]; e.comum_peer = meu; }
 	}
 	e.ok = @e.alarmista != null && @e.impostor != null && @e.comum != null;

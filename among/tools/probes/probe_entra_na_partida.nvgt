@@ -37,7 +37,7 @@ void main() {
 	// começa enquanto o jogador ainda está na tela de resultado.
 	net_packet@ inicio = net_packet(S_GAME_START);
 	inicio.set_uint64("your_peer_id", c.my_peer_id);
-	inicio.set_bool("your_role_impostor", false);
+	inicio.set_string("your_role", ROLE_CREWMATE);
 	inicio.set_float("your_x", 0.0);
 	inicio.set_float("your_y", 0.0);
 	c.incoming.insert_last(inicio);

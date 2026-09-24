@@ -29,25 +29,25 @@ void main() {
 	array<string> minhas_tasks;
 	array<uint64> corpos;
 	array<vector> pontos;
-	role_traits@ tripulante = role_from_flag(false);
+	role_traits@ tripulante = role_crewmate();
 
 	// vivo, com sabotagem de pé: o alarme toca
-	apply_sabotage_effects(audio, mui, map, minhas_tasks, "lights", tripulante, false, true, corpos, pontos);
+	apply_sabotage_effects(audio, mui, map, minhas_tasks, "lights", tripulante, true, corpos, pontos);
 	caso("vivo, sabotagem de pe", audio.ambient_sabotage_slot != -1, true);
 
 	// ele morre no meio da sabotagem (o caminho que ninguem desligava)
-	apply_sabotage_effects(audio, mui, map, minhas_tasks, "lights", tripulante, false, false, corpos, pontos);
+	apply_sabotage_effects(audio, mui, map, minhas_tasks, "lights", tripulante, false, corpos, pontos);
 	caso("morreu durante a sabotagem", audio.ambient_sabotage_slot != -1, false);
 
 	// a reuniao acaba e a sabotagem continua: para o fantasma tem que continuar calado (recado #96)
-	apply_sabotage_effects(audio, mui, map, minhas_tasks, "lights", tripulante, false, false, corpos, pontos);
+	apply_sabotage_effects(audio, mui, map, minhas_tasks, "lights", tripulante, false, corpos, pontos);
 	caso("fantasma, depois da reuniao", audio.ambient_sabotage_slot != -1, false);
 
 	// e para quem esta vivo, a reuniao devolve o alarme
-	apply_sabotage_effects(audio, mui, map, minhas_tasks, "lights", tripulante, false, true, corpos, pontos);
+	apply_sabotage_effects(audio, mui, map, minhas_tasks, "lights", tripulante, true, corpos, pontos);
 	caso("vivo, depois da reuniao", audio.ambient_sabotage_slot != -1, true);
 
 	// consertada: calado para todo mundo
-	apply_sabotage_effects(audio, mui, map, minhas_tasks, "", tripulante, false, true, corpos, pontos);
+	apply_sabotage_effects(audio, mui, map, minhas_tasks, "", tripulante, true, corpos, pontos);
 	caso("sabotagem consertada", audio.ambient_sabotage_slot != -1, false);
 }

@@ -16,14 +16,17 @@ const string GAME_VERSION = "0.31.0";
 // número que o servidor possa comparar sem interpretar "0.29.5". O cliente manda a dele no C_LOGIN;
 // o servidor recusa quem estiver abaixo de MIN_PROTOCOL_VERSION com "login.update_required".
 //
-// Cliente anterior a este campo não manda nada e conta como 0. Por isso o mínimo fica em 0 até a
-// primeira mudança incompatível de verdade (os papéis): subir o número aqui É o corte, e ele só
-// pode acontecer depois que a base de jogadores já estiver em versões que sabem explicar a recusa -
-// os clientes até a 0.29.4 ignoram o motivo do login falhar e dizem "credenciais inválidas".
+// O mínimo é 2 desde a 0.31.0: quem está abaixo da 0.30.0 ouve "atualize o jogo" e a página de
+// download abre sozinha. O corte foi feito quando os recados mostraram que a base migra no MESMO
+// dia em que a versão sai (o updater automático funciona), e é ele que permitiu tirar do código
+// todo o legado de compatibilidade - o booleano do papel, os campos de texto pronto, os remendos.
+//
+// Subir de novo custa o mesmo cuidado: só depois que a base já estiver numa versão que saiba
+// EXPLICAR a recusa, senão a pessoa ouve uma chave crua e não entende o que fazer.
 // Histórico: 1 = o campo passou a existir (0.29.5); 2 = o cliente lê `your_role` e o formulário da
 // sala manda `role_counts` (ver ROLES_MIN_PROTOCOL em game/roles/role_traits.nvgt).
 const int PROTOCOL_VERSION = 2;
-const int MIN_PROTOCOL_VERSION = 0;
+const int MIN_PROTOCOL_VERSION = 2;
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
 // O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.

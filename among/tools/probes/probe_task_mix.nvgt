@@ -29,7 +29,7 @@ void mede(int total, int longas) {
 	c.send_start_game();
 	net_packet@ start = wf(c, S_GAME_START, 8000);
 	if (@start == null) { println("nao comecou"); return; }
-	if (start.get_bool("your_role_impostor")) { c.disconnect(); mede(total, longas); return; } // impostor não tem tarefa: repete
+	if (role_for(start.get_string("your_role")).team == TEAM_IMPOSTOR) { c.disconnect(); mede(total, longas); return; } // impostor não tem tarefa: repete
 	json_array@ tasks = start.get_array("tasks");
 	uint n_longas = 0, n_curtas = 0, n_comuns = 0;
 	for (uint i = 0; i < tasks.length(); i++) {

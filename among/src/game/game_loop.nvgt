@@ -101,8 +101,8 @@ void pump_client_during_game_menu(menu@ m, string data) {
 // resto da sabotagem - cego justamente quem já não tinha mais nada a perder.
 void apply_sabotage_effects(audio_manager@ audio, meeting_ui@ mui, game_map@ map,
 		array<string>@ my_task_object_ids, const string&in active_sabotage_id, role_traits@ role,
-		bool is_impostor, bool alive, array<uint64>@ known_body_peers, array<vector>@ known_body_positions) {
-	bool lights_out = lights_out_for(active_sabotage_id, is_impostor, alive);
+		bool alive, array<uint64>@ known_body_peers, array<vector>@ known_body_positions) {
+	bool lights_out = lights_out_for(active_sabotage_id, role, alive);
 	// O alarme toca para quem PODE fazer algo a respeito. O fantasma não conserta painel, então ele
 	// é só barulho por cima do resto da partida - e era ligado em três lugares diferentes, o que
 	// fazia cada caminho esquecer um deles: quem morria no meio da sabotagem continuava ouvindo, e
@@ -492,10 +492,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// O papel diz o que este jogador PODE; o resto do laço pergunta por capacidade ("posso
 	// ventilar?"), não por identidade ("sou impostor?"). É o que permite acrescentar um papel novo
 	// sem revisitar cada condição do jogo - ver game/roles/role_traits.nvgt.
-	// O id vem do servidor; sem ele (servidor antigo) vale o booleano de sempre.
-	role_traits@ my_role = start_pkt.exists("your_role")
-		? role_for(start_pkt.get_string("your_role"))
-		: role_from_flag(start_pkt.get_bool("your_role_impostor"));
+	role_traits@ my_role = role_for(start_pkt.get_string("your_role"));
 	// "Time impostor", derivado do papel: é o que a reunião e as regras de sabotagem ainda perguntam.
 	bool is_impostor = my_role.team == TEAM_IMPOSTOR;
 	// Recarga da habilidade do papel, acompanhada localmente como a do kill: o servidor é quem
@@ -722,7 +719,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					mui.alive = false;
 					// Virou fantasma: sabotagem não atinge morto, então o que estava ligado sai agora.
 					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-						my_role, is_impostor, alive, known_body_peers, known_body_positions);
+						my_role, alive, known_body_peers, known_body_positions);
 						// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
 					// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
 					// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
@@ -791,7 +788,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					alive = false;
 					mui.alive = false; // virou fantasma: sabotagem deixa de atingi-lo (ver apply_sabotage_effects)
 					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-						my_role, is_impostor, alive, known_body_peers, known_body_positions);
+						my_role, alive, known_body_peers, known_body_positions);
 					}
 				// O servidor rearma o cooldown de kill de todo impostor ao fim da votação (ver
 				// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
@@ -801,7 +798,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// A sabotagem continua de pé depois da reunião: os efeitos dela voltam por aqui, que é
 				// o único lugar que sabe se este jogador ainda está vivo para ser atingido por ela.
 				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-					my_role, is_impostor, alive, known_body_peers, known_body_positions);
+					my_role, alive, known_body_peers, known_body_positions);
 			} else if (t == S_SABOTAGE_STARTED) {
 				oxygen_code = pkt.get_string("oxygen_code", "");
 				mui.on_sabotage_started(pkt);
@@ -811,7 +808,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// Os efeitos (corpos calados, alcance de audição, beacons dos painéis desta sabotagem)
 				// saem todos daqui, para o fantasma e o vivo nunca discordarem sobre o que está ligado.
 				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-					my_role, is_impostor, alive, known_body_peers, known_body_positions);
+					my_role, alive, known_body_peers, known_body_positions);
 				if (voice_just_went_down(voice_room_allows, active_sabotage_id, alive)) {
 					string radio_text = tr("sabotage.comms.voice_down");
 					speak(radio_text);
@@ -921,7 +918,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				active_sabotage_id = "";
 				fixed_sabotage_panels.resize(0);
 				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-					my_role, is_impostor, alive, known_body_peers, known_body_positions);
+					my_role, alive, known_body_peers, known_body_positions);
 				if (my_role.can_sabotage) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 			} else if (t == S_VENT_STATE) {
 				bool was_vented = is_vented;
@@ -1177,7 +1174,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// é o mesmo tipo de informação (quem é a vítima, sem precisar procurar). O som do
 					// corpo no chão continua tocando, então dar de cara com ele e reportar continua
 					// funcionando - o que a sabotagem tira é saber DE QUEM é o corpo de longe.
-					bool comms_down = comms_down_for(active_sabotage_id, is_impostor, alive);
+					bool comms_down = comms_down_for(active_sabotage_id, my_role, alive);
 					bool near_body_now = false;
 					for (uint b = 0; b < known_body_positions.length(); b++) {
 						if (distance_2d(my_x, my_y, known_body_positions[b].x, known_body_positions[b].y) <= PLAYER_REPORT_RANGE) {
@@ -1248,7 +1245,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			// Comunicações sabotadas derrubam os DOIS modos: o de jogadores o servidor já recusa, e o
 			// de objetos é resolvido aqui no cliente, então tem que ser barrado aqui. O impostor é
 			// imune à própria sabotagem e continua com o radar inteiro (ver on_radar_scan no servidor).
-			if (comms_down_for(active_sabotage_id, is_impostor, alive)) speak(tr("sabotage.comms.radar_down"));
+			if (comms_down_for(active_sabotage_id, my_role, alive)) speak(tr("sabotage.comms.radar_down"));
 			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
 			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
 			else radar.scan_next(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
@@ -1480,7 +1477,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			// Comunicações sabotadas escondem a lista de tarefas também - é o que a sabotagem faz no
 			// original ("esconder as tasks"). Pelo mesmo critério do radar e dos marcadores: impostor
 			// e fantasma continuam vendo a lista.
-			else if (comms_down_for(active_sabotage_id, is_impostor, alive)) speak(tr("sabotage.comms.tasks_hidden"));
+			else if (comms_down_for(active_sabotage_id, my_role, alive)) speak(tr("sabotage.comms.tasks_hidden"));
 			else if (!is_vented) run_task_list_menu(client, map, my_tasks, team_task_percent);
 		}
 

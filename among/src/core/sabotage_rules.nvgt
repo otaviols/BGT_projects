@@ -13,19 +13,19 @@
 #include "../game/roles/role_traits.nvgt"
 
 // Uma sabotagem atrapalha ESTE jogador agora?
-bool sabotage_affects(const string&in which, const string&in active, bool is_impostor, bool alive) {
-	player_abilities me(role_from_flag(is_impostor), alive);
+bool sabotage_affects(const string&in which, const string&in active, role_traits@ role, bool alive) {
+	player_abilities me(role, alive);
 	if (which == "comms") return me.blinded_by_comms(active);
 	if (which == "lights") return me.blinded_by_lights(active);
 	return active == which && alive;
 }
 
-bool comms_down_for(const string&in active, bool is_impostor, bool alive) {
-	return sabotage_affects("comms", active, is_impostor, alive);
+bool comms_down_for(const string&in active, role_traits@ role, bool alive) {
+	return sabotage_affects("comms", active, role, alive);
 }
 
-bool lights_out_for(const string&in active, bool is_impostor, bool alive) {
-	return sabotage_affects("lights", active, is_impostor, alive);
+bool lights_out_for(const string&in active, role_traits@ role, bool alive) {
+	return sabotage_affects("lights", active, role, alive);
 }
 
 // O rádio (chat de voz) cai com as comunicações sabotadas - e esta é a ÚNICA regra de percepção em

@@ -17,7 +17,7 @@ net_packet@ wf(game_client@ c, const string&in t, int ms) {
 net_packet@ faz_inicio(uint64 me) {
 	net_packet@ p = net_packet(S_GAME_START);
 	p.set_uint64("your_peer_id", me);
-	p.set_bool("your_role_impostor", false);
+	p.set_string("your_role", ROLE_CREWMATE);
 	p.set_float("your_x", 0.0);
 	p.set_float("your_y", 0.0);
 	p.set_float("kill_cooldown_seconds", 30.0);

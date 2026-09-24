@@ -102,7 +102,7 @@ elenco@ monta_partida(server_address addr, const string&in sufixo) {
 		string rid = st.get_string("your_role", "");
 		uint64 meu = st.get_uint64("your_peer_id");
 		if (rid == ROLE_SHERIFF) { @e.xerife = e.todos[i]; e.xerife_peer = meu; }
-		else if (st.get_bool("your_role_impostor")) { @e.impostor = e.todos[i]; e.impostor_peer = meu; }
+		else if (role_for(st.get_string("your_role")).team == TEAM_IMPOSTOR) { @e.impostor = e.todos[i]; e.impostor_peer = meu; }
 		else if (@e.inocente == null) { @e.inocente = e.todos[i]; e.inocente_peer = meu; }
 	}
 	e.ok = @e.xerife != null && @e.impostor != null && @e.inocente != null;

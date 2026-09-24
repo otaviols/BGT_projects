@@ -113,7 +113,7 @@ void main() {
 		// primeiro passo seria um salto que o servidor recusa.
 		float px = st.get_float("your_x"), py = st.get_float("your_y");
 		if (rid == ROLE_GUARDIAN_ANGEL) { @anjo = todos[i]; anjo_peer = meu; anjo_x = px; anjo_y = py; }
-		else if (st.get_bool("your_role_impostor")) { @impostor = todos[i]; impostor_peer = meu; imp_x = px; imp_y = py; }
+		else if (role_for(st.get_string("your_role")).team == TEAM_IMPOSTOR) { @impostor = todos[i]; impostor_peer = meu; imp_x = px; imp_y = py; }
 		else if (@vitima == null) { @vitima = todos[i]; vitima_peer = meu; vitima_nome = nomes[i] + sufixo; vit_x = px; vit_y = py; }
 		else if (@outro == null) { @outro = todos[i]; outro_peer = meu; out_x = px; out_y = py; }
 		// O quinto não faz nada: existe só para a partida não acabar com as duas mortes acima.

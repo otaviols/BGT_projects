@@ -392,12 +392,6 @@ array<string> draw_special_roles(uint player_count, uint impostor_count, const a
 	return role_of;
 }
 
-// Compatibilidade: o S_GAME_START ainda manda o booleano ("your_role_impostor") para os clientes
-// anteriores ao id do papel, e um servidor antigo só manda ele. Quem tem o id usa o id.
-role_traits@ role_from_flag(bool is_impostor) {
-	return is_impostor ? role_impostor() : role_crewmate();
-}
-
 // O que ESTE jogador pode agora - o papel dele combinado com estar vivo ou não.
 //
 // Papel e estado são coisas separadas de propósito: um fantasma continua sendo tripulante ou

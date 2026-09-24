@@ -100,15 +100,12 @@ def main() -> None:
 
     # Dois formatos no mesmo arquivo, de propósito:
     #
-    #   notes             - texto único, em inglês. É o que os clientes até a 0.17.0 leem; eles
-    #                       esperam uma string e quebrariam se achassem um objeto no lugar.
-    #   notes_by_language - um texto por idioma, lido pelos clientes novos.
+        #   notes_by_language - um texto por idioma, lido pelos clientes novos.
     #
     # O campo antigo pode sair quando não houver mais ninguém nessas versões.
     conteudo = {
         "version": versao,
         "url": "AmongUs.zip",
-        "notes": notas.get("en_US", ""),
         "notes_by_language": notas,
     }
     SAIDA.write_text(json.dumps(conteudo, ensure_ascii=False, indent="\t") + "\n",

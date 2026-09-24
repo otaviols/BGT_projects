@@ -58,21 +58,14 @@ bool is_newer(const string&in remote, const string&in local) {
 
 // As novidades da versão, no idioma DESTE jogador.
 //
-// O version.json traz um texto por idioma ({"notes": {"en_US": "...", "pt_BR": "..."}}). Antes era
-// um texto só, escrito em português - e como o jogo abre em inglês por padrão, quem nunca mexeu no
-// idioma recebia o aviso metade em inglês (a moldura, traduzida) e metade em português (as notas).
+// O version.json traz um texto por idioma ({"notes_by_language": {"en_US": "...", "pt_BR": "..."}}).
+// Antes era um texto só, escrito em português - e como o jogo abre em inglês por padrão, quem nunca
+// mexeu no idioma recebia o aviso metade em inglês (a moldura, traduzida) e metade em português.
 //
 // A ordem é: idioma do jogador -> inglês -> qualquer um que exista. O último passo importa para uma
 // tradução da comunidade cujo idioma ainda não tenha nota escrita: melhor a nota em inglês do que
 // nenhuma novidade.
-// Um version.json antigo, com "notes" em texto simples, continua sendo lido.
 string read_notes(json_object@ data) {
-	// O campo por idioma primeiro; "notes" (texto único, em inglês) é o formato antigo, mantido no
-	// arquivo para os clientes até a 0.17.0, que esperam uma string e quebrariam com um objeto.
-	if (!data.exists("notes_by_language")) {
-		return data.exists("notes") ? string(data["notes"]) : "";
-	}
-
 	json_object@ notes = data.get_object("notes_by_language");
 	if (@notes == null) return "";
 	string idioma = g_i18n.get_current_language();

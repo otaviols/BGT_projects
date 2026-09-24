@@ -33,7 +33,7 @@ void main() {
 		c.send_start_game();
 		net_packet@ start = wf(c, S_GAME_START, 8000);
 		if (@start == null) { println("nao comecou"); return; }
-		if (start.get_bool("your_role_impostor")) { c.disconnect(); continue; }
+		if (role_for(start.get_string("your_role")).team == TEAM_IMPOSTOR) { c.disconnect(); continue; }
 		json_array@ tasks = start.get_array("tasks");
 		string fuel_id = "";
 		for (uint i = 0; i < tasks.length(); i++) {
