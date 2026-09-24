@@ -6,6 +6,25 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.32.0
+
+**O metamorfo não se entrega mais ao chegar perto.** Quem se aproximava dele ouvia o nome
+verdadeiro, justamente no momento em que o disfarce mais importa. Agora o nome que você ouve por
+perto é o nome que ele está usando. Quem morre continua sabendo quem o matou de verdade.
+
+**A reunião desfaz tudo que estava em curso.** Disfarce, invisibilidade e escudo do anjo acabam
+quando a reunião começa. E ninguém sai da votação com a habilidade pronta: quem ataca volta com a
+recarga do zero, como já acontecia com o assassinato. As profissões que defendem — engenheiro e anjo
+— continuam com a recarga correndo normalmente.
+
+**O scanner ficou raro.** Ele é a única forma de provar onde você estava, e estava caindo para gente
+demais na mesma partida. Agora no máximo uma pessoa a cada cinco na sala recebe essa tarefa.
+
+**Suas tarefas não ficam mais amontoadas numa sala só.** No máximo duas delas caem no mesmo lugar, e
+o resto se espalha pela nave.
+
+**Quem ainda estiver numa versão anterior à 0.30.0 precisa atualizar para entrar.**
+
 ## 0.31.0
 
 **Guardar as regras que você gosta.** A tela de criar partida ficou grande, e ninguém quer percorrer

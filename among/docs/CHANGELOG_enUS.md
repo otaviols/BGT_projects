@@ -6,6 +6,25 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.32.0
+
+**The shapeshifter no longer gives himself away up close.** Walking near him announced his real
+name, at exactly the moment the disguise matters most. Now the name you hear nearby is the name he
+is wearing. Whoever dies still learns who really killed them.
+
+**A meeting undoes everything in progress.** Disguise, invisibility and the guardian's shield all end
+when the meeting starts. And nobody leaves the vote with an ability ready: roles that attack come
+back with the cooldown reset, just like the kill already did. The roles that defend — engineer and
+guardian angel — keep their cooldown running as before.
+
+**The scanner is now rare.** It is the only way to prove where you were, and it was landing on too
+many people in the same match. At most one player in five now gets that task.
+
+**Your tasks no longer pile up in a single room.** At most two of them land in the same place; the
+rest spread out across the ship.
+
+**Anyone still on a version older than 0.30.0 needs to update to get in.**
+
 ## 0.31.0
 
 **Saving the rules you like.** The create-match screen grew, and nobody wants to walk through all of
