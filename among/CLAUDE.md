@@ -8,6 +8,25 @@ Tudo que o jogador percebe passa por leitor de tela e áudio posicionado — **n
 visual**. Ao decidir qualquer coisa de interface, a pergunta certa é "como isso soa?", não "como isso
 aparece".
 
+**Onde procurar aqui.** Este arquivo é longo porque cada parágrafo custou horas a alguém. Não é para
+ser lido inteiro toda vez — é para ser consultado pela seção que interessa:
+
+| Vou mexer em… | Vá para |
+|---|---|
+| qualquer coisa, antes de começar | [Estrutura](#estrutura), [Compilar](#compilar) |
+| som novo, volume, arquivo de áudio | [Som](#som-o-que-toca-quando-e-para-quem), [Arquivos de som](#arquivos-de-som), [Sinais sonoros](#sinais-sonoros-e-preferências-de-audição) |
+| papel/profissão, habilidade | [Papéis](#papéis-profissões) |
+| tela, menu, formulário, fila de pacotes | [Telas e laço do cliente](#telas-laço-do-cliente-e-fila-de-pacotes) |
+| protocolo, login, sessão | [Rede, protocolo e sessão](#rede-protocolo-e-sessão) |
+| começo/fim de partida, reunião | [Ciclo da partida](#ciclo-da-partida) |
+| mapa, sala, tarefa | [Mapa e tarefas](#mapa-e-tarefas) |
+| chat de voz | [Chat de voz](#chat-de-voz) |
+| escrever uma sonda | [Testar](#testar) e [o que as sondas ensinaram](#o-que-as-sondas-ensinaram-custou-caro-descobrir) |
+| publicar, servidor, Docker | [Publicar uma versão](#publicar-uma-versão), [Deploy](#deploy-infraestrutura-e-ferramentas) |
+
+O resto das **Armadilhas do NVGT** vale para tudo: são coisas da linguagem e da engine que falham em
+silêncio, e é onde procurar quando algo "compilou e não funcionou".
+
 ## Mantenha este arquivo vivo
 
 **Aprendeu algo que teria economizado tempo se estivesse escrito aqui? Escreva aqui, na mesma
@@ -106,10 +125,6 @@ Sempre, e nesta ordem:
 As duas versões **têm que bater**. O `version.json` é o que os clientes instalados comparam contra si
 mesmos: se ele ficar para trás, ninguém é avisado da atualização.
 
-O `version.json` carrega as notas em dois formatos: `notes` (texto único, em inglês) para os clientes
-até a 0.17.0, que esperam uma string e quebrariam com um objeto, e `notes_by_language` para os novos.
-O campo antigo pode sair quando não houver mais ninguém nessas versões.
-
 **Deploy do servidor derruba quem está jogando - por isso ele AVISA antes.** O estado das partidas
 vive na memória do processo; trocar o pod no meio de uma partida derrubou todo mundo sem aviso (e
 foi assim que se descobriu). O `deploy.ps1` agora, com a imagem nova pronta e conferida, manda
@@ -205,11 +220,11 @@ novo, **recompile antes de investigar o código**.
 decisão, a alternativa descartada e o problema que aquilo evita. É o padrão em todo o projeto —
 mantenha.
 
+### Tradução e identidade
+
 **Texto do servidor viaja como chave de tradução, nunca como frase pronta.** Os jogadores de uma
 partida podem estar em idiomas diferentes, e quem sabe o idioma de cada um é o cliente dele. Ver
-`MSG_KEY_FIELD` e `tr_server_message` em `src/network/protocol.nvgt`. Os pacotes ainda levam o texto
-pronto num campo à parte só para clientes até a 0.11.1 — removível quando não houver mais ninguém
-nessas versões.
+`MSG_KEY_FIELD` e `tr_server_message` em `src/network/protocol.nvgt`.
 
 **Idiomas são plugáveis.** Basta pôr um `.json` em `lang/` para o idioma aparecer no jogo; o nome dele
 sai da chave `language.name`, no próprio idioma. O que faltar cai no inglês. **Ao acrescentar
@@ -217,6 +232,8 @@ qualquer texto novo, acrescente a chave nos dois idiomas.**
 
 **Nada de identidade é traduzido** — nome de jogador, nome de bot. Traduzir faria duas pessoas na
 mesma partida acusarem "nomes" diferentes pela mesma pessoa.
+
+### Quem decide o quê: servidor e cliente
 
 **Valor vindo do cliente é validado no servidor.** As configurações de sala passam por
 `lobby_config.validate()` depois de aplicadas: elas vêm da máquina do jogador.
@@ -227,6 +244,8 @@ menos a única pessoa que precisava saber, a que estava observando. O cliente de
 câmera: parado, ouvindo outra sala, apertando ESC sem efeito porque para o servidor ele já tinha
 saído. Sintoma: jogador travado sem mensagem nenhuma. Por isso `release_cameras_any()` devolve QUEM
 foi liberado, e todo lugar que fecha o posto passa por `close_cameras()`.
+
+### Som: o que toca, quando e para quem
 
 **Caminho de arquivo montado à mão é bomba-relógio.** Depois que os sons foram para subpastas, a task
 de rever a gravação continuou pedindo `sounds/Tile3.wav` - arquivo que não existe mais - e rodava
@@ -296,6 +315,8 @@ graça aos vizinhos e fazia a vítima ouvir a própria morte como se fosse de ou
 
 **Fantasma não é atingido por sabotagem.** Ele já perdeu o que tinha a perder, e continua fazendo
 tarefas pelo time — cegá-lo não cria tensão, só torna tedioso o que ainda ajuda.
+
+### Papéis (profissões)
 
 **O papel do jogador tem UMA fonte, e `is_impostor` é derivado dela.** `game_player.role_id` é o
 que vale; `set_role()` recalcula `is_impostor` a partir do time do papel. Os dois nunca são
@@ -379,18 +400,6 @@ tem que ir até lá. E ele entra em `background_event_text`, senão quem estives
 exatamente onde a pessoa está quando o impostor escolhe matar longe de todos - não ouviria o único
 aviso que o papel existe para dar. Sonda: `tools/probes/probe_noisemaker.nvgt`.
 
-**Sonda que espera uma RECARGA tem que insistir, não chutar o instante.** As recargas correm no
-relógio do SERVIDOR, que avança por tick e fica para trás do relógio de parede quando ele está
-ocupado - com cinco clientes de sonda martelando, uma margem de 2 s sobre os 30 s da sabotagem
-falhava numa tentativa a cada três. Pior: o sintoma é "a ação não aconteceu", sem dizer que foi a
-recarga. Repita a ação até ela ser aceita, com um prazo generoso (ver a sabotagem em
-`probe_engineer.nvgt`), e capture o `S_ERROR` junto do sucesso - esperar só o sucesso esconde a
-explicação. **Sonda intermitente é pior que sonda que falha**: ela ensina a ignorar o vermelho.
-
-**Sonda que monta texto traduzido precisa CARREGAR o idioma** (`g_i18n.load_language`), senão
-`tr()` devolve a própria chave e a sonda "passa" mostrando `role.noisemaker_alarm` como se fosse a
-frase. Aconteceu na primeira versão da sonda do alarmista.
-
 **Anjo da guarda: o escudo é conferido no TOPO do `try_kill`, e o lugar dele ali é a regra.** Antes
 de consumir a recarga do atacante, porque gastá-la seria um aviso indireto ("apertei, não saiu som
 de kill e meu cooldown zerou" só pode significar escudo); e antes do cálculo do tiro errado do
@@ -400,15 +409,6 @@ protegeu, e **nunca** fica sabendo se o escudo serviu de algo - saber que ele ba
 seria saber que havia um impostor ali, e fantasma não pode ter essa informação (ele conversa com
 outros fantasmas por voz). `ability_usable_alive`/`ability_usable_dead` são DOIS campos porque há
 três casos: só vivo, vivo e morto, e só morto - este. Sonda: `tools/probes/probe_guardian.nvgt`.
-
-**Sonda que precisa mover alguém tem que CAMINHAR, não teleportar.** `send_move` com o destino
-final é recusado pelo anti-cheat de velocidade (`PLAYER_MOVE_SPEED`, 2,2/s) e o jogador não sai do
-lugar - repetir o pacote não adianta. O sintoma é o pior possível: o teste passa pelo motivo
-errado, porque os dois continuam colados. Interpole o trajeto (ver `anda_ate` em
-`probe_guardian.nvgt`) partindo do `your_x`/`your_y` que o `S_GAME_START` manda. E cuidado com o
-tamanho do elenco: uma sonda que mata duas pessoas numa partida de quatro ACABA a partida no meio
-dela (um impostor contra um tripulante é vitória do impostor), e o kill seguinte é recusado sem
-dizer por quê.
 
 **Detetive: o rastro é frio, sai em SALAS, e a janela veio da geometria do mapa.** Ele grava por
 onde o assassino passou nos `KILLER_TRAIL_SECONDS` seguintes à morte e para - é testemunho (uma
@@ -478,6 +478,8 @@ com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma aç
 resposta virava um booleano em mais de sessenta pontos, e cada papel novo obrigava a revisitar todos.
 Um papel novo entra em três passos, descritos no topo daquele arquivo.
 
+### Arquivos de som
+
 **Todo som do jogo é `.ogg`** (Vorbis, qualidade 3), fora dois `.mp3` antigos. Foram 45 MB de wav
 virando 3,4 MB sem perda audível, e o download caiu de 60 MB para 29 MB. Som novo entra convertido:
 `D:\Program\winvox\ffmpeg.exe` (existe na máquina, mas **não está no PATH**) com
@@ -531,6 +533,8 @@ Cuidado com as referências CONCATENADAS (`"sounds/events/death" + i + ".ogg"`, 
 `nvgt tools/check_sounds.nvgt`: ele compara o catálogo com o disco **nos dois sentidos** e é a única
 coisa que pega um caminho errado — som que não carrega falha em silêncio, sem erro nenhum.
 
+### Chat de voz
+
 **Chat de voz: Opus NÃO decodifica ao vivo nesta build do NVGT; o codec é μ-law em script.**
 `src/audio/voice_chat.nvgt` captura com `microphone.read()`, comprime em G.711 μ-law a 16 kHz
 (128 kbps por pessoa falando, qualidade de telefone) e toca com `sound.stream_pcm()`. Não é Opus
@@ -575,6 +579,8 @@ isso um cliente antigo receberia 128 kbps que não sabe tocar. Regra da sala `vo
 ligado). Testes: `tools/probes/probe_relay.nvgt` (relay e distância, contra servidor local) e
 `tools/probes/probe_talker.nvgt` (um "jogador" que manda um tom de 440 Hz, para ouvir a voz
 posicionada no jogo de verdade com `AMONGUS_SERVER_HOST=127.0.0.1`).
+
+### Telas, laço do cliente e fila de pacotes
 
 **`dictionary.get(chave, valor&out)` com chave AUSENTE deixa `valor` com LIXO.** É como o
 AngelScript trata parâmetro `&out` que a função não escreveu - o valor inicial da variável NÃO é
@@ -625,18 +631,23 @@ tem gancho nenhum, então a configuração de voz não tinha como servir a rede.
 (`run_voice_screen`), o que de quebra resolveu ela ser em inglês fixo; os valores continuam saindo
 e entrando por `tts_dump_config`/`tts_load_config`, então nada do que estava salvo se perde.
 
+### Rede, protocolo e sessão
+
 **Versão de PROTOCOLO é separada da versão do jogo, e o corte se faz em UM número.**
 `PROTOCOL_VERSION` (o que o cliente manda no `C_LOGIN`) e `MIN_PROTOCOL_VERSION` (o que o servidor
-aceita), em `config/game_constants.nvgt`. Cliente anterior à 0.29.5 não manda o campo e conta
-como 0. Mudança incompatível de rede (a primeira serão os papéis): sobe `PROTOCOL_VERSION`, e
-sobe `MIN_PROTOCOL_VERSION` **só depois** que a base de jogadores já tiver passado pela 0.29.5 -
-os clientes até a 0.29.4 IGNORAM o motivo da falha de login e dizem "usuário ou senha inválidos",
-então cortá-los cedo demais é mandar a pessoa rever a senha. A recusa é um `S_LOGIN_RESULT` com
-`ok=false` e `message = login.update_required` (o cliente novo avisa e abre a página de download),
-e não uma desconexão: na desconexão o cliente só veria a rede cair. O servidor guarda o protocolo
-de cada conexão (`game_player.protocol_version`) para poder, por sala, decidir o que oferecer a
-quem. Sonda: `tools/probes/probe_protocol.nvgt` (testa a recusa mandando -1, então vale contra
-produção com mínimo 0).
+aceita), em `config/game_constants.nvgt`. Hoje os dois estão em **2**: quem está abaixo da 0.30.0
+não entra. A recusa é um `S_LOGIN_RESULT` com `ok=false` e `message = login.update_required` - o
+cliente avisa e abre a página de download -, e não uma desconexão: na desconexão ele só veria a
+rede cair. O servidor guarda o protocolo de cada conexão (`game_player.protocol_version`) para
+poder decidir, por sala, o que oferecer a quem.
+
+**Subir o mínimo é o que PERMITE apagar compatibilidade**, e foi assim que o legado saiu na 0.31.0.
+Duas cautelas, nessa ordem: só corte quando a base já estiver numa versão que saiba **explicar** a
+recusa (um cliente que não tem a chave `login.update_required` fala a chave crua, e a pessoa vai
+rever a senha em vez de atualizar); e decida pelos **dados**, não pela impressão - `read_feedback`
+mostra a versão de cada recado, e foi ele que mostrou que a base migra no mesmo dia em que a versão
+sai. Sonda: `tools/probes/probe_protocol.nvgt` (testa a recusa mandando -1, então vale contra
+produção seja qual for o mínimo).
 
 **Uma conta, uma sessão - e a entrada NOVA derruba a velha, não o contrário.** Recusar a segunda
 entrada parece mais educado e é pior: uma conexão que caiu feio continua de pé para o servidor até o
@@ -646,6 +657,8 @@ porquê chega) e chama `on_disconnect` na mão: os três `disconnect_peer*` já 
 rede, então esperar o evento deixaria a sessão velha pendurada na sala. Sonda:
 `tools/probes/probe_uma_sessao.nvgt`, que cobre também o caso que o jogador vive - ser derrubado
 estando dentro de uma sala, com o anfitrião passando para quem ficou.
+
+### Ciclo da partida
 
 **Quando a partida acaba, o laço de pacotes PARA de drenar a fila.** O que vem logo atrás do
 `S_GAME_OVER` já é da próxima rodada - o retrato da sala reaberta e, se o anfitrião não esperou, o
@@ -712,6 +725,8 @@ votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na r
 na mesma mesa; o fantasma fica onde morreu, então com posição ele ouvia a discussão e os outros
 fantasmas - espalhados pelo mapa - de tão longe que virava silêncio. Morto não tem lugar.
 
+### Mapa e tarefas
+
 **O grafo de navegação sai do NOME do corredor - e só sabe ligar sala a sala.** `zone_neighbors`
 parte `corridor_<sala_a>_<sala_b>` em três e é assim que os bots acham caminho. Uma sala pendurada
 num CORREDOR (a do oxigênio, que se abre para o corredor de carga) não cabe nessa forma: o id teria
@@ -755,6 +770,8 @@ proporção exata. A configuração é **total + quantas longas** (não uma cont
 curtas são o resto, ninguém faz conta, e as versões anteriores, que só mandavam o total, continuam
 entendidas. Sonda: `tools/probes/probe_task_mix.nvgt`.
 
+### Sinais sonoros e preferências de audição
+
 **O bip de alvo ao alcance é SÓ de quem pode agir, e só na TRANSIÇÃO.** Impostor, xerife e anjo
 ouvem quando alguém entra no alcance da ação deles - é o equivalente sonoro do botão de matar
 acendendo no original. Tocar no ALVO avisaria a vítima de que o impostor está do lado dela, então
@@ -778,6 +795,8 @@ da distância engoliam os 6% da direção, e o radar deixava de responder à ún
 estéreo não responde sozinho: "está acima ou abaixo de mim?". Hoje o tom do radar é só direção, e a
 distância fica por conta da atenuação do som posicionado. Antes de usar tom, volume ou repetição
 para uma informação nova, veja o que aquele canal já significa em outro lugar do jogo.
+
+### Sala de espera e saguão
 
 **O saguão é derivado, não declarado.** "Estar no saguão" é `autenticado && lobby_id == ""`
 (`in_hall` no servidor) - não existe um "entrar no saguão" que o cliente peça, justamente para não
@@ -805,6 +824,8 @@ partidas seguidas na mesma sala) e `probe_leavemid.nvgt` (anfitrião sai no meio
 **Quem sai da sala de espera precisa de um S_LOBBY_STATE novo para os que ficaram.** A lista de
 quem está na sala (tecla P) sai do último retrato; só o S_PLAYER_LEFT não a atualiza, e quem saiu
 continuava listado. `remove_from_lobby` manda o retrato quando não há partida em curso.
+
+### Deploy, infraestrutura e ferramentas
 
 **"Não consegui extrair server_main.zip" no deploy = servidor compilado SEM `-plinux`.** Para
 conferir que o servidor compila, é tentador rodar `nvgt -c server_main.nvgt` - isso gera um
@@ -903,6 +924,29 @@ Há um servidor de verdade no ar — **use-o**. O padrão que funcionou a sessã
 `.nvgt` curto que conecta, faz a coisa e imprime o resultado, rodar com `nvgt arquivo.nvgt`, apagar
 depois. Foi assim que se validou feedback, i18n, configurações de sala e limite de jogadores.
 
+### O que as sondas ensinaram (custou caro descobrir)
+
+**Sonda que espera uma RECARGA tem que insistir, não chutar o instante.** As recargas correm no
+relógio do SERVIDOR, que avança por tick e fica para trás do relógio de parede quando ele está
+ocupado - com cinco clientes de sonda martelando, uma margem de 2 s sobre os 30 s da sabotagem
+falhava numa tentativa a cada três. Pior: o sintoma é "a ação não aconteceu", sem dizer que foi a
+recarga. Repita a ação até ela ser aceita, com um prazo generoso (ver a sabotagem em
+`probe_engineer.nvgt`), e capture o `S_ERROR` junto do sucesso - esperar só o sucesso esconde a
+explicação. **Sonda intermitente é pior que sonda que falha**: ela ensina a ignorar o vermelho.
+
+**Sonda que monta texto traduzido precisa CARREGAR o idioma** (`g_i18n.load_language`), senão
+`tr()` devolve a própria chave e a sonda "passa" mostrando `role.noisemaker_alarm` como se fosse a
+frase. Aconteceu na primeira versão da sonda do alarmista.
+
+**Sonda que precisa mover alguém tem que CAMINHAR, não teleportar.** `send_move` com o destino
+final é recusado pelo anti-cheat de velocidade (`PLAYER_MOVE_SPEED`, 2,2/s) e o jogador não sai do
+lugar - repetir o pacote não adianta. O sintoma é o pior possível: o teste passa pelo motivo
+errado, porque os dois continuam colados. Interpole o trajeto (ver `anda_ate` em
+`probe_guardian.nvgt`) partindo do `your_x`/`your_y` que o `S_GAME_START` manda. E cuidado com o
+tamanho do elenco: uma sonda que mata duas pessoas numa partida de quatro ACABA a partida no meio
+dela (um impostor contra um tripulante é vitória do impostor), e o kill seguinte é recusado sem
+dizer por quê.
+
 Para coisas que só falham no build compilado (o menu de sons, a atualização, caminhos), compile uma
 sonda com `nvgt -c`, rode o `.exe` e grave o resultado num arquivo — o app compilado não tem console.
 
@@ -954,7 +998,3 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
   sala de carpete ou de neve, eles entram em `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes
   (ver "piso novo entra em DUAS tabelas"). É a única sobra hoje - o `nearbeep.wav` virou o
   `ui/target_in_range.ogg` e está em uso.
-- **O campo legado `message`** nos pacotes do servidor pode sair quando ninguém mais estiver em
-  versões até a 0.11.1.
-- **Jogadores em versões anteriores à 0.9.x** precisam baixar manualmente uma vez: a build deles é
-  anterior ao updater e nunca vai perguntar nada.
