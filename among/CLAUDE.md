@@ -771,14 +771,19 @@ o jogo diz a sala errada conforme qual for encontrada primeiro), e o GRAFO decid
 anda. Sonda: `tools/probes/probe_o2room.nvgt`.
 
 **Ninguém mata de dentro do duto, e ninguém morre dentro dele - a regra vale para as duas pontas
-e mora no topo do `try_kill`.** A razão é uma só: a posição de quem está num duto (ou invisível)
-PARA de ser transmitida (ver `on_move`), então o atacante está mirando o último lugar conhecido, e
-não onde a pessoa está - matar por posição congelada é matar através da parede.
+e mora no topo do `try_kill`.** A razão é uma só: a posição de quem está num duto PARA de ser
+transmitida (ver `on_move`), então o atacante está mirando o último lugar conhecido, e não onde a
+pessoa está - matar por posição congelada é matar através da parede.
 
 Do lado do ATACANTE foi um recado de jogador: escondido, fora do radar e da câmera, ele alcançava
 quem passasse ao lado da tampa - assassinato sem contra-jogada, porque não havia como saber que ele
-estava ali. **Invisível não entra nessa linha**: matar é justamente o que devolve o fantasma ao
-mundo, e proibir seria tirar o preço que torna a habilidade uma decisão.
+estava ali.
+
+**Invisibilidade não entra nesta regra, em ponta nenhuma.** O fantasma mata e fica visível, que é o
+desenho combinado do papel; e proibir matá-lo enquanto sumido seria uma mudança de equilíbrio por
+tabela. Eu tinha posto `target.invisible()` junto do duto ao consertar isto, e o usuário cortou: um
+conserto de duto mexe em duto. Vale a regra geral - quando uma correção "de graça" cair num papel
+que não estava em discussão, ela não é de graça.
 
 Do lado do ALVO era pior do que parece, e é o "bugando" do recado: o morto continuava com `vented`
 ligado, e **fantasma ventilado não anda** (`try_move_player` recusa) **nem sai** (o menu do duto
