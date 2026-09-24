@@ -706,7 +706,7 @@ class game_state {
 		// o som do scanner ficava tocando (ou parava cedo) sem relação com quem estava nele.
 		if (visible_task_peer != 0 && visible_task_peer != peer) return false;
 		map_object@ spot = map.find_object(object_id);
-		if (@spot == null || spot.obj_type != OBJ_TASK_SPOT || spot.task_type != "submit_scan") return false;
+		if (@spot == null || spot.obj_type != OBJ_TASK_SPOT || !task_is_visible(spot.task_type)) return false;
 		bool pending = false;
 		for (uint i = 0; i < p.tasks.length(); i++) {
 			if (p.tasks[i].object_id == object_id && !p.tasks[i].completed) { pending = true; break; }

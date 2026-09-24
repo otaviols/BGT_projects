@@ -46,6 +46,41 @@ void shuffle_object_array(array<map_object@>@ arr) {
 	}
 }
 
+// Tira `want` pontos de um monte JÁ EMBARALHADO, espalhando-os pelas salas.
+//
+// O teto por sala (MAX_TASKS_PER_ROOM) é preferência e não parede: a primeira passada o respeita, e
+// se ela não fechar o número pedido a segunda ignora o teto. É a mesma escolha que o sorteio já faz
+// entre tarefa longa e curta - entregar o total pedido importa mais do que a distribuição perfeita,
+// porque um jogador com menos tarefas que os outros termina antes e fica sem o que fazer.
+//
+// `per_room` entra com o que o jogador JÁ tem (as tarefas comuns) e sai atualizado, então as duas
+// chamadas - longas e curtas - dividem o mesmo teto em vez de cada uma ter o seu.
+void pick_task_spots(array<map_object@>@ pool, uint want, dictionary@ per_room,
+		array<map_object@>@ destino) {
+	if (want == 0) return;
+	// `want` é quanto ESTA chamada acrescenta, não o tamanho final: `destino` chega com o que a
+	// chamada anterior já escolheu (as longas, quando estas são as curtas). Comparar com
+	// `destino.length()` cru fazia a segunda chamada achar a cota cumprida e não sortear nada -
+	// e o sintoma era um jogador com só as tarefas longas, sem erro nenhum.
+	uint alvo = destino.length() + want;
+	array<bool> usado;
+	usado.resize(pool.length());
+	for (uint passada = 0; passada < 2 && destino.length() < alvo; passada++) {
+		for (uint i = 0; i < pool.length() && destino.length() < alvo; i++) {
+			if (usado[i]) continue;
+			int n = 0;
+			// O `&&` protege o caso da chave ausente: `get` que não escreve deixa LIXO no &out, e ler
+			// esse lixo aqui recusaria salas ao acaso (ver CLAUDE.md).
+			if (passada == 0 && per_room.get(pool[i].room_id, n) && uint(n) >= MAX_TASKS_PER_ROOM) continue;
+			usado[i] = true;
+			destino.insert_last(pool[i]);
+			int atual = 0;
+			if (!per_room.get(pool[i].room_id, atual)) atual = 0;
+			per_room.set(pool[i].room_id, atual + 1);
+		}
+	}
+}
+
 class game_server {
 	network@ net;
 	array<game_player@> connections;
@@ -1000,6 +1035,11 @@ class game_server {
 		array<string> role_of = draw_special_roles(shuffled.length(), uint(impostor_count), bot_flags,
 			lobby.config.role_counts, lobby.config.role_chances);
 
+		// Teto de tarefas visíveis da PARTIDA inteira, contado sobre quem está na sala (bot incluído:
+		// ele ocupa lugar e o scanner dele soa igual). Ver visible_task_cap.
+		uint teto_visiveis = visible_task_cap(shuffled.length());
+		uint visiveis_dadas = 0;
+
 		for (uint i = 0; i < shuffled.length(); i++) {
 			game_player@ p = shuffled[i];
 			string team = int(i) < impostor_count ? TEAM_IMPOSTOR : TEAM_CREW;
@@ -1023,12 +1063,20 @@ class game_server {
 			// Quem tem tarefas é quem as tem CONTANDO para o time (ver role_traits): o engenheiro faz
 			// tarefas como qualquer tripulante, e o impostor só finge fazê-las.
 			if (p.role().tasks_count_for_crew) {
+				// Quantas tarefas deste jogador já caíram em cada sala do mapa. Começa com as comuns,
+				// que são obrigatórias: elas ocupam vaga no teto por sala como qualquer outra, senão
+				// "no máximo duas na mesma sala" seria mentira para quem tem o cartão.
+				dictionary tasks_por_sala;
+
 				// Primeiro as comuns, IGUAIS pra todo mundo (mesmo ponto do mapa, inclusive).
 				for (uint c = 0; c < common_spots.length(); c++) {
 					player_task pt;
 					pt.object_id = common_spots[c].id;
 					pt.task_type = common_spots[c].task_type;
 					p.tasks.insert_last(pt);
+					int ja = 0;
+					if (!tasks_por_sala.get(common_spots[c].room_id, ja)) ja = 0;
+					tasks_por_sala.set(common_spots[c].room_id, ja + 1);
 				}
 				// Depois as individuais, sorteadas POR CATEGORIA: primeiro as longas que a sala pediu,
 				// depois curtas até fechar o total. Sortear tudo de um monte só devolvia partidas em
@@ -1040,6 +1088,11 @@ class game_server {
 					// Ponto do MEIO de uma corrente não entra no sorteio: ele é a continuação de uma
 					// tarefa, não uma tarefa (ver is_chain_start em game/map.nvgt).
 					if (lobby.map.object_in_chain(personal_spots[s].id) && !lobby.map.is_chain_start(personal_spots[s].id)) continue;
+					// Tarefa VISÍVEL sai do monte quando o teto da sala já foi atingido (ver
+					// visible_task_cap): ela é a única prova de inocência do jogo, e o sorteio por
+					// jogador é independente - sem o corte aqui, a variância sozinha entregava álibi a
+					// meia sala de vez em quando.
+					if (task_is_visible(personal_spots[s].task_type) && visiveis_dadas >= teto_visiveis) continue;
 					if (task_is_long(personal_spots[s].task_type)) long_pool.insert_last(personal_spots[s]);
 					else short_pool.insert_last(personal_spots[s]);
 				}
@@ -1059,19 +1112,18 @@ class game_server {
 					want_short = short_pool.length();
 					if (want_long + sobra <= long_pool.length()) want_long += sobra;
 				}
-				for (uint t = 0; t < want_long; t++) {
+				// As duas categorias saem pelo MESMO caminho e compartilham o teto por sala: separar
+				// deixaria um jogador com duas longas e duas curtas na mesma sala.
+				array<map_object@> escolhidos;
+				pick_task_spots(long_pool, want_long, tasks_por_sala, escolhidos);
+				pick_task_spots(short_pool, want_short, tasks_por_sala, escolhidos);
+				for (uint t = 0; t < escolhidos.length(); t++) {
 					player_task pt;
-					pt.object_id = long_pool[t].id;
-					pt.task_type = long_pool[t].task_type;
+					pt.object_id = escolhidos[t].id;
+					pt.task_type = escolhidos[t].task_type;
 					pt.phase_count = lobby.map.phase_count_of(pt.task_type);
 					p.tasks.insert_last(pt);
-				}
-				for (uint t = 0; t < want_short; t++) {
-					player_task pt;
-					pt.object_id = short_pool[t].id;
-					pt.task_type = short_pool[t].task_type;
-					pt.phase_count = lobby.map.phase_count_of(pt.task_type);
-					p.tasks.insert_last(pt);
+					if (task_is_visible(pt.task_type)) visiveis_dadas++;
 				}
 			}
 		}

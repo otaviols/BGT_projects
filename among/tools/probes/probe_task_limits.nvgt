@@ -1,0 +1,246 @@
+// Sonda dos dois tetos do sorteio de tarefas.
+//
+//   1. TAREFA VISÍVEL (o scanner): no máximo `visible_task_cap(jogadores)` pessoas a recebem. Ela é
+//      a única prova de inocência do jogo; sem teto, o sorteio independente por jogador entregava
+//      álibi a meia sala de vez em quando, só por variância.
+//   2. DUAS POR SALA: nenhum jogador recebe mais de MAX_TASKS_PER_ROOM tarefas na mesma sala do
+//      mapa - a não ser que respeitar isso o deixasse com menos tarefas do que a sala pediu, porque
+//      aí o total ganha (é preferência, não parede).
+//
+// As duas são de VARIÂNCIA: uma partida só não prova nada, porque o sorteio pode ter sido bonzinho.
+// Por isso a sonda joga várias rodadas na mesma sala (reopen_lobby devolve todo mundo à sala de
+// espera) e olha o pior caso de todas.
+//
+// O total pedido também é conferido rodada a rodada: um teto que "funciona" tirando tarefas de quem
+// não coube seria pior do que teto nenhum - quem termina antes fica sem o que fazer.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_task_limits.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/map.nvgt"
+#include "../../src/i18n.nvgt"
+
+const uint RODADAS = 6;
+const uint JOGADORES = 6;
+// Alto de propósito: com 5 tarefas o teto por sala quase nunca é tocado, e a sonda passaria sem
+// exercitar nada. Com 8 o sorteio é obrigado a espalhar, e a segunda passada (a que afrouxa) entra
+// em jogo em algumas rodadas - que é exatamente o caminho que precisa ser visto funcionando.
+const int TAREFAS = 8;
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+// Espera que TODOS recebam um pacote, bombeando todo mundo o tempo inteiro.
+//
+// Esperar cliente por cliente com `wf` não serve aqui: enquanto um espera, os outros ficam sem
+// `update()`, e 18 s sem ACK bastam para o servidor tirá-los da sala (ver a armadilha do keepalive
+// no CLAUDE.md). O sintoma foi enganoso - "a sala não reabriu", quando o que acontecera era a sonda
+// ter derrubado os próprios clientes.
+// Caixa de entrada por cliente. Nada do que chega é descartado.
+//
+// A forma óbvia - um laço que tira pacotes até achar o que quer - joga fora todo o resto, e aqui
+// isso apagava o S_GAME_OVER que vem no MESMO lote do S_VOTE_RESULT (a armadilha "espera que
+// consome um pacote não pode jogá-lo fora", no CLAUDE.md). O sintoma foi "a partida não acabou",
+// com a partida acabada.
+array<array<net_packet@>@> caixa;
+
+void prepara_caixa(uint quantos) {
+	caixa.resize(0);
+	for (uint i = 0; i < quantos; i++) caixa.insert_last(array<net_packet@>());
+}
+void esvazia_caixa() {
+	for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0);
+}
+void drena(array<game_client@>@ todos) {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+net_packet@ achado(uint i, const string&in tipo) {
+	for (uint k = 0; k < caixa[i].length(); k++) { if (caixa[i][k].type == tipo) return caixa[i][k]; }
+	return null;
+}
+// Espera até que TODOS tenham recebido `tipo`, bombeando todo mundo o tempo inteiro. Esperar cliente
+// por cliente deixaria os outros sem update(), e 18 s sem ACK bastam para o servidor tirá-los da
+// sala (ver a armadilha do keepalive no CLAUDE.md) - o sintoma foi "a sala não reabriu", quando o
+// que a sonda tinha feito era derrubar os próprios clientes.
+bool todos_recebem(array<game_client@>@ todos, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		bool completo = true;
+		for (uint i = 0; i < todos.length(); i++) { if (@achado(i, tipo) == null) { completo = false; break; } }
+		if (completo) return true;
+		wait(5);
+	}
+	return false;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	// O MESMO mapa do servidor, para saber em que sala cada ponto fica. Ler o objeto pelo id é
+	// consulta, não reimplementação do sorteio - o que a sonda nunca pode fazer é decidir sozinha
+	// quem deveria receber o quê.
+	game_map@ mapa = build_the_hub_map();
+
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	array<string> nomes;
+	for (uint i = 0; i < JOGADORES; i++) {
+		string nome = "tl" + i + sufixo;
+		game_client@ c = conecta(addr, nome);
+		if (@c == null) { println("nao conectou " + nome); return; }
+		todos.insert_last(c);
+		nomes.insert_last(nome);
+	}
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.task_count_per_crewmate = TAREFAS;
+	ov.long_task_count = 3;
+	todos[0].send_create_lobby("Sonda dos tetos", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+
+	prepara_caixa(todos.length());
+	uint teto = visible_task_cap(JOGADORES);
+	println("sala de " + JOGADORES + ": teto de tarefas visiveis = " + teto +
+		"; teto por sala do mapa = " + MAX_TASKS_PER_ROOM);
+
+	uint pior_visiveis = 0;
+	uint pior_por_sala = 0;
+	// Contados por SORTEIO (um por tripulante por rodada), e não por rodada: o teto por sala é do
+	// jogador, então é do jogador que se mede. Somar por jogador e comparar com rodadas dava "9 de 6".
+	uint sorteios = 0;
+	uint sorteios_com_folga = 0; // os que precisaram afrouxar o teto por sala para fechar o total
+	uint rodadas_ok = 0;
+
+	for (uint r = 0; r < RODADAS; r++) {
+		todos[0].send_start_game();
+		uint visiveis_nesta = 0;
+		uint tripulantes = 0;
+		uint64 impostor_peer = 0;
+		bool rodada_valida = true;
+		todos_recebem(todos, S_GAME_START, 10000);
+		for (uint i = 0; i < todos.length(); i++) {
+			net_packet@ st = achado(i, S_GAME_START);
+			if (@st == null) { println("rodada " + (r + 1) + ": um cliente nao recebeu o inicio"); rodada_valida = false; break; }
+			json_array@ tarefas = st.get_array("tasks");
+			if (@tarefas == null || tarefas.length() == 0) { impostor_peer = st.get_uint64("your_peer_id"); continue; } // impostor: sem tarefas que contem
+			tripulantes++;
+
+			dictionary por_sala;
+			uint maior_nesta_sala = 0;
+			for (uint t = 0; t < tarefas.length(); t++) {
+				json_object@ tj = tarefas.get_object(t);
+				if (@tj == null) continue;
+				string tipo = string(tj["task_type"]);
+				if (task_is_visible(tipo)) visiveis_nesta++;
+				map_object@ obj = mapa.find_object(string(tj["object_id"]));
+				if (@obj == null) { println("  ponto desconhecido: " + string(tj["object_id"])); continue; }
+				int n = 0;
+				if (!por_sala.get(obj.room_id, n)) n = 0;
+				por_sala.set(obj.room_id, n + 1);
+				if (uint(n + 1) > maior_nesta_sala) maior_nesta_sala = uint(n + 1);
+			}
+			if (maior_nesta_sala > pior_por_sala) pior_por_sala = maior_nesta_sala;
+			sorteios++;
+			if (maior_nesta_sala > MAX_TASKS_PER_ROOM) sorteios_com_folga++;
+			// O total pedido tem que sair inteiro, teto ou não: um teto que entrega menos tarefas é
+			// pior do que teto nenhum.
+			if (tarefas.length() != uint(TAREFAS)) {
+				check("rodada " + (r + 1) + ": " + nomes[i] + " recebeu o total pedido",
+					false, "" + TAREFAS + " tarefas, veio " + tarefas.length());
+			}
+		}
+		if (!rodada_valida) break;
+		// Esvaziada AQUI, e num lugar só: o que a rodada precisava ler já foi lido, e o que vem depois
+		// (votação, fim, sala reaberta) entra numa caixa limpa. Esvaziar no FIM da rodada apagaria o
+		// retrato da sala reaberta, que costuma chegar junto do fim da partida; não esvaziar nunca
+		// faria a espera pelo retrato achar o da entrada e passar sem esperar nada.
+		esvazia_caixa();
+		if (visiveis_nesta > pior_visiveis) pior_visiveis = visiveis_nesta;
+		println("  rodada " + (r + 1) + ": " + tripulantes + " tripulantes, " + visiveis_nesta +
+			" com tarefa visivel");
+		if (visiveis_nesta > teto) {
+			check("rodada " + (r + 1) + ": tarefas visiveis dentro do teto", false,
+				"no maximo " + teto + ", veio " + visiveis_nesta);
+		}
+		rodadas_ok++;
+
+		// Fim da partida sem jogar: todo mundo sai e volta. `reopen_lobby` devolve a sala ao estado de
+		// espera com a mesma gente dentro, que é o que permite sortear de novo (ver probe_rematch).
+		todos[0].send_call_meeting();
+		todos_recebem(todos, S_VOTING_STARTED, 10000);
+		bombeia(todos, 300);
+		// Todos votam no MESMO impostor: com a sala inteira votando nele a partida acaba na hora, e a
+		// sonda não precisa jogar. Quem é o impostor sai do S_GAME_START de cada um (`your_role`).
+		for (uint i = 0; i < todos.length(); i++) todos[i].send_cast_vote(int64(impostor_peer));
+		todos_recebem(todos, S_VOTE_RESULT, 40000);
+		if (!todos_recebem(todos, S_GAME_OVER, 30000)) { println("a partida nao acabou; parando por aqui"); break; }
+		// Esperar o RETRATO da sala reaberta, e não um `wait` chutado: `send_start_game` chegando
+		// antes de a lobby voltar a "waiting" é recusado calado, e o sintoma vira "um cliente não
+		// recebeu o início" na rodada seguinte (ver reopen_lobby).
+		//
+		if (!todos_recebem(todos, S_LOBBY_STATE, 15000)) { println("a sala nao reabriu; parando por aqui"); break; }
+		bombeia(todos, 300);
+	}
+
+	check("rodaram todas as rodadas", rodadas_ok == RODADAS, "" + RODADAS + " rodadas");
+	check("nenhuma rodada passou do teto de tarefas visiveis", pior_visiveis <= teto,
+		"pior caso <= " + teto + ", foi " + pior_visiveis);
+	// O teto por sala é PREFERÊNCIA: passar dele é permitido quando o total não fecharia de outro
+	// jeito. O que a sonda cobra é que isso seja exceção, e não o comportamento normal - se toda
+	// rodada afrouxa, o teto não está valendo para nada.
+	println("pior concentracao numa sala: " + pior_por_sala + " tarefas; sorteios que precisaram " +
+		"afrouxar o teto: " + sorteios_com_folga + " de " + sorteios);
+	// Aqui a exigência é DURA, e ela é legítima por causa dos números: 11 salas com tarefa × 2 dão 22
+	// vagas sob o teto, e a sonda pede 8 - a primeira passada sempre fecha, então afrouxar seria
+	// defeito, não flexibilidade. (Uma sala que pedisse perto da capacidade do mapa afrouxaria com
+	// razão; quem mudar TAREFAS aqui para perto disso precisa afrouxar esta linha junto.)
+	//
+	// Uma versão anterior media "afrouxou em menos de X% dos sorteios", e ela era INTERMITENTE: com o
+	// teto desligado, duas execuções seguidas deram 30% e 13% - a segunda teria passado. Sonda que às
+	// vezes perdoa ensina a ignorar o vermelho.
+	check("nenhum jogador passou do teto por sala", pior_por_sala <= MAX_TASKS_PER_ROOM,
+		"no maximo " + MAX_TASKS_PER_ROOM + " numa sala, pior caso foi " + pior_por_sala);
+	check("nenhum sorteio precisou afrouxar o teto", sorteios_com_folga == 0,
+		"0 de " + sorteios + " sorteios");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

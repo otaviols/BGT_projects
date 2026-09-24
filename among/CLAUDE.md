@@ -792,6 +792,29 @@ segunda metade de uma tarefa que nunca começou; e o modo de treino roda todas a
 senão "treinar" a tarefa é só a etapa que não tem o que treinar. Sonda:
 `tools/probes/probe_phases.nvgt`.
 
+**O sorteio de tarefas tem DOIS tetos, e os dois são do sorteio, não da sala.** Antes ele era
+independente por jogador, e a variância mandava.
+
+A **tarefa visível** (hoje só o scan) sai para no máximo `visible_task_cap(jogadores)` pessoas -
+20% arredondado para cima, 1 numa sala de 5 e 2 numa de 10. Ela é a única prova de inocência do
+jogo, e sem teto uma rodada em cada tantas entregava álibi a quase todo mundo (medido: 4 dos 5
+tripulantes numa sala de 6). Há um motivo mecânico junto do de equilíbrio: o scanner é recurso de
+UM DE CADA VEZ no servidor, então muita gente com essa tarefa vira fila e "ocupado". 10% foi
+considerado e descartado - daria exatamente 1 em qualquer sala até 10 pessoas, o que faz do álibi
+um bilhete de loteria em vez de uma economia. **"Visível" é uma LISTA** (`VISIBLE_TASK_TYPES`), e
+não um `task_type == "submit_scan"` solto: a segunda tarefa visível precisa nascer com teto e com
+anúncio, e a lista é o que obriga a lembrar dos dois.
+
+E **no máximo `MAX_TASKS_PER_ROOM` (2) tarefas do mesmo jogador na mesma sala do mapa** - para
+ninguém resolver a lista inteira num canto, num jogo em que andar é fazer barulho. É
+**preferência, não parede**: se respeitá-la impedisse fechar o total pedido, o total ganha (a mesma
+escolha que o sorteio já faz entre longa e curta). Só morde em navegação (4 pontos) e admin (3); as
+outras salas já não têm mais que 2. Quem escreve o sorteio: `pick_task_spots` recebe `want` como
+QUANTO ACRESCENTAR, e não como tamanho final - as duas chamadas (longas e curtas) escrevem no mesmo
+array, e comparar com `destino.length()` cru fazia a segunda achar a cota cumprida e devolver um
+jogador só com as tarefas longas, sem erro nenhum. Sonda: `tools/probes/probe_task_limits.nvgt`
+(`probe_task_mix` não pegou porque só IMPRIME o que saiu, sem cobrar o total).
+
 **Tarefa longa vale mais aqui do que no jogo original.** `LONG_TASK_TYPES` (em
 `config/game_constants.nvgt`) marca as tarefas que fazem atravessar a nave ou ficar parado um bom
 tempo; o que não é comum nem longo é CURTO, sem terceira lista para sair de sincronia. O motivo não
@@ -976,6 +999,23 @@ falhava numa tentativa a cada três. Pior: o sintoma é "a ação não aconteceu
 recarga. Repita a ação até ela ser aceita, com um prazo generoso (ver a sabotagem em
 `probe_engineer.nvgt`), e capture o `S_ERROR` junto do sucesso - esperar só o sucesso esconde a
 explicação. **Sonda intermitente é pior que sonda que falha**: ela ensina a ignorar o vermelho.
+
+**Sonda com VÁRIOS clientes precisa de uma CAIXA por cliente, e de esperas que bombeiam todos.** O
+`wf(cliente, tipo, prazo)` das sondas de um cliente só tem dois defeitos quando há seis: ele
+**descarta** tudo que não é o pacote esperado - e o `S_GAME_OVER` vem no mesmo lote do
+`S_VOTE_RESULT`, então esperar um apagava o outro, com o sintoma "a partida não acabou" numa partida
+acabada -, e ele só dá `update()` no cliente da vez, deixando os outros sem ACK: 40 s esperando uma
+apuração derrubava os cinco restantes da sala, com o sintoma "a sala não reabriu". A forma que
+funciona está em `probe_task_limits.nvgt`: um array de pacotes por cliente, uma drenagem que bombeia
+todo mundo e não joga nada fora, e um `esvazia_caixa()` num lugar só por rodada (esvaziar no fim
+apaga o retrato da sala reaberta, que chega junto do fim; não esvaziar nunca faz a espera achar o
+retrato da ENTRADA e passar sem esperar nada).
+
+**Teto estatístico ("afrouxa em menos de X% dos casos") é sonda intermitente disfarçada.** Duas
+execuções seguidas do mesmo servidor sem teto nenhum deram 30% e 13%: a segunda teria passado.
+Quando os números permitem, prefira a garantia DURA ("ninguém passou de 2") e escreva ao lado por
+que ela é legítima - em `probe_task_limits` é porque 11 salas × 2 vagas cabem folgadamente nas 8
+tarefas pedidas, e quem mudar esse número precisa afrouxar a linha junto.
 
 **Sonda que mede um relógio precisa medir o RELÓGIO DE PAREDE junto.** "O anjo tem 53 s de 60" não
 diz nada sozinho: pode ser "não rearmou" (certo) ou "não passou tempo nenhum" (sonda quebrada). Uma

@@ -258,8 +258,44 @@ const array<string> COMMON_TASK_TYPES = {"swipe_card"};
 // não saber de antemão, senão a desculpa nunca seria testável.
 const float COMMON_TASK_CHANCE = 0.5;
 
+// Tarefas VISÍVEIS: as que o SERVIDOR anuncia aos outros enquanto estão sendo feitas (ver
+// try_start_visible_task). São as únicas que valem como álibi, porque o impostor não as tem e o
+// cliente dele não consegue forjar o anúncio.
+//
+// Lista, e não um `task_type == "submit_scan"` solto: quem acrescentar a segunda tarefa visível
+// precisa acertar o teto abaixo e o anúncio no mesmo lugar, senão a nova nasce sem limite nenhum.
+const array<string> VISIBLE_TASK_TYPES = {"submit_scan"};
+
+// Teto de quantos tripulantes recebem uma tarefa visível, em por cento da sala, arredondado PARA
+// CIMA (mínimo 1 quando há sala). 20% dá 1 numa sala de 5, 2 numa de 10, 3 numa de 15.
+//
+// Sem teto, o sorteio é independente por jogador e a variância manda: numa sala de 10 saíam ~2 em
+// média, mas nada impedia 5 - e álibi demais encolhe a lista de suspeitos a ponto de a dedução
+// perder a graça. E há um motivo mecânico além do equilíbrio: o scanner é recurso de UM DE CADA VEZ
+// no servidor, então muita gente com essa tarefa vira fila e "ocupado", que é frustração pura.
+// 10% foi considerado e descartado: daria exatamente 1 em qualquer sala até 10 pessoas, o que torna
+// o álibi um bilhete de loteria em vez de uma economia que dá pra jogar em cima.
+const uint VISIBLE_TASK_MAX_PERCENT = 20;
+
+// Teto de tarefas do MESMO jogador na mesma sala do mapa. É preferência, não parede: se respeitá-lo
+// impedir fechar o total pedido, o total ganha (a mesma escolha que o sorteio já faz entre longa e
+// curta). Existe para ninguém resolver a lista inteira num canto - num jogo em que andar faz
+// barulho, uma rota curta demais não produz informação para ninguém.
+// Só morde em navegação (4 pontos) e admin (3); as outras salas já não têm mais que 2.
+const uint MAX_TASKS_PER_ROOM = 2;
+
 bool task_is_long(const string&in task_type) { return LONG_TASK_TYPES.find(task_type) != -1; }
 bool task_is_common(const string&in task_type) { return COMMON_TASK_TYPES.find(task_type) != -1; }
+bool task_is_visible(const string&in task_type) { return VISIBLE_TASK_TYPES.find(task_type) != -1; }
+
+// Quantos jogadores, no máximo, podem receber tarefa visível numa sala deste tamanho.
+uint visible_task_cap(uint player_count) {
+	if (player_count == 0) return 0;
+	// Arredondamento para cima em inteiros ((a + b - 1) / b), e não `ceil` sobre float: 20% de 5 em
+	// ponto flutuante pode sair 0,9999999 e virar 1 quando devia ser 1, ou 1,0000001 e virar 2.
+	uint cap = (player_count * VISIBLE_TASK_MAX_PERCENT + 99) / 100;
+	return cap < 1 ? 1 : cap;
+}
 
 // Chave do nome falado da categoria, para a lista de tarefas dizer o que é cada uma - quem planeja
 // a rota quer saber de antemão se vai atravessar a nave ou resolver ali mesmo.
