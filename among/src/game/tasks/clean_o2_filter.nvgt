@@ -1,0 +1,149 @@
+// clean_o2_filter.nvgt
+// Task da sala de oxigênio: a câmara do filtro tem folhas presas, e você tira uma a uma com o
+// aspirador. É a "Clean O2 Filter" do jogo original, traduzida para o ouvido.
+//
+// No original as folhas estão à vista e você arrasta cada uma até a abertura. Aqui elas estão
+// ESCONDIDAS: a câmara tem seis posições, você leva o aspirador entre elas com as setas, e o som diz
+// o que há em cada uma.
+//
+//   tique seco          -> cheguei nesta posição, e está vazia
+//   tique + farfalho    -> tem uma folha aqui
+//   Enter numa folha    -> pega, e a sucção a leva (o som sai na ABERTURA, à direita)
+//   Enter no vazio      -> erro discreto; não é derrota, só não aconteceu nada
+//
+// Por que seis posições e três folhas, e não uma folha por posição: é a diferença entre PROCURAR e
+// digitar. Com uma em cada, bastava apertar Enter seis vezes sem ouvir nada.
+//
+// **As folhas se reorganizam a cada aspirada.** No original elas flutuam, e aqui isso tem uma função
+// além da fidelidade: sem o remanejamento dava para mapear a câmara inteira numa varredura só e
+// depois só executar, e a task virava digitação. Com ele, o jogador volta a procurar a cada folha.
+//
+// Sobre o som, e é a parte que custou uma task revertida para aprender: há UM único som contínuo, o
+// ar da abertura, e ele serve de norte fixo - é o mesmo arquivo do beacon, de propósito, então de
+// longe se ouve o filtro puxando e de perto é o mesmo puxar. Todo o resto é transiente, porque o
+// ouvido localiza por ATAQUE: som contínuo não se localiza, e vários ao mesmo tempo viram parede.
+//
+// O balanço entre tique, farfalho e sucção mora aqui embaixo, em dB, e não nos arquivos - a mesma
+// decisão do ganho dos pisos, para ajustar de ouvido sem reconverter nada. Os números saíram de uma
+// maquete montada no ffmpeg e ouvida antes de existir código: o farfalho fica ~9 dB acima do tique,
+// que é o que separa "tem folha" de "vazio".
+
+#include "task_common.nvgt"
+
+// As posições da câmara, entre os ouvidos. Seis, de um extremo ao outro.
+const array<float> O2_SLOT_PANS = {-100.0, -60.0, -20.0, 20.0, 60.0, 100.0};
+const uint O2_SLOT_COUNT = 6;
+const uint O2_LEAF_COUNT = 3;
+// A abertura, para onde a folha é levada. Fica na ponta direita e NÃO é uma das posições: ela é o
+// destino, não um lugar onde se procura.
+const float O2_VENT_PAN = 95.0;
+
+// Balanço, em dB sobre o volume da família de tasks.
+const float O2_AIR_DB = -6.0;    // o contínuo fica embaixo de tudo: é referência, não evento
+const float O2_TICK_DB = -6.0;   // o tique só diz ONDE
+const float O2_LEAF_DB = 2.0;    // o farfalho é o SINAL - tem que saltar do tique
+const float O2_GRAB_DB = -2.0;
+const float O2_SUCK_DB = 0.0;
+
+// Quanto depois do tique o farfalho entra. Junto demais e os dois viram um som só; longe demais e
+// deixam de pertencer à mesma posição.
+const uint O2_LEAF_DELAY_MS = 90;
+
+bool run_clean_o2_filter_task(game_client@ client) {
+	speak(tr("task.clean_o2_filter.instructions"));
+	if (!task_wait(600, client)) return false;
+
+	// Onde estão as folhas. Sorteadas sem repetição: duas folhas na mesma posição seriam
+	// indistinguíveis de uma, e a segunda apareceria do nada depois da primeira sair.
+	array<bool> tem_folha;
+	for (uint i = 0; i < O2_SLOT_COUNT; i++) tem_folha.insert_last(false);
+	array<int> ordem;
+	for (uint i = 0; i < O2_SLOT_COUNT; i++) ordem.insert_last(int(i));
+	shuffle_int_list(ordem);
+	for (uint i = 0; i < O2_LEAF_COUNT; i++) tem_folha[ordem[i]] = true;
+
+	// O ar da abertura, em loop do começo ao fim. Um contínuo só (ver o cabeçalho). Carregado à mão,
+	// e não por task_sound_path, porque aquele toca UMA vez e aqui é laço - e o volume da família é
+	// aplicado aqui do mesmo jeito, para o jogador que baixou o volume de tarefas ser obedecido.
+	sound ar;
+	bool tem_ar = ar.load(SND_TASK_BEACON_CLEAN_O2_FILTER);
+	if (tem_ar) {
+		ar.pan = O2_VENT_PAN;
+		ar.volume = g_settings.volume_db(SOUND_FAMILY_TASKS) + O2_AIR_DB;
+		ar.play_looped();
+	}
+
+	uint cursor = 0;
+	uint restantes = O2_LEAF_COUNT;
+	bool ok = true;
+	bool anunciar_posicao = true; // o primeiro tique sai sem o jogador ter pedido, para ele saber onde começou
+
+	while (restantes > 0 && ok) {
+		if (anunciar_posicao) {
+			anunciar_posicao = false;
+			task_sound_path("sounds/" + SND_O2_NOZZLE_MOVE, O2_SLOT_PANS[cursor], O2_TICK_DB);
+			if (tem_folha[cursor]) {
+				if (!task_wait(O2_LEAF_DELAY_MS, client)) { ok = false; break; }
+				task_sound_path("sounds/" + o2_leaf_sound(random(1, int(O2_LEAF_VARIANT_COUNT))), O2_SLOT_PANS[cursor], O2_LEAF_DB);
+			}
+		}
+
+		wait(5);
+		client.update();
+		if (task_tick(client)) { ok = false; break; }
+
+		// Cada tecla lida UMA vez por quadro e guardada: key_pressed consome o evento, e perguntar
+		// duas vezes no mesmo quadro pode dar respostas diferentes.
+		bool esquerda = key_pressed(KEY_LEFT);
+		bool direita = key_pressed(KEY_RIGHT);
+		bool aspirar = key_pressed(KEY_RETURN);
+
+		if (esquerda && cursor > 0) { cursor--; anunciar_posicao = true; continue; }
+		if (direita && cursor < O2_SLOT_COUNT - 1) { cursor++; anunciar_posicao = true; continue; }
+		// Bater na ponta ainda toca o tique: sem isso o jogador não sabe se a tecla falhou ou se ele
+		// já estava na borda, e fica apertando à toa.
+		if ((esquerda && cursor == 0) || (direita && cursor == O2_SLOT_COUNT - 1)) {
+			anunciar_posicao = true;
+			continue;
+		}
+		if (!aspirar) continue;
+
+		if (!tem_folha[cursor]) {
+			task_sound(SND_CARD_ERROR, O2_SLOT_PANS[cursor]);
+			continue;
+		}
+
+		// Pega aqui, e a sucção leva NA ABERTURA - os dois sons em lugares diferentes são o que faz a
+		// folha "atravessar" a câmara sem precisar de um trajeto tocado nota por nota.
+		task_sound_path("sounds/" + SND_O2_GRAB, O2_SLOT_PANS[cursor], O2_GRAB_DB);
+		tem_folha[cursor] = false;
+		restantes--;
+		if (!task_wait(330, client)) { ok = false; break; }
+		task_sound_path("sounds/" + o2_suck_sound(random(1, int(O2_SUCK_VARIANT_COUNT))), O2_VENT_PAN, O2_SUCK_DB);
+
+		if (restantes == 0) break;
+
+		// As que sobraram flutuam. Cada uma tenta andar uma casa para um lado livre - "tenta", e não
+		// "anda": forçar deixaria a câmara previsível ao contrário (tudo sempre se mexe).
+		if (!task_wait(250, client)) { ok = false; break; }
+		array<bool> depois = tem_folha;
+		for (uint i = 0; i < O2_SLOT_COUNT; i++) {
+			if (!tem_folha[i]) continue;
+			if (random(0, 1) == 0) continue; // metade fica onde está
+			int destino = int(i) + (random(0, 1) == 0 ? -1 : 1);
+			if (destino < 0 || destino >= int(O2_SLOT_COUNT)) continue;
+			if (depois[destino] || tem_folha[destino]) continue; // já ocupada, ou ocupada nesta mesma rodada
+			depois[i] = false;
+			depois[destino] = true;
+		}
+		tem_folha = depois;
+		// Nada é anunciado: descobrir que elas se mexeram é a própria task. O jogador percebe porque a
+		// posição onde ele lembrava de uma folha agora dá tique seco.
+	}
+
+	if (tem_ar) ar.stop();
+	if (!ok) return false;
+
+	speak(tr("task.completed"));
+	return true;
+}

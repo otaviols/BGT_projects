@@ -847,6 +847,34 @@ include compila e a task nunca abre), o ponto no `map.nvgt` com beacon, `PRACTIC
 jogo compilado), as chaves nos DOIS idiomas, e a seção de tarefas dos dois `docs/README_*`. Decida
 também se ela é longa (`LONG_TASK_TYPES`) - o padrão é curta.
 
+**O jeito que funciona de inventar tarefa: pegar a ORIGINAL e traduzi-la para o ouvido.** Foi a
+correção do usuário depois de eu propor três levas ruins (tarefas de mundo, mais painéis, e a
+mistura revertida). A pergunta certa não é "que mecânica de ouvido falta?" - é **"o que o jogador
+faz com as mãos no original, e como isso vira um gesto de ouvido?"**. A fiação já era isso e é a
+melhor tarefa do jogo. A biblioteca de sons do usuário (fora do repositório,
+`D:\documents\sons among us\sounds among`) tem o conjunto COMPLETO de várias originais que ainda não
+existem aqui: calibrar o distribuidor, inserir as chaves, rodar diagnóstico, traçar a rota, ativar
+escudos, desviar energia, nó do clima, separar amostras.
+
+`clean_o2_filter` é a primeira feita assim. No original as folhas estão à vista e você arrasta cada
+uma até a abertura; aqui elas estão escondidas em seis posições, o aspirador anda entre elas com as
+setas, e o som responde: **tique seco = vazio, tique + farfalho = folha**. A versão anterior da
+maquete tocava tudo sozinha e o veredito foi "ficou automático" - **o jogador tem que decidir, não
+assistir**, e é o mesmo erro que a primeira versão do `water_plants` teve. Três decisões que a
+seguram: seis posições para três folhas (com uma em cada, bastava apertar Enter seis vezes sem ouvir
+nada); as folhas **se mexem** a cada aspirada, senão dava para mapear a câmara numa varredura e o
+resto virava digitação; e o beacon é o MESMO arquivo do ar que toca dentro da task, então de longe se
+ouve o filtro puxando e de perto aquele puxar vira o norte fixo.
+
+**MAQUETE ANTES DE CÓDIGO.** Monte a ideia com `ffmpeg` (um `.wav` com os sons nas posições e nos
+tempos certos) e OUÇA antes de escrever a task. Custa dez minutos; a task revertida custou uma
+sessão. Duas armadilhas da maquete em si: `adelay=0|0` é recusado (o evento em zero não leva o
+filtro), e **make-up gain demais + `alimiter` achatam tudo no mesmo nível** - foi assim que o "tique
+vazio" e o "tique com folha" saíram idênticos numa medição, que é justamente a informação que a task
+existe para carregar. Meça janelas do arquivo com `volumedetect` em vez de confiar no ouvido para o
+balanço: no filtro, o farfalho ficou ~9 dB acima do tique, e esses números viraram as constantes em
+dB no topo da task.
+
 **SOM CONTÍNUO NÃO SE LOCALIZA, e vários ao mesmo tempo viram parede.** Isto custou uma tarefa
 inteira, escrita e revertida (`stabilize_lines`, commit 53341d0 e a reversão logo atrás - dá para
 recuperar o código de lá se um dia servir). A ideia era "ouvir para dentro de uma mistura": quatro

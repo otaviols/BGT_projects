@@ -140,6 +140,11 @@ const string SND_TASK_BEACON_ROLL_DICE = "sounds/beacons/games_pannel.ogg";
 const string SND_TASK_BEACON_WATER_PLANTS = "sounds/beacons/plants_pannel.ogg";
 const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.ogg";
 const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.ogg";
+// O ar do filtro de O2. É o ÚNICO beacon que a própria task também toca, de propósito: de longe se
+// ouve o filtro puxando, e de perto, dentro da task, o mesmo puxar vira o norte fixo da câmara (a
+// abertura fica à direita). Um arquivo só, dois usos - e por isso ele mora em beacons/, que é onde a
+// função principal dele está.
+const string SND_TASK_BEACON_CLEAN_O2_FILTER = "sounds/beacons/o2_filter_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 // Pegar o galão de combustível no depósito (primeira fase de abastecer os motores).
@@ -162,6 +167,24 @@ const string SND_DICE = "tasks/dice.ogg";                       // dado rolando 
 const string SND_WATER_FLOW = "tasks/waterflow.ogg";            // loop: água correndo enquanto se rega uma muda
 const string SND_FILLING = "tasks/filling.ogg";                 // começou a regar este canteiro
 const string SND_FILLING_COMPLETE = "tasks/filling_complete.ogg"; // o canteiro encheu: é a hora de soltar
+
+// Limpar o filtro de O2 (sala do oxigênio). O tique é o aspirador chegando numa posição; o farfalho
+// diz que há uma folha ali; a sucção é a folha sendo levada na abertura.
+//
+// As quatro folhas foram IGUALADAS em nível na conversão (picos dentro de 0,3 dB), e as três sucções
+// também. O farfalho é o SINAL que o jogador precisa detectar: uma variante mais baixa que as outras
+// seria mais difícil de achar sem nenhuma razão de jogo - o mesmo cuidado dos passos por piso. Ao
+// trocar um arquivo, meça os quatro de novo.
+const string SND_O2_NOZZLE_MOVE = "tasks/o2_nozzle_move.ogg"; // o aspirador chegou numa posição
+const string SND_O2_GRAB = "tasks/o2_grab.ogg";               // pegou a folha
+const uint O2_LEAF_VARIANT_COUNT = 4;
+string o2_leaf_sound(int variant_1_based) {
+	return "tasks/o2_leaf" + variant_1_based + ".ogg";
+}
+const uint O2_SUCK_VARIANT_COUNT = 3;
+string o2_suck_sound(int variant_1_based) {
+	return "tasks/o2_suck" + variant_1_based + ".ogg";
+}
 
 // Goles de água: marcam cada etapa do canteiro enchendo. São variantes justamente pra não virar um
 // bipe repetido - mesma ideia dos passos por piso.
@@ -344,6 +367,11 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_TASK_BEACON_ROLL_DICE);
 	list.insert_last(SND_TASK_BEACON_WATER_PLANTS);
 	list.insert_last(SND_TASK_BEACON_REVIEW_RECORDS);
+	list.insert_last(SND_TASK_BEACON_CLEAN_O2_FILTER);
+	list.insert_last("sounds/" + SND_O2_NOZZLE_MOVE);
+	list.insert_last("sounds/" + SND_O2_GRAB);
+	for (int i = 1; i <= int(O2_LEAF_VARIANT_COUNT); i++) list.insert_last("sounds/" + o2_leaf_sound(i));
+	for (int i = 1; i <= int(O2_SUCK_VARIANT_COUNT); i++) list.insert_last("sounds/" + o2_suck_sound(i));
 	list.insert_last(SND_AMBIENT_GAMES);
 	list.insert_last(SND_AMBIENT_GREENHOUSE);
 	list.insert_last(SND_AMBIENT_SECURITY);

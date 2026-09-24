@@ -273,6 +273,11 @@ As onze tarefas:
   assim que você sabe onde ele está. Apertar Espaço no canteiro errado não rega nada.
 - **Revisar as gravações** (segurança) — ouça o trecho gravado do corredor e conte quantas pessoas
   passaram. Cada uma atravessa por um lado, com o piso e o ritmo dela. Responda nas teclas 1 a 6.
+- **Limpar o filtro de oxigênio** (sala do oxigênio) — a câmara do filtro tem folhas presas, e você
+  leva o aspirador pelas posições com as setas. Cada posição responde: **tique seco** é vazio,
+  **tique e um farfalho logo atrás** é folha. Enter numa folha e a sucção a leva — o som sai na
+  abertura, à direita, que é o seu ponto de referência o tempo todo. E cuidado: **as folhas que
+  sobram se mexem** a cada aspirada, então não adianta decorar a câmara de uma vez.
 - **Fazer o exame médico** (enfermaria) — fique parado no scanner até ele terminar. É a tarefa
   mais fácil do jogo e a mais valiosa: **quem estiver por perto ouve o scanner rodando e o jogo diz
   quem está sendo examinado** — e impostor não faz tarefa, então ver alguém no exame prova que é
