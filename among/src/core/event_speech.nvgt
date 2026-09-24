@@ -65,11 +65,11 @@ string you_were_killed_text(net_packet@ pkt, client_roster@ roster) {
 	// "você foi eliminado por <seu nome>" seria ridículo; o porquê chega logo atrás, em particular
 	// (role.sheriff_misfire, mandado pelo servidor só a ele).
 	if (killer_peer == pkt.get_uint64("peer_id")) return tr("game.you_were_killed");
-	// O nome sai do ELENCO local, que não conhece disfarce nenhum: quem morre para o metamorfo
-	// descobre quem ele é de verdade. Ver o comentário em try_kill para o porquê - em resumo, quem
-	// morreu não tem como contar a ninguém, e mentir para ele não compra nada ao impostor.
-	string nome = "";
-	if (@roster != null) {
+	// `killer_real_name` só vem na CÓPIA que o servidor manda à vítima (ver on_kill): quem morre para
+	// o metamorfo descobre quem ele é de verdade, porque já pagou o preço e não tem como contar a
+	// ninguém. O elenco, que hoje carrega o nome disfarçado, é o plano B.
+	string nome = pkt.get_string("killer_real_name");
+	if (nome == "" && @roster != null) {
 		roster_entry@ killer = roster.find(killer_peer);
 		if (@killer != null) nome = killer.name;
 	}

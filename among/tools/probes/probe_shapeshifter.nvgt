@@ -28,6 +28,23 @@ net_packet@ wf(game_client@ c, const string&in t, int ms) {
 	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
 	return null;
 }
+// Espera DOIS tipos de uma vez, guardando os dois. O wf() acima descarta o que não espera, e vários
+// pacotes desta sonda chegam quase juntos (o renome e o som da transformação, a morte e o aviso):
+// esperar um de cada vez faz o primeiro comer o outro, e a sonda acusa um pacote faltando que ela
+// mesma jogou fora.
+void wf2(game_client@ c, const string&in a, const string&in b, net_packet@&out pa, net_packet@&out pb, int ms) {
+	timer x;
+	while (x.elapsed < ms && (@pa == null || @pb == null)) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) {
+			if (p.type == a && @pa == null) @pa = p;
+			else if (p.type == b && @pb == null) @pb = p;
+			@p = c.poll_message();
+		}
+		wait(5);
+	}
+}
 game_client@ conecta(server_address addr, const string&in nome) {
 	game_client@ c = game_client();
 	if (!c.connect_to(addr.host, addr.port)) return null;
@@ -123,7 +140,24 @@ void main() {
 		println("   o metamorfo ouve: \"" + tr_server_message(ok) + "\"");
 	}
 
-	net_packet@ som = wf(olheiro, S_SHIFT_SOUND, 4000);
+	// O ELENCO de quem está por perto tem que passar a dizer o nome copiado. Era por aqui que o
+	// disfarce vazava: o anúncio de "fulano está por perto" sai do elenco local, que só conhecia o
+	// nome verdadeiro - chegar perto do metamorfo entregava quem ele era. Achado por um jogador.
+	// Os dois JUNTOS: o renome e o som chegam quase ao mesmo tempo, e esperar um de cada vez faria o
+	// primeiro wf comer o outro (ver wf2).
+	net_packet@ renome; net_packet@ som;
+	wf2(olheiro, S_PLAYER_RENAMED, S_SHIFT_SOUND, renome, som, 4000);
+	check("quem esta perto recebe o nome novo", @renome != null, "S_PLAYER_RENAMED");
+	if (@renome != null) {
+		check("  e ele é o COPIADO, nao o verdadeiro", renome.get_string("name") == cop_nome, cop_nome);
+		check("  do peer certo", renome.get_uint64("peer_id") == morfo_peer, "o metamorfo");
+		client_roster elenco_perto;
+		elenco_perto.load_from_start_packet(retrato_inicial);
+		elenco_perto.rename(renome.get_uint64("peer_id"), renome.get_string("name"));
+		roster_entry@ e = elenco_perto.find(morfo_peer);
+		check("  e o elenco local passa a dizer o copiado", @e != null && e.name == cop_nome, cop_nome);
+	}
+
 	check("quem estava perto ouviu a transformação", @som != null, "S_SHIFT_SOUND");
 	check("  e o som nao carrega nome nenhum", @som != null && !som.exists("name") && !som.exists("peer_id"), "sem nome");
 

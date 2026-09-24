@@ -469,6 +469,7 @@ class game_server {
 			// aconteceu ali, como ouviria a tampa de um duto. Vai para todos MENOS ele - o cliente
 			// dele toca na hora, sem esperar a rede.
 			broadcast_shift_sound(lobby, p);
+			broadcast_display_name(lobby, p);
 			message_params.set("name", copiado);
 			message_key = "role.shift_done";
 			return true;
@@ -516,6 +517,15 @@ class game_server {
 		return false;
 	}
 
+	// Anuncia o nome com que este jogador passa a aparecer. O elenco do cliente é a fonte de todo
+	// nome que ele fala sozinho (quem está por perto, quem votou, quem está falando), e sem isto o
+	// disfarce tinha um buraco: chegar perto do metamorfo anunciava o nome verdadeiro dele.
+	void broadcast_display_name(game_state@ lobby, game_player@ p) {
+		net_packet@ pkt = net_packet(S_PLAYER_RENAMED);
+		pkt.set_uint64("peer_id", p.peer_id);
+		pkt.set_string("name", p.display_name());
+		broadcast_to_lobby(lobby, pkt);
+	}
 	// O som da transformação, no ponto de quem se transformou. Não leva NOME nenhum: quem ouve sabe
 	// que alguém ali mudou de cara, não quem nem em quem - descobrir isso é o trabalho da mesa.
 	void broadcast_shift_sound(game_state@ lobby, game_player@ p) {
@@ -549,6 +559,7 @@ class game_server {
 			game_player@ p = lobby.find_player(voltaram[i]);
 			if (@p == null) continue;
 			broadcast_shift_sound(lobby, p);
+			broadcast_display_name(lobby, p);
 			send_to(p.peer_id, net_packet(S_SHIFT_ENDED));
 		}
 	}
@@ -1278,7 +1289,14 @@ class game_server {
 				broadcast_camera_watching(lobby);
 			}
 			end_visible_task(lobby, victim_peer); // morreu no scanner: o scanner para
-			broadcast_to_lobby(lobby, event);
+			// A partida recebe o pacote sem nome nenhum; a VÍTIMA recebe uma cópia com o nome
+			// VERDADEIRO de quem a matou. Ela já pagou o preço e não tem como contar a ninguém - e o
+			// elenco dela agora carrega o nome disfarçado (ver S_PLAYER_RENAMED), então sem esta
+			// cópia quem morresse para o metamorfo ouviria a fantasia.
+			broadcast_to_lobby(lobby, event, victim_peer);
+			game_player@ quem_matou = lobby.find_player(event.get_uint64("killer_peer"));
+			if (@quem_matou != null) event.set_string("killer_real_name", quem_matou.username);
+			send_to(victim_peer, event);
 
 			// Papel que anuncia a própria morte (alarmista). DEPOIS do pacote da morte, para o som
 			// do assassinato vir antes do aviso - a ordem inversa contaria o que aconteceu e só
@@ -1355,6 +1373,10 @@ class game_server {
 		// todo mundo está junto na cafeteria, e um estalo do nada denunciaria quem era.
 		for (uint i = 0; i < lobby.meeting_unshifted_peers.length(); i++) {
 			send_to(lobby.meeting_unshifted_peers[i], net_packet(S_SHIFT_ENDED));
+			// E a partida inteira volta a ver o nome verdadeiro dele: na mesa se vota por NOME, e um
+			// elenco que ficasse com a fantasia faria o voto cair na pessoa errada.
+			game_player@ voltou = lobby.find_player(lobby.meeting_unshifted_peers[i]);
+			if (@voltou != null) broadcast_display_name(lobby, voltou);
 		}
 		net_packet@ vs = net_packet(S_VOTING_STARTED);
 		vs.set_float("voting_time", lobby.voting_timer);

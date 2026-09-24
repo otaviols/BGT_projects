@@ -165,6 +165,10 @@ const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, bod
 const string S_DEATH_ALARM = "s_death_alarm";            // {name, room_key}
 // O shapeshifter se transformou (ou voltou ao normal). O SOM vai a quem está perto - é o que
 // impede a fantasia de ser grátis; nunca vai o nome de quem se transformou nem em quem.
+// O nome com que um jogador aparece MUDOU (o metamorfo se transformou, ou voltou). Vai para a
+// partida inteira porque o elenco de cada cliente e' a fonte de todo nome que ele fala sozinho -
+// quem esta por perto, quem votou, quem esta falando. Nao diz que e' disfarce: diz o nome novo.
+const string S_PLAYER_RENAMED = "s_player_renamed";      // {peer_id, name}
 const string S_SHIFT_SOUND = "s_shift_sound";            // {x, y}
 // Só para o próprio shapeshifter: a fantasia acabou (tempo, ou reunião começando).
 const string S_SHIFT_ENDED = "s_shift_ended";            // {}

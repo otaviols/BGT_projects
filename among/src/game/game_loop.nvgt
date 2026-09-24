@@ -848,6 +848,12 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// mundo: é o aviso de que ele voltou a ser percebido.
 				task_sound_simple(SND_VANISH);
 				speak(tr("role.vanish_ended"));
+			} else if (t == S_PLAYER_RENAMED) {
+				// O nome com que alguém aparece mudou (metamorfo entrando ou saindo do disfarce). O
+				// elenco é a fonte de todo nome que este cliente fala sozinho, então renomear aqui
+				// vale para tudo de uma vez - inclusive para o anúncio de quem está por perto, que
+				// era por onde o disfarce vazava.
+				roster.rename(pkt.get_uint64("peer_id"), pkt.get_string("name"));
 			} else if (t == S_SHIFT_SOUND) {
 				// Alguém mudou de cara por perto. Posicionado e sem nome nenhum: quem ouve sabe que
 				// algo aconteceu ali, não quem nem em quem.

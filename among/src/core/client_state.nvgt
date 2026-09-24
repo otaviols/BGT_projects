@@ -52,6 +52,18 @@ class client_roster {
 		if (@e != null) e.alive = false;
 	}
 
+	// Troca o nome com que este jogador aparece (o disfarce do metamorfo entrando ou saindo).
+	//
+	// O elenco é a fonte de TODO nome que o cliente fala por conta própria - quem está por perto,
+	// quem votou, quem está falando no chat de voz. Enquanto ele guardava só o nome verdadeiro, o
+	// disfarce tinha um buraco por onde o jogo denunciava o metamorfo: bastava chegar perto dele e o
+	// nome real era anunciado. Renomear aqui fecha todos esses caminhos de uma vez, inclusive os que
+	// alguém acrescentar depois.
+	void rename(uint64 peer_id, const string&in name) {
+		roster_entry@ e = find(peer_id);
+		if (@e != null && name != "") e.name = name;
+	}
+
 	void update_position(uint64 peer_id, float x, float y) {
 		roster_entry@ e = find(peer_id);
 		if (@e != null) { e.x = x; e.y = y; }

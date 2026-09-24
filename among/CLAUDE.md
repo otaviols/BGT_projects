@@ -428,12 +428,21 @@ tamanho do mapa, revise `KILLER_TRAIL_SECONDS`.**
 `tr_server_message` substitui parâmetro como texto cru, então uma lista de salas chegaria como
 `room.electrical|room.storage` dentro da frase. Ver `examine_result_text` em `event_speech.nvgt`.
 
+**O ELENCO do cliente é a fonte de todo nome que ele fala sozinho** - quem está por perto, quem
+votou, quem está falando no chat de voz. Ele é carregado uma vez, no `S_GAME_START`, e por isso o
+disfarce do metamorfo tinha um buraco que só um jogador achou: **chegar perto dele anunciava o nome
+verdadeiro**, justamente no momento em que o disfarce mais importa. Hoje o servidor transmite
+`S_PLAYER_RENAMED` ao transformar, ao expirar e na reunião, e o cliente renomeia a entrada - o que
+fecha todos esses caminhos de uma vez, inclusive os que alguém acrescentar depois. Quem for
+acrescentar um lugar que fale nome: use o elenco, não invente outra fonte.
+
 **Metamorfo: todo nome que chega a outro jogador passa por `display_name()`.** Num jogo sem imagem,
 "parecer com alguém" é aparecer com o nome dele, e o nome só sai do SERVIDOR - radar, câmera, quem
 está na sala. Um ponto esquecido é um buraco no disfarce, sem nada acusando no código.
 
-**A vítima é a exceção, e é deliberada: ela ouve o nome VERDADEIRO.** Ela resolve pelo elenco
-local, que não conhece disfarce nenhum. Quem morreu já pagou o preço e não tem como contar a
+**A vítima é a exceção, e é deliberada: ela ouve o nome VERDADEIRO.** Desde que o elenco passou a
+carregar o nome disfarçado, isso exige uma CÓPIA privada: o `S_PLAYER_KILLED` vai à partida sem nome
+nenhum, e só a vítima recebe uma versão com `killer_real_name`. Quem morreu já pagou o preço e não tem como contar a
 ninguém (não vota, não fala com vivo, e fantasma só é ouvido por fantasma), então mentir para ele
 não compra nada ao impostor e só piora o jogo de quem já perdeu - e no caso normal a vítima também
 sabe quem a matou, então disfarçar aqui tornaria morrer para o metamorfo pior do que morrer para um
