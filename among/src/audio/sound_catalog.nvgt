@@ -140,12 +140,6 @@ const string SND_TASK_BEACON_ROLL_DICE = "sounds/beacons/games_pannel.ogg";
 const string SND_TASK_BEACON_WATER_PLANTS = "sounds/beacons/plants_pannel.ogg";
 const string SND_TASK_BEACON_REVIEW_RECORDS = "sounds/beacons/records_pannel.ogg";
 const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.ogg";
-// O beacon das linhas de suprimento é a MISTURA das quatro linhas, e não um som à parte: de longe se
-// ouve o conjunto zumbindo, e a task é justamente ouvir para dentro desse conjunto. O arquivo foi
-// gerado misturando os quatro (ffmpeg amix) depois de igualá-los, e ajustado para -13 dB médios, que
-// é onde fica o beacon mais alto que já existia - sem essa medição ele entraria 4 dB acima de todos
-// e a sala do oxigênio viraria a mais chamativa do mapa por acidente de conversão.
-const string SND_TASK_BEACON_STABILIZE_LINES = "sounds/beacons/supply_lines_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 // Pegar o galão de combustível no depósito (primeira fase de abastecer os motores).
@@ -168,15 +162,6 @@ const string SND_DICE = "tasks/dice.ogg";                       // dado rolando 
 const string SND_WATER_FLOW = "tasks/waterflow.ogg";            // loop: água correndo enquanto se rega uma muda
 const string SND_FILLING = "tasks/filling.ogg";                 // começou a regar este canteiro
 const string SND_FILLING_COMPLETE = "tasks/filling_complete.ogg"; // o canteiro encheu: é a hora de soltar
-
-// As quatro linhas de suprimento da task de estabilizar (sala do oxigênio). Tocam JUNTAS, em loop,
-// cada uma num lado - por isso os quatro arquivos foram igualados em nível na conversão (todos a -17
-// dB médios): uma linha mais alta que as outras seria mais fácil de isolar sem nenhuma razão de jogo,
-// e a task mede exatamente essa dificuldade. Ao trocar qualquer um deles, meça os quatro de novo.
-const string SND_SUPPLY_LINE_AIR = "tasks/supply_line_air.ogg";
-const string SND_SUPPLY_LINE_WATER = "tasks/supply_line_water.ogg";
-const string SND_SUPPLY_LINE_COOLANT = "tasks/supply_line_coolant.ogg";
-const string SND_SUPPLY_LINE_POWER = "tasks/supply_line_power.ogg";
 
 // Goles de água: marcam cada etapa do canteiro enchendo. São variantes justamente pra não virar um
 // bipe repetido - mesma ideia dos passos por piso.
@@ -359,11 +344,6 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_TASK_BEACON_ROLL_DICE);
 	list.insert_last(SND_TASK_BEACON_WATER_PLANTS);
 	list.insert_last(SND_TASK_BEACON_REVIEW_RECORDS);
-	list.insert_last(SND_TASK_BEACON_STABILIZE_LINES);
-	list.insert_last("sounds/" + SND_SUPPLY_LINE_AIR);
-	list.insert_last("sounds/" + SND_SUPPLY_LINE_WATER);
-	list.insert_last("sounds/" + SND_SUPPLY_LINE_COOLANT);
-	list.insert_last("sounds/" + SND_SUPPLY_LINE_POWER);
 	list.insert_last(SND_AMBIENT_GAMES);
 	list.insert_last(SND_AMBIENT_GREENHOUSE);
 	list.insert_last(SND_AMBIENT_SECURITY);

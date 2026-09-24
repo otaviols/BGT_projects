@@ -95,7 +95,6 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.water_plants.name"), SND_TASK_BEACON_WATER_PLANTS);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.review_records.name"), SND_TASK_BEACON_REVIEW_RECORDS);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.submit_scan.name"), SND_TASK_BEACON_SUBMIT_SCAN);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.stabilize_lines.name"), SND_TASK_BEACON_STABILIZE_LINES);
 	sfx.add(tr("learn.medbay_scan"), "sounds/" + SND_MEDBAY_SCAN);
 
 	sfx.add(tr("learn.sabotage_alarm"), SND_SABOTAGE_ALARM);
