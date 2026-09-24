@@ -1093,11 +1093,18 @@ mas tem `-SkipInbox`, e eu pulei. Por isso o portão de verdade fica no DEPLOY, 
 ar, e por isso ele **recolhe do servidor junto** (`read_translations.ps1`): uma tradução que o
 jogador mandou ontem e ninguém baixou está tão atrasada quanto uma ignorada.
 
-Duas coisas aprendidas ao processar aqueles envios: o envio pelo jogo pode vir com
-`language.translator` **vazio** (o turco veio), e gravar por cima assim apaga o crédito de quem
-traduziu de graça - reponha do arquivo que estava em uso; e dois envios do mesmo idioma podem ser o
-mesmo arquivo com nomes diferentes, então compare pela CONTAGEM de chaves antes de escolher.
-Processado, o arquivo vai para `translations_inbox/processadas/` - a subpasta não dispara o portão e
+**Envio de jogador NÃO é necessariamente melhoria - compare a contagem de chaves antes de promover.**
+Aconteceu na primeira vez que o portão barrou um deploy de verdade: chegou um `es_LATAM` novo, de
+outra pessoa, com **518 chaves e 100 faltando**, enquanto o que estava no ar tinha 614 e nenhuma - e
+o campo de tradutor dentro dele era de um TERCEIRO. Era o arquivo antigo, embutido num cliente
+desatualizado, reenviado de volta. Promover teria desfeito uma tradução completa, e o portão teria
+"passado" porque a caixa esvaziou. Rode `python tools/check_translation.py` nos DOIS (o envio e o que
+está em `lang/`) e só promova o que tiver mais chaves.
+
+Outras duas do mesmo lote: o envio pode vir com `language.translator` **vazio** (o turco veio), e
+gravar por cima assim apaga o crédito de quem traduziu de graça - reponha do arquivo em uso; e dois
+envios do mesmo idioma podem ser o mesmo arquivo com nomes diferentes. Processado - promovido OU
+descartado -, o arquivo vai para `translations_inbox/processadas/`: a subpasta não dispara o portão e
 guarda quem mandou o quê.
 
 **`parse_json` LANÇA exceção em JSON malformado** (não devolve null). Já derrubou o servidor inteiro
