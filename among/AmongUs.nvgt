@@ -88,6 +88,11 @@ void main() {
 	title_params.set("version", GAME_VERSION);
 	show_window(tr("app.window_title", title_params));
 
+	// Depois da janela, porque o diálogo de permissão do Android é do aplicativo, e antes de qualquer
+	// tela: perguntar pelo microfone no meio de uma partida seria interromper o jogo pela pergunta
+	// mais previsível que existe. Fora do Android isto não faz nada.
+	request_voice_permission();
+
 	// Depois da janela existir, pra que o aviso de versão nova tenha onde aparecer, e antes do menu,
 	// que é onde o jogador fica. Sem internet ou com o site fora do ar isto não diz nada e não
 	// atrasa nada perceptível - ver src/core/updater.nvgt.

@@ -1,0 +1,12 @@
+// platform.nvgt
+// Uma pergunta só: estamos rodando num celular Android?
+//
+// Ela mora num arquivo próprio porque a resposta óbvia está ERRADA e isso é caro de descobrir de
+// novo: `PLATFORM` sai de Poco::Environment::osName(), que no Android devolve "Linux" - o mesmo que
+// no servidor. Quem testar `PLATFORM == "android"` recebe false para sempre, sem erro nenhum, e o
+// código de celular simplesmente nunca roda.
+//
+// O sinal honesto é `ANDROID_SDK_VERSION`: no Android é a versão da API (28 ou mais, que é o mínimo
+// do stub), e fora dele o NVGT devolve -1 de propósito (ver o #ifndef SDL_PLATFORM_ANDROID em
+// xplatform.cpp). Não é preciso compilar duas vezes: o MESMO script responde certo nos dois lados.
+bool is_android() { return ANDROID_SDK_VERSION >= 0; }

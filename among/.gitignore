@@ -8,6 +8,15 @@ sounds.dat
 *.exe
 *.iso
 *.tar.gz
+# O APK do Android e a assinatura incremental que o apksigner grava ao lado dele.
+*.apk
+*.apk.idsig
+
+# Índice de idiomas gerado por tools/build_android.ps1 a partir de lang/. Existe só porque dentro de
+# um APK não há pasta para listar (ver get_available_languages em src/i18n.nvgt) - é derivado da
+# própria pasta e é regerado em todo build de Android, então versioná-lo criaria uma segunda lista
+# capaz de discordar da primeira.
+lang/index.list
 # Servidor extraído pelo deploy.ps1 para o docker build.
 server_pkg/
 # Traduções recolhidas do servidor (infra/read_translations.ps1): vão para o repositório de traduções, não para este.

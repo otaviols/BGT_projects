@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifesto do APK. É uma CÓPIA do template que vem dentro do stub do NVGT
+  (stub/nvgt_android.bin, entrada AndroidManifest.xml), com uma única diferença: o microfone está
+  liberado, porque o jogo tem chat de voz e o template vem com essa linha comentada.
+
+  O NVGT compila este arquivo com o aapt2 que ele mesmo traz e substitui três coisas sozinho: o
+  `package` (de build.product_identifier), a versão, e o %APP_LABEL% (de build.product_name). Por
+  isso os valores abaixo ficam iguais aos do template - mexer neles aqui não muda o APK.
+
+  Ele é passado ao compilador por `-s build.android_manifest=...` em tools/build_android.ps1; sem
+  isso o NVGT usa o template interno e o jogo sai SEM permissão de microfone, e o sintoma é ruim de
+  achar: tudo funciona, só ninguém ouve ninguém falar.
+
+  Quando uma build nova do NVGT mudar o template (SDK alvo, uma meta-data nova), este arquivo fica
+  para trás sem avisar. Compare com a entrada do stub ao atualizar o NVGT.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.samtupy.nvgt.stub"
+    android:installLocation="auto"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <uses-sdk
+        android:minSdkVersion="28"
+        android:targetSdkVersion="35" />
+
+    <uses-feature android:glEsVersion="0x00020000" />
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.gamepad"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.type.pc"
+        android:required="false" />
+
+    <!-- Chat de voz. O microfone não é EXIGIDO (required="false") de propósito: um aparelho sem
+         microfone ainda joga o jogo inteiro, só não fala - exigir tiraria o jogo da lista de
+         aparelhos compatíveis por causa de um recurso opcional. -->
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <!-- Declara a intenção de usar o TTS do Android (obrigatório no Android 11 e acima). É por aqui
+         que o jogo fala quando não há leitor de tela ligado. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:enableOnBackInvokedCallback="false"
+        android:extractNativeLibs="true"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="%APP_LABEL%"
+        android:theme="@style/AppTheme" >
+        <meta-data
+            android:name="SDL_ENV.SDL_ANDROID_TRAP_BACK_BUTTON"
+            android:value="1" />
+        <meta-data
+            android:name="dev.nvgt.capability.DIRECT_TOUCH"
+            android:value="true" />
+
+        <activity
+            android:name="com.samtupy.nvgt.NVGTGame"
+            android:alwaysRetainTaskState="true"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:exported="true"
+            android:label="%APP_LABEL%"
+            android:launchMode="singleInstance"
+            android:preferMinimalPostProcessing="true" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

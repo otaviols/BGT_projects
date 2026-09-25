@@ -22,6 +22,12 @@ class changelog_entry {
 // O arquivo do idioma atual, ou o inglês. No jogo compilado os nomes são os DESTINOS dos #pragma
 // document (pasta docs/); rodando do fonte, os próprios arquivos do repositório. Devolve "" se não
 // há nenhum.
+//
+// O candidato é escolhido tentando LER, e não perguntando se o arquivo existe: no Android os
+// documentos ficam dentro do APK, onde `file_exists` (que usa stat) responde false e o
+// `file_get_contents` (que passa pelo SDL) devolve o texto. Com a pergunta errada, a tela de
+// Novidades no celular dizia que não há histórico nenhum. O arquivo é lido duas vezes no caminho
+// feliz, o que custa nada numa tela que se abre por vontade do jogador.
 string changelog_file_for_language() {
 	array<string> candidatos;
 	if (g_i18n.current_language == "pt_BR") {
@@ -31,7 +37,7 @@ string changelog_file_for_language() {
 	candidatos.insert_last("docs/CHANGELOG.md");
 	candidatos.insert_last("docs/CHANGELOG_enUS.md");
 	for (uint i = 0; i < candidatos.length(); i++) {
-		if (file_exists(candidatos[i])) return candidatos[i];
+		if (!file_get_contents(candidatos[i]).empty()) return candidatos[i];
 	}
 	return "";
 }

@@ -104,6 +104,64 @@ updater só avisa e abre o site.
 **Mexeu em qualquer arquivo de `sounds/`? Rode o `build_pack` antes de compilar.** O jogo empacota o
 `sounds.dat`, não a pasta — sem regerar, o build sai com o som antigo e nada avisa.
 
+### Android
+
+```
+tools\build_android.ps1        # -> AmongUs-android.apk, assinado, ~21 MB
+```
+
+O APK sai pronto e **assinado**, sem instalar nada: a instalação do NVGT traz o `aapt2`, o
+`apksigner`, o `zipalign`, um Java e até o `adb` em `android-tools/` — as variáveis `ANDROID_HOME` e
+`JAVA_HOME` podem estar vazias. Dura cerca de cinco segundos. Fora do `build_clients.ps1` de
+propósito: o site ainda serve Windows, e o updater do jogo não sabe instalar APK.
+
+**O build "trava por dez minutos" = a pergunta de instalar no aparelho.** `build.android_install`
+vale 1 por padrão, que significa "perguntar", e a pergunta é um diálogo esperando resposta que nada
+anuncia. O script passa `0`.
+
+**O identificador `com.otaviols.amongusaudiogame` se escolhe UMA vez.** No Android ele é o caminho da
+pasta de dados do aplicativo: trocá-lo depois de alguém instalar não atualiza nada, cria um segundo
+aplicativo e o jogador perde preferências e conta lembrada.
+
+**Toda a configuração do bundle vai por `-s chave=valor` na linha de comando, e não num `.nvgtrc`.**
+A versão é LIDA de `GAME_VERSION`; gravada num arquivo de configuração, ela seria um segundo lugar
+para lembrar de subir junto — a armadilha que o `version.json` já ensinou.
+
+**O microfone precisa de um manifesto nosso.** O template do NVGT vem com a permissão comentada, e
+sem ela o chat de voz fica mudo sem dizer por quê. `tools/android/AndroidManifest.xml` é a cópia do
+template do stub com `RECORD_AUDIO` ligado, passada por `build.android_manifest`; o script confere
+que ela chegou no APK. Ao atualizar o NVGT, compare com a entrada `AndroidManifest.xml` de
+`stub/nvgt_android.bin` — um template novo não avisa que o nosso ficou para trás. A permissão ainda
+tem que ser pedida ao jogador em tempo de execução (`request_voice_permission`, na abertura).
+
+**Dentro do APK, "o arquivo existe?" e "dá para ler o arquivo?" DISCORDAM.** Os assets ficam
+empacotados: `file_exists` (que usa `stat`) responde **false**, e `file_get_contents` (que passa pelo
+SDL) devolve o conteúdo. Foi por isso que o jogo no celular não carregaria idioma nenhum e falaria o
+nome cru de toda chave. Regra: sobre arquivo que veio de `#pragma asset`/`#pragma document`, **nunca
+pergunte se existe — tente ler** e trate vazio como ausente. Vale para `directory_exists` também. O
+`sounds.dat` escapou por sorte: o `pack_file` já abre por SDL.
+
+**E `find_files` não enumera nada dentro do APK** — não há pasta para listar, então a lista de
+idiomas voltava vazia e o jogador ficava preso no padrão. Para isso existe `lang/index.list`
+(gerado pelo script, a partir da própria pasta, em todo build de Android). A pasta continua tendo
+precedência: rodando do fonte um idioma novo aparece na hora, e um índice velho nunca esconde um
+arquivo que está ali. Sonda: `tools/probes/probe_android_assets.nvgt`, que roda **no PC** justamente
+porque esse caminho só rodaria num celular — um defeito nele apareceria como "a tela de idiomas está
+vazia", com um build e uma instalação por tentativa.
+
+**`PLATFORM` diz "Linux" no Android** (sai de `Environment::osName()`), então `PLATFORM == "android"`
+é false para sempre, sem erro. Quem responde é `is_android()` em `src/core/platform.nvgt`, sobre
+`ANDROID_SDK_VERSION` (-1 fora do Android). O updater não precisou de nada: `system_is_unix` é
+verdadeiro lá, então ele já cai no caminho "avise e abra a página" em vez de procurar PowerShell.
+
+**O que ainda não foi feito:** ninguém rodou o APK num aparelho. E o toque não existe — esta versão
+espera **teclado** (Bluetooth ou USB), que é o combinado: gestos vêm depois, e o `touch_keyboard_interface`
+do NVGT mapeia gesto para tecla simulada, então menus, formulários e minigames não precisam de uma
+segunda interface. O que precisa de código de verdade é **andar**, que lê tecla SEGURADA
+(`action_down`) e nenhum gesto expressa isso — é um manche virtual por `on_hold`. E `monitor()` teria
+que ser chamado em todo laço bloqueante, com a mesma disciplina (e a mesma falha silenciosa) do
+`client.update()`.
+
 ## Publicar uma versão
 
 Sempre, e nesta ordem:
@@ -1227,3 +1285,11 @@ infra\read_translations.ps1                    # traduções enviadas pelo jogo 
   sala de carpete ou de neve, eles entram em `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes
   (ver "piso novo entra em DUAS tabelas"). É a única sobra hoje - o `nearbeep.wav` virou o
   `ui/target_in_range.ogg` e está em uso.
+- **O som por COR nunca vai ser encontrado no jogo compilado.** `color_death_sound_path` e
+  `color_kill_sound_path` (`config/colors.nvgt`) escolhem o arquivo específico da cor com
+  `file_exists("sounds/colors/...")` - e no build distribuído os sons vivem dentro do `sounds.dat`,
+  onde `file_exists` responde false. Hoje não vaza nada porque nenhum desses arquivos existe e o
+  fallback genérico é o certo; no dia em que alguém gravar um som de kill por cor, ele vai funcionar
+  rodando do fonte e ficar mudo no jogo dos jogadores. O conserto é perguntar ao pacote
+  (`sound_default_pack`), não ao sistema de arquivos. Achado ao portar para o Android, que tem
+  exatamente a mesma discordância entre "existe" e "dá para ler".

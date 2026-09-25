@@ -1,0 +1,65 @@
+// Sonda dos caminhos que só existem por causa do Android, rodada no PC.
+//
+// Por que ela existe: dentro de um APK os arquivos de idioma e os manuais ficam EMPACOTADOS, e as
+// duas perguntas que o jogo fazia sobre eles não concordam nesse ambiente - `file_exists` usa stat()
+// e responde false para um asset, enquanto `file_get_contents` passa pelo SDL e devolve o conteúdo.
+// O conserto foi parar de perguntar se o arquivo existe e passar a tentar ler. O problema é que no
+// Windows o caminho de reserva (o índice de idiomas) NUNCA roda, porque find_files funciona: sem esta
+// sonda, um defeito nele só apareceria como "a tela de idiomas está vazia no celular", com um build e
+// uma instalação por tentativa.
+//
+// Não precisa de servidor.
+//
+//   nvgt tools/probes/probe_android_assets.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/ui/changelog_screen.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+bool tem(array<string>@ lista, const string&in item) { return lista.find(item) != -1; }
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+
+	// --- 1. Carregar idioma sem perguntar se o arquivo existe ---
+	check("pt_BR carrega", g_i18n.load_language("pt_BR"), "true");
+	check("  e as chaves vêm traduzidas", tr("app.title") != "app.title", "não a própria chave");
+	check("um idioma que não existe é recusado", !g_i18n.load_language("xx_YY"), "false");
+
+	// --- 2. A lista pela PASTA (o caminho do PC) ---
+	array<string>@ da_pasta = g_i18n.get_available_languages();
+	check("a pasta lista os idiomas", da_pasta.length() >= 2, "pelo menos pt_BR e en_US");
+	check("  pt_BR está na lista", tem(da_pasta, "pt_BR"), "pt_BR");
+	check("  en_US está na lista", tem(da_pasta, "en_US"), "en_US");
+	check("  e nada de index (o índice não é um idioma)", !tem(da_pasta, "index"),
+		"lang/index.list fora da lista de idiomas");
+
+	// --- 3. A lista pelo ÍNDICE (o caminho do Android) ---
+	// O índice é escrito aqui, e não lido do que o build deixou: a sonda tem que provar que a LEITURA
+	// funciona, inclusive nos casos que o build nunca produz (um código a mais, linha em branco,
+	// espaço sobrando).
+	string original = file_get_contents("lang/index.list");
+	file_put_contents("lang/index.list", "pt_BR\n en_US \n\nxx_YY\n");
+	array<string>@ do_indice = g_i18n.languages_from_index();
+	check("o índice lista o que existe", do_indice.length() == 2, "2, foi " + do_indice.length());
+	check("  pt_BR veio", tem(do_indice, "pt_BR"), "pt_BR");
+	check("  en_US veio, com espaços em volta aparados", tem(do_indice, "en_US"), "en_US");
+	check("  um código sem arquivo NÃO entra", !tem(do_indice, "xx_YY"),
+		"índice velho não pode oferecer idioma que não veio no APK");
+
+	// Índice ausente não pode virar exceção: é o estado de todo build que não é de Android.
+	file_delete("lang/index.list");
+	check("sem índice, a lista sai vazia e não explode", g_i18n.languages_from_index().length() == 0, "0");
+	if (original != "") file_put_contents("lang/index.list", original);
+
+	// --- 4. O changelog escolhido por leitura, não por existência ---
+	string caminho = changelog_file_for_language();
+	check("acha um arquivo de changelog", caminho != "", "um caminho");
+	check("  e ele tem conteúdo de verdade", !file_get_contents(caminho).empty(), "não vazio");
+
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

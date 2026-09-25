@@ -41,8 +41,13 @@ class i18n {
 	// idioma escolhido e falhar ao carregar a reserva têm consequências bem diferentes.
 	private bool load_into(const string&in lang_code, dictionary@ target) {
 		string file_path = "lang/" + lang_code + ".json";
-		if (!file_exists(file_path)) return false;
-
+		// Sem file_exists() antes, de propósito: no Android os arquivos de idioma ficam DENTRO do
+		// APK, e as duas perguntas não concordam. `file_exists` usa stat() no sistema de arquivos e
+		// responde false para um asset empacotado; `file_get_contents` passa pelo SDL, que sabe abrir
+		// asset de APK e devolve o conteúdo. Com a conferência, o jogo no celular não carregava
+		// idioma NENHUM e falava o nome cru de toda chave, sem um erro em lugar nenhum.
+		// Conteúdo vazio já cobre os dois casos ("não existe" e "não deu para ler"), que é tudo o que
+		// quem chama precisa saber.
 		string content = file_get_contents(file_path);
 		if (content.empty()) return false;
 
@@ -115,9 +120,21 @@ class i18n {
 		return _current_language;
 	}
 
+	// Quais idiomas existem. A lista sai da PASTA, e não de uma lista no código, para que acrescentar
+	// um idioma seja largar um .json ali - ver a tela de idiomas.
+	//
+	// No Android isso não basta: `find_files` lista o sistema de arquivos, e dentro de um APK não há
+	// pasta para listar - ele volta vazio e o jogador fica preso no idioma padrão, sem lista e sem
+	// explicação. Para esse caso existe `lang/index.list` (um código por linha), gerado ao compilar o
+	// APK por tools/build_android.ps1 a partir da própria pasta.
+	//
+	// A ordem importa: a PASTA vem primeiro e o índice é só reserva. Rodando do fonte, um idioma novo
+	// aparece na hora, sem ninguém precisar regerar nada - e um índice velho nunca esconde um arquivo
+	// que está ali.
 	array<string>@ get_available_languages() const {
 		array<string> languages;
 		array<string>@ files = find_files("lang/*.json");
+		if (files.length() == 0) return languages_from_index();
 		for (uint i = 0; i < files.length(); i++) {
 			string filename = files[i];
 			// Remove diretório e extensão .json.
@@ -125,6 +142,28 @@ class i18n {
 			if (slash == -1) slash = filename.find_last("\\");
 			string base = slash == -1 ? filename : filename.substr(slash + 1);
 			if (base.length() > 5) languages.insert_last(base.substr(0, base.length() - 5));
+		}
+		return languages;
+	}
+
+	// A reserva do Android: os códigos que o índice declara, um por linha. Cada um ainda é conferido
+	// carregando o arquivo - um índice que sobrou de um build anterior não pode oferecer um idioma
+	// que não veio dentro do APK, senão escolher aquele idioma deixaria o jogo falando por chaves.
+	//
+	// NÃO é privada por um motivo: rodando no Windows ela nunca é chamada (find_files funciona), então
+	// sem uma porta de entrada este código só rodaria num celular - e um defeito aqui apareceria como
+	// "a tela de idiomas está vazia no Android", com um ciclo de build e instalação para cada
+	// tentativa. A sonda tools/probes/probe_android_assets.nvgt a chama direto, no PC.
+	array<string>@ languages_from_index() const {
+		array<string> languages;
+		string content = file_get_contents("lang/index.list");
+		if (content.empty()) return languages;
+		array<string>@ lines = content.replace("\r", "", true).split("\n");
+		for (uint i = 0; i < lines.length(); i++) {
+			string code = lines[i].trim_whitespace();
+			if (code == "") continue;
+			if (file_get_contents("lang/" + code + ".json").empty()) continue;
+			languages.insert_last(code);
 		}
 		return languages;
 	}
