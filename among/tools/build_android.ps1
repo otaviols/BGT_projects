@@ -32,7 +32,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
 try {
-	$APP_ID = "com.otaviols.amongusaudiogame"
+	$APP_ID = "com.amongusaudiogame.game"
 	$APP_NAME = "Among Us Audiogame"
 
 	# A versão sai do código, que é a única fonte dela.

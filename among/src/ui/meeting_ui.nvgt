@@ -20,8 +20,19 @@
 // que a votação termina (mesmo problema já visto e corrigido no navegador de lobbies, ver
 // ui/lobby_screens.nvgt - nome diferente aqui só pra não colidir com aquele global).
 game_client@ g_vote_pump_client;
+// A reunião de quem está com o menu aberto. Enquanto ele bloqueia, o laço da partida não roda - e
+// eram dele os dois sinais que dizem ao jogador que o tempo está acabando: a fala do que chega e o
+// tique dos dez segundos finais. Sem isto, quem abria a lista de nomes ficava numa sala silenciosa,
+// sem chat, sem sabotagem e sem contagem, até desistir de votar.
+meeting_ui@ g_vote_pump_ui;
 void pump_client_during_vote_menu(menu@ m, string data) {
-	if (@g_vote_pump_client != null) g_vote_pump_client.update();
+	if (@g_vote_pump_client != null) {
+		g_vote_pump_client.update();
+		// Fala o que chegou SEM tirar da fila: o laço principal ainda vai tratar cada pacote com
+		// todos os efeitos dele (ver announce_background_events).
+		announce_background_events(g_vote_pump_client);
+	}
+	if (@g_vote_pump_ui != null) g_vote_pump_ui.tick_vote_timer();
 }
 
 class meeting_ui {
@@ -257,6 +268,19 @@ class meeting_ui {
 	// (nem pula): o menu só fecha e dá pra abrir de novo com a tecla de votar enquanto a votação
 	// estiver aberta. Antes ESC mandava "pular" - quem fechasse o menu sem querer perdia o voto
 	// daquela reunião inteira sem nem saber.
+	// Roda o menu até o jogador escolher (ou fechar), e devolve false se a VOTAÇÃO acabou antes disso.
+	//
+	// É o `run()` do menu aberto à mão - ele é `while (monitor()) wait(5)` e não tem como sair por
+	// outro motivo. Quem avisa é o `voting_ended` do cliente, marcado na chegada da apuração, porque
+	// varrer a fila de pacotes a cada quadro é o que já travou o jogo uma vez.
+	private bool run_until_choice(menu@ m) {
+		while (m.monitor()) {
+			if (client.voting_ended) return false;
+			wait(5);
+		}
+		return true;
+	}
+
 	private void run_voting_menu() {
 		ui_sound(SND_DIALOG_OPEN);
 		menu vote_menu;
@@ -265,6 +289,7 @@ class meeting_ui {
 		vote_menu.select_sound = ""; // os sons de marcar e confirmar são os do voto, tocados abaixo
 		vote_menu.sounds_prefix = "sounds/";
 		@g_vote_pump_client = client;
+		@g_vote_pump_ui = this;
 		@vote_menu.background_callback = @pump_client_during_vote_menu;
 
 		array<roster_entry@>@ alive = roster.alive_entries();
@@ -278,7 +303,14 @@ class meeting_ui {
 		// quem estava em cima na lista - e voto não se desfaz.
 		string marked = "";
 		while (true) {
-			vote_menu.run();
+			// Não é `vote_menu.run()`: aquele laço só termina por tecla, e a votação pode acabar
+			// (por tempo, ou porque todo mundo já votou) com este menu aberto.
+			if (!run_until_choice(vote_menu)) {
+				ui_sound(SND_DIALOG_CLOSE);
+				// Nada é dito aqui de propósito: o laço da partida volta a rodar no instante seguinte
+				// e anuncia a apuração inteira. Uma frase nossa seria cortada por ela, ou a cortaria.
+				return;
+			}
 			string selected_id = vote_menu.selected_item_id;
 			if (selected_id == "") {
 				ui_sound(SND_DIALOG_CLOSE);

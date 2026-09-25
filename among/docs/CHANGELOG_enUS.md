@@ -6,6 +6,30 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.34.0
+
+**The game now runs on Android.** This is the first phone version and it expects a **keyboard**
+(Bluetooth or USB): touch gestures do not exist yet. The file is on the website, next to the other
+versions. Tell us through the in-game message what worked and what did not — this is the first time
+it has left the computer.
+
+**The voting screen no longer leaves you in the dark.** With the list of names open you heard
+nothing: no chat, no sabotage, not even the final ten-second countdown — and when voting ended, the
+list just stayed there. All of that now reaches you with the list open, and the result closes the
+screen by itself and is announced.
+
+**Sabotage no longer bothers the dead — for real this time.** The radar was still being refused to
+dead players during a communications blackout, which is exactly when a ghost is crossing the ship to
+finish the team's tasks.
+
+**Server notice.** When there is something to announce — a new version on the site, maintenance —
+the message is spoken when it arrives and stays pinned at the top of the game list, to read again
+whenever you want.
+
+- Fixed a text that lied: the Phantom's description said that vanishing and coming back make noise
+  where you are. They do not — the sound is yours alone, and nobody around hears a thing. The
+  behaviour was always this; the explanation was wrong.
+
 ## 0.33.0
 
 **New task: clean the filter.** The filter chamber has leaves stuck in it, and you move the nozzle

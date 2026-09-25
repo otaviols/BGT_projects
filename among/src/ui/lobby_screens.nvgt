@@ -49,8 +49,20 @@ class lobby_browser_result {
 class hall_view {
 	array<string> names;
 	chat_log@ log = chat_log();
+	// Recado fixo de quem opera o servidor (ver C_ADMIN_SET_NOTICE). Ele chega em todo retrato do
+	// saguão, então `ja_falado` é o que impede a mesma frase de ser repetida a cada vez que alguém
+	// entra ou sai da lista - o recado é dito quando MUDA, e fica disponível na lista de partidas
+	// para reler quando o jogador quiser.
+	string notice;
+	private string ja_falado;
+
+	// Devolve true se este recado ainda não foi falado nesta sessão.
+	bool notice_is_new() const { return notice != "" && notice != ja_falado; }
+	void notice_was_spoken() { ja_falado = notice; }
 }
 hall_view g_hall;
+
+dictionary@ notice_params(const string&in text) { dictionary@ d = dictionary(); d.set("text", text); return d; }
 
 // Tira da fila os pacotes do saguão, onde quer que ela esteja sendo lida.
 //
@@ -65,6 +77,17 @@ void drain_hall_packets(game_client@ client) {
 			g_hall.names.resize(0);
 			json_array@ names = p.get_array("players");
 			if (@names != null) for (uint k = 0; k < names.length(); k++) g_hall.names.insert_last(string(names[k]));
+			g_hall.notice = p.get_string("notice", "");
+			if (g_hall.notice_is_new()) {
+				g_hall.notice_was_spoken();
+				// Sem interromper, como o chat do saguão: quem está lendo a lista de partidas não pode
+				// ser cortado no meio. E sempre com o rótulo traduzido na frente - o recado em si é
+				// texto cru escrito por quem opera o servidor, e sem o rótulo soaria como a fala de
+				// outro jogador.
+				string aviso = tr("hall.notice", notice_params(g_hall.notice));
+				g_hall.log.add("", aviso);
+				speak(aviso, false);
+			}
 		} else if (p.type == S_HALL_CHAT) {
 			string name = p.get_string("name");
 			string text = p.get_string("text");
@@ -201,6 +224,11 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		@g_lobby_pump_client = client;
 		@m.background_callback = @pump_client_during_menu;
 
+		// O recado do servidor fica FIXO no topo, acima das partidas: ele é dito uma vez quando chega,
+		// e quem estava numa partida no momento em que foi posto precisa de um lugar para achá-lo.
+		// Não é selecionável para nada - escolhê-lo só reabre a lista, e a própria linha já é o texto.
+		if (g_hall.notice != "") m.add_item(tr("hall.notice", notice_params(g_hall.notice)), "__notice__");
+
 		if (@lobbies != null) {
 			for (uint i = 0; i < lobbies.length(); i++) {
 				json_object@ entry = lobbies.get_object(i);
@@ -244,7 +272,7 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			result.go_back = true;
 			return result;
 		}
-		if (id == "__refresh__") continue;
+		if (id == "__refresh__" || id == "__notice__") continue;
 		if (id == "__hall__") {
 			run_hall_screen(client);
 			continue;

@@ -119,8 +119,39 @@ class user_database {
 			"last_used DATETIME DEFAULT CURRENT_TIMESTAMP)"
 		) != SQLITE_OK) return false;
 
+		// Ajustes do servidor que sobrevivem a um reinício - hoje só o recado do saguão. É uma tabela
+		// de chave e valor, e não uma coluna por ajuste, porque cada ajuste novo ganharia um ALTER
+		// TABLE num banco que já existe em produção (ver a armadilha do resolved_at logo acima).
+		if (db.execute(
+			"CREATE TABLE IF NOT EXISTS server_settings (" +
+			"key TEXT PRIMARY KEY, " +
+			"value TEXT NOT NULL, " +
+			"updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+		) != SQLITE_OK) return false;
+
 		db.execute("CREATE INDEX IF NOT EXISTS idx_username ON users(username)");
 		return true;
+	}
+
+	// --- Ajustes do servidor ---------------------------------------------------------------------
+
+	string get_setting(const string&in key, const string&in padrao = "") {
+		if (@db == null) return padrao;
+		sqlite3statement@ st = db.prepare("SELECT value FROM server_settings WHERE key = ?");
+		if (@st == null) return padrao;
+		st.bind_text(1, key, false);
+		if (st.step() != SQLITE_ROW) return padrao;
+		return st.column_text(0);
+	}
+
+	bool set_setting(const string&in key, const string&in value) {
+		if (@db == null) return false;
+		sqlite3statement@ st = db.prepare(
+			"INSERT OR REPLACE INTO server_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
+		if (@st == null) return false;
+		st.bind_text(1, key, false);
+		st.bind_text(2, value, false);
+		return st.step() == SQLITE_DONE;
 	}
 
 	// Hash do token SEMPRE como hexadecimal ASCII. Duas armadilhas da build Linux do NVGT, as duas

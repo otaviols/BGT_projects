@@ -9,7 +9,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.33.0";
+const string GAME_VERSION = "0.34.0";
 
 // Versão do PROTOCOLO de rede, separada da versão do jogo de propósito: a maioria das versões não
 // muda o que viaja pela rede, e as que mudam de um jeito incompatível são raras e precisam de um
@@ -51,6 +51,10 @@ const uint MAX_JOIN_CODE_LENGTH = 32;
 // Tamanho máximo de uma mensagem de chat. Vem da máquina do jogador, como tudo mais: sem teto, uma
 // mensagem de um megabyte viraria uma fala infinita no leitor de tela de todo mundo na sala.
 const uint MAX_CHAT_LENGTH = 300;
+// Chave do recado fixo do saguão na tabela de ajustes do servidor (database/user_db.nvgt). Fica numa
+// constante porque quem escreve (o servidor) e quem lê (o próprio servidor, ao subir) precisam usar
+// exatamente a mesma string - errar uma letra faria o recado "sumir" a cada reinício, calado.
+const string SETTING_HALL_NOTICE = "hall_notice";
 // Teto da fila de pacotes recebidos do cliente. A fila só é esvaziada pelo laço principal, e o
 // jogador passa minutos fora dele - numa task, na câmera, na caixa de mensagem. Numa partida cheia
 // chegam centenas de pacotes de posição por segundo, e a fila crescia sem limite: a verificação de

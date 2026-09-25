@@ -119,7 +119,7 @@ propósito: o site ainda serve Windows, e o updater do jogo não sabe instalar A
 vale 1 por padrão, que significa "perguntar", e a pergunta é um diálogo esperando resposta que nada
 anuncia. O script passa `0`.
 
-**O identificador `com.otaviols.amongusaudiogame` se escolhe UMA vez.** No Android ele é o caminho da
+**O identificador `com.amongusaudiogame.game` se escolhe UMA vez.** No Android ele é o caminho da
 pasta de dados do aplicativo: trocá-lo depois de alguém instalar não atualiza nada, cria um segundo
 aplicativo e o jogador perde preferências e conta lembrada.
 
@@ -153,6 +153,11 @@ vazia", com um build e uma instalação por tentativa.
 é false para sempre, sem erro. Quem responde é `is_android()` em `src/core/platform.nvgt`, sobre
 `ANDROID_SDK_VERSION` (-1 fora do Android). O updater não precisou de nada: `system_is_unix` é
 verdadeiro lá, então ele já cai no caminho "avise e abra a página" em vez de procurar PowerShell.
+
+O APK entra no deploy junto dos outros pacotes (`AmongUs-android.apk`, na lista de extras do
+`deploy.ps1`), mas **não é gerado pelo `build_clients.ps1`** - rode `tools\build_android.ps1` antes
+de publicar uma versão que deva levá-lo, senão o site fica com o APK da versão anterior sem nada
+avisar.
 
 **O que ainda não foi feito:** ninguém rodou o APK num aparelho. E o toque não existe — esta versão
 espera **teclado** (Bluetooth ou USB), que é o combinado: gestos vêm depois, e o `touch_keyboard_interface`
@@ -279,6 +284,17 @@ decisão, a alternativa descartada e o problema que aquilo evita. É o padrão e
 mantenha.
 
 ### Tradução e identidade
+
+**O recado do saguão é a ÚNICA exceção à regra abaixo, e por um motivo que não tem volta.** Ele é
+texto escrito à mão por quem opera o servidor (`infra\set_notice.ps1`, ou
+`tools/server_admin.nvgt notice "..."`), e não existe chave de tradução para uma frase que ainda não
+foi escrita. Por isso ele viaja como TEXTO, e o cliente sempre o anuncia atrás de um rótulo que ELE
+traduz ("Recado do servidor:") - sem o rótulo, soaria como a fala de outro jogador. Duas decisões
+que o sustentam: ele vai em TODO `S_HALL_STATE`, e não uma vez no login (avisar de uma manutenção só
+alcançaria quem ainda não chegou), e quem decide se vale falar de novo é o cliente, que guarda o
+último que ouviu; e ele mora no BANCO (`server_settings`), porque um recado que some no próximo
+deploy não serve para avisar de nada - o que obriga a LEMBRAR DE APAGÁ-LO quando deixar de valer.
+Sonda: `tools/probes/probe_hall_notice.nvgt` (precisa do `AMONGUS_ADMIN_TOKEN`).
 
 **Texto do servidor viaja como chave de tradução, nunca como frase pronta.** Os jogadores de uma
 partida podem estar em idiomas diferentes, e quem sabe o idioma de cada um é o cliente dele. Ver
@@ -796,6 +812,27 @@ todo mundo, vivo ou não - foi o recado #96, chegado JÁ com a correção parcia
 no alarme é `apply_sabotage_effects`, o mesmo lugar que decide os outros efeitos, e que roda no
 começo, no conserto, na MORTE e na volta da reunião. O `meeting_ui` não toca mais nele. Sonda:
 `tools/probes/probe_alarme_fantasma.nvgt`, que chama a função de verdade e olha o slot do som.
+
+**Conserto de percepção que "não pega" está do OUTRO lado da rede.** "Sabotagem não atinge fantasma"
+foi corrigida três vezes e continuava acontecendo, porque todas as correções foram feitas no CLIENTE.
+O radar é uma pergunta ao SERVIDOR, e lá a condição (`radar_targets`) olhava só o papel
+(`!immune_to_comms`), nunca se a pessoa estava viva. Pior: o cliente do morto aplica a regra certa e
+por isso nem recusa a varredura - o pedido sai, e quem responde "o radar está fora" é o servidor. Do
+lado de quem joga isso é indistinguível de "não consertaram nada". Antes de mexer numa regra de
+percepção, liste os DOIS lados que a aplicam. Sonda: `tools/probes/probe_ghost_radar.nvgt`, que
+cobra as duas metades (o fantasma é atendido E o vivo continua cego) - sem a segunda, um radar que
+respondesse porque a sabotagem nem começou passaria. Ela reprova contra a produção da 0.33.0.
+
+**Tela bloqueante que o jogador abre no meio de uma FASE precisa saber que a fase acabou.** O menu de
+votação usava `menu.run()`, que é `while (monitor()) wait(5)` e só termina por tecla: a apuração
+chegava, a partida seguia, e o jogador continuava escolhendo um nome numa votação encerrada, sem
+ouvir a apuração, o chat, a sabotagem nem o tique dos dez segundos finais. São TRÊS peças, e as três
+são necessárias: o laço é aberto à mão (`run_until_choice`), o `background_callback` chama
+`announce_background_events` (falar sem consumir, como as tasks já faziam) e também o `tick_vote_timer`
+(o tique é do laço da partida, que não está rodando), e o fim da votação é marcado na CHEGADA do
+pacote (`voting_ended` no game_client), porque varrer a fila por quadro é o que já travou o jogo.
+Nada é falado ao fechar de propósito: o laço da partida volta no instante seguinte e anuncia a
+apuração inteira - uma frase nossa seria cortada por ela.
 
 **Recurso de UM de cada vez precisa ser recusado no servidor E anunciado ao cliente.** O scanner da
 enfermaria guarda um `visible_task_peer` só; com três pessoas entrando juntas, elas se sobrescreviam

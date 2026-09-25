@@ -139,6 +139,9 @@ const string C_ADMIN_DELETE_TRANSLATION = "c_admin_delete_translation"; // {toke
 const string C_ADMIN_RESOLVE_FEEDBACK = "c_admin_resolve_feedback"; // {token, feedback_id, until, undo}
 const string C_ADMIN_DRAIN = "c_admin_drain";     // {token, seconds}
 const string C_ADMIN_STATUS = "c_admin_status";   // {token}
+// Recado fixo do saguão. Texto VAZIO apaga. Existe para avisar os jogadores de algo (uma versão
+// nova no site, uma manutenção) sem publicar uma versão do jogo só por causa do aviso.
+const string C_ADMIN_SET_NOTICE = "c_admin_set_notice"; // {token, text}
 
 // Servidor -> Cliente
 const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id, session_token?} - peer_id = como o SERVIDOR me identifica
@@ -197,7 +200,12 @@ const string S_PONG = "s_pong";                             // {} - resposta a C
 const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, text}
 // Saguão (ver C_HALL_CHAT). Só chega a quem está fora de qualquer sala; quem entra numa deixa de
 // receber, e é por isso que a conversa do saguão nunca atrapalha uma partida.
-const string S_HALL_STATE = "s_hall_state";                 // {players: [nomes]}
+// O `notice` é o recado fixo do servidor (ver C_ADMIN_SET_NOTICE), e é a ÚNICA frase que o servidor
+// manda pronta em vez de mandar uma chave de tradução. Não há como ser diferente: é texto escrito à
+// mão por quem opera o servidor, e não existe uma chave para uma frase que ainda não foi escrita.
+// Quem escreve decide em que idioma escreve; por isso ele é sempre acompanhado do que o cliente
+// TRADUZ ("Recado do servidor:"), para ninguém confundir com fala de outro jogador.
+const string S_HALL_STATE = "s_hall_state";                 // {players: [nomes], notice}
 const string S_HALL_CHAT = "s_hall_chat";                   // {name, text}
 // Confirmação de que o recado foi GRAVADO (não só recebido). O jogador precisa disto: sem resposta,
 // mandar feedback é falar no vácuo, e quem não tem certeza de que chegou manda de novo.

@@ -6,6 +6,29 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.34.0
+
+**O jogo agora roda no Android.** É a primeira versão para celular e ela espera um **teclado**
+(Bluetooth ou USB): os gestos de toque ainda não existem. O arquivo está no site, ao lado das outras
+versões. Conte pelo recado dentro do jogo o que funcionou e o que não funcionou — é a primeira vez
+que ele sai do computador.
+
+**A tela de votação não te deixa mais no escuro.** Com a lista de nomes aberta, você continuava sem
+ouvir nada: nem o chat, nem a sabotagem, nem a contagem dos últimos dez segundos — e, quando a
+votação acabava, a lista simplesmente continuava ali. Agora tudo isso chega com a lista aberta, e a
+apuração fecha a tela sozinha e é anunciada.
+
+**Sabotagem deixou de atrapalhar quem já morreu — desta vez de verdade.** O radar continuava sendo
+recusado a quem estava morto durante um apagão de comunicações, que é justamente quando o fantasma
+está atravessando a nave para terminar as tarefas do time.
+
+**Recado do servidor.** Quando houver algo a avisar — versão nova no site, manutenção — a mensagem é
+falada ao chegar e fica fixa no topo da lista de partidas, para reler quando quiser.
+
+- Corrigido um texto que mentia: a descrição do Fantasma dizia que sumir e voltar fazem barulho onde
+  você está. Não fazem — o som é só seu, e ninguém em volta ouve nada. O comportamento sempre foi
+  esse; era a explicação que estava errada.
+
 ## 0.33.0
 
 **Tarefa nova: limpar o filtro.** A câmara do filtro tem folhas presas, e você leva o aspirador pelas

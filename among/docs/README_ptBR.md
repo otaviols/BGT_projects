@@ -43,6 +43,10 @@ sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela
 sala, Enter diz o que é o objeto mais próximo, e ESC volta ao menu. É o jeito de aprender onde fica
 cada coisa antes de haver um impostor por perto.
 
+**Recado do servidor:** de vez em quando quem cuida do servidor deixa um aviso — uma versão nova no
+site, uma manutenção. Ele é falado quando chega e fica fixo no topo da lista de partidas, para você
+reler quando quiser. Some quando deixa de valer.
+
 **Antes de jogar:** no menu inicial existe a opção **Aprender os sons do jogo**. Ela toca cada som
 do jogo com o nome dele. Vale muito a pena passar por ela uma vez — o jogo inteiro depende de
 reconhecer esses sons.
@@ -61,6 +65,10 @@ O que mudou em cada versão está no menu inicial, em **Novidades** — e també
 **Linux e Mac:** as versões para Linux e Mac estão no site, experimentais (a do Linux é um `.tar.gz`;
 a do Mac é uma imagem de disco: abra e arraste o jogo para Aplicativos). Nesses sistemas a atualização ainda
 é manual: o jogo avisa que saiu versão nova e abre a página de download.
+
+**Android:** há um `.apk` no site. É a primeira versão para celular e ela espera um **teclado**
+(Bluetooth ou USB) — os gestos de toque ainda não existem, então sem teclado não dá para jogar. A
+atualização também é manual: quando sair versão nova, o jogo avisa e abre a página.
 
 Suas configurações e sua conta não se perdem na atualização: as preferências ficam na pasta de dados
 do usuário, e a sua conta vive no servidor.

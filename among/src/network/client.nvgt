@@ -48,6 +48,12 @@ class game_client {
 	// uma tela bloqueante: sem este aviso, quem estava digitando o código continuava ali depois de
 	// outra pessoa ter resolvido, e só descobria ao terminar.
 	bool sabotage_ended = false;
+	// A votação FECHOU (a apuração chegou). O menu de votação é uma tela bloqueante como o painel de
+	// reparo: sem este aviso, quem estava com a lista de nomes aberta continuava escolhendo em quem
+	// votar numa votação que já tinha acabado, e não ouvia a apuração nem o resultado - a tela só
+	// fechava quando ele desistia. Marcado na chegada, como os outros: perguntar varrendo a fila a
+	// cada quadro é o que já travou o jogo uma vez.
+	bool voting_ended = false;
 	// Qual painel acabou de ser resolvido por alguém, sem a sabotagem ter acabado (o oxigênio pede
 	// dois). Serve para fechar o painel de quem estava no MESMO - dois entram juntos, um termina
 	// primeiro, e o outro continuaria digitando um código que já não conta.
@@ -106,6 +112,7 @@ class game_client {
 		string type = pkt.type;
 		if (type == S_MEETING_STARTED || type == S_BODY_REPORTED || type == S_GAME_OVER) interrupt_pending = true;
 		if (type == S_SABOTAGE_FIXED) sabotage_ended = true;
+		if (type == S_VOTE_RESULT) voting_ended = true;
 		if (type == S_SABOTAGE_PROGRESS) panel_fixed_id = pkt.get_string("object_id");
 		incoming.insert_last(pkt);
 		if (incoming.length() > MAX_INCOMING_PACKETS) drop_oldest_position();
@@ -130,6 +137,7 @@ class game_client {
 		incoming.resize(0);
 		interrupt_pending = false;
 		sabotage_ended = false;
+		voting_ended = false;
 		panel_fixed_id = "";
 	}
 
@@ -139,6 +147,7 @@ class game_client {
 			// Fila vazia: o que interrompia já foi entregue e tratado.
 			interrupt_pending = false;
 			sabotage_ended = false;
+			voting_ended = false;
 			panel_fixed_id = "";
 			return null;
 		}
@@ -272,6 +281,13 @@ class game_client {
 	void send_admin_status(const string&in token) {
 		net_packet@ p = net_packet(C_ADMIN_STATUS);
 		p.set_string("token", token);
+		send(p);
+	}
+	// Texto vazio APAGA o recado do saguão - é assim que se tira um aviso que já não vale.
+	void send_admin_set_notice(const string&in token, const string&in text) {
+		net_packet@ p = net_packet(C_ADMIN_SET_NOTICE);
+		p.set_string("token", token);
+		p.set_string("text", text);
 		send(p);
 	}
 

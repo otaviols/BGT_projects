@@ -1,0 +1,110 @@
+// Recado fixo do saguão: quem já está conectado ouve, quem chega depois ouve, e apagar apaga.
+//
+// A parte que erra fácil é a PRIMEIRA: é tentador mandar o recado só no login, e aí avisar sobre uma
+// manutenção alcançaria só quem ainda não chegou - exatamente ao contrário do que se quer. Por isso
+// o recado vai em todo retrato do saguão e o servidor reenvia o retrato assim que ele muda.
+//
+// Precisa do token: é o mesmo com que o servidor subiu.
+//
+//   $env:AMONGUS_ADMIN_TOKEN="..."; $env:AMONGUS_SERVER_HOST="127.0.0.1"
+//   nvgt tools/probes/probe_hall_notice.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/i18n.nvgt"
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+// Espera um S_HALL_STATE cujo recado seja exatamente o esperado. Esperar "o próximo retrato" não
+// serve: o saguão manda um retrato a cada entrada e saída de gente, e o da vez pode ser o de antes
+// da mudança - a sonda passaria ou falharia conforme o tempo, que é o pior tipo de sonda.
+bool espera_recado(game_client@ c, const string&in esperado, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) {
+			if (p.type == S_HALL_STATE && p.get_string("notice", "") == esperado) return true;
+			@p = c.poll_message();
+		}
+		wait(5);
+	}
+	return false;
+}
+game_client@ conecta(server_address addr, const string&in nome, string&out recado_no_login) {
+	recado_no_login = "";
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	net_packet@ hs = wf(c, S_HALL_STATE, 5000);
+	if (@hs != null) recado_no_login = hs.get_string("notice", "");
+	return c;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+	if (token == "") { println("defina AMONGUS_ADMIN_TOKEN (o mesmo com que o servidor subiu)"); return; }
+
+	server_address addr = resolve_server_address();
+	println("servidor: " + addr.host + ":" + addr.port);
+	string sufixo = "" + random(1000, 9999);
+	const string RECADO = "A versao para Android ja esta no site.";
+
+	string ignorado;
+	game_client@ jogador = conecta(addr, "hn" + sufixo, ignorado);
+	game_client@ admin = conecta(addr, "hna" + sufixo, ignorado);
+	if (@jogador == null || @admin == null) { println("nao conectou"); return; }
+
+	// --- 1. Recusa sem token, antes de qualquer outra coisa ---
+	// Se esta passasse, todo o resto da sonda estaria testando um servidor que aceita comando de
+	// administração de qualquer um.
+	admin.send_admin_set_notice("token-errado", "invasao");
+	net_packet@ r0 = wf(admin, S_ADMIN_RESULT, 5000);
+	check("token errado e' recusado", @r0 != null && !r0.get_bool("ok"), "ok=false");
+
+	// --- 2. Quem JA ESTA conectado recebe ---
+	admin.send_admin_set_notice(token, RECADO);
+	net_packet@ r1 = wf(admin, S_ADMIN_RESULT, 5000);
+	check("o servidor aceitou o recado", @r1 != null && r1.get_bool("ok"), "ok=true");
+	check("  e devolveu o texto gravado", @r1 != null && r1.get_string("notice") == RECADO, RECADO);
+	check("quem ja estava no saguao recebe na hora", espera_recado(jogador, RECADO, 5000), "o recado no S_HALL_STATE");
+
+	// --- 3. Quem chega DEPOIS recebe ---
+	string no_login;
+	game_client@ recem = conecta(addr, "hnb" + sufixo, no_login);
+	check("quem entra depois recebe ao logar", @recem != null && no_login == RECADO, RECADO);
+
+	// --- 4. Apagar apaga, para todo mundo ---
+	admin.send_admin_set_notice(token, "");
+	net_packet@ r2 = wf(admin, S_ADMIN_RESULT, 5000);
+	check("o servidor aceitou apagar", @r2 != null && r2.get_bool("ok") && r2.get_string("notice") == "", "notice vazio");
+	check("o saguao para de anunciar", espera_recado(jogador, "", 5000), "S_HALL_STATE sem recado");
+
+	string depois;
+	game_client@ ultimo = conecta(addr, "hnc" + sufixo, depois);
+	check("e quem entra agora nao ouve nada", @ultimo != null && depois == "", "vazio");
+
+	jogador.disconnect(); admin.disconnect();
+	if (@recem != null) recem.disconnect();
+	if (@ultimo != null) ultimo.disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

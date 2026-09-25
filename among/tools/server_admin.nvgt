@@ -4,6 +4,7 @@
 //
 //   nvgt tools/server_admin.nvgt status            -> conexões, salas, partidas em andamento
 //   nvgt tools/server_admin.nvgt drain <segundos>  -> avisa todo mundo e proíbe partidas novas
+//   nvgt tools/server_admin.nvgt notice "texto"    -> recado fixo do saguão (sem texto = apaga)
 //   (o token vem de AMONGUS_ADMIN_TOKEN; AMONGUS_SERVER_HOST aponta para outro servidor)
 //
 // "status" imprime uma linha por campo, "chave=valor", para o PowerShell ler sem adivinhar formato.
@@ -49,6 +50,15 @@ void main() {
 		c.send_admin_drain(token, seconds);
 		net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
 		println(@r == null ? "erro=sem resposta" : (r.get_bool("ok") ? "ok=" + r.get_string("message") : "erro=" + r.get_string("message")));
+	} else if (cmd == "notice") {
+		// Sem argumento, apaga. É o caminho mais usado depois de um aviso de manutenção: o recado tem
+		// que sair quando deixa de valer, senão ele vira parte fixa da tela e ninguém mais o escuta.
+		string text = ARGS.length() > 2 ? ARGS[2] : "";
+		c.send_admin_set_notice(token, text);
+		net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
+		if (@r == null) println("erro=sem resposta (token errado ou servidor antigo)");
+		else if (!r.get_bool("ok")) println("erro=" + r.get_string("message"));
+		else println(r.get_string("notice") == "" ? "ok=recado apagado" : ("ok=" + r.get_string("notice")));
 	} else {
 		println("erro=comando desconhecido " + cmd);
 	}

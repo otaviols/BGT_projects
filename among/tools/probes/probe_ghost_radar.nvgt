@@ -1,0 +1,189 @@
+// Sabotagem não pode atingir quem já morreu - e o radar era o buraco que sobreviveu a três
+// correções.
+//
+// O jogo inteiro já respeitava a regra (alarme, som dos corpos, alcance de audição, marcadores das
+// tarefas), e todas as tentativas de conserto foram feitas no CLIENTE. Só que o cliente do morto
+// aplica a regra certa e por isso nem recusa a varredura: o pedido sai, e quem responde "o radar
+// está fora" é o SERVIDOR, onde a condição olhava só o papel do jogador e nunca se ele estava vivo
+// (ver radar_targets em src/network/server.nvgt). Do lado de quem joga, isso é indistinguível de
+// "não consertaram nada de novo".
+//
+// A sonda prova as duas metades, porque uma sozinha não prova nada: o FANTASMA é atendido, e o VIVO
+// continua cego. Sem a segunda, um radar que respondesse porque a sabotagem nem começou passaria.
+//
+// Contra o servidor de PRODUÇÃO ela reprova (é a versão com o bug); contra um servidor local com a
+// correção, passa.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_ghost_radar.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/i18n.nvgt"
+
+const uint JOGADORES = 5; // 1 impostor + 4 tripulantes: expulsar um ainda deixa a partida de pé
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+// Caixa por cliente: nada do que chega é descartado (ver CLAUDE.md - esperar um pacote apagando o
+// resto já fez uma sonda dizer que uma partida acabada não tinha acabado).
+array<array<net_packet@>@> caixa;
+void prepara_caixa(uint n) { caixa.resize(0); for (uint i = 0; i < n; i++) caixa.insert_last(array<net_packet@>()); }
+void esvazia_caixa() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+void drena(array<game_client@>@ todos) {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+net_packet@ achado(uint i, const string&in tipo) {
+	for (uint k = 0; k < caixa[i].length(); k++) { if (caixa[i][k].type == tipo) return caixa[i][k]; }
+	return null;
+}
+// Espera bombeando TODOS: esperar cliente por cliente deixa os outros sem ACK, e 18 s bastam para o
+// servidor tirá-los da sala.
+bool todos_recebem(array<game_client@>@ todos, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		bool completo = true;
+		for (uint i = 0; i < todos.length(); i++) { if (@achado(i, tipo) == null) { completo = false; break; } }
+		if (completo) return true;
+		wait(5);
+	}
+	return false;
+}
+// Espera UM cliente receber um pacote, sem parar de bombear os outros.
+net_packet@ espera_de(array<game_client@>@ todos, uint quem, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		net_packet@ p = achado(quem, tipo);
+		if (@p != null) return p;
+		wait(5);
+	}
+	return null;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { drena(todos); wait(10); }
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	server_address addr = resolve_server_address();
+	println("servidor: " + addr.host + ":" + addr.port);
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (uint i = 0; i < JOGADORES; i++) {
+		game_client@ c = conecta(addr, "gr" + i + sufixo);
+		if (@c == null) { println("nao conectou gr" + i); return; }
+		todos.insert_last(c);
+	}
+	prepara_caixa(todos.length());
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	todos[0].send_create_lobby("Sonda do radar do fantasma", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+
+	todos[0].send_start_game();
+	if (!todos_recebem(todos, S_GAME_START, 10000)) { println("a partida nao comecou"); return; }
+
+	// Quem é quem: impostor = quem não recebeu tarefa nenhuma.
+	int impostor = -1;
+	array<int> tripulantes;
+	for (uint i = 0; i < todos.length(); i++) {
+		json_array@ tarefas = achado(i, S_GAME_START).get_array("tasks");
+		if (@tarefas == null || tarefas.length() == 0) impostor = int(i);
+		else tripulantes.insert_last(int(i));
+	}
+	if (impostor < 0 || tripulantes.length() < 2) { println("sorteio inesperado"); return; }
+	int morto = tripulantes[0];    // vai ser expulso na votação
+	int vivo = tripulantes[1];     // continua vivo, e é a metade de controle da prova
+	esvazia_caixa();
+
+	// --- Fazer um fantasma pela votação (mais barato que caminhar até alguém e matar) ---
+	todos[0].send_call_meeting();
+	if (!todos_recebem(todos, S_VOTING_STARTED, 10000)) { println("a votacao nao abriu"); return; }
+	bombeia(todos, 300);
+	for (uint i = 0; i < todos.length(); i++) todos[i].send_cast_vote(int64(todos[morto].my_peer_id));
+	if (!todos_recebem(todos, S_VOTE_RESULT, 40000)) { println("a apuracao nao veio"); return; }
+	bombeia(todos, 500);
+	bool acabou = @achado(0, S_GAME_OVER) != null;
+	check("a partida continua depois da expulsao", !acabou, "sem S_GAME_OVER");
+	if (acabou) return;
+	esvazia_caixa();
+
+	// --- O impostor sabota as comunicações ---
+	println("esperando a recarga inicial da sabotagem (" + int(SABOTAGE_INITIAL_COOLDOWN_SECONDS) + "s)...");
+	bombeia(todos, int(SABOTAGE_INITIAL_COOLDOWN_SECONDS * 1000.0) + 1000);
+	esvazia_caixa();
+
+	// INSISTE em vez de chutar o instante: a recarga corre no relógio do servidor, que fica para trás
+	// do relógio de parede quando ele está ocupado. Chutar falhava numa tentativa a cada três, e o
+	// sintoma era "a sabotagem não começou", sem dizer que a culpa era da recarga.
+	timer tentativas;
+	while (@achado(uint(impostor), S_SABOTAGE_STARTED) == null && tentativas.elapsed < 25000) {
+		todos[impostor].send_trigger_sabotage("comms");
+		bombeia(todos, 2000);
+	}
+	net_packet@ sabotou = achado(uint(impostor), S_SABOTAGE_STARTED);
+	check("as comunicacoes foram sabotadas", @sabotou != null, "S_SABOTAGE_STARTED");
+	if (@sabotou == null) {
+		net_packet@ recusa = achado(uint(impostor), S_ERROR);
+		if (@recusa != null) println("   o servidor recusou: " + recusa.get_string(MSG_KEY_FIELD));
+		return;
+	}
+
+	// --- A prova, nas duas metades ---
+	// As filas são esvaziadas ANTES de provocar, e nunca dentro da medição: um S_ERROR parado de
+	// outro momento seria lido como a recusa que a sonda está tentando provar que não acontece.
+	esvazia_caixa();
+	todos[vivo].send_radar_scan(1);
+	net_packet@ erro_vivo = espera_de(todos, uint(vivo), S_ERROR, 5000);
+	check("o VIVO continua cego pelas comunicacoes", @erro_vivo != null, "S_ERROR");
+	if (@erro_vivo != null) {
+		check("  e ouve o motivo certo", erro_vivo.get_string(MSG_KEY_FIELD) == "sabotage.comms.radar_down",
+			"sabotage.comms.radar_down, veio " + erro_vivo.get_string(MSG_KEY_FIELD));
+	}
+
+	esvazia_caixa();
+	todos[morto].send_radar_scan(1);
+	net_packet@ resposta = espera_de(todos, uint(morto), S_RADAR_RESULT, 5000);
+	net_packet@ erro_morto = achado(uint(morto), S_ERROR);
+	check("o FANTASMA e' atendido pelo radar", @resposta != null,
+		@erro_morto != null ? "S_RADAR_RESULT (o servidor recusou: " + erro_morto.get_string(MSG_KEY_FIELD) + ")" : "S_RADAR_RESULT");
+	check("  e nao recebe recusa nenhuma", @erro_morto == null, "nenhum S_ERROR");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}

@@ -44,6 +44,10 @@ ship alone, with no server and no pressure. Each room is named as you enter it, 
 the room, Enter says what the nearest object is, and ESC returns to the menu. It is the way to learn
 where everything is before there is an impostor nearby.
 
+**Server notice:** now and then whoever runs the server leaves an announcement — a new version on
+the site, maintenance. It is spoken when it arrives and stays pinned at the top of the game list, so
+you can read it again whenever you want. It disappears once it no longer applies.
+
 **Before playing:** the main menu has a **Learn the game sounds** option. It plays every sound in
 the game along with its name. It is well worth going through it once — the whole game depends on
 recognising these sounds.
@@ -73,6 +77,11 @@ What changed in each version is in the main menu, under **What's new** — and a
 **Linux and Mac:** the Linux and Mac versions are on the site, experimental (the Linux one is a
 `.tar.gz`; the Mac one is a disk image: open it and drag the game to Applications). On those systems updating is
 still manual: the game says a new version is out and opens the download page.
+
+**Android:** there is an `.apk` on the site. It is the first phone version and it expects a
+**keyboard** (Bluetooth or USB) — touch gestures do not exist yet, so without a keyboard you cannot
+play. Updating is manual there too: when a new version comes out, the game says so and opens the
+page.
 
 ## Sending feedback
 
