@@ -68,6 +68,9 @@ class game_player {
 	// servidor tocaria o som de volta para todo mundo, o tempo todo.
 	bool was_invisible = false;
 	uint meetings_called = 0;
+	// Palpites que o sniper ainda tem NESTA reunião. Recarregado no começo de cada uma (ver
+	// start_meeting), e não gasto por tentativa recusada - só por palpite que saiu.
+	uint guesses_left = 0;
 	int radar_index = -1;
 	float last_move_time = 0.0;
 	array<player_task> tasks;
@@ -216,6 +219,7 @@ class game_player {
 		invisible_remaining = 0.0;
 		was_invisible = false;
 		meetings_called = 0;
+		guesses_left = 0;
 		radar_index = -1;
 		last_move_time = 0.0;
 		bot_has_target = false;

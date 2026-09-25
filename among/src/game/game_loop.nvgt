@@ -264,6 +264,49 @@ void run_shapeshift_menu(game_client@ client, client_roster@ roster) {
 	if (escolhido != "") client.send_use_ability(ABILITY_SHAPESHIFT, uint64(parse_int(escolhido)));
 }
 
+// O palpite do sniper: em QUEM, e depois QUAL papel.
+//
+// Dois menus em vez de um só com todas as combinações - com 5 vivos e 4 papéis ligados, um menu
+// único teria 20 linhas para percorrer de ouvido, no meio de uma reunião com tempo correndo.
+//
+// A lista de papéis é a que a SALA ligou, e nunca inclui "tripulante" (ver role_is_guessable): com
+// tripulante ali, bastaria apontar qualquer um. Sair no meio (ESC) não gasta o palpite, e é por isso
+// que a confirmação só vai à rede depois do segundo menu.
+void run_guess_menu(game_client@ client, client_roster@ roster, const array<string>&in papeis) {
+	if (papeis.length() == 0) { speak(tr("role.guess_no_roles")); return; }
+
+	ui_sound(SND_DIALOG_OPEN);
+	menu alvos;
+	alvos.intro_text = tr("role.guess_target_hint");
+	alvos.click_sound = "ui/menu_click.ogg";
+	alvos.select_sound = "ui/menu_confirm.ogg";
+	alvos.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@alvos.background_callback = @pump_client_during_game_menu;
+	for (uint i = 0; i < roster.entries.length(); i++) {
+		roster_entry@ e = roster.entries[i];
+		if (!e.alive || e.peer_id == client.my_peer_id) continue;
+		alvos.add_item(e.name, "" + e.peer_id);
+	}
+	alvos.run();
+	string alvo = alvos.selected_item_id;
+	if (alvo == "") { ui_sound(SND_DIALOG_CLOSE); return; }
+
+	menu quais;
+	quais.intro_text = tr("role.guess_role_hint");
+	quais.click_sound = "ui/menu_click.ogg";
+	quais.select_sound = "ui/menu_confirm.ogg";
+	quais.sounds_prefix = "sounds/";
+	@quais.background_callback = @pump_client_during_game_menu;
+	for (uint i = 0; i < papeis.length(); i++) quais.add_item(tr("role." + papeis[i]), papeis[i]);
+	quais.run();
+	string papel = quais.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (papel == "") return;
+
+	client.send_use_ability(ABILITY_GUESS, uint64(parse_int(alvo)), "", papel);
+}
+
 void run_sabotage_menu(impostor_controller@ imp) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
@@ -499,6 +542,20 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// decide, isto é só para responder na hora sem viagem de rede.
 	float my_ability_cooldown_remaining = 0.0;
 	float ability_cooldown_config = start_pkt.get_float("ability_cooldown_seconds");
+	// Sniper: quantos palpites por reunião a sala deu a ele, e quantos restam nesta mesa.
+	uint my_guess_count = uint(start_pkt.get_int("ability_guesses"));
+	uint guesses_left_this_meeting = 0;
+	// Os papéis que a sala LIGOU - a lista do que o sniper pode chutar. Sai do mesmo `role_counts`
+	// que o pacote já trazia, e na ordem de CONFIGURABLE_ROLE_IDS, que é a ordem que o jogador
+	// aprendeu nas regras da sala.
+	array<string> configured_role_ids;
+	json_object@ cfg_roles = start_pkt.get_object("role_counts");
+	if (@cfg_roles != null) {
+		for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
+			string rid = CONFIGURABLE_ROLE_IDS[i];
+			if (cfg_roles.exists(rid) && int(cfg_roles[rid]) > 0) configured_role_ids.insert_last(rid);
+		}
+	}
 	// Quanto falta da fantasia do shapeshifter. Só para ele responder à tecla sem ir à rede; quem
 	// desfaz de verdade é o servidor, que avisa por S_SHIFT_ENDED.
 	float my_disguise_remaining = 0.0;
@@ -777,7 +834,26 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// dá pra consertar painel nenhum durante a reunião mesmo - o servidor até congela o
 				// tempo da sabotagem, ver game_state.tick). Volta a tocar quando a votação acaba.
 				audio.stop_sabotage_alarm();
+				// O palpite do sniper é POR REUNIÃO: cada mesa nova devolve a ele o que tinha. Quem
+				// manda a verdade é o servidor, que também conta; isto aqui é só para a tecla poder
+				// responder na hora, sem viagem de rede.
+				guesses_left_this_meeting = my_guess_count;
 				mui.on_meeting_started(pkt);
+			} else if (t == S_MEETING_KILL) {
+				// Morte na mesa por um palpite. Ninguém fica sabendo quem apontou - ver S_MEETING_KILL
+				// no protocolo. O texto mora em event_speech.nvgt, com os outros.
+				uint64 morto = pkt.get_uint64("victim_peer");
+				roster.mark_dead(morto);
+				audio.play_meeting_kill();
+				string aviso = meeting_kill_text(pkt, roster);
+				if (!pkt.announced) speak(aviso);
+				events_log.add("", aviso);
+				if (morto == client.my_peer_id) {
+					alive = false;
+					mui.alive = false;
+					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+						my_role, alive, known_body_peers, known_body_positions);
+				}
 			} else if (t == S_VOTING_STARTED) {
 				mui.on_voting_started(pkt);
 			} else if (t == S_VOTE_CAST) {
@@ -886,6 +962,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// confirmação de que saiu, não um evento do mundo. No ponto do protegido, quem
 					// estivesse por perto ouviria que alguém acabou de ser blindado.
 					string qual = pkt.get_string("ability");
+					// O palpite saiu: gasta um. Quem conta de verdade é o servidor - isto é só para a
+					// tecla saber responder "você já apontou nesta reunião" sem ir à rede.
+					if (qual == ABILITY_GUESS && guesses_left_this_meeting > 0) guesses_left_this_meeting--;
 					if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
 					if (qual == ABILITY_VANISH) {
 						my_invisible_remaining = pkt.get_float("duration_seconds", PHANTOM_INVISIBLE_SECONDS);
@@ -1490,6 +1569,18 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			// e fantasma continuam vendo a lista.
 			else if (comms_down_for(active_sabotage_id, my_role, alive)) speak(tr("sabotage.comms.tasks_hidden"));
 			else if (!is_vented) run_task_list_menu(client, map, my_tasks, team_task_percent);
+		}
+
+		// O palpite do sniper, a única ação que existe DURANTE a reunião.
+		//
+		// Fica aqui fora pelo mesmo motivo que a lista de tarefas: o bloco de ações exige
+		// !movement_frozen, e a reunião é exatamente quando ele é true. E a tecla é a MESMA da
+		// habilidade (a de sempre), porque para quem joga é a mesma coisa - "usar o que meu papel
+		// tem" -, só que a mesa é o lugar onde este papel age.
+		if (movement_frozen && my_role.ability_id == ABILITY_GUESS && action_pressed(ACTION_ABILITY)) {
+			if (!alive) speak(tr("game.ghost_cannot_interact"));
+			else if (guesses_left_this_meeting == 0) speak(tr("role.guess_none_left"));
+			else run_guess_menu(client, roster, configured_role_ids);
 		}
 
 		if (action_pressed(ACTION_PING) && !ping_pending) {

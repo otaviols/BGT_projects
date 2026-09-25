@@ -33,6 +33,7 @@ const string ROLE_GUARDIAN_ANGEL = "guardian_angel";
 const string ROLE_DETECTIVE = "detective";
 const string ROLE_SHAPESHIFTER = "shapeshifter";
 const string ROLE_PHANTOM = "phantom";
+const string ROLE_SNIPER = "sniper";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -40,6 +41,7 @@ const string ABILITY_SHIELD = "shield";
 const string ABILITY_EXAMINE = "examine";
 const string ABILITY_SHAPESHIFT = "shapeshift";
 const string ABILITY_VANISH = "vanish";
+const string ABILITY_GUESS = "guess";
 
 // Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
 // papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
@@ -49,7 +51,18 @@ const string TEAM_IMPOSTOR = "impostor";
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
 const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
-	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM};
+	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER};
+
+// Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
+//
+// Deixar tripulante entrar quebraria o papel num palpite: a maioria da mesa é tripulante comum,
+// então chutar isso em qualquer um acertaria quase sempre e o sniper viraria um botão de matar de
+// graça na reunião. Com a lista assim, o poder dele ESCALA com quantos papéis especiais a sala
+// configurou - numa sala sem papéis especiais ele não tem o que chutar, e é justo que não tenha.
+//
+// Impostor também fica de fora: ele já conhece os companheiros desde o começo (knows_teammates), e
+// apontar um deles seria gastar o palpite à toa.
+bool role_is_guessable(const string&in role_id) { return CONFIGURABLE_ROLE_IDS.find(role_id) != -1; }
 
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
@@ -66,6 +79,7 @@ const string TUNABLE_COOLDOWN = "cooldown";           // recarga da habilidade
 const string TUNABLE_DURATION = "duration";           // quanto o efeito dura
 const string TUNABLE_KILL_COOLDOWN = "kill_cooldown"; // recarga do tiro (xerife), separada da do impostor
 const string TUNABLE_TRAIL = "trail";                 // por quanto tempo o rastro do assassino é gravado
+const string TUNABLE_GUESSES = "guesses";             // quantos palpites por reunião (sniper)
 
 class role_tunable {
 	string key;
@@ -129,6 +143,11 @@ class role_traits {
 	// que é um tripulante comum até morrer.
 	bool ability_usable_alive = true;
 	bool ability_usable_dead = false;
+	// A reunião é uma PAUSA: ninguém anda, ninguém mata, ninguém usa habilidade - e o servidor
+	// garante isso recusando qualquer habilidade fora de `state == "in_progress"`. O sniper é a
+	// ÚNICA exceção, e ela é declarada aqui em vez de ser um furo no `if` do servidor: assim quem
+	// ler a regra encontra a exceção junto dela, e não descobre por acidente seis meses depois.
+	bool ability_usable_in_meeting = false;
 	// A recarga volta do zero quando a votação acaba. É a mesma guarda que o cooldown de kill já
 	// tinha (ver end_meeting): a habilidade não pode ser usada durante a reunião, então sem isso a
 	// discussão inteira recarrega de graça e o metamorfo sai da votação pronto pra virar alguém, no
@@ -346,7 +365,47 @@ role_traits@ role_phantom() {
 	return t;
 }
 
+// Sniper: impostor que mata na MESA, se souber dizer qual é o papel do alvo.
+//
+// É o único papel que age durante a reunião, e a exceção é deliberada (ver ability_usable_in_meeting).
+// A reunião é a fase em que a tripulação está mais segura - ninguém anda, ninguém mata -, e o sniper
+// existe justamente para que ela deixe de ser descanso garantido.
+//
+// O que o segura é o PREÇO do erro: errar o palpite mata ele na hora, na frente de todo mundo. E a
+// lista do que se pode chutar são só os papéis especiais que a sala ligou (ver role_is_guessable),
+// nunca "tripulante" - senão bastaria apontar qualquer um e acertar.
+//
+// Ele NÃO é anunciado ao acertar: a mesa fica sabendo quem morreu e qual papel foi apontado, nunca
+// quem apontou. O custo dele é o risco, e não a exposição - e o que a tripulação ganha em troca é
+// informação de verdade: acertou, o papel da vítima está revelado; errou, sabe-se que o alvo NÃO é
+// aquele papel e que o morto era impostor. Se na prática isso soar forte demais, o botão a mexer é
+// revelar quem apontou, e não tirar o palpite.
+role_traits@ role_sniper() {
+	role_traits t;
+	t.id = ROLE_SNIPER;
+	t.team = TEAM_IMPOSTOR;
+	t.can_kill = true;
+	t.can_vent = true;
+	t.can_sabotage = true;
+	t.can_close_doors = true;
+	t.tasks_count_for_crew = false;
+	t.immune_to_comms = true;
+	t.wins_with_crew = false;
+	t.knows_teammates = true;
+	t.ability_id = ABILITY_GUESS;
+	t.ability_usable_in_meeting = true;
+	// Um por REUNIÃO, e não por partida: o palpite se renova a cada mesa, e quem segura o papel é o
+	// risco de morrer, não a escassez. O teto de 3 existe só para a sala não transformar a reunião
+	// numa chacina.
+	t.tunables.insert_last(role_tunable(TUNABLE_GUESSES, SNIPER_GUESSES_PER_MEETING, 1.0, 3.0));
+	// Não tem recarga em segundos: o que limita é a contagem de palpites, que a reunião renova. Sem
+	// isto, `ability_cooldown_resets_on_meeting` mexeria num relógio que este papel não usa.
+	t.ability_cooldown_resets_on_meeting = false;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_SNIPER) return role_sniper();
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
 	if (role_id == ROLE_SHAPESHIFTER) return role_shapeshifter();
 	if (role_id == ROLE_PHANTOM) return role_phantom();

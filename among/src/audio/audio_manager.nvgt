@@ -281,6 +281,13 @@ class audio_manager {
 		spatial.play_once(SND_SHAPE_SHIFT, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
+	// Alguém morreu NA MESA, pelo palpite do sniper. É o MESMO som do assassinato, tocado SEM
+	// posição - e as duas coisas são a mensagem: "kill" já significa assassinato para quem joga, e a
+	// ausência de posição diz que foi aqui, na reunião, e não em algum lugar da nave. Um som novo
+	// para isto seria um significado novo para aprender onde já existe um que serve (ver a regra "um
+	// sinal sonoro, um significado", em notes/som.md).
+	void play_meeting_kill() { spatial.play_ui(SND_KILL, false, family_db(SOUND_FAMILY_EVENTS)); }
+
 	void play_radar_beep(float x, float y) {
 		float dy = spatial.listener_y - y; // o y do mundo cresce para o SUL
 		float pitch = 100.0;

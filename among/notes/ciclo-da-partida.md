@@ -28,7 +28,13 @@ reimplementa a lógica que testa não testa nada** - a primeira versão desta pa
 quebrado, e só virou teste de verdade quando passou a chamar a função real e a ser conferida contra
 a versão sem a correção (onde ela trava).
 
-**A reunião é uma PAUSA, e o que não funciona nela não pode recarregar dentro dela.** Ninguém mata,
+**A reunião é uma PAUSA - com UMA exceção, o sniper.** Ele aponta alguém na mesa e mata se acertar o
+papel (ver notes/papeis.md). A exceção é declarada pelo papel (`ability_usable_in_meeting`), e não
+escrita como um furo no `if` do servidor: a regra abaixo continua valendo para todo o resto, e quem
+ler a recusa encontra a exceção junto dela. Ao acrescentar qualquer coisa que aja na reunião, a
+pergunta é a mesma - o papel declara, o código pergunta pela capacidade.
+
+**Ninguém mata,
 ninguém usa habilidade e ninguém anda durante a discussão - então todo relógio que continue correndo
 ali é tempo ganho de graça, e a reunião vira a melhor jogada de quem tem o relógio mais caro. O
 cooldown de kill já era rearmado no fim da votação; a habilidade do papel não era, e o metamorfo saía

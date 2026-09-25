@@ -343,6 +343,48 @@ class game_state {
 		return true;
 	}
 
+	// O sniper aponta alguém na mesa e diz qual é o papel dele. Acertou, o alvo morre; errou, morre
+	// ele. Devolve false (com `fail_key`) só quando o palpite nem chega a acontecer.
+	//
+	// NÃO passa por try_kill de propósito, embora as duas coisas matem. try_kill é o assassinato no
+	// mapa: ele deixa CORPO, consome a recarga do tiro, revela o fantasma e grava o rastro do
+	// detetive - tudo coisa que depende de haver um lugar onde aconteceu. Aqui todo mundo está na
+	// mesa, e um corpo na cafeteria seria reportado no segundo seguinte pela própria reunião que está
+	// em curso. Quem morre na mesa morre sem corpo: a reunião inteira viu.
+	//
+	// O ESCUDO do anjo não protege aqui, e isso não é esquecimento: a reunião já apaga o escudo ao
+	// começar (ver start_meeting), decisão antiga e com motivo próprio. Na mesa ninguém está
+	// protegido, e é uma regra a menos para explicar.
+	bool try_guess(uint64 sniper_peer, uint64 target_peer, const string&in guessed_role,
+			uint64&out victim_peer, bool&out correct, string&out fail_key) {
+		fail_key = "";
+		victim_peer = 0;
+		correct = false;
+		if (state != "voting") { fail_key = "role.guess_not_in_meeting"; return false; }
+		game_player@ sniper = find_player(sniper_peer);
+		if (@sniper == null || !sniper.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (sniper.guesses_left == 0) { fail_key = "role.guess_none_left"; return false; }
+		// Só os papéis especiais que ESTA sala ligou. A lista que o cliente mostra já sai do
+		// S_GAME_START, mas ela vem da máquina do jogador: sem esta conferência, um cliente alterado
+		// chutaria "tripulante" e mataria qualquer um.
+		if (!role_is_guessable(guessed_role) || config.role_count(guessed_role) == 0) {
+			fail_key = "role.guess_bad_role";
+			return false;
+		}
+		game_player@ target = find_player(target_peer);
+		if (@target == null || !target.alive) { fail_key = "role.guess_bad_target"; return false; }
+		if (target.peer_id == sniper.peer_id) { fail_key = "role.guess_bad_target"; return false; }
+
+		sniper.guesses_left--;
+		correct = target.role_id == guessed_role;
+		game_player@ victim = correct ? target : sniper;
+		victim.alive = false;
+		victim_peer = victim.peer_id;
+		// Sem corpo, sem rastro e sem recarga: ver o comentário do topo. E sem mexer na
+		// invisibilidade - ninguém está invisível numa reunião, que já a desfaz ao começar.
+		return true;
+	}
+
 	body_info@ find_body_near(float x, float y, float max_range) {
 		for (uint i = 0; i < bodies.length(); i++) {
 			if (distance_2d(x, y, bodies[i].x, bodies[i].y) <= max_range) return bodies[i];
@@ -463,6 +505,15 @@ class game_state {
 			if (!players[i].is_bot) continue;
 			players[i].bot_voted = false;
 			players[i].bot_action_timer = random_range(BOT_VOTE_MIN_SECONDS, BOT_VOTE_MAX_SECONDS);
+		}
+
+		// Os palpites do sniper são POR REUNIÃO: cada mesa nova devolve a ele a chance de apontar
+		// alguém. Recarregado aqui, junto do resto do que a reunião reinicia, e não no fim da votação,
+		// para uma reunião interrompida não deixar ninguém com palpite pendurado na fase de andar.
+		for (uint i = 0; i < players.length(); i++) {
+			players[i].guesses_left = players[i].role().ability_id == ABILITY_GUESS
+				? uint(config.role_value(players[i].role_id, TUNABLE_GUESSES))
+				: 0;
 		}
 
 		state = "voting";

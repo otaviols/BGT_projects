@@ -454,6 +454,22 @@ O preço é o resto:
 
 A reunião também o devolve.
 
+**Atirador** (impostor). O único papel que age **durante a reunião**. Com a tecla da habilidade ele
+aponta alguém na mesa e diz qual é o papel dessa pessoa:
+
+- **Acertou**, ela morre ali mesmo, na frente de todo mundo.
+- **Errou**, quem morre é ele.
+
+Ele tem **um palpite por reunião**, e a mesa nunca fica sabendo quem apontou — só quem morreu e qual
+papel foi dito. Nos dois casos a tripulação ganha informação: acertando, o papel da vítima está
+revelado; errando, sabe-se que aquela pessoa **não** é aquele papel, e que quem morreu era impostor.
+
+Os papéis que ele pode apontar são só os **especiais que a sala ligou** — nunca "tripulante". Ou
+seja: quanto mais papéis especiais a partida tiver, mais perigoso ele é; numa sala sem papéis
+especiais, ele não tem o que apontar.
+
+Na mesa ninguém está protegido: o escudo do anjo cai quando a reunião começa.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

@@ -89,6 +89,30 @@ string death_alarm_text(net_packet@ pkt) {
 	return tr("role.noisemaker_alarm", p);
 }
 
+// "Alguém apontou Fulano como xerife, e acertou: Fulano morreu." - a morte na mesa, pelo palpite do
+// sniper (ver S_MEETING_KILL no protocolo).
+//
+// Nunca diz QUEM apontou, e isso é a regra do papel, não um esquecimento: o custo do sniper é o
+// risco de morrer errando, não ser descoberto ao acertar. No caso do erro a frase entrega ele de
+// qualquer jeito, porque quem morreu FOI ele - e é a assimetria que faz o palpite ser uma aposta.
+//
+// Mora aqui, com os outros, porque dois lugares o dizem: o laço da partida e as telas bloqueantes.
+string meeting_kill_text(net_packet@ pkt, client_roster@ roster) {
+	dictionary@ p = dictionary();
+	p.set("role", tr("role." + pkt.get_string("guessed_role")));
+	string alvo = "";
+	string morto = "";
+	if (@roster != null) {
+		roster_entry@ a = roster.find(pkt.get_uint64("target_peer"));
+		roster_entry@ m = roster.find(pkt.get_uint64("victim_peer"));
+		if (@a != null) alvo = a.name;
+		if (@m != null) morto = m.name;
+	}
+	p.set("target", alvo);
+	p.set("name", morto);
+	return tr(pkt.get_bool("correct") ? "role.guess_hit" : "role.guess_miss", p);
+}
+
 // O resultado do exame do detetive, montado no idioma DESTE cliente.
 //
 // O servidor manda o número e as CHAVES das salas separadas por "|", nunca a frase pronta: numa
@@ -126,6 +150,9 @@ string background_event_text(net_packet@ pkt, game_client@ client) {
 	// O alarme é ouvido de onde quer que a pessoa esteja - inclusive de dentro de uma task, que é
 	// justamente onde ela estaria quando o impostor escolheu matar longe de todos.
 	if (t == S_DEATH_ALARM) return death_alarm_text(pkt);
+	// A morte na mesa precisa chegar a quem está com a lista de votação aberta - que é exatamente
+	// onde todo mundo está quando ela acontece.
+	if (t == S_MEETING_KILL) return meeting_kill_text(pkt, g_match_roster);
 	// A morte só é anunciada para a própria vítima: para os outros, o assassinato é o som, não o texto.
 	if (t == S_PLAYER_KILLED && @client != null && pkt.get_uint64("peer_id") == client.my_peer_id) {
 		return you_were_killed_text(pkt, g_match_roster);

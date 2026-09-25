@@ -151,6 +151,8 @@ const float ENGINEER_FIX_COOLDOWN_SECONDS = 120.0;
 // chegar em alguém. A recarga é longa porque o preço dele não é o tempo, é a exposição - ele sai da
 // invisibilidade no instante em que mata.
 const float PHANTOM_INVISIBLE_SECONDS = 20.0;
+// Quantos palpites o sniper tem por REUNIÃO. Um: ele aponta uma vez por mesa, e errar mata ele.
+const float SNIPER_GUESSES_PER_MEETING = 1.0;
 const float PHANTOM_COOLDOWN_SECONDS = 90.0;
 
 // Shapeshifter. A fantasia dura o bastante para atravessar uma sala, matar e sumir - não a partida

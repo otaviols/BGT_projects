@@ -463,12 +463,18 @@ class game_server {
 	// recusada (alvo fora do alcance, nada para consertar) não pode custar o cooldown inteiro.
 	void on_use_ability(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
-		if (@lobby == null || lobby.state != "in_progress") return;
+		if (@lobby == null) return;
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p == null) return;
 		string ability = pkt.get_string("ability");
 		role_traits@ role = p.role();
 		if (ability == "" || role.ability_id != ability) { send_ability_result(peer_id, ability, false, "role.ability_not_yours"); return; }
+		// A reunião é uma PAUSA, e a recusa mora aqui: fora de "in_progress" nenhuma habilidade passa.
+		// A exceção é DECLARADA pelo papel (ability_usable_in_meeting), não escrita como um `if` com
+		// nome de papel dentro - é o mesmo princípio do resto do arquivo: o código pergunta pela
+		// capacidade, nunca pela identidade. Hoje só o sniper a declara.
+		bool em_reuniao = lobby.state == "voting";
+		if (em_reuniao ? !role.ability_usable_in_meeting : lobby.state != "in_progress") return;
 		// Capacidade, que conhece os três casos (só vivo, vivo e morto, só morto). O anjo da guarda
 		// VIVO cai aqui, e o motivo é próprio: "seu papel só age depois de morrer" - dizer a ele
 		// "fantasma não interage" seria o contrário do que acontece.
@@ -509,6 +515,28 @@ class game_server {
 			// NADA é transmitido: sumir é silencioso para todo mundo menos para ele, que ouve o
 			// próprio som no cliente dele. Ver expire_invisibility para o porquê.
 			message_key = "role.vanish_done";
+			return true;
+		}
+		if (ability == ABILITY_GUESS) {
+			uint64 morto = 0;
+			bool acertou = false;
+			uint64 alvo = pkt.get_uint64("target_peer_id");
+			if (!lobby.try_guess(p.peer_id, alvo, pkt.get_string("role_id"), morto, acertou, message_key)) return false;
+
+			// Para a partida inteira - e sem dizer quem apontou (ver S_MEETING_KILL no protocolo).
+			net_packet@ aviso = net_packet(S_MEETING_KILL);
+			aviso.set_uint64("victim_peer", morto);
+			aviso.set_uint64("target_peer", alvo);
+			aviso.set_string("guessed_role", pkt.get_string("role_id"));
+			aviso.set_bool("correct", acertou);
+			broadcast_to_lobby(lobby, aviso);
+
+			// A partida pode ACABAR aqui, no meio da mesa: um tripulante a menos pode dar a maioria
+			// aos impostores. Nada precisa ser feito - a conferência de vitória no `tick` roda a cada
+			// quadro e FORA do bloco da votação, então ela pega isto no quadro seguinte. Vale saber:
+			// se um dia ela passar a rodar só no fim da apuração, este caminho quebra em silêncio.
+
+			message_key = acertou ? "role.guess_right" : "role.guess_wrong";
 			return true;
 		}
 		if (ability == ABILITY_SHAPESHIFT) {
@@ -1199,6 +1227,9 @@ class game_server {
 			// da votação, e o cliente precisa acompanhar sem ter usado a habilidade nenhuma vez ainda
 			// (é por S_ABILITY_RESULT que ele descobriria, e esse só chega depois do primeiro uso).
 			start.set_float("ability_cooldown_seconds", lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN));
+			// Quantos palpites por reunião (sniper). Pela mesma razão da recarga: o cliente precisa
+			// saber antes do primeiro uso para a tecla responder sem ir à rede.
+			start.set_int("ability_guesses", int(lobby.config.role_value(p.role_id, TUNABLE_GUESSES)));
 			start.set_float("sabotage_cooldown_seconds", lobby.sabotage_cooldown_remaining);
 			// Regra de voz da sala: sem ela o cliente capturaria e mandaria áudio que o servidor iria
 			// descartar - microfone aberto à toa.

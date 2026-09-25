@@ -194,11 +194,16 @@ class game_client {
 	}
 
 	// --- Habilidade do papel ---
-	void send_use_ability(const string&in ability, uint64 target_peer_id = 0, const string&in object_id = "") {
+	// `role_id` é o palpite do sniper (qual papel ele diz que o alvo é). Fica aqui, e não num pacote
+	// próprio, pela mesma razão que os outros: é UMA porta para todas as habilidades, e um papel novo
+	// com um argumento novo não mexe no protocolo.
+	void send_use_ability(const string&in ability, uint64 target_peer_id = 0, const string&in object_id = "",
+			const string&in role_id = "") {
 		net_packet@ p = net_packet(C_USE_ABILITY);
 		p.set_string("ability", ability);
 		if (target_peer_id != 0) p.set_uint64("target_peer_id", target_peer_id);
 		if (object_id != "") p.set_string("object_id", object_id);
+		if (role_id != "") p.set_string("role_id", role_id);
 		send(p);
 	}
 

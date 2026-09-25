@@ -105,7 +105,7 @@ const string C_CAMERA_SCAN = "c_camera_scan";     // {} - quem está na sala que
 // confere se o papel do jogador TEM aquela habilidade e se ela está fora de recarga, e cada papel
 // novo acrescenta um caso ao despacho, não um pacote ao protocolo. target_peer_id/object_id são
 // opcionais, conforme a habilidade.
-const string C_USE_ABILITY = "c_use_ability";     // {ability, target_peer_id?, object_id?}
+const string C_USE_ABILITY = "c_use_ability";     // {ability, target_peer_id?, object_id?, role_id?}
 
 // Recado do jogador para quem faz o jogo. Vai pelo MESMO canal do resto: a sessão já está
 // autenticada, então o servidor sabe de quem veio sem o jogador digitar nada, e nenhum endereço ou
@@ -182,6 +182,14 @@ const string S_MEETING_STARTED = "s_meeting_started";     // {reason, caller_pee
 const string S_VOTING_STARTED = "s_voting_started";       // {voting_time, candidates: [...]}
 const string S_VOTE_RESULT = "s_vote_result";             // {ejected_peer, ejected_name, was_impostor, tie, vote_breakdown: [{voter_name, target_name, skipped}]}
 const string S_VOTE_CAST = "s_vote_cast";                 // {voter_peer, voter_name} - só avisa QUE votou, nunca em quem
+// Alguém morreu NA MESA por um palpite do sniper. Vai para a partida inteira.
+//
+// O que ele carrega é decisão de jogo: quem MORREU, quem foi APONTADO e QUAL PAPEL foi dito - e
+// nunca quem apontou. Acertando, a mesa descobre o papel da vítima; errando, descobre que o morto
+// era impostor e que o alvo não é aquele papel. Nos dois casos a tripulação ganha informação de
+// verdade, que é o que paga o preço de morrer numa fase em que ninguém deveria morrer. Pôr aqui
+// quem apontou faria de todo palpite certo um suicídio, e o papel deixaria de existir na prática.
+const string S_MEETING_KILL = "s_meeting_kill";           // {victim_peer, target_peer, guessed_role, correct}
 const string S_SABOTAGE_STARTED = "s_sabotage_started";   // {sabotage_id, timer}
 const string S_SABOTAGE_FIXED = "s_sabotage_fixed";       // {sabotage_id}
 // Um painel foi consertado, mas a sabotagem ainda não acabou (o oxigênio pede dois). Existe para o

@@ -170,6 +170,42 @@ mesa sem explicação é um sinal luminoso de quem é o fantasma. E `was_invisib
 voltar" de "nunca sumiu": sem a marca, o som da volta tocaria para todo mundo, o tempo todo. Sonda:
 `tools/probes/probe_phantom.nvgt`.
 
+**Sniper: a única exceção à reunião como pausa, e ela é DECLARADA.** `on_use_ability` recusava
+qualquer habilidade fora de `state == "in_progress"`, o que é a regra do jogo escrita em código.
+Abrir a exceção com um `if` de nome de papel ali dentro seria furar a regra sem deixar rastro; hoje o
+papel declara `ability_usable_in_meeting` e o servidor pergunta pela capacidade, como no resto do
+arquivo. Quem ler a recusa encontra a exceção junto dela.
+
+O palpite **não passa por `try_kill`**, embora as duas coisas matem. `try_kill` é o assassinato no
+MAPA: deixa corpo, consome a recarga do tiro, revela o fantasma e abre o rastro do detetive - tudo
+coisa que depende de haver um lugar onde aconteceu. Na mesa todo mundo está no mesmo ponto, e um
+corpo na cafeteria seria reportado no segundo seguinte pela reunião que está em curso. Quem morre na
+mesa morre sem corpo: a reunião inteira viu.
+
+Três decisões que seguram o papel, e o que cada uma evita:
+
+- **"Tripulante" não é chutável** (`role_is_guessable` só aceita `CONFIGURABLE_ROLE_IDS`). A maioria
+  da mesa é tripulante comum: com ele na lista, bastava apontar qualquer um e o papel virava um
+  botão de matar de graça na reunião. O efeito colateral é bom - o poder dele ESCALA com quantos
+  papéis especiais a sala ligou, e numa sala sem papéis especiais ele não tem o que apontar.
+- **Errar mata ele.** Sem isso, com quatro papéis ligados, ele testa um por reunião até acertar.
+- **A mesa não fica sabendo QUEM apontou** (ver `S_MEETING_KILL` no protocolo). O custo dele é o
+  risco, não a exposição: revelar o autor faria de todo palpite certo um suicídio e o papel deixaria
+  de existir na prática. É o botão a mexer se na prática ele soar forte demais - e não tirar o
+  palpite.
+
+O escudo do anjo **não** protege na mesa, e isso não é esquecimento: a reunião já apaga o escudo ao
+começar, decisão anterior e com motivo próprio. Uma regra a menos para explicar.
+
+A partida pode ACABAR no meio da reunião (um tripulante a menos pode dar a maioria aos impostores). Não
+há código para isso porque a conferência de vitória no `tick` roda a cada quadro e FORA do bloco da
+votação - **se um dia ela passar a rodar só no fim da apuração, este caminho quebra em silêncio.**
+
+Sonda: `tools/probes/probe_sniper.nvgt`. Duas travas do jogo morderam ao escrevê-la, e as duas
+custaram uma execução: o botão de emergência tem recarga de 15 s **e** cada jogador só chama UMA
+reunião por partida - a segunda reunião precisa de outra pessoa chamando, e de insistência em vez de
+um instante chutado.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

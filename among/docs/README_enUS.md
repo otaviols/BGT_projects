@@ -459,6 +459,22 @@ The price is everything else:
 
 A meeting also brings them back.
 
+**Sniper** (impostor). The only role that acts **during a meeting**. With the ability key they point
+at someone at the table and name that person's role:
+
+- **Right**, and that person dies on the spot, in front of everyone.
+- **Wrong**, and the sniper is the one who dies.
+
+They get **one guess per meeting**, and the table never learns who pointed — only who died and which
+role was named. Either way the crew gains information: on a hit, the victim's role is now known; on a
+miss, everyone knows that person is **not** that role, and that whoever died was an impostor.
+
+The roles they can name are only the **special ones the room enabled** — never "crewmate". So the
+more special roles a match has, the more dangerous they are; in a room with no special roles, they
+have nothing to point at.
+
+Nobody is protected at the table: the guardian's shield falls when the meeting begins.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

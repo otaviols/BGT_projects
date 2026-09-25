@@ -1,0 +1,260 @@
+// Sniper: o único papel que age DENTRO da reunião.
+//
+// O que a sonda cobra, e por que cada coisa:
+//   1. fora da reunião o palpite é recusado - a reunião é a fase dele, e a exceção que o servidor
+//      abre não pode virar um furo que vale o tempo todo;
+//   2. acertar mata o ALVO; errar mata o SNIPER - é o preço que segura o papel;
+//   3. o segundo palpite na mesma reunião é recusado (um por mesa);
+//   4. "tripulante" não é chutável - se fosse, bastaria apontar qualquer um, e o papel se quebraria
+//      sozinho. Aqui isso é conferido no SERVIDOR, porque a lista que o cliente mostra vem da
+//      máquina do jogador;
+//   5. o pacote que a mesa recebe NÃO diz quem apontou. É a regra do papel, e é o tipo de coisa que
+//      se perde num campo acrescentado sem pensar.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_sniper.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+#include "../../src/i18n.nvgt"
+
+const uint JOGADORES = 5; // 1 impostor (o sniper) + 4 tripulantes: matar um ainda deixa a partida de pé
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+array<array<net_packet@>@> caixa;
+void prepara_caixa(uint n) { caixa.resize(0); for (uint i = 0; i < n; i++) caixa.insert_last(array<net_packet@>()); }
+void esvazia_caixa() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+void drena(array<game_client@>@ todos) {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+net_packet@ achado(uint i, const string&in tipo) {
+	for (uint k = 0; k < caixa[i].length(); k++) { if (caixa[i][k].type == tipo) return caixa[i][k]; }
+	return null;
+}
+bool todos_recebem(array<game_client@>@ todos, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		bool completo = true;
+		for (uint i = 0; i < todos.length(); i++) { if (@achado(i, tipo) == null) { completo = false; break; } }
+		if (completo) return true;
+		wait(5);
+	}
+	return false;
+}
+net_packet@ espera_de(array<game_client@>@ todos, uint quem, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		net_packet@ p = achado(quem, tipo);
+		if (@p != null) return p;
+		wait(5);
+	}
+	return null;
+}
+void bombeia(array<game_client@>@ todos, int ms) { timer t; while (t.elapsed < ms) { drena(todos); wait(10); } }
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+array<game_client@> todos;
+string lobby_id;
+int sniper = -1;
+int engenheiro = -1;
+int outro = -1;
+
+// Começa uma partida e descobre quem é quem. O sorteio é aleatório, então a sonda REPETE até sair
+// uma composição que sirva - reimplementar o sorteio aqui seria escrever um segundo sorteio capaz de
+// discordar do primeiro.
+bool nova_partida() {
+	esvazia_caixa();
+	todos[0].send_start_game();
+	if (!todos_recebem(todos, S_GAME_START, 10000)) { println("a partida nao comecou"); return false; }
+	sniper = -1; engenheiro = -1; outro = -1;
+	for (uint i = 0; i < todos.length(); i++) {
+		string papel = achado(i, S_GAME_START).get_string("your_role");
+		if (papel == ROLE_SNIPER) sniper = int(i);
+		else if (papel == ROLE_ENGINEER) engenheiro = int(i);
+		else if (outro < 0) outro = int(i);
+	}
+	println("  sniper=" + sniper + " engenheiro=" + engenheiro + " outro=" + outro);
+	return sniper >= 0 && engenheiro >= 0 && outro >= 0;
+}
+
+// Leva a partida até a mesa. Votar não: a sonda quer a reunião ABERTA.
+//
+// Duas travas do jogo mordem aqui, e as duas custaram uma execução para aparecer: o botão de
+// emergência tem RECARGA (15 s, e ela corre no relógio do servidor) e cada jogador só chama UMA
+// reunião por partida. Por isso quem chama é escolhido por quem chama a função, e por isso a sonda
+// INSISTE em vez de chutar o instante - o sintoma de errar é "a votação não abriu", que não diz qual
+// das duas travas foi.
+bool abre_reuniao(int quem) {
+	esvazia_caixa();
+	timer prazo;
+	while (prazo.elapsed < 30000) {
+		todos[quem].send_call_meeting();
+		if (todos_recebem(todos, S_VOTING_STARTED, 3000)) {
+			bombeia(todos, 300);
+			esvazia_caixa();
+			return true;
+		}
+	}
+	println("a votacao nao abriu (recarga do botao ou reuniao ja usada por esse jogador?)");
+	return false;
+}
+
+// Encerra a reunião com todo mundo PULANDO (-1), para a partida voltar a "in_progress" sem perder
+// ninguém: expulsar alguém aqui poderia acabar com a partida no meio do teste.
+void encerra_reuniao_pulando() {
+	for (uint i = 0; i < todos.length(); i++) todos[i].send_cast_vote(-1);
+	todos_recebem(todos, S_VOTE_RESULT, 40000);
+	bombeia(todos, 800);
+	esvazia_caixa();
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	server_address addr = resolve_server_address();
+	println("servidor: " + addr.host + ":" + addr.port);
+	string sufixo = "" + random(1000, 9999);
+	for (uint i = 0; i < JOGADORES; i++) {
+		game_client@ c = conecta(addr, "sn" + i + sufixo);
+		if (@c == null) { println("nao conectou sn" + i); return; }
+		todos.insert_last(c);
+	}
+	prepara_caixa(todos.length());
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	todos[0].send_create_lobby("Sonda do sniper", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+
+	// A sala liga o sniper (entre os impostores) e o engenheiro (entre os tripulantes). O engenheiro
+	// é quem dá ao sniper um papel para acertar - sem nenhum papel especial na sala ele não teria o
+	// que chutar, que é a regra, e a sonda não conseguiria testar o acerto.
+	lobby_overrides regras;
+	regras.impostor_count = 1;
+	regras.role_counts.set(ROLE_SNIPER, 1);
+	regras.role_counts.set(ROLE_ENGINEER, 1);
+	todos[0].send_update_lobby_config(regras);
+	bombeia(todos, 500);
+	esvazia_caixa();
+
+	// --- Rodada 1: fora da reunião, e o palpite CERTO ---
+	if (!nova_partida()) { println("sorteio nao deu sniper + engenheiro; rode de novo"); return; }
+
+	// Fora da reunião o palpite não vale - a fase dele é a mesa.
+	esvazia_caixa();
+	todos[sniper].send_use_ability(ABILITY_GUESS, todos[engenheiro].my_peer_id, "", ROLE_ENGINEER);
+	net_packet@ fora = espera_de(todos, uint(sniper), S_ABILITY_RESULT, 5000);
+	check("fora da reuniao o palpite e' recusado", @fora != null && !fora.get_bool("ok"), "ok=false");
+	if (@fora != null) {
+		check("  dizendo que so vale na reuniao", fora.get_string(MSG_KEY_FIELD) == "role.guess_not_in_meeting",
+			"role.guess_not_in_meeting, veio " + fora.get_string(MSG_KEY_FIELD));
+	}
+
+	if (!abre_reuniao(0)) return;
+
+	// "tripulante" não está na lista: se estivesse, bastava apontar qualquer um.
+	todos[sniper].send_use_ability(ABILITY_GUESS, todos[outro].my_peer_id, "", ROLE_CREWMATE);
+	net_packet@ crew = espera_de(todos, uint(sniper), S_ABILITY_RESULT, 5000);
+	check("chutar 'tripulante' e' recusado", @crew != null && !crew.get_bool("ok"), "ok=false");
+	if (@crew != null) {
+		check("  dizendo que o papel nao esta em jogo", crew.get_string(MSG_KEY_FIELD) == "role.guess_bad_role",
+			"role.guess_bad_role, veio " + crew.get_string(MSG_KEY_FIELD));
+	}
+
+	// O palpite CERTO: o alvo morre, o sniper vive.
+	esvazia_caixa();
+	todos[sniper].send_use_ability(ABILITY_GUESS, todos[engenheiro].my_peer_id, "", ROLE_ENGINEER);
+	if (!todos_recebem(todos, S_MEETING_KILL, 8000)) {
+		check("o palpite certo mata na mesa", false, "S_MEETING_KILL para todos");
+		return;
+	}
+	net_packet@ mk = achado(uint(outro), S_MEETING_KILL);
+	check("o palpite certo mata o ALVO", mk.get_uint64("victim_peer") == todos[engenheiro].my_peer_id,
+		"o engenheiro");
+	check("  e o pacote diz que acertou", mk.get_bool("correct"), "correct=true");
+	check("  e a mesa NAO fica sabendo quem apontou",
+		mk.get_uint64("sniper_peer", 0) == 0 && mk.get_string("guesser", "") == "" && mk.get_string("name", "") == "",
+		"nenhum campo com quem apontou");
+
+	// Segundo palpite na MESMA reunião: recusado.
+	esvazia_caixa();
+	todos[sniper].send_use_ability(ABILITY_GUESS, todos[outro].my_peer_id, "", ROLE_ENGINEER);
+	net_packet@ segundo = espera_de(todos, uint(sniper), S_ABILITY_RESULT, 5000);
+	check("o segundo palpite na mesma reuniao e' recusado", @segundo != null && !segundo.get_bool("ok"), "ok=false");
+	if (@segundo != null) {
+		check("  dizendo que ele ja apontou", segundo.get_string(MSG_KEY_FIELD) == "role.guess_none_left",
+			"role.guess_none_left, veio " + segundo.get_string(MSG_KEY_FIELD));
+	}
+
+	// Fecha a reunião sem votar em ninguém (pular): a sonda precisa da MESMA partida de pé para a
+	// segunda parte, e expulsar mais alguém poderia acabar com ela no meio do teste.
+	encerra_reuniao_pulando();
+
+	// --- Parte 2, na MESMA partida: a reunião seguinte devolve o palpite, e errar mata o sniper ---
+	// Testar isto numa segunda reunião em vez de numa partida nova cobre de graça a regra que dá
+	// nome ao número: o palpite é POR REUNIÃO. Se ele não se renovasse, o palpite abaixo seria
+	// recusado e a sonda acusaria aqui.
+	int vivo = -1;
+	for (uint i = 0; i < todos.length(); i++) {
+		if (int(i) != sniper && int(i) != engenheiro && int(i) != outro) { vivo = int(i); break; }
+	}
+	if (vivo < 0) { println("nao sobrou tripulante vivo para a segunda parte"); return; }
+	// Quem chama a segunda reuniao e OUTRO jogador: cada um so tem um botao de emergencia.
+	if (!abre_reuniao(vivo)) return;
+
+	// Aponta um tripulante comum como engenheiro: errado de propósito.
+	esvazia_caixa();
+	todos[sniper].send_use_ability(ABILITY_GUESS, todos[vivo].my_peer_id, "", ROLE_ENGINEER);
+	if (!todos_recebem(todos, S_MEETING_KILL, 8000)) {
+		check("o palpite errado tambem mata", false, "S_MEETING_KILL para todos");
+		return;
+	}
+	net_packet@ mk2 = achado(uint(vivo), S_MEETING_KILL);
+	check("a reuniao seguinte devolveu o palpite", @mk2 != null, "S_MEETING_KILL na segunda reuniao");
+	check("o palpite errado mata o SNIPER", mk2.get_uint64("victim_peer") == todos[sniper].my_peer_id, "o sniper");
+	check("  e o alvo apontado continua vivo", mk2.get_uint64("target_peer") == todos[vivo].my_peer_id,
+		"o alvo no pacote, sem ter morrido");
+	check("  e o pacote diz que errou", !mk2.get_bool("correct"), "correct=false");
+
+	// Morto, ele não aponta mais ninguém.
+	esvazia_caixa();
+	todos[sniper].send_use_ability(ABILITY_GUESS, todos[engenheiro].my_peer_id, "", ROLE_ENGINEER);
+	net_packet@ morto = espera_de(todos, uint(sniper), S_ABILITY_RESULT, 5000);
+	check("morto, o sniper nao aponta mais", @morto != null && !morto.get_bool("ok"), "ok=false");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}
