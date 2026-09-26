@@ -263,9 +263,30 @@ class lobby_config {
 		role_values.set(role_id + "." + key, v);
 	}
 
-	// Se algum papel especial está ligado. É o que decide se a sala exige cliente novo.
+	// Se algum papel especial está ligado.
 	bool uses_roles() const {
 		return role_counts.get_size() > 0;
+	}
+
+	// Qual versão de protocolo esta sala EXIGE de quem entra: a maior entre as dos papéis ligados, ou
+	// 0 quando não há nenhum (sala aberta a qualquer cliente).
+	//
+	// Era uma constante só (ROLES_MIN_PROTOCOL) e isso deixou de bastar quando um papel NOVO passou a
+	// precisar de mais que os antigos: com uma constante, acrescentar o Atirador obrigaria a recusar
+	// também quem só queria jogar com engenheiro - ou a deixar um cliente velho ser sorteado Atirador e
+	// jogar como tripulante comum, sem saber que não é. Cada papel declara o mínimo dele
+	// (role_traits.min_protocol) e a sala pergunta; um papel futuro que precise de mais não mexe em
+	// nada aqui.
+	int required_protocol() const {
+		int maior = 0;
+		array<string>@ ids = role_counts.get_keys();
+		for (uint i = 0; i < ids.length(); i++) {
+			int n = 0;
+			if (!role_counts.get(ids[i], n) || n <= 0) continue;
+			int exigido = role_for(ids[i]).min_protocol;
+			if (exigido > maior) maior = exigido;
+		}
+		return maior;
 	}
 
 	// Corrige valores fora dos limites aceitáveis. Retorna true se algo foi ajustado.

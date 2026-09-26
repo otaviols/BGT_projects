@@ -9,7 +9,10 @@
 //      sozinho. Aqui isso é conferido no SERVIDOR, porque a lista que o cliente mostra vem da
 //      máquina do jogador;
 //   5. o pacote que a mesa recebe NÃO diz quem apontou. É a regra do papel, e é o tipo de coisa que
-//      se perde num campo acrescentado sem pensar.
+//      se perde num campo acrescentado sem pensar;
+//   6. um cliente da versão ANTERIOR é recusado numa sala com Atirador - e aceito numa sala sem ele.
+//      As duas metades: barrar todo mundo seria fácil e errado, e não barrar ninguém deixaria um
+//      cliente velho ser sorteado Atirador e jogar como tripulante comum sem saber que não é.
 //
 //   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_sniper.nvgt
 #include "../../src/network/client.nvgt"
@@ -169,6 +172,47 @@ void main() {
 	todos[0].send_update_lobby_config(regras);
 	bombeia(todos, 500);
 	esvazia_caixa();
+
+	// --- 0. Compatibilidade: o cliente da versão anterior ---
+	// Um cliente 0.34.0 declara protocolo 2. A sala acabou de ligar o Atirador, que exige 3.
+	{
+		game_client@ velho = game_client();
+		if (velho.connect_to(addr.host, addr.port)) {
+			timer t; while (!velho.connected && t.elapsed < 5000) { velho.update(); wait(5); }
+			string nome = "sn_old" + sufixo;
+			velho.send_register(nome, "probe123"); wf(velho, S_REGISTER_RESULT, 3000);
+			// Login à mão: o cliente de verdade nunca mandaria um protocolo que não é o dele.
+			net_packet@ lg = net_packet(C_LOGIN);
+			lg.set_string("username", nome);
+			lg.set_string("password", "probe123");
+			lg.set_int("protocol", SNIPER_MIN_PROTOCOL - 1);
+			velho.net.send_reliable(velho.local_peer_id, lg.to_wire(), CHANNEL_RELIABLE);
+			net_packet@ lr2 = wf(velho, S_LOGIN_RESULT, 5000);
+			check("o cliente da versao anterior ainda ENTRA no servidor", @lr2 != null && lr2.get_bool("ok"),
+				"ok=true - o minimo nao subiu, so a exigencia da sala");
+
+			velho.send_join_lobby(lobby_id);
+			net_packet@ jr = wf(velho, S_JOIN_RESULT, 5000);
+			check("  mas e' recusado na sala com Atirador", @jr != null && !jr.get_bool("ok"), "ok=false");
+			if (@jr != null) {
+				check("    dizendo que precisa atualizar", jr.get_string(MSG_KEY_FIELD) == "lobby.needs_update",
+					"lobby.needs_update, veio " + jr.get_string(MSG_KEY_FIELD));
+			}
+
+			// A outra metade: numa sala com um papel ANTIGO ligado, ele entra. Sem esta, "recusa todo
+			// mundo" passaria pela verificação acima.
+			lobby_overrides sem_sniper;
+			sem_sniper.impostor_count = 1;
+			sem_sniper.role_counts.set(ROLE_ENGINEER, 1);
+			velho.send_create_lobby("Sala sem atirador", "classic", sem_sniper);
+			net_packet@ ls2 = wf(velho, S_LOBBY_STATE, 5000);
+			check("  e entra numa sala com papel antigo (engenheiro)", @ls2 != null,
+				"retrato da sala - engenheiro exige protocolo 2, que ele tem");
+			velho.disconnect();
+			bombeia(todos, 400);
+			esvazia_caixa();
+		}
+	}
 
 	// --- Rodada 1: fora da reunião, e o palpite CERTO ---
 	if (!nova_partida()) { println("sorteio nao deu sniper + engenheiro; rode de novo"); return; }

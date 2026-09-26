@@ -6,6 +6,32 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.35.0
+
+**New role: the Sniper** (impostor). The only role that acts **during a meeting**. With the ability key
+they point at someone at the table and name that person's role: right, and that person dies on the
+spot; wrong, and the sniper is the one who dies. One guess per meeting.
+
+The table never learns who pointed — only who died and which role was named. Either way the crew gains
+information: on a hit, the victim's role is now known; on a miss, everyone knows that person is **not**
+that role, and that whoever died was an impostor.
+
+They can only name the **special roles the room enabled**, never "crewmate". So the more special roles
+a match has, the more dangerous they are — and in a room with no special roles they have nothing to
+point at.
+
+**New task: calibrate the distributor** (electrical). Three dials, each one faster. In each of them the
+target sounds twice before the dial starts: remember which side it is on and what its pitch is. Then
+the pointer spins, clicking from left to right and rising in pitch, and you press Enter the moment the
+click lands on the target. The two cues say the same thing on purpose — if pitch works better for you,
+use pitch; if sides do, use sides. Missing restarts nothing: the pointer keeps going and you try again
+on the next lap.
+
+It is the first task in the game that asks for **timing** instead of searching and choosing.
+
+- Anyone still on the previous version keeps logging in and playing normally, and is only refused from
+  rooms that enabled the Sniper — with a message saying they need to update.
+
 ## 0.34.0
 
 **The game now runs on Android.** This is the first phone version and it expects a **keyboard**

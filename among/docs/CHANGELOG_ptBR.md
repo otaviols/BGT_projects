@@ -6,6 +6,32 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.35.0
+
+**Profissão nova: o Atirador** (impostor). É o único papel que age **durante a reunião**. Com a tecla
+da habilidade ele aponta alguém na mesa e diz qual é o papel dessa pessoa: acertou, ela morre ali
+mesmo; errou, quem morre é ele. Um palpite por reunião.
+
+A mesa nunca fica sabendo quem apontou — só quem morreu e qual papel foi dito. Nos dois casos a
+tripulação ganha informação: acertando, o papel da vítima está revelado; errando, sabe-se que aquela
+pessoa **não** é aquele papel, e que quem morreu era impostor.
+
+Ele só pode apontar os **papéis especiais que a sala ligou**, nunca "tripulante". Ou seja: quanto mais
+papéis especiais a partida tiver, mais perigoso ele é — e numa sala sem papéis especiais ele não tem o
+que apontar.
+
+**Tarefa nova: calibrar o distribuidor** (elétrica). Três mostradores, cada um mais rápido. Em cada um
+o alvo toca duas vezes antes de começar: guarde de que lado ele está e como é o tom dele. Depois o
+ponteiro gira, clicando da esquerda para a direita e subindo de tom, e você aperta Enter no instante
+em que o clique sai no alvo. As duas pistas dizem a mesma coisa de propósito — se você se guia melhor
+pelo tom, use o tom; se pelo lado, use o lado. Errar não reinicia nada: o ponteiro não para e você
+tenta na volta seguinte.
+
+É a primeira tarefa do jogo que pede **acerto de tempo** em vez de procurar e escolher.
+
+- Quem ainda estiver na versão anterior continua entrando e jogando normalmente, e só é recusado em
+  salas que ligaram o Atirador — com o aviso de que precisa atualizar.
+
 ## 0.34.0
 
 **O jogo agora roda no Android.** É a primeira versão para celular e ela espera um **teclado**

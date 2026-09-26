@@ -68,6 +68,11 @@ bool role_is_guessable(const string&in role_id) { return CONFIGURABLE_ROLE_IDS.f
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
 // como tripulante comum sem saber que não é.
 const int ROLES_MIN_PROTOCOL = 2;
+// Protocolo em que o ATIRADOR passou a existir. Ele precisa de mais que os outros porque um cliente
+// que não o conhece cai no `role_for` desconhecido (tripulante) e jogaria como tripulante comum
+// sendo impostor - e porque a morte na mesa chega num pacote novo (S_MEETING_KILL) que ele ignoraria,
+// deixando quem morreu ainda na lista de votação.
+const int SNIPER_MIN_PROTOCOL = 3;
 
 // Um número do papel que a SALA pode ajustar (recarga, duração, janela de gravação).
 //
@@ -156,6 +161,12 @@ class role_traits {
 	// passa a ser jogada do impostor pelo outro lado - a sabotagem dele atravessa a reunião intacta
 	// e o engenheiro sai da mesa sem poder consertá-la.
 	bool ability_cooldown_resets_on_meeting = true;
+
+	// Versão de protocolo que um cliente precisa ter para JOGAR numa sala com este papel ligado. O
+	// padrão serve a todos os papéis da primeira leva; quem precisar de mais declara aqui, e a sala
+	// pergunta (ver lobby_config.required_protocol). Sem isto, acrescentar um papel novo obrigaria a
+	// recusar clientes de salas que nem o ligaram.
+	int min_protocol = ROLES_MIN_PROTOCOL;
 
 	// Ao morrer, a nave inteira ouve que ele morreu e ONDE. É a informação que este jogo não dá de
 	// graça em lugar nenhum: normalmente o corpo precisa ser encontrado, e quem está longe não sabe
@@ -394,6 +405,7 @@ role_traits@ role_sniper() {
 	t.knows_teammates = true;
 	t.ability_id = ABILITY_GUESS;
 	t.ability_usable_in_meeting = true;
+	t.min_protocol = SNIPER_MIN_PROTOCOL;
 	// Um por REUNIÃO, e não por partida: o palpite se renova a cada mesa, e quem segura o papel é o
 	// risco de morrer, não a escassez. O teto de 3 existe só para a sala não transformar a reunião
 	// numa chacina.

@@ -9,7 +9,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.34.0";
+const string GAME_VERSION = "0.35.0";
 
 // Versão do PROTOCOLO de rede, separada da versão do jogo de propósito: a maioria das versões não
 // muda o que viaja pela rede, e as que mudam de um jeito incompatível são raras e precisam de um
@@ -24,8 +24,14 @@ const string GAME_VERSION = "0.34.0";
 // Subir de novo custa o mesmo cuidado: só depois que a base já estiver numa versão que saiba
 // EXPLICAR a recusa, senão a pessoa ouve uma chave crua e não entende o que fazer.
 // Histórico: 1 = o campo passou a existir (0.29.5); 2 = o cliente lê `your_role` e o formulário da
-// sala manda `role_counts` (ver ROLES_MIN_PROTOCOL em game/roles/role_traits.nvgt).
-const int PROTOCOL_VERSION = 2;
+// sala manda `role_counts` (ver ROLES_MIN_PROTOCOL em game/roles/role_traits.nvgt); 3 = o Atirador e a
+// morte na mesa (S_MEETING_KILL).
+//
+// O MÍNIMO continua 2 de propósito, e a 3 não corta ninguém: quem está na 0.34.0 joga tudo o que
+// conhece e só é recusado em salas que ligaram o Atirador - a exigência passou a ser POR PAPEL (ver
+// role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
+// a barrar quem só queria jogar com engenheiro.
+const int PROTOCOL_VERSION = 3;
 const int MIN_PROTOCOL_VERSION = 2;
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).

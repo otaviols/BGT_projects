@@ -834,7 +834,7 @@ class game_server {
 		// não no início da partida: quem entrasse ficaria esperando uma partida que nunca ia começar
 		// por causa dele, sem saber. (O cliente velho ouve a chave crua, e é o melhor que dá: ele
 		// não tem o texto. O updater já avisou antes.)
-		if (@lobby != null && lobby.config.uses_roles() && conn.protocol_version < ROLES_MIN_PROTOCOL) { @lobby = null; fail_key = "lobby.needs_update"; }
+		if (@lobby != null && conn.protocol_version < lobby.config.required_protocol()) { @lobby = null; fail_key = "lobby.needs_update"; }
 
 		if (@lobby == null) {
 			result.set_bool("ok", false);
@@ -1017,11 +1017,12 @@ class game_server {
 		// Papéis ligados DEPOIS de alguém velho já estar dentro (a porta só barra quem chega): a partida
 		// não começa, e o anfitrião ouve QUEM precisa atualizar - senão ele desligaria os papéis sem
 		// saber por quê, ou expulsaria a pessoa errada.
-		if (lobby.config.uses_roles()) {
+		int exigido = lobby.config.required_protocol();
+		if (exigido > 0) {
 			array<string> outdated;
 			for (uint i = 0; i < lobby.players.length(); i++) {
 				game_player@ p = lobby.players[i];
-				if (!p.is_bot && p.protocol_version < ROLES_MIN_PROTOCOL) outdated.insert_last(p.username);
+				if (!p.is_bot && p.protocol_version < exigido) outdated.insert_last(p.username);
 			}
 			if (outdated.length() > 0) {
 				dictionary@ p = dictionary();
