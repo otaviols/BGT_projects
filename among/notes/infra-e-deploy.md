@@ -18,6 +18,20 @@ não falhasse, publicaria um executável Windows no contêiner. Apague o zip e g
 `Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"` e esperar `docker info`
 responder; o deploy não inicia o Docker sozinho.
 
+**"O servidor NÃO fica de pé nesta imagem" com o log `exec /usr/local/bin/docker-entrypoint.sh: no
+such file or directory` = o script shell saiu com CRLF.** O arquivo está lá; quem não existe é o
+`/bin/sh\r` do shebang. Acontece em máquina com `core.autocrlf=true` (padrão do Git para Windows) — foi
+descoberto ao preparar um segundo computador para publicar. O `.gitattributes` da pasta força `eol=lf`
+em `*.sh`; se aparecer outro script que vai para o contêiner com outra extensão, ele entra lá também.
+
+**Máquina nova para publicar** (o que cada ferramenta precisa, na ordem em que falha): NVGT da release
+`latest` do GitHub `samtupy/nvgt` (instalador Inno Setup em `C:\nvgt`, `/VERYSILENT` já traz os stubs
+de Linux, Mac e Android) e `C:\nvgt` no PATH; `az login`; `az aks get-credentials -g
+rg-fallenrealms-alpha -n aks-fallenrealms-alpha`; Docker Desktop; `docker login ghcr.io -u otaviols`
+com token de `write:packages` (o do `gh auth login` NÃO tem: `gh auth refresh -s write:packages` e
+`gh auth token | docker login ghcr.io -u otaviols --password-stdin`); Python 3 no PATH. O nvgt.gg
+passou a redirecionar para outro domínio - o GitHub é a fonte segura do instalador.
+
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 
 **Commite ANTES de publicar o servidor.** A imagem leva o nome do commit atual, e isso só é verdade

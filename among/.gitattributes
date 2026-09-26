@@ -1,0 +1,5 @@
+# Script shell vai para dentro do contêiner Linux, e com core.autocrlf=true (o padrão do Git para
+# Windows) o checkout o grava com CRLF. O shebang vira "/bin/sh\r" e o contêiner morre com
+# "exec /usr/local/bin/docker-entrypoint.sh: no such file or directory" - com o arquivo ali. Foi o que
+# aconteceu ao preparar uma segunda máquina: o deploy.ps1 barra no smoke test, sem dizer o motivo.
+*.sh text eol=lf
