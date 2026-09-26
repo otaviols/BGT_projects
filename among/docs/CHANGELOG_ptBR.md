@@ -6,6 +6,16 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.35.1
+
+**O marcador do distribuidor dá para ouvir.** Na versão passada ele era um zumbido baixo que
+desaparecia no meio dos outros sons da nave. Agora é um pulso curto que se repete — a máquina girando
+—, e dá para apontar de onde vem.
+
+**Todos os marcadores ficaram mais fáceis de localizar.** Metade deles não estava sendo posicionada
+direito no espaço; agora está. O volume de cada um continua igual ao que era, então nada ficou mais
+alto nem mais baixo: o que mudou é você conseguir dizer de que lado o som vem.
+
 ## 0.35.0
 
 **Profissão nova: o Atirador** (impostor). É o único papel que age **durante a reunião**. Com a tecla

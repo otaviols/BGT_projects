@@ -6,6 +6,16 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.35.1
+
+**The distributor's marker can actually be heard.** In the previous version it was a quiet hum that
+vanished among the other sounds of the ship. It is now a short repeating pulse — the machine spinning —
+and you can point at where it comes from.
+
+**All markers are easier to place.** Half of them were not being positioned properly in space; now they
+are. Each one keeps exactly the volume it had, so nothing got louder or quieter: what changed is that
+you can tell which side the sound is coming from.
+
 ## 0.35.0
 
 **New role: the Sniper** (impostor). The only role that acts **during a meeting**. With the ability key
