@@ -6,6 +6,29 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.36.0
+
+**Todo mundo anda mais rápido.** Era o pedido que mais chegou pelos recados: a velocidade normal
+subiu, e os passos acompanham — quem anda mais depressa pisa mais vezes, então o som continua dizendo
+quanto a pessoa andou.
+
+**A sala escolhe a velocidade.** Na tela de criar partida (e na tecla O, para o anfitrião) há um campo
+novo: velocidade dos jogadores, em por cento do normal, de 50% a 200%. Em branco, fica o normal.
+
+**A sala pode desligar os dutos.** Desligados, ninguém ventila — nem o impostor, nem o engenheiro. Sem
+duto, quem mata tem que fugir andando, com os passos ouvidos pelo caminho.
+
+**O Alarmista ganhou o alarme.** Com a tecla da habilidade (H), ele aperta o botão de emergência de
+qualquer lugar da nave, sem ir até a cafeteria. Não ganha reunião a mais: gasta as mesmas que todo
+mundo tem, com a mesma espera, e a mesa ouve o mesmo anúncio do botão.
+
+**Abastecer os motores funciona nos dois destinos.** Quando a tarefa mandava o combustível para o
+motor leste, o jogo dizia para levá-lo ao reator — e entregue lá, ela soava concluída mas não contava
+para a equipe. Agora o jogo diz o destino certo, e a tarefa conta.
+
+**Apoiar o jogo.** O jogo continua gratuito. No menu inicial há a opção Apoiar o jogo: por Pix, que
+copia a chave para você colar no app do banco, ou por cartão de qualquer país, pelo Ko-fi.
+
 ## 0.35.1
 
 **O marcador do distribuidor dá para ouvir.** Na versão passada ele era um zumbido baixo que

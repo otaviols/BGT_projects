@@ -6,6 +6,29 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.36.0
+
+**Everyone walks faster.** It was the most requested change in your messages: normal speed went up,
+and footsteps keep pace — walking faster means more steps, so the sound still tells how far someone
+went.
+
+**The lobby picks the speed.** The create-match screen (and the O key, for the host) has a new field:
+player speed, as a percentage of normal, from 50% to 200%. Leave it blank for normal.
+
+**The lobby can turn vents off.** With vents off, nobody vents — not the impostor, not the engineer.
+Without vents, whoever kills has to walk away, with their footsteps heard along the way.
+
+**The Noisemaker got the alarm.** With the ability key (H), they press the emergency button from
+anywhere on the ship, without walking to the cafeteria. No extra meetings: it spends the same ones
+everyone has, with the same wait, and the table hears the same announcement as the button.
+
+**Fuel the engines works for both destinations.** When the task sent the fuel to the east engine, the
+game told you to take it to the reactor — and delivered there, it sounded done but did not count for
+the team. The game now names the right destination, and the task counts.
+
+**Support the game.** The game stays free. The main menu has a Support the game option: by Pix, which
+copies the key for you to paste in your bank app, or by card from any country, through Ko-fi.
+
 ## 0.35.1
 
 **The distributor's marker can actually be heard.** In the previous version it was a quiet hum that
