@@ -18,6 +18,12 @@ não falhasse, publicaria um executável Windows no contêiner. Apague o zip e g
 `Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"` e esperar `docker info`
 responder; o deploy não inicia o Docker sozinho.
 
+**Mesmo sintoma com o Docker DE PÉ (`NativeCommandError` em `#0 building with "desktop-linux"`) =
+o deploy foi chamado com a saída redirecionada** (`2>&1`, `*>&1`, `| Tee-Object`). No PowerShell 5.1
+isso transforma o progresso que o `docker build` escreve na saída de erro em registro de erro, e o
+`$ErrorActionPreference = "Stop"` do script o trata como falha. Rode `infra\deploy.ps1` sem
+redirecionar nada. Nada é publicado nesse caso - ele morre antes do push.
+
 **"O servidor NÃO fica de pé nesta imagem" com o log `exec /usr/local/bin/docker-entrypoint.sh: no
 such file or directory` = o script shell saiu com CRLF.** O arquivo está lá; quem não existe é o
 `/bin/sh\r` do shebang. Acontece em máquina com `core.autocrlf=true` (padrão do Git para Windows) — foi
