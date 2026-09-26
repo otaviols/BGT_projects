@@ -247,7 +247,10 @@ argumento intacto. Isso prende o projeto à build nova do NVGT (a de dezembro n�
 escrita como barra-barra-probe vira barra-probe, que é um escape inválido e engole o `p`).
 Sonda escrita por heredoc com caminhos Windows dentro produz conclusões falsas - custou uma hora
 "investigando" um `run()` que na verdade recebia um caminho errado. Escreva sondas com a ferramenta
-de escrita de arquivo, não por heredoc; o código do projeto nunca passou por isso.
+de escrita de arquivo, não por heredoc; o código do projeto nunca passou por isso. **Vale para
+QUALQUER texto com barra invertida, inclusive um script Python mandado por heredoc** que edita
+nota ou doc: `infra\read_feedback` virou `infra` + CR + `ead_feedback` no CLAUDE.md, e
+`notes/traducoes.md` carregava dois caminhos assim corrompidos (um `\r` e um `\a`) sem ninguém ver.
 
 **`DIRECTORY_TEMP` já termina com barra.** Concatenar outra gera caminhos com `\\` no meio que o
 PowerShell tolera e o NVGT não enxerga de volta.
@@ -332,15 +335,10 @@ que o binário sobe.
 
 ## Pendências conhecidas
 
-- **Recados do beta ainda sem resposta** (ver `infra\read_feedback.ps1`): pedidos repetidos de
-  personagem/passos mais rápidos (#30, #32, #40, #43, #54 - decidido: virar configuração da sala,
-  validada no servidor, com o padrão um pouco maior; ainda não feito); avisos que interrompem a
-  fala do leitor (#52 pede um buffer de anúncios); bots impostores eficazes demais (#51); "não
-  responde" no meio da partida (#49, #10 - sem log); jogo fechou ao apertar Tab logo depois de a
-  câmera cair por sabotagem (#35 - sem log, não reproduzido); tradução completa para espanhol
-  oferecida por Bauti (#31) - já existe um `es_LATAM` em uso; responder pelo `reply_feedback.ps1`.
-  Já atendidos: mapa/orientação (Conhecer o mapa), regras na sala (O), radar travado (Q), partidas
-  privadas.
+- **Recados do beta:** a caixa atual é o `infra\read_feedback.ps1`, e não esta lista — uma lista
+  de recados copiada aqui envelhece e passa a ser lida como pendência depois de atendida (foi o que
+  aconteceu: ela listava como abertos pedidos já resolvidos). Aqui só entra o que foi DECIDIDO e
+  ainda não foi feito.
 - **Sons sem uso, de propósito** (o `check_sounds` os lista a cada execução; não são lixo):
   `steps/CarpetTile*` e `steps/SnowTile*` são pisos que o mapa ainda não tem - quando houver uma
   sala de carpete ou de neve, eles entram em `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes

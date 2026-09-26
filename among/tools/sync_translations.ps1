@@ -11,17 +11,19 @@
 #     que falta. Se mudaram, vira commit e push.
 #
 # Chamado no começo do build_clients.ps1, então todo build sai com as traduções mais novas do main.
-# O clone fica em D:\git\game-translations (ao lado dos outros repositórios); se não existir, é
-# clonado.
+# O clone fica AO LADO do BGT_projects (D:\git\game-translations numa máquina, C:\git\... na outra);
+# se não existir, é clonado. O caminho é derivado da pasta do projeto, e não fixo: fixo em D:, este
+# script falhava numa máquina sem disco D: - e com ele o build_clients inteiro, que o chama primeiro.
 
 param(
-	[string]$RepoDir = "D:\git\game-translations",
+	[string]$RepoDir = "",
 	[string]$RepoUrl = "https://github.com/otaviols/game-translations.git",
 	[string]$Game = "among-us"
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+if ($RepoDir -eq "") { $RepoDir = Join-Path (Split-Path -Parent (Split-Path -Parent $root)) "game-translations" }
 $builtin = @("en_US.json", "pt_BR.json")
 
 if (-not (Test-Path (Join-Path $RepoDir ".git"))) {

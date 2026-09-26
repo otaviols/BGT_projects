@@ -7,7 +7,7 @@ dele — aprendeu algo que teria economizado tempo, escreva aqui, na mesma sess�
 
 ## Traduções
 
-**Fonte da verdade: github.com/otaviols/game-translations** (clone em `D:\git\game-translations`),
+**Fonte da verdade: github.com/otaviols/game-translations** (clone ao lado do BGT_projects, `<disco>:\git\game-translations`),
 pasta `among-us/lang/`. `en_US` e `pt_BR` são EMBUTIDOS e mantidos aqui, junto do código (as chaves
 novas nascem aqui); os outros idiomas são da comunidade e vivem lá. `tools\sync_translations.ps1`
 faz os dois sentidos - traz os da comunidade para `lang/`, manda os embutidos para lá como referência
@@ -15,10 +15,9 @@ faz os dois sentidos - traz os da comunidade para `lang/`, manda os embutidos pa
 comunidade em `lang/`: o próximo sync sobrescreve; edite no repositório de traduções.
 
 **Como uma tradução chega:** o jogador manda pelo jogo ("Enviar uma tradução", na lista de partidas)
--> fica no banco do servidor, UMA por (usuário, idioma), reenvio substitui -> `infra
-ead_translations.ps1`
+-> fica no banco do servidor, UMA por (usuário, idioma), reenvio substitui -> `infra\read_translations.ps1`
 traz para `translations_inbox/` e APAGA do servidor -> `python tools/check_translation.py <arquivo>`
-diz o que falta/sobra -> copiar para `D:\git\game-translationsmong-us\lang\<código>.json`,
+diz o que falta/sobra -> copiar para `<clone>\among-us\lang\<código>.json` (o clone fica ao lado do BGT_projects: `C:\git\game-translations` ou `D:\git\...`),
 commit, push -> responder ao jogador com `reply_feedback.ps1` se ele mandou recado -> o próximo build
 traz. O `build_clients.ps1` recolhe a caixa de entrada sozinho e PARA se houver algo para revisar
 (`-SkipInbox` pula). Pull request no repositório também serve para quem sabe usar GitHub.
