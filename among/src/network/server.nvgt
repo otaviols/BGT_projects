@@ -1270,6 +1270,13 @@ class game_server {
 				// reconexão): o cliente precisa mirar o ponto certo, não o começo da corrente.
 				tj.set("phase", int(p.tasks[t].phase));
 				tj.set("phase_count", int(p.tasks[t].phase_count));
+				// A corrente sorteada vai junto: sem ela o cliente adivinhava o destino pelo mapa e
+				// mandava todo mundo ao reator (ver player_task.chain_object).
+				if (p.tasks[t].chain.length() > 0) {
+					json_array@ chain_json = json_array();
+					for (uint c = 0; c < p.tasks[t].chain.length(); c++) chain_json.add(p.tasks[t].chain[c]);
+					tj.set("chain", chain_json);
+				}
 				tasks_json.add(tj);
 			}
 			start.set_array("tasks", tasks_json);

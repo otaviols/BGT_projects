@@ -54,8 +54,19 @@ onde ele vai sair) - é a troca de velocidade por previsibilidade.
 lugar, e rota única é informação de graça para quem deduz - sabia-se de antemão por onde quem estava
 abastecendo teria que passar. Hoje o mapa declara duas correntes para `fuel_engines` (depósito ->
 reator e depósito -> motor leste), `map.chains_starting_at()` devolve as que começam no ponto
-sorteado, o servidor escolhe UMA no sorteio e ela fica em `player_task.chain`. **O cliente não mudou
-nada**: ele já só seguia o `object_id` da fase atual.
+sorteado, o servidor escolhe UMA no sorteio e ela fica em `player_task.chain`, que vai ao cliente no
+`S_GAME_START` (campo `chain` de cada tarefa).
+
+**O cliente também calcula o destino, e calculava pelo MAPA.** Esta nota já disse "o cliente não
+mudou nada" - era falso: ao terminar uma fase, o cliente avança sozinho, sem esperar o servidor
+(`advance_task_locally`), e o próximo ponto saía de `map.chain_object_at`, que só conhece a PRIMEIRA
+corrente. Quem foi sorteado para o motor leste ouvia "leve ao reator", entregava lá e o servidor, que
+esperava no motor, não achava a tarefa e ficava calado. Sintoma: ninguém nunca "pegou a variação do
+motor", a tarefa soava concluída para o jogador e a barra da equipe nunca chegava a 100%. A
+correção da resposta do servidor (`S_TASK_RESULT`) não salvava, porque procura a tarefa pelo ponto
+antigo, que o cliente já tinha trocado. Hoje os dois lados perguntam a `player_task.chain_object(fase)`.
+A `probe_phases` não pegava isso porque seguia o destino da RESPOSTA do servidor, e não fazia o que o
+cliente faz. Hoje ela calcula como o cliente e joga até ver os dois destinos.
 
 Duas coisas para lembrar ao acrescentar uma corrente alternativa: as alternativas têm que começar no
 MESMO ponto (senão o sorteio entrega uma tarefa que começa noutro lugar - por isso o filtro é por

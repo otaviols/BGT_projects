@@ -630,6 +630,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			// Servidor antigo não manda fase: uma fase só, como sempre foi.
 			if (tj.exists("phase")) pt.phase = uint(int(tj["phase"]));
 			if (tj.exists("phase_count")) pt.phase_count = uint(int(tj["phase_count"]));
+			json_array@ chain_json = tj.get_array("chain");
+			if (@chain_json != null) for (uint c = 0; c < chain_json.length(); c++) pt.chain.insert_last(string(chain_json[c]));
 			my_tasks.insert_last(pt);
 			my_task_object_ids.insert_last(pt.object_id);
 		}
@@ -1363,18 +1365,23 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 						// A fase decide QUAL etapa da tarefa roda (pegar o galão ou abastecer).
 						uint task_phase = 0;
 						uint task_phases = 1;
+						string chained_next = "";
 						for (uint ti = 0; ti < my_tasks.length(); ti++) {
 							if (my_tasks[ti].object_id != obj.id) continue;
 							task_phase = my_tasks[ti].phase;
 							task_phases = my_tasks[ti].phase_count;
+							chained_next = my_tasks[ti].chain_object(task_phase + 1);
 							break;
 						}
 						bool success = run_task_minigame(client, obj.task_type, task_phase);
 						if (success) {
 							// Tarefa de várias fases: avança para o ponto seguinte em vez de terminar, e
-							// diz para onde ir. O marcador muda de lugar junto.
-							string next_object_id = task_phase + 1 < task_phases
-								? map.chain_object_at(obj.task_type, task_phase + 1) : "";
+							// diz para onde ir. O marcador muda de lugar junto. O destino é o da corrente
+							// que o servidor sorteou para ESTE jogador; o mapa só responde por servidor
+							// antigo, que não manda a corrente.
+							string next_object_id = "";
+							if (task_phase + 1 < task_phases)
+								next_object_id = chained_next != "" ? chained_next : map.chain_object_at(obj.task_type, task_phase + 1);
 							if (next_object_id != "") {
 								advance_task_locally(map, audio, my_tasks, my_task_object_ids, obj.id,
 									next_object_id, active_sabotage_id, my_role, alive);

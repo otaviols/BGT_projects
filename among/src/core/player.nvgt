@@ -22,6 +22,14 @@ class player_task {
 	// `map.chain_object_at(tipo, fase)`, que é global - dois jogadores com a mesma tarefa iam
 	// obrigatoriamente ao mesmo lugar, e a rota virava informação de graça para quem deduz.
 	array<string> chain;
+
+	// O ponto da fase `fase` na corrente deste jogador, ou "" se ele não a conhece. Servidor e
+	// cliente perguntam AQUI: o cliente calculava o destino pelo mapa, que só sabe da primeira
+	// corrente, e mandava ao reator quem o servidor tinha sorteado para o motor leste. A tarefa
+	// então nunca fechava - o servidor esperava o galão num lugar e ele era entregue no outro.
+	string chain_object(uint fase) const {
+		return fase < chain.length() ? chain[fase] : "";
+	}
 }
 
 class game_player {

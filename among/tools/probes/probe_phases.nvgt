@@ -1,11 +1,18 @@
-// Sonda das tarefas de várias fases: a tarefa é entregue na fase 0 no depósito, avança para o
-// reator ao ser concluída a primeira etapa, e só then termina. E o ponto do MEIO nunca é sorteado
+// Sonda das tarefas de várias fases: a tarefa é entregue na fase 0 no depósito, avança para um dos
+// destinos ao ser concluída a primeira etapa, e só então termina. E o ponto do MEIO nunca é sorteado
 // como tarefa independente.
 //   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_phases.nvgt
+//
+// O que ela confere de mais importante é que o destino que o CLIENTE calcula é o mesmo que o
+// servidor espera. A primeira versão desta sonda seguia o `next_object_id` da resposta do servidor
+// e passava sempre - enquanto o jogo de verdade calculava o destino sozinho, pelo mapa, e mandava ao
+// reator quem o servidor tinha sorteado para o motor leste. Metade das tarefas de combustível nunca
+// fechava, e a sonda não tinha como ver: ela não fazia o que o cliente faz.
 #include "../../src/network/client.nvgt"
 #include "../../src/config/game_constants.nvgt"
 #include "../../src/config/server_address.nvgt"
 #include "../../src/config/lobby_config.nvgt"
+#include "../../src/core/player.nvgt"
 
 net_packet@ wf(game_client@ c, const string&in t, int ms) {
 	timer x;
@@ -15,9 +22,11 @@ net_packet@ wf(game_client@ c, const string&in t, int ms) {
 
 void main() {
 	server_address addr = resolve_server_address();
-	bool achou_fases = false;
-	// O sorteio é aleatório: tenta algumas vezes até cair uma tarefa de combustível.
-	for (int tentativa = 0; tentativa < 8 && !achou_fases; tentativa++) {
+	// O destino é sorteado entre dois: joga até ver os DOIS, senão "passou" pode ser só a metade que
+	// sempre funcionou.
+	bool viu_reator = false, viu_motor = false;
+	int falhas = 0;
+	for (int tentativa = 0; tentativa < 30 && !(viu_reator && viu_motor); tentativa++) {
 		string name = "fase" + random(10000, 99999);
 		game_client c;
 		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
@@ -35,42 +44,43 @@ void main() {
 		if (@start == null) { println("nao comecou"); return; }
 		if (role_for(start.get_string("your_role")).team == TEAM_IMPOSTOR) { c.disconnect(); continue; }
 		json_array@ tasks = start.get_array("tasks");
-		string fuel_id = "";
+		player_task fuel; // montada do MESMO jeito que o cliente monta (game_loop, S_GAME_START)
 		for (uint i = 0; i < tasks.length(); i++) {
 			json_object@ tj = tasks.get_object(i);
 			string tipo = string(tj["task_type"]);
 			string oid = string(tj["object_id"]);
-			// O ponto do meio da corrente nunca pode ser entregue como tarefa
-			if (oid == "task_fuel_reactor") println("FALHA: recebeu o ponto do meio da corrente como tarefa");
-			if (tipo == "fuel_engines") {
-				fuel_id = oid;
-				println("combustivel entregue em: " + oid + " (esperado task_fuel_storage), fases=" + int(tj["phase_count"]) + " fase=" + int(tj["phase"]));
-			}
+			if (oid == "task_fuel_reactor" || oid == "task_fuel_engine") println("FALHA: recebeu o ponto do meio da corrente como tarefa");
+			if (tipo != "fuel_engines") continue;
+			fuel.object_id = oid;
+			fuel.task_type = tipo;
+			fuel.phase = uint(int(tj["phase"]));
+			fuel.phase_count = uint(int(tj["phase_count"]));
+			json_array@ chain_json = tj.get_array("chain");
+			if (@chain_json != null) for (uint k = 0; k < chain_json.length(); k++) fuel.chain.insert_last(string(chain_json[k]));
 		}
-		if (fuel_id == "") { c.disconnect(); continue; }
-		achou_fases = true;
+		if (fuel.object_id == "") { c.disconnect(); continue; }
 
-		// Conclui a primeira fase
-		c.send_start_task(fuel_id);
-		c.send_task_input(fuel_id, true);
+		string do_cliente = fuel.chain_object(fuel.phase + 1);
+		c.send_start_task(fuel.object_id);
+		c.send_task_input(fuel.object_id, true);
 		net_packet@ r1 = wf(c, S_TASK_RESULT, 5000);
-		if (@r1 == null) { println("FALHA: a primeira fase nao respondeu"); c.disconnect(); continue; }
-		// O destino sai da RESPOSTA, e não de um id fixo aqui: abastecer tem duas correntes agora
-		// (reator e motor leste, sorteadas por jogador), e um destino fixo na sonda mandava o ponto
-		// errado em metade das partidas - o servidor não achava a tarefa, não respondia, e a sonda
-		// ficava esperando até o prazo. Sintoma: a sonda "trava" de vez em quando, sem dizer por quê.
-		string proximo = r1.get_string("next_object_id");
-		bool destino_valido = proximo == "task_fuel_reactor" || proximo == "task_fuel_engine";
-		println("apos a fase 1: proximo ponto = " + proximo +
-			(destino_valido ? "  ok" : "  FALHA: esperado task_fuel_reactor ou task_fuel_engine") +
-			", progresso " + r1.get_int("progress") + "%");
+		if (@r1 == null) { println("FALHA: a primeira fase nao respondeu"); falhas++; c.disconnect(); continue; }
+		string do_servidor = r1.get_string("next_object_id");
+		bool concordam = do_cliente == do_servidor;
+		if (!concordam) falhas++;
+		if (do_servidor == "task_fuel_reactor") viu_reator = true;
+		if (do_servidor == "task_fuel_engine") viu_motor = true;
+		println("fase 1: servidor espera " + do_servidor + ", cliente calcula '" + do_cliente + "'" + (concordam ? "  ok" : "  FALHA"));
 
-		// Conclui a segunda, no ponto que o servidor mandou
-		c.send_start_task(proximo);
-		c.send_task_input(proximo, true);
+		// A segunda fase vai ao ponto que o CLIENTE calculou - é o que o jogador faria.
+		c.send_start_task(do_cliente);
+		c.send_task_input(do_cliente, true);
 		net_packet@ r2 = wf(c, S_TASK_RESULT, 5000);
-		println("apos a fase 2: proximo ponto = '" + r2.get_string("next_object_id") + "' (esperado vazio), progresso " + r2.get_int("progress") + "%");
+		if (@r2 == null) { println("  FALHA: entregar em '" + do_cliente + "' nao fechou a tarefa"); falhas++; }
+		else println("  fase 2 fechou, progresso " + r2.get_int("progress") + "%");
 		c.disconnect();
 	}
-	if (!achou_fases) println("nao caiu tarefa de combustivel em 8 tentativas");
+	println("");
+	println("destinos vistos: reator=" + viu_reator + " motor=" + viu_motor + ", falhas=" + falhas);
+	println(viu_reator && viu_motor && falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA");
 }
