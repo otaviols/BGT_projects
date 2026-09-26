@@ -42,6 +42,9 @@ const string ABILITY_EXAMINE = "examine";
 const string ABILITY_SHAPESHIFT = "shapeshift";
 const string ABILITY_VANISH = "vanish";
 const string ABILITY_GUESS = "guess";
+// O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
+// mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
+const string ABILITY_ALARM = "alarm";
 
 // Times. O papel sorteia-se DENTRO do time: primeiro a sala decide quantos impostores há, depois os
 // papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
@@ -260,10 +263,18 @@ role_traits@ role_sheriff() {
 //
 // O aviso não diz quem matou nem para onde ele foi: diz onde o corpo está. Quem quiser mais que
 // isso tem que ir até lá.
+//
+// Vivo, a tecla H é o ALARME: o botão de emergência apertado de qualquer lugar da nave. É só isso -
+// mesma contagem de reuniões da sala (a dele, a de qualquer um), mesma recarga, mesmos bloqueios
+// (sabotagem crítica, luzes) -, porque o servidor trata os dois pelo mesmo caminho: o cliente manda o
+// mesmo C_CALL_MEETING do botão. E o anúncio é o do botão, de propósito: uma reunião a mais, ou um
+// aviso "foi o alarme", entregaria o papel ao impostor. O que o denuncia é só a dedução de alguém
+// que perceba que ele não estava na cafeteria.
 role_traits@ role_noisemaker() {
 	role_traits t;
 	t.id = ROLE_NOISEMAKER;
 	t.announces_own_death = true;
+	t.ability_id = ABILITY_ALARM;
 	return t;
 }
 
@@ -495,7 +506,10 @@ class player_abilities {
 
 	// --- Ações: todas exigem estar vivo ---
 	bool can_kill() const { return alive && role.can_kill; }
-	bool can_vent() const { return alive && role.can_vent; }
+	// A regra da SALA entra como parâmetro, e não como campo, para toda pergunta ter que dizê-la: um
+	// ponto que esquecesse os dutos desligados não compila, em vez de oferecer um duto que o servidor
+	// recusa calado.
+	bool can_vent(bool room_allows_vents) const { return room_allows_vents && alive && role.can_vent; }
 	// A ÚNICA capacidade que sobrevive à morte, como no jogo original: o impostor morto continua
 	// sabotando. É o que ele ainda tem a oferecer ao time - matar, ventilar e fechar portas acabam
 	// com ele, e sem isto morrer cedo como impostor era virar espectador puro.

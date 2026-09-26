@@ -582,6 +582,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// Servidor antigo não manda: nele a reunião nunca era atingida, que era o comportamento de lá.
 	bool voice_comms_affects_meeting = start_pkt.get_bool("comms_affects_meeting", false);
 	g_voice.begin_match(roster, client.my_peer_id, voice_room_allows);
+	// Regras da sala que o cliente aplica sozinho (ver server.on_start_game). Servidor antigo não
+	// manda: nele a velocidade era a fixa de antes e os dutos estavam sempre liberados.
+	float move_speed = start_pkt.get_float("move_speed", 2.2);
+	float footstep_interval = footstep_interval_for(move_speed);
+	bool room_allows_vents = start_pkt.get_bool("vents_enabled", true);
 
 	// Cooldown de kill acompanhado localmente (só é preciso de verdade pro impostor) - o servidor
 	// continua sendo quem decide de fato se o kill vale (ver network/server.on_kill), isso aqui é só
@@ -734,7 +739,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// Passos de outros jogadores - throttled por jogador, senão tocaria a cada pacote
 				// de posição (várias vezes por segundo).
 				roster_entry@ moved_entry = roster.find(moved_peer);
-				if (@moved_entry != null && moved_entry.alive && float(moved_entry.footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
+				if (@moved_entry != null && moved_entry.alive && float(moved_entry.footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
 					moved_entry.footstep_clock.restart();
 					map_zone@ moved_zone = map.zone_at(moved_x, moved_y);
 					string moved_prefix = @moved_zone != null ? moved_zone.floor_sound_prefix : "Tile";
@@ -1221,8 +1226,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				float len = sqrt(dx * dx + dy * dy);
 				dx /= len;
 				dy /= len;
-				float new_x = my_x + dx * PLAYER_MOVE_SPEED * delta;
-				float new_y = my_y + dy * PLAYER_MOVE_SPEED * delta;
+				float new_x = my_x + dx * move_speed * delta;
+				float new_y = my_y + dy * move_speed * delta;
 
 				if (map.can_move(my_x, my_y, new_x, new_y, alive)) {
 					my_x = new_x;
@@ -1244,7 +1249,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 						last_zone_id = zone_id;
 						if (@zone != null) speak(tr(zone.name_key));
 					}
-					map_object@ nearby = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(), active_sabotage_id, alive);
+					map_object@ nearby = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(room_allows_vents), active_sabotage_id, alive);
 					string nearby_id = @nearby != null ? nearby.id : "";
 					if (nearby_id != last_interactable_id) {
 						last_interactable_id = nearby_id;
@@ -1284,7 +1289,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// for consertado, quem estiver parado do lado do corpo ouve o aviso na hora.
 					near_body_last_frame = near_body_now && !comms_down;
 
-					if (alive && float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
+					if (alive && float(footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
 						footstep_clock.restart();
 						string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
 						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
@@ -1348,7 +1353,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// perder gente. Tudo que não é task fica só pros vivos (ver os testes de "alive" abaixo).
 		if (!movement_frozen && !is_vented) {
 			if (action_pressed(ACTION_INTERACT)) {
-				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(), active_sabotage_id, alive);
+				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(room_allows_vents), active_sabotage_id, alive);
 				// Duas recusas que poupam trabalho jogado fora: o scanner é de um de cada vez (o
 				// servidor recusa o segundo, e o scan dele não valeria de prova para ninguém), e um
 				// painel já resolvido não tem mais o que resolver.
@@ -1466,6 +1471,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 						dp.set("seconds", "" + int(my_disguise_remaining + 0.5));
 						speak(tr("role.shift_active", dp));
 					} else run_shapeshift_menu(client, roster);
+				} else if (my_role.ability_id == ABILITY_ALARM) {
+					// O alarme É o botão de emergência, de qualquer lugar: o mesmo pedido, e o servidor
+					// aplica a mesma contagem, recarga e bloqueios (ver role_noisemaker).
+					crew.call_emergency_meeting();
 				} else if (my_role.ability_id == ABILITY_SHIELD) {
 					// Habilidade MIRADA: o alvo é quem estiver mais perto, pela mesma função da
 					// tecla de matar - o anjo tem que ir até a pessoa, como o impostor teria.
@@ -1525,7 +1534,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 
 		// Ações de dentro do vent (sair ou viajar) - só fazem sentido enquanto vented, por isso ficam
 		// FORA do bloco acima (que exige !is_vented).
-		if (player_abilities(my_role, alive).can_vent() && !movement_frozen && is_vented && action_pressed(ACTION_VENT)) {
+		if (player_abilities(my_role, alive).can_vent(room_allows_vents) && !movement_frozen && is_vented && action_pressed(ACTION_VENT)) {
 			run_vent_menu(imp, map, audio, current_vent_id);
 		}
 

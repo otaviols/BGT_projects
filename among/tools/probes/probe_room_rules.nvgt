@@ -1,0 +1,128 @@
+// Sonda das regras de sala da 0.36.0: velocidade de movimento e dutos desligados.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_room_rules.nvgt
+//
+// A velocidade é conferida pelo lado que importa: o servidor ACEITAR o passo mais rápido que a sala
+// permitiu. Um jogador anda a 130% do padrão e outro, na mesma sala, conta quantos passos dele
+// chegam - o servidor só retransmite o passo aceito (on_move). O controle é o mesmo passo numa sala
+// a 100%, onde ele tem que ser recusado: sem o controle, "todos chegaram" poderia ser só um
+// anti-cheat que não confere nada.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/map.nvgt"
+
+class peer {
+	game_client@ c;
+	string name;
+	uint64 id = 0;
+	peer(const string&in n) { name = n; @c = game_client(); }
+}
+
+net_packet@ wait_for(game_client@ c, const string&in type, int ms) {
+	timer t;
+	while (t.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == type) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Monta uma sala com a regra pedida, começa a partida e devolve quantos dos `passos` passos rápidos
+// do jogador A a testemunha B recebeu.
+int rodar(int percent, bool dutos, int passos) {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	peer a("va" + sfx), b("vb" + sfx);
+	array<peer@> all = {a, b};
+	for (uint i = 0; i < all.length(); i++) {
+		peer@ p = all[i];
+		if (!p.c.connect_to(addr.host, addr.port)) { println("connect falhou"); return -1; }
+		timer t; while (!p.c.connected && t.elapsed < 5000) { p.c.update(); wait(5); }
+		p.c.send_register(p.name, "probe123"); wait_for(p.c, S_REGISTER_RESULT, 3000);
+		p.c.send_login(p.name, "probe123");
+		net_packet@ lr = wait_for(p.c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return -1; }
+		p.id = lr.get_uint64("peer_id"); p.c.my_peer_id = p.id;
+	}
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.move_speed_percent = percent;
+	ov.vents = dutos ? "on" : "off";
+	a.c.send_create_lobby("regras", "classic", ov);
+	net_packet@ st = wait_for(a.c, S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return -1; }
+	json_object@ cfg = st.get_object("config");
+	confere("a sala guardou a velocidade (" + (@cfg != null ? int(cfg["move_speed_percent"]) : -1) + "%, pedido " + percent + "%)",
+		@cfg != null && int(cfg["move_speed_percent"]) == percent);
+	confere("a sala guardou os dutos (" + (@cfg != null ? bool(cfg["vents_enabled"]) : true) + ", pedido " + dutos + ")",
+		@cfg != null && bool(cfg["vents_enabled"]) == dutos);
+
+	b.c.send_join_lobby(st.get_string("lobby_id"));
+	wait_for(b.c, S_JOIN_RESULT, 5000);
+	for (int k = 0; k < 2; k++) { a.c.send_add_bot(); timer w; while (w.elapsed < 200) { a.c.update(); b.c.update(); a.c.clear_incoming(); b.c.clear_incoming(); wait(5); } }
+	a.c.send_start_game();
+	net_packet@ sa = wait_for(a.c, S_GAME_START, 8000);
+	net_packet@ sb = wait_for(b.c, S_GAME_START, 8000);
+	if (@sa == null || @sb == null) { println("a partida nao comecou"); return -1; }
+	float esperada = move_speed_for_percent(percent);
+	float recebida = sa.get_float("move_speed", -1.0);
+	confere("o cliente recebe a velocidade da sala (" + recebida + ", esperado " + esperada + ")", abs(recebida - esperada) < 0.01);
+	confere("o cliente recebe a regra dos dutos", sa.get_bool("vents_enabled", !dutos) == dutos);
+
+	// Uma direção que o mapa deixa percorrer inteira: parede também faz o servidor recusar, e aí a
+	// sonda mediria o mapa em vez da velocidade.
+	game_map@ m = build_the_hub_map();
+	const int PASSO_MS = 100;
+	float passo = PLAYER_MOVE_SPEED * 1.3 * PASSO_MS / 1000.0;
+	float x = sa.get_float("your_x"), y = sa.get_float("your_y");
+	array<float> dxs = {1, -1, 0, 0}, dys = {0, 0, 1, -1};
+	int dir = -1;
+	for (uint d = 0; d < 4 && dir < 0; d++) {
+		bool livre = true;
+		for (int s = 0; s < passos && livre; s++)
+			livre = m.can_move(x + dxs[d] * passo * s, y + dys[d] * passo * s, x + dxs[d] * passo * (s + 1), y + dys[d] * passo * (s + 1), true);
+		if (livre) dir = int(d);
+	}
+	if (dir < 0) { println("nenhuma direcao livre a partir do ponto de nascimento"); return -1; }
+
+	// O primeiro passo depois do início sempre passa (o relógio de referência é o do começo); ele
+	// é descartado da conta para não virar "1 aceito" numa sala que recusa tudo.
+	timer pausa; while (pausa.elapsed < 1500) { a.c.update(); b.c.update(); a.c.clear_incoming(); b.c.clear_incoming(); wait(5); }
+	a.c.send_move(x, y);
+	timer p0; while (p0.elapsed < PASSO_MS) { a.c.update(); b.c.update(); b.c.clear_incoming(); wait(5); }
+	int recebidos = 0;
+	for (int s = 1; s <= passos; s++) {
+		a.c.send_move(x + dxs[dir] * passo * s, y + dys[dir] * passo * s);
+		timer w;
+		while (w.elapsed < PASSO_MS) {
+			a.c.update(); a.c.clear_incoming();
+			b.c.update();
+			net_packet@ p = b.c.poll_message();
+			while (@p != null) {
+				if (p.type == S_PLAYER_MOVED && p.get_uint64("peer_id") == a.id) recebidos++;
+				@p = b.c.poll_message();
+			}
+			wait(5);
+		}
+	}
+	a.c.disconnect(); b.c.disconnect();
+	return recebidos;
+}
+
+void main() {
+	const int PASSOS = 15;
+	println("== sala a 150%, dutos desligados: andar a 130% tem que passar ==");
+	int rapido = rodar(150, false, PASSOS);
+	confere("passos aceitos: " + rapido + " de " + PASSOS, rapido >= PASSOS - 1);
+
+	println("== controle: sala a 100%, dutos ligados: o mesmo passo tem que ser recusado ==");
+	int normal = rodar(100, true, PASSOS);
+	confere("passos aceitos: " + normal + " de " + PASSOS + " (esperado quase nenhum)", normal >= 0 && normal <= 1);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

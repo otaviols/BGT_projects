@@ -42,6 +42,16 @@ saído. Sintoma: jogador travado sem mensagem nenhuma. Por isso `release_cameras
 foi liberado, e todo lugar que fecha o posto passa por `close_cameras()`.
 
 
+**Regra de sala que o cliente aplica sozinho vai no `S_GAME_START`, e os dois lados leem o MESMO
+número.** Velocidade (`move_speed`) e dutos (`vents_enabled`), desde a 0.36.0. O cliente anda sem
+perguntar, e o servidor recusa o passo acima de `lobby_config.move_speed()` - se os dois lessem
+lugares diferentes, o jogador ficaria preso no lugar, sem mensagem. Por isso anti-cheat, bots e
+cliente passam pelo mesmo `move_speed()`, e o ritmo dos passos acompanha (`footstep_interval_for`).
+Os dutos entram como PARÂMETRO de `player_abilities.can_vent(room_allows_vents)`: um ponto que
+esquecesse a regra não compila. Sala fora do padrão exige protocolo 4 (`required_protocol`), porque
+um cliente anterior andaria na velocidade fixa dele. Sonda: `tools/probes/probe_room_rules.nvgt`,
+com controle - o mesmo passo rápido tem que ser RECUSADO numa sala a 100%.
+
 ## Telas, laço do cliente e fila de pacotes
 
 **`dictionary.get(chave, valor&out)` com chave AUSENTE deixa `valor` com LIXO.** É como o

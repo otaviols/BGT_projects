@@ -400,6 +400,12 @@ tarefa, do outro lado do mapa, na câmera.
 O aviso **não** diz quem matou. E ninguém sabe quem é o alarmista — nem ele tem como avisar que é.
 Para o impostor, isso muda a conta de matar num canto escondido: qualquer vítima pode ser ela.
 
+Vivo, o alarmista tem o **alarme** na tecla da habilidade (**H**): é o botão de emergência, apertado
+de qualquer lugar da nave, sem precisar ir até a cafeteria. Não dá reunião a mais — gasta as mesmas
+reuniões de emergência que todo mundo tem, com a mesma recarga, e não funciona quando o botão
+também não funcionaria (sabotagem crítica, luzes apagadas). A mesa ouve o mesmo anúncio do botão;
+só quem reparar que ele não estava na cafeteria pode desconfiar.
+
 **Anjo da Guarda** (tripulação). Enquanto vivo, é um tripulante comum. **Depois de morrer**, ele
 ganha uma jogada: chegar perto de alguém vivo e apertar a tecla da habilidade. Por 30 segundos,
 nenhum ataque contra essa pessoa acontece — o impostor aperta para matar e simplesmente nada
@@ -537,7 +543,9 @@ Os presets abaixo são o ponto de partida; o teto de uma partida é **15 jogador
 
 **Dá para ajustar o preset na hora de criar a sala.** Além do preset, a tela de criação tem campos
 para máximo de jogadores, número de impostores, tarefas por tripulante, recarga do kill, tempo de
-discussão, tempo de votação, reuniões de emergência por jogador e se a sabotagem entra.
+discussão, tempo de votação, reuniões de emergência por jogador, se a sabotagem entra, se os
+**dutos** podem ser usados (desligados, nem o impostor nem o engenheiro ventilam) e a **velocidade
+dos jogadores**, em por cento do normal (de 50% a 200%).
 
 **Todos os campos aceitam ficar em branco**, e em branco quer dizer "use o que o preset manda" —
 então quem só quer jogar escolhe o preset, confirma e pronto. Quem entrar na sala consegue ver o que

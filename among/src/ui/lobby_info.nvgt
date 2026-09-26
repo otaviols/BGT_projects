@@ -160,6 +160,14 @@ string lobby_config_text(json_object@ cfg) {
 	partes.insert_last(tr("lobby.info.emergency_meetings", ep));
 
 	partes.insert_last(tr(bool(cfg["sabotages_enabled"]) ? "lobby.info.sabotage_on" : "lobby.info.sabotage_off"));
+	// Dutos e velocidade só são ditos quando fogem do padrão: é o que muda o jogo, e "dutos
+	// liberados, velocidade 100%" em toda leitura de regras seria mais uma frase para ouvir à toa.
+	if (cfg.exists("vents_enabled") && !bool(cfg["vents_enabled"])) partes.insert_last(tr("lobby.info.vents_off"));
+	if (cfg.exists("move_speed_percent") && int(cfg["move_speed_percent"]) != 100) {
+		dictionary@ sp = dictionary();
+		sp.set("percent", "" + int(cfg["move_speed_percent"]));
+		partes.insert_last(tr("lobby.info.move_speed", sp));
+	}
 	// Servidor antigo não manda o campo: nele a revelação era sempre ligada.
 	if (cfg.exists("reveal_ejected_role")) {
 		partes.insert_last(tr(bool(cfg["reveal_ejected_role"]) ? "lobby.info.reveal_on" : "lobby.info.reveal_off"));

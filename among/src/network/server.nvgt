@@ -1238,6 +1238,10 @@ class game_server {
 			// O cliente decide sozinho se abre o microfone, e precisa da MESMA regra que o servidor
 			// usa para decidir quem ouve - senão ele cala a reunião que o servidor deixaria passar.
 			start.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
+			// Velocidade e dutos: o cliente anda e oferece o duto sozinho, sem perguntar, então precisa
+			// da MESMA regra que o servidor usa para aceitar o passo e o duto.
+			start.set_float("move_speed", lobby.config.move_speed());
+			start.set_bool("vents_enabled", lobby.config.vents_enabled);
 			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
 			// um ou três, senão a discussão da reunião é chute puro.
 			start.set_int("impostor_count", impostor_count);
@@ -1579,7 +1583,7 @@ class game_server {
 		game_player@ p = lobby.find_player(peer_id);
 		// Capacidade, e não identidade: o engenheiro também usa os dutos (ver role_traits). Perguntar
 		// "é impostor?" aqui era o que obrigaria cada papel novo a revisitar este ponto.
-		if (@p == null || p.vented || !player_abilities(p.role(), p.alive).can_vent()) return;
+		if (@p == null || p.vented || !player_abilities(p.role(), p.alive).can_vent(lobby.config.vents_enabled)) return;
 
 		string vent_id = pkt.get_string("vent_id");
 		map_object@ vent = lobby.map.find_object(vent_id);

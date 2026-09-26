@@ -404,6 +404,12 @@ The alert does **not** say who killed them. And nobody knows who the noisemaker 
 for them to say so. For the impostor, that changes the math of killing in a hidden corner: any
 victim could be that one.
 
+While alive, the noisemaker has the **alarm** on the ability key (**H**): it is the emergency
+button, pressed from anywhere on the ship, without walking to the cafeteria. It gives no extra
+meetings — it spends the same emergency meetings everyone has, with the same cooldown, and it does
+not work when the button wouldn't either (critical sabotage, lights out). The table hears the same
+announcement as the button; only someone who notices they weren't in the cafeteria may suspect.
+
 **Guardian Angel** (crew). While alive, an ordinary crewmate. **After they die**, they get a move:
 walk up to someone alive and press the ability key. For 30 seconds, no attack against that person
 happens — the impostor presses to kill and simply nothing occurs.
@@ -542,7 +548,9 @@ The presets below are the starting point; a match tops out at **15 players**.
 
 **You can adjust the preset when creating the lobby.** Besides the preset, the creation screen has
 fields for maximum players, number of impostors, tasks per crewmate, kill cooldown, discussion time,
-voting time, emergency meetings per player, and whether sabotage is in play.
+voting time, emergency meetings per player, whether sabotage is in play, whether **vents** can be
+used (when off, neither the impostor nor the engineer can vent), and **player speed**, as a
+percentage of normal (50% to 200%).
 
 **Every field may be left blank**, and blank means "use what the preset says" — so if you just want
 to play, pick a preset, confirm and go. Anyone joining can hear what you changed by pressing **C**,

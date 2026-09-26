@@ -89,6 +89,14 @@ tem que ir até lá. E ele entra em `background_event_text`, senão quem estives
 exatamente onde a pessoa está quando o impostor escolhe matar longe de todos - não ouviria o único
 aviso que o papel existe para dar. Sonda: `tools/probes/probe_noisemaker.nvgt`.
 
+**O alarme do alarmista (H) É o botão de emergência, e não uma habilidade com contagem própria.**
+Decisão do usuário: mesma contagem de reuniões da sala, mesma recarga, mesmos bloqueios; só muda
+poder apertar de qualquer lugar. Uma reunião a mais, ou um anúncio "foi o alarme", entregaria o
+papel ao impostor. Por isso o cliente manda o MESMO `C_CALL_MEETING` e não passa por
+`on_use_ability` - o servidor já não confere a distância até o botão (ver `on_call_meeting`), então
+não há nada a mudar lá. A consequência a saber: a distância é regra só do cliente, para todo mundo;
+se um dia o servidor passar a conferi-la, o alarmista precisa entrar como exceção declarada no papel.
+
 **Anjo da guarda: o escudo é conferido no TOPO do `try_kill`, e o lugar dele ali é a regra.** Antes
 de consumir a recarga do atacante, porque gastá-la seria um aviso indireto ("apertei, não saiu som
 de kill e meu cooldown zerou" só pode significar escudo); e antes do cálculo do tiro errado do

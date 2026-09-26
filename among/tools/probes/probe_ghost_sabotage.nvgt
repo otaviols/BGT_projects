@@ -13,7 +13,10 @@ void main() {
 	println("--- a capacidade local (e o que oferece a tecla ao jogador) ---");
 	caso("impostor morto sabota", player_abilities(role_impostor(), false).can_sabotage(), true);
 	caso("impostor morto mata", player_abilities(role_impostor(), false).can_kill(), false);
-	caso("impostor morto ventila", player_abilities(role_impostor(), false).can_vent(), false);
+	caso("impostor morto ventila", player_abilities(role_impostor(), false).can_vent(true), false);
+	caso("impostor vivo ventila", player_abilities(role_impostor(), true).can_vent(true), true);
+	caso("impostor vivo ventila com dutos desligados", player_abilities(role_impostor(), true).can_vent(false), false);
+	caso("engenheiro vivo ventila com dutos desligados", player_abilities(role_engineer(), true).can_vent(false), false);
 	caso("impostor morto fecha portas", player_abilities(role_impostor(), false).can_close_doors(), false);
 	caso("tripulante morto sabota", player_abilities(role_crewmate(), false).can_sabotage(), false);
 

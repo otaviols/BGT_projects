@@ -42,6 +42,8 @@ class lobby_overrides {
 	string voice_chat = ""; // "" = preset, "on" = chat de voz por proximidade, "off" = só texto
 	string comms_in_meeting = ""; // "" = preset, "on" = comunicações sabotadas calam a reunião
 	float emergency_cooldown_seconds = -1.0;
+	int move_speed_percent = -1;
+	string vents = ""; // "" = preset, "on" = dutos liberados, "off" = ninguém usa duto
 	// Papéis especiais: id -> quantos. Só entra aqui o que o anfitrião preencheu; o que ficou em
 	// branco não é tocado, como todo o resto. -1 nunca aparece: um papel ausente do dicionário É o
 	// "não mexi".
@@ -90,6 +92,9 @@ class lobby_overrides {
 		if (comms_in_meeting == "on") cfg.comms_affects_meeting = true;
 		else if (comms_in_meeting == "off") cfg.comms_affects_meeting = false;
 		if (emergency_cooldown_seconds >= 0.0) cfg.emergency_cooldown_seconds = emergency_cooldown_seconds;
+		if (move_speed_percent > 0) cfg.move_speed_percent = move_speed_percent;
+		if (vents == "on") cfg.vents_enabled = true;
+		else if (vents == "off") cfg.vents_enabled = false;
 	}
 
 	void write_to_packet(net_packet@ pkt) const {
@@ -108,6 +113,8 @@ class lobby_overrides {
 		pkt.set_string("voice_chat", voice_chat);
 		pkt.set_string("comms_in_meeting", comms_in_meeting);
 		pkt.set_float("emergency_cooldown_seconds", emergency_cooldown_seconds);
+		pkt.set_int("move_speed_percent", move_speed_percent);
+		pkt.set_string("vents", vents);
 		// Um objeto {id: quantos}, e não um campo por papel: assim um papel novo não muda o protocolo.
 		json_object@ roles = json_object();
 		array<string>@ ids = role_counts.get_keys();
@@ -173,6 +180,8 @@ class lobby_overrides {
 		voice_chat = pkt.get_string("voice_chat", "");
 		comms_in_meeting = pkt.get_string("comms_in_meeting", "");
 		emergency_cooldown_seconds = pkt.get_float("emergency_cooldown_seconds", -1.0);
+		move_speed_percent = pkt.get_int("move_speed_percent", -1);
+		vents = pkt.get_string("vents", "");
 	}
 }
 
@@ -208,6 +217,15 @@ class lobby_config {
 	// Recarga do botão de emergência. Em partida grande, quinze segundos permitem reuniões em
 	// sequência que não deixam ninguém jogar; em partida pequena, atrapalham.
 	float emergency_cooldown_seconds = EMERGENCY_MEETING_COOLDOWN_SECONDS;
+	// Velocidade de todo mundo, em por cento do padrão (PLAYER_MOVE_SPEED). Em por cento, e não em
+	// unidades por segundo, porque "unidade de mundo" não significa nada para quem configura a sala;
+	// "130%" significa. Vale para o cliente andar, para o servidor conferir (anti-cheat) e para os bots
+	// - os três leem move_speed(), e é isso que impede o servidor de recusar o passo que a sala permitiu.
+	int move_speed_percent = 100;
+	// Dutos liberados. Desligado, NINGUÉM ventila - impostor e engenheiro iguais: é uma regra da nave,
+	// não de um papel. Sem duto, "sumiu de uma sala e apareceu na outra" deixa de ter explicação, e
+	// quem mata tem que fugir andando, com os passos ouvidos pelo caminho.
+	bool vents_enabled = true;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
 	// Papéis especiais em jogo: id -> quantos. Ausente = zero. TUDO desligado por padrão, em todo
@@ -263,6 +281,8 @@ class lobby_config {
 		role_values.set(role_id + "." + key, v);
 	}
 
+	float move_speed() const { return move_speed_for_percent(move_speed_percent); }
+
 	// Se algum papel especial está ligado.
 	bool uses_roles() const {
 		return role_counts.get_size() > 0;
@@ -279,6 +299,11 @@ class lobby_config {
 	// nada aqui.
 	int required_protocol() const {
 		int maior = 0;
+		// Velocidade fora do padrão e dutos desligados só existem a partir do protocolo 4. Um cliente
+		// anterior andaria na velocidade fixa dele - numa sala mais LENTA, mais depressa do que o
+		// servidor aceita, e ficaria preso no lugar sem saber por quê - e ofereceria um duto que o
+		// servidor recusaria calado. No padrão ele joga normalmente, então a sala padrão não barra ninguém.
+		if (move_speed_percent != 100 || !vents_enabled) maior = 4;
 		array<string>@ ids = role_counts.get_keys();
 		for (uint i = 0; i < ids.length(); i++) {
 			int n = 0;
@@ -307,6 +332,8 @@ class lobby_config {
 		if (voting_time_seconds < 5.0) { voting_time_seconds = 5.0; changed = true; }
 		if (emergency_cooldown_seconds < 0.0) { emergency_cooldown_seconds = 0.0; changed = true; }
 		if (emergency_cooldown_seconds > 300.0) { emergency_cooldown_seconds = 300.0; changed = true; }
+		if (move_speed_percent < MOVE_SPEED_MIN_PERCENT) { move_speed_percent = MOVE_SPEED_MIN_PERCENT; changed = true; }
+		if (move_speed_percent > MOVE_SPEED_MAX_PERCENT) { move_speed_percent = MOVE_SPEED_MAX_PERCENT; changed = true; }
 		// Papéis: só ids conhecidos, e um teto absoluto pela lotação da sala. Nada além disso.
 		//
 		// NÃO se recorta por time nem pela quantidade de gente presente, e isso é decisão. O que a
@@ -397,6 +424,8 @@ class lobby_config {
 		o.set("voice_chat", voice_chat);
 		o.set("comms_affects_meeting", comms_affects_meeting);
 		o.set("emergency_cooldown_seconds", emergency_cooldown_seconds);
+		o.set("move_speed_percent", move_speed_percent);
+		o.set("vents_enabled", vents_enabled);
 		// Sempre presente, mesmo vazio: é como o cliente distingue "sala sem papéis" de "servidor
 		// antigo que nem sabe o que é papel".
 		json_object@ roles = json_object();

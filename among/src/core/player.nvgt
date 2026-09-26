@@ -116,9 +116,10 @@ class game_player {
 
 	// Aplica um movimento vindo do cliente, validando se a distância percorrida desde a última
 	// posição conhecida é fisicamente possível no tempo decorrido (anti-cheat simples).
-	bool try_move(float new_x, float new_y, float delta_seconds) {
+	// `speed` é a velocidade DA SALA (lobby_config.move_speed), a mesma que o cliente recebe para andar.
+	bool try_move(float new_x, float new_y, float delta_seconds, float speed) {
 		float dist = distance_2d(x, y, new_x, new_y);
-		float max_dist = PLAYER_MOVE_SPEED * delta_seconds * PLAYER_MAX_SPEED_TOLERANCE;
+		float max_dist = speed * delta_seconds * PLAYER_MAX_SPEED_TOLERANCE;
 		if (dist > max_dist && delta_seconds > 0.0) return false;
 		x = new_x;
 		y = new_y;

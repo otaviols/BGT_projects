@@ -527,6 +527,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.add_list_item(f_sabotages, tr("lobby.override.enabled"), "on");
 	f.add_list_item(f_sabotages, tr("lobby.override.disabled"), "off");
 	if (@current != null) f.set_list_position(f_sabotages, bool(current["sabotages_enabled"]) ? 1 : 2);
+	int f_vents = f.create_list(tr("lobby.vents_override"));
+	f.add_list_item(f_vents, tr("lobby.override.preset_default"), "");
+	f.add_list_item(f_vents, tr("lobby.override.enabled"), "on");
+	f.add_list_item(f_vents, tr("lobby.override.disabled"), "off");
+	if (@current != null && current.exists("vents_enabled")) f.set_list_position(f_vents, bool(current["vents_enabled"]) ? 1 : 2);
 	int f_reveal = f.create_list(tr("lobby.reveal_ejected_override"));
 	f.add_list_item(f_reveal, tr("lobby.override.preset_default"), "");
 	f.add_list_item(f_reveal, tr("lobby.reveal.on"), "on");
@@ -548,6 +553,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.add_list_item(f_voice, tr("lobby.override.enabled"), "on");
 	f.add_list_item(f_voice, tr("lobby.override.disabled"), "off");
 	if (@current != null && current.exists("voice_chat")) f.set_list_position(f_voice, bool(current["voice_chat"]) ? 1 : 2);
+	int f_speed = f.create_input_box(tr("lobby.move_speed_override"), current_int_text(current, "move_speed_percent"));
 	// Salvar estas regras, por último e só na criação: é a pergunta que só faz sentido depois de
 	// tudo estar preenchido. Vazio = não salva - a última usada é guardada sozinha de qualquer jeito
 	// (ver run_create_lobby_screen), então ninguém precisa digitar nada para ter "a de ontem".
@@ -598,6 +604,9 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.emergency_meetings_per_player = text_to_int_or_default(f.get_text(f_meetings));
 			int sab_index = f.get_list_position(f_sabotages);
 			r.ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
+			int vents_index = f.get_list_position(f_vents);
+			r.ov.vents = vents_index >= 0 ? f.get_list_item_id(f_vents, vents_index) : "";
+			r.ov.move_speed_percent = text_to_int_or_default(f.get_text(f_speed));
 			int rev_index = f.get_list_position(f_reveal);
 			r.ov.reveal_ejected = rev_index >= 0 ? f.get_list_item_id(f_reveal, rev_index) : "";
 			int votes_index = f.get_list_position(f_votes);

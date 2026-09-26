@@ -25,13 +25,13 @@ const string GAME_VERSION = "0.35.1";
 // EXPLICAR a recusa, senão a pessoa ouve uma chave crua e não entende o que fazer.
 // Histórico: 1 = o campo passou a existir (0.29.5); 2 = o cliente lê `your_role` e o formulário da
 // sala manda `role_counts` (ver ROLES_MIN_PROTOCOL em game/roles/role_traits.nvgt); 3 = o Atirador e a
-// morte na mesa (S_MEETING_KILL).
+// morte na mesa (S_MEETING_KILL); 4 = velocidade de movimento e dutos configuráveis na sala.
 //
 // O MÍNIMO continua 2 de propósito, e a 3 não corta ninguém: quem está na 0.34.0 joga tudo o que
 // conhece e só é recusado em salas que ligaram o Atirador - a exigência passou a ser POR PAPEL (ver
 // role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
 // a barrar quem só queria jogar com engenheiro.
-const int PROTOCOL_VERSION = 3;
+const int PROTOCOL_VERSION = 4;
 const int MIN_PROTOCOL_VERSION = 2;
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
@@ -75,14 +75,33 @@ const uint MIN_PLAYERS = 3; // temporário, pra facilitar teste - Among Us de ve
 const uint MAX_PLAYERS = 15;
 
 // Movimento (mundo absoluto: W=norte, S=sul, A=oeste, D=leste, sem rotação)
-const float PLAYER_MOVE_SPEED = 2.2; // unidades de mundo por segundo
+// Velocidade PADRÃO (os 100% da sala), em unidades de mundo por segundo. Era 2,2 e subiu para 2,5 na
+// 0.36.0: "o personagem é lento demais" foi o pedido mais repetido do beta (#30, #32, #40, #43, #54).
+// A sala ajusta por cima disto (lobby_config.move_speed_percent), e quem anda na partida é SEMPRE o
+// número da sala - esta constante só vale sozinha fora dela (conhecer o mapa).
+const float PLAYER_MOVE_SPEED = 2.5;
+// A sala escolhe a velocidade em por cento do padrão, entre estes limites. Abaixo de 50% atravessar
+// a nave vira castigo; acima de 200% os passos de quem passa por perto duram um instante e o
+// jogador não tem tempo de reagir ao próprio mapa - o jogo é todo de ouvido.
+const int MOVE_SPEED_MIN_PERCENT = 50;
+const int MOVE_SPEED_MAX_PERCENT = 200;
+float move_speed_for_percent(int percent) { return PLAYER_MOVE_SPEED * float(percent) / 100.0; }
 const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servidor (anti-cheat simples)
 const float PLAYER_INTERACT_RANGE = 1.4; // distância máxima para usar objetos/tasks/vents
 const float PLAYER_KILL_RANGE = 1.2;
 const float PLAYER_REPORT_RANGE = 2.0;
 // Ritmo dos passos e dos esbarrões ao andar. Compartilhado pela partida e pelo modo de conhecer o
 // mapa - os dois têm que soar iguais, senão o mapa "aprendido" não é o mapa jogado.
+//
+// O intervalo foi afinado andando a 2,2 por segundo, e o passo ACOMPANHA a velocidade: quem anda mais
+// rápido pisa mais vezes, e cada passo continua valendo o mesmo trecho de chão. Com o intervalo fixo,
+// correr soaria como deslizar, e quem conta passos para saber quanto alguém andou erraria a conta.
 const float FOOTSTEP_INTERVAL_SECONDS = 0.35;
+const float FOOTSTEP_CALIBRATION_SPEED = 2.2;
+float footstep_interval_for(float speed) {
+	if (speed <= 0.0) return FOOTSTEP_INTERVAL_SECONDS;
+	return FOOTSTEP_INTERVAL_SECONDS * FOOTSTEP_CALIBRATION_SPEED / speed;
+}
 const float WALL_BUMP_INTERVAL_SECONDS = 0.3;
 
 // Radar (Tab / Shift+Tab)
@@ -211,7 +230,8 @@ const int SPATIAL_PITCH_MAX_PERCENT = 25;
 // Bots (jogadores controlados pelo próprio servidor, adicionados pelo anfitrião na sala de espera
 // com B / Shift+B). Não são clientes de verdade: não têm conexão, então nada é ENVIADO pra eles.
 const uint MAX_BOTS_PER_LOBBY = 8;
-const float BOT_MOVE_SPEED = PLAYER_MOVE_SPEED * 0.85; // um tico mais devagar que gente
+// Um tico mais devagar que gente - sobre a velocidade DA SALA, para o bot acompanhar quando ela muda.
+const float BOT_SPEED_FACTOR = 0.85;
 // Posição de bot só vai pra rede nesse intervalo: o laço do servidor roda a cada ~5ms e mandar
 // pacote de movimento nessa frequência entupiria a rede à toa (o cliente só usa isso pra som).
 const float BOT_MOVE_BROADCAST_INTERVAL = 0.25;

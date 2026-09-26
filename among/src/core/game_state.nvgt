@@ -216,7 +216,7 @@ class game_state {
 		if (!map.can_move(p.x, p.y, x, y, p.alive)) return false;
 		float delta = elapsed_time - p.last_move_time;
 		if (delta <= 0.0) delta = 1.0 / NETWORK_TICKS_PER_SECOND;
-		bool ok = p.try_move(x, y, delta);
+		bool ok = p.try_move(x, y, delta, config.move_speed());
 		// SÓ avança o relógio de referência quando o movimento é ACEITO. Antes avançava sempre,
 		// mesmo numa rejeição - aí a janela de tempo pro próximo pacote ficava minúscula (só o
 		// intervalo entre pacotes, não desde a última posição CONFIRMADA), enquanto o cliente
@@ -1193,7 +1193,7 @@ class game_state {
 		float dy = target_y - b.y;
 		float dist = sqrt(dx * dx + dy * dy);
 		if (dist <= 0.001) return false;
-		float step = BOT_MOVE_SPEED * delta_seconds;
+		float step = config.move_speed() * BOT_SPEED_FACTOR * delta_seconds;
 		if (step > dist) step = dist;
 		float new_x = b.x + dx / dist * step;
 		float new_y = b.y + dy / dist * step;
