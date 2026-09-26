@@ -149,6 +149,12 @@ const string SND_TASK_BEACON_SUBMIT_SCAN = "sounds/beacons/medbay_scan_pannel.og
 // abertura fica à direita). Um arquivo só, dois usos - e por isso ele mora em beacons/, que é onde a
 // função principal dele está.
 const string SND_TASK_BEACON_CLEAN_O2_FILTER = "sounds/beacons/o2_filter_pannel.ogg";
+// O distribuidor girando. Só beacon, ao contrário do filtro de O2: dentro da task o ponteiro é uma
+// sequência de CLIQUES, e um zumbido por baixo deles seria justamente a parede que a task revertida
+// ensinou a evitar (ver notes/mapa-e-tarefas.md). Foi convertido 13 dB abaixo do arquivo original
+// para cair na mediana dos outros beacons - o do filtro nasceu alto demais e teve que ser corrigido
+// depois de já estar no ar.
+const string SND_TASK_BEACON_CALIBRATE_DISTRIBUTOR = "sounds/beacons/distributor_pannel.ogg";
 
 // --- Tasks (nomes SEM prefixo - usados via task_sound(), que já monta "sounds/" + nome) ---
 // Pegar o galão de combustível no depósito (primeira fase de abastecer os motores).
@@ -185,6 +191,15 @@ const uint O2_LEAF_VARIANT_COUNT = 4;
 string o2_leaf_sound(int variant_1_based) {
 	return "tasks/o2_leaf" + variant_1_based + ".ogg";
 }
+// Calibrar o distribuidor. O tique é o PONTEIRO passando por uma posição: 20 ms, puro ataque, porque
+// o ouvido localiza por ataque e este som é tocado oito vezes por volta com panorâmica e tom
+// diferentes em cada uma. O alvo é o mesmo "boop" duas vezes antes de a volta começar, no lugar e no
+// tom dele - é a referência que o jogador tem que reconhecer no meio do giro.
+const string SND_DISTRIBUTOR_TICK = "tasks/distributor_tick.ogg";
+const string SND_DISTRIBUTOR_TARGET = "tasks/distributor_target.ogg";
+const string SND_DISTRIBUTOR_CORRECT = "tasks/distributor_correct.ogg";
+const string SND_DISTRIBUTOR_WRONG = "tasks/distributor_wrong.ogg";
+
 const uint O2_SUCK_VARIANT_COUNT = 3;
 string o2_suck_sound(int variant_1_based) {
 	return "tasks/o2_suck" + variant_1_based + ".ogg";
@@ -390,6 +405,11 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_O2_GRAB);
 	for (int i = 1; i <= int(O2_LEAF_VARIANT_COUNT); i++) list.insert_last("sounds/" + o2_leaf_sound(i));
 	for (int i = 1; i <= int(O2_SUCK_VARIANT_COUNT); i++) list.insert_last("sounds/" + o2_suck_sound(i));
+	list.insert_last(SND_TASK_BEACON_CALIBRATE_DISTRIBUTOR);
+	list.insert_last("sounds/" + SND_DISTRIBUTOR_TICK);
+	list.insert_last("sounds/" + SND_DISTRIBUTOR_TARGET);
+	list.insert_last("sounds/" + SND_DISTRIBUTOR_CORRECT);
+	list.insert_last("sounds/" + SND_DISTRIBUTOR_WRONG);
 	list.insert_last(SND_AMBIENT_GAMES);
 	list.insert_last(SND_AMBIENT_GREENHOUSE);
 	list.insert_last(SND_AMBIENT_SECURITY);

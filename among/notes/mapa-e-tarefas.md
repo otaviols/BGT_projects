@@ -132,6 +132,34 @@ nada); as folhas **se mexem** a cada aspirada, senão dava para mapear a câmara
 resto virava digitação; e o beacon é o MESMO arquivo do ar que toca dentro da task, então de longe se
 ouve o filtro puxando e de perto aquele puxar vira o norte fixo.
 
+`calibrate_distributor` é a segunda, e o critério de escolha foi outro: das doze minigames, **nenhuma
+pedia acerto de TEMPO** - todas eram "ache e escolha". Foi a mecânica que faltava, e o original já era
+ela. É também a tradução mais fácil para o ouvido que existe, porque julgar QUANDO dois sons
+coincidem é algo que o ouvido faz muito melhor do que julgar ONDE um som está.
+
+Quatro decisões dela, e o que cada uma evita:
+
+- **Duas pistas para a mesma posição**: o clique caminha no estéreo E sobe de tom. Redundância de
+  propósito - quem se guia mal pela panorâmica usa o tom, e vice-versa. Aqui **tom significa
+  posição**, o que localmente contraria "um sinal sonoro, um significado": passa porque a referência
+  é ENSINADA no começo de cada mostrador (o alvo toca duas vezes, no lugar e no tom dele) e porque
+  numa tela fechada não há passo nem marcador disputando aquele canal.
+- **O ponteiro é CLIQUE, não zumbido.** O som do distribuidor girando existe e é usado - mas só como
+  beacon. Dentro da task ele seria um contínuo por baixo de oito transientes, que é a parede que a
+  `stabilize_lines` ensinou a evitar.
+- **O passo não desce abaixo de ~200 ms**, que é a reação humana a um som esperado. O mostrador mais
+  rápido tem 175 ms e é o limite; quem quiser mais rápido tem que reduzir as POSIÇÕES, não o passo,
+  senão acertar deixa de ser ouvir e passa a ser adivinhar. A sonda cobra esse número.
+- **O Enter é julgado contra a posição do ÚLTIMO CLIQUE que soou**, e não contra onde o ponteiro
+  "estaria" naquele instante. O jogador aperta porque ouviu, e o som já aconteceu quando o dedo
+  desce: cobrar o instante puniria a reação em vez da escuta. Apertar tarde cai no clique seguinte -
+  erro dele, não do jogo.
+
+Errar não reinicia nada e o ponteiro não para: a punição é o tempo da volta. Sonda:
+`tools/probes/probe_distributor.nvgt`, que confere também as CONTAS (as duas pistas variando sempre
+no mesmo sentido, e vizinhas suficientemente separadas) - uma tabela de posições errada compila,
+roda, e só produz uma tarefa impossível de acertar sem sorte.
+
 **MAQUETE ANTES DE CÓDIGO.** Monte a ideia com `ffmpeg` (um `.wav` com os sons nas posições e nos
 tempos certos) e OUÇA antes de escrever a task. Custa dez minutos; a task revertida custou uma
 sessão. Duas armadilhas da maquete em si: `adelay=0|0` é recusado (o evento em zero não leva o

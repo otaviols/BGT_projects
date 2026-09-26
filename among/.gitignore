@@ -8,6 +8,11 @@ sounds.dat
 *.exe
 *.iso
 *.tar.gz
+# Maquetes de tarefa: um .wav montado com ffmpeg para OUVIR uma ideia antes de existir código (ver
+# "MAQUETE ANTES DE CÓDIGO" em notes/mapa-e-tarefas.md). São descartáveis por definição - o que fica
+# do experimento são as constantes em dB dentro da task e o script que gerou a maquete.
+maquete_*.wav
+
 # O APK do Android e a assinatura incremental que o apksigner grava ao lado dele.
 *.apk
 *.apk.idsig

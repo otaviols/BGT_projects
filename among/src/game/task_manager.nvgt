@@ -13,6 +13,7 @@
 #include "tasks/roll_dice.nvgt"
 #include "tasks/water_plants.nvgt"
 #include "tasks/clean_o2_filter.nvgt"
+#include "tasks/calibrate_distributor.nvgt"
 #include "tasks/review_records.nvgt"
 #include "tasks/submit_scan.nvgt"
 #include "../audio/sound_catalog.nvgt"
@@ -40,6 +41,7 @@ bool run_task_minigame(game_client@ client, const string&in task_type, uint phas
 	else if (task_type == "roll_dice") result = run_roll_dice_task(client);
 	else if (task_type == "water_plants") result = run_water_plants_task(client);
 	else if (task_type == "clean_o2_filter") result = run_clean_o2_filter_task(client);
+	else if (task_type == "calibrate_distributor") result = run_calibrate_distributor_task(client);
 	else if (task_type == "review_records") result = run_review_records_task(client);
 	else if (task_type == "submit_scan") result = run_submit_scan_task(client);
 	// Fechou: terminada tem um som, fechada pela metade (ESC, reunião, erro) tem outro - o mesmo de

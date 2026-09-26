@@ -616,6 +616,14 @@ game_map@ build_the_hub_map() {
 	m.objects.insert_last(map_object("task_filter_greenhouse", "task.clean_o2_filter.name", 29, 21, "greenhouse",
 		OBJ_TASK_SPOT, SND_TASK_BEACON_CLEAN_O2_FILTER, "clean_o2_filter", "", SND_TASK_BEACON_CLEAN_O2_FILTER));
 
+	// O distribuidor fica na ELÉTRICA, como no jogo original. Um ponto só, e de propósito: espalhar a
+	// mesma tarefa por salas onde ela não tem razão de estar é o que deixa o mapa arbitrário - o
+	// segundo filtro de O2 foi para a estufa porque lá caem folhas, não para ter dois.
+	// Afastado uns 6 do painel de luzes e da fiação, que também moram nesta sala: dois marcadores
+	// colados viram um borrão só, e a interação pega o que for encontrado primeiro.
+	m.objects.insert_last(map_object("task_distributor_electrical", "task.calibrate_distributor.name", -27, -47, "electrical",
+		OBJ_TASK_SPOT, SND_OPEN_PANEL, "calibrate_distributor", "", SND_TASK_BEACON_CALIBRATE_DISTRIBUTOR));
+
 	// Sabotagens
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -27, -53, "electrical",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights", "", SND_PANEL_BEACON_LIGHTS));

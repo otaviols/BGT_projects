@@ -290,6 +290,12 @@ As onze tarefas:
   **tique e um farfalho logo atrás** é folha. Enter numa folha e a sucção a leva — o som sai na
   abertura, à direita, que é o seu ponto de referência o tempo todo. E cuidado: **as folhas que
   sobram se mexem** a cada aspirada, então não adianta decorar a câmara de uma vez.
+- **Calibrar o distribuidor** (elétrica) — três mostradores, cada um mais rápido. Em cada um o
+  **alvo toca duas vezes antes de começar**: guarde de que lado ele está e como é o tom dele. Depois
+  o ponteiro gira, clicando da esquerda para a direita e subindo de tom, e você aperta **Enter no
+  instante em que o clique sai no alvo**. As duas pistas dizem a mesma coisa de propósito — se você
+  se guia melhor pelo tom, use o tom; se pelo lado, use o lado. Errar não reinicia nada: o ponteiro
+  não para e você tenta na volta seguinte.
 - **Fazer o exame médico** (enfermaria) — fique parado no scanner até ele terminar. É a tarefa
   mais fácil do jogo e a mais valiosa: **quem estiver por perto ouve o scanner rodando e o jogo diz
   quem está sendo examinado** — e impostor não faz tarefa, então ver alguém no exame prova que é

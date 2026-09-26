@@ -295,6 +295,12 @@ The eleven tasks:
   the sound comes from the opening, on the right, which is your reference point throughout. And
   careful: **the remaining leaves shift** after every one you remove, so mapping the chamber once
   does not help.
+- **Calibrate the distributor** (electrical) — three dials, each one faster. In each of them the
+  **target sounds twice before the dial starts**: remember which side it is on and what its pitch is.
+  Then the pointer spins, clicking from left to right and rising in pitch, and you press **Enter the
+  moment the click lands on the target**. The two cues say the same thing on purpose — if pitch works
+  better for you, use pitch; if sides do, use sides. Missing restarts nothing: the pointer keeps
+  going and you try again on the next lap.
 - **Submit scan** (medbay) — stand still on the scanner until it finishes. The easiest task in the
   game and the most valuable: **anyone nearby hears the scanner running and the game says who is
   being scanned** — and impostors cannot do tasks, so seeing someone scanned proves they are crew. An

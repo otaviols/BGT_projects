@@ -1,0 +1,146 @@
+// calibrate_distributor.nvgt
+// Task da elétrica: o ponteiro do distribuidor gira e você aperta quando ele passa pelo alvo. É a
+// "Calibrate Distributor" do jogo original, traduzida para o ouvido.
+//
+// Por que ESTA tarefa: das doze minigames do jogo, nenhuma pedia acerto de TEMPO. Todas são "ache e
+// escolha" - navegar posições, decorar sequência, digitar código. Esta é a mecânica que faltava, e o
+// original já era exatamente ela (o ponteiro gira, você solta no ponto certo). É também a tradução
+// mais honesta que o ouvido permite: julgar QUANDO dois sons coincidem é algo que o ouvido faz muito
+// melhor do que julgar ONDE um som está.
+//
+//   boop, duas vezes   -> este é o alvo, no lugar e no tom dele
+//   clique             -> o ponteiro passou por uma posição
+//   Enter no alvo      -> calibrou este mostrador
+//   Enter fora         -> som de erro; o ponteiro NÃO para, e não há punição além do tempo
+//
+// **Duas pistas para a mesma posição, de propósito.** O clique caminha no estéreo (esquerda para a
+// direita) e SOBE de tom junto. Quem não distingue bem a panorâmica se guia pelo tom, quem não
+// distingue tom se guia pela panorâmica - redundância deliberada, não indecisão. É por isso que o
+// alvo é apresentado com as duas coisas.
+//
+// **Tom aqui é posição, e isso é local.** No resto do jogo o tom diz norte/sul (ver
+// SPATIAL_SOUTH_PITCH_DECREASE), e a regra do projeto é "um sinal sonoro, um significado". A exceção
+// vale porque a referência é ENSINADA no começo de cada mostrador e a task é uma tela fechada: não há
+// passo nem marcador competindo por aquele canal enquanto ela está aberta.
+//
+// **O ponteiro é CLIQUE, não zumbido.** O som do distribuidor girando existe e é usado - mas só como
+// beacon, no mapa. Aqui embaixo ele seria um contínuo por baixo de oito transientes, que é
+// exatamente a parede que custou uma task inteira (ver notes/mapa-e-tarefas.md).
+//
+// Os números abaixo saíram de uma maquete montada no ffmpeg e OUVIDA antes de existir código.
+
+#include "task_common.nvgt"
+
+// Posições do mostrador, de um ouvido ao outro. Oito: menos que isso e a volta fica curta demais para
+// o jogador se situar; mais e as posições vizinhas deixam de se distinguir.
+const uint DIST_POSITION_COUNT = 8;
+// A volta inteira, por mostrador - cada um mais rápido que o anterior, como as três calibrações do
+// original. O passo é isto dividido por DIST_POSITION_COUNT: 300, 225 e 175 ms.
+//
+// O mais rápido não desce mais do que isso por uma razão humana: o jogador reage DEPOIS de ouvir o
+// clique, e reação fica em torno de 200 ms. Com passos mais curtos, acertar deixaria de ser questão
+// de ouvir e passaria a ser questão de adivinhar antes.
+const array<uint> DIST_LAP_MS = {2400, 1800, 1400};
+// Meio tom para cada lado do centro, distribuídos pelas posições. O total de 10 semitons é o que a
+// maquete mostrou ser reconhecível sem o clique virar outro som na ponta.
+const float DIST_PITCH_RANGE_SEMITONES = 10.0;
+
+// Balanço, em dB sobre o volume da família de tasks.
+const float DIST_TICK_DB = -4.0;    // o ponteiro toca oito vezes por volta: baixo, senão cansa
+const float DIST_TARGET_DB = 0.0;   // o alvo é a referência a memorizar - tem que saltar do ponteiro
+const float DIST_RESULT_DB = -3.0;  // o acerto do original tem pico em 0 dB; sem isto ele estoura
+
+const uint DIST_TARGET_GAP_MS = 550;  // entre as duas apresentações do alvo
+const uint DIST_BEFORE_LAP_MS = 800;  // do último boop até o ponteiro começar a girar
+
+float dist_pan_of(uint i) {
+	if (DIST_POSITION_COUNT <= 1) return 0.0;
+	return -100.0 + 200.0 * float(i) / float(DIST_POSITION_COUNT - 1);
+}
+
+// Tom em por cento (a escala do sound.pitch): 100 é o centro da volta.
+float dist_pitch_of(uint i) {
+	if (DIST_POSITION_COUNT <= 1) return 100.0;
+	float semitones = -DIST_PITCH_RANGE_SEMITONES / 2.0
+		+ DIST_PITCH_RANGE_SEMITONES * float(i) / float(DIST_POSITION_COUNT - 1);
+	return 100.0 * pow(2.0, semitones / 12.0);
+}
+
+// Um mostrador. Devolve false se a task foi cancelada (ESC, reunião, fim de partida).
+bool run_one_distributor_dial(game_client@ client, uint lap_ms, bool&out calibrated) {
+	calibrated = false;
+	uint target = uint(random(0, int(DIST_POSITION_COUNT) - 1));
+
+	// O alvo, duas vezes, no lugar e no tom dele.
+	for (uint i = 0; i < 2; i++) {
+		task_sound_path("sounds/" + SND_DISTRIBUTOR_TARGET, dist_pan_of(target), DIST_TARGET_DB, dist_pitch_of(target));
+		if (!task_wait(DIST_TARGET_GAP_MS, client)) return false;
+	}
+	if (!task_wait(DIST_BEFORE_LAP_MS, client)) return false;
+
+	uint step_ms = lap_ms / DIST_POSITION_COUNT;
+	// A posição do ÚLTIMO clique que soou - e é contra ela que o Enter é julgado, não contra onde o
+	// ponteiro "estaria" agora. O jogador aperta porque OUVIU, e o som já aconteceu quando o dedo
+	// desce: cobrar a posição do instante puniria a reação humana em vez da escuta. Apertar tarde
+	// demais cai no clique seguinte, o que é o erro do jogador e não do jogo.
+	int last_tick_position = -1;
+	timer step_clock;
+	uint next = 0;
+
+	while (true) {
+		// O clique da vez, quando chega a hora dele.
+		if (last_tick_position < 0 || step_clock.elapsed >= int(step_ms)) {
+			step_clock.restart();
+			last_tick_position = int(next);
+			task_sound_path("sounds/" + SND_DISTRIBUTOR_TICK, dist_pan_of(next), DIST_TICK_DB, dist_pitch_of(next));
+			next = (next + 1) % DIST_POSITION_COUNT;
+		}
+
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+
+		// Uma leitura por quadro, guardada: key_pressed CONSOME o evento, e perguntar duas vezes no
+		// mesmo quadro pode dar respostas diferentes.
+		bool press = key_pressed(KEY_RETURN);
+		if (!press) continue;
+
+		if (uint(last_tick_position) == target) {
+			calibrated = true;
+			// Espera o som do acerto ACABAR aqui, e não com um número de milissegundos lá fora: a
+			// duração é do arquivo, e quem o trocasse não teria como saber que havia um `wait` casado
+			// com ele em outro lugar - falha calada, com o anúncio do mostrador seguinte por cima.
+			return wait_for_task_sound(
+				task_sound_path("sounds/" + SND_DISTRIBUTOR_CORRECT, 0.0, DIST_RESULT_DB), client);
+		}
+		// Errou: o som sai NO LUGAR onde ele apertou, e não no meio. Assim o erro ainda ensina - dá
+		// para ouvir de que lado do alvo o dedo caiu, que é a informação de que ele precisa para a
+		// volta seguinte.
+		task_sound_path("sounds/" + SND_DISTRIBUTOR_WRONG, dist_pan_of(uint(last_tick_position)), DIST_RESULT_DB);
+		// O ponteiro NÃO para e o mostrador não reinicia: a punição é o tempo que a volta custa, e
+		// mais que isso transformaria um erro de reação em recomeçar a tarefa.
+	}
+	return true;
+}
+
+bool run_calibrate_distributor_task(game_client@ client) {
+	speak(tr("task.calibrate_distributor.instructions"));
+	if (!task_wait(900, client)) return false;
+
+	for (uint d = 0; d < DIST_LAP_MS.length(); d++) {
+		// Qual mostrador de quantos: sem isto o jogador não sabe se está no começo ou no fim, e a
+		// tarefa parece não terminar nunca.
+		dictionary@ p = dictionary();
+		p.set("current", "" + (d + 1));
+		p.set("total", "" + DIST_LAP_MS.length());
+		speak(tr("task.calibrate_distributor.dial", p));
+		if (!task_wait(700, client)) return false;
+
+		bool calibrated = false;
+		if (!run_one_distributor_dial(client, DIST_LAP_MS[d], calibrated)) return false;
+		if (!calibrated) return false;
+	}
+
+	speak(tr("task.completed"));
+	return true;
+}

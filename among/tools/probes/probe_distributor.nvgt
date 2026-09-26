@@ -1,0 +1,212 @@
+// Sonda da tarefa "calibrar o distribuidor", nas pontas que falham em silêncio.
+//
+//   1. MAPA: o ponto existe, a sala declarada bate com a GEOMETRIA (`zone_at`), tem beacon, e não
+//      nasce colado nos outros objetos da elétrica - dois marcadores juntos viram um borrão só, e a
+//      interação pega o que for encontrado primeiro.
+//   2. AS CONTAS DA TASK: as posições cobrem o estéreo inteiro de uma ponta à outra, sem repetir, e o
+//      tom sobe junto. É a informação que a tarefa existe para carregar: se as duas pistas não
+//      variarem de forma monotônica, o jogador não tem como saber onde o ponteiro está - e isso
+//      compila e roda sem erro nenhum.
+//   3. O PASSO não pode ser mais curto que a reação humana. Foi o número que decidiu o mostrador mais
+//      rápido: com passo abaixo de ~200 ms, acertar deixa de ser ouvir e passa a ser adivinhar.
+//   4. SORTEIO: o servidor entrega a tarefa a alguém. Um tipo novo pode não sair por motivos que não
+//      aparecem em lugar nenhum, e o sintoma é uma tarefa que existe no mapa e nunca chega a ninguém.
+//
+// O que ela NÃO cobre, de propósito: se a task soa bem. Isso se ouve no menu "Praticar tarefas e
+// reparos", e foi ouvido numa maquete de ffmpeg antes de existir código.
+//
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_distributor.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/map.nvgt"
+#include "../../src/game/tasks/calibrate_distributor.nvgt"
+#include "../../src/i18n.nvgt"
+
+const string TIPO = "calibrate_distributor";
+const string PONTO = "task_distributor_electrical";
+const uint RODADAS = 6;
+const uint JOGADORES = 6;
+
+uint falhas = 0;
+void check(const string&in o_que, bool ok, const string&in esperado) {
+	println((ok ? "ok   " : "FALHA ") + o_que + " (esperado " + esperado + ")");
+	if (!ok) falhas++;
+}
+
+array<array<net_packet@>@> caixa;
+void prepara_caixa(uint n) { caixa.resize(0); for (uint i = 0; i < n; i++) caixa.insert_last(array<net_packet@>()); }
+void esvazia_caixa() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+void drena(array<game_client@>@ todos) {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+net_packet@ achado(uint i, const string&in tipo) {
+	for (uint k = 0; k < caixa[i].length(); k++) { if (caixa[i][k].type == tipo) return caixa[i][k]; }
+	return null;
+}
+bool todos_recebem(array<game_client@>@ todos, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		bool completo = true;
+		for (uint i = 0; i < todos.length(); i++) { if (@achado(i, tipo) == null) { completo = false; break; } }
+		if (completo) return true;
+		wait(5);
+	}
+	return false;
+}
+void bombeia(array<game_client@>@ todos, int ms) { timer t; while (t.elapsed < ms) { drena(todos); wait(10); } }
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	// --- 1. O mapa ---
+	game_map@ mapa = build_the_hub_map();
+	map_object@ ponto = mapa.find_object(PONTO);
+	check("o ponto existe no mapa", @ponto != null, PONTO);
+	if (@ponto == null) { println("sem o ponto, o resto nao prova nada"); return; }
+
+	check("  e' um ponto de tarefa do tipo certo",
+		ponto.obj_type == OBJ_TASK_SPOT && ponto.task_type == TIPO, "OBJ_TASK_SPOT / " + TIPO);
+	check("  tem beacon (senao e' caca ao tesouro sem pista)", ponto.beacon_sound_path != "", "um caminho de som");
+
+	map_zone@ onde = mapa.zone_at(ponto.x, ponto.y);
+	check("  a geometria concorda com a sala declarada",
+		@onde != null && onde.id == ponto.room_id && onde.id == "electrical", "zone_at diz 'electrical'");
+
+	// A elétrica já tem fiação e o painel de luzes: o novo ponto não pode nascer colado em nenhum.
+	float menor = 1000.0;
+	string vizinho = "";
+	array<map_object@>@ objs = mapa.objects;
+	for (uint i = 0; i < objs.length(); i++) {
+		if (objs[i].id == ponto.id || objs[i].room_id != "electrical") continue;
+		if (objs[i].obj_type == OBJ_DECORATION) continue; // a ambiência fica no centro de propósito
+		float d = distance_2d(ponto.x, ponto.y, objs[i].x, objs[i].y);
+		if (d < menor) { menor = d; vizinho = objs[i].id; }
+	}
+	check("  nao esta colado noutro objeto da eletrica", menor >= 3.0,
+		"pelo menos 3, e' " + menor + " (de " + vizinho + ")");
+
+	check("  esta' classificada como curta", !task_is_long(TIPO), "fora de LONG_TASK_TYPES");
+	check("  nao e' tarefa comum", !task_is_common(TIPO), "fora de COMMON_TASK_TYPES");
+	check("  nao e' tarefa visivel (nao serve de alibi)", !task_is_visible(TIPO), "fora de VISIBLE_TASK_TYPES");
+
+	// --- 2. As contas da task: as duas pistas têm que variar, e sempre no mesmo sentido ---
+	check("ha posicoes suficientes para uma volta", DIST_POSITION_COUNT >= 4, "pelo menos 4");
+	check("a volta comeca na ponta esquerda", dist_pan_of(0) <= -99.0, "-100");
+	check("e termina na ponta direita", dist_pan_of(DIST_POSITION_COUNT - 1) >= 99.0, "100");
+	bool pan_cresce = true;
+	bool tom_cresce = true;
+	float pan_min_passo = 1000.0;
+	for (uint i = 1; i < DIST_POSITION_COUNT; i++) {
+		float dp = dist_pan_of(i) - dist_pan_of(i - 1);
+		if (dp <= 0.0) pan_cresce = false;
+		if (dp < pan_min_passo) pan_min_passo = dp;
+		if (dist_pitch_of(i) <= dist_pitch_of(i - 1)) tom_cresce = false;
+	}
+	check("a panoramica anda sempre para o mesmo lado", pan_cresce, "monotonica");
+	check("o tom sobe sempre para o mesmo lado", tom_cresce, "monotonico");
+	// Duas posições vizinhas separadas por quase nada seriam indistinguíveis, e o jogador acertaria
+	// por sorte. Com 8 posições em 200 de panorâmica, o passo é ~28.
+	check("  e cada posicao esta' longe da vizinha", pan_min_passo >= 15.0,
+		"pelo menos 15 de panoramica, e' " + pan_min_passo);
+	check("o centro da volta fica no tom natural",
+		dist_pitch_of(0) < 100.0 && dist_pitch_of(DIST_POSITION_COUNT - 1) > 100.0,
+		"a volta cruza 100");
+
+	// --- 3. O passo não pode ser mais rápido que a reação humana ---
+	// 200 ms é reação de gente treinada a um som esperado; abaixo disso acertar deixa de depender de
+	// ouvir. Quem quiser um mostrador mais rápido tem que reduzir as POSIÇÕES, não o passo.
+	uint passo_mais_curto = 100000;
+	for (uint i = 0; i < DIST_LAP_MS.length(); i++) {
+		uint passo = DIST_LAP_MS[i] / DIST_POSITION_COUNT;
+		if (passo < passo_mais_curto) passo_mais_curto = passo;
+		if (i > 0) check("  o mostrador " + (i + 1) + " e' mais rapido que o anterior",
+			DIST_LAP_MS[i] < DIST_LAP_MS[i - 1], "volta mais curta");
+	}
+	check("o passo mais curto cabe numa reacao humana", passo_mais_curto >= 170,
+		"pelo menos 170 ms, e' " + passo_mais_curto);
+
+	// --- 4. O sorteio, contra o servidor de verdade ---
+	server_address addr = resolve_server_address();
+	string sufixo = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (uint i = 0; i < JOGADORES; i++) {
+		game_client@ c = conecta(addr, "cd" + i + sufixo);
+		if (@c == null) { println("nao conectou cd" + i); return; }
+		todos.insert_last(c);
+	}
+	prepara_caixa(todos.length());
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.task_count_per_crewmate = 8;
+	todos[0].send_create_lobby("Sonda do distribuidor", "classic", ov);
+	net_packet@ ls = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@ls == null) { println("sem retrato da sala"); return; }
+	string lobby_id = ls.get_string("lobby_id");
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(lobby_id); wf(todos[i], S_JOIN_RESULT, 5000); }
+
+	uint rodadas_com_a_tarefa = 0;
+	uint rodadas_ok = 0;
+	for (uint r = 0; r < RODADAS; r++) {
+		todos[0].send_start_game();
+		if (!todos_recebem(todos, S_GAME_START, 10000)) { println("rodada " + (r + 1) + ": nem todos comecaram"); break; }
+		uint quantos = 0;
+		uint64 impostor_peer = 0;
+		for (uint i = 0; i < todos.length(); i++) {
+			net_packet@ st = achado(i, S_GAME_START);
+			json_array@ tarefas = st.get_array("tasks");
+			if (@tarefas == null || tarefas.length() == 0) { impostor_peer = st.get_uint64("your_peer_id"); continue; }
+			for (uint t = 0; t < tarefas.length(); t++) {
+				json_object@ tj = tarefas.get_object(t);
+				if (@tj != null && string(tj["task_type"]) == TIPO) { quantos++; break; }
+			}
+		}
+		if (quantos > 0) rodadas_com_a_tarefa++;
+		println("  rodada " + (r + 1) + ": " + quantos + " tripulante(s) com a tarefa nova");
+		rodadas_ok++;
+		esvazia_caixa();
+
+		todos[0].send_call_meeting();
+		todos_recebem(todos, S_VOTING_STARTED, 10000);
+		bombeia(todos, 300);
+		for (uint i = 0; i < todos.length(); i++) todos[i].send_cast_vote(int64(impostor_peer));
+		todos_recebem(todos, S_VOTE_RESULT, 40000);
+		if (!todos_recebem(todos, S_GAME_OVER, 30000)) break;
+		if (!todos_recebem(todos, S_LOBBY_STATE, 15000)) break;
+		bombeia(todos, 300);
+		esvazia_caixa();
+	}
+
+	check("rodaram todas as rodadas", rodadas_ok == RODADAS, "" + RODADAS);
+	check("o servidor entrega a tarefa nova", rodadas_com_a_tarefa > 0,
+		"pelo menos 1 de " + rodadas_ok + " rodadas, foi " + rodadas_com_a_tarefa);
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
+}
