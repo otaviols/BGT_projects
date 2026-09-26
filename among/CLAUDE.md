@@ -252,6 +252,10 @@ QUALQUER texto com barra invertida, inclusive um script Python mandado por hered
 nota ou doc: `infra\read_feedback` virou `infra` + CR + `ead_feedback` no CLAUDE.md, e
 `notes/traducoes.md` carregava dois caminhos assim corrompidos (um `\r` e um `\a`) sem ninguém ver.
 
+**`clipboard_set_text()` devolve `false` mesmo quando COPIOU** (build de 15/09/2026, Windows). Um
+`if` no retorno faz o jogo dizer "não consegui copiar" com o texto já na área de transferência.
+Confira lendo de volta com `clipboard_get_text()` (ver `src/ui/support_screen.nvgt`).
+
 **`DIRECTORY_TEMP` já termina com barra.** Concatenar outra gera caminhos com `\\` no meio que o
 PowerShell tolera e o NVGT não enxerga de volta.
 

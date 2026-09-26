@@ -7,6 +7,7 @@
 #include "explore_screen.nvgt"
 #include "changelog_screen.nvgt"
 #include "practice_screen.nvgt"
+#include "support_screen.nvgt"
 #include "menu.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
@@ -32,6 +33,7 @@ bool run_main_menu() {
 		m.add_item(tr("menu.practice"), "practice");
 		m.add_item(tr("menu.changelog"), "changelog");
 		m.add_item(tr("menu.settings"), "settings");
+		m.add_item(tr("menu.support"), "support");
 		m.add_item(tr("menu.exit"), "exit");
 		m.run();
 		string id = m.selected_item_id;
@@ -42,6 +44,7 @@ bool run_main_menu() {
 		if (id == "practice") { run_practice_screen(); continue; }
 		if (id == "changelog") { run_changelog_screen(); continue; }
 		if (id == "settings") { run_settings_menu(); continue; }
+		if (id == "support") { run_support_screen(); continue; }
 		return false; // "exit", ESC ou fechou sem escolher
 	}
 	return false; // inalcançável - o laço só termina via return acima

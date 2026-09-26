@@ -38,6 +38,10 @@ guardado seria um código que nunca muda.
 **Praticar:** o menu inicial tem **Praticar tarefas e reparos**: qualquer tarefa ou reparo de
 sabotagem, sozinho, sem partida — para aprender cada uma com calma antes de valer.
 
+**Apoiar o jogo:** o jogo é gratuito. Quem quiser ajudar a manter o servidor encontra no menu inicial
+a opção **Apoiar o jogo**: **Pix** copia a chave aleatória (9f901a0c-85de-478a-b3d3-6fd08c8fa864) para você colar no app do
+banco, e **cartão, de qualquer país** abre a página do Ko-fi (ko-fi.com/otaviols).
+
 **Conhecer o mapa:** o menu inicial tem a opção **Conhecer o mapa**, que deixa você andar pela nave
 sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela, Tab lista o que há na
 sala, Enter diz o que é o objeto mais próximo, e ESC volta ao menu. É o jeito de aprender onde fica

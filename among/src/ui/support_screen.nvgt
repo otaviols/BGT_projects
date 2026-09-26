@@ -1,0 +1,50 @@
+// support_screen.nvgt
+// "Apoiar o jogo": Pix e Ko-fi, no menu inicial.
+//
+// O Pix copia a CHAVE, e não um código "Pix copia e cola". A chave é ALEATÓRIA de propósito - uma
+// chave de e-mail ou telefone ficaria exposta a todo jogador - e todo app de banco aceita colá-la em
+// "Pix com chave"; o código copia-e-cola exige nome e cidade do recebedor no formato do Banco
+// Central, e um campo desses errado faz o banco recusar o pagamento sem dizer por quê. QR code não
+// foi considerado: quem joga isto usa leitor de tela, e um QR na tela do PC não serve a ninguém.
+//
+// A chave só é FALADA se a cópia falhar: são 36 caracteres de UUID, que ninguém anota de ouvido e
+// que, ditos a cada cópia, só atrasam o "obrigado".
+
+#include "menu.nvgt"
+#include "speech.nvgt"
+#include "../i18n.nvgt"
+#include "../config/game_constants.nvgt"
+
+void run_support_screen() {
+	while (true) {
+		menu m;
+		m.intro_text = tr("support.intro");
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		m.add_item(tr("support.pix"), "pix");
+		m.add_item(tr("support.kofi"), "kofi");
+		m.add_item(tr("menu.back"), "back");
+		m.run();
+		string id = m.selected_item_id;
+
+		dictionary@ p = dictionary();
+		if (id == "pix") {
+			p.set("key", DONATION_PIX_KEY);
+			// O retorno de clipboard_set_text NÃO serve: ele devolve false mesmo tendo copiado (ver
+			// Armadilhas no CLAUDE.md). Quem responde se deu certo é ler de volta.
+			clipboard_set_text(DONATION_PIX_KEY);
+			bool copiou = clipboard_get_text() == DONATION_PIX_KEY;
+			speak(tr(copiou ? "support.pix_copied" : "support.pix_not_copied", p));
+			wait(400);
+			continue;
+		}
+		if (id == "kofi") {
+			p.set("url", DONATION_KOFI_URL);
+			speak(tr("support.kofi_opening", p));
+			urlopen(DONATION_KOFI_URL);
+			continue;
+		}
+		return;
+	}
+}

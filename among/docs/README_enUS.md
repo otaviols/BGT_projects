@@ -39,6 +39,11 @@ code would be a code that never changes.
 **Practice:** the main menu has **Practice tasks and repairs**: any task or sabotage repair, alone,
 with no match — to learn each one calmly before it counts.
 
+**Support the game:** the game is free. If you want to help keep the server running, the main menu
+has **Support the game**: **Pix** (Brazilian bank accounts) copies the random key (9f901a0c-85de-478a-b3d3-6fd08c8fa864)
+for you to paste in your bank app, and **card, from any country** opens the Ko-fi page
+(ko-fi.com/otaviols).
+
 **Explore the map:** the main menu has an **Explore the map** option that lets you walk around the
 ship alone, with no server and no pressure. Each room is named as you enter it, Tab lists what is in
 the room, Enter says what the nearest object is, and ESC returns to the menu. It is the way to learn

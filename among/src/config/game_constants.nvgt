@@ -39,6 +39,12 @@ const int MIN_PROTOCOL_VERSION = 2;
 const string DOWNLOAD_PAGE_URL = "https://amongusaudiogame.z15.web.core.windows.net/";
 const string UPDATE_CHECK_URL = DOWNLOAD_PAGE_URL + "version.json";
 
+// Doações (menu "Apoiar o jogo"). Duas portas porque o público é dos dois lados: o Pix só serve a
+// quem tem banco no Brasil, e o Ko-fi aceita cartão de qualquer país, sem PayPal e sem o doador
+// criar conta. Mudar um destes é republicar o cliente - e o site, que repete os dois.
+const string DONATION_PIX_KEY = "9f901a0c-85de-478a-b3d3-6fd08c8fa864";
+const string DONATION_KOFI_URL = "https://ko-fi.com/otaviols";
+
 // Rede
 // Servidor oficial. O jogo conecta direto aqui, sem perguntar nada ao jogador - quem precisa de
 // outro endereço (testar contra um server_main local, por exemplo) cria um server.txt, ver
