@@ -29,7 +29,11 @@ em `*.sh`; se aparecer outro script que vai para o contêiner com outra extensã
 de Linux, Mac e Android) e `C:\nvgt` no PATH; `az login`; `az aks get-credentials -g
 rg-fallenrealms-alpha -n aks-fallenrealms-alpha`; Docker Desktop; `docker login ghcr.io -u otaviols`
 com token de `write:packages` (o do `gh auth login` NÃO tem: `gh auth refresh -s write:packages` e
-`gh auth token | docker login ghcr.io -u otaviols --password-stdin`); Python 3 no PATH. O nvgt.gg
+`gh auth token | docker login ghcr.io -u otaviols --password-stdin`); Python 3 no PATH; identidade
+do git (`user.name`/`user.email`), sem a qual nenhum commit sai; a chave de assinatura do Android
+(`%USERPROFILE%\.nvgt_android.keystore`, copiada da outra máquina - ver CLAUDE.md, Android).
+Com `core.autocrlf=true`, o git escreve avisos de fim de linha na saída de erro, e script PowerShell
+em modo `Stop` morre neles achando que o git falhou - foi o `sync_translations.ps1`. O nvgt.gg
 passou a redirecionar para outro domínio - o GitHub é a fonte segura do instalador.
 
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.

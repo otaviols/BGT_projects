@@ -127,6 +127,12 @@ propósito: o site ainda serve Windows, e o updater do jogo não sabe instalar A
 vale 1 por padrão, que significa "perguntar", e a pergunta é um diálogo esperando resposta que nada
 anuncia. O script passa `0`.
 
+**A chave de assinatura mora em `%USERPROFILE%\.nvgt_android.keystore`, FORA do repositório, e o
+NVGT cria uma nova em silêncio se não achar** (a linha "creating signature keystore..." no build). APK
+assinado com outra chave não atualiza o instalado: o Android recusa, e o jogador tem que desinstalar
+e perder preferências e conta lembrada. Descoberto ao compilar num segundo computador. Ao trocar de
+máquina, COPIE esse arquivo antes do primeiro build de Android - e guarde uma cópia fora do disco.
+
 **O identificador `com.amongusaudiogame.game` se escolhe UMA vez.** No Android ele é o caminho da
 pasta de dados do aplicativo: trocá-lo depois de alguém instalar não atualiza nada, cria um segundo
 aplicativo e o jogador perde preferências e conta lembrada.

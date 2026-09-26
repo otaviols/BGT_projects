@@ -60,11 +60,25 @@ foreach ($name in $builtin) {
 		$mudou = $true
 	}
 }
-if ($mudou) {
+# Quem decide se há o que commitar é o ESTADO do repositório, e não o `$mudou` desta execução: se
+# uma rodada anterior copiou os arquivos e morreu antes do commit, esta os acharia iguais e não
+# commitaria nunca - a referência ficaria parada na pasta, sem aviso nenhum. Foi exatamente o que
+# aconteceu na primeira vez numa máquina nova.
+#
+# E o git roda com $ErrorActionPreference = Continue: com core.autocrlf=true ele escreve um AVISO de
+# fim de linha na saída de erro, e o PowerShell 5.1 em modo Stop trata isso como falha e mata o
+# script no meio (sintoma: "NativeCommandError" apontando para o `git add`, que na verdade deu certo).
+# Quem diz se falhou é o $LASTEXITCODE.
+$ErrorActionPreference = "Continue"
+$pendente = git -C $RepoDir status --porcelain -- "$Game/lang" 2>$null
+if (-not [string]::IsNullOrWhiteSpace("$pendente")) {
 	$versao = (Select-String -Path (Join-Path $root "src\config\game_constants.nvgt") -Pattern 'GAME_VERSION = "([^"]+)"').Matches[0].Groups[1].Value
-	git -C $RepoDir add -A "$Game/lang"
-	git -C $RepoDir commit -q -m "$Game`: idiomas de referência do jogo $versao"
-	git -C $RepoDir push -q
+	git -C $RepoDir add -A "$Game/lang" 2>$null
+	if ($LASTEXITCODE -ne 0) { throw "git add no repositório de traduções falhou." }
+	git -C $RepoDir commit -q -m "$Game`: idiomas de referência do jogo $versao" 2>$null
+	if ($LASTEXITCODE -ne 0) { throw "git commit no repositório de traduções falhou." }
+	git -C $RepoDir push -q 2>$null
 	if ($LASTEXITCODE -ne 0) { throw "git push do repositório de traduções falhou." }
 	Write-Host "Referência (en_US, pt_BR) enviada ao repositório."
 }
+$ErrorActionPreference = "Stop"
