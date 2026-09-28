@@ -64,16 +64,43 @@ class camera_view {
 		}
 	}
 
-	// "Cafeteria (3 de 11)". O número é o que dá noção de POSIÇÃO: sem ele, quem está varrendo as
-	// salas não sabe se está no começo, no meio ou prestes a dar a volta.
+	// Só o nome da sala. Era "Cafeteria (3 de 11)", e o número dava a posição na lista alfabética; com
+	// a navegação em GRADE (room_in_direction) a posição é a própria sala no mapa, e o número deixou
+	// de querer dizer alguma coisa.
 	string current_room_text() const {
 		map_zone@ z = current_zone();
 		if (@z == null) return tr("camera.unknown_room");
-		dictionary@ p = dictionary();
-		p.set("room", tr(z.name_key));
-		p.set("index", "" + (room_index + 1));
-		p.set("total", "" + rooms.length());
-		return tr("camera.room_position", p);
+		return tr(z.name_key);
+	}
+
+	// A sala vizinha na direção (dx, dy) - a navegação em GRADE das setas: para cima vai à sala ao
+	// norte, para a direita à sala a leste, pela posição REAL das salas no mapa. Norte é y NEGATIVO,
+	// como no movimento (ver as setas em game_loop).
+	//
+	// Era uma lista alfabética com esquerda e direita: previsível, mas sem nada a ver com a nave - a
+	// sala "seguinte" podia estar do outro lado do mapa. Em grade, quem aprendeu o mapa andando (ou
+	// no "Conhecer o mapa") reconhece a nave pelas câmeras, e o que se ouve numa sala se liga ao lugar.
+	//
+	// Só vale uma sala dentro de um cone de ~60 graus em torno da direção; entre elas, ganha a mais
+	// ALINHADA (o desvio lateral pesa o dobro da distância), senão uma sala mais perto mas na diagonal
+	// roubaria a vez da que está bem ao lado. "" = não há sala para aquele lado.
+	string room_in_direction(float dx, float dy) const {
+		map_zone@ atual = current_zone();
+		if (@atual == null) return "";
+		string melhor = "";
+		float melhor_nota = 0.0;
+		for (uint i = 0; i < rooms.length(); i++) {
+			if (rooms[i].id == room_id) continue;
+			float vx = rooms[i].center_x - atual.center_x;
+			float vy = rooms[i].center_y - atual.center_y;
+			float ao_longo = vx * dx + vy * dy;
+			if (ao_longo <= 0.5) continue;
+			float de_lado = abs(vx * dy - vy * dx);
+			if (de_lado > ao_longo * 1.8) continue;
+			float nota = ao_longo + de_lado * 2.0;
+			if (melhor == "" || nota < melhor_nota) { melhor = rooms[i].id; melhor_nota = nota; }
+		}
+		return melhor;
 	}
 
 	void start(const string&in room) {

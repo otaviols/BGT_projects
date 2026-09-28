@@ -52,6 +52,18 @@ esquecesse a regra não compila. Sala fora do padrão exige protocolo 4 (`requir
 um cliente anterior andaria na velocidade fixa dele. Sonda: `tools/probes/probe_room_rules.nvgt`,
 com controle - o mesmo passo rápido tem que ser RECUSADO numa sala a 100%.
 
+**Câmeras em GRADE:** as setas levam à sala vizinha naquele lado do mapa (`room_in_direction`), pela
+posição real - norte é y NEGATIVO, como no movimento. Era lista alfabética com esquerda/direita.
+Chave de texto NOVA para a ajuda (`camera.hint_grid`): reaproveitar a antiga com texto novo deixaria
+as traduções da comunidade dizendo "esquerda e direita trocam de sala". Sonda:
+`tools/probes/probe_camera_grid.nvgt`, que imprime a tabela inteira e confere que toda sala é
+alcançável - mexeu no mapa, rode e LEIA a tabela.
+
+**Som com a janela sem foco (`background_audio`)** é conferido em `game_client.update()`, por um
+gancho (`g_client_frame_hook`): é o único lugar por onde todo laço conectado passa. Mexe só no volume
+geral (`apply_master` soma o desconto), nunca na fala - `speak("")` com interrupção calaria o leitor de
+tela lendo a OUTRA janela, que é o que a pessoa foi fazer.
+
 ## Telas, laço do cliente e fila de pacotes
 
 **`dictionary.get(chave, valor&out)` com chave AUSENTE deixa `valor` com LIXO.** É como o

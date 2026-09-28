@@ -678,6 +678,10 @@
   "camera.nobody_there": "There is nobody in that room.",
   "camera.people_there": "In the room: {names}.",
   "camera.unknown_room": "Unknown room",
-  "camera.hint": "Left and right arrows change room, the radar key says who is there, and ESC turns it off.",
-  "camera.room_position": "{room} ({index} of {total})"
+  "camera.hint_grid": "The arrows move to the neighboring room on that side of the map: up goes to the room to the north, right to the east. The radar key says who is there, and ESC turns it off.",
+  "camera.no_room_that_way": "No room that way.",
+  "settings.background_audio": "Sound while you use another window",
+  "settings.background_audio.normal": "Normal",
+  "settings.background_audio.quiet": "Much quieter",
+  "settings.background_audio.mute": "No sound (screen reader speech continues)"
 }

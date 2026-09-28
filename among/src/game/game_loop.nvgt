@@ -642,7 +642,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// por padrão, então dois speak() seguidos aqui comeriam o anúncio do papel.
 	// A lista de parceiros só existe no pacote de quem é impostor (ver network/server.on_start_game) -
 	// sem ela, dois impostores passavam a partida inteira sem saber que estavam no mesmo time.
-	string role_text = tr(my_role.assignment_key());
+	// A ORDEM do anúncio: cor (no modo cor), depois quantos impostores há / quem são os parceiros, e
+	// só então a descrição do papel. Era a descrição primeiro, e o recado #124 pediu o contrário - com
+	// razão: a descrição é longa, e o que se precisa guardar da abertura é contra quem se está jogando.
+	string role_desc = tr(my_role.assignment_key());
+	string role_text = "";
 	// Modo cor: a cor é a identidade do jogador nesta partida - é por ela que os outros vão chamá-lo.
 	// Vem ANTES do papel, porque é o que ele precisa guardar primeiro.
 	if (start_pkt.get_bool("color_mode", false)) {
@@ -690,6 +694,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// O `role_counts`/`role_chances` continua chegando no pacote porque o cliente não tem outro
 	// acesso à configuração da sala depois que a partida começa - quem um dia quiser uma tecla que
 	// responda "o que está em jogo aqui?" já tem o dado à mão (ver roles_in_play_text).
+	role_text += " " + role_desc;
+	while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
 	speak(role_text);
 	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
 	audio.update_listener(my_x, my_y);
@@ -916,7 +922,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 						task_sound_simple(SND_CAMERA_ON);
 						// A dica só na ENTRADA: repeti-la a cada troca de sala atrapalharia justamente
 						// quem já sabe operar e está varrendo a nave.
-						speak(nome_sala + ". " + tr("camera.hint"));
+						// Chave NOVA (hint_grid), e não a antiga com texto novo: as traduções da comunidade
+						// ainda diriam "esquerda e direita trocam de sala" e caem no inglês certo até traduzirem.
+						speak(nome_sala + ". " + tr("camera.hint_grid"));
 					} else {
 						speak(nome_sala);
 					}
@@ -1554,13 +1562,22 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			// dentro da linha ("key_pressed(KEY_LEFT) ? -1 : 1"), e a segunda leitura não devolve o
 			// mesmo que a primeira - o resultado é que apertar ESQUERDA andava para a direita, e nunca
 			// se voltava à sala anterior. Ler uma vez e guardar não depende dessa sutileza.
-			bool anterior = key_pressed(KEY_LEFT);
-			bool proxima = key_pressed(KEY_RIGHT);
-			if (anterior || proxima) {
-				string destino = cameras.room_at_offset(anterior ? -1 : 1);
+			// As QUATRO setas, em grade: cada uma leva à sala vizinha naquele lado do mapa (ver
+			// camera_view.room_in_direction). Norte é y negativo, como no movimento.
+			bool para_oeste = key_pressed(KEY_LEFT);
+			bool para_leste = key_pressed(KEY_RIGHT);
+			bool para_norte = key_pressed(KEY_UP);
+			bool para_sul = key_pressed(KEY_DOWN);
+			if (para_oeste || para_leste || para_norte || para_sul) {
+				float gx = para_oeste ? -1.0 : (para_leste ? 1.0 : 0.0);
+				float gy = gx != 0.0 ? 0.0 : (para_norte ? -1.0 : 1.0);
+				string destino = cameras.room_in_direction(gx, gy);
 				if (destino != "") {
 					client.send_camera_switch(destino);
 					task_sound_simple(SND_CAMERA_SWITCH);
+				} else {
+					// Borda do mapa naquele lado: dizer, em vez de silêncio, que é o que parece tecla quebrada.
+					speak(tr("camera.no_room_that_way"));
 				}
 			}
 			// Nomes custam uma ação a mais, de propósito: varrer salas é barato, saber QUEM está numa

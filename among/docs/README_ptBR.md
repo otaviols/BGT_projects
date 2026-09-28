@@ -121,6 +121,11 @@ distinguir norte de sul, ou ponha 0 para desligar), e se o jogo deve **bipar qua
 alcance da sua ação** — matar, atirar ou proteger, conforme o seu papel. Esse bip é só seu: ninguém
 mais ouve, e muito menos a pessoa que entrou no alcance.
 
+Ali também fica o **som quando você usa outra janela**: normal (o padrão), bem mais baixo, ou sem
+som. É para quem já morreu e terminou as tarefas e quer fazer outra coisa no computador enquanto a
+partida acaba, sem a conversa por cima. A fala do leitor de tela não muda — silenciá-la interromperia
+o leitor lendo a outra janela.
+
 **Teclas** — todas as teclas de jogo podem ser trocadas. Escolha a ação, aperte Enter e depois
 aperte a tecla nova. Se a tecla já estiver em uso, o jogo avisa de quem ela é em vez de deixar duas
 ações brigando. Há também "Restaurar teclas padrão". As teclas listadas neste manual são as de
@@ -336,7 +341,7 @@ uma sala à distância, como se estivesse lá dentro — os passos, o ambiente, 
 
 | Tecla | O que faz |
 |---|---|
-| Setas esquerda / direita | trocar a sala observada |
+| Setas | passar para a sala vizinha naquele lado do mapa, como numa grade: para cima vai à sala ao norte, para a direita à sala a leste. Se não houver sala para aquele lado, o jogo avisa |
 | Tab (a tecla do radar) | dizer quem está naquela sala |
 | ESC ou Enter | desligar |
 

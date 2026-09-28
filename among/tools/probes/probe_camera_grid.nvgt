@@ -1,0 +1,53 @@
+// Sonda da navegação em GRADE das câmeras: de cada sala, aonde cada seta leva.
+//   nvgt tools/probes/probe_camera_grid.nvgt
+//
+// Imprime a tabela inteira (é para ser LIDA e comparada com o mapa - "de elétrica, para cima vai a
+// armazém?") e confere duas coisas que não podem falhar em silêncio:
+//   1. toda sala é alcançável pelas setas partindo da cafeteria (onde o posto está mais perto);
+//   2. voltar pelo lado oposto costuma levar de volta (A -> leste = B, B -> oeste = A). Assimetria
+//      não é erro sempre - num mapa irregular é natural -, mas muitas seriam uma grade que confunde.
+#include "../../src/ui/camera_screen.nvgt"
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	game_map@ m = build_the_hub_map();
+	camera_view cam;
+	cam.build_room_list(m);
+	array<string> nomes_dir = {"norte", "sul", "oeste", "leste"};
+	array<float> dxs = {0, 0, -1, 1}, dys = {-1, 1, 0, 0};
+	int assimetrias = 0, ligacoes = 0;
+	for (uint i = 0; i < cam.rooms.length(); i++) {
+		cam.start(cam.rooms[i].id);
+		string linha = tr(cam.rooms[i].name_key) + ":";
+		for (uint d = 0; d < 4; d++) {
+			string vizinho = cam.room_in_direction(dxs[d], dys[d]);
+			map_zone@ z = m.find_zone(vizinho);
+			linha += "  " + nomes_dir[d] + "=" + (@z != null ? tr(z.name_key) : "-");
+			if (vizinho == "") continue;
+			ligacoes++;
+			// A volta: do vizinho, pelo lado oposto.
+			string de_quem = cam.rooms[i].id;
+			cam.start(vizinho);
+			if (cam.room_in_direction(-dxs[d], -dys[d]) != de_quem) assimetrias++;
+			cam.start(de_quem);
+		}
+		println(linha);
+	}
+
+	// Alcance a partir da cafeteria, andando só pelas setas.
+	array<string> visitadas = {"cafeteria"};
+	for (uint k = 0; k < visitadas.length(); k++) {
+		cam.start(visitadas[k]);
+		for (uint d = 0; d < 4; d++) {
+			string v = cam.room_in_direction(dxs[d], dys[d]);
+			if (v != "" && visitadas.find(v) == -1) visitadas.insert_last(v);
+		}
+	}
+	println("");
+	println("salas alcancaveis da cafeteria: " + visitadas.length() + " de " + cam.rooms.length());
+	println("ligacoes: " + ligacoes + ", voltas que nao retornam: " + assimetrias);
+	bool ok = visitadas.length() == cam.rooms.length();
+	println(ok ? "RESULTADO: ok" : "RESULTADO: FALHA (ha sala inalcancavel pelas setas)");
+}

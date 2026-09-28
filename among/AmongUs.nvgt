@@ -74,6 +74,8 @@ void main() {
 	// de carregar o idioma - o contrário faria o jogo abrir sempre em português e só respeitar a
 	// escolha do jogador na segunda tela.
 	g_settings.load();
+	// Som com o jogo em segundo plano: conferido a cada update() do cliente (ver g_client_frame_hook).
+	@g_client_frame_hook = @background_audio_hook;
 	// Se o idioma salvo não carregar (arquivo removido de um build pra outro, por exemplo), cai no
 	// padrão em vez de deixar o jogo inteiro falando por chaves cruas.
 	if (!g_i18n.load_language(g_settings.language)) g_i18n.load_language(DEFAULT_LANGUAGE);

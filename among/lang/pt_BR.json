@@ -678,6 +678,10 @@
   "camera.nobody_there": "Não há ninguém nessa sala.",
   "camera.people_there": "Na sala: {names}.",
   "camera.unknown_room": "Sala desconhecida",
-  "camera.hint": "Setas esquerda e direita trocam de sala, a tecla do radar diz quem está lá, e ESC desliga.",
-  "camera.room_position": "{room} ({index} de {total})"
+  "camera.hint_grid": "As setas passam para a sala vizinha naquele lado do mapa: para cima, a sala ao norte; para a direita, a leste. A tecla do radar diz quem está lá, e ESC desliga.",
+  "camera.no_room_that_way": "Nenhuma sala para esse lado.",
+  "settings.background_audio": "Som quando você usa outra janela",
+  "settings.background_audio.normal": "Normal",
+  "settings.background_audio.quiet": "Bem mais baixo",
+  "settings.background_audio.mute": "Sem som (a fala do leitor de tela continua)"
 }

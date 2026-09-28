@@ -11,6 +11,13 @@
 // declarada. Bastava alguém incluir só o cliente para quebrar.
 #include "../config/lobby_config.nvgt"
 
+// Algo que o JOGO quer rodar a cada update(): é o único ponto por onde todo laço conectado passa, por
+// disciplina (sem update a conexão cai - ver notes/rede-e-telas.md). Hoje é o som em segundo plano
+// (game_settings.apply_background_audio). Um gancho, e não a chamada direta, para o cliente de rede
+// não depender da configuração do jogo - as sondas e ferramentas incluem este arquivo sem ela.
+funcdef void client_frame_hook();
+client_frame_hook@ g_client_frame_hook = null;
+
 // Quem consome os quadros de voz. É uma interface, e não o audio/voice_chat.nvgt direto, para o
 // cliente de rede não depender de microfone e alto-falante (o servidor e as ferramentas de tools/
 // incluem este arquivo também).
@@ -69,6 +76,7 @@ class game_client {
 	// Deve ser chamado a cada quadro/loop do jogo. Processa eventos de rede pendentes e enfileira
 	// os pacotes recebidos para poll_message() consumir.
 	void update() {
+		if (@g_client_frame_hook != null) g_client_frame_hook();
 		while (true) {
 			const network_event@ ev = net.request(0);
 			// net.request() nunca retorna null - quando não há nada pendente ele retorna um

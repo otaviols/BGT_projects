@@ -126,6 +126,11 @@ telling north from south, or set 0 to turn it off), and whether the game should 
 comes within range of your action** — kill, shoot or protect, depending on your role. That beep is
 yours alone: nobody else hears it, least of all the person who walked into range.
 
+That screen also has **sound while you use another window**: normal (the default), much quieter, or
+no sound. It is for anyone who has died and finished their tasks and wants to do something else on
+the computer while the match ends, without the conversation on top. Screen reader speech does not
+change — silencing it would interrupt the screen reader reading the other window.
+
 **Keys** — every in-game key can be remapped. Pick the action, press Enter, then press the new key.
 If the key is already taken, the game tells you which action owns it instead of letting two actions
 fight over it. There is also "Restore default keys". The keys listed in this manual are the
@@ -340,7 +345,7 @@ room from a distance, as if you were standing in it — the footsteps, the ambie
 
 | Key | What it does |
 |---|---|
-| Left / right arrows | change the room you are watching |
+| Arrows | move to the neighboring room on that side of the map, like a grid: up goes to the room to the north, right to the one to the east. If there is no room that way, the game says so |
 | Tab (the radar key) | say who is in that room |
 | ESC or Enter | switch off |
 
