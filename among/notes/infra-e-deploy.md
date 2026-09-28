@@ -53,8 +53,12 @@ conserto continua com o script velho na primeira atualização - o conserto vale
 
 **Sonda do atualizador:** `tools/probes/probe_updater_script.nvgt` roda o script de verdade numa
 instalação de MENTIRA (sandbox em `%TEMP%` com um `hostname.exe` fazendo o papel do jogo, pacote
-servido por `python -m http.server`, e outro processo segurando a DLL por 8 s). A montagem está no
-histórico do commit que criou a sonda. NUNCA chame `launch_updater_script` rodando do fonte: o
+servido por `python -m http.server`, e outro processo segurando a DLL por 8 s). Montagem: pasta
+`install\` (hostname.exe como `AmongUs.exe` + `lib\nvdaControllerClient64.dll` com o texto "velho"),
+o mesmo com "novo" compactado em `srv\update.zip`, `python -m http.server 8765 --directory srv`, um
+`powershell -Command` que abre a DLL com `[IO.File]::Open(..., 'Open', 'Read', 'None')` e dorme 8 s,
+e então `nvgt tools/probes/probe_updater_script.nvgt <sandbox> http://127.0.0.1:8765/update.zip` -
+a DLL tem que terminar "novo". NUNCA chame `launch_updater_script` rodando do fonte: o
 "executável do jogo" é o `nvgt.exe`, e a cópia iria para dentro da instalação do NVGT - por isso o
 texto do script saiu para `build_updater_script`, que recebe os caminhos.
 
