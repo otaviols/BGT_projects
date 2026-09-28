@@ -1,0 +1,33 @@
+// Sonda do script de atualização, rodado DE VERDADE numa instalação de mentira.
+//   nvgt tools/probes/probe_updater_script.nvgt <pasta_da_sandbox> <url_do_pacote>
+//
+// A sandbox (instalação falsa, pacote .zip e o servidor HTTP que o serve) é montada por fora - ver
+// notes/infra-e-deploy.md, "sonda do atualizador". Aqui só se gera o script com a MESMA função do jogo
+// (build_updater_script) e se roda, esperando terminar.
+//
+// Nunca chame launch_updater_script a partir do fonte: o "executável do jogo" seria o nvgt.exe, e o
+// script copiaria o pacote para dentro da instalação do NVGT.
+#include "../../src/core/updater.nvgt"
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	if (ARGS.length() < 3) { println("uso: probe_updater_script.nvgt <sandbox> <url>"); return; }
+	string sandbox = ARGS[1];
+	string url = ARGS[2];
+	string install = sandbox + "/install";
+	string work = sandbox + "/work";
+	directory_create(work);
+
+	string script = build_updater_script(install + "/AmongUs.exe", install, work, url);
+	println("script comeca com BOM: " + (script.substr(0, 3) == "\xEF\xBB\xBF"));
+	println("mensagem traduzida no script: " + (script.find("não pôde ser concluída") >= 0));
+	string caminho = work + "/amongus_update.ps1";
+	file_put_contents(caminho, script);
+	timer t;
+	array<string> args = {powershell_path(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", caminho};
+	run(args, PROCESS_WAIT);
+	println("o script levou " + (t.elapsed / 1000) + " s");
+	println("dll depois da atualizacao: '" + file_get_contents(install + "/lib/nvdaControllerClient64.dll").trim_whitespace() + "'");
+}

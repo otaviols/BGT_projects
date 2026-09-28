@@ -53,6 +53,7 @@
   "update.confirm": "Quer atualizar agora? O jogo vai fechar, baixar a versão nova e abrir sozinho.",
   "update.installing": "Baixando e instalando a atualização. O jogo vai abrir sozinho quando terminar.",
   "update.failed": "Não consegui preparar a atualização. Vou abrir a página de download para você baixar manualmente.",
+  "update.script_failed": "A atualização não pôde ser concluída: {error}\n\nSe o jogo estiver aberto em mais de uma janela, feche todas e abra o jogo de novo para tentar outra vez.\n\nPasta usada: {folder}\n\nO jogo foi reaberto na versão anterior. Você também pode baixar a nova em {url}",
   "settings.hearing": "Como eu ouço o jogo",
   "settings.hearing_hint": "Aqui ficam os ajustes que mudam a informação que o som carrega, e não o volume dele.",
   "settings.spatial_pitch": "O quanto o som fica mais grave para o sul, em porcentagem (0 desliga; 6 é o padrão)",

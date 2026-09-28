@@ -42,6 +42,22 @@ Com `core.autocrlf=true`, o git escreve avisos de fim de linha na saída de erro
 em modo `Stop` morre neles achando que o git falhou - foi o `sync_translations.ps1`. O nvgt.gg
 passou a redirecionar para outro domínio - o GitHub é a fonte segura do instalador.
 
+**Atualização que falha com "arquivo em uso por outro processo" numa DLL de `lib/`** (recado #152:
+`nvdaControllerClient64.dll`). O script esperava só o EXECUTÁVEL ficar livre, e seguia calado depois
+de 60 s; uma segunda janela do jogo, um antivírus ou o jogo ainda fechando seguravam a DLL. Hoje ele
+espera TODOS os arquivos de `lib/` (abertos sem compartilhamento) e tenta a cópia até 8 vezes; se
+ainda falhar, a mensagem pede para fechar todas as janelas do jogo - no IDIOMA do jogador, o que exige
+gravar o `.ps1` com BOM UTF-8 (sem ele o PowerShell 5.1 embaralha os acentos; era por isso que a
+mensagem antiga não tinha acento, e era sempre em português). Quem está numa versão ANTERIOR ao
+conserto continua com o script velho na primeira atualização - o conserto vale da seguinte em diante.
+
+**Sonda do atualizador:** `tools/probes/probe_updater_script.nvgt` roda o script de verdade numa
+instalação de MENTIRA (sandbox em `%TEMP%` com um `hostname.exe` fazendo o papel do jogo, pacote
+servido por `python -m http.server`, e outro processo segurando a DLL por 8 s). A montagem está no
+histórico do commit que criou a sonda. NUNCA chame `launch_updater_script` rodando do fonte: o
+"executável do jogo" é o `nvgt.exe`, e a cópia iria para dentro da instalação do NVGT - por isso o
+texto do script saiu para `build_updater_script`, que recebe os caminhos.
+
 **Nunca `latest` como tag de imagem.** Com tag fixa o Kubernetes não vê diferença e não reinicia nada.
 
 **Commite ANTES de publicar o servidor.** A imagem leva o nome do commit atual, e isso só é verdade

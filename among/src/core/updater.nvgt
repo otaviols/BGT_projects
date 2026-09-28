@@ -202,6 +202,12 @@ void clean_update_leftovers() {
 	directory_delete(dir, true);
 }
 
+// Um texto como string do PowerShell entre aspas simples: a única coisa a escapar é a própria aspa,
+// dobrada. Aspas simples, e não duplas, para $ e crase do texto nunca virarem código.
+string ps_single_quoted(const string&in text) {
+	return "'" + text.replace("'", "''", true) + "'";
+}
+
 bool launch_updater_script(const string&in package_url) {
 	string exe = SCRIPT_EXECUTABLE;
 	string dir = game_directory();
@@ -215,21 +221,45 @@ bool launch_updater_script(const string&in package_url) {
 	// aqui uma vez só - antes isto concatenava com DIRECTORY_TEMP, que JÁ termina em barra, e saíam
 	// caminhos com barra dupla no meio.
 	string script_path = work_dir + "\\amongus_update.ps1";
+	string script = build_updater_script(exe, dir, work_dir, package_url);
+	return write_and_run_updater_script(script_path, script);
+}
 
+// O texto do script de atualização, separado de quem o roda para a sonda poder executá-lo numa
+// instalação de MENTIRA (tools/probes/probe_updater_script.nvgt). Rodando do fonte, o "executável do
+// jogo" é o nvgt.exe - chamar o atualizador de verdade copiaria arquivos para dentro do NVGT.
+string build_updater_script(const string&in exe, const string&in dir, const string&in work_dir, const string&in package_url) {
+	// A mensagem de falha no IDIOMA do jogador. Era fixa em português sem acento, e o recado #152 veio
+	// de quem joga em inglês. {error} e {folder} só existem quando o script roda, então o PowerShell os
+	// troca; o endereço já vai pronto daqui.
+	dictionary@ fp = dictionary();
+	fp.set("url", DOWNLOAD_PAGE_URL);
+	string failure_template = tr("update.script_failed", fp);
+
+	// O BOM (UTF-8) no começo é o que mantém os acentos: sem ele o PowerShell 5.1 lê o arquivo na
+	// página de código do sistema e "atualização" vira lixo - era por isso que a mensagem evitava acento.
 	string script =
+		"\xEF\xBB\xBF"
 		"$ErrorActionPreference = 'Stop'\n"
 		"$exe = '" + exe + "'\n"
 		"$dir = '" + dir + "'\n"
 		"$work = '" + work_dir + "'\n"
 		"$url = '" + package_url + "'\n"
 		"\n"
-		"# Espera o jogo fechar de verdade. Testar se o arquivo pode ser aberto para ESCRITA é o\n"
-		"# jeito exato de saber: enquanto o processo viver, o Windows mantém o executável travado.\n"
-		"# Sem esse laço, a cópia falharia com 'arquivo em uso' e a atualização morreria aqui.\n"
-		"$deadline = (Get-Date).AddSeconds(60)\n"
+		"# Espera TODOS os arquivos que serao trocados ficarem livres - o executavel e as bibliotecas\n"
+		"# de lib/. Conferir so o executavel nao bastava: o recado #152 falhou em\n"
+		"# lib/nvdaControllerClient64.dll 'em uso por outro processo' (outra janela do jogo aberta, um\n"
+		"# antivirus examinando o arquivo, o jogo ainda terminando de fechar). Aberto SEM\n"
+		"# compartilhamento ('None'): so passa quando ninguem mais segura o arquivo.\n"
+		"$alvos = @($exe) + @(Get-ChildItem -Path (Join-Path $dir 'lib') -File -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })\n"
+		"$deadline = (Get-Date).AddSeconds(90)\n"
 		"while ((Get-Date) -lt $deadline) {\n"
-		"  try { $fs = [IO.File]::Open($exe, 'Open', 'Write'); $fs.Close(); break }\n"
-		"  catch { Start-Sleep -Milliseconds 300 }\n"
+		"  $livre = $true\n"
+		"  foreach ($f in $alvos) {\n"
+		"    try { $fs = [IO.File]::Open($f, 'Open', 'ReadWrite', 'None'); $fs.Close() } catch { $livre = $false; break }\n"
+		"  }\n"
+		"  if ($livre) { break }\n"
+		"  Start-Sleep -Milliseconds 500\n"
 		"}\n"
 		"\n"
 		"# Definidos ANTES do try: o bloco finally lá embaixo apaga os dois, e ele roda mesmo quando o\n"
@@ -259,7 +289,13 @@ bool launch_updater_script(const string&in package_url) {
 		"  $newExe = Join-Path $unpacked (Split-Path $exe -Leaf)\n"
 		"  if (-not (Test-Path $newExe)) { throw 'pacote invalido' }\n"
 		"\n"
-		"  Copy-Item -Path (Join-Path $unpacked '*') -Destination $dir -Recurse -Force\n"
+		"  # Com novas tentativas: um arquivo segurado por um instante (o antivirus examinando o que\n"
+		"  # acabou de ser liberado) nao pode derrubar a atualizacao inteira.\n"
+		"  $tentativa = 0\n"
+		"  while ($true) {\n"
+		"    try { Copy-Item -Path (Join-Path $unpacked '*') -Destination $dir -Recurse -Force -ErrorAction Stop; break }\n"
+		"    catch { $tentativa++; if ($tentativa -ge 8) { throw }; Start-Sleep -Seconds 2 }\n"
+		"  }\n"
 		"  Start-Process -FilePath $exe -WorkingDirectory $dir\n"
 		"}\n"
 		"catch {\n"
@@ -269,11 +305,9 @@ bool launch_updater_script(const string&in package_url) {
 		"  # ONDE, que é a única informação capaz de resolver o problema na máquina do jogador.\n"
 		"  Start-Process -FilePath $exe -WorkingDirectory $dir\n"
 		"  Add-Type -AssemblyName System.Windows.Forms\n"
-		"  [System.Windows.Forms.MessageBox]::Show(\n"
-		"    'A atualizacao nao pode ser concluida: ' + $_.Exception.Message + \"`n`n\" +\n"
-		"    'Pasta usada: ' + $work + \"`n`n\" +\n"
-		"    'O jogo foi reaberto na versao anterior. Voce pode baixar a nova manualmente em " + DOWNLOAD_PAGE_URL + "',\n"
-		"    'Among Us Audiogame') | Out-Null\n"
+		"  $msg = " + ps_single_quoted(failure_template) + "\n"
+		"  $msg = $msg.Replace('{error}', $_.Exception.Message).Replace('{folder}', $work)\n"
+		"  [System.Windows.Forms.MessageBox]::Show($msg, 'Among Us Audiogame') | Out-Null\n"
 		"}\n"
 		"finally {\n"
 		"  # Apaga o CONTEÚDO um a um, nunca a pasta de trabalho de uma vez com -Recurse: ela pode ser\n"
@@ -291,7 +325,10 @@ bool launch_updater_script(const string&in package_url) {
 		"    Remove-Item -Force $work -ErrorAction SilentlyContinue\n"
 		"  }\n"
 		"}\n";
+	return script;
+}
 
+bool write_and_run_updater_script(const string&in script_path, const string&in script) {
 	if (!file_put_contents(script_path, script)) return false;
 
 	// Os argumentos vão como LISTA, um por elemento, e não numa linha de comando só. A forma antiga,
