@@ -10,6 +10,7 @@
 #include "../i18n.nvgt"
 #include "../network/packet.nvgt"
 #include "../game/roles/role_traits.nvgt"
+#include "../config/colors.nvgt" // color_key, para a cor escolhida na lista de jogadores
 
 // "Papéis em jogo: 1 engenheiro, 2 xerifes com 50% de chance." - ou "" quando não há nenhum.
 // Percorre CONFIGURABLE_ROLE_IDS, e não as chaves do objeto, para a ordem ser sempre a mesma que a
@@ -176,6 +177,9 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 	// Dutos e velocidade só são ditos quando fogem do padrão: é o que muda o jogo, e "dutos
 	// liberados, velocidade 100%" em toda leitura de regras seria mais uma frase para ouvir à toa.
 	if (cfg.exists("vents_enabled") && !bool(cfg["vents_enabled"])) partes.insert_last(tr("lobby.info.vents_off"));
+	// Cores e modo cor, também só quando fogem do padrão (sorteadas, pelo nome).
+	if (cfg.exists("color_choice") && bool(cfg["color_choice"])) partes.insert_last(tr("lobby.info.colors_choice"));
+	if (cfg.exists("color_mode") && bool(cfg["color_mode"])) partes.insert_last(tr("lobby.info.color_mode_on"));
 	if (cfg.exists("move_speed_percent") && int(cfg["move_speed_percent"]) != 100) {
 		dictionary@ sp = dictionary();
 		sp.set("percent", "" + int(cfg["move_speed_percent"]));
@@ -207,7 +211,9 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 //
 // O total vem primeiro: numa sala com sete pessoas, o jogador quer saber "quantos somos" sem ter de
 // contar nomes enquanto o leitor de tela fala.
-string lobby_players_text(json_array@ players, uint max_players) {
+// `show_colors`: numa sala que deixa escolher cor, cada nome vem com a cor escolhida - é assim que se
+// sabe quais cores já foram tomadas sem abrir a tela de escolha.
+string lobby_players_text(json_array@ players, uint max_players, bool show_colors = false) {
 	if (@players == null || players.length() == 0) return tr("lobby.info.no_players");
 
 	array<string> nomes;
@@ -215,6 +221,7 @@ string lobby_players_text(json_array@ players, uint max_players) {
 		json_object@ pj = players.get_object(i);
 		if (@pj == null) continue;
 		string nome = string(pj["name"]);
+		if (show_colors && pj.exists("color") && int(pj["color"]) >= 0) nome += " (" + tr("color." + color_key(int(pj["color"]))) + ")";
 		// O bot é anunciado como tal: ele conta para a lotação e joga, mas saber que aquele "jogador"
 		// é um bot muda completamente o peso do que ele fizer numa votação.
 		if (pj.exists("is_bot") && bool(pj["is_bot"])) nome += " " + tr("lobby.info.bot_suffix");

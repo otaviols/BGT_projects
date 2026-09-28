@@ -25,6 +25,11 @@ const string DEFAULT_LANGUAGE = "en_US";
 const string LANGUAGE_NAME_KEY = "language.name";
 const string LANGUAGE_TRANSLATOR_KEY = "language.translator"; // opcional: quem fez a tradução
 
+// Marca de cor do MODO COR (ver color_mark em config/colors.nvgt): "#cor:red" vira "Vermelho" no
+// idioma de quem ouve. Mora aqui, e não em colors.nvgt, porque é o i18n que a resolve - em todo
+// parâmetro de toda frase, então nenhum ponto que fala um nome precisa lembrar dela.
+const string COLOR_MARK_PREFIX = "#cor:";
+
 class i18n {
 	private dictionary strings;
 	// Textos do idioma de reserva (o inglês), carregados uma vez e mantidos à parte. É o que cobre
@@ -111,9 +116,32 @@ class i18n {
 			string param_key = param_keys[i];
 			string param_value;
 			params.get(param_key, param_value);
-			text = text.replace("{" + param_key + "}", param_value);
+			text = text.replace("{" + param_key + "}", resolve_color_marks(param_value));
 		}
 		return text;
+	}
+
+	// Troca toda marca de cor do texto pela cor traduzida. Procura em qualquer ponto, e não só no
+	// texto inteiro, porque listas de nomes chegam juntas ("#cor:red, #cor:blue").
+	string resolve_color_marks(const string&in value) const {
+		int at = value.find(COLOR_MARK_PREFIX);
+		if (at < 0) return value;
+		string resultado = "";
+		int from = 0;
+		while (at >= 0) {
+			resultado += value.substr(from, at - from);
+			int k = at + COLOR_MARK_PREFIX.length();
+			int end = k;
+			while (end < int(value.length())) {
+				string c = value.substr(end, 1);
+				if (!((c >= "a" && c <= "z") || c == "_")) break;
+				end++;
+			}
+			resultado += get("color." + value.substr(k, end - k));
+			from = end;
+			at = value.find(COLOR_MARK_PREFIX, from);
+		}
+		return resultado + value.substr(from);
 	}
 
 	string get_current_language() const property {
@@ -201,6 +229,12 @@ i18n@ g_i18n = i18n();
 
 string tr(const string&in key) {
 	return g_i18n.get(key);
+}
+
+// Um nome como ele deve ser DITO: no modo cor, a marca vira a cor no idioma deste jogador. Para os
+// lugares que falam um nome fora de uma frase traduzida (o elenco, o chat "nome: texto").
+string spoken_name(const string&in name) {
+	return g_i18n.resolve_color_marks(name);
 }
 
 string tr(const string&in key, dictionary@ params) {

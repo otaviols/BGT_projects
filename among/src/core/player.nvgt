@@ -42,6 +42,11 @@ class game_player {
 	int protocol_version = 0;
 	string lobby_id = "";
 	int color = COLOR_RED;
+	// A cor que ele ESCOLHEU na sala de espera (-1 = nenhuma). É separada de `color` porque `color` é
+	// a da partida, decidida no início: numa sala que sorteia, a escolha fica guardada e não vale.
+	// Zera ao entrar numa sala - o cliente reenvia a preferência dele, e uma escolha feita em outra
+	// sala não pode ocupar cor nesta.
+	int chosen_color = -1;
 	float x = 0.0;
 	float y = 0.0;
 	uint32 last_move_seq = 0;
@@ -194,9 +199,23 @@ class game_player {
 	// outra pessoa usa isto, nunca `username` direto: o radar, a câmera, a lista de quem está na
 	// sala. Um ponto esquecido é um buraco no disfarce, e o sintoma seria o pior possível - o
 	// shapeshifter descoberto por um caminho só, sem nada acusando no código.
-	string display_name() const {
-		return disguise_name != "" ? disguise_name : username;
+	// Como ELE é chamado nesta partida, sem disfarce nenhum: o nome, ou - no modo cor - a marca da cor
+	// dele. É o que vai onde o disfarce não vale (votação, alarme, a vítima ouvindo quem a matou) e
+	// onde hoje ia `username` cru. Fora de partida `named_by_color` é falso e isto é só o nome.
+	string public_name() const {
+		return named_by_color ? color_mark(color) : username;
 	}
+
+	// O que os OUTROS ouvem agora: o disfarce, se houver; senão o public_name. No modo cor o disfarce
+	// é a marca do alvo, então o metamorfo assume a COR de quem copiou - o mesmo papel, na mesma regra.
+	string display_name() const {
+		return disguise_name != "" ? disguise_name : public_name();
+	}
+
+	// Modo cor ligado para ESTE jogador nesta partida. Ligado no início (on_start_game), desligado em
+	// reset_match_state - e é por isso que public_name vale em qualquer lugar do servidor sem
+	// perguntar à sala: na sala de espera e no saguão ele volta a ser o nome.
+	bool named_by_color = false;
 
 	bool disguised() const { return disguise_name != ""; }
 
@@ -217,6 +236,7 @@ class game_player {
 	// pra sala seguinte. Qualquer coisa que ficar aqui vira herança indevida - já foi assim que quem
 	// morria numa partida continuava "morto" (e mudo no chat) na lobby seguinte.
 	void reset_match_state() {
+		named_by_color = false;
 		alive = true;
 		left_match = false;
 		set_role(ROLE_CREWMATE);

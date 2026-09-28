@@ -47,7 +47,7 @@ string sabotage_fixed_text() {
 }
 
 string chat_message_text(net_packet@ pkt) {
-	return pkt.get_string("name") + ": " + pkt.get_string("text");
+	return spoken_name(pkt.get_string("name")) + ": " + pkt.get_string("text");
 }
 
 string player_left_text(net_packet@ pkt) {

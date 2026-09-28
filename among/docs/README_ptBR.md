@@ -181,6 +181,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | P | quem está na sala (com o total e quais são bots) |
 | C | abre as regras desta partida como lista: setas percorrem uma regra por vez, e há itens para copiar o código (sala privada) e todas as regras. Se a partida começar com ela aberta, ela fecha sozinha |
 | O | mudar as regras (só o anfitrião): os campos vêm com os valores atuais, e o que ficar em branco continua como está. Todo mundo é avisado. |
+| E | escolher a sua cor. Cor já tomada vem com o nome de quem a pegou. A escolha fica guardada e vai sozinha para as próximas salas; ela só vale nas salas que deixam escolher (nas outras, a cor é sorteada) |
 | B | adicionar um bot (só o anfitrião, até 8) |
 | Shift + B | remover o último bot |
 | Y | escrever no chat |
@@ -549,6 +550,10 @@ Eles andam pela nave, fazem tarefas, votam nas reuniões e podem ser sorteados c
 quando são, caçam, matam quando ninguém está por perto e sabotam. Servem para completar uma partida
 ou para treinar sozinho.
 
+Cada bot recebe o sobrenome de um astronauta de verdade — Gagarin, Tereshkova, Pontes, Neri,
+Jemison, entre outros —, sem repetir ninguém da sala. A lista de quem está na sala (tecla **P**)
+continua dizendo quem é bot.
+
 ## Presets de partida
 
 | Preset | Jogadores | Impostores | Tarefas | Recarga do kill | Sabotagem |
@@ -564,6 +569,15 @@ para máximo de jogadores, número de impostores, tarefas por tripulante, recarg
 discussão, tempo de votação, reuniões de emergência por jogador, se a sabotagem entra, se os
 **dutos** podem ser usados (desligados, nem o impostor nem o engenheiro ventilam) e a **velocidade
 dos jogadores**, em por cento do normal (de 50% a 200%).
+
+Mais dois campos mudam como as pessoas são identificadas:
+
+- **Cores dos jogadores:** sorteadas a cada partida (o padrão), ou **escolhidas na sala** — cada um
+  escolhe a sua com a tecla **E**, e quem não escolher recebe uma das que sobraram.
+- **Modo cor:** na partida ninguém tem nome, só cor. A lista de jogadores, o radar, as câmeras, a
+  votação, o chat e todos os avisos dizem "Vermelho", "Coral", "Turquesa"... No começo o jogo diz a sua
+  cor, e no fim o resultado revela quem era cada impostor ("Fulano (Vermelho)"). Existe para quem acha
+  mais fácil acompanhar cores do que nomes. Cada um ouve a cor no próprio idioma.
 
 **Todos os campos aceitam ficar em branco**, e em branco quer dizer "use o que o preset manda" —
 então quem só quer jogar escolhe o preset, confirma e pronto. Quem entrar na sala consegue ver o que

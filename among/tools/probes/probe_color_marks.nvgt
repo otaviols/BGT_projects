@@ -1,0 +1,37 @@
+// Sonda da tradução da marca de cor (modo cor), sem servidor.
+//   nvgt tools/probes/probe_color_marks.nvgt
+//
+// A marca viaja no lugar do nome, e é o i18n de cada cliente que a traduz - em todo parâmetro de
+// frase e no elenco. Aqui se confere que ela vira a cor NO IDIOMA carregado, sozinha, numa lista, e
+// que um nome comum passa intacto (inclusive um que tenha "#" no meio).
+#include "../../src/i18n.nvgt"
+#include "../../src/config/colors.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, const string&in obtido, const string&in esperado) {
+	bool ok = obtido == esperado;
+	println((ok ? "  ok     " : "  FALHA  ") + o_que + ": '" + obtido + "'" + (ok ? "" : " (esperado '" + esperado + "')"));
+	if (!ok) falhas++;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR"); // sem idioma, tr() devolve a chave e a sonda passaria por nada
+
+	confere("marca sozinha", spoken_name(color_mark(COLOR_RED)), "Vermelho");
+	confere("cor nova da paleta", spoken_name(color_mark(COLOR_CORAL)), "Coral");
+	confere("lista de marcas", spoken_name(color_mark(COLOR_BLUE) + ", " + color_mark(COLOR_GOLD)), "Azul, Dourado");
+	confere("nome com a cor no fim da partida", spoken_name("Fulano (" + color_mark(COLOR_PINK) + ")"), "Fulano (Rosa)");
+	confere("nome comum passa intacto", spoken_name("Otavio"), "Otavio");
+	confere("nome com # passa intacto", spoken_name("jogador#1"), "jogador#1");
+	dictionary@ p = dictionary();
+	p.set("color", color_mark(COLOR_TURQUOISE));
+	confere("dentro de uma frase traduzida", tr("color_mode.you_are", p), "Nesta partida você é Turquesa.");
+
+	g_i18n.load_language("en_US");
+	confere("a mesma marca em outro idioma", spoken_name(color_mark(COLOR_RED)), "Red");
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -55,6 +55,9 @@ class game_settings {
 	// "Lembrar de mim": o TOKEN de sessão que o servidor emitiu, nunca a senha. Só serve para entrar
 	// neste jogo como este usuário, e o servidor pode invalidá-lo. Vazio = pedir a senha.
 	string session_token = "";
+	// A cor preferida (-1 = nenhuma), mandada ao entrar em cada sala. Fica no computador, como as
+	// teclas: é gosto pessoal, e não precisa de conta nem de banco.
+	int preferred_color = -1;
 	// Idioma escolhido pelo jogador, no formato do nome do arquivo em lang/ (ex.: "pt_BR").
 	// O padrão é pt_BR porque é o idioma em que o jogo foi escrito e o único garantidamente completo;
 	// quem preferir outro troca uma vez e a escolha fica.
@@ -192,6 +195,7 @@ class game_settings {
 		// velocidade, volume e se deve usar o leitor de tela quando existir).
 		last_username = store.read_string("last_username", "");
 		session_token = store.read_string("session_token", "");
+		preferred_color = int(store.read_number("preferred_color", -1));
 		language = store.read_string("language", DEFAULT_LANGUAGE);
 		if (language == "") language = DEFAULT_LANGUAGE;
 		string voice_config = store.read_string("tts", "");
@@ -274,6 +278,7 @@ class game_settings {
 		}
 		store.write_string("last_username", last_username);
 		store.write_string("session_token", session_token);
+		store.write_number("preferred_color", preferred_color);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));
 		store.write_number("radar_continuous", radar_continuous ? 1 : 0);

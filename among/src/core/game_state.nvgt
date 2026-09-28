@@ -571,14 +571,14 @@ class game_state {
 
 			game_player@ voter = find_player(votes[i].voter_peer_id);
 			json_object@ entry = json_object();
-			entry.set("voter_name", @voter != null ? voter.username : "");
+			entry.set("voter_name", @voter != null ? voter.public_name() : "");
 			if (t == -1) {
 				entry.set("skipped", true);
 				entry.set("target_name", "");
 			} else {
 				game_player@ target = find_player(uint64(t));
 				entry.set("skipped", false);
-				entry.set("target_name", @target != null ? target.username : "");
+				entry.set("target_name", @target != null ? target.public_name() : "");
 			}
 			breakdown.add(entry);
 		}
@@ -618,7 +618,7 @@ class game_state {
 			if (@ejected != null) {
 				ejected.alive = false;
 				result.set_uint64("ejected_peer", ejected.peer_id);
-				result.set_string("ejected_name", ejected.username);
+				result.set_string("ejected_name", ejected.public_name());
 				// Com a revelação desligada o papel NÃO viaja: o cliente é a máquina do jogador, e
 				// mandar "só para ele não falar" seria mandar a resposta para quem quisesse ler.
 				result.set_bool("role_revealed", config.reveal_ejected_role);
@@ -1062,7 +1062,7 @@ class game_state {
 		// Relançar sobre quem já está protegido simplesmente renova - não é erro, e recusar
 		// contaria ao anjo que aquela pessoa já está blindada por outro anjo.
 		target.shield_remaining = config.role_value(ROLE_GUARDIAN_ANGEL, TUNABLE_DURATION);
-		target_name = target.username;
+		target_name = target.public_name();
 		return true;
 	}
 
@@ -1222,7 +1222,7 @@ class game_state {
 				b.bot_voted = true;
 				net_packet@ cast_pkt = net_packet(S_VOTE_CAST);
 				cast_pkt.set_uint64("voter_peer", b.peer_id);
-				cast_pkt.set_string("voter_name", b.username);
+				cast_pkt.set_string("voter_name", b.public_name());
 				events.insert_last(cast_pkt);
 				continue;
 			}
@@ -1459,7 +1459,12 @@ class game_state {
 			// que passou a partida inteira desconfiando da pessoa errada.
 			json_array@ impostor_names = json_array();
 			for (uint i = 0; i < players.length(); i++) {
-				if (players[i].is_impostor) impostor_names.add(players[i].username);
+				// No modo cor, o fim é onde a cor ganha nome de volta: "Fulano (Vermelho)". Sem isto
+				// a partida inteira terminaria sem ninguém saber quem era o vermelho.
+				if (!players[i].is_impostor) continue;
+				impostor_names.add(players[i].named_by_color
+					? players[i].username + " (" + players[i].public_name() + ")"
+					: players[i].username);
 			}
 			go.set_array("impostors", impostor_names);
 			events.insert_last(go);

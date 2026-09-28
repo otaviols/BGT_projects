@@ -643,6 +643,13 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// A lista de parceiros só existe no pacote de quem é impostor (ver network/server.on_start_game) -
 	// sem ela, dois impostores passavam a partida inteira sem saber que estavam no mesmo time.
 	string role_text = tr(my_role.assignment_key());
+	// Modo cor: a cor é a identidade do jogador nesta partida - é por ela que os outros vão chamá-lo.
+	// Vem ANTES do papel, porque é o que ele precisa guardar primeiro.
+	if (start_pkt.get_bool("color_mode", false)) {
+		dictionary@ cp = dictionary();
+		cp.set("color", color_mark(start_pkt.get_int("your_color")));
+		role_text = tr("color_mode.you_are", cp) + " " + role_text;
+	}
 	// Peers dos parceiros de impostor: usados pra nunca mirar um deles ao matar (ver KEY_KILL).
 	array<uint64> impostor_partner_peers;
 	if (my_role.knows_teammates) {
@@ -788,7 +795,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				known_body_peers.insert_last(pkt.get_uint64("peer_id"));
 				known_body_positions.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0.0));
 			} else if (t == S_CHAT_MESSAGE) {
-				string chat_name = pkt.get_string("name");
+				string chat_name = spoken_name(pkt.get_string("name")); // modo cor: a cor de quem falou
 				string chat_text = pkt.get_string("text");
 				messages_log.add(chat_name, chat_text);
 				// Sem interromper: uma mensagem de chat espera a fala atual acabar. Interrompendo, duas

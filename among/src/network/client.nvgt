@@ -186,6 +186,12 @@ class game_client {
 		send(p);
 	}
 
+	void send_choose_color(int color) {
+		net_packet@ p = net_packet(C_CHOOSE_COLOR);
+		p.set_int("color", color);
+		send(p);
+	}
+
 	void send_delete_account(const string&in password) {
 		net_packet@ p = net_packet(C_DELETE_ACCOUNT);
 		p.set_string("password", password);

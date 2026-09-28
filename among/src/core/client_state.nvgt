@@ -6,6 +6,7 @@
 
 #include "../network/packet.nvgt"
 #include "../config/game_constants.nvgt"
+#include "../i18n.nvgt" // spoken_name
 
 class roster_entry {
 	uint64 peer_id;
@@ -61,7 +62,7 @@ class client_roster {
 	// alguém acrescentar depois.
 	void rename(uint64 peer_id, const string&in name) {
 		roster_entry@ e = find(peer_id);
-		if (@e != null && name != "") e.name = name;
+		if (@e != null && name != "") e.name = spoken_name(name); // o metamorfo no modo cor assume uma COR
 	}
 
 	void update_position(uint64 peer_id, float x, float y) {
@@ -108,7 +109,9 @@ class client_roster {
 			if (@p == null) continue;
 			var@ vx = p["x"];
 			var@ vy = p["y"];
-			add(uint64(p["peer_id"]), string(p["name"]), int(p["color"]), safe_var_to_float(vx), safe_var_to_float(vy));
+			// spoken_name: no modo cor o nome chega como marca de cor, e o elenco guarda a cor JÁ no
+			// idioma deste jogador - é dele que saem quem está perto, quem fala na voz, a lista de votação.
+			add(uint64(p["peer_id"]), spoken_name(string(p["name"])), int(p["color"]), safe_var_to_float(vx), safe_var_to_float(vy));
 		}
 	}
 }

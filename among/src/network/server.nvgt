@@ -335,7 +335,9 @@ class game_server {
 		end_visible_task(lobby, peer_id);
 		string left_name = "";
 		game_player@ p = lobby.find_player(peer_id);
-		if (@p != null) left_name = p.username;
+		// public_name: quem sai NO MEIO de uma partida em modo cor é anunciado pela cor - o nome
+		// diria de quem era aquela cor. Fora de partida é o nome, como sempre.
+		if (@p != null) left_name = p.public_name();
 
 		// Durante uma partida em andamento, remover o jogador do array quebraria a contagem de
 		// vivos (alive_crewmate_count()/alive_impostor_count()) usada pra decidir quem venceu -
@@ -403,6 +405,7 @@ class game_server {
 		if (t == C_LOGIN) on_login(peer_id, pkt);
 		else if (t == C_LOGOUT) on_logout(peer_id, pkt);
 		else if (t == C_DELETE_ACCOUNT) on_delete_account(peer_id, pkt);
+		else if (t == C_CHOOSE_COLOR) on_choose_color(peer_id, pkt);
 		else if (t == C_REGISTER) on_register(peer_id, pkt);
 		else if (t == C_LIST_LOBBIES) on_list_lobbies(peer_id, pkt);
 		else if (t == C_CREATE_LOBBY) on_create_lobby(peer_id, pkt);
@@ -756,6 +759,31 @@ class game_server {
 		send_hall_state(); // saiu da lista de quem está online
 	}
 
+	// A cor que o jogador quer, escolhida na sala de espera (tecla E). Só da sala, e só antes da
+	// partida: a cor da partida é decidida no início. Quem chegou primeiro fica com a cor - a unicidade
+	// é garantida AQUI, na hora da escolha, para o início da partida não ter conflito a resolver e a
+	// pessoa saber na hora que precisa escolher outra. A resposta é o retrato da sala de sempre.
+	void on_choose_color(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		game_player@ p = find_connection(peer_id);
+		if (@lobby == null || @p == null || lobby.state != "waiting") return;
+		int cor = pkt.get_int("color", -1);
+		if (cor < -1 || cor >= int(COLOR_COUNT)) return; // vem da máquina do jogador
+		if (cor >= 0) {
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				game_player@ outro = lobby.players[i];
+				if (outro.peer_id == peer_id || outro.chosen_color != cor) continue;
+				dictionary@ params = dictionary();
+				params.set("color", color_mark(cor));
+				params.set("name", outro.username);
+				send_error(peer_id, "lobby.color_taken", params);
+				return;
+			}
+		}
+		p.chosen_color = cor;
+		send_lobby_state(lobby, 0);
+	}
+
 	void on_register(uint64 peer_id, net_packet@ pkt) {
 		string username = pkt.get_string("username");
 		string password = pkt.get_string("password");
@@ -817,6 +845,7 @@ class game_server {
 		@lobby.map = build_the_hub_map();
 
 		conn.lobby_id = lobby.lobby_id;
+		conn.chosen_color = -1; // escolha de outra sala não ocupa cor aqui; o cliente reenvia a preferência
 		lobby.players.insert_last(conn);
 		lobbies.insert_last(lobby);
 
@@ -868,6 +897,7 @@ class game_server {
 
 		leave_current_lobby(peer_id); // ninguém entra numa lobby estando em outra
 		conn.lobby_id = lobby.lobby_id;
+		conn.chosen_color = -1; // escolha de outra sala não ocupa cor aqui; o cliente reenvia a preferência
 		lobby.players.insert_last(conn);
 
 		result.set_bool("ok", true);
@@ -920,6 +950,29 @@ class game_server {
 	}
 
 	// --- Bots (jogadores controlados pelo servidor) ---
+
+	// Sobrenomes de astronautas, curtos de propósito: são ditos a toda hora pelo leitor de tela, e
+	// "Tereshkova" já é o limite do que se fala de passagem. Vários países, com Pontes (Brasil) e Neri
+	// (México) para o público daqui. Eram "Bot 1", "Bot 2" - que diziam de cara quem era bot; a lista
+	// de quem está na sala continua dizendo (lobby_players_text), e na partida o bot passa a ser um
+	// tripulante como os outros, que é o que ele já era para o jogo.
+	array<string> BOT_NAMES = {"Gagarin", "Tereshkova", "Armstrong", "Aldrin", "Pontes", "Neri",
+		"Ride", "Jemison", "Chawla", "Hadfield", "Leonov", "Glenn", "Whitson", "Collins", "Peake",
+		"Cristoforetti", "Pesquet", "Koch", "Mukai", "Yang"};
+
+	// Um nome da lista que ninguém da sala esteja usando (gente ou bot, sem diferenciar maiúsculas):
+	// dois "Armstrong" na mesma votação seriam um voto que pode cair na pessoa errada.
+	string free_bot_name(game_state@ lobby) {
+		array<string> livres;
+		for (uint n = 0; n < BOT_NAMES.length(); n++) {
+			bool em_uso = false;
+			for (uint i = 0; i < lobby.players.length() && !em_uso; i++)
+				em_uso = lobby.players[i].username.lower() == BOT_NAMES[n].lower();
+			if (!em_uso) livres.insert_last(BOT_NAMES[n]);
+		}
+		if (livres.length() == 0) return "Bot " + (lobby.bot_count() + 1); // mais bots que nomes: não acontece com MAX_BOTS_PER_LOBBY de hoje
+		return livres[random(0, int(livres.length()) - 1)];
+	}
 	// Só o anfitrião mexe nisso, e só na sala de espera: adicionar/tirar jogador no meio da partida
 	// bagunçaria a contagem de vivos que decide quem venceu.
 	void on_add_bot(uint64 peer_id, net_packet@ pkt) {
@@ -934,7 +987,7 @@ class game_server {
 		// jogador. Ele vai para o elenco, para o chat e para a tela de votação, onde é comparado com
 		// o que as pessoas falam entre si - se cada cliente o traduzisse para um idioma diferente,
 		// duas pessoas na mesma partida estariam acusando "nomes" diferentes pelo mesmo bot.
-		bot.username = "Bot " + (lobby.bot_count() + 1);
+		bot.username = free_bot_name(lobby);
 		bot.is_bot = true;
 		bot.authenticated = true;
 		bot.lobby_id = lobby.lobby_id;
@@ -1006,6 +1059,9 @@ class game_server {
 			// Quem é bot vai marcado: numa sala com bots, saber quantos dos "jogadores" são de
 			// verdade muda a leitura de quanta gente falta para começar.
 			pj.set("is_bot", lobby.players[i].is_bot);
+			// A cor escolhida (-1 = nenhuma): é assim que a tela de escolha diz quais cores estão
+			// tomadas e por quem, e a lista de jogadores diz a cor de cada um numa sala que deixa escolher.
+			pj.set("color", lobby.players[i].chosen_color);
 			players_json.add(pj);
 		}
 		pkt.set_array("players", players_json);
@@ -1064,6 +1120,17 @@ class game_server {
 		int impostor_count = lobby.config.resolved_impostor_count(shuffled.length());
 		array<int>@ color_ids = all_color_ids();
 		shuffle_int_array(color_ids);
+		// Sala que deixa escolher: quem escolheu fica com a cor dele (a unicidade já foi garantida na
+		// hora da escolha, em on_choose_color), e as cores escolhidas saem do sorteio dos outros.
+		if (lobby.config.color_choice) {
+			for (uint i = 0; i < shuffled.length(); i++) {
+				int escolhida = shuffled[i].chosen_color;
+				if (escolhida < 0) continue;
+				int at = color_ids.find(escolhida);
+				if (at >= 0) color_ids.remove_at(at);
+			}
+		}
+		uint proxima_cor = 0;
 
 		// Tasks comuns desta partida: sorteadas UMA vez, aqui, e entregues iguais a todo tripulante
 		// (ver COMMON_TASK_TYPES). O resto do sorteio, mais abaixo, é individual e usa só as tasks
@@ -1110,7 +1177,9 @@ class game_server {
 			game_player@ p = shuffled[i];
 			string team = int(i) < impostor_count ? TEAM_IMPOSTOR : TEAM_CREW;
 			p.set_role(role_of[i] != "" ? role_of[i] : base_role_of_team(team));
-			p.color = color_ids[i % color_ids.length()];
+			if (lobby.config.color_choice && p.chosen_color >= 0) p.color = p.chosen_color;
+			else p.color = color_ids[(proxima_cor++) % color_ids.length()];
+			p.named_by_color = lobby.config.color_mode;
 			p.alive = true;
 			p.left_match = false;
 			p.vented = false;
@@ -1222,7 +1291,7 @@ class game_server {
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			json_object@ rj = json_object();
 			rj.set("peer_id", lobby.players[i].peer_id);
-			rj.set("name", lobby.players[i].username);
+			rj.set("name", lobby.players[i].public_name()); // no modo cor, a marca da cor
 			rj.set("color", lobby.players[i].color);
 			rj.set("x", lobby.players[i].x);
 			rj.set("y", lobby.players[i].y);
@@ -1265,6 +1334,8 @@ class game_server {
 			// da MESMA regra que o servidor usa para aceitar o passo e o duto.
 			start.set_float("move_speed", lobby.config.move_speed());
 			start.set_bool("vents_enabled", lobby.config.vents_enabled);
+			// Modo cor: o cliente anuncia a cor do jogador junto do papel (os nomes já chegam como cor).
+			start.set_bool("color_mode", lobby.config.color_mode);
 			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
 			// um ou três, senão a discussão da reunião é chute puro.
 			start.set_int("impostor_count", impostor_count);
@@ -1281,7 +1352,7 @@ class game_server {
 					if (!other.is_impostor || other.peer_id == p.peer_id) continue;
 					json_object@ entry = json_object();
 					entry.set("peer_id", other.peer_id);
-					entry.set("name", other.username);
+					entry.set("name", other.public_name());
 					partners.add(entry);
 				}
 				start.set_array("impostor_partners", partners);
@@ -1474,7 +1545,8 @@ class game_server {
 			if (@assassino != null && reaches_client(assassino)) send_to(killer_id, event);
 		}
 		game_player@ quem_matou = lobby.find_player(killer_id);
-		if (@quem_matou != null) event.set_string("killer_real_name", quem_matou.username);
+		// "Verdadeiro" é sem o disfarce - no modo cor, a cor VERDADEIRA de quem matou.
+		if (@quem_matou != null) event.set_string("killer_real_name", quem_matou.public_name());
 		game_player@ victim = lobby.find_player(victim_peer);
 		if (@victim != null && reaches_client(victim)) send_to(victim_peer, event);
 
@@ -1483,7 +1555,7 @@ class game_server {
 		// então deixaria ouvir. Sai da capacidade, não do id: um papel futuro pode fazer igual.
 		if (@victim != null && victim.role().announces_own_death) {
 			net_packet@ alarm = net_packet(S_DEATH_ALARM);
-			alarm.set_string("name", victim.username);
+			alarm.set_string("name", victim.public_name());
 			map_zone@ zone = lobby.map.find_zone(lobby.map.room_id_at(victim.x, victim.y));
 			// A SALA, e não a posição: o aviso diz onde procurar, não entrega o ponto exato -
 			// quem quiser mais que isso tem que ir até lá. E nunca diz quem matou.
@@ -1612,14 +1684,14 @@ class game_server {
 		if (@voter != null) {
 			net_packet@ cast_pkt = net_packet(S_VOTE_CAST);
 			cast_pkt.set_uint64("voter_peer", peer_id);
-			cast_pkt.set_string("voter_name", voter.username);
+			cast_pkt.set_string("voter_name", voter.public_name());
 			// Com os votos abertos, o ALVO vai junto, na hora. Fechados, nem viaja: o cliente é a
 			// máquina do jogador, e "manda mas não fala" seria mandar para quem quisesse ler.
 			cast_pkt.set_bool("target_revealed", lobby.config.show_votes);
 			if (lobby.config.show_votes) {
 				cast_pkt.set_bool("skipped", target == -1);
 				game_player@ tp = target == -1 ? null : lobby.find_player(uint64(target));
-				cast_pkt.set_string("target_name", @tp != null ? tp.username : "");
+				cast_pkt.set_string("target_name", @tp != null ? tp.public_name() : "");
 			}
 			broadcast_to_lobby(lobby, cast_pkt);
 		}
@@ -2237,7 +2309,7 @@ class game_server {
 
 		net_packet@ msg = net_packet(S_CHAT_MESSAGE);
 		msg.set_uint64("peer_id", peer_id);
-		msg.set_string("name", sender.username);
+		msg.set_string("name", sender.public_name()); // sala de espera: o nome; modo cor na partida: a cor
 		msg.set_string("text", text);
 		broadcast_to_lobby(lobby, msg);
 	}

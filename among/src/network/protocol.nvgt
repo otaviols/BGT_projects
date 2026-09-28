@@ -52,6 +52,10 @@ const string C_LOGOUT = "c_logout";               // {token} - esquece este comp
 // Apaga a conta de quem está logado. Pede a SENHA mesmo para quem entrou por token: o token lembrado
 // num computador emprestado não pode bastar para apagar uma conta.
 const string C_DELETE_ACCOUNT = "c_delete_account"; // {password}
+// A cor que o jogador quer na sala de espera (-1 = sem preferência, sortear). Só vale quando a sala
+// deixa escolher (lobby_config.color_choice); fora disso fica guardada e não é usada. A resposta é o
+// S_LOBBY_STATE de sempre, e S_ERROR "lobby.color_taken" se outra pessoa da sala já a escolheu.
+const string C_CHOOSE_COLOR = "c_choose_color"; // {color}
 const string C_REGISTER = "c_register";           // {username, password}
 const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
 // join_code (opcional) torna a partida PRIVADA: ela some da lista e só entra quem souber o código.

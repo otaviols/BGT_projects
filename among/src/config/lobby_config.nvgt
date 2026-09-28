@@ -44,6 +44,8 @@ class lobby_overrides {
 	float emergency_cooldown_seconds = -1.0;
 	int move_speed_percent = -1;
 	string vents = ""; // "" = preset, "on" = dutos liberados, "off" = ninguém usa duto
+	string colors = ""; // "" = preset, "random" = sorteadas na partida, "choice" = cada um escolhe na sala
+	string color_mode = ""; // "" = preset, "on" = todo mundo é chamado pela COR, "off" = pelo nome
 	// Papéis especiais: id -> quantos. Só entra aqui o que o anfitrião preencheu; o que ficou em
 	// branco não é tocado, como todo o resto. -1 nunca aparece: um papel ausente do dicionário É o
 	// "não mexi".
@@ -95,6 +97,10 @@ class lobby_overrides {
 		if (move_speed_percent > 0) cfg.move_speed_percent = move_speed_percent;
 		if (vents == "on") cfg.vents_enabled = true;
 		else if (vents == "off") cfg.vents_enabled = false;
+		if (colors == "choice") cfg.color_choice = true;
+		else if (colors == "random") cfg.color_choice = false;
+		if (color_mode == "on") cfg.color_mode = true;
+		else if (color_mode == "off") cfg.color_mode = false;
 	}
 
 	void write_to_packet(net_packet@ pkt) const {
@@ -115,6 +121,8 @@ class lobby_overrides {
 		pkt.set_float("emergency_cooldown_seconds", emergency_cooldown_seconds);
 		pkt.set_int("move_speed_percent", move_speed_percent);
 		pkt.set_string("vents", vents);
+		pkt.set_string("colors", colors);
+		pkt.set_string("color_mode", color_mode);
 		// Um objeto {id: quantos}, e não um campo por papel: assim um papel novo não muda o protocolo.
 		json_object@ roles = json_object();
 		array<string>@ ids = role_counts.get_keys();
@@ -182,6 +190,8 @@ class lobby_overrides {
 		emergency_cooldown_seconds = pkt.get_float("emergency_cooldown_seconds", -1.0);
 		move_speed_percent = pkt.get_int("move_speed_percent", -1);
 		vents = pkt.get_string("vents", "");
+		colors = pkt.get_string("colors", "");
+		color_mode = pkt.get_string("color_mode", "");
 	}
 }
 
@@ -226,6 +236,15 @@ class lobby_config {
 	// não de um papel. Sem duto, "sumiu de uma sala e apareceu na outra" deixa de ter explicação, e
 	// quem mata tem que fugir andando, com os passos ouvidos pelo caminho.
 	bool vents_enabled = true;
+	// Cores escolhidas na sala (tecla E) em vez de sorteadas. Quem não escolheu, ou escolheu uma cor
+	// que outra pessoa pegou antes, recebe uma sorteada entre as que sobraram. Desligado por padrão:
+	// sorteada é o jogo de sempre, e cor fixa faz o grupo reconhecer quem é quem de uma rodada para
+	// outra - o que muda a partida, então é decisão de quem cria a sala.
+	bool color_choice = false;
+	// MODO COR: na partida ninguém tem nome, só cor - elenco, radar, câmeras, votação, chat, avisos,
+	// tudo. Existe para quem tem dificuldade de guardar quem é quem por nome: "o laranja estava na
+	// elétrica" é mais fácil de seguir. O nome volta no fim, junto do resultado.
+	bool color_mode = false;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
 	// Papéis especiais em jogo: id -> quantos. Ausente = zero. TUDO desligado por padrão, em todo
@@ -304,6 +323,9 @@ class lobby_config {
 		// servidor aceita, e ficaria preso no lugar sem saber por quê - e ofereceria um duto que o
 		// servidor recusaria calado. No padrão ele joga normalmente, então a sala padrão não barra ninguém.
 		if (move_speed_percent != 100 || !vents_enabled) maior = 4;
+		// Modo cor: os nomes chegam como MARCA de cor, que só o cliente do protocolo 5 sabe traduzir -
+		// um anterior falaria a marca crua ("#cor:3") no lugar de cada nome.
+		if (color_mode) maior = 5;
 		array<string>@ ids = role_counts.get_keys();
 		for (uint i = 0; i < ids.length(); i++) {
 			int n = 0;
@@ -426,6 +448,8 @@ class lobby_config {
 		o.set("emergency_cooldown_seconds", emergency_cooldown_seconds);
 		o.set("move_speed_percent", move_speed_percent);
 		o.set("vents_enabled", vents_enabled);
+		o.set("color_choice", color_choice);
+		o.set("color_mode", color_mode);
 		// Sempre presente, mesmo vazio: é como o cliente distingue "sala sem papéis" de "servidor
 		// antigo que nem sabe o que é papel".
 		json_object@ roles = json_object();

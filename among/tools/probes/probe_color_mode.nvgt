@@ -1,0 +1,163 @@
+// Sonda do MODO COR e da escolha de cor na sala.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_color_mode.nvgt
+//
+// O que se confere, contra o servidor:
+//   1. escolha de cor: quem pede primeiro fica com ela; o segundo recebe "lobby.color_taken";
+//   2. a partida respeita as escolhas (A fica com a dele, B com a dele, C com uma que sobrou);
+//   3. modo cor: o elenco chega só com MARCAS de cor, e NENHUM pacote da partida - do início ao fim
+//      da votação, chat incluído - carrega o nome de usuário de ninguém.
+//
+// O item 3 é a sonda como cliente modificado: lê o pacote cru. "O jogo não fala o nome" não basta; o
+// nome não pode nem chegar. Um único ponto esquecido no servidor (e eram uns dez) aparece aqui.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+array<string> nomes;
+array<string> vazamentos;
+// UMA CAIXA POR CLIENTE (ver notes/sondas.md): bombear todos e jogar fora o que não é do cliente
+// esperado apagava o S_GAME_START dos outros - a primeira versão desta sonda caiu nisso.
+array<array<net_packet@>> caixas(3);
+
+// Bombeia todos, confere o pacote cru de cada um atrás de nome de usuário, e guarda tudo na caixa
+// de quem recebeu. Devolve (e tira da caixa) o primeiro pacote do tipo pedido que chegou a `quem`.
+net_packet@ vigia(array<game_client@>@ todos, int quem, const string&in tipo, int ms) {
+	timer t;
+	while (true) {
+		for (uint i = 0; i < todos.length(); i++) {
+			todos[i].update();
+			net_packet@ p = todos[i].poll_message();
+			while (@p != null) {
+				string cru = p.to_wire().lower();
+				for (uint n = 0; n < nomes.length(); n++) {
+					if (cru.find(nomes[n].lower()) >= 0) vazamentos.insert_last(p.type + " para o cliente " + i + ": " + nomes[n]);
+				}
+				caixas[i].insert_last(p);
+				@p = todos[i].poll_message();
+			}
+		}
+		if (quem >= 0) {
+			for (uint k = 0; k < caixas[quem].length(); k++) {
+				if (caixas[quem][k].type != tipo) continue;
+				net_packet@ achado = caixas[quem][k];
+				caixas[quem].remove_at(k);
+				return achado;
+			}
+		}
+		if (t.elapsed >= ms) return null;
+		wait(5);
+	}
+	return null;
+}
+void esvazia_caixas() { for (uint i = 0; i < caixas.length(); i++) caixas[i].resize(0); }
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (int i = 0; i < 3; i++) {
+		game_client c;
+		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+		string nome = "cm" + i + "x" + sfx;
+		nomes.insert_last(nome);
+		c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(nome, "probe123");
+		net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		c.my_peer_id = lr.get_uint64("peer_id");
+		todos.insert_last(c);
+	}
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.colors = "choice";
+	ov.color_mode = "on";
+	ov.discussion_time_seconds = 5.0;
+	ov.voting_time_seconds = 15.0;
+	todos[0].send_create_lobby("cores", "classic", ov);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	json_object@ cfg = st.get_object("config");
+	confere("a sala guardou escolha de cor e modo cor", @cfg != null && bool(cfg["color_choice"]) && bool(cfg["color_mode"]));
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(st.get_string("lobby_id")); wf(todos[i], S_JOIN_RESULT, 5000); }
+
+	println("== 1. escolha de cor ==");
+	todos[0].send_choose_color(0);
+	wf(todos[0], S_LOBBY_STATE, 3000);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[1].send_choose_color(0);
+	net_packet@ recusa = wf(todos[1], S_ERROR, 3000);
+	confere("a segunda pessoa a pedir a mesma cor ouve que ela esta tomada",
+		@recusa != null && recusa.get_string(MSG_KEY_FIELD) == "lobby.color_taken");
+	todos[1].send_choose_color(1);
+	// Espera o retrato que JÁ tem a escolha de B: um retrato atrasado (o da entrada de C) chega antes
+	// e não diz nada sobre a escolha.
+	int cor_a = -2, cor_b = -2, cor_c = -2;
+	timer espera_retrato;
+	while (espera_retrato.elapsed < 4000 && cor_b != 1) {
+		net_packet@ retrato = vigia(todos, 0, S_LOBBY_STATE, 1000);
+		if (@retrato == null) continue;
+		json_array@ ps = retrato.get_array("players");
+		for (uint i = 0; i < ps.length(); i++) {
+			json_object@ pj = ps.get_object(i);
+			uint64 pid = uint64(pj["peer_id"]);
+			if (pid == todos[0].my_peer_id) cor_a = int(pj["color"]);
+			if (pid == todos[1].my_peer_id) cor_b = int(pj["color"]);
+			if (pid == todos[2].my_peer_id) cor_c = int(pj["color"]);
+		}
+	}
+	confere("o retrato da sala diz as escolhas (A=" + cor_a + ", B=" + cor_b + ", C=" + cor_c + ")", cor_a == 0 && cor_b == 1 && cor_c == -1);
+
+	println("== 2. a partida respeita as escolhas ==");
+	esvazia_caixas();
+	// Até aqui os nomes são públicos (sala de espera). A partir do início, nenhum pode chegar.
+	vazamentos.resize(0);
+	todos[0].send_start_game();
+	array<int> cores(3, -1);
+	bool modo_no_inicio = true, elenco_so_de_marcas = true;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ s = vigia(todos, int(i), S_GAME_START, 8000);
+		if (@s == null) { println("sem S_GAME_START"); return; }
+		cores[i] = s.get_int("your_color");
+		if (!s.get_bool("color_mode", false)) modo_no_inicio = false;
+		json_array@ roster = s.get_array("players");
+		for (uint r = 0; r < roster.length(); r++)
+			if (!string(roster.get_object(r)["name"]).starts_with(COLOR_MARK_PREFIX)) elenco_so_de_marcas = false;
+	}
+	confere("A ficou com a cor escolhida (vermelho)", cores[0] == 0);
+	confere("B ficou com a cor escolhida (azul)", cores[1] == 1);
+	confere("C recebeu uma cor que sobrou (" + cores[2] + ")", cores[2] >= 2);
+	confere("o inicio avisa que a partida e em modo cor", modo_no_inicio);
+	confere("o elenco chega so com marcas de cor", elenco_so_de_marcas);
+
+	println("== 3. nenhum nome de usuario chega durante a partida ==");
+	vigia(todos, 0, "", 1000);
+	todos[0].send_call_meeting();
+	confere("a reuniao comecou", @vigia(todos, 0, S_MEETING_STARTED, 8000) != null);
+	vigia(todos, 0, S_VOTING_STARTED, 8000);
+	todos[0].send_chat_message("oi da sonda");
+	net_packet@ chat = vigia(todos, 1, S_CHAT_MESSAGE, 5000);
+	confere("o chat chega com a cor de quem falou (" + (@chat != null ? chat.get_string("name") : "nada") + ")",
+		@chat != null && chat.get_string("name") == COLOR_MARK_PREFIX + "red");
+	for (uint i = 0; i < todos.length(); i++) todos[i].send_cast_vote(-1);
+	confere("a votacao terminou", @vigia(todos, 0, S_VOTE_RESULT, 30000) != null);
+	for (uint v = 0; v < vazamentos.length(); v++) println("     vazou: " + vazamentos[v]);
+	confere("nenhum pacote carregou um nome de usuario (" + vazamentos.length() + " vazamento(s))", vazamentos.length() == 0);
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

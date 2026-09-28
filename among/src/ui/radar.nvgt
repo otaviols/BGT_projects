@@ -169,7 +169,7 @@ class radar_ui {
 		}
 		float x = pkt.get_float("x");
 		float y = pkt.get_float("y");
-		string name = pkt.get_string("name");
+		string name = spoken_name(pkt.get_string("name")); // modo cor: a marca vira a cor
 		float distance = pkt.get_float("distance", -1.0);
 		if (tracking) {
 			if (tracked_peer != 0) audio.play_radar_beep(x, y); // só o bip: o nome já foi dito no Tab

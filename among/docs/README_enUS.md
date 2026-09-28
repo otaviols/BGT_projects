@@ -186,6 +186,7 @@ your file and English — worth sending a message about it.
 | P | who is in the lobby (with the count, and which are bots) |
 | C | opens this match's rules as a list: arrows go through one rule at a time, with items to copy the code (private match) and all the rules. If the match starts while it is open, it closes by itself |
 | O | change the rules (host only): the fields come with the current values, and anything left blank stays as it is. Everyone is told. |
+| E | pick your color. A color already taken is read with the name of whoever took it. Your pick is saved and sent to the next lobbies by itself; it only counts in lobbies that let players choose (in the others, colors are drawn) |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
 | Y | write in chat |
@@ -555,6 +556,10 @@ In the waiting room the host can add bots with **B** (up to 8) and remove them w
 They walk the ship, do tasks, vote in meetings and can be drawn as impostors — when they are, they
 hunt, kill when nobody is around, and sabotage. Useful to fill out a match or to practise alone.
 
+Each bot gets the surname of a real astronaut — Gagarin, Tereshkova, Pontes, Neri, Jemison, among
+others — never repeating anyone in the lobby. The lobby player list (**P** key) still says which
+ones are bots.
+
 ## Match presets
 
 | Preset | Players | Impostors | Tasks | Kill cooldown | Sabotage |
@@ -570,6 +575,16 @@ fields for maximum players, number of impostors, tasks per crewmate, kill cooldo
 voting time, emergency meetings per player, whether sabotage is in play, whether **vents** can be
 used (when off, neither the impostor nor the engineer can vent), and **player speed**, as a
 percentage of normal (50% to 200%).
+
+Two more fields change how people are identified:
+
+- **Player colors:** drawn each match (the default), or **picked in the lobby** — each player picks
+  theirs with the **E** key, and anyone who doesn't gets one of the colors left.
+- **Color mode:** in the match nobody has a name, only a color. The player list, radar, cameras,
+  voting, chat and every announcement say "Red", "Coral", "Turquoise"... At the start the game tells
+  you your color, and at the end the result reveals who each impostor was ("Someone (Red)"). It is
+  there for anyone who finds colors easier to follow than names. Each player hears the color in their
+  own language.
 
 **Every field may be left blank**, and blank means "use what the preset says" — so if you just want
 to play, pick a preset, confirm and go. Anyone joining can hear what you changed by pressing **C**,

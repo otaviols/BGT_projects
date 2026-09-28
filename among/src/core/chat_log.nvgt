@@ -85,7 +85,7 @@ bool drain_chat_while_composing(game_client@ client, chat_log@ messages) {
 		net_packet@ p = client.incoming[i];
 		if (p.type == S_VOTE_RESULT || p.type == S_GAME_OVER) return false; // fica na fila; o laço trata
 		if (p.type != S_CHAT_MESSAGE) continue;
-		string name = p.get_string("name");
+		string name = spoken_name(p.get_string("name")); // modo cor: a cor de quem falou
 		string text = p.get_string("text");
 		if (@messages != null) messages.add(name, text);
 		if (!p.announced) speak(name + ": " + text, false);

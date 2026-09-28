@@ -2,6 +2,8 @@
 // Cores de personagem disponíveis. Cada cor tem sons de morte/kill próprios quando existirem
 // em sounds/colors/<cor>/, com fallback para os sons genéricos do protótipo antigo.
 
+#include "../i18n.nvgt" // COLOR_MARK_PREFIX, que é o i18n quem resolve
+
 // Quantas cores existem é o teto de jogadores numa partida: a atribuição dá uma cor por pessoa e,
 // esgotadas as cores, passaria a repetir (ver o sorteio em network/server.nvgt). Por isso esta lista
 // tem 15 nomes e MAX_PLAYERS é 15 - mexer num sem mexer no outro volta a repetir cor.
@@ -17,12 +19,23 @@ enum player_color {
 	COLOR_PURPLE,
 	COLOR_BROWN,
 	COLOR_CYAN,
-	COLOR_LIME,
-	COLOR_MAROON,
-	COLOR_GRAY,
-	COLOR_TAN,
+	// As quatro últimas trocaram na 0.38.0: saíram lima, bordô, cinza e bege - cores "sem graça" ou
+	// subjetivas demais para quem só as ouve - e entraram coral, turquesa, prata e dourado. O
+	// critério, num jogo de ouvido, é o NOME soar diferente dos outros nos três idiomas; coral é a
+	// mesma palavra em português, inglês e espanhol, o que ajuda numa sala com idiomas misturados.
+	// Os números ficaram os mesmos: a cor viaja pela rede como número.
+	COLOR_CORAL,
+	COLOR_TURQUOISE,
+	COLOR_SILVER,
+	COLOR_GOLD,
 	COLOR_COUNT
 }
+
+// MODO COR: no lugar do nome de um jogador viaja esta MARCA, e cada cliente a troca pela cor no
+// idioma DELE (ver resolve_color_marks em i18n.nvgt). A marca carrega a CHAVE da cor, e não o número,
+// para o i18n poder traduzi-la sem conhecer esta tabela. Não pode ser texto pronto: numa sala com
+// gente em português e em espanhol, "Rojo" e "Vermelho" são a mesma pessoa.
+string color_mark(int color_id) { return COLOR_MARK_PREFIX + color_key(color_id); }
 
 // Chave usada tanto para i18n (color.<key>) quanto para o nome da subpasta em sounds/colors/.
 string color_key(int color_id) {
@@ -38,10 +51,10 @@ string color_key(int color_id) {
 		case COLOR_PURPLE: return "purple";
 		case COLOR_BROWN: return "brown";
 		case COLOR_CYAN: return "cyan";
-		case COLOR_LIME: return "lime";
-		case COLOR_MAROON: return "maroon";
-		case COLOR_GRAY: return "gray";
-		case COLOR_TAN: return "tan";
+		case COLOR_CORAL: return "coral";
+		case COLOR_TURQUOISE: return "turquoise";
+		case COLOR_SILVER: return "silver";
+		case COLOR_GOLD: return "gold";
 	}
 	return "unknown";
 }

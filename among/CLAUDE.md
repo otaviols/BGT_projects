@@ -173,7 +173,8 @@ O APK entra no deploy junto dos outros pacotes (`AmongUs-android.apk`, na lista 
 de publicar uma versão que deva levá-lo, senão o site fica com o APK da versão anterior sem nada
 avisar.
 
-**O que ainda não foi feito:** ninguém rodou o APK num aparelho. E o toque não existe — esta versão
+**O que ainda não foi feito:** o APK já rodou num aparelho de jogador (recado #151, que achou o
+andar lento - corrigido na 0.37.0 com o `frame_timer`), mas ninguém daqui o testou. E o toque não existe — esta versão
 espera **teclado** (Bluetooth ou USB), que é o combinado: gestos vêm depois, e o `touch_keyboard_interface`
 do NVGT mapeia gesto para tecla simulada, então menus, formulários e minigames não precisam de uma
 segunda interface. O que precisa de código de verdade é **andar**, que lê tecla SEGURADA

@@ -166,6 +166,17 @@ acrescentar um lugar que fale nome: use o elenco, não invente outra fonte.
 "parecer com alguém" é aparecer com o nome dele, e o nome só sai do SERVIDOR - radar, câmera, quem
 está na sala. Um ponto esquecido é um buraco no disfarce, sem nada acusando no código.
 
+**Na PARTIDA, nome de jogador sai do servidor por `public_name()` ou `display_name()`, NUNCA por
+`username`.** Desde o modo cor (0.38.0): `public_name()` é o nome sem disfarce - ou, no modo cor, a
+MARCA da cor (`#cor:red`, ver `color_mark`) -, e `display_name()` é o que os outros veem agora (o
+disfarce, se houver). Havia uns dez pontos mandando `username` cru (votos, expulso, alarme, chat,
+elenco, parceiros, quem saiu, o anjo) - todos trocados. Onde o nome REAL precisa aparecer, é
+deliberado e escrito: o fim da partida diz "Fulano (Vermelho)". Fora de partida (`named_by_color`
+falso) os dois são o nome. No cliente, a marca vira cor no idioma de cada um pelo `tr()` (todo
+parâmetro) e pelo `spoken_name()` (elenco, chat) - nada mais precisa saber que ela existe.
+Metamorfo no modo cor copia a COR do alvo, pela mesma regra. Sonda: `tools/probes/probe_color_mode.nvgt`,
+que lê o pacote cru de todo mundo do início ao fim da votação procurando qualquer nome de usuário.
+
 **A vítima é a exceção, e é deliberada: ela ouve o nome VERDADEIRO.** Desde que o elenco passou a
 carregar o nome disfarçado, isso exige uma CÓPIA privada: o `S_PLAYER_KILLED` vai à partida sem nome
 nenhum, e só a vítima recebe uma versão com `killer_real_name`. Quem morreu já pagou o preço e não tem como contar a

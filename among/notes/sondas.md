@@ -26,6 +26,13 @@ todo mundo e não joga nada fora, e um `esvazia_caixa()` num lugar só por rodad
 apaga o retrato da sala reaberta, que chega junto do fim; não esvaziar nunca faz a espera achar o
 retrato da ENTRADA e passar sem esperar nada).
 
+**Sonda que procura VAZAMENTO tem que começar a contar na fase certa.** A `probe_color_mode`
+acusou 15 "vazamentos" de nome de usuário na primeira rodada - todos `s_lobby_state` da sala de
+espera, onde os nomes são públicos. Zerar a contagem no `send_start_game` é o que separa o legítimo
+do defeito (e deu zero). E a mesma sonda repetiu a armadilha da caixa única logo abaixo: bombear
+todos para esperar o `S_GAME_START` de um jogou fora o dos outros. Sintoma: "sem S_GAME_START" numa
+partida que começou.
+
 **Teto estatístico ("afrouxa em menos de X% dos casos") é sonda intermitente disfarçada.** Duas
 execuções seguidas do mesmo servidor sem teto nenhum deram 30% e 13%: a segunda teria passado.
 Quando os números permitem, prefira a garantia DURA ("ninguém passou de 2") e escreva ao lado por
