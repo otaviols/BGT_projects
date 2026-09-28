@@ -6,6 +6,28 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.41.0
+
+**Neutral roles.** A third side, neither crew nor impostor, that wins alone. At the end of the match
+the game reveals who was neutral, as it reveals the impostors. Two to start with, which the host turns
+on in the room rules:
+
+**Jester.** Wins if voted out. Every ejection now has one more doubt: is it the impostor, or the
+Jester wanting out?
+
+**Big Bad Wolf.** With the ability key, swallows whoever is right next to them. There is no body: the
+person goes into the wolf's belly, where they talk only with the wolf and the others swallowed. At the
+meeting nothing is announced, the swallowed are just not on the list. If the wolf dies or is voted
+out, everyone comes back. The wolf wins if left with the ship down to them and one other.
+
+**My stats.** In the match list: matches played, wins (per side), tasks and kills.
+
+**In the dark nobody sees who killed.** With the lights sabotaged, whoever is right next to a kill
+hears it, but does not learn who did it.
+
+**Someone who enters a vent is no longer announced there.** Walking past where someone entered a vent
+(or turned invisible) announced their name as if they were standing there. Not anymore.
+
 ## 0.40.0
 
 **Room exits.** Inside a room, when you line up with an exit — walking straight takes you out through

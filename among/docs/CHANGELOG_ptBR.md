@@ -6,6 +6,29 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.41.0
+
+**Papéis neutros.** Um terceiro lado, que não é da tripulação nem dos impostores e vence sozinho. No
+fim da partida, o jogo revela quem era neutro, como revela os impostores. Dois para começar, que o
+anfitrião liga nas regras da sala:
+
+**Bobo da Corte.** Vence se for expulso na votação. Agora toda expulsão tem uma dúvida a mais: é o
+impostor, ou é o Bobo querendo sair?
+
+**Lobo Mau.** Com a tecla de habilidade, engole quem estiver colado nele. Não fica corpo: a pessoa vai
+para a barriga do lobo, onde fala só com ele e com os outros engolidos. Na reunião ninguém anuncia
+nada, quem foi engolido só não está na lista. Se o lobo morrer ou for expulso, todos voltam. Ele vence
+se sobrar com a nave reduzida a ele e mais um.
+
+**Minhas estatísticas.** Na lista de partidas: partidas jogadas, vitórias (por lado), tarefas e
+assassinatos.
+
+**No escuro ninguém vê quem matou.** Com as luzes sabotadas, quem está colado no assassinato ouve o
+crime, mas não fica sabendo quem foi.
+
+**Quem entra num duto não é mais anunciado ali.** Passar perto de onde alguém entrou num duto (ou
+ficou invisível) anunciava o nome dele como se estivesse parado lá. Não anuncia mais.
+
 ## 0.40.0
 
 **Saídas das salas.** Dentro de uma sala, quando você fica alinhado com uma saída — andando reto,
