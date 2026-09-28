@@ -234,7 +234,9 @@ class meeting_ui {
 		roster.mark_dead(peer_id);
 		float x = pkt.get_float("x");
 		float y = pkt.get_float("y");
-		int killer_color = pkt.get_int("killer_color");
+		// Só a vítima e o assassino recebem a cor de quem matou (ver server.on_kill); para os outros
+		// ela não vem, e -1 cai no som genérico de kill.
+		int killer_color = pkt.get_int("killer_color", -1);
 
 		// Os dois sons do assassinato têm ouvintes DIFERENTES, e antes tocavam os dois para todo mundo.
 		//

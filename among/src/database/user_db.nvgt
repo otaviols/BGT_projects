@@ -53,9 +53,9 @@ class user_database {
 		// persistente, então o feedback sobrevive a deploy pelo mesmo motivo que as contas sobrevivem,
 		// sem nenhuma peça de infraestrutura nova para manter.
 		//
-		// O usuário fica como TEXTO, e não como chave estrangeira para users(id): se um dia a conta
-		// for apagada, o recado continua legível em vez de virar um número órfão - e um recado sobre
-		// um bug vale independentemente de quem ainda joga.
+		// O usuário fica como TEXTO, e não como chave estrangeira para users(id). Apagar a conta
+		// apaga os recados dela também (ver delete_account) - decisão tomada depois desta tabela, que
+		// antes previa o recado sobrevivendo à conta.
 		if (db.execute(
 			"CREATE TABLE IF NOT EXISTS feedback (" +
 			"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -208,6 +208,40 @@ class user_database {
 		string hash = token_hash(token); // nomeado, não temporário - ver create_session
 		st.bind_text(1, hash, false);
 		st.step();
+	}
+
+	// Apaga a conta e TUDO o que é dela: estatísticas, sessões lembradas, recados (com as respostas) e
+	// traduções ainda na caixa de entrada. Decisão do usuário: apagar a conta tem que apagar de
+	// verdade - o recado e o crash.log podem carregar dado pessoal, e é isso que a pessoa espera (e
+	// o que a LGPD pede). O preço aceito é perder o histórico de bugs daquela pessoa. Traduções já
+	// promovidas ao repositório não são tocadas: lá elas são parte do jogo.
+	//
+	// Uma transação só: meio apagado (conta sumida, recados ainda com o nome) seria o pior dos dois
+	// mundos. E `user_stats` é apagada à mão - o ON DELETE CASCADE dela só funciona com
+	// `PRAGMA foreign_keys = ON`, que o SQLite deixa desligado por padrão.
+	bool delete_account(const string&in username) {
+		if (@db == null || username == "") return false;
+		int user_id = get_user_id(username);
+		if (user_id < 0) return false;
+		array<string> comandos = {
+			"DELETE FROM feedback_replies WHERE feedback_id IN (SELECT id FROM feedback WHERE username = ?)",
+			"DELETE FROM feedback WHERE username = ?",
+			"DELETE FROM translations WHERE username = ?",
+			"DELETE FROM sessions WHERE username = ?",
+			"DELETE FROM users WHERE username = ?"
+		};
+		db.execute("BEGIN");
+		sqlite3statement@ stats = db.prepare("DELETE FROM user_stats WHERE user_id = ?");
+		if (@stats == null) { db.execute("ROLLBACK"); return false; }
+		stats.bind_int(1, user_id);
+		if (stats.step() != SQLITE_DONE) { db.execute("ROLLBACK"); return false; }
+		for (uint i = 0; i < comandos.length(); i++) {
+			sqlite3statement@ st = db.prepare(comandos[i]);
+			if (@st == null) { db.execute("ROLLBACK"); return false; }
+			st.bind_text(1, username, false);
+			if (st.step() != SQLITE_DONE) { db.execute("ROLLBACK"); return false; }
+		}
+		return db.execute("COMMIT") == SQLITE_OK;
 	}
 
 	bool save_translation(const string&in username, const string&in code, const string&in content) {

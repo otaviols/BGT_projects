@@ -7,13 +7,14 @@
 // O que se confere, tudo contra o servidor de verdade:
 //   1. o ESCUDO do anjo cai na reunião - depois dela o mesmo kill funciona, mesmo com o escudo
 //      configurado para durar 300 s (sem o corte, ele atravessaria a reunião intacto);
-//   2. a recarga do METAMORFO volta INTEIRA no fim da votação (papel que ataca: reseta);
-//   3. a recarga do ANJO não volta - ela correu durante a reunião, como deve (papel que defende:
-//      não reseta, ver ability_cooldown_resets_on_meeting em role_traits).
+//   2 e 3. a recarga da HABILIDADE (metamorfo e anjo) fica PAUSADA na reunião: sai da votação com
+//      o que tinha ao entrar. Desde a 0.37.0 - antes a do metamorfo recomeçava inteira e a do anjo
+//      corria durante a discussão, e esta sonda conferia exatamente isso.
 //
 // 2 e 3 são medidos pelos SEGUNDOS que o servidor informa ao recusar por recarga, e não por
-// "aceitou/recusou": é o único jeito de separar "resetou" de "não resetou" sem espiar o processo.
-// Os dois valores são escolhidos para que a resposta certa e a errada fiquem longe uma da outra.
+// "aceitou/recusou": é o único jeito de separar os três comportamentos possíveis sem espiar o
+// processo. Por isso a sonda ESPERA antes de chamar a reunião (ANTES_DA_REUNIAO): sem essa espera,
+// "pausou" e "recomeçou" dariam o mesmo número, porque quase nada teria corrido ainda.
 //
 //   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_meeting_reset.nvgt
 #include "../../src/network/client.nvgt"
@@ -28,6 +29,7 @@ const float DISCUSSAO = 40.0;
 const float ESCUDO_DURACAO = 300.0;  // atravessaria a partida inteira se a reunião não o cortasse
 const float ANJO_RECARGA = 60.0;     // expira em boa parte DENTRO da reunião
 const float MORFO_RECARGA = 120.0;   // longa: sobra muito depois da reunião, resetada ou não
+const float ANTES_DA_REUNIAO = 20.0; // o que corre ANTES da reunião, e que a pausa tem que preservar
 
 uint falhas = 0;
 void check(const string&in o_que, bool ok, const string&in esperado) {
@@ -157,6 +159,12 @@ void main() {
 	morfo.send_use_ability(ABILITY_SHAPESHIFT, copiado_peer);
 	net_packet@ virou = wf(morfo, S_ABILITY_RESULT, 5000);
 	check("o metamorfo se disfarcou", @virou != null && virou.get_bool("ok"), "true");
+	timer desde_o_disfarce;
+	println("esperando " + int(ANTES_DA_REUNIAO) + "s antes da reuniao, para a recarga andar...");
+	bombeia(todos, int(ANTES_DA_REUNIAO * 1000.0));
+	// Quanto cada recarga já tinha andado quando a reunião começou: é o que a pausa preserva.
+	float morfo_antes = float(desde_o_disfarce.elapsed) / 1000.0;
+	float anjo_antes = float(desde_o_escudo.elapsed) / 1000.0;
 
 	// --- A reunião ---
 	copiado.send_call_meeting();
@@ -184,15 +192,19 @@ void main() {
 	net_packet@ r_morfo = wf(morfo, S_ABILITY_RESULT, 5000);
 	int falta_morfo = segundos_de_recarga(r_morfo);
 	println("   o metamorfo tem " + falta_morfo + "s de recarga (configurado: " + int(MORFO_RECARGA) + "s)");
-	check("a recarga do metamorfo voltou inteira na votacao",
-		falta_morfo >= int(MORFO_RECARGA) - 8, "perto de " + int(MORFO_RECARGA) + "s, nao de " + int(MORFO_RECARGA - DISCUSSAO) + "s");
+	int esperado_morfo = int(MORFO_RECARGA - morfo_antes);
+	check("a recarga do metamorfo ficou PAUSADA na reuniao",
+		abs(falta_morfo - esperado_morfo) <= 6,
+		"perto de " + esperado_morfo + "s; " + int(MORFO_RECARGA) + " = recomecou, " + int(MORFO_RECARGA - morfo_antes - DISCUSSAO) + " = correu na reuniao");
 
 	anjo.send_use_ability(ABILITY_SHIELD, vitima_peer);
 	net_packet@ r_anjo = wf(anjo, S_ABILITY_RESULT, 5000);
 	int falta_anjo = segundos_de_recarga(r_anjo);
 	println("   o anjo tem " + falta_anjo + "s de recarga (configurado: " + int(ANJO_RECARGA) + "s)");
-	check("a recarga do anjo NAO foi rearmada pela reuniao",
-		falta_anjo >= 0 && falta_anjo <= int(ANJO_RECARGA - DISCUSSAO) + 8, "bem abaixo de " + int(ANJO_RECARGA) + "s");
+	int esperado_anjo = int(ANJO_RECARGA - anjo_antes);
+	check("a recarga do anjo ficou PAUSADA na reuniao",
+		abs(falta_anjo - esperado_anjo) <= 6,
+		"perto de " + esperado_anjo + "s; " + int(ANJO_RECARGA) + " = recomecou, ~0 = correu na reuniao");
 
 	// 1. O escudo caiu junto com a reunião: todo mundo vivo está na cafeteria, colado, e a recarga de
 	// kill foi rearmada pelo fim da votação - esperar por ela é o suficiente.

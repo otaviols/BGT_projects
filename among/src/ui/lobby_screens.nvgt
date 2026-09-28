@@ -12,6 +12,7 @@
 #include "../config/game_constants.nvgt"
 #include "../audio/audio_manager.nvgt"
 #include "feedback_screen.nvgt"
+#include "delete_account_screen.nvgt"
 #include "feedback_replies_screen.nvgt"
 #include "translation_screen.nvgt"
 #include "lobby_info.nvgt"
@@ -255,6 +256,7 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			m.add_item(tr("feedback.replies_menu_item", rp), "__replies__");
 		}
 		if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
+		m.add_item(tr("account.delete_menu_item"), "__delete_account__");
 		m.add_item(tr("menu.back"), "__back__");
 
 		if (run_menu_with_refresh(m)) continue; // F5: pergunta a lista de partidas de novo
@@ -266,6 +268,11 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			g_settings.session_token = "";
 			g_settings.save();
 			speak(tr("login.forgotten"));
+			continue;
+		}
+		if (id == "__delete_account__") {
+			// Apagada, a conexão deixou de estar logada: a sessão acaba e o jogo volta ao menu inicial.
+			if (run_delete_account_screen(client)) { result.go_back = true; return result; }
 			continue;
 		}
 		if (id == "" || id == "__back__") {

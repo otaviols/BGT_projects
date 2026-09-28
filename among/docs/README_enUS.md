@@ -106,6 +106,10 @@ it on reaching the match list: "you have a reply to one of your messages". The *
 messages** option reads your message and the reply side by side. No email, nothing outside the game
 — and to keep the conversation going, just send another message.
 
+**Deleting your account.** The match list has a **Delete my account** option. It asks for your
+password and permanently deletes the account, your stats, the messages you sent (with their
+replies), and any translations not yet collected. There is no undo.
+
 ## Settings
 
 From the main menu, under **Settings**:
@@ -382,7 +386,13 @@ appears (empty = always). The chance matters: at 50%, nobody can assume the role
 that doubt is what makes it interesting. The room rules (**O** key) say what is turned on and at
 what chance — but never say who got it.
 
-Anyone with an ability uses the **H** key.
+When there are more roles turned on than people on the team — say, one impostor and three impostor
+roles turned on — **each role has the same chance** of being the one that comes out.
+
+Anyone with an ability uses the **H** key. The ability's cooldown **is paused during meetings**: you
+leave the vote with the time that was left when it started, no more and no less. (The kill cooldown
+is different: it restarts at the end of the vote, so nobody leaves the table with the knife ready
+next to everyone.)
 
 **Engineer** (crew). Does tasks like any crewmate and counts toward the team's win. Two things set
 them apart:

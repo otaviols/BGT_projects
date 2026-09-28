@@ -1,0 +1,88 @@
+// Sonda de JUSTIÇA do sorteio de papéis: roda o sorteio da partida milhares de vezes, sem servidor,
+// e conta com que frequência cada posição da sala vira impostor e cada papel especial sai.
+//   nvgt tools/probes/probe_draw_fairness.nvgt
+//
+// Três perguntas, que são três defeitos diferentes:
+//   1. `random(a, b)` inclui o b? Se não incluísse, o embaralhamento de Fisher-Yates viraria o de
+//      Sattolo, que NUNCA deixa um elemento no lugar - o anfitrião (primeiro da lista) nunca seria
+//      o primeiro sorteado, e o sorteio inteiro ficaria torto sem nada acusar.
+//   2. Alguma POSIÇÃO da sala (anfitrião, quem entrou por último) é impostor mais que as outras?
+//   3. Com mais papéis ligados do que vagas no time, cada papel tem a MESMA chance de sair? Era aqui
+//      o defeito: os papéis eram distribuídos na ordem da lista, e o primeiro ganhava sempre.
+//
+// Usa o MESMO embaralhamento do servidor (shuffle_player_order) e o MESMO draw_special_roles.
+#include "../../src/game/roles/role_traits.nvgt"
+
+const int RODADAS = 60000;
+const int JOGADORES = 6;
+const int IMPOSTORES = 1;
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Tolerância de 5% em torno do esperado: com 60 mil rodadas o desvio natural fica bem abaixo de 2%,
+// então passar de 5% é defeito, não azar.
+bool perto(int observado, float esperado) {
+	return abs(float(observado) - esperado) <= esperado * 0.05;
+}
+
+void main() {
+	println("== 1. random(0, 1) inclui o 1? ==");
+	int uns = 0;
+	for (int i = 0; i < 10000; i++) if (random(0, 1) == 1) uns++;
+	confere("random(0, 1) deu 1 em " + uns + " de 10000 (esperado ~5000)", perto(uns, 5000.0));
+
+	dictionary counts;
+	counts.set(ROLE_SHAPESHIFTER, 1);
+	counts.set(ROLE_PHANTOM, 1);
+	counts.set(ROLE_SNIPER, 1);
+	counts.set(ROLE_ENGINEER, 1);
+	counts.set(ROLE_SHERIFF, 1);
+	counts.set(ROLE_NOISEMAKER, 1);
+	counts.set(ROLE_DETECTIVE, 1);
+	counts.set(ROLE_GUARDIAN_ANGEL, 1);
+	dictionary chances;
+	array<bool> sem_bots(JOGADORES, false);
+
+	array<int> impostor_por_posicao(JOGADORES, 0);
+	dictionary sai;
+	for (int r = 0; r < RODADAS; r++) {
+		array<int> ordem;
+		for (int i = 0; i < JOGADORES; i++) ordem.insert_last(i);
+		shuffle_player_order(ordem);
+		array<string> papel = draw_special_roles(JOGADORES, IMPOSTORES, sem_bots, counts, chances);
+		for (int i = 0; i < IMPOSTORES; i++) impostor_por_posicao[ordem[i]]++;
+		for (uint i = 0; i < papel.length(); i++) {
+			if (papel[i] == "") continue;
+			int n = 0;
+			if (sai.exists(papel[i])) sai.get(papel[i], n);
+			sai.set(papel[i], n + 1);
+		}
+	}
+
+	println("== 2. cada posição da sala vira impostor igual? (" + JOGADORES + " jogadores, " + IMPOSTORES + " impostor) ==");
+	float esperado_pos = float(RODADAS) * IMPOSTORES / JOGADORES;
+	for (int i = 0; i < JOGADORES; i++)
+		confere("posição " + i + (i == 0 ? " (anfitrião)" : "") + ": " + impostor_por_posicao[i] + " (esperado ~" + int(esperado_pos) + ")", perto(impostor_por_posicao[i], esperado_pos));
+
+	println("== 3. com 3 papéis de impostor para 1 vaga, e 5 de tripulação para 5 vagas ==");
+	float esperado_imp = float(RODADAS) / 3.0;
+	array<string> imp = {ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER};
+	for (uint i = 0; i < imp.length(); i++) {
+		int n = 0;
+		if (sai.exists(imp[i])) sai.get(imp[i], n);
+		confere(imp[i] + ": " + n + " (esperado ~" + int(esperado_imp) + ")", perto(n, esperado_imp));
+	}
+	array<string> crew = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER, ROLE_DETECTIVE, ROLE_GUARDIAN_ANGEL};
+	for (uint i = 0; i < crew.length(); i++) {
+		int n = 0;
+		if (sai.exists(crew[i])) sai.get(crew[i], n);
+		confere(crew[i] + ": " + n + " (esperado " + RODADAS + ": cabem todos)", n == RODADAS);
+	}
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

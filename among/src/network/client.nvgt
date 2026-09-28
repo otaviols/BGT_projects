@@ -186,6 +186,12 @@ class game_client {
 		send(p);
 	}
 
+	void send_delete_account(const string&in password) {
+		net_packet@ p = net_packet(C_DELETE_ACCOUNT);
+		p.set_string("password", password);
+		send(p);
+	}
+
 	void send_register(const string&in username, const string&in password) {
 		net_packet@ p = net_packet(C_REGISTER);
 		p.set_string("username", username);

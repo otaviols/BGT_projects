@@ -1,0 +1,68 @@
+// delete_account_screen.nvgt
+// "Apagar minha conta", na lista de partidas (onde o jogador já está logado).
+//
+// Duas travas contra o acidente, e nenhuma a mais: o aviso FALADO do que some, antes do formulário
+// abrir, e a SENHA. A senha é pedida mesmo para quem entrou pelo "lembrar de mim" - o token lembrado
+// num computador emprestado não pode bastar para apagar a conta de alguém. Uma terceira confirmação
+// ("tem certeza?") foi descartada: de ouvido, uma pergunta a mais vira Enter automático, e quem
+// digitou a senha depois de ouvir o aviso já decidiu.
+
+#include "form.nvgt"
+#include "speech.nvgt"
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../i18n.nvgt"
+#include "../config/game_settings.nvgt"
+
+// Devolve true se a conta foi apagada - quem chama tem que sair da sessão, porque a conexão deixou de
+// estar autenticada no servidor.
+bool run_delete_account_screen(game_client@ client) {
+	speak(tr("account.delete_warning"));
+
+	audio_form f;
+	f.create_window(tr("account.delete_title"), false);
+	int f_pass = f.create_input_box(tr("account.delete_password"), "", "*");
+	int f_ok = f.create_button(tr("account.delete_confirm"), false);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_pass);
+
+	while (true) {
+		wait(5);
+		f.monitor();
+		client.update(); // mantém a conexão viva enquanto o jogador digita (ver notes/rede-e-telas.md)
+		if (f.is_pressed(f_cancel)) return false;
+		if (!f.is_pressed(f_ok)) continue;
+		string senha = f.get_text(f_pass);
+		if (senha == "") { speak(tr("account.delete_password_empty")); f.focus(f_pass); continue; }
+
+		client.send_delete_account(senha);
+		net_packet@ r = wait_delete_account_result(client);
+		if (@r == null) { speak(tr("account.delete_no_answer")); f.focus(f_pass); continue; }
+		speak(tr(r.get_string("message")));
+		if (!r.get_bool("ok")) { f.focus(f_pass); continue; }
+		// Nada desta conta fica neste computador: o token lembrado e o nome no campo de login.
+		g_settings.session_token = "";
+		g_settings.last_username = "";
+		g_settings.save();
+		wait(2500); // o leitor termina a frase antes de o jogo voltar ao menu inicial
+		return true;
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}
+
+// A resposta do servidor, ou null se não chegou em 10 segundos. Só retira da fila o pacote que
+// espera: o resto (saguão, respostas a recados) é de quem vier depois.
+net_packet@ wait_delete_account_result(game_client@ client) {
+	timer clock;
+	while (clock.elapsed < 10000) {
+		wait(5);
+		client.update();
+		for (uint i = 0; i < client.incoming.length(); i++) {
+			if (client.incoming[i].type != S_DELETE_ACCOUNT_RESULT) continue;
+			net_packet@ r = client.incoming[i];
+			client.incoming.remove_at(i);
+			return r;
+		}
+	}
+	return null;
+}

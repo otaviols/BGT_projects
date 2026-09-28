@@ -1,0 +1,67 @@
+// Sonda de "Apagar minha conta".
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_delete_account.nvgt
+//
+// Confere, contra o servidor: senha errada NÃO apaga; senha certa apaga; depois disso nem a senha
+// nem o token do "lembrar de mim" entram mais; e o nome fica livre para um cadastro novo - que é a
+// prova de que a linha da conta saiu mesmo do banco, e não só a sessão.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+game_client@ conecta(server_address@ addr) {
+	game_client c;
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	return c;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string nome = "apaga" + random(10000, 99999);
+	game_client@ c = conecta(addr);
+	if (@c == null) { println("connect falhou"); return; }
+	c.send_register(nome, "senha123");
+	net_packet@ reg = wf(c, S_REGISTER_RESULT, 3000);
+	confere("cadastro", @reg != null && reg.get_bool("ok"));
+	c.send_login(nome, "senha123", true); // pede o token do "lembrar de mim"
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	string token = @lr != null ? lr.get_string("session_token") : "";
+	confere("login com lembrar de mim devolve token", token != "");
+
+	c.send_delete_account("errada");
+	net_packet@ r1 = wf(c, S_DELETE_ACCOUNT_RESULT, 5000);
+	confere("senha errada NAO apaga (" + (@r1 != null ? r1.get_string("message") : "sem resposta") + ")",
+		@r1 != null && !r1.get_bool("ok") && r1.get_string("message") == "account.delete_wrong_password");
+
+	c.send_delete_account("senha123");
+	net_packet@ r2 = wf(c, S_DELETE_ACCOUNT_RESULT, 5000);
+	confere("senha certa apaga (" + (@r2 != null ? r2.get_string("message") : "sem resposta") + ")", @r2 != null && r2.get_bool("ok"));
+	c.disconnect();
+
+	@c = conecta(addr);
+	c.send_login(nome, "senha123");
+	net_packet@ l2 = wf(c, S_LOGIN_RESULT, 5000);
+	confere("depois de apagada, a senha nao entra", @l2 != null && !l2.get_bool("ok"));
+	c.send_login_token(token);
+	net_packet@ l3 = wf(c, S_LOGIN_RESULT, 5000);
+	confere("depois de apagada, o token lembrado nao entra", @l3 != null && !l3.get_bool("ok"));
+	c.send_register(nome, "outra456");
+	net_packet@ reg2 = wf(c, S_REGISTER_RESULT, 3000);
+	confere("o nome ficou livre para um cadastro novo", @reg2 != null && reg2.get_bool("ok"));
+	c.disconnect();
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

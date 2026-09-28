@@ -101,6 +101,10 @@ chegar na lista de partidas: "você tem uma resposta a um recado seu". A opção
 recados** lê o seu recado e a resposta lado a lado. Não precisa de email nem de nada fora do jogo —
 e se quiser continuar a conversa, é só mandar outro recado.
 
+**Apagar a conta.** Na lista de partidas há a opção **Apagar minha conta**. Ela pede a sua senha e
+apaga para sempre a conta, as estatísticas, os recados que você mandou (com as respostas) e as
+traduções que ainda não tinham sido recolhidas. Não tem volta.
+
 ## Configurações
 
 No menu inicial, em **Configurações**:
@@ -378,7 +382,13 @@ Quem cria a sala escolhe, para cada papel, **quantos** existem e a **chance** de
 essa dúvida que o torna interessante. As regras da sala (tecla **O**) dizem o que está ligado e com
 que chance — mas nunca dizem quem saiu.
 
-Quem tem um papel com habilidade usa a tecla **H**.
+Quando há mais papéis ligados do que gente no time — por exemplo, um impostor só e três papéis de
+impostor ligados — **cada papel tem a mesma chance** de ser o que sai.
+
+Quem tem um papel com habilidade usa a tecla **H**. A recarga da habilidade **fica parada durante a
+reunião**: você sai da votação com o tempo que faltava quando ela começou, nem mais nem menos. (A
+recarga do kill é diferente: ela recomeça no fim da votação, para ninguém sair da mesa com a faca
+pronta ao lado de todo mundo.)
 
 **Engenheiro** (tripulação). Faz tarefas como qualquer tripulante e conta para a vitória do time.
 Duas coisas o diferenciam:

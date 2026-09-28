@@ -156,12 +156,15 @@ class game_player {
 		return int((completed_task_count() * 100) / total);
 	}
 
-	void tick_cooldowns(float delta_seconds) {
+	// `in_meeting`: a recarga da HABILIDADE fica parada durante a reunião - nem recarrega de graça na
+	// discussão, nem recomeça ao sair (ver role_traits.ability_cooldown_resets_on_meeting). O cliente
+	// faz a mesma pausa com movement_frozen, senão os dois relógios divergiriam a cada reunião.
+	void tick_cooldowns(float delta_seconds, bool in_meeting) {
 		if (kill_cooldown_remaining > 0.0) {
 			kill_cooldown_remaining -= delta_seconds;
 			if (kill_cooldown_remaining < 0.0) kill_cooldown_remaining = 0.0;
 		}
-		if (ability_cooldown_remaining > 0.0) {
+		if (ability_cooldown_remaining > 0.0 && !in_meeting) {
 			ability_cooldown_remaining -= delta_seconds;
 			if (ability_cooldown_remaining < 0.0) ability_cooldown_remaining = 0.0;
 		}

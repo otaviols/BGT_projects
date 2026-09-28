@@ -49,6 +49,9 @@ const float VOICE_RANGE = 8.0;
 // nunca fica no computador do jogador.
 const string C_LOGIN = "c_login";                 // {username, password, remember} | {token}
 const string C_LOGOUT = "c_logout";               // {token} - esquece este computador
+// Apaga a conta de quem está logado. Pede a SENHA mesmo para quem entrou por token: o token lembrado
+// num computador emprestado não pode bastar para apagar uma conta.
+const string C_DELETE_ACCOUNT = "c_delete_account"; // {password}
 const string C_REGISTER = "c_register";           // {username, password}
 const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
 // join_code (opcional) torna a partida PRIVADA: ela some da lista e só entra quem souber o código.
@@ -161,7 +164,7 @@ const string S_TASK_ASSIGNED = "s_task_assigned";         // {tasks: [...]}
 // conferir. {active: false} quando termina, é cancelada, ou uma reunião/morte a interrompe.
 const string S_TASK_VISIBLE = "s_task_visible";           // {peer_id, name, object_id, active}
 const string S_TASK_PROGRESS = "s_task_progress";         // {completed, total, percent} - progresso da EQUIPE, vai pra todo mundo (impostor incluído)
-const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, killer_peer, killer_color, x, y}
+const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, x, y} + {killer_peer, killer_color} SÓ para vítima e assassino (ver announce_kill)
 const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer, room_key} - room_key = chave i18n da sala onde o corpo estava
 // Um papel que anuncia a própria morte caiu (ver announces_own_death em role_traits). Vai para a
 // nave inteira, viva ou morta, e diz QUEM e ONDE - nunca quem matou.
@@ -218,6 +221,7 @@ const string S_HALL_CHAT = "s_hall_chat";                   // {name, text}
 // Confirmação de que o recado foi GRAVADO (não só recebido). O jogador precisa disto: sem resposta,
 // mandar feedback é falar no vácuo, e quem não tem certeza de que chegou manda de novo.
 const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}
+const string S_DELETE_ACCOUNT_RESULT = "s_delete_account_result"; // {ok, message}
 const string S_FEEDBACK_REPLIES = "s_feedback_replies";     // {replies: [{reply_id, feedback_id, feedback_text, reply_text, created_at}]}
 const string S_ADMIN_RESULT = "s_admin_result";             // {ok, message} - só para a ferramenta de administração
 const string S_TRANSLATION_ACK = "s_translation_ack";       // {ok, message_key}

@@ -62,6 +62,35 @@ ou cheia de bots, que nunca recebem papel especial) o que não couber simplesmen
 do lado de quem joga isso é indistinguível de uma chance que não saiu, e é isso que o torna
 seguro.
 
+**Quando há mais papéis ligados do que vagas no time, cada papel tem a MESMA chance - e já não
+tinha.** O sorteio distribuía as vagas na ordem de `CONFIGURABLE_ROLE_IDS`, então o primeiro da
+lista ganhava sempre: com um impostor e metamorfo, fantasma e atirador ligados, saiu metamorfo em
+60 mil de 60 mil partidas simuladas. Sintoma relatado: "o papel de impostor é sempre o mesmo". Hoje
+as vagas que passam na chance são EMBARALHADAS antes de encontrar gente. As PESSOAS nunca foram
+favorecidas - os jogadores já vinham embaralhados, e a sonda mede isso também. O embaralhamento dos
+jogadores (`shuffle_player_order`) mora junto do `draw_special_roles`, para a sonda usar a mesma
+função. Sonda: `tools/probes/probe_draw_fairness.nvgt` (sem servidor; confere também que `random(a, b)`
+inclui o b - sem isso o Fisher-Yates viraria Sattolo e ninguém ficaria no próprio lugar).
+
+**Quem matou só viaja para a vítima e para o assassino** (`announce_kill`, no servidor). O
+`S_PLAYER_KILLED` ia à partida inteira com `killer_peer` e `killer_color`: o cliente não os dizia,
+mas um cliente modificado sabia o impostor de toda morte - e, com killer == vítima, que o morto era
+um xerife que errou (o comentário do `misfire` dizia ter evitado isso, e só tinha evitado o CAMPO).
+Regra geral: o cliente é a máquina do jogador, e tudo o que vai para lá, quem quiser lê - "o jogo
+não fala" não é segredo. A morte por BOT passava por outro caminho (o tick da sala transmitia tudo a
+todos) e pulava também a câmera da vítima, o scanner e o alarme do alarmista; hoje os dois caminhos
+passam por `announce_kill`. Sonda: `tools/probes/probe_kill_privacy.nvgt`, que é o cliente
+modificado - lê o pacote cru de cada um.
+
+**A recarga da HABILIDADE fica pausada na reunião; a do kill recomeça.** Até a 0.36.0 a da
+habilidade recomeçava inteira no fim da votação (`ability_cooldown_resets_on_meeting`, ligado por
+padrão), porque o relógio corria durante a reunião e sem o reset a discussão recarregava de graça.
+O usuário achou injusto: quem entrava com a habilidade quase pronta saía com a recarga inteira. A
+saída foi PAUSAR (servidor: `tick_cooldowns(delta, em_reuniao)`; cliente: `movement_frozen`), o
+que não dá nem tira nada. Os dois lados têm que pausar juntos, senão o cliente anuncia "pronta" e a
+tecla é recusada. O kill continua recomeçando, de propósito. Sonda: `tools/probes/probe_meeting_reset.nvgt`,
+que espera antes da reunião justamente para "pausou" e "recomeçou" darem números diferentes.
+
 **Engenheiro: o duto dele custa uma dedução, e isso foi pago de propósito.** "A tampa abriu na
 navegação, então ele saiu em armas ou no reator" deixa de provar impostor. O som da tampa continua
 IGUAL para os dois - fazer um som diferente devolveria a certeza e mataria o papel. O conserto

@@ -28,15 +28,6 @@ void shuffle_int_array(array<int>@ arr) {
 	}
 }
 
-void shuffle_player_array(array<game_player@>@ arr) {
-	for (int i = int(arr.length()) - 1; i > 0; i--) {
-		int j = random(0, i);
-		game_player@ tmp = @arr[i];
-		@arr[i] = @arr[j];
-		@arr[j] = @tmp;
-	}
-}
-
 void shuffle_object_array(array<map_object@>@ arr) {
 	for (int i = int(arr.length()) - 1; i > 0; i--) {
 		int j = random(0, i);
@@ -410,6 +401,7 @@ class game_server {
 		string t = pkt.type;
 		if (t == C_LOGIN) on_login(peer_id, pkt);
 		else if (t == C_LOGOUT) on_logout(peer_id, pkt);
+		else if (t == C_DELETE_ACCOUNT) on_delete_account(peer_id, pkt);
 		else if (t == C_REGISTER) on_register(peer_id, pkt);
 		else if (t == C_LIST_LOBBIES) on_list_lobbies(peer_id, pkt);
 		else if (t == C_CREATE_LOBBY) on_create_lobby(peer_id, pkt);
@@ -737,6 +729,32 @@ class game_server {
 		g_user_db.delete_session(pkt.get_string("token"));
 	}
 
+	// Apaga a conta de quem está conectado. Só do saguão (fora de sala): apagar no meio de uma sala
+	// deixaria um jogador sem conta dentro dela. Confere a SENHA de novo (ver C_DELETE_ACCOUNT).
+	//
+	// Depois de apagar, a conexão deixa de estar autenticada e toda outra sessão da conta cai - um
+	// segundo computador logado continuaria "dentro" de uma conta que não existe mais.
+	void on_delete_account(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		net_packet@ result = net_packet(S_DELETE_ACCOUNT_RESULT);
+		string fail = "";
+		if (@conn == null || !conn.authenticated) fail = "account.delete_not_logged_in";
+		else if (conn.lobby_id != "") fail = "account.delete_in_lobby";
+		else if (!g_user_db.verify_login(conn.username, pkt.get_string("password"))) fail = "account.delete_wrong_password";
+		string username = @conn != null ? conn.username : "";
+		if (fail == "" && !g_user_db.delete_account(username)) fail = "account.delete_failed";
+		result.set_bool("ok", fail == "");
+		result.set_string("message", fail == "" ? "account.deleted" : fail);
+		send_to(peer_id, result);
+		if (fail != "") return;
+
+		println("[conta] apagada: " + username);
+		drop_other_sessions(peer_id, username);
+		conn.authenticated = false;
+		conn.username = "";
+		send_hall_state(); // saiu da lista de quem está online
+	}
+
 	void on_register(uint64 peer_id, net_packet@ pkt) {
 		string username = pkt.get_string("username");
 		string password = pkt.get_string("password");
@@ -1035,8 +1053,12 @@ class game_server {
 		// Sorteio dos papéis, bot e gente no mesmo bolo: a IA de impostor caça, mata quando ninguém
 		// está vendo e sabota (ver game_state.update_bot_impostor), então um bot impostor é uma
 		// partida de verdade - e do outro lado, um humano sozinho contra bots tem quem o cace.
-		array<game_player@> shuffled = lobby.players;
-		shuffle_player_array(shuffled);
+		// Embaralha pela função compartilhada com a sonda de justiça (ver shuffle_player_order).
+		array<int> ordem;
+		for (uint i = 0; i < lobby.players.length(); i++) ordem.insert_last(int(i));
+		shuffle_player_order(ordem);
+		array<game_player@> shuffled;
+		for (uint i = 0; i < ordem.length(); i++) shuffled.insert_last(lobby.players[ordem[i]]);
 
 		int impostor_count = lobby.config.resolved_impostor_count(shuffled.length());
 		array<int>@ color_ids = all_color_ids();
@@ -1401,43 +1423,71 @@ class game_server {
 		net_packet@ event;
 		bool misfire = false;
 		if (lobby.try_kill(peer_id, target_peer, event, misfire)) {
-			// QUEM morreu sai do pacote, e não do alvo pedido: no tiro errado do xerife quem cai é o
-			// atirador, e limpar o estado do alvo deixaria o morto de verdade preso na câmera.
-			uint64 victim_peer = event.get_uint64("peer_id");
-			// A vítima larga o posto: fantasma não opera equipamento, e um posto preso a quem morreu
-			// ficaria bloqueado para o resto da partida. Ela também precisa ser AVISADA, ou o cliente
-			// dela continua na câmera, sem andar, agora como fantasma.
-			if (lobby.release_cameras(victim_peer)) {
-				send_camera_state(victim_peer, false, "");
-				broadcast_camera_watching(lobby);
-			}
-			end_visible_task(lobby, victim_peer); // morreu no scanner: o scanner para
-			// A partida recebe o pacote sem nome nenhum; a VÍTIMA recebe uma cópia com o nome
-			// VERDADEIRO de quem a matou. Ela já pagou o preço e não tem como contar a ninguém - e o
-			// elenco dela agora carrega o nome disfarçado (ver S_PLAYER_RENAMED), então sem esta
-			// cópia quem morresse para o metamorfo ouviria a fantasia.
-			broadcast_to_lobby(lobby, event, victim_peer);
-			game_player@ quem_matou = lobby.find_player(event.get_uint64("killer_peer"));
-			if (@quem_matou != null) event.set_string("killer_real_name", quem_matou.username);
-			send_to(victim_peer, event);
-
-			// Papel que anuncia a própria morte (alarmista). DEPOIS do pacote da morte, para o som
-			// do assassinato vir antes do aviso - a ordem inversa contaria o que aconteceu e só
-			// então deixaria ouvir. Sai da capacidade, não do id: um papel futuro pode fazer igual.
-			game_player@ victim = lobby.find_player(victim_peer);
-			if (@victim != null && victim.role().announces_own_death) {
-				net_packet@ alarm = net_packet(S_DEATH_ALARM);
-				alarm.set_string("name", victim.username);
-				map_zone@ zone = lobby.map.find_zone(lobby.map.room_id_at(victim.x, victim.y));
-				// A SALA, e não a posição: o aviso diz onde procurar, não entrega o ponto exato -
-				// quem quiser mais que isso tem que ir até lá. E nunca diz quem matou.
-				alarm.set_string("room_key", @zone != null ? zone.name_key : "");
-				broadcast_to_lobby(lobby, alarm);
-			}
+			announce_kill(lobby, event);
 			// O tiro errado é dito SÓ a quem errou, depois do pacote da morte: para todos os outros
 			// (inclusive para quem ele mirou) aquilo foi um assassinato qualquer, e é isso que
 			// mantém o xerife sendo uma aposta em vez de um detector.
 			if (misfire) send_error(peer_id, "role.sheriff_misfire");
+		}
+	}
+
+	// Tudo o que uma morte por assassinato faz na rede, num lugar só - o jogador que mata (on_kill) e o
+	// bot impostor (tick da sala) passam por aqui. Eram dois caminhos, e o do bot transmitia o pacote
+	// inteiro a todos e pulava o resto: a câmera da vítima, o scanner e o alarme do alarmista.
+	void announce_kill(game_state@ lobby, net_packet@ event) {
+		// QUEM morreu sai do pacote, e não do alvo pedido: no tiro errado do xerife quem cai é o
+		// atirador, e limpar o estado do alvo deixaria o morto de verdade preso na câmera.
+		uint64 victim_peer = event.get_uint64("peer_id");
+		// A vítima larga o posto: fantasma não opera equipamento, e um posto preso a quem morreu
+		// ficaria bloqueado para o resto da partida. Ela também precisa ser AVISADA, ou o cliente
+		// dela continua na câmera, sem andar, agora como fantasma.
+		if (lobby.release_cameras(victim_peer)) {
+			send_camera_state(victim_peer, false, "");
+			broadcast_camera_watching(lobby);
+		}
+		end_visible_task(lobby, victim_peer); // morreu no scanner: o scanner para
+		// A partida recebe o pacote sem nome nenhum; a VÍTIMA recebe uma cópia com o nome
+		// VERDADEIRO de quem a matou. Ela já pagou o preço e não tem como contar a ninguém - e o
+		// elenco dela agora carrega o nome disfarçado (ver S_PLAYER_RENAMED), então sem esta
+		// cópia quem morresse para o metamorfo ouviria a fantasia.
+		//
+		// E QUEM MATOU só viaja para a vítima e para o próprio assassino. O pacote público levava
+		// `killer_peer` e `killer_color` para a partida inteira: o cliente do jogador não os dizia,
+		// mas um cliente modificado (ou quem lesse o tráfego) sabia o impostor de toda morte, na
+		// hora - e, com killer == vítima, que o morto era um xerife que errou. O cliente é a
+		// máquina do jogador; o que vai para lá, quem quiser lê. Os outros recebem só quem morreu
+		// e onde, que é o que o som do assassinato já conta.
+		uint64 killer_id = event.get_uint64("killer_peer");
+		net_packet@ publico = net_packet(S_PLAYER_KILLED);
+		publico.set_uint64("peer_id", victim_peer);
+		publico.set_float("x", event.get_float("x"));
+		publico.set_float("y", event.get_float("y"));
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			uint64 pid = lobby.players[i].peer_id;
+			if (!reaches_client(lobby.players[i]) || pid == victim_peer || pid == killer_id) continue;
+			send_to(pid, publico);
+		}
+		// O assassino recebe o completo para rearmar a recarga do kill (ver game_loop).
+		if (killer_id != victim_peer) {
+			game_player@ assassino = lobby.find_player(killer_id);
+			if (@assassino != null && reaches_client(assassino)) send_to(killer_id, event);
+		}
+		game_player@ quem_matou = lobby.find_player(killer_id);
+		if (@quem_matou != null) event.set_string("killer_real_name", quem_matou.username);
+		game_player@ victim = lobby.find_player(victim_peer);
+		if (@victim != null && reaches_client(victim)) send_to(victim_peer, event);
+
+		// Papel que anuncia a própria morte (alarmista). DEPOIS do pacote da morte, para o som
+		// do assassinato vir antes do aviso - a ordem inversa contaria o que aconteceu e só
+		// então deixaria ouvir. Sai da capacidade, não do id: um papel futuro pode fazer igual.
+		if (@victim != null && victim.role().announces_own_death) {
+			net_packet@ alarm = net_packet(S_DEATH_ALARM);
+			alarm.set_string("name", victim.username);
+			map_zone@ zone = lobby.map.find_zone(lobby.map.room_id_at(victim.x, victim.y));
+			// A SALA, e não a posição: o aviso diz onde procurar, não entrega o ponto exato -
+			// quem quiser mais que isso tem que ir até lá. E nunca diz quem matou.
+			alarm.set_string("room_key", @zone != null ? zone.name_key : "");
+			broadcast_to_lobby(lobby, alarm);
 		}
 	}
 
@@ -2239,6 +2289,9 @@ class game_server {
 			if (lobby.state == "waiting" || lobby.state == "ended") continue;
 			array<net_packet@>@ events = lobby.tick(delta);
 			for (uint e = 0; e < events.length(); e++) {
+				// Morte por bot passa pelo MESMO caminho da morte por jogador: o pacote inteiro diz
+				// quem matou, e não pode ir a todo mundo (ver announce_kill).
+				if (events[e].type == S_PLAYER_KILLED) { announce_kill(lobby, events[e]); continue; }
 				// Movimento (hoje só de bot) vai pelo canal não confiável, igual o dos jogadores de
 				// verdade: chega muitas vezes por segundo e perder um pacote não custa nada.
 				bool reliable = events[e].type != S_PLAYER_MOVED;

@@ -131,6 +131,16 @@ rede, então esperar o evento deixaria a sessão velha pendurada na sala. Sonda:
 estando dentro de uma sala, com o anfitrião passando para quem ficou.
 
 
+**Apagar a conta apaga TUDO dela, numa transação** (`user_db.delete_account`): conta,
+estatísticas, sessões, recados com as respostas e traduções ainda na caixa. Decisão do usuário (LGPD,
+e é o que a pessoa espera); o preço é o histórico de bugs dela. Três detalhes: pede a SENHA mesmo a
+quem entrou por token (token lembrado em computador emprestado não pode bastar); só do saguão, fora
+de sala; e depois derruba as outras sessões da conta e desautentica esta, senão um segundo
+computador seguiria "dentro" de uma conta que não existe. `user_stats` é apagada à mão: o
+`ON DELETE CASCADE` dela não roda sem `PRAGMA foreign_keys = ON`. Sonda:
+`tools/probes/probe_delete_account.nvgt` (o nome ficar livre para cadastro é a prova de que a linha
+saiu do banco, e não só a sessão).
+
 ## Sala de espera e saguão
 
 **O saguão é derivado, não declarado.** "Estar no saguão" é `autenticado && lobby_id == ""`
