@@ -6,6 +6,22 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.38.0
+
+**Color mode.** A new lobby rule: in the match nobody has a name, only a color. The player list,
+radar, cameras, voting, chat and every announcement say each person's color. At the start the game
+tells you your color, and at the end it reveals who each impostor was, with name and color. It is for
+anyone who finds colors easier to follow than names. Everyone hears the colors in their own language.
+
+**Pick your color.** A lobby can draw colors, as always, or let each player choose. In the waiting
+room, the E key opens the color list and says which ones are already taken and by whom. Your pick is
+saved and sent to the next lobbies by itself.
+
+**New colors.** Lime, maroon, gray and tan are out; coral, turquoise, silver and gold are in.
+
+**Bots have astronaut names:** Gagarin, Tereshkova, Pontes, Neri, Jemison and others. The lobby
+player list still says which ones are bots.
+
 ## 0.37.0
 
 **Walking on phones is no longer slow.** On Android the character walked much slower than on a

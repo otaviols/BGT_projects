@@ -6,6 +6,22 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.38.0
+
+**Modo cor.** Uma regra nova da sala: na partida ninguém tem nome, só cor. A lista de jogadores, o
+radar, as câmeras, a votação, o chat e todos os avisos dizem a cor de cada um. No começo o jogo diz a
+sua cor, e no fim revela quem era cada impostor, com nome e cor. É para quem acha mais fácil
+acompanhar cores do que nomes. Cada um ouve as cores no próprio idioma.
+
+**Escolha a sua cor.** A sala pode sortear as cores, como sempre, ou deixar cada um escolher. Na sala
+de espera, a tecla E abre a lista de cores e diz quais já foram escolhidas e por quem. A sua escolha
+fica guardada e vai sozinha para as próximas salas.
+
+**Cores novas.** Saíram lima, bordô, cinza e bege; entraram coral, turquesa, prata e dourado.
+
+**Os bots têm nome de astronauta:** Gagarin, Tereshkova, Pontes, Neri, Jemison e outros. A lista de
+quem está na sala continua dizendo quem é bot.
+
 ## 0.37.0
 
 **No celular, andar deixou de ser lento.** No Android o personagem andava bem mais devagar que no
