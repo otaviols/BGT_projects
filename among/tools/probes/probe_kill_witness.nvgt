@@ -1,0 +1,95 @@
+// Sonda da TESTEMUNHA: quem está colado na vítima (dentro do alcance do kill) ouve quem matou quem;
+// quem está um pouco mais longe, não.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_kill_witness.nvgt
+//
+// Quatro jogadores: assassino e vítima em (0,0), uma testemunha a 0,6 (colada) e outra a 4 (longe,
+// mas na mesma sala). O controle é a testemunha longe: sem ela, "a colada ouviu" também passaria com
+// um servidor que conta para a sala inteira.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8;
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<game_client@> todos;
+	array<string> nomes;
+	for (int i = 0; i < 4; i++) {
+		game_client c;
+		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+		string nome = "kw" + i + sfx;
+		nomes.insert_last(nome);
+		c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(nome, "probe123");
+		net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		c.my_peer_id = lr.get_uint64("peer_id");
+		todos.insert_last(c);
+	}
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.kill_cooldown_seconds = 5.0;
+	todos[0].send_create_lobby("testemunha", "classic", ov);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(st.get_string("lobby_id")); wf(todos[i], S_JOIN_RESULT, 5000); }
+	bombeia(todos, 300);
+	todos[0].send_start_game();
+
+	int impostor = -1;
+	array<float> xs(4), ys(4);
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ s = wf(todos[i], S_GAME_START, 8000);
+		if (@s == null) { println("sem S_GAME_START"); return; }
+		xs[i] = s.get_float("your_x"); ys[i] = s.get_float("your_y");
+		if (role_for(s.get_string("your_role")).team == TEAM_IMPOSTOR) impostor = int(i);
+	}
+	if (impostor < 0) { println("nenhum humano saiu impostor"); return; }
+	int vitima = (impostor + 1) % 4, perto = (impostor + 2) % 4, longe = (impostor + 3) % 4;
+
+	anda_ate(todos, todos[vitima], xs[vitima], ys[vitima], 0.0, 0.0);
+	anda_ate(todos, todos[impostor], xs[impostor], ys[impostor], 0.0, 0.0);
+	anda_ate(todos, todos[perto], xs[perto], ys[perto], 0.6, 0.0);
+	anda_ate(todos, todos[longe], xs[longe], ys[longe], 4.0, 0.0);
+	bombeia(todos, 6000); // recarga de 5 s do kill
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[impostor].send_kill(todos[vitima].my_peer_id);
+
+	net_packet@ viu_perto = wf(todos[perto], S_KILL_WITNESSED, 4000);
+	net_packet@ viu_longe = wf(todos[longe], S_KILL_WITNESSED, 1500);
+	confere("a testemunha colada ouviu quem matou quem",
+		@viu_perto != null && viu_perto.get_string("killer_name") == nomes[impostor] && viu_perto.get_string("victim_name") == nomes[vitima]);
+	confere("a testemunha a 4 de distancia NAO ouviu", @viu_longe == null);
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

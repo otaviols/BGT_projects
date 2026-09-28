@@ -46,6 +46,16 @@ string sabotage_fixed_text() {
 	return tr("sabotage.fixed");
 }
 
+// "Você viu Fulano matar Beltrano." - só para quem estava colado na vítima (ver announce_kill). Os
+// nomes chegam como a testemunha os vê: o disfarce do metamorfo, ou a marca de cor no modo cor, que o
+// tr() resolve.
+string kill_witnessed_text(net_packet@ pkt) {
+	dictionary@ p = dictionary();
+	p.set("killer", pkt.get_string("killer_name"));
+	p.set("victim", pkt.get_string("victim_name"));
+	return tr("game.kill_witnessed", p);
+}
+
 string chat_message_text(net_packet@ pkt) {
 	return spoken_name(pkt.get_string("name")) + ": " + pkt.get_string("text");
 }
@@ -150,6 +160,9 @@ string background_event_text(net_packet@ pkt, game_client@ client) {
 	// O alarme é ouvido de onde quer que a pessoa esteja - inclusive de dentro de uma task, que é
 	// justamente onde ela estaria quando o impostor escolheu matar longe de todos.
 	if (t == S_DEATH_ALARM) return death_alarm_text(pkt);
+	// Quem VIU o assassinato de perto precisa ouvir mesmo no meio de uma tarefa - é exatamente onde
+	// alguém costuma estar quando o impostor mata ao lado.
+	if (t == S_KILL_WITNESSED) return kill_witnessed_text(pkt);
 	// A morte na mesa precisa chegar a quem está com a lista de votação aberta - que é exatamente
 	// onde todo mundo está quando ela acontece.
 	if (t == S_MEETING_KILL) return meeting_kill_text(pkt, g_match_roster);

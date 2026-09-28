@@ -1552,6 +1552,26 @@ class game_server {
 			if (!reaches_client(lobby.players[i]) || pid == victim_peer || pid == killer_id) continue;
 			send_to(pid, publico);
 		}
+		// TESTEMUNHA: quem estava colado na vítima - dentro do alcance do próprio kill - VIU quem matou,
+		// e ouve isso, só ela. Mais longe, é o som que conta (a direção, não o nome); colado, fingir que
+		// a pessoa não viu era só confusão. O limite curto é o que mantém o impostor com espaço: matar
+		// "na frente de alguém" passa a ter o custo óbvio, e matar a dois passos continua anônimo.
+		// Fantasma, quem está no duto e o invisível não veem. O tiro errado do xerife (atirador ==
+		// vítima) fica de fora: diria a quem estava perto que ali havia um xerife que errou.
+		game_player@ matador = lobby.find_player(killer_id);
+		if (killer_id != victim_peer && @matador != null) {
+			game_player@ vitima = lobby.find_player(victim_peer);
+			float vx = event.get_float("x"), vy = event.get_float("y");
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				game_player@ w = lobby.players[i];
+				if (w.peer_id == killer_id || w.peer_id == victim_peer || !w.alive || w.vented || w.invisible()) continue;
+				if (!reaches_client(w) || distance_2d(w.x, w.y, vx, vy) > PLAYER_KILL_RANGE) continue;
+				net_packet@ viu = net_packet(S_KILL_WITNESSED);
+				viu.set_string("killer_name", matador.display_name());
+				viu.set_string("victim_name", @vitima != null ? vitima.public_name() : "");
+				send_to(w.peer_id, viu);
+			}
+		}
 		// O assassino recebe o completo para rearmar a recarga do kill (ver game_loop).
 		if (killer_id != victim_peer) {
 			game_player@ assassino = lobby.find_player(killer_id);

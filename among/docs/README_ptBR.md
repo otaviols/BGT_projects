@@ -535,6 +535,13 @@ duto da rede. Entrar num duto some com você do mapa. A rede liga Navegação, S
 opostos da nave, sem nenhum corredor direto entre eles. Some de um canto e apareça no outro em
 segundos: é um trajeto que ninguém consegue fazer a pé, e é justamente por isso que serve de álibi.
 
+## Ver um assassinato de perto
+
+Um assassinato, para quem está por perto, é um som: dá a direção, não o nome. Mas quem estiver
+**colado** na vítima — a mesma distância de que o impostor precisa para matar — **vê** quem foi, e o
+jogo diz só para essa pessoa: "Você viu Fulano matar Beltrano!". Um passo mais longe e é só o som.
+O disfarce do metamorfo vale aqui: quem vê, vê o rosto que ele está usando.
+
 ## Como se vence
 
 **Tripulação vence se:**
@@ -582,8 +589,9 @@ dos jogadores**, em por cento do normal (de 50% a 200%).
 
 Mais dois campos mudam como as pessoas são identificadas:
 
-- **Cores dos jogadores:** sorteadas a cada partida (o padrão), ou **escolhidas na sala** — cada um
-  escolhe a sua com a tecla **E**, e quem não escolher recebe uma das que sobraram.
+- **Cores dos jogadores:** **escolhidas na sala** (o padrão) — cada um escolhe a sua com a tecla
+  **E**, e quem não escolher recebe uma das que sobraram —, ou sorteadas a cada partida, para ninguém
+  ser reconhecido pela cor de uma rodada para outra.
 - **Modo cor:** na partida ninguém tem nome, só cor. A lista de jogadores, o radar, as câmeras, a
   votação, o chat e todos os avisos dizem "Vermelho", "Coral", "Turquesa"... No começo o jogo diz a sua
   cor, e no fim o resultado revela quem era cada impostor ("Fulano (Vermelho)"). Existe para quem acha

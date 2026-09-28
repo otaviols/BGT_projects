@@ -169,6 +169,9 @@ const string S_TASK_ASSIGNED = "s_task_assigned";         // {tasks: [...]}
 const string S_TASK_VISIBLE = "s_task_visible";           // {peer_id, name, object_id, active}
 const string S_TASK_PROGRESS = "s_task_progress";         // {completed, total, percent} - progresso da EQUIPE, vai pra todo mundo (impostor incluído)
 const string S_PLAYER_KILLED = "s_player_killed";         // {peer_id, x, y} + {killer_peer, killer_color} SÓ para vítima e assassino (ver announce_kill)
+// Quem viu o assassinato DE PERTO (dentro do alcance do kill, ver announce_kill): só para essa
+// pessoa, com os nomes que ela vê - o disfarce do metamorfo vale, e no modo cor são cores.
+const string S_KILL_WITNESSED = "s_kill_witnessed";     // {killer_name, victim_name}
 const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer, room_key} - room_key = chave i18n da sala onde o corpo estava
 // Um papel que anuncia a própria morte caiu (ver announces_own_death em role_traits). Vai para a
 // nave inteira, viva ou morta, e diz QUEM e ONDE - nunca quem matou.

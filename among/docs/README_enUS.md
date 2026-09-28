@@ -542,6 +542,14 @@ opposite corners of the ship, with no direct corridor between them. Vanish from 
 appear in another within seconds: it is a trip nobody can make on foot, which is exactly why it
 works as an alibi.
 
+## Seeing a kill up close
+
+To anyone nearby, a kill is a sound: it gives the direction, not the name. But anyone standing
+**right next to** the victim — the same distance the impostor needs to kill — **sees** who did it,
+and the game tells only that person: "You saw Someone kill Someone else!". One step further away and
+it is just the sound. The shapeshifter's disguise applies here: whoever sees it sees the face they
+are wearing.
+
 ## How you win
 
 **The crew wins if:**
@@ -588,8 +596,9 @@ percentage of normal (50% to 200%).
 
 Two more fields change how people are identified:
 
-- **Player colors:** drawn each match (the default), or **picked in the lobby** — each player picks
-  theirs with the **E** key, and anyone who doesn't gets one of the colors left.
+- **Player colors:** **picked in the lobby** (the default) — each player picks theirs with the **E**
+  key, and anyone who doesn't gets one of the colors left — or drawn each match, so nobody can be
+  recognized by their color from one round to the next.
 - **Color mode:** in the match nobody has a name, only a color. The player list, radar, cameras,
   voting, chat and every announcement say "Red", "Coral", "Turquoise"... At the start the game tells
   you your color, and at the end the result reveals who each impostor was ("Someone (Red)"). It is

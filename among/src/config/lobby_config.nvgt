@@ -237,10 +237,13 @@ class lobby_config {
 	// quem mata tem que fugir andando, com os passos ouvidos pelo caminho.
 	bool vents_enabled = true;
 	// Cores escolhidas na sala (tecla E) em vez de sorteadas. Quem não escolheu, ou escolheu uma cor
-	// que outra pessoa pegou antes, recebe uma sorteada entre as que sobraram. Desligado por padrão:
-	// sorteada é o jogo de sempre, e cor fixa faz o grupo reconhecer quem é quem de uma rodada para
-	// outra - o que muda a partida, então é decisão de quem cria a sala.
-	bool color_choice = false;
+	// que outra pessoa pegou antes, recebe uma sorteada entre as que sobraram.
+	//
+	// LIGADO por padrão desde a 0.40.0. Era desligado, e o efeito foi o que o usuário relatou: quem
+	// escolhia a cor numa sala padrão recebia outra, sorteada, "como se a escolha não valesse" - e na
+	// prática não valia. Quem escolhe uma cor espera ficar com ela. "Sorteadas" continua existindo, para
+	// a sala em que ninguém deve ser reconhecido pela cor de uma rodada para outra.
+	bool color_choice = true;
 	// MODO COR: na partida ninguém tem nome, só cor - elenco, radar, câmeras, votação, chat, avisos,
 	// tudo. Existe para quem tem dificuldade de guardar quem é quem por nome: "o laranja estava na
 	// elétrica" é mais fácil de seguir. O nome volta no fim, junto do resultado.

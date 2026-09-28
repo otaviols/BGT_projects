@@ -82,6 +82,14 @@ todos) e pulava também a câmera da vítima, o scanner e o alarme do alarmista;
 passam por `announce_kill`. Sonda: `tools/probes/probe_kill_privacy.nvgt`, que é o cliente
 modificado - lê o pacote cru de cada um.
 
+**A exceção deliberada: a TESTEMUNHA colada** (0.40.0). Quem está a até `PLAYER_KILL_RANGE` da vítima
+recebe `S_KILL_WITNESSED`, só ela, com quem matou quem - pedido do usuário: colado, fingir que a pessoa
+não viu era só confusão. O limite é o próprio alcance do kill, e não o do corpo (2,0), para matar a
+dois passos continuar anônimo. Vivo, fora de duto e visível; o disfarce do metamorfo vale (é o rosto
+que se vê); o tiro errado do xerife fica de fora (entregaria o xerife). O bot impostor nunca mata com
+alguém a menos de `BOT_KILL_WITNESS_RANGE` (6), então nunca gera testemunha. Sonda:
+`tools/probes/probe_kill_witness.nvgt`, com a testemunha LONGE como controle.
+
 **A recarga da HABILIDADE fica pausada na reunião; a do kill recomeça.** Até a 0.36.0 a da
 habilidade recomeçava inteira no fim da votação (`ability_cooldown_resets_on_meeting`, ligado por
 padrão), porque o relógio corria durante a reunião e sem o reset a discussão recarregava de graça.

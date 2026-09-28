@@ -178,7 +178,8 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 	// liberados, velocidade 100%" em toda leitura de regras seria mais uma frase para ouvir à toa.
 	if (cfg.exists("vents_enabled") && !bool(cfg["vents_enabled"])) partes.insert_last(tr("lobby.info.vents_off"));
 	// Cores e modo cor, também só quando fogem do padrão (sorteadas, pelo nome).
-	if (cfg.exists("color_choice") && bool(cfg["color_choice"])) partes.insert_last(tr("lobby.info.colors_choice"));
+	// "Escolhidas" é o padrão desde a 0.40.0; só o contrário é dito.
+	if (cfg.exists("color_choice") && !bool(cfg["color_choice"])) partes.insert_last(tr("lobby.info.colors_random"));
 	if (cfg.exists("color_mode") && bool(cfg["color_mode"])) partes.insert_last(tr("lobby.info.color_mode_on"));
 	if (cfg.exists("move_speed_percent") && int(cfg["move_speed_percent"]) != 100) {
 		dictionary@ sp = dictionary();
