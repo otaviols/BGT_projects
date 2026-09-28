@@ -33,6 +33,15 @@ do defeito (e deu zero). E a mesma sonda repetiu a armadilha da caixa única log
 todos para esperar o `S_GAME_START` de um jogou fora o dos outros. Sintoma: "sem S_GAME_START" numa
 partida que começou.
 
+**Entre DOIS clientes não há ordem garantida - e a sonda que passa local pode falhar em produção.**
+A `probe_color_mode` passou sempre contra o servidor local e falhou duas vezes em três contra a
+produção, por dois motivos da mesma família: (1) A pedia o vermelho e B pedia o vermelho logo em
+seguida; com mais latência, o pedido de B chegava PRIMEIRO e o servidor, certo, dava a cor a B -
+quem depende da ordem entre clientes tem que esperar a confirmação do primeiro antes do segundo; (2)
+um retrato da sala de espera mandado antes do início chegava depois, e era contado como vazamento -
+o canal confiável é ordenado POR CLIENTE, então "depois do meu S_GAME_START" é a fronteira certa.
+Rode sonda nova também contra a produção antes de confiar nela.
+
 **Teto estatístico ("afrouxa em menos de X% dos casos") é sonda intermitente disfarçada.** Duas
 execuções seguidas do mesmo servidor sem teto nenhum deram 30% e 13%: a segunda teria passado.
 Quando os números permitem, prefira a garantia DURA ("ninguém passou de 2") e escreva ao lado por

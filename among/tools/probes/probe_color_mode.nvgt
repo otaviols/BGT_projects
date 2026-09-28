@@ -31,6 +31,11 @@ array<string> vazamentos;
 // UMA CAIXA POR CLIENTE (ver notes/sondas.md): bombear todos e jogar fora o que não é do cliente
 // esperado apagava o S_GAME_START dos outros - a primeira versão desta sonda caiu nisso.
 array<array<net_packet@>> caixas(3);
+// Cada cliente só conta vazamento DEPOIS do próprio S_GAME_START. O canal confiável entrega em ordem,
+// então o que chega depois do início é da partida; um retrato da sala de espera mandado antes (a
+// escolha de cor de outro jogador) pode chegar atrasado, e contá-lo acusava vazamento onde não havia -
+// aconteceu contra a produção, com a rede mais lenta que a local.
+array<bool> em_partida(3, false);
 
 // Bombeia todos, confere o pacote cru de cada um atrás de nome de usuário, e guarda tudo na caixa
 // de quem recebeu. Devolve (e tira da caixa) o primeiro pacote do tipo pedido que chegou a `quem`.
@@ -41,8 +46,9 @@ net_packet@ vigia(array<game_client@>@ todos, int quem, const string&in tipo, in
 			todos[i].update();
 			net_packet@ p = todos[i].poll_message();
 			while (@p != null) {
+				if (p.type == S_GAME_START) em_partida[i] = true;
 				string cru = p.to_wire().lower();
-				for (uint n = 0; n < nomes.length(); n++) {
+				for (uint n = 0; n < nomes.length() && em_partida[i]; n++) {
 					if (cru.find(nomes[n].lower()) >= 0) vazamentos.insert_last(p.type + " para o cliente " + i + ": " + nomes[n]);
 				}
 				caixas[i].insert_last(p);
@@ -96,7 +102,22 @@ void main() {
 
 	println("== 1. escolha de cor ==");
 	todos[0].send_choose_color(0);
-	wf(todos[0], S_LOBBY_STATE, 3000);
+	// Espera o retrato que JÁ mostra A com o vermelho. A e B são conexões diferentes, e a rede não
+	// garante a ordem entre elas: sem esta espera, o pedido de B podia chegar primeiro e ficar com o
+	// vermelho (o servidor está certo em dar a quem pede antes) - contra a produção, com mais latência,
+	// a sonda falhou assim duas vezes em três.
+	bool a_confirmado = false;
+	timer espera_a;
+	while (!a_confirmado && espera_a.elapsed < 5000) {
+		net_packet@ ra = wf(todos[0], S_LOBBY_STATE, 1000);
+		if (@ra == null) continue;
+		json_array@ ps = ra.get_array("players");
+		for (uint i = 0; i < ps.length(); i++) {
+			json_object@ pj = ps.get_object(i);
+			if (uint64(pj["peer_id"]) == todos[0].my_peer_id && int(pj["color"]) == 0) a_confirmado = true;
+		}
+	}
+	confere("o servidor confirmou a escolha de A", a_confirmado);
 	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
 	todos[1].send_choose_color(0);
 	net_packet@ recusa = wf(todos[1], S_ERROR, 3000);
