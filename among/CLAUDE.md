@@ -215,7 +215,9 @@ sempre numa nave vazia, sem aviso) e volta ao menu inicial avisando.
 **O servidor só precisa de deploy quando o código dele muda** (`src/network/server.nvgt`,
 `src/core/game_state.nvgt`, protocolo, banco). Som, UI e textos são só cliente.
 
-Para o servidor, a imagem é etiquetada `v<versão>` e o `deploy.ps1` **sobe a imagem e confere que o
+Para o servidor, a imagem é etiquetada com o **commit** (`git rev-parse --short HEAD`, e não a versão
+do jogo - é o que diz exatamente qual código está no pod: `kubectl -n amongus get deploy amongus-server
+-o jsonpath='{..image}'`) e o `deploy.ps1` **sobe a imagem e confere que o
 servidor fica de pé antes de publicar** — ver "compilação que sai defeituosa", abaixo.
 
 ## Ao terminar uma feature
