@@ -21,6 +21,7 @@
 #include "../i18n.nvgt"
 #include "client_state.nvgt"
 #include "speech.nvgt"
+#include "../game/roles/role_traits.nvgt" // o nome do papel neutro no fim da partida
 
 string sabotage_started_text(net_packet@ pkt) {
 	string sabotage_id = pkt.get_string("sabotage_id");
@@ -54,6 +55,42 @@ string kill_witnessed_text(net_packet@ pkt) {
 	p.set("killer", pkt.get_string("killer_name"));
 	p.set("victim", pkt.get_string("victim_name"));
 	return tr("game.kill_witnessed", p);
+}
+
+// Quem venceu, para o anúncio e para a tela de resultado direm a MESMA coisa. Com um neutro vencendo
+// sozinho, diz quem e com que papel ("Fulano, o Bobo da Corte, venceu!").
+string game_winner_text(net_packet@ pkt) {
+	string winner = pkt.get_string("winner");
+	if (winner == "crewmates") return tr("game.crewmates_win");
+	if (winner == "impostors") return tr("game.impostors_win");
+	json_array@ neutros = pkt.get_array("neutrals");
+	if (@neutros != null) {
+		for (uint i = 0; i < neutros.length(); i++) {
+			json_object@ n = neutros.get_object(i);
+			if (@n == null || !bool(n["won"])) continue;
+			dictionary@ p = dictionary();
+			p.set("name", string(n["name"]));
+			p.set("role", tr(role_for(string(n["role"])).name_key()));
+			return tr("game.neutral_win", p);
+		}
+	}
+	return tr("game.neutral_win_unknown");
+}
+
+// "Neutros: Fulano (Bobo da Corte)." - quem era neutro, revelado no fim, como os impostores. "" se
+// não havia nenhum.
+string game_neutrals_text(net_packet@ pkt) {
+	json_array@ neutros = pkt.get_array("neutrals");
+	if (@neutros == null || neutros.length() == 0) return "";
+	array<string> partes;
+	for (uint i = 0; i < neutros.length(); i++) {
+		json_object@ n = neutros.get_object(i);
+		if (@n == null) continue;
+		partes.insert_last(string(n["name"]) + " (" + tr(role_for(string(n["role"])).name_key()) + ")");
+	}
+	dictionary@ p = dictionary();
+	p.set("names", join(partes, ", "));
+	return tr("game.neutrals_were", p);
 }
 
 string chat_message_text(net_packet@ pkt) {

@@ -102,6 +102,9 @@ chegar na lista de partidas: "você tem uma resposta a um recado seu". A opção
 recados** lê o seu recado e a resposta lado a lado. Não precisa de email nem de nada fora do jogo —
 e se quiser continuar a conversa, é só mandar outro recado.
 
+**Minhas estatísticas.** Na lista de partidas, a opção **Minhas estatísticas** mostra partidas jogadas,
+vitórias (como tripulante, impostor e papel neutro), etapas de tarefa concluídas e assassinatos.
+
 **Apagar a conta.** Na lista de partidas há a opção **Apagar minha conta**. Ela pede a sua senha e
 apaga para sempre a conta, as estatísticas, os recados que você mandou (com as respostas) e as
 traduções que ainda não tinham sido recolhidas. Não tem volta.
@@ -510,6 +513,17 @@ seja: quanto mais papéis especiais a partida tiver, mais perigoso ele é; numa 
 especiais, ele não tem o que apontar.
 
 Na mesa ninguém está protegido: o escudo do anjo cai quando a reunião começa.
+
+### Papéis neutros
+
+Um papel **neutro** não é da tripulação nem dos impostores: ele tem uma vitória **só dele**. Quando
+ela acontece, a partida acaba e só aquele jogador vence. Para a contagem de maioria, o neutro conta
+como tripulante. No fim da partida, o jogo revela quem era neutro, como revela os impostores.
+
+**Bobo da Corte** (neutro). Vence se for **expulso na votação**. Ele não faz tarefas que contam (mas vê
+no radar de objetos onde elas ficam, para fingir), não mata e não sabota: as ferramentas dele são a
+reunião e a desconfiança. Com um Bobo possível em jogo, toda expulsão fica em dúvida — "é o impostor,
+ou é o Bobo querendo sair?".
 
 ## Sabotagem (impostor)
 

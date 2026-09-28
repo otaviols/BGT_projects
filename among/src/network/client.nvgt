@@ -194,6 +194,8 @@ class game_client {
 		send(p);
 	}
 
+	void send_get_stats() { send(net_packet(C_GET_STATS)); }
+
 	void send_choose_color(int color) {
 		net_packet@ p = net_packet(C_CHOOSE_COLOR);
 		p.set_int("color", color);

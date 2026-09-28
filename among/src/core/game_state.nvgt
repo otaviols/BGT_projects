@@ -56,6 +56,9 @@ class bot_request {
 	}
 }
 
+// O vencedor quando é um NEUTRO sozinho (ver neutral_winner_peer e role_traits.solo_win).
+const string WINNER_NEUTRAL = "neutral";
+
 class game_state {
 	string lobby_id;
 	// Pedidos dos bots neste tick; o servidor os executa e esvazia a lista (ver bot_request).
@@ -115,8 +118,10 @@ class game_state {
 	// quem ouviu num painel pode ditar para quem está no outro.
 	string oxygen_code = "";
 
-	string winner = ""; // "" | "crewmates" | "impostors"
+	string winner = ""; // "" | "crewmates" | "impostors" | WINNER_NEUTRAL
 	string win_reason = "";
+	// Quem venceu SOZINHO quando o vencedor é um neutro (o Bobo expulso). 0 = nenhum.
+	uint64 neutral_winner_peer = 0;
 	float elapsed_time = 0.0;
 
 	uint bot_count() const {
@@ -148,8 +153,10 @@ class game_state {
 
 	// Um jogador conta pra vitória por tasks? Impostor não tem task, e quem caiu da partida não vai
 	// terminar as dele nunca - deixar os dois de fora é o que faz a conta fechar.
+	// Pela regra do PAPEL (tasks_count_for_crew), e não por "não é impostor": um neutro não é impostor
+	// e também não faz tarefa que conte - pela regra antiga ele entraria na conta.
 	bool counts_for_task_win(game_player@ p) const {
-		return !p.is_impostor && !p.left_match;
+		return p.role().tasks_count_for_crew && !p.left_match;
 	}
 
 	// Progresso de tasks da EQUIPE (todos os tripulantes, vivos e fantasmas - fantasma continua
@@ -645,6 +652,12 @@ class game_state {
 				result.set_bool("role_revealed", config.reveal_ejected_role);
 				if (config.reveal_ejected_role) result.set_bool("was_impostor", ejected.is_impostor);
 				result.set_bool("tie", false);
+				// O Bobo expulso VENCE, e a partida acaba aqui (o tick vê o vencedor e fecha).
+				if (ejected.role().solo_win == SOLO_WIN_EJECTED) {
+					winner = WINNER_NEUTRAL;
+					win_reason = "jester_ejected";
+					neutral_winner_peer = ejected.peer_id;
+				}
 			}
 		} else {
 			result.set_uint64("ejected_peer", 0);
@@ -1428,6 +1441,7 @@ class game_state {
 		visible_task_peer = 0;
 		visible_task_object_id = "";
 		winner = "";
+		neutral_winner_peer = 0;
 		win_reason = "";
 		elapsed_time = 0.0;
 		map.open_all_doors();
@@ -1556,6 +1570,20 @@ class game_state {
 					: players[i].username);
 			}
 			go.set_array("impostors", impostor_names);
+			// E quem era NEUTRO, com o papel: o mesmo fechamento da história. Um Bobo que ninguém soube
+			// que existia faria da partida inteira uma charada sem resposta.
+			json_array@ neutros = json_array();
+			for (uint i = 0; i < players.length(); i++) {
+				if (players[i].role().team != TEAM_NEUTRAL) continue;
+				json_object@ n = json_object();
+				n.set("name", players[i].named_by_color
+					? players[i].username + " (" + players[i].public_name() + ")"
+					: players[i].username);
+				n.set("role", players[i].role_id);
+				n.set("won", players[i].peer_id == neutral_winner_peer);
+				neutros.add(n);
+			}
+			go.set_array("neutrals", neutros);
 			events.insert_last(go);
 			// A lobby não volta pra sala de espera: ela ACABA aqui. Quem faz o enterro é o servidor,
 			// assim que terminar de transmitir este pacote (ver tick_lobbies).

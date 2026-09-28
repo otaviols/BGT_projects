@@ -14,7 +14,7 @@ const uint MIN_PASSWORD_LENGTH = 6;
 
 // Nomes de coluna permitidos para update_stat(); nunca interpolar stat_name livre na query.
 array<string>@ allowed_stat_columns() {
-	array<string> cols = {"games_played", "games_won", "crewmate_wins", "impostor_wins", "tasks_completed", "kills"};
+	array<string> cols = {"games_played", "games_won", "crewmate_wins", "impostor_wins", "neutral_wins", "tasks_completed", "kills"};
 	return cols;
 }
 
@@ -78,6 +78,9 @@ class user_database {
 		// na primeira vez, e quem já tem a tabela nunca veria a coluna nova. O erro é ignorado de
 		// propósito - rodar de novo num banco que já tem a coluna devolve erro, e isso é o esperado.
 		db.execute("ALTER TABLE feedback ADD COLUMN resolved_at DATETIME");
+		// Vitórias como neutro (0.41.0). Mesma razão do resolved_at: o banco em produção já tem a tabela,
+		// e o CREATE lá em cima nunca mais roda. Erro ignorado de propósito (a coluna já existe).
+		db.execute("ALTER TABLE user_stats ADD COLUMN neutral_wins INTEGER DEFAULT 0");
 
 		// Respostas de quem faz o jogo aos recados. Fecham o ciclo com quem está testando: sem isto o
 		// jogador manda um recado e nunca fica sabendo se alguém leu, e quem oferece ajuda (uma
@@ -483,7 +486,7 @@ class user_database {
 		if (user_id < 0) return result;
 
 		sqlite3statement@ stmt = db.prepare(
-			"SELECT games_played, games_won, crewmate_wins, impostor_wins, tasks_completed, kills " +
+			"SELECT games_played, games_won, crewmate_wins, impostor_wins, tasks_completed, kills, neutral_wins " +
 			"FROM user_stats WHERE user_id = ?"
 		);
 		if (@stmt == null) return result;
@@ -495,6 +498,7 @@ class user_database {
 			result.impostor_wins = stmt.column_int(3);
 			result.tasks_completed = stmt.column_int(4);
 			result.kills = stmt.column_int(5);
+			result.neutral_wins = stmt.column_int(6);
 		}
 		return result;
 	}

@@ -1,0 +1,105 @@
+// Sonda do Bobo da Corte (o primeiro papel neutro) e das estatísticas de fim de partida.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_jester.nvgt
+//
+// Três jogadores, um impostor, um Bobo. Todos votam no Bobo; ele é expulso e VENCE SOZINHO. Confere:
+//   1. o fim da partida diz que venceu um neutro, com o motivo, e revela quem era neutro;
+//   2. as estatísticas: todo mundo ganhou uma partida jogada; só o Bobo ganhou vitória (e neutra) -
+//      o controle são os outros dois, que NÃO podem ter ganho vitória nenhuma.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ stats_de(game_client@ c) {
+	c.clear_incoming();
+	c.send_get_stats();
+	return wf(c, S_STATS, 5000);
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (int i = 0; i < 3; i++) {
+		game_client c;
+		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+		string nome = "jb" + i + "x" + sfx;
+		c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(nome, "probe123");
+		net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		c.my_peer_id = lr.get_uint64("peer_id");
+		todos.insert_last(c);
+	}
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.voting_time_seconds = 30.0;
+	ov.role_counts.set(ROLE_JESTER, 1);
+	todos[0].send_create_lobby("bobo", "classic", ov);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(st.get_string("lobby_id")); wf(todos[i], S_JOIN_RESULT, 5000); }
+	bombeia(todos, 300);
+	todos[0].send_start_game();
+
+	int bobo = -1;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ s = wf(todos[i], S_GAME_START, 8000);
+		if (@s == null) { println("sem S_GAME_START"); return; }
+		if (s.get_string("your_role") == ROLE_JESTER) bobo = int(i);
+	}
+	confere("um dos tres saiu Bobo", bobo >= 0);
+	if (bobo < 0) return;
+	bombeia(todos, 500);
+
+	int quem_chama = (bobo + 1) % 3;
+	todos[quem_chama].send_call_meeting();
+	confere("a reuniao comecou", @wf(todos[quem_chama], S_VOTING_STARTED, 8000) != null);
+	bombeia(todos, 300);
+	for (uint i = 0; i < todos.length(); i++) {
+		if (int(i) == bobo) todos[i].send_cast_vote(-1);
+		else todos[i].send_cast_vote(int64(todos[bobo].my_peer_id));
+	}
+	net_packet@ fim = wf(todos[quem_chama], S_GAME_OVER, 40000);
+	confere("a partida acabou", @fim != null);
+	if (@fim == null) return;
+	confere("venceu um neutro (winner=" + fim.get_string("winner") + ")", fim.get_string("winner") == "neutral");
+	confere("pelo motivo certo (" + fim.get_string("reason") + ")", fim.get_string("reason") == "jester_ejected");
+	json_array@ neutros = fim.get_array("neutrals");
+	bool revelado = false;
+	if (@neutros != null) for (uint i = 0; i < neutros.length(); i++) {
+		json_object@ n = neutros.get_object(i);
+		if (string(n["role"]) == ROLE_JESTER && bool(n["won"])) revelado = true;
+	}
+	confere("o fim revela o Bobo e que foi ele quem venceu", revelado);
+
+	bombeia(todos, 1500); // as estatísticas são gravadas no fim; a sala reabre logo depois
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ s = stats_de(todos[i]);
+		if (@s == null) { confere("estatisticas do jogador " + i, false); continue; }
+		bool e_bobo = int(i) == bobo;
+		string resumo = "jogadas=" + s.get_int("games_played") + " vitorias=" + s.get_int("games_won") + " neutras=" + s.get_int("neutral_wins");
+		if (e_bobo) confere("Bobo: 1 partida, 1 vitoria, 1 neutra (" + resumo + ")",
+			s.get_int("games_played") == 1 && s.get_int("games_won") == 1 && s.get_int("neutral_wins") == 1);
+		else confere("jogador " + i + ": 1 partida, nenhuma vitoria (" + resumo + ")",
+			s.get_int("games_played") == 1 && s.get_int("games_won") == 0);
+	}
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

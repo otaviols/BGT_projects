@@ -56,6 +56,9 @@ const string C_DELETE_ACCOUNT = "c_delete_account"; // {password}
 // deixa escolher (lobby_config.color_choice); fora disso fica guardada e não é usada. A resposta é o
 // S_LOBBY_STATE de sempre, e S_ERROR "lobby.color_taken" se outra pessoa da sala já a escolheu.
 const string C_CHOOSE_COLOR = "c_choose_color"; // {color}
+// As estatísticas da própria conta (tela "Minhas estatísticas" na lista de partidas).
+const string C_GET_STATS = "c_get_stats";         // {}
+const string S_STATS = "s_stats";                 // {games_played, games_won, crewmate_wins, impostor_wins, neutral_wins, tasks_completed, kills}
 const string C_REGISTER = "c_register";           // {username, password}
 const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
 // join_code (opcional) torna a partida PRIVADA: ela some da lista e só entra quem souber o código.

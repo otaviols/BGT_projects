@@ -419,6 +419,7 @@ class game_server {
 		else if (t == C_LOGOUT) on_logout(peer_id, pkt);
 		else if (t == C_DELETE_ACCOUNT) on_delete_account(peer_id, pkt);
 		else if (t == C_CHOOSE_COLOR) on_choose_color(peer_id, pkt);
+		else if (t == C_GET_STATS) on_get_stats(peer_id);
 		else if (t == C_REGISTER) on_register(peer_id, pkt);
 		else if (t == C_LIST_LOBBIES) on_list_lobbies(peer_id, pkt);
 		else if (t == C_CREATE_LOBBY) on_create_lobby(peer_id, pkt);
@@ -795,6 +796,44 @@ class game_server {
 		}
 		p.chosen_color = cor;
 		send_lobby_state(lobby, 0);
+	}
+
+	void on_get_stats(uint64 peer_id) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+		user_stats@ s = g_user_db.get_stats(conn.username);
+		net_packet@ r = net_packet(S_STATS);
+		r.set_int("games_played", s.games_played);
+		r.set_int("games_won", s.games_won);
+		r.set_int("crewmate_wins", s.crewmate_wins);
+		r.set_int("impostor_wins", s.impostor_wins);
+		r.set_int("neutral_wins", s.neutral_wins);
+		r.set_int("tasks_completed", s.tasks_completed);
+		r.set_int("kills", s.kills);
+		send_to(peer_id, r);
+	}
+
+	// Estatísticas da partida que acabou, para cada PESSOA (bot não tem conta). Mora aqui, e não no
+	// game_state, porque o banco é do servidor - o game_state roda também nas sondas, sem banco.
+	//
+	// Quem venceu sai do vencedor da partida e do PAPEL: "crewmates" vence quem joga com a tripulação
+	// (wins_with_crew), "impostors" o time impostor, e o neutro só quando é ele o vencedor sozinho.
+	// Quem saiu no meio conta a partida, mas não a vitória - não estava lá quando ela aconteceu.
+	void record_match_stats(game_state@ lobby) {
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (p.is_bot || p.username == "") continue;
+			g_user_db.increment_stat(p.username, "games_played", 1);
+			if (p.left_match) continue;
+			role_traits@ r = p.role();
+			string coluna = "";
+			if (lobby.winner == "crewmates" && r.wins_with_crew) coluna = "crewmate_wins";
+			else if (lobby.winner == "impostors" && r.team == TEAM_IMPOSTOR) coluna = "impostor_wins";
+			else if (lobby.winner == WINNER_NEUTRAL && p.peer_id == lobby.neutral_winner_peer) coluna = "neutral_wins";
+			if (coluna == "") continue;
+			g_user_db.increment_stat(p.username, "games_won", 1);
+			g_user_db.increment_stat(p.username, coluna, 1);
+		}
 	}
 
 	void on_register(uint64 peer_id, net_packet@ pkt) {
@@ -1509,6 +1548,8 @@ class game_server {
 		bool misfire = false;
 		if (lobby.try_kill(peer_id, target_peer, event, misfire)) {
 			announce_kill(lobby, event);
+			// Assassinato de quem tem conta. O tiro errado do xerife não conta: quem morreu foi ele.
+			if (!misfire && @killer != null && !killer.is_bot && killer.username != "") g_user_db.increment_stat(killer.username, "kills", 1);
 			// O tiro errado é dito SÓ a quem errou, depois do pacote da morte: para todos os outros
 			// (inclusive para quem ele mirou) aquilo foi um assassinato qualquer, e é isso que
 			// mantém o xerife sendo uma aposta em vez de um detector.
@@ -2409,6 +2450,7 @@ class game_server {
 			if (lobby.state == "ended") {
 				close_cameras(lobby);
 				interrupt_visible_task(lobby);
+				record_match_stats(lobby); // antes de reopen_lobby, que zera o vencedor e os papéis
 			}
 			for (uint e = 0; e < events.length(); e++) {
 				// Morte por bot passa pelo MESMO caminho da morte por jogador: o pacote inteiro diz

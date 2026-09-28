@@ -34,6 +34,7 @@ const string ROLE_DETECTIVE = "detective";
 const string ROLE_SHAPESHIFTER = "shapeshifter";
 const string ROLE_PHANTOM = "phantom";
 const string ROLE_SNIPER = "sniper";
+const string ROLE_JESTER = "jester";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -50,11 +51,19 @@ const string ABILITY_ALARM = "alarm";
 // papéis especiais de impostor saem entre eles e os de tripulação entre os outros.
 const string TEAM_CREW = "crew";
 const string TEAM_IMPOSTOR = "impostor";
+// NEUTRO: nem tripulação nem impostor - um terceiro lado, com vitória própria (ver solo_win). Para a
+// contagem de maioria ele conta como tripulante, como no original: sem isso, um neutro vivo daria aos
+// impostores a vitória por maioria antes da hora. É sorteado entre os não impostores.
+const string TEAM_NEUTRAL = "neutral";
+
+// Condições de vitória PRÓPRIA dos neutros (role_traits.solo_win). Quando uma se cumpre, a partida
+// acaba e só aquele jogador vence.
+const string SOLO_WIN_EJECTED = "ejected"; // ser expulso na votação (o Bobo)
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 // Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
 const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
-	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER};
+	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JESTER};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
 //
@@ -76,6 +85,9 @@ const int ROLES_MIN_PROTOCOL = 2;
 // sendo impostor - e porque a morte na mesa chega num pacote novo (S_MEETING_KILL) que ele ignoraria,
 // deixando quem morreu ainda na lista de votação.
 const int SNIPER_MIN_PROTOCOL = 3;
+// Protocolo em que os NEUTROS passaram a existir: um cliente anterior não conhece o terceiro time nem
+// a vitória neutra no fim da partida, e jogaria o Bobo como tripulante comum sem saber o que é.
+const int NEUTRAL_MIN_PROTOCOL = 7;
 
 // Um número do papel que a SALA pode ajustar (recarga, duração, janela de gravação).
 //
@@ -183,6 +195,9 @@ class role_traits {
 
 	// --- Time ---
 	bool wins_with_crew = true;
+	// Vitória PRÓPRIA (neutros): "" = nenhuma, o papel vence com o time dele; senão, uma das
+	// SOLO_WIN_* - e quando ela se cumpre a partida acaba com só este jogador vencendo.
+	string solo_win = "";
 	// Se descobre quem são os companheiros de papel no começo da partida.
 	bool knows_teammates = false;
 
@@ -432,8 +447,30 @@ role_traits@ role_sniper() {
 	return t;
 }
 
+// Bobo da Corte: neutro que vence se for EXPULSO na votação.
+//
+// É o primeiro neutro, e o mais simples de verificar - mas mexe com a coisa mais importante do jogo, a
+// reunião: toda expulsão passa a ter uma dúvida a mais ("é o impostor, ou é o Bobo querendo sair?").
+// Num jogo que é todo conversa, isso muda a mesa inteira. O Bobo precisa parecer culpado sem
+// parecer que está tentando - quem exagera é lido na hora.
+//
+// Não faz tarefa que conte (senão a tripulação dependeria dele para vencer por tarefas), não mata e
+// não sabota. Vota, reporta e chama reunião como qualquer um - são as ferramentas dele. Vê no radar
+// de objetos as tarefas da sala, como o impostor, para fingir que faz uma.
+role_traits@ role_jester() {
+	role_traits t;
+	t.id = ROLE_JESTER;
+	t.team = TEAM_NEUTRAL;
+	t.tasks_count_for_crew = false;
+	t.wins_with_crew = false;
+	t.solo_win = SOLO_WIN_EJECTED;
+	t.min_protocol = NEUTRAL_MIN_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_SNIPER) return role_sniper();
+	if (role_id == ROLE_JESTER) return role_jester();
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
 	if (role_id == ROLE_SHAPESHIFTER) return role_shapeshifter();
 	if (role_id == ROLE_PHANTOM) return role_phantom();

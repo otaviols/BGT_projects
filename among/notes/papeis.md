@@ -101,6 +101,22 @@ que não dá nem tira nada. Os dois lados têm que pausar juntos, senão o clien
 tecla é recusada. O kill continua recomeçando, de propósito. Sonda: `tools/probes/probe_meeting_reset.nvgt`,
 que espera antes da reunião justamente para "pausou" e "recomeçou" darem números diferentes.
 
+**NEUTROS: o terceiro time (0.41.0, com o Bobo).** `TEAM_NEUTRAL`, sorteado entre os não impostores
+(o `draw_special_roles` já manda tudo que não é impostor para esse lado). Vitória própria em
+`role_traits.solo_win` (hoje só `SOLO_WIN_EJECTED`); quando se cumpre, `winner = WINNER_NEUTRAL` e
+`neutral_winner_peer` diz quem - a partida acaba com ele vencendo sozinho, com o som de vitória que
+estava reservado (`SND_VICTORY_DISCONNECT`). Três regras que um neutro NOVO tem que manter: conta como
+TRIPULANTE para a maioria (é `!is_impostor`, como no original - sem isso daria vitória aos impostores
+antes da hora); não faz tarefa que conte (`tasks_count_for_crew = false`, e `counts_for_task_win`
+passou a perguntar isso, e não "não é impostor" - pela regra antiga um neutro travaria a vitória por
+tarefas); e é revelado no fim (`neutrals` no `S_GAME_OVER`). O texto de quem venceu mora em
+`game_winner_text` (event_speech), usado pelo anúncio E pela tela de resultado. Exige protocolo 7.
+As ESTATÍSTICAS da conta (partidas, vitórias por lado, neutras, assassinatos) são gravadas em
+`record_match_stats`, no servidor, no tick em que a partida acaba - antes do `reopen_lobby`, que zera
+vencedor e papéis. Até aqui só as tarefas eram contadas; o resto das colunas existia e ficava em zero.
+Sonda: `tools/probes/probe_jester.nvgt` (os outros dois jogadores são o controle: partida jogada, sem
+vitória).
+
 **Engenheiro: o duto dele custa uma dedução, e isso foi pago de propósito.** "A tampa abriu na
 navegação, então ele saiu em armas ou no reator" deixa de provar impostor. O som da tampa continua
 IGUAL para os dois - fazer um som diferente devolveria a certeza e mataria o papel. O conserto

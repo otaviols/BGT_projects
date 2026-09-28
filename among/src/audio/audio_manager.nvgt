@@ -268,6 +268,9 @@ class audio_manager {
 	void play_player_leave() { spatial.play_ui(SND_PLAYER_LEAVE, false, family_db(SOUND_FAMILY_UI)); }
 	void play_start_game() { spatial.play_ui(SND_START_GAME, false, family_db(SOUND_FAMILY_EVENTS)); }
 	void play_victory(bool crewmates_won) { spatial.play_ui(crewmates_won ? SND_VICTORY_CREW : SND_VICTORY_IMPOSTOR, false, family_db(SOUND_FAMILY_EVENTS)); }
+	// Vitória de um NEUTRO sozinho: nem a música da tripulação nem a dos impostores - nenhum dos dois
+	// lados ganhou. Usa o som de vitória que estava reservado e sem uso (SND_VICTORY_DISCONNECT).
+	void play_victory_neutral() { spatial.play_ui(SND_VICTORY_DISCONNECT, false, family_db(SOUND_FAMILY_EVENTS)); }
 	void play_meeting_result() { spatial.play_ui(SND_MEETING_RESULT, false, family_db(SOUND_FAMILY_EVENTS)); }
 	void play_ejected() { spatial.play_ui(SND_EJECTED, false, family_db(SOUND_FAMILY_EVENTS)); }
 	void play_vote_select() { spatial.play_ui(SND_VOTE_SELECT, false, family_db(SOUND_FAMILY_UI)); }

@@ -272,6 +272,7 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			m.add_item(tr("feedback.replies_menu_item", rp), "__replies__");
 		}
 		if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
+		m.add_item(tr("stats.menu_item"), "__stats__");
 		m.add_item(tr("account.delete_menu_item"), "__delete_account__");
 		m.add_item(tr("menu.back"), "__back__");
 
@@ -284,6 +285,10 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			g_settings.session_token = "";
 			g_settings.save();
 			speak(tr("login.forgotten"));
+			continue;
+		}
+		if (id == "__stats__") {
+			run_stats_screen(client);
 			continue;
 		}
 		if (id == "__delete_account__") {
@@ -939,6 +944,43 @@ void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inou
 // Servidor antigo não manda o campo, e nele não há relay de voz de qualquer jeito.
 bool lobby_allows_voice(json_object@ config) {
 	return @config != null && config.exists("voice_chat") && bool(config["voice_chat"]);
+}
+
+// "Minhas estatísticas": pede ao servidor e mostra como lista navegável, um número por item. Pede a
+// cada abertura, e não guarda: a conta é do servidor, e um número guardado envelheceria.
+void run_stats_screen(game_client@ client) {
+	client.send_get_stats();
+	net_packet@ s = null;
+	timer espera;
+	while (@s == null && espera.elapsed < 8000) {
+		wait(5);
+		client.update();
+		drain_hall_packets(client);
+		for (uint i = 0; i < client.incoming.length(); i++) {
+			if (client.incoming[i].type != S_STATS) continue;
+			@s = client.incoming[i];
+			client.incoming.remove_at(i);
+			break;
+		}
+	}
+	if (@s == null) { speak(tr("stats.no_answer")); return; }
+
+	menu m;
+	m.intro_text = tr("stats.title");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+	array<string> campos = {"games_played", "games_won", "crewmate_wins", "impostor_wins", "neutral_wins", "tasks_completed", "kills"};
+	for (uint i = 0; i < campos.length(); i++) {
+		dictionary@ p = dictionary();
+		p.set("count", "" + s.get_int(campos[i]));
+		m.add_item(tr("stats." + campos[i], p), campos[i]);
+	}
+	m.add_item(tr("menu.back"), "__back__");
+	m.run();
 }
 
 bool lobby_color_choice(json_object@ config) {

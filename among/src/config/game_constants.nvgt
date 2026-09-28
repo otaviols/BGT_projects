@@ -32,7 +32,7 @@ const string GAME_VERSION = "0.40.0";
 // conhece e só é recusado em salas que ligaram o Atirador - a exigência passou a ser POR PAPEL (ver
 // role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
 // a barrar quem só queria jogar com engenheiro.
-const int PROTOCOL_VERSION = 6; // 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico)
+const int PROTOCOL_VERSION = 7; // 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo)
 const int MIN_PROTOCOL_VERSION = 2;
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).

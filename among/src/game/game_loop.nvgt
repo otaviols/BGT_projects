@@ -449,6 +449,7 @@ string game_over_reason_text(const string&in reason) {
 	if (reason == "impostors_ejected") return tr("game.reason_impostors_ejected");
 	if (reason == "majority") return tr("game.reason_majority");
 	if (reason == "oxygen_depleted") return tr("game.reason_oxygen_depleted");
+	if (reason == "jester_ejected") return tr("game.reason_jester_ejected");
 	return "";
 }
 
@@ -458,17 +459,17 @@ string game_over_reason_text(const string&in reason) {
 // vitória/derrota e o anúncio no meio (o run_game() encerra e destrói o audio_manager local quase
 // na hora, então o som mal começava a tocar antes de sumir).
 void run_game_over_screen(game_client@ client, net_packet@ pkt) {
-	bool crewmates_won = pkt.get_string("winner") == "crewmates";
+	string vencedor = game_winner_text(pkt); // tripulação, impostores ou o neutro que venceu sozinho
 
 	menu m;
-	m.intro_text = tr(crewmates_won ? "game.crewmates_win" : "game.impostors_win");
+	m.intro_text = vencedor;
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
 	@g_game_menu_pump_client = client;
 	@m.background_callback = @pump_client_during_game_menu;
 
-	m.add_item(tr(crewmates_won ? "game.crewmates_win" : "game.impostors_win"), "winner");
+	m.add_item(vencedor, "winner");
 	string reason_text = game_over_reason_text(pkt.get_string("reason"));
 	if (reason_text != "") m.add_item(reason_text, "reason");
 
@@ -492,6 +493,9 @@ void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 		names_params.set("names", names);
 		m.add_item(tr(impostors_json.length() == 1 ? "game.impostor_was" : "game.impostors_were", names_params), "impostor_names");
 	}
+	// E quem era neutro, com o papel - o mesmo fechamento.
+	string neutros = game_neutrals_text(pkt);
+	if (neutros != "") m.add_item(neutros, "neutral_names");
 
 	// Copiar é item de AÇÃO: copia e a tela continua aberta - a pessoa pode querer ouvir de novo
 	// depois de copiar, e fechar sozinho seria surpresa. Vai o resultado inteiro, para colar num

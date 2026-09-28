@@ -7,6 +7,7 @@ class user_stats {
 	int games_won = 0;
 	int crewmate_wins = 0;
 	int impostor_wins = 0;
+	int neutral_wins = 0; // vitória como papel neutro (o Bobo expulso, por exemplo)
 	int tasks_completed = 0;
 	int kills = 0;
 }

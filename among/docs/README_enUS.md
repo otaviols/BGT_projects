@@ -107,6 +107,9 @@ it on reaching the match list: "you have a reply to one of your messages". The *
 messages** option reads your message and the reply side by side. No email, nothing outside the game
 — and to keep the conversation going, just send another message.
 
+**My stats.** The match list has a **My stats** option showing matches played, wins (as crewmate,
+impostor and neutral role), task steps completed and kills.
+
 **Deleting your account.** The match list has a **Delete my account** option. It asks for your
 password and permanently deletes the account, your stats, the messages you sent (with their
 replies), and any translations not yet collected. There is no undo.
@@ -515,6 +518,17 @@ more special roles a match has, the more dangerous they are; in a room with no s
 have nothing to point at.
 
 Nobody is protected at the table: the guardian's shield falls when the meeting begins.
+
+### Neutral roles
+
+A **neutral** role is neither crew nor impostor: it has a win **of its own**. When that happens, the
+match ends and only that player wins. For the majority count, a neutral counts as a crewmate. At the
+end of the match, the game reveals who was neutral, as it reveals the impostors.
+
+**Jester** (neutral). Wins if **voted out**. They do no tasks that count (but the objects radar shows
+where tasks are, to pretend), do not kill and do not sabotage: their tools are the meeting and
+suspicion. With a possible Jester in play, every ejection is in doubt — "is it the impostor, or the
+Jester wanting out?".
 
 ## Sabotage (impostor)
 

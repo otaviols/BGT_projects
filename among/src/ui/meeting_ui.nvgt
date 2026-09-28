@@ -259,13 +259,14 @@ class meeting_ui {
 	}
 
 	void on_game_over(net_packet@ pkt) {
-		bool crewmates_won = pkt.get_string("winner") == "crewmates";
-		announce(tr(crewmates_won ? "game.crewmates_win" : "game.impostors_win"));
+		string winner = pkt.get_string("winner");
+		announce(game_winner_text(pkt));
 		// Antes tocava win/defeat baseado só em quem venceu, sem checar o papel de quem está ouvindo -
 		// impostores ouviam "vitória" quando os tripulantes ganhavam, e vice-versa.
 		// A música é a do TIME que venceu, para todo mundo - como no original. Tripulante ouvindo a
-		// música dos impostores sabe exatamente o que aconteceu.
-		audio.play_victory(crewmates_won);
+		// música dos impostores sabe exatamente o que aconteceu. Neutro vencendo sozinho tem a dele.
+		if (winner == "crewmates" || winner == "impostors") audio.play_victory(winner == "crewmates");
+		else audio.play_victory_neutral();
 	}
 
 	// Menu de votação: lista jogadores vivos + opção de pular. ESC/fechar sem escolher NÃO vota
