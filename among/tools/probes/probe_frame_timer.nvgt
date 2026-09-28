@@ -1,0 +1,30 @@
+// Sonda do relógio de quadro: a soma dos quadros tem que ser o tempo REAL.
+//   nvgt tools/probes/probe_frame_timer.nvgt
+//
+// Compara, durante 5 segundos de quadros com wait(5), o jeito antigo (elapsed inteiro + restart por
+// quadro) com o frame_timer. O antigo perdia 5% no PC e bem mais no Android (recado #151: 70 s para o
+// trajeto de 40), e a perda some do movimento, das recargas e do relógio do servidor. O antigo é
+// medido junto como CONTROLE: se um dia ele também der 100%, a plataforma mudou e esta sonda deixou
+// de provar alguma coisa ali.
+#include "../../src/core/frame_timer.nvgt"
+
+void main() {
+	timer parede;
+	timer antigo;
+	float soma_antigo = 0.0;
+	frame_timer novo;
+	float soma_novo = 0.0;
+	while (parede.elapsed < 5000) {
+		wait(5);
+		soma_antigo += float(antigo.elapsed) / 1000.0;
+		antigo.restart();
+		soma_novo += novo.tick();
+	}
+	float real = float(parede.elapsed) / 1000.0;
+	int pct_antigo = int(soma_antigo / real * 100.0 + 0.5);
+	int pct_novo = int(soma_novo / real * 100.0 + 0.5);
+	println("tempo real: " + real + " s");
+	println("jeito antigo (restart por quadro): " + pct_antigo + "% do tempo real");
+	println("frame_timer: " + pct_novo + "% do tempo real");
+	println(pct_novo >= 99 && pct_novo <= 101 ? "RESULTADO: ok" : "RESULTADO: FALHA");
+}

@@ -1,0 +1,30 @@
+// frame_timer.nvgt
+// Quanto tempo passou desde o último quadro - sem perder nada.
+//
+// O jeito antigo, espalhado por seis laços (partida, conhecer o mapa, três minigames e o servidor),
+// era ler `timer.elapsed` e reiniciar o timer a cada quadro. `elapsed` é INTEIRO, em milissegundos:
+// um quadro de 5,8 ms era lido como 5, e o restart jogava a sobra fora - a cada quadro. Medido no PC,
+// 95% do tempo real chegava ao jogo (tools/probes/probe_frame_timer.nvgt); todo mundo andava 5% mais
+// devagar que a velocidade configurada, e o relógio do servidor atrasava junto. No Android, com um
+// relógio mais grosseiro, muitos quadros eram lidos como ZERO: o recado #151 mediu 70 s para o
+// trajeto que no PC leva 40.
+//
+// Aqui o relógio NUNCA reinicia, e o quadro é a diferença entre duas leituras. O arredondamento de
+// uma leitura volta na seguinte, então a soma dos quadros é sempre o tempo real, qualquer que seja a
+// granularidade do relógio da plataforma.
+class frame_timer {
+	private timer clock;
+	private int64 last = 0;
+
+	// Segundos desde a chamada anterior (ou desde a criação / o último skip).
+	float tick() {
+		int64 now = clock.elapsed;
+		float delta = float(now - last) / 1000.0;
+		last = now;
+		return delta;
+	}
+
+	// Descarta o tempo passado até agora: o próximo tick conta só a partir daqui. Para depois de uma
+	// tela bloqueante, quando o tempo parado não pode virar um salto de movimento.
+	void skip() { last = clock.elapsed; }
+}

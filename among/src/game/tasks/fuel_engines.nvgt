@@ -13,6 +13,7 @@
 // muito mais difícil, e a dificuldade viria do lugar errado.
 
 #include "task_common.nvgt"
+#include "../../core/frame_timer.nvgt"
 
 // Duas fases: pegar o galão no depósito e levá-lo até o reator para abastecer. A travessia ENTRE as
 // duas é o ponto da tarefa - é ela que faz barulho e diz aos outros por onde você andou.
@@ -52,8 +53,7 @@ bool run_fuel_fill(game_client@ client) {
 
 	float current_pitch = START_PITCH;
 	bool holding = false;
-	timer frame_clock;
-	frame_clock.restart();
+	frame_timer frame_clock;
 
 	while (true) {
 		wait(5);
@@ -62,8 +62,7 @@ bool run_fuel_fill(game_client@ client) {
 			filling.stop();
 			return false;
 		}
-		float delta = float(frame_clock.elapsed) / 1000.0;
-		frame_clock.restart();
+		float delta = frame_clock.tick(); // sem perder frações - ver core/frame_timer.nvgt
 
 		if (key_down(KEY_SPACE)) {
 			if (!holding) {

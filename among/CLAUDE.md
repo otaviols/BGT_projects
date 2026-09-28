@@ -262,6 +262,12 @@ nota ou doc: `infra\read_feedback` virou `infra` + CR + `ead_feedback` no CLAUDE
 `if` no retorno faz o jogo dizer "não consegui copiar" com o texto já na área de transferência.
 Confira lendo de volta com `clipboard_get_text()` (ver `src/ui/support_screen.nvgt`).
 
+**Nunca meça o quadro com `timer.elapsed` + `restart()`.** `elapsed` é INTEIRO (ms): o restart joga a
+fração fora a cada quadro. No PC, 95% do tempo real chegava ao jogo; no Android, com relógio mais
+grosseiro, o personagem levava 70 s num trajeto de 40 (recado #151, sintoma "o jogo é lento/laggado no
+celular", embora offline). Use `frame_timer.tick()` (`src/core/frame_timer.nvgt`), que nunca reinicia e
+soma a diferença entre leituras. Sonda: `tools/probes/probe_frame_timer.nvgt`.
+
 **`DIRECTORY_TEMP` já termina com barra.** Concatenar outra gera caminhos com `\\` no meio que o
 PowerShell tolera e o NVGT não enxerga de volta.
 

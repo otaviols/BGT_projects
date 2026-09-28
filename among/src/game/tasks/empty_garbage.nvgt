@@ -4,6 +4,7 @@
 // áudio em vez de uma barra visual.
 
 #include "task_common.nvgt"
+#include "../../core/frame_timer.nvgt"
 
 bool run_empty_garbage_task(game_client@ client) {
 	const float HOLD_SECONDS_REQUIRED = 2.0;
@@ -15,14 +16,12 @@ bool run_empty_garbage_task(game_client@ client) {
 	// já é a tecla de interagir/abrir a task - segurar ela de novo aqui confundia o jogador.
 	float held = 0.0;
 	bool was_holding = false;
-	timer frame_clock;
-	frame_clock.restart();
+	frame_timer frame_clock;
 	while (held < HOLD_SECONDS_REQUIRED) {
 		wait(5);
 		client.update();
 		if (task_tick(client)) return false;
-		float delta = float(frame_clock.elapsed) / 1000.0;
-		frame_clock.restart();
+		float delta = frame_clock.tick(); // sem perder frações - ver core/frame_timer.nvgt
 		if (key_down(KEY_SPACE)) {
 			if (!was_holding) task_sound(SND_PULLING_GARBAGE_LEVER); // início do puxão - não repete enquanto segura
 			held += delta;

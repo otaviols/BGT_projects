@@ -21,6 +21,7 @@
 #include "../config/keybindings.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../i18n.nvgt"
+#include "../core/frame_timer.nvgt"
 
 void run_explore_map_screen() {
 	game_map@ map = build_the_hub_map();
@@ -44,14 +45,13 @@ void run_explore_map_screen() {
 	string last_object_id = "";
 	int object_index = -1;
 	string object_room_id = "";
-	timer frame_clock;
+	frame_timer frame_clock;
 	timer footstep_clock;
 	timer wall_bump_clock;
 
 	while (true) {
 		wait(5);
-		float delta = float(frame_clock.elapsed) / 1000.0;
-		frame_clock.restart();
+		float delta = frame_clock.tick(); // sem perder frações - ver core/frame_timer.nvgt
 		if (delta > 0.1) delta = 0.1; // mesmo teto do laço da partida: um quadro longo não arremessa ninguém
 
 		if (key_pressed(KEY_ESCAPE)) break;

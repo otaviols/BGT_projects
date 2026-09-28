@@ -10,6 +10,7 @@
 #include "../config/presets.nvgt"
 #include "../core/player.nvgt"
 #include "../core/game_state.nvgt"
+#include "../core/frame_timer.nvgt"
 #include "../game/map.nvgt"
 #include "../database/user_db.nvgt"
 #include "../i18n.nvgt"
@@ -76,7 +77,7 @@ class game_server {
 	network@ net;
 	array<game_player@> connections;
 	array<game_state@> lobbies;
-	timer@ clock;
+	frame_timer clock;
 	// Reinício anunciado (ver C_ADMIN_DRAIN): enquanto faltar tempo, nenhuma partida nova começa.
 	timer@ drain_clock = null;
 	float drain_seconds = 0.0;
@@ -127,7 +128,6 @@ class game_server {
 		if (server_notice != "") println("Recado do saguão no ar: " + server_notice);
 
 		g_i18n.load_language(language_default());
-		@clock = timer();
 		return true;
 	}
 
@@ -147,8 +147,9 @@ class game_server {
 				handle_event(ev);
 			}
 
-			float delta = float(clock.elapsed) / 1000.0;
-			clock.restart();
+			// Sem perder frações (ver core/frame_timer.nvgt): este relógio é o de TODA a partida -
+			// recargas, oxigênio, bots e o tempo que o anti-cheat usa para medir a velocidade.
+			float delta = clock.tick();
 			tick_lobbies(delta);
 			wait(5);
 		}

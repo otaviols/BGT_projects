@@ -19,6 +19,7 @@
 #include "../core/chat_log.nvgt"
 #include "../audio/voice_chat.nvgt"
 #include "../core/player.nvgt"
+#include "../core/frame_timer.nvgt"
 #include "../game/roles/crewmate.nvgt"
 #include "../game/roles/impostor.nvgt"
 #include "../game/task_manager.nvgt"
@@ -696,7 +697,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// Retrato da sala reaberta no fim da partida (ver o tratamento de S_GAME_OVER).
 	net_packet@ back_to_lobby = null;
 
-	timer@ frame_clock = timer();
+	frame_timer frame_clock;
 	timer@ footstep_clock = timer();
 	timer@ wall_bump_clock = timer();
 	timer@ ping_clock = timer();
@@ -1133,10 +1134,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			return null;
 		}
 
-		float delta = float(frame_clock.elapsed) / 1000.0;
-		frame_clock.restart();
+		float delta = frame_clock.tick(); // sem perder frações - ver core/frame_timer.nvgt
 		// Depois de qualquer menu/tela bloqueante (task, lista de tasks, sabotagem, chat, votação -
-		// que usa as MESMAS setas do movimento), frame_clock não é resetado durante a espera, então
+		// que usa as MESMAS setas do movimento), o relógio não é pausado durante a espera, então
 		// o primeiro frame ao voltar tem um delta gigante. Sem esse teto, se uma seta de movimento
 		// ficasse "presa" bem na hora de fechar o menu, o jogador podia ser arremessado pra fora de
 		// qualquer sala (fora do alcance de is_walkable) e ficar preso lá, sem nunca mais tocar som

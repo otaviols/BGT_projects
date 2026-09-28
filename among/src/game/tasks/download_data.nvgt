@@ -3,6 +3,7 @@
 // periódico (mais agudo conforme o progresso avança) dá feedback sonoro sem precisar de tela.
 
 #include "task_common.nvgt"
+#include "../../core/frame_timer.nvgt"
 
 bool run_download_data_task(game_client@ client) {
 	const float PROGRESS_PER_SECOND = 20.0;
@@ -11,9 +12,8 @@ bool run_download_data_task(game_client@ client) {
 	speak(tr("task.download_data.instructions"));
 
 	float progress = 0.0;
-	timer frame_clock;
+	frame_timer frame_clock;
 	timer beep_clock;
-	frame_clock.restart();
 	beep_clock.restart();
 
 	while (true) {
@@ -21,8 +21,7 @@ bool run_download_data_task(game_client@ client) {
 		client.update();
 		if (task_tick(client)) return false;
 
-		float delta = float(frame_clock.elapsed) / 1000.0;
-		frame_clock.restart();
+		float delta = frame_clock.tick(); // sem perder frações - ver core/frame_timer.nvgt
 
 		if (key_down(KEY_SPACE)) {
 			progress += PROGRESS_PER_SECOND * delta;
