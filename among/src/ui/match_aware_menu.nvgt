@@ -1,0 +1,51 @@
+// match_aware_menu.nvgt
+// Menu que fecha sozinho quando a partida começa.
+//
+// Existe por causa de uma armadilha que já aconteceu (ver notes/ciclo-da-partida.md): a tela de
+// resultado é das que alguém deixa aberta por minutos, e quando o anfitrião iniciava a rodada
+// seguinte, o S_GAME_START ficava na fila sem ninguém para lê-lo - a pessoa ouvia a partida nova
+// acontecendo sem ela e não conseguia jogar. A tela de regras da sala de espera (tecla C) tem o
+// mesmo risco: é exatamente o que se lê enquanto o anfitrião aperta Enter.
+//
+// Três regras que qualquer tela assim precisa seguir, e que moram aqui para não serem esquecidas:
+//   1. a rede continua sendo servida - quem chama liga o `background_callback` do menu a um pump;
+//   2. o S_GAME_START NÃO é consumido: ele fica na fila para o laço de quem chamou tratá-lo;
+//   3. a fila é examinada a partir de um cursor que só cresce - varrê-la inteira por quadro já
+//      travou o jogo (ver MAX_INCOMING_PACKETS).
+
+#include "menu.nvgt"
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+
+// Item de AÇÃO: escolhido, faz alguma coisa e a tela continua aberta (copiar o código, copiar o
+// resultado). Devolve true se tratou o item; false fecha a tela, como um menu comum.
+funcdef bool menu_action_handler(menu@ m, const string&in item_id);
+
+// Devolve true se fechou porque a partida começou (o S_GAME_START está na fila, intacto).
+bool run_menu_until_next_match(menu@ m, game_client@ client, menu_action_handler@ on_action = null) {
+	uint conferidos = 0;
+	while (true) {
+		if (!m.monitor()) {
+			string escolhido = m.selected_item_id;
+			if (escolhido == "" || @on_action == null || !on_action(m, escolhido)) return false;
+		}
+		wait(5);
+		if (@client == null) continue;
+		if (!client.connected) return false;
+		while (conferidos < client.incoming.length()) {
+			if (client.incoming[conferidos].type == S_GAME_START) return true;
+			conferidos++;
+		}
+	}
+	return false; // inalcançável - o laço só termina via return acima
+}
+
+// O texto de todos os itens do menu, um por linha, pulando os de ação - é o que "copiar" copia.
+string menu_items_as_text(menu@ m, const array<string>&in skip_ids) {
+	array<string> linhas;
+	for (int i = 0; i < m.item_count; i++) {
+		if (skip_ids.find(m.get_item_id(i)) != -1) continue;
+		linhas.insert_last(m.get_item_text(i));
+	}
+	return join(linhas, "\r\n");
+}

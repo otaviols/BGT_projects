@@ -24,7 +24,8 @@ pessoa, cada objeto e cada corpo só pelo som.
 **Partida só para os amigos:** ao criar a partida, preencha o **código de acesso**. Com código, a
 partida não aparece na lista, e só entra quem escolher **Entrar em partida privada com código** e
 digitar o mesmo código. Maiúsculas e minúsculas não fazem diferença, então pode ditar de viva voz.
-Dentro da sala, a tecla **C** relembra o código para você passar adiante.
+Dentro da sala, a tecla **C** abre as regras, e o primeiro item é o código: Enter nele copia o código
+para você passar adiante.
 
 **Guardar as regras que você gosta:** a tela de criar partida tem muitos campos, e ninguém quer
 percorrer todos toda vez. No fim dela há **"Salvar estas regras com o nome"** — preencha e aquela
@@ -178,7 +179,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 |---|---|
 | Enter | iniciar a partida (só o anfitrião) |
 | P | quem está na sala (com o total e quais são bots) |
-| C | as regras desta partida (impostores, recargas, tempos, sabotagem) |
+| C | abre as regras desta partida como lista: setas percorrem uma regra por vez, e há itens para copiar o código (sala privada) e todas as regras. Se a partida começar com ela aberta, ela fecha sozinha |
 | O | mudar as regras (só o anfitrião): os campos vêm com os valores atuais, e o que ficar em branco continua como está. Todo mundo é avisado. |
 | B | adicionar um bot (só o anfitrião, até 8) |
 | Shift + B | remover o último bot |
@@ -537,6 +538,9 @@ segundos: é um trajeto que ninguém consegue fazer a pé, e é justamente por i
 **Impostores vencem se:**
 - ficarem em número igual ou maior que o dos tripulantes vivos; ou
 - o oxigênio acabar sem ser consertado.
+
+No fim da partida, a tela de resultado pode ser relida com as setas, e o último item, **Copiar o
+resultado**, copia tudo para você colar num grupo ou num recado.
 
 ## Bots
 

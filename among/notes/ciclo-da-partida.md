@@ -28,6 +28,21 @@ reimplementa a lógica que testa não testa nada** - a primeira versão desta pa
 quebrado, e só virou teste de verdade quando passou a chamar a função real e a ser conferida contra
 a versão sem a correção (onde ela trava).
 
+**Toda tela que alguém lê enquanto a partida pode começar usa `run_menu_until_next_match`**
+(`src/ui/match_aware_menu.nvgt`, saiu do game_loop para a sala de espera poder usar). Hoje são a de
+resultado e a de regras da sala (tecla C) - esta é exatamente o que se lê enquanto o anfitrião
+aperta Enter. A função aceita itens de AÇÃO (`menu_action_handler`): copiar o resultado, copiar o
+código da sala, sem fechar a tela. Uma tela nova desse tipo que abrisse um `menu.run()` comum
+repetiria a armadilha acima.
+
+**O fim da partida fecha o posto de câmeras e o scanner ANTES do `S_GAME_OVER`** (no tick da sala,
+servidor), e o cliente, ao receber o fim, sai do modo câmera e cala o som de sala observada. Antes o
+posto só era liberado ao reabrir a sala, sem aviso: quem estava nas câmeras continuava nelas na tela
+de resultado, e todos seguiam ouvindo "alguém observa esta sala". Era o terceiro caminho do mesmo
+defeito (estado desfeito só de um lado), depois da reunião e da morte. Sonda:
+`tools/probes/probe_camera_game_over.nvgt`, que acaba a partida por MAIORIA - por reunião o defeito
+não aparece, porque a reunião já fechava as câmeras - e que falha contra o servidor sem a correção.
+
 **A reunião é uma PAUSA - com UMA exceção, o sniper.** Ele aponta alguém na mesa e mata se acertar o
 papel (ver notes/papeis.md). A exceção é declarada pelo papel (`ability_usable_in_meeting`), e não
 escrita como um furo no `if` do servidor: a regra abaixo continua valendo para todo o resto, e quem

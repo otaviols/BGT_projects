@@ -16,6 +16,8 @@
 #include "feedback_replies_screen.nvgt"
 #include "translation_screen.nvgt"
 #include "lobby_info.nvgt"
+#include "match_aware_menu.nvgt"
+#include "clipboard.nvgt"
 #include "settings_screens.nvgt"
 #include "../config/lobby_config.nvgt"
 #include "../config/lobby_presets.nvgt"
@@ -825,6 +827,54 @@ class lobby_snapshot {
 	}
 }
 
+// As regras da sala como lista navegável (tecla C na sala de espera): uma regra por item, e dois
+// itens de ação - copiar o código (sala privada) e copiar todas as regras.
+//
+// É a tela que alguém lê enquanto o anfitrião aperta Enter, então ela fecha sozinha quando a partida
+// começa e deixa o S_GAME_START na fila para a sala de espera tratar (ver match_aware_menu). Não
+// acompanha mudanças feitas pelo anfitrião com ela aberta: mostra o retrato de quando abriu, e
+// reabrir mostra o novo.
+string g_rules_join_code = "";
+void run_rules_screen(game_client@ client, lobby_snapshot@ snapshot) {
+	menu m;
+	m.intro_text = tr("lobby.rules_title");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+
+	g_rules_join_code = snapshot.join_code;
+	if (snapshot.join_code != "") {
+		dictionary@ cp = dictionary();
+		cp.set("code", snapshot.join_code);
+		m.add_item(tr("lobby.rules_code_item", cp), "__code__");
+	}
+	array<string>@ linhas = lobby_config_lines(snapshot.config);
+	for (uint i = 0; i < linhas.length(); i++) m.add_item(linhas[i], "rule");
+	m.add_item(tr("lobby.rules_copy_all"), "__copy_all__");
+	m.add_item(tr("menu.back"), "__back__");
+	run_menu_until_next_match(m, client, @rules_screen_action);
+}
+
+bool rules_screen_action(menu@ m, const string&in item_id) {
+	if (item_id == "__code__") {
+		dictionary@ cp = dictionary();
+		cp.set("code", g_rules_join_code);
+		speak(tr(copy_to_clipboard(g_rules_join_code) ? "lobby.code_copied" : "clipboard.failed", cp));
+		return true;
+	}
+	if (item_id == "__copy_all__") {
+		array<string> pular = {"__copy_all__", "__back__"};
+		speak(tr(copy_to_clipboard(menu_items_as_text(m, pular)) ? "lobby.rules_copied" : "clipboard.failed"));
+		return true;
+	}
+	// Enter numa regra não fecha a tela: quem aperta Enter numa lista de leitura quer continuar
+	// lendo, e fechar ali o jogaria de volta à sala no meio da consulta.
+	return item_id == "rule";
+}
+
 // " Partida privada. Código: xyz." - ou nada, se for pública. Dito na entrada e na tecla C: é
 // assim que o anfitrião relembra o código para ditar aos amigos.
 string private_lobby_text(const string&in join_code) {
@@ -986,7 +1036,9 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 			speak(tr("lobby.back_from_settings"));
 		}
 		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players));
-		if (key_pressed(KEY_C)) speak(lobby_config_text(snapshot.config) + private_lobby_text(snapshot.join_code));
+		// C abre as regras como LISTA: eram lidas numa frase só, e com papéis e tempos ligados ela
+		// passou a durar mais de um minuto, sem jeito de voltar a um item.
+		if (key_pressed(KEY_C)) run_rules_screen(client, snapshot);
 
 		if (action_pressed(ACTION_CHAT)) run_chat_compose(client, messages_log);
 		if (action_pressed(ACTION_TALK)) {

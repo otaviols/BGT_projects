@@ -25,7 +25,8 @@ every object and every body is from sound alone.
 **A match just for friends:** when creating the match, fill in the **access code**. With a code,
 the match does not show up in the list, and the only way in is choosing **Join a private match
 with a code** and typing the same code. Case does not matter, so you can say it out loud. Inside
-the room, the **C** key repeats the code so you can pass it on.
+the room, the **C** key opens the rules, and the first item is the code: Enter on it copies the
+code so you can pass it on.
 
 **Saving the rules you like:** the create-match screen has a lot of fields, and nobody wants to walk
 through all of them every time. At the end of it there is **"Save these rules under the name"** —
@@ -183,7 +184,7 @@ your file and English — worth sending a message about it.
 |---|---|
 | Enter | start the match (host only) |
 | P | who is in the lobby (with the count, and which are bots) |
-| C | this match's rules (impostors, cooldowns, timers, sabotage) |
+| C | opens this match's rules as a list: arrows go through one rule at a time, with items to copy the code (private match) and all the rules. If the match starts while it is open, it closes by itself |
 | O | change the rules (host only): the fields come with the current values, and anything left blank stays as it is. Everyone is told. |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
@@ -544,6 +545,9 @@ works as an alibi.
 **Impostors win if:**
 - they equal or outnumber the living crewmates; or
 - oxygen runs out without being fixed.
+
+At the end of the match, the result screen can be reread with the arrows, and its last item, **Copy
+the result**, copies it all for you to paste in a group chat or a message.
 
 ## Bots
 

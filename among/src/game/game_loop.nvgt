@@ -14,6 +14,8 @@
 #include "../core/client_state.nvgt"
 #include "../core/sabotage_rules.nvgt"
 #include "../ui/camera_screen.nvgt"
+#include "../ui/match_aware_menu.nvgt"
+#include "../ui/clipboard.nvgt"
 #include "../core/chat_log.nvgt"
 #include "../audio/voice_chat.nvgt"
 #include "../core/player.nvgt"
@@ -488,30 +490,19 @@ void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 		m.add_item(tr(impostors_json.length() == 1 ? "game.impostor_was" : "game.impostors_were", names_params), "impostor_names");
 	}
 
-	run_menu_until_next_match(m, client);
+	// Copiar é item de AÇÃO: copia e a tela continua aberta - a pessoa pode querer ouvir de novo
+	// depois de copiar, e fechar sozinho seria surpresa. Vai o resultado inteiro, para colar num
+	// grupo de conversa ou num recado sem ter de ditar o placar.
+	m.add_item(tr("game.copy_result"), "__copy__");
+
+	run_menu_until_next_match(m, client, @copy_game_over_action);
 }
 
-// Roda um menu até o jogador sair dele OU até a partida seguinte começar.
-//
-// A tela de resultado é a única que alguém deixa aberta por minutos - ela não tem pressa nenhuma, e
-// é comum sair para atender o telefone com ela na tela. Se o anfitrião iniciar a rodada seguinte
-// nesse meio-tempo, o S_GAME_START chega e fica esperando na fila sem ninguém para lê-lo: a pessoa
-// ouvia o chat da partida nova sem estar nela, e não conseguia jogar. Fechar a tela sozinho é o que
-// a puxa para dentro da rodada.
-//
-// A fila é examinada a partir de onde paramos, e não do começo: ninguém a consome enquanto o menu
-// está aberto, então o cursor só cresce - e varrer tudo a cada quadro é justamente o que já travou
-// o jogo uma vez (ver MAX_INCOMING_PACKETS).
-void run_menu_until_next_match(menu@ m, game_client@ client) {
-	uint conferidos = 0;
-	while (m.monitor()) {
-		wait(5);
-		if (@client == null) continue;
-		while (conferidos < client.incoming.length()) {
-			if (client.incoming[conferidos].type == S_GAME_START) return;
-			conferidos++;
-		}
-	}
+bool copy_game_over_action(menu@ m, const string&in item_id) {
+	if (item_id != "__copy__") return false;
+	array<string> pular = {"__copy__"};
+	speak(tr(copy_to_clipboard(menu_items_as_text(m, pular)) ? "game.result_copied" : "clipboard.failed"));
+	return true;
 }
 
 // Executa uma partida inteira a partir do pacote S_GAME_START. Bloqueia até o fim da partida
@@ -1095,6 +1086,15 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				audio.stop_sabotage_alarm();
 				audio.stop_visible_task();
 				audio.stop_all_body_beacons();
+				// E o posto de câmeras, que ficava de fora desta lista: quem estava nele continuava
+				// "nas câmeras" durante o resultado, e o som de sala observada seguia para todos. O
+				// servidor novo já fecha o posto antes do fim (S_CAMERA_STATE); isto cobre o antigo e
+				// garante que o cliente não dependa da ordem dos pacotes.
+				if (cameras.active) {
+					cameras.stop();
+					task_sound_simple(SND_CAMERA_OFF);
+				}
+				audio.stop_camera_watching();
 				mui.on_game_over(pkt);
 				run_game_over_screen(client, pkt);
 				// A sala continua de pé com a mesma turma: o servidor manda o retrato dela logo depois

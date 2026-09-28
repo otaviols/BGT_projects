@@ -1,0 +1,11 @@
+// clipboard.nvgt
+// Copiar para a área de transferência, conferindo de verdade.
+//
+// `clipboard_set_text` devolve false mesmo tendo copiado (ver Armadilhas no CLAUDE.md), então quem
+// diz se deu certo é ler de volta. Numa função só porque são várias telas que copiam (Pix, regras
+// da sala, resultado da partida) - e cada uma que confiasse no retorno diria "não consegui" com o
+// texto já copiado.
+bool copy_to_clipboard(const string&in text) {
+	clipboard_set_text(text);
+	return clipboard_get_text() == text;
+}

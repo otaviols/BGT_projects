@@ -14,6 +14,7 @@
 #include "speech.nvgt"
 #include "../i18n.nvgt"
 #include "../config/game_constants.nvgt"
+#include "clipboard.nvgt"
 
 void run_support_screen() {
 	while (true) {
@@ -31,11 +32,7 @@ void run_support_screen() {
 		dictionary@ p = dictionary();
 		if (id == "pix") {
 			p.set("key", DONATION_PIX_KEY);
-			// O retorno de clipboard_set_text NÃO serve: ele devolve false mesmo tendo copiado (ver
-			// Armadilhas no CLAUDE.md). Quem responde se deu certo é ler de volta.
-			clipboard_set_text(DONATION_PIX_KEY);
-			bool copiou = clipboard_get_text() == DONATION_PIX_KEY;
-			speak(tr(copiou ? "support.pix_copied" : "support.pix_not_copied", p));
+			speak(tr(copy_to_clipboard(DONATION_PIX_KEY) ? "support.pix_copied" : "support.pix_not_copied", p));
 			wait(400);
 			continue;
 		}

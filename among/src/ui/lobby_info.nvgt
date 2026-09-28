@@ -81,8 +81,15 @@ string lobby_summary_text(json_object@ entry) {
 // um número novo aparece aqui sozinho. Os valores chegam RESOLVIDOS do servidor (com o padrão já
 // aplicado), porque o cliente não tem por que conhecer os padrões de cada papel.
 string role_tunables_text(json_object@ role_counts, json_object@ role_values) {
-	if (@role_counts == null || @role_values == null) return "";
+	array<string>@ partes = role_tunables_lines(role_counts, role_values);
+	if (partes.length() == 0) return "";
+	return join(partes, ". ");
+}
+
+// Os mesmos tempos, um por item - para a tela de regras, onde cada um é uma linha da lista.
+array<string>@ role_tunables_lines(json_object@ role_counts, json_object@ role_values) {
 	array<string> partes;
+	if (@role_counts == null || @role_values == null) return partes;
 	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
 		string id = CONFIGURABLE_ROLE_IDS[i];
 		if (!role_counts.exists(id) || int(role_counts[id]) <= 0) continue;
@@ -99,8 +106,7 @@ string role_tunables_text(json_object@ role_counts, json_object@ role_values) {
 			partes.insert_last(tr("lobby.info.role_tunable", p));
 		}
 	}
-	if (partes.length() == 0) return "";
-	return join(partes, ". ");
+	return partes;
 }
 
 // Leitura COMPLETA da configuração, para a tecla de configurações na sala de espera.
@@ -109,7 +115,14 @@ string role_tunables_text(json_object@ role_counts, json_object@ role_values) {
 // partida começar, e é a única chance de saber as regras antes de estar valendo.
 string lobby_config_text(json_object@ cfg) {
 	if (@cfg == null) return tr("lobby.info.unavailable");
+	return join(lobby_config_lines(cfg), ". ") + ".";
+}
+
+// As regras uma por item, na ordem em que são ditas. A tela de regras (tecla C) as mostra como lista
+// navegável, e o texto corrido acima é só a junção delas - uma fonte, para as duas nunca divergirem.
+array<string>@ lobby_config_lines(json_object@ cfg) {
 	array<string> partes;
+	if (@cfg == null) { partes.insert_last(tr("lobby.info.unavailable")); return partes; }
 
 	dictionary@ ip = dictionary();
 	ip.set("count", "" + int(cfg["impostor_count"]));
@@ -126,8 +139,8 @@ string lobby_config_text(json_object@ cfg) {
 		// E os tempos de cada um. Eles mudam o jogo tanto quanto o número de vagas - um metamorfo
 		// com 10 segundos de fantasia e outro com 120 são papéis diferentes -, então quem entra
 		// numa sala alheia precisa poder ouvir isso antes de a partida começar.
-		string tempos = role_tunables_text(cfg.get_object("role_counts"), cfg.get_object("role_values"));
-		if (tempos != "") partes.insert_last(tempos);
+		array<string>@ tempos = role_tunables_lines(cfg.get_object("role_counts"), cfg.get_object("role_values"));
+		for (uint i = 0; i < tempos.length(); i++) partes.insert_last(tempos[i]);
 	}
 
 	dictionary@ mp = dictionary();
@@ -187,7 +200,7 @@ string lobby_config_text(json_object@ cfg) {
 		partes.insert_last(tr(bool(cfg["voice_chat"]) ? "lobby.info.voice_on" : "lobby.info.voice_off"));
 	}
 
-	return join(partes, ". ") + ".";
+	return partes;
 }
 
 // Quem está na sala agora, com quantos são e quais são bots.
