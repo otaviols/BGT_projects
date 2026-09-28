@@ -695,6 +695,31 @@ class game_server {
 		}
 	}
 
+	// Conta a cada jogador quem é perceptível perto dele, quando isso muda (ver S_NEARBY_PLAYERS).
+	//
+	// O elenco do cliente guarda o ÚLTIMO ponto de todo mundo, e só o servidor sabe quem sumiu sem andar:
+	// quem entrou num duto, foi engolido pelo lobo ou ficou invisível continuava "parado" no elenco dos
+	// outros - quem passasse por ali ouvia o nome dele como "jogador por perto", e o impostor que mirasse
+	// ali tinha o kill recusado calado. Avisar a TODOS que fulano sumiu entregaria o duto e o lobo; esta
+	// lista só fala do entorno de cada um, que é o que ele perceberia de qualquer jeito.
+	void send_nearby_players(game_state@ lobby) {
+		if (lobby.state != "in_progress") return;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ me = lobby.players[i];
+			if (!reaches_client(me)) continue;
+			array<uint64>@ perto = lobby.players_near(me, PERCEPTION_SET_RANGE);
+			perto.sort_ascending();
+			if (me.nearby_sent_once && perto == me.nearby_sent) continue;
+			me.nearby_sent = perto;
+			me.nearby_sent_once = true;
+			json_array@ lista = json_array();
+			for (uint k = 0; k < perto.length(); k++) lista.add(perto[k]);
+			net_packet@ pkt = net_packet(S_NEARBY_PLAYERS);
+			pkt.set_array("peers", lista);
+			send_to(me.peer_id, pkt);
+		}
+	}
+
 	void send_ability_result(uint64 peer_id, const string&in ability, bool ok, const string&in message_key,
 			dictionary@ params = null, float cooldown_seconds = 0.0, float duration_seconds = 0.0) {
 		net_packet@ r = net_packet(S_ABILITY_RESULT);
@@ -2555,6 +2580,7 @@ class game_server {
 			// estado, mas AVISAR quem voltou e tocar o som é rede, e rede é deste lado.
 			expire_disguises(lobby);
 			expire_invisibility(lobby);
+			send_nearby_players(lobby);
 			// A partida acabou (o S_GAME_OVER acabou de sair): a sala REABRE para a mesma turma.
 			if (lobby.state == "ended") reopen_lobby(i);
 		}

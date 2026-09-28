@@ -197,6 +197,14 @@ void main() {
 	confere("o som vai aos outros tres, e nao ao lobo nem ao engolido", som_ok);
 	confere("ninguem recebe morte (nao ha corpo)", !morte);
 	confere("so o engolido recebe o aviso de engolido", !vazou);
+	// O lobo estava colado no engolido: a lista de quem ele percebe (S_NEARBY_PLAYERS) tem que ter mudado
+	// e não ter mais o engolido - senão o elenco dele o anunciaria ali, parado para sempre.
+	net_packet@ lista_lobo = null;
+	for (uint k = 0; k < caixa[lobo].length(); k++) if (caixa[lobo][k].type == S_NEARBY_PLAYERS) @lista_lobo = caixa[lobo][k];
+	bool engolido_na_lista = false;
+	json_array@ lp = @lista_lobo != null ? lista_lobo.get_array("peers") : null;
+	if (@lp != null) for (uint k = 0; k < lp.length(); k++) if (uint64(lp[k]) == todos[v].my_peer_id) engolido_na_lista = true;
+	confere("o engolido sai da lista de quem o lobo percebe", @lista_lobo != null && !engolido_na_lista);
 
 	zera_vozes();
 	fala(todos, v);

@@ -21,6 +21,19 @@ entregando a dedução que o duto existe para negar; mandar o estado de duto par
 consertaria a lista criando um vazamento pior. A regra mora em `game_state.players_in_room()`, e o
 radar e a câmera são duas perguntas para a MESMA função.
 
+**O elenco do cliente guarda o ÚLTIMO ponto de cada um - e quem some sem andar fica lá parado.** Quem
+entrava num duto (e depois quem ficava invisível ou era engolido pelo lobo) parava de mandar posição,
+e o elenco dos outros o mantinha no último ponto: quem passasse ali ouvia o nome dele como "jogador
+por perto", e o impostor que mirasse ali tinha o kill recusado calado. Avisar a nave que fulano sumiu
+entregaria o duto. O conserto é o servidor mandar a CADA jogador quem é perceptível à volta dele
+(`S_NEARBY_PLAYERS`, só quando muda, até `PERCEPTION_SET_RANGE`), pela mesma `is_perceptible` do radar
+e da câmera; `nearest_alive` só escolhe entre esses. A distância exata continua medida no cliente - a
+lista tem folga no alcance justamente para o atraso dela não cortar quem acabou de chegar. Sonda:
+`probe_nearby.nvgt`, que confere também que quem está LONGE não recebe pacote nenhum quando alguém
+entra no duto. Preço aceito de propósito: quando o FANTASMA some, quem está colado recebe a lista
+nova sem ele - o jogador não ouve nada, mas um cliente modificado percebe. Deixá-lo na lista faria o
+jogo anunciar o nome dele no ponto onde sumiu, que é pior (`probe_phantom` confere as duas coisas).
+
 **Regra de percepção fica em `src/core/sabotage_rules.nvgt`, nunca espalhada.** Quem é atrapalhado
 por qual sabotagem se decide num lugar só. Espalhada como `if` em cada ponto (marcadores, radar, som
 de corpo, alcance de audição), bastava esquecer um para o jogador ficar cego pela metade sem que nada

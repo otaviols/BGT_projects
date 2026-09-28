@@ -1015,6 +1015,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				string visto = kill_witnessed_text(pkt);
 				if (!pkt.announced) speak(visto, false);
 				events_log.add("", visto);
+			} else if (t == S_NEARBY_PLAYERS) {
+				roster.set_perceptible(pkt);
 			} else if (t == S_SWALLOWED) {
 				// Fui engolido. Como uma morte para o resto do jogo (fora da votação, do radar), mas preso:
 				// quem manda nisso é `swallowed`, lido em cada bloco de ação do laço.

@@ -132,14 +132,25 @@ void main() {
 
 	// Sumir é SILENCIOSO para quem está por perto: o som é só dele. Quem estava do lado não pode
 	// receber pacote nenhum - nem som, nem movimento, nada que diga que algo aconteceu ali.
+	//
+	// A exceção é a lista de quem é perceptível perto (S_NEARBY_PLAYERS): ela TEM que perder o fantasma,
+	// senão o jogo de quem está do lado continuaria anunciando o nome dele no ponto onde sumiu - o mesmo
+	// defeito que o duto tinha. O preço, aceito de propósito: um cliente MODIFICADO colado nele percebe
+	// que ele saiu da lista. O jogador de verdade não ouve nada.
 	bombeia(todos, 1500);
 	uint recebeu = 0;
+	bool saiu_da_lista = false;
 	net_packet@ q = olheiro.poll_message();
 	while (@q != null) {
-		if (q.type != S_PLAYER_MOVED || q.get_uint64("peer_id") == fan_peer) recebeu++;
+		if (q.type == S_NEARBY_PLAYERS) {
+			saiu_da_lista = true;
+			json_array@ peers = q.get_array("peers");
+			if (@peers != null) for (uint k = 0; k < peers.length(); k++) if (uint64(peers[k]) == fan_peer) saiu_da_lista = false;
+		} else if (q.type != S_PLAYER_MOVED || q.get_uint64("peer_id") == fan_peer) recebeu++;
 		@q = olheiro.poll_message();
 	}
-	check("quem estava perto NAO recebeu nada ao ele sumir", recebeu == 0, "0 pacotes");
+	check("quem estava perto NAO recebeu nada ao ele sumir (fora a lista)", recebeu == 0, "0 pacotes");
+	check("e a lista de quem esta perto perdeu o fantasma", saiu_da_lista, "fora da lista");
 
 	check("invisivel, o radar NAO acha o fantasma", !radar_acha(todos, olheiro, fan_peer), "nao achado");
 

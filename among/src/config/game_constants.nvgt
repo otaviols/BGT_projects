@@ -97,6 +97,11 @@ const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servi
 const float PLAYER_INTERACT_RANGE = 1.4; // distância máxima para usar objetos/tasks/vents
 const float PLAYER_KILL_RANGE = 1.2;
 const float PLAYER_REPORT_RANGE = 2.0;
+// Até onde o servidor conta a cada jogador QUEM é perceptível à volta dele (S_NEARBY_PLAYERS). Maior
+// que todo alcance que o cliente mede (anúncio de quem está perto, kill, escudo, engolir) de propósito:
+// a lista só diz quem PODE ser anunciado, e a distância exata continua sendo medida no cliente. Com a
+// folga, o atraso da lista não corta ninguém que acabou de chegar perto.
+const float PERCEPTION_SET_RANGE = 3.5;
 // Ritmo dos passos e dos esbarrões ao andar. Compartilhado pela partida e pelo modo de conhecer o
 // mapa - os dois têm que soar iguais, senão o mapa "aprendido" não é o mapa jogado.
 //

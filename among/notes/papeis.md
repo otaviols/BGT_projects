@@ -141,9 +141,9 @@ precisa perguntar `swallowed()` também, ou o engolido ganha junto.
 - Engolir tem som próprio (`events/wolf_swallow.ogg`), para o lobo, o engolido e quem está perto
   (posicionado). A primeira versão usava o som do kill para os vizinhos, apostando em "procura o corpo
   e não acha"; com o som próprio, ouvir diz que há um lobo a bordo - sem dizer quem.
-- Pendência conhecida, herdada dos dutos: o elenco dos OUTROS clientes guarda o engolido no último
-  ponto em que andou. Quem passa por ali ouve o nome dele como "jogador por perto", e o impostor que
-  mirar nele tem o kill recusado calado - o mesmo que já acontece com quem entrou num duto.
+- O elenco dos OUTROS clientes guarda o engolido no último ponto em que andou; quem passa por ali não
+  o ouve anunciado porque o servidor manda a cada um quem é perceptível perto dele (S_NEARBY_PLAYERS,
+  ver notes/som.md). Era um defeito herdado dos dutos, consertado junto.
 Sonda: `tools/probes/probe_wolf.nvgt` (engolir, privacidade dos pacotes, voz da barriga, reunião,
 expulsão devolvendo, e a vitória por sobrar).
 

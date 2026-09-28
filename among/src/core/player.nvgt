@@ -104,6 +104,11 @@ class game_player {
 	// diz, e assim não recebe 128 kbps de áudio que não sabe tocar.
 	bool voice_enabled = false;
 
+	// A última lista de quem é perceptível perto dele que o servidor mandou (ver S_NEARBY_PLAYERS), para
+	// só mandar de novo quando mudar. Vazia no começo de cada partida, e por isso a primeira sempre sai.
+	array<uint64> nearby_sent;
+	bool nearby_sent_once = false;
+
 	// --- Bot ---
 	// Bots são game_player normais em tudo (entram na contagem, recebem tasks, podem ser mortos,
 	// expulsos e reportados); a diferença é que ninguém manda C_MOVE por eles e nenhum pacote é
@@ -253,6 +258,8 @@ class game_player {
 		named_by_color = false;
 		alive = true;
 		swallowed_by = 0;
+		nearby_sent.resize(0);
+		nearby_sent_once = false;
 		left_match = false;
 		set_role(ROLE_CREWMATE);
 		vented = false;

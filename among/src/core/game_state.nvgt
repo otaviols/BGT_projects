@@ -228,10 +228,27 @@ class game_state {
 		array<game_player@> result;
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ p = players[i];
-			// `invisible()` entra ao lado de `vented` porque é a mesma ideia: presente, mas
-			// imperceptível. Pendurar aqui é o que faz o radar E a câmera concordarem de graça.
-			if (p.peer_id == except_peer || !p.alive || p.vented || p.invisible()) continue;
+			if (p.peer_id == except_peer || !is_perceptible(p)) continue;
 			if (map.room_id_at(p.x, p.y) == room_id) result.insert_last(p);
+		}
+		return result;
+	}
+
+	// Pode ser percebido por outro jogador: vivo (o engolido tem alive = false), fora de duto e visível.
+	// `invisible()` entra ao lado de `vented` porque é a mesma ideia: presente, mas imperceptível. A regra
+	// mora aqui para o radar, a câmera e a lista de quem está perto (players_near) concordarem de graça.
+	bool is_perceptible(game_player@ p) const {
+		return p.alive && !p.vented && !p.invisible();
+	}
+
+	// Quem é perceptível a até `range` de `me`, sem ele. É a lista que o servidor manda a cada jogador em
+	// S_NEARBY_PLAYERS.
+	array<uint64>@ players_near(game_player@ me, float range) const {
+		array<uint64> result;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.peer_id == me.peer_id || !is_perceptible(p)) continue;
+			if (distance_2d(me.x, me.y, p.x, p.y) <= range) result.insert_last(p.peer_id);
 		}
 		return result;
 	}

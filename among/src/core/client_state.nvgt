@@ -25,9 +25,24 @@ client_roster@ g_match_roster;
 
 class client_roster {
 	array<roster_entry@> entries;
+	// Quem o SERVIDOR diz ser perceptível perto de mim (S_NEARBY_PLAYERS). nearest_alive só escolhe entre
+	// eles: sem isto, quem entrou num duto, foi engolido ou ficou invisível continuava parado no último
+	// ponto, e era anunciado a quem passasse e mirado pela tecla de matar. `perceptible_known` fica
+	// falso com servidor antigo, que não manda a lista - aí vale o comportamento de antes.
+	array<uint64> perceptible;
+	bool perceptible_known = false;
 
 	void reset() {
 		entries.resize(0);
+		perceptible.resize(0);
+		perceptible_known = false;
+	}
+
+	void set_perceptible(net_packet@ pkt) {
+		perceptible.resize(0);
+		json_array@ peers = pkt.get_array("peers");
+		if (@peers != null) for (uint i = 0; i < peers.length(); i++) perceptible.insert_last(uint64(peers[i]));
+		perceptible_known = true;
 	}
 
 	void add(uint64 peer_id, const string&in name, int color, float x = 0.0, float y = 0.0) {
@@ -89,6 +104,7 @@ class client_roster {
 		for (uint i = 0; i < entries.length(); i++) {
 			roster_entry@ e = entries[i];
 			if (!e.alive || e.peer_id == exclude_peer) continue;
+			if (perceptible_known && perceptible.find(e.peer_id) == -1) continue;
 			if (@also_exclude != null && also_exclude.find(e.peer_id) != -1) continue;
 			float dist = distance_2d(x, y, e.x, e.y);
 			if (dist <= best_dist) {
