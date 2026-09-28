@@ -179,8 +179,8 @@ const string S_KILL_WITNESSED = "s_kill_witnessed";     // {killer_name, victim_
 // Só para quem foi engolido: está na barriga, e de quem (o nome VERDADEIRO, como a vítima de um
 // assassinato ouve quem a matou - lá dentro ele não tem a quem contar, além do próprio lobo).
 const string S_SWALLOWED = "s_swallowed";                // {wolf_peer, wolf_name}
-// Para a partida inteira, menos o lobo e o engolido: o SOM do assassinato no ponto onde aconteceu, e
-// nada mais - nem quem, nem que foi engolir. Quem ouve vai procurar um corpo e não acha nenhum.
+// Para a partida inteira, menos o lobo e o engolido: o SOM de engolir no ponto onde aconteceu, e nada
+// mais - nem quem engoliu, nem quem foi engolido.
 const string S_SWALLOW_SOUND = "s_swallow_sound";        // {x, y}
 // O lobo saiu do jogo (morto, expulso, saiu): quem estava na barriga volta vivo em (x, y). Para todos.
 const string S_BELLY_RELEASED = "s_belly_released";      // {peers: [peer_id...], x, y}

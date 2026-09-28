@@ -532,8 +532,8 @@ Jester wanting out?".
 
 **Big Bad Wolf** (neutral). With the ability key, they **swallow** whoever is right next to them.
 There is no body: the person goes into the wolf's belly. In there they cannot move, vote or do tasks;
-they talk only with the wolf and whoever else the wolf swallowed, and only those hear them. To anyone
-nearby, a swallow sounds like a kill, but nobody will find a body. At the meeting nothing is
+they talk only with the wolf and whoever else the wolf swallowed, and only those hear them. Anyone
+nearby hears the swallow, but not who swallowed whom. At the meeting nothing is
 announced: the swallowed simply are not on the voting list. If the wolf **dies or is voted out**,
 everyone in the belly comes back, alive, where the wolf fell. The wolf wins if left alive with the
 ship down to them and at most one other person. While the wolf lives, ejecting the impostors is not

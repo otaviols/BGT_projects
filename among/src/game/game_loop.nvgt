@@ -1023,9 +1023,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				alive = false;
 				mui.alive = false;
 				is_vented = false;
-				// O som da morte é o da vítima, e é o que se ouve ao ser engolido - sem posição: é ele.
-				roster_entry@ eu = roster.find(client.my_peer_id);
-				audio.play_death(@eu != null ? eu.color : -1, my_x, my_y);
+				// O som de engolir, no próprio ponto: é com ele.
+				audio.play_wolf_swallow(my_x, my_y);
 				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 					my_role, alive, known_body_peers, known_body_positions);
 				audio.stop_landmark_beacons(); // tarefa, botão, painel: nada disso está ao alcance aqui
@@ -1033,8 +1032,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				if (!pkt.announced) speak(engolido);
 				events_log.add("", engolido);
 			} else if (t == S_SWALLOW_SOUND) {
-				// O som do assassinato, no ponto - e nada mais. Não vem corpo depois: é a pista do lobo.
-				audio.play_kill_laugh(-1, pkt.get_float("x"), pkt.get_float("y"));
+				// O som de engolir, no ponto - e nada mais: nem quem, nem quem foi engolido.
+				audio.play_wolf_swallow(pkt.get_float("x"), pkt.get_float("y"));
 			} else if (t == S_BELLY_RELEASED) {
 				// O lobo caiu: quem estava na barriga volta, vivo, onde ele caiu.
 				float rx = pkt.get_float("x"), ry = pkt.get_float("y");
@@ -1080,11 +1079,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					if (qual == ABILITY_GUESS && guesses_left_this_meeting > 0) guesses_left_this_meeting--;
 					if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
 					// Engoliu: quem foi para a barriga sai do elenco do lobo (bip de alvo, tecla, lista da
-					// reunião). O som é o do assassinato, sem posição - é ele quem fez.
+					// reunião). O som de engolir toca no ponto dele - é ele quem fez.
 					if (qual == ABILITY_EAT) {
 						if (pending_eat_peer != 0) roster.mark_dead(pending_eat_peer);
 						pending_eat_peer = 0;
-						audio.play_kill_laugh(-1, my_x, my_y);
+						audio.play_wolf_swallow(my_x, my_y);
 					}
 					if (qual == ABILITY_VANISH) {
 						my_invisible_remaining = pkt.get_float("duration_seconds", PHANTOM_INVISIBLE_SECONDS);

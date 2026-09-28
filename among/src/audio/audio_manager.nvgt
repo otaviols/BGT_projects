@@ -290,6 +290,11 @@ class audio_manager {
 		spatial.play_once(SND_SHAPE_SHIFT, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
+	// Posicionado: para o lobo e o engolido o ponto é onde eles mesmos estão, então soa "em cima".
+	void play_wolf_swallow(float x, float y) {
+		spatial.play_once(SND_WOLF_SWALLOW, x, y, family_db(SOUND_FAMILY_EVENTS));
+	}
+
 	// Alguém morreu NA MESA, pelo palpite do sniper. É o MESMO som do assassinato, tocado SEM
 	// posição - e as duas coisas são a mensagem: "kill" já significa assassinato para quem joga, e a
 	// ausência de posição diz que foi aqui, na reunião, e não em algum lugar da nave. Um som novo

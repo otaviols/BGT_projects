@@ -494,8 +494,8 @@ role_traits@ role_jester() {
 // gente. E muda a do lobo: cada engolido é alguém que ele ouve implorar, e que volta contra ele se
 // ele cair.
 //
-// O som, para quem está perto, é o do assassinato - de propósito: quem ouve vai procurar um corpo e
-// não acha nenhum, e essa é a pista que o lobo deixa. Quem está colado vê, como vê um assassinato.
+// Engolir tem SOM PRÓPRIO (SND_WOLF_SWALLOW), posicionado para quem está por perto: diferente do kill,
+// ele diz "há um lobo a bordo", sem dizer quem. Quem está colado vê, como vê um assassinato.
 //
 // Não faz tarefa que conte (vê os pontos no radar, para fingir), não usa duto e não sabota. O xerife
 // pode derrubá-lo sem errar o tiro (hostile_to_crew), e enquanto ele estiver vivo a tripulação não

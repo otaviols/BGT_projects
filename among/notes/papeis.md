@@ -138,8 +138,9 @@ precisa perguntar `swallowed()` também, ou o engolido ganha junto.
 - A recarga COMEÇA correndo (`ability_starts_on_cooldown`, que o cliente lê em
   `ability_initial_cooldown`): engolir no primeiro segundo, com todos juntos no ponto de partida,
   acabava a partida de três antes de ela começar.
-- O som para quem está perto é o do KILL, de propósito (quem ouve procura um corpo e não acha). Não há
-  som próprio de engolir: um arquivo `events/` novo seria bem-vindo, mas o do kill não é gambiarra.
+- Engolir tem som próprio (`events/wolf_swallow.ogg`), para o lobo, o engolido e quem está perto
+  (posicionado). A primeira versão usava o som do kill para os vizinhos, apostando em "procura o corpo
+  e não acha"; com o som próprio, ouvir diz que há um lobo a bordo - sem dizer quem.
 - Pendência conhecida, herdada dos dutos: o elenco dos OUTROS clientes guarda o engolido no último
   ponto em que andou. Quem passa por ali ouve o nome dele como "jogador por perto", e o impostor que
   mirar nele tem o kill recusado calado - o mesmo que já acontece com quem entrou num duto.

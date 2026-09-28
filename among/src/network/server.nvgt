@@ -616,7 +616,7 @@ class game_server {
 			dentro.set_uint64("wolf_peer", p.peer_id);
 			dentro.set_string("wolf_name", p.public_name());
 			send_to(alvo_peer, dentro);
-			// Para o resto da nave, o som do assassinato ali - e só. Sem corpo depois (ver role_wolf).
+			// Para o resto da nave, o som de engolir ali - e só: nem quem, nem quem foi engolido.
 			net_packet@ som = net_packet(S_SWALLOW_SOUND);
 			som.set_float("x", alvo.x);
 			som.set_float("y", alvo.y);
