@@ -616,6 +616,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 
 	array<player_task> my_tasks;
 	array<string> my_task_object_ids;
+	// Todos os pontos de tarefa do mapa: o radar de objetos do impostor (ver a tecla do radar).
+	array<string> all_task_spot_ids;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		if (map.objects[i].obj_type == OBJ_TASK_SPOT) all_task_spot_ids.insert_last(map.objects[i].id);
+	}
 	json_array@ tasks_json = start_pkt.get_array("tasks");
 	if (@tasks_json != null) {
 		for (uint i = 0; i < tasks_json.length(); i++) {
@@ -1371,10 +1376,15 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			// Comunicações sabotadas derrubam os DOIS modos: o de jogadores o servidor já recusa, e o
 			// de objetos é resolvido aqui no cliente, então tem que ser barrado aqui. O impostor é
 			// imune à própria sabotagem e continua com o radar inteiro (ver on_radar_scan no servidor).
+			// Quem NÃO faz tarefa de verdade (o time impostor) vê no radar de objetos TODOS os pontos de
+			// tarefa da sala - é o que deixa fingir que está fazendo uma no lugar certo. O tripulante
+			// continua vendo só as SUAS pendentes (ver interactables_in_room). Só o radar: os marcadores
+			// sonoros das tarefas continuam sendo de quem as tem.
+			array<string>@ tarefas_no_radar = my_role.tasks_count_for_crew ? @my_task_object_ids : @all_task_spot_ids;
 			if (comms_down_for(active_sabotage_id, my_role, alive)) speak(tr("sabotage.comms.radar_down"));
 			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
-			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
-			else radar.scan_next(map, my_x, my_y, my_task_object_ids, active_sabotage_id);
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, tarefas_no_radar, active_sabotage_id);
+			else radar.scan_next(map, my_x, my_y, tarefas_no_radar, active_sabotage_id);
 		}
 
 		// Fantasma (morto ou expulso) entra aqui junto com os vivos porque ele PRECISA conseguir
