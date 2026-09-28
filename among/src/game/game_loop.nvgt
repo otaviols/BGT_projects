@@ -1425,7 +1425,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// for consertado, quem estiver parado do lado do corpo ouve o aviso na hora.
 					near_body_last_frame = near_body_now && !comms_down;
 
-					if (alive && float(footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
+					// Morto, só se o jogador pediu (ver game_settings.ghost_own_footsteps).
+					if ((alive || g_settings.ghost_own_footsteps) && float(footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
 						footstep_clock.restart();
 						string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
 						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);

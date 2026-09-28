@@ -91,6 +91,7 @@ void run_hearing_screen() {
 	int f_pitch = f.create_input_box(tr("settings.spatial_pitch"), "" + g_settings.spatial_pitch_percent);
 	int f_beep = f.create_checkbox(tr("settings.target_range_beep"), g_settings.target_range_beep);
 	int f_exits = f.create_checkbox(tr("settings.exit_alignment_beep"), g_settings.exit_alignment_beep);
+	int f_ghost_steps = f.create_checkbox(tr("settings.ghost_own_footsteps"), g_settings.ghost_own_footsteps);
 	// Som com o jogo em segundo plano (recado #127). Mora na audição porque decide o que se OUVE quando
 	// se usa outra janela - e não é um volume a mais para ajustar.
 	int f_background = f.create_list(tr("settings.background_audio"));
@@ -115,6 +116,7 @@ void run_hearing_screen() {
 			g_settings.spatial_pitch_percent = p;
 			g_settings.target_range_beep = f.is_checked(f_beep);
 			g_settings.exit_alignment_beep = f.is_checked(f_exits);
+			g_settings.ghost_own_footsteps = f.is_checked(f_ghost_steps);
 			int bg = f.get_list_position(f_background);
 			g_settings.background_audio = bg >= 0 ? f.get_list_item_id(f_background, bg) : BACKGROUND_AUDIO_NORMAL;
 			g_settings.save();

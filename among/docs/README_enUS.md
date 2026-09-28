@@ -134,6 +134,10 @@ walking straight that way takes you out through it — a sound plays on its side
 if you leave the line and come back. The passage you just came in through stays quiet. It works in
 **Explore the map** too, which is the best place to learn each room's doors.
 
+**Hear my own footsteps after I die**, off by default: ghosts walk silently, but if you want your own
+steps to find your way while doing ghost tasks, turn it on. Only you hear them: the living still hear
+no ghosts at all.
+
 And **sound while you use another window**: normal (the default), much quieter, or
 no sound. It is for anyone who has died and finished their tasks and wants to do something else on
 the computer while the match ends, without the conversation on top. Screen reader speech does not

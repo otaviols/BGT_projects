@@ -130,6 +130,10 @@ uma vez só. Ele volta a tocar se você sair do alinhamento e voltar. A passagem
 de entrar não avisa. Funciona também no **Conhecer o mapa**, que é o melhor lugar para aprender as
 portas de cada sala.
 
+**Ouvir os meus passos depois de morto**, desligado por padrão: o fantasma anda em silêncio, mas quem
+quiser se orientar pelos próprios passos enquanto faz as tarefas de fantasma pode ligar. Só você ouve:
+os vivos continuam sem ouvir fantasma nenhum.
+
 E o **som quando você usa outra janela**: normal (o padrão), bem mais baixo, ou sem
 som. É para quem já morreu e terminou as tarefas e quer fazer outra coisa no computador enquanto a
 partida acaba, sem a conversa por cima. A fala do leitor de tela não muda — silenciá-la interromperia

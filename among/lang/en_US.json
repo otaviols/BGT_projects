@@ -715,6 +715,7 @@
   "camera.hint_grid": "The arrows move to the neighboring room on that side of the map: up goes to the room to the north, right to the east. The radar key says who is there, and ESC turns it off.",
   "camera.no_room_that_way": "No room that way.",
   "settings.exit_alignment_beep": "Play a sound when you are lined up with a room exit",
+  "settings.ghost_own_footsteps": "Hear my own footsteps after I die",
   "settings.background_audio":"Sound while you use another window",
   "settings.background_audio.normal": "Normal",
   "settings.background_audio.quiet": "Much quieter",

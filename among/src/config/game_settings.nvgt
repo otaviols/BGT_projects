@@ -188,6 +188,11 @@ class game_settings {
 	// O aviso de alinhado com uma saída da sala (ver game/exit_alignment.nvgt). Ligado por padrão: é
 	// pedido antigo, e quem não quiser desliga na tela de audição.
 	bool exit_alignment_beep = true;
+	// Ouvir os PRÓPRIOS passos depois de morto. Desligado por padrão, que era o comportamento de sempre:
+	// o fantasma anda em silêncio. Há quem prefira ouvir para se orientar enquanto faz as tarefas de
+	// fantasma - e isto não cria informação nenhuma para os outros: só toca no cliente de quem morreu, e
+	// os vivos continuam sem receber a posição dele (ver on_move no servidor).
+	bool ghost_own_footsteps = false;
 	private bool _window_was_active = true;
 
 	float background_offset_db() const {
@@ -229,6 +234,7 @@ class game_settings {
 		preferred_color = int(store.read_number("preferred_color", -1));
 		background_audio = store.read_string("background_audio", BACKGROUND_AUDIO_NORMAL);
 		exit_alignment_beep = store.read_number("exit_alignment_beep", 1) != 0;
+		ghost_own_footsteps = store.read_number("ghost_own_footsteps", 0) != 0;
 		if (background_audio != BACKGROUND_AUDIO_QUIET && background_audio != BACKGROUND_AUDIO_MUTE) background_audio = BACKGROUND_AUDIO_NORMAL;
 		language = store.read_string("language", DEFAULT_LANGUAGE);
 		if (language == "") language = DEFAULT_LANGUAGE;
@@ -315,6 +321,7 @@ class game_settings {
 		store.write_number("preferred_color", preferred_color);
 		store.write_string("background_audio", background_audio);
 		store.write_number("exit_alignment_beep", exit_alignment_beep ? 1 : 0);
+		store.write_number("ghost_own_footsteps", ghost_own_footsteps ? 1 : 0);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));
 		store.write_number("radar_continuous", radar_continuous ? 1 : 0);
