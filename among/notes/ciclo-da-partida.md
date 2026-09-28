@@ -43,6 +43,19 @@ defeito (estado desfeito só de um lado), depois da reunião e da morte. Sonda:
 `tools/probes/probe_camera_game_over.nvgt`, que acaba a partida por MAIORIA - por reunião o defeito
 não aparece, porque a reunião já fechava as câmeras - e que falha contra o servidor sem a correção.
 
+**Bot age PEDINDO, e o servidor executa pelo tratador do jogador** (`bot_request` em game_state,
+consumido em `tick_lobbies`). Consertar painel vira um `C_INTERACT` passado a `on_interact`; reportar
+corpo, um `C_REPORT_BODY` a `on_report_body` - os mesmos de quem joga, com todos os efeitos (aviso de
+painel, reunião, câmeras, scanner, portas). Duas peças deixam isso funcionar e falham caladas se
+sumirem: `find_lobby_of_peer` acha a sala de um BOT (ele não é conexão; sem isso o tratador volta na
+primeira linha e nada acontece), e `send_to` ignora ids de bot (`BOT_PEER_ID_BASE`), para onde os
+tratadores respondem. Tripulante bot MORTO continua fazendo tarefa (e só isso); os passos dele saem
+só para os mortos, pela mesma triagem do `on_move`. Tempos de reação (`BOT_*_REACTION`) existem para
+o bot não resolver tudo no mesmo quadro - e ele PARA ao ver um corpo, senão passaria por ele antes de
+a reação acabar. Sondas: `probe_bot_ai` (estado, sem rede - o oxigênio precisa do `sabotage_timer`
+armado, senão "acaba" no primeiro quadro e a sonda passa em 0 s) e `probe_bots_fix_sabotage` (o
+caminho de rede de ponta a ponta).
+
 **A reunião é uma PAUSA - com UMA exceção, o sniper.** Ele aponta alguém na mesa e mata se acertar o
 papel (ver notes/papeis.md). A exceção é declarada pelo papel (`ability_usable_in_meeting`), e não
 escrita como um furo no `if` do servidor: a regra abaixo continua valendo para todo o resto, e quem

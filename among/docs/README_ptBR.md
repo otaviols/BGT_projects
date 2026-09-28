@@ -550,6 +550,11 @@ Eles andam pela nave, fazem tarefas, votam nas reuniões e podem ser sorteados c
 quando são, caçam, matam quando ninguém está por perto e sabotam. Servem para completar uma partida
 ou para treinar sozinho.
 
+Os bots da tripulação também **reportam corpos** que encontram (param, "percebem" por um instante e
+reportam), **consertam sabotagens** (depois de alguns segundos, para dar a chance de alguém chegar
+antes) e, **depois de mortos, continuam fazendo tarefas** como fantasmas — os passos deles só são
+ouvidos por outros mortos. Eles sempre pulam o voto: um bot não decide quem sai da nave.
+
 Cada bot recebe o sobrenome de um astronauta de verdade — Gagarin, Tereshkova, Pontes, Neri,
 Jemison, entre outros —, sem repetir ninguém da sala. A lista de quem está na sala (tecla **P**)
 continua dizendo quem é bot.

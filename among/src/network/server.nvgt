@@ -18,7 +18,8 @@
 uint g_lobby_counter = 0;
 // Ids de bot vivem bem longe da faixa que o ENet usa pra peers de verdade (que vão de 0 até o
 // max_peers do setup_server), então nunca colidem com o id de um jogador conectado.
-uint64 g_bot_peer_counter = 1000000;
+const uint64 BOT_PEER_ID_BASE = 1000000;
+uint64 g_bot_peer_counter = BOT_PEER_ID_BASE;
 
 void shuffle_int_array(array<int>@ arr) {
 	for (int i = int(arr.length()) - 1; i > 0; i--) {
@@ -189,11 +190,23 @@ class game_server {
 
 	game_state@ find_lobby_of_peer(uint64 peer_id) const {
 		game_player@ conn = find_connection(peer_id);
+		// Bot não é conexão: a sala dele sai da lista de jogadores. É o que deixa os tratadores dos
+		// jogadores (on_interact, on_report_body) servirem também aos pedidos dos bots.
+		if (@conn == null && peer_id >= BOT_PEER_ID_BASE) {
+			for (uint i = 0; i < lobbies.length(); i++) {
+				if (@lobbies[i].find_player(peer_id) != null) return lobbies[i];
+			}
+			return null;
+		}
 		if (@conn == null || conn.lobby_id == "") return null;
 		return find_lobby(conn.lobby_id);
 	}
 
 	void send_to(uint64 peer_id, net_packet@ pkt, bool reliable = true) {
+		// Bot não tem conexão (ids a partir de BOT_PEER_ID_BASE). Os bots agora agem pelos MESMOS
+		// tratadores dos jogadores (consertar painel, reportar corpo), e esses respondem a quem pediu -
+		// sem esta guarda, a resposta iria para um peer que não existe.
+		if (peer_id >= BOT_PEER_ID_BASE) return;
 		if (reliable) net.send_reliable(peer_id, pkt.to_wire(), CHANNEL_RELIABLE);
 		else net.send_unreliable(peer_id, pkt.to_wire(), CHANNEL_UNRELIABLE);
 	}
@@ -2376,8 +2389,25 @@ class game_server {
 				// Movimento (hoje só de bot) vai pelo canal não confiável, igual o dos jogadores de
 				// verdade: chega muitas vezes por segundo e perder um pacote não custa nada.
 				bool reliable = events[e].type != S_PLAYER_MOVED;
+				// Bot MORTO andando (fantasma fazendo tarefa): os passos só vão a outros mortos, como os
+				// do fantasma humano em on_move - senão os vivos ouviriam um fantasma pela nave.
+				if (!reliable) {
+					game_player@ quem = lobby.find_player(events[e].get_uint64("peer_id"));
+					if (@quem != null && !quem.alive) { broadcast_to_dead_players(lobby, events[e], quem.peer_id); continue; }
+				}
 				broadcast_to_lobby(lobby, events[e], 0, reliable);
 			}
+			// O que os bots PEDIRAM neste tick, executado pelos MESMOS tratadores dos jogadores (ver
+			// bot_request em game_state). Um pacote igual ao que o cliente mandaria, e nenhum atalho.
+			for (uint r = 0; r < lobby.bot_requests.length(); r++) {
+				if (lobby.state != "in_progress") break; // o primeiro reporte já abriu a reunião
+				bot_request@ pedido = lobby.bot_requests[r];
+				net_packet@ como_cliente = net_packet(pedido.kind == BOT_REQUEST_FIX_PANEL ? C_INTERACT : C_REPORT_BODY);
+				como_cliente.set_string("object_id", pedido.object_id);
+				if (pedido.kind == BOT_REQUEST_FIX_PANEL) on_interact(pedido.peer_id, como_cliente);
+				else on_report_body(pedido.peer_id, como_cliente);
+			}
+			lobby.bot_requests.resize(0);
 			// Fantasias que venceram. Fora do tick do game_state de propósito: desfazer o disfarce é
 			// estado, mas AVISAR quem voltou e tocar o som é rede, e rede é deste lado.
 			expire_disguises(lobby);

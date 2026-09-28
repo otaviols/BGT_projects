@@ -556,6 +556,11 @@ In the waiting room the host can add bots with **B** (up to 8) and remove them w
 They walk the ship, do tasks, vote in meetings and can be drawn as impostors — when they are, they
 hunt, kill when nobody is around, and sabotage. Useful to fill out a match or to practise alone.
 
+Crew bots also **report bodies** they come across (they stop, "notice" for a moment, and report),
+**fix sabotages** (after a few seconds, so someone gets the chance to arrive first), and **keep doing
+tasks after dying**, as ghosts — their footsteps are heard only by other dead players. They always
+skip the vote: a bot does not decide who leaves the ship.
+
 Each bot gets the surname of a real astronaut — Gagarin, Tereshkova, Pontes, Neri, Jemison, among
 others — never repeating anyone in the lobby. The lobby player list (**P** key) still says which
 ones are bots.

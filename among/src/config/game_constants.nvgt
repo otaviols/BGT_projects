@@ -249,6 +249,15 @@ const float BOT_IDLE_MAX_SECONDS = 6.0;
 const float BOT_VOTE_MIN_SECONDS = 5.0;  // demora até o bot votar (sempre "pular")
 const float BOT_VOTE_MAX_SECONDS = 15.0;
 const float BOT_WAYPOINT_REACHED_DISTANCE = 0.6;
+// Reação do bot tripulante a uma sabotagem: quanto demora para largar o que faz e ir ao painel. Longa
+// o bastante para um humano ter a chance de ir primeiro - o bot existe para não deixar a nave morrer
+// sozinha, não para resolver toda sabotagem antes de alguém ouvir o alarme.
+const float BOT_SABOTAGE_REACTION_MIN = 4.0;
+const float BOT_SABOTAGE_REACTION_MAX = 10.0;
+// E a um corpo no chão: o tempo de "perceber" antes de reportar. Sem isso, o reporte saía no mesmo
+// quadro em que o bot chegava perto - rápido demais para qualquer pessoa, e um sinal de que é bot.
+const float BOT_REPORT_REACTION_MIN = 1.0;
+const float BOT_REPORT_REACTION_MAX = 3.0;
 // Bot impostor: caça o tripulante vivo mais próximo, mas só mata se ninguém estiver por perto pra
 // ver - a chance de sabotagem é por segundo (a ~2% ele sabota umas poucas vezes por partida).
 const float BOT_KILL_WITNESS_RANGE = 6.0;

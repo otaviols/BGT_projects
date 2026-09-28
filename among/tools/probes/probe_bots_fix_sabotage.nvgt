@@ -1,0 +1,65 @@
+// Sonda de ponta a ponta: os bots consertam a sabotagem PELO SERVIDOR DE VERDADE.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_bots_fix_sabotage.nvgt
+//
+// A probe_bot_ai prova a IA no estado da partida; esta prova o CAMINHO: o pedido do bot passando
+// por on_interact (o tratador do jogador), que só funciona se o servidor achar a sala de um bot -
+// e bot não é conexão. Um humano impostor sabota as luzes e fica parado; se a sabotagem acabar,
+// quem consertou foi um bot.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	// O papel é sorteado: tenta algumas partidas até o humano sair impostor.
+	for (int tentativa = 0; tentativa < 12; tentativa++) {
+		game_client c;
+		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+		string nome = "bs" + random(10000, 99999);
+		c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(nome, "probe123");
+		net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		lobby_overrides ov;
+		ov.impostor_count = 1;
+		c.send_create_lobby("sabotagem", "classic", ov);
+		if (@wf(c, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
+		for (int b = 0; b < 3; b++) { c.send_add_bot(); timer w; while (w.elapsed < 200) { c.update(); c.clear_incoming(); wait(5); } }
+		c.send_start_game();
+		net_packet@ s = wf(c, S_GAME_START, 8000);
+		if (@s == null) { println("nao comecou"); return; }
+		if (role_for(s.get_string("your_role")).team != TEAM_IMPOSTOR) { c.disconnect(); continue; }
+		println("humano saiu impostor na tentativa " + (tentativa + 1));
+
+		// A sabotagem tem recarga inicial: insiste até ser aceita (ver notes/sondas.md).
+		bool sabotou = false;
+		timer insiste;
+		while (!sabotou && insiste.elapsed < 60000) {
+			c.send_trigger_sabotage("lights");
+			timer r;
+			while (r.elapsed < 1500 && !sabotou) {
+				c.update();
+				net_packet@ p = c.poll_message();
+				while (@p != null) { if (p.type == S_SABOTAGE_STARTED) sabotou = true; @p = c.poll_message(); }
+				wait(5);
+			}
+		}
+		println(sabotou ? "  luzes sabotadas; o humano agora fica parado" : "  FALHA: a sabotagem nao comecou");
+		if (!sabotou) { c.disconnect(); return; }
+		timer relogio;
+		net_packet@ fim = wf(c, S_SABOTAGE_FIXED, 120000);
+		println(@fim != null ? "  ok     os bots consertaram as luzes em " + (relogio.elapsed / 1000) + " s" : "  FALHA  ninguem consertou em 120 s");
+		println(@fim != null ? "RESULTADO: ok" : "RESULTADO: FALHA");
+		c.disconnect();
+		return;
+	}
+	println("o humano nao saiu impostor em 12 tentativas");
+}

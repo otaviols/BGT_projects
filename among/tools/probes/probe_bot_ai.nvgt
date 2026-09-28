@@ -1,0 +1,148 @@
+// Sonda da IA dos bots tripulantes, direto no estado da partida (sem rede), com o MESMO tick do
+// servidor rodando segundo a segundo. Sem rede de propósito: numa partida real os bots andam por onde
+// querem e cada rodada mediria outra coisa.
+//   nvgt tools/probes/probe_bot_ai.nvgt
+//
+// Confere:
+//   1. o bot vivo que chega perto de um corpo PARA e pede o reporte, depois da reação - e não na hora;
+//   2. numa sabotagem, o bot vivo vai ao painel e o conserto funciona (luzes, um painel);
+//   3. no oxigênio (dois painéis), dois bots dão conta dos dois;
+//   4. o bot tripulante MORTO continua fazendo a tarefa dele, e nunca pede reporte nem conserto.
+// Os pedidos dos bots são executados aqui como o servidor faria (try_fix_sabotage_panel), para o
+// teste andar até o fim; o caminho de rede deles é o on_interact/on_report_body de sempre.
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+const float DT = 0.05;
+
+// Uma partida parada: um impostor humano longe (não caça ninguém) e dois tripulantes humanos com
+// tarefa pendente - senão a partida acabaria sozinha por maioria ou por tarefas no meio do teste.
+game_state@ partida() {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	lobby.sabotage_cooldown_remaining = 999.0;
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	game_player@ imp = game_player(1, "imp");
+	imp.set_role(ROLE_IMPOSTOR);
+	imp.x = 35; imp.y = 6;
+	lobby.players.insert_last(imp);
+	for (uint64 id = 2; id <= 3; id++) {
+		game_player@ h = game_player(id, "humano" + id);
+		player_task t;
+		t.object_id = spots[0].id;
+		t.task_type = spots[0].task_type;
+		h.tasks.insert_last(t);
+		lobby.players.insert_last(h);
+	}
+	return lobby;
+}
+
+game_player@ bot(game_state@ lobby, uint64 id, float x, float y) {
+	game_player@ b = game_player(id, "bot" + id);
+	b.is_bot = true;
+	b.set_role(ROLE_CREWMATE);
+	b.x = x; b.y = y;
+	lobby.players.insert_last(b);
+	return b;
+}
+
+// Executa os pedidos de conserto como o servidor faria, e devolve quantos pedidos de reporte houve.
+int processa_pedidos(game_state@ lobby, array<string>@ consertados) {
+	int reportes = 0;
+	for (uint r = 0; r < lobby.bot_requests.length(); r++) {
+		bot_request@ p = lobby.bot_requests[r];
+		if (p.kind == BOT_REQUEST_REPORT) { reportes++; continue; }
+		net_packet@ ev; int feitos, precisa; string motivo;
+		lobby.try_fix_sabotage_panel(p.peer_id, p.object_id, ev, feitos, precisa, motivo);
+		if (motivo == "" && consertados.find(p.object_id) == -1) consertados.insert_last(p.object_id);
+	}
+	lobby.bot_requests.resize(0);
+	return reportes;
+}
+
+void main() {
+	println("== 1. corpo perto: para e reporta depois da reacao ==");
+	{
+		game_state@ lobby = partida();
+		game_player@ b = bot(lobby, 10, 0.0, 0.0);
+		body_info c;
+		c.id = "corpo"; c.victim_peer_id = 99; c.x = 0.8; c.y = 0.0; c.room_id = "cafeteria";
+		lobby.bodies.insert_last(c);
+		float t = 0.0, quando = -1.0;
+		array<string> nada;
+		while (t < 8.0 && quando < 0.0) {
+			lobby.tick(DT); t += DT;
+			if (processa_pedidos(lobby, nada) > 0) quando = t;
+		}
+		confere("o bot reportou o corpo (em " + quando + " s)", quando > 0.0);
+		confere("nao reportou na hora: esperou a reacao (>= " + BOT_REPORT_REACTION_MIN + " s)", quando >= BOT_REPORT_REACTION_MIN);
+	}
+
+	println("== 2. luzes: o bot vai ao painel e conserta ==");
+	{
+		game_state@ lobby = partida();
+		bot(lobby, 10, 0.0, 0.0);
+		lobby.active_sabotage = "lights";
+		float t = 0.0;
+		array<string> consertados;
+		while (t < 90.0 && lobby.active_sabotage != "") { lobby.tick(DT); t += DT; processa_pedidos(lobby, consertados); }
+		confere("as luzes foram consertadas pelo bot (em " + int(t) + " s)", lobby.active_sabotage == "");
+		confere("e ele esperou a reacao antes de sair (>= " + BOT_SABOTAGE_REACTION_MIN + " s)", t >= BOT_SABOTAGE_REACTION_MIN);
+	}
+
+	println("== 3. oxigenio: dois paineis, dois bots ==");
+	{
+		game_state@ lobby = partida();
+		bot(lobby, 10, 0.0, 0.0);
+		bot(lobby, 11, 1.0, 1.0);
+		lobby.active_sabotage = "oxygen";
+		// O cronômetro de verdade. Sem ele o oxigênio "acaba" no primeiro quadro, a partida termina e
+		// a sabotagem some - a primeira versão desta sonda passou exatamente assim, em 0 segundos.
+		lobby.sabotage_timer = SABOTAGE_OXYGEN_TIMER_SECONDS;
+		float t = 0.0;
+		array<string> consertados;
+		while (t < 150.0 && lobby.active_sabotage != "" && lobby.state == "in_progress") { lobby.tick(DT); t += DT; processa_pedidos(lobby, consertados); }
+		confere("a partida NAO acabou por falta de oxigenio (estado: " + lobby.state + ", " + int(t) + " s de " + int(SABOTAGE_OXYGEN_TIMER_SECONDS) + ")", lobby.state == "in_progress");
+		confere("os bots consertaram os dois paineis (" + join(consertados, ", ") + ")", consertados.length() == 2 && lobby.active_sabotage == "");
+	}
+
+	println("== 4. tripulante morto: faz a tarefa, e so ela ==");
+	{
+		game_state@ lobby = partida();
+		game_player@ fantasma = bot(lobby, 10, 0.0, 0.0);
+		fantasma.alive = false;
+		array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		map_object@ alvo = null;
+		for (uint i = 0; i < spots.length() && @alvo == null; i++)
+			if (!lobby.map.is_chain_start(spots[i].id) && !lobby.map.object_in_chain(spots[i].id)) @alvo = spots[i];
+		player_task tarefa;
+		tarefa.object_id = alvo.id;
+		tarefa.task_type = alvo.task_type;
+		fantasma.tasks.insert_last(tarefa);
+		// E tentações que ele tem que ignorar: um corpo do lado e uma sabotagem.
+		body_info c;
+		c.id = "corpo"; c.victim_peer_id = 99; c.x = 0.5; c.y = 0.0; c.room_id = "cafeteria";
+		lobby.bodies.insert_last(c);
+		lobby.active_sabotage = "lights";
+		float t = 0.0;
+		int pedidos = 0;
+		while (t < 120.0 && !fantasma.tasks[0].completed) {
+			lobby.tick(DT); t += DT;
+			pedidos += int(lobby.bot_requests.length());
+			lobby.bot_requests.resize(0);
+		}
+		confere("o fantasma concluiu a tarefa em " + alvo.id + " (em " + int(t) + " s)", fantasma.tasks[0].completed);
+		confere("e nao pediu reporte nem conserto (" + pedidos + " pedidos)", pedidos == 0);
+	}
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

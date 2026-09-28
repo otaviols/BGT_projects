@@ -37,8 +37,29 @@ class vote_entry {
 	int64 target_peer_id; // -1 = pular voto
 }
 
+// Uma ação que um BOT pede - consertar um painel, reportar um corpo - e que o servidor executa pelo
+// MESMO tratador de um jogador (on_interact, on_report_body; ver tick_lobbies). O bot não faz a ação
+// aqui dentro de propósito: o que ela dispara na rede (avisos de painel, reunião, câmeras, portas,
+// scanner) mora no servidor, e um segundo caminho só para bot esqueceria metade - foi exatamente o
+// que aconteceu com a morte por bot, que pulava câmera, scanner e o alarme do alarmista.
+const string BOT_REQUEST_FIX_PANEL = "fix_panel";
+const string BOT_REQUEST_REPORT = "report";
+class bot_request {
+	string kind;
+	uint64 peer_id;
+	string object_id;
+	bot_request() {}
+	bot_request(const string&in kind, uint64 peer_id, const string&in object_id = "") {
+		this.kind = kind;
+		this.peer_id = peer_id;
+		this.object_id = object_id;
+	}
+}
+
 class game_state {
 	string lobby_id;
+	// Pedidos dos bots neste tick; o servidor os executa e esvazia a lista (ver bot_request).
+	array<bot_request@> bot_requests;
 	string lobby_name;
 	// Vazio = partida pública. Com código, ela some da lista e só entra quem o digitar. A comparação
 	// ignora maiúsculas: o código é ditado de viva voz entre amigos, e "Abc" e "abc" soam iguais.
@@ -1074,6 +1095,7 @@ class game_state {
 	private void pick_bot_destination(game_player@ b) {
 		b.bot_target_object_id = "";
 		b.bot_has_target = false;
+		b.bot_fixing = false; // destino novo é tarefa ou passeio; o painel, se ainda faltar, volta pelo bot_crew_react
 
 		// 1) Primeira task pendente dele.
 		for (uint i = 0; i < b.tasks.length(); i++) {
@@ -1209,10 +1231,71 @@ class game_state {
 		return true;
 	}
 
+	// O painel da sabotagem ativa que ainda falta, mais perto do bot (null = nenhum).
+	private map_object@ nearest_unfixed_panel(game_player@ b) {
+		map_object@ melhor = null;
+		float melhor_dist = 0.0;
+		array<map_object@>@ paineis = map.objects_by_type(OBJ_SABOTAGE_PANEL);
+		for (uint i = 0; i < paineis.length(); i++) {
+			map_object@ o = paineis[i];
+			if (o.task_type != active_sabotage || sabotage_fixed_panels.find(o.id) != -1) continue;
+			float d = distance_2d(b.x, b.y, o.x, o.y);
+			if (@melhor == null || d < melhor_dist) { @melhor = o; melhor_dist = d; }
+		}
+		return melhor;
+	}
+
+	// O tripulante VIVO percebe o que acontece em volta: um corpo perto (reporta) e uma sabotagem
+	// (larga o que faz e vai ao painel). Os dois esperam uma reação curta - ver BOT_*_REACTION.
+	private void bot_crew_react(game_player@ b, float delta_seconds) {
+		body_info@ corpo = find_body_near(b.x, b.y, PLAYER_REPORT_RANGE);
+		if (@corpo != null && !meetings_blocked_by_sabotage()) {
+			if (b.bot_report_reaction < 0.0) {
+				b.bot_report_reaction = random_range(BOT_REPORT_REACTION_MIN, BOT_REPORT_REACTION_MAX);
+				// PARA ao perceber: andando, ele passa pelo corpo em um ou dois segundos e sairia do
+				// alcance antes de a reação acabar - e nunca reportaria nada.
+				if (b.bot_action_timer < b.bot_report_reaction + 0.1) b.bot_action_timer = b.bot_report_reaction + 0.1;
+			} else {
+				b.bot_report_reaction -= delta_seconds;
+				if (b.bot_report_reaction <= 0.0) {
+					bot_requests.insert_last(bot_request(BOT_REQUEST_REPORT, b.peer_id));
+					b.bot_report_reaction = -1.0;
+				}
+			}
+		} else b.bot_report_reaction = -1.0;
+
+		if (active_sabotage == "") {
+			if (b.bot_fixing) { b.bot_fixing = false; b.bot_has_target = false; }
+			b.bot_sabotage_reaction = -1.0;
+			return;
+		}
+		// Perdeu o caminho até o painel (a reunião teleporta todo mundo, uma porta fecha): refaz.
+		if (b.bot_fixing && !b.bot_has_target) b.bot_fixing = false;
+		if (b.bot_fixing) return;
+		if (b.bot_sabotage_reaction < 0.0) { b.bot_sabotage_reaction = random_range(BOT_SABOTAGE_REACTION_MIN, BOT_SABOTAGE_REACTION_MAX); return; }
+		b.bot_sabotage_reaction -= delta_seconds;
+		if (b.bot_sabotage_reaction > 0.0) return;
+		map_object@ painel = nearest_unfixed_panel(b);
+		if (@painel == null) return; // todos os painéis já têm alguém resolvendo, ou esta sabotagem não tem painel
+		b.bot_fixing = true;
+		b.bot_action_timer = 0.0; // larga a tarefa que estava fazendo
+		b.bot_target_object_id = painel.id;
+		b.bot_target_x = painel.x;
+		b.bot_target_y = painel.y;
+		b.bot_has_target = true;
+		set_bot_path_to(b, painel.x, painel.y);
+	}
+
 	private void tick_bots(float delta_seconds, array<net_packet@>@ events) {
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ b = players[i];
-			if (!b.is_bot || !b.alive) continue; // bot morto vira fantasma parado, sem som nenhum
+			if (!b.is_bot) continue;
+			// Bot MORTO: o tripulante continua fazendo tarefas, como o fantasma de qualquer jogador -
+			// era um fantasma parado, e com vários bots mortos a vitória por tarefas ficava inalcançável.
+			// Ele não vota, não reporta e não conserta (fantasma não opera nada); o impostor morto para.
+			// Os passos dele só chegam a outros mortos (ver tick_lobbies no servidor).
+			if (!b.alive && (b.is_impostor || state != "in_progress")) continue;
+			if (b.alive && !b.is_impostor && state == "in_progress") bot_crew_react(b, delta_seconds);
 
 			if (state == "voting") {
 				if (b.bot_voted) continue;
@@ -1242,7 +1325,13 @@ class game_state {
 			// Chegou no destino final: se era uma task, conclui (conta pra vitória dos tripulantes
 			// igual a de qualquer jogador) e descansa antes de escolher o próximo destino.
 			if (b.bot_path.length() == 0 && distance_2d(b.x, b.y, b.bot_target_x, b.bot_target_y) <= PLAYER_INTERACT_RANGE) {
-				if (b.bot_target_object_id != "") {
+				if (b.bot_fixing) {
+					// No painel: pede o conserto pelo mesmo caminho do jogador. Se a sabotagem pedir
+					// outro painel, bot_crew_react o manda ao próximo no tick seguinte.
+					bot_requests.insert_last(bot_request(BOT_REQUEST_FIX_PANEL, b.peer_id, b.bot_target_object_id));
+					b.bot_fixing = false;
+					b.bot_action_timer = random_range(1.0, 2.5);
+				} else if (b.bot_target_object_id != "") {
 					// Pelo mesmo caminho dos jogadores de verdade: uma tarefa de várias fases faz o bot
 					// AVANÇAR de fase e caminhar até o ponto seguinte, em vez de concluir tudo de uma
 					// vez parado no primeiro ponto.
