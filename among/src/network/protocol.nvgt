@@ -214,6 +214,11 @@ const string S_SABOTAGE_COUNTDOWN = "s_sabotage_countdown"; // {sabotage_id, sec
 const string S_GAME_OVER = "s_game_over";                 // {winner, reason, crewmates_alive, crewmates_total, impostors_alive, impostors_total}
 const string S_RADAR_RESULT = "s_radar_result";           // {peer_id, name, x, y, distance} ou {empty: true}; com track: true é resposta ao C_RADAR_TRACK (só bipa), e lost: true quando o alvo travado deixou de ser percebido
 const string S_ERROR = "s_error";                          // {message}
+// Aviso do SERVIDOR a todos (hoje: "vai reiniciar em N minutos"). Era um S_ERROR, dito na hora e
+// perdido: não entrava no histórico de eventos nem tinha som, e quem estava ouvindo outra coisa não
+// sabia que o servidor ia cair. Só vai a cliente do protocolo 6+; os anteriores seguem recebendo o
+// S_ERROR, que é o que eles sabem dizer (ver on_admin_drain).
+const string S_SERVER_NOTICE = "s_server_notice";          // {message_key, params}
 const string S_PONG = "s_pong";                             // {} - resposta a C_PING, cliente mede o round-trip
 const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, text}
 // Saguão (ver C_HALL_CHAT). Só chega a quem está fora de qualquer sala; quem entra numa deixa de

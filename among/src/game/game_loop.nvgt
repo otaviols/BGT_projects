@@ -965,6 +965,13 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// `!pkt.announced`: se uma tela bloqueante já disse isto, não repete ao fechá-la.
 				if (!pkt.announced) speak(alarm_text);
 				events_log.add("", alarm_text); // dá para reler: é a informação mais valiosa da partida
+			} else if (t == S_SERVER_NOTICE) {
+				// Reinício anunciado no meio da partida: som e histórico - quem estava ouvindo outra
+				// coisa precisa poder reler que o servidor vai cair.
+				string aviso = tr_server_message(pkt);
+				ui_sound(SND_SERVER_NOTICE);
+				if (!pkt.announced) speak(aviso);
+				events_log.add("", aviso);
 			} else if (t == S_KILL_WITNESSED) {
 				// Sem interromper: chega logo depois do som do assassinato, e cortar a fala anterior
 				// podia engolir justamente o aviso de reunião ou de sabotagem que estava sendo dito.

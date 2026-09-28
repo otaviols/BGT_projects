@@ -1,0 +1,53 @@
+// Sonda do aviso de reinício: o cliente atual recebe S_SERVER_NOTICE (som e histórico), o cliente
+// anterior ao protocolo 6 recebe o S_ERROR de sempre - que é o que ele sabe dizer.
+//   AMONGUS_SERVER_HOST=127.0.0.1 AMONGUS_ADMIN_TOKEN=<o do servidor> nvgt tools/probes/probe_server_notice.nvgt
+//
+// O controle é o cliente antigo: sem ele, "o novo recebeu o pacote novo" passaria com um servidor que
+// deixou os clientes antigos sem aviso nenhum - justo o que faria alguém ser derrubado sem saber.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+game_client@ entra(server_address@ addr, int protocolo) {
+	game_client c;
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	string nome = "sn" + protocolo + "x" + random(1000, 9999);
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	// O login à mão, para poder declarar um protocolo ANTIGO.
+	net_packet@ p = net_packet(C_LOGIN);
+	p.set_string("username", nome);
+	p.set_string("password", "probe123");
+	p.set_int("protocol", protocolo);
+	c.net.send_reliable(c.local_peer_id, p.to_wire(), CHANNEL_RELIABLE); // como na probe_protocol: send() é privado
+	if (@wf(c, S_LOGIN_RESULT, 5000) == null) return null;
+	return c;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	game_client@ novo = entra(addr, PROTOCOL_VERSION);
+	game_client@ antigo = entra(addr, 5);
+	if (@novo == null || @antigo == null) { println("login falhou"); return; }
+
+	game_client adm;
+	adm.connect_to(addr.host, addr.port);
+	timer t; while (!adm.connected && t.elapsed < 5000) { adm.update(); wait(5); }
+	adm.send_admin_drain(read_environment_variable("AMONGUS_ADMIN_TOKEN", ""), 60);
+	net_packet@ r = wf(adm, S_ADMIN_RESULT, 5000);
+	println("drain aceito: " + (@r != null && r.get_bool("ok")));
+
+	net_packet@ n = wf(novo, S_SERVER_NOTICE, 4000);
+	net_packet@ e = wf(antigo, S_ERROR, 4000);
+	bool ok1 = @n != null && n.get_string(MSG_KEY_FIELD) == "server.restart_in";
+	bool ok2 = @e != null && e.get_string(MSG_KEY_FIELD) == "server.restart_in";
+	println((ok1 ? "  ok     " : "  FALHA  ") + "cliente atual recebe o aviso novo (S_SERVER_NOTICE)");
+	println((ok2 ? "  ok     " : "  FALHA  ") + "cliente do protocolo 5 recebe o S_ERROR de sempre");
+	println(ok1 && ok2 ? "RESULTADO: ok" : "RESULTADO: FALHA");
+}

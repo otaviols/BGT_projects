@@ -157,6 +157,7 @@ string background_event_text(net_packet@ pkt, game_client@ client) {
 	if (t == S_SABOTAGE_FIXED) return sabotage_fixed_text();
 	if (t == S_PLAYER_LEFT) return player_left_text(pkt);
 	if (t == S_ERROR) return tr_server_message(pkt);
+	if (t == S_SERVER_NOTICE) return tr_server_message(pkt); // o reinício tem que chegar até a quem está numa tarefa
 	// O alarme é ouvido de onde quer que a pessoa esteja - inclusive de dentro de uma task, que é
 	// justamente onde ela estaria quando o impostor escolheu matar longe de todos.
 	if (t == S_DEATH_ALARM) return death_alarm_text(pkt);

@@ -36,6 +36,10 @@ const string SND_MESSAGE_RECEIVED = "sounds/ui/message_received.ogg"; // toca pr
 // tasks/ (ver SND_TASK_COMPLETE / SND_TASK_INPROGRESS).
 const string SND_DIALOG_OPEN = "sounds/ui/panel_appear.ogg";
 const string SND_DIALOG_CLOSE = "sounds/ui/panel_disappear.ogg";
+// Aviso do servidor (reinício anunciado). PROVISÓRIO: aponta para o som de painel até existir um
+// próprio - um toque curto e distinto, que ninguém confunda com menu ou chat. Trocar é só esta linha
+// (e o build_pack). Ver S_SERVER_NOTICE.
+const string SND_SERVER_NOTICE = "sounds/ui/panel_appear.ogg";
 
 // --- Cenário / ambiente ---
 const string SND_SHIP_AMBIENCE = "sounds/ambience/ambience.ogg";     // loop, nave inteira, toca a partida inteira

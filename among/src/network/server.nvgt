@@ -2248,8 +2248,12 @@ class game_server {
 		// Todo mundo conectado ouve, esteja onde estiver: menu, sala de espera, partida.
 		dictionary@ p = dictionary();
 		p.set("minutes", "" + ((int(drain_seconds) + 59) / 60));
-		net_packet@ aviso = build_message(S_ERROR, "server.restart_in", p);
-		for (uint i = 0; i < connections.length(); i++) send_to(connections[i].peer_id, aviso);
+		// Pacote próprio (som, histórico) para quem entende; S_ERROR para cliente anterior ao protocolo 6,
+		// que ignoraria o pacote novo em silêncio - e perderia justamente o aviso de que o servidor cai.
+		net_packet@ aviso = build_message(S_SERVER_NOTICE, "server.restart_in", p);
+		net_packet@ aviso_antigo = build_message(S_ERROR, "server.restart_in", p);
+		for (uint i = 0; i < connections.length(); i++)
+			send_to(connections[i].peer_id, connections[i].protocol_version >= 6 ? aviso : aviso_antigo);
 		net_packet@ result = net_packet(S_ADMIN_RESULT);
 		result.set_bool("ok", true);
 		result.set_string("message", "draining:" + int(drain_seconds));
