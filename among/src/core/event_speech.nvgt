@@ -190,5 +190,15 @@ void announce_background_events(game_client@ client) {
 		// Sem interromper: quem está no meio de uma task ouvindo tons não pode ter o tom cortado.
 		// A exceção é a contagem final do oxigênio, onde um número atrasado é pior que um cortado.
 		speak(text, pkt.type == S_SABOTAGE_COUNTDOWN && pkt.get_bool("final"));
+		// E entra no histórico JÁ, para ser relido sem fechar a tela (ver chat_review em chat_log).
+		if (@g_background_log_sink != null && !pkt.logged) {
+			g_background_log_sink(pkt, text);
+			pkt.logged = true;
+		}
 	}
 }
+
+// Quem guarda no histórico o que foi anunciado com uma tela aberta. Um gancho, e não a chamada direta,
+// porque o histórico (chat_log) inclui este arquivo - ele se pendura aqui (ver chat_review).
+funcdef void background_log_sink(net_packet@ pkt, const string&in text);
+background_log_sink@ g_background_log_sink = null;

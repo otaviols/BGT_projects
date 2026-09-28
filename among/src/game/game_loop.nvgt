@@ -89,6 +89,7 @@ map_object@ find_interactable(game_map@ map, float x, float y, array<player_task
 game_client@ g_game_menu_pump_client;
 void pump_client_during_game_menu(menu@ m, string data) {
 	if (@g_game_menu_pump_client != null) g_game_menu_pump_client.update();
+	chat_review_keys(); // reler chat e eventos sem fechar o menu (ver chat_review)
 }
 
 // Liga/desliga o som dos corpos no chão conforme a sabotagem de LUZES. São dois canais diferentes
@@ -611,7 +612,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 
 	chat_log@ messages_log = chat_log();
 	chat_log@ events_log = chat_log();
-	bool viewing_events_container = false; // false = mensagens, true = eventos
+	// As teclas de leitura e o registro do que chega com um menu aberto passam a valer para ESTES
+	// históricos, aqui e dentro de qualquer menu da partida (ver chat_review).
+	begin_chat_review(messages_log, events_log);
 
 	meeting_ui@ mui = meeting_ui(client, audio, roster, events_log, is_impostor);
 
@@ -738,6 +741,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
 			string t = pkt.type;
+			// Se este pacote já entrou no histórico com um menu aberto, chat_log.add não o registra
+			// de novo (ver net_packet.logged).
+			@g_logging_packet = pkt;
 			// Um pacote que exploda no meio do tratamento não pode levar a partida junto: o erro é
 			// registrado com o TIPO do pacote (a informação que mais importa pra achar o culpado
 			// depois) e o jogo segue no pacote seguinte. Ver core/crash_log.nvgt.
@@ -1160,12 +1166,14 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			if (game_over) break;
 			@pkt = client.poll_message();
 		}
+		@g_logging_packet = null;
 		if (game_over) break;
 		// Conexão caiu (o servidor reiniciou, a internet foi embora): sem isto o laço continuava
 		// rodando para sempre - o jogador andava por uma nave onde ninguém mais ouvia ninguém, sem
 		// nenhum aviso. Quem chama (run_session) vê connected == false e volta ao menu inicial.
 		if (!client.connected) {
 			speak(tr("net.connection_lost"));
+			end_chat_review();
 			return null;
 		}
 
@@ -1671,24 +1679,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 
 		if (alive && action_pressed(ACTION_VOTE)) mui.open_vote_menu_if_active();
 
-		if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
-			viewing_events_container = !viewing_events_container;
-			speak(tr(viewing_events_container ? "chat.events_container" : "chat.messages_container"));
-		}
-
-		bool chat_prev_pressed = action_pressed(ACTION_CHAT_PREV);
-		bool chat_next_pressed = action_pressed(ACTION_CHAT_NEXT);
-		if (chat_prev_pressed || chat_next_pressed) {
-			// Chamar key_pressed() de novo dentro do if (em vez de reusar o resultado já lido)
-			// fazia vírgula e ponto sempre caírem no mesmo caminho - por isso só lia a última
-			// mensagem não importa a tecla.
-			chat_log@ active_log = viewing_events_container ? events_log : messages_log;
-			bool shift_held = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);
-			string line;
-			if (chat_prev_pressed) line = shift_held ? active_log.move_first() : active_log.move_previous();
-			else line = shift_held ? active_log.move_last() : active_log.move_next();
-			speak(line != "" ? line : tr("chat.empty"));
-		}
+		// Leitura do histórico (vírgula, ponto, PageUp/PageDown): uma função só, a mesma que os menus
+		// chamam - ver chat_review em core/chat_log.nvgt.
+		chat_review_keys();
 
 		if (key_pressed(KEY_ESCAPE)) {
 			if (yes_no(tr("menu.quit_confirm"), null, tr("menu.yes"), tr("menu.no"))) {
@@ -1697,6 +1690,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				audio.stop_room_ambience();
 				audio.stop_landmark_beacons();
 				@g_match_roster = null;
+				end_chat_review();
 				return null; // abandonou a partida: não há sala para voltar
 			}
 		}
@@ -1705,6 +1699,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	audio.stop_room_ambience();
 	audio.stop_landmark_beacons();
 	@g_match_roster = null; // o elenco morre com a partida
+	end_chat_review();
 	return back_to_lobby;
 }
 

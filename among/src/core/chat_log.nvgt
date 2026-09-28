@@ -18,6 +18,64 @@
 // PageUp/PageDown é o gesto natural pra quem usa leitor de tela.
 const int KEY_CHAT_SWITCH_CONTAINER_ALT = KEY_PAGEDOWN;
 
+// O pacote que o laço principal está tratando agora (null fora disso). É por ele que chat_log.add sabe
+// que a linha já foi registrada com uma tela aberta - ver net_packet.logged.
+net_packet@ g_logging_packet = null;
+
+// O histórico que as teclas de leitura (vírgula, ponto, PageUp/PageDown) percorrem, onde quer que o
+// jogador esteja: no laço da partida, na sala de espera, ou DENTRO de um menu (votação, regras da sala,
+// escolha de cor). Antes as teclas só eram lidas pelos laços principais - aberto um menu, a leitura
+// travava, e o que chegava com ele aberto só entrava no histórico ao fechar. Na votação, que é
+// justamente onde a conversa importa, não dava para reler o que acabara de ser dito.
+class chat_review {
+	chat_log@ messages;
+	chat_log@ events;
+	bool viewing_events = false;
+	chat_review(chat_log@ messages, chat_log@ events) {
+		@this.messages = messages;
+		@this.events = events;
+	}
+}
+chat_review@ g_chat_review = null;
+
+// Liga o histórico desta tela (partida ou sala de espera) às teclas de leitura e ao registro do que
+// chega com um menu aberto.
+void begin_chat_review(chat_log@ messages, chat_log@ events) {
+	@g_chat_review = chat_review(messages, events);
+	@g_background_log_sink = @log_background_into_review;
+}
+
+void end_chat_review() {
+	@g_chat_review = null;
+	@g_background_log_sink = null;
+}
+
+// O que foi anunciado com uma tela aberta, no histórico certo: chat nas mensagens, o resto nos eventos.
+void log_background_into_review(net_packet@ pkt, const string&in text) {
+	if (@g_chat_review == null) return;
+	if (pkt.type == S_CHAT_MESSAGE) g_chat_review.messages.add(spoken_name(pkt.get_string("name")), pkt.get_string("text"));
+	else g_chat_review.events.add("", text);
+}
+
+// As teclas de leitura, num lugar só: os laços principais e os menus chamam esta função. Cada tecla é
+// lida UMA vez e guardada (ver Armadilhas no CLAUDE.md: key_pressed é consumo de evento).
+void chat_review_keys() {
+	if (@g_chat_review == null) return;
+	if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
+		g_chat_review.viewing_events = !g_chat_review.viewing_events;
+		speak(tr(g_chat_review.viewing_events ? "chat.events_container" : "chat.messages_container"));
+	}
+	bool anterior = action_pressed(ACTION_CHAT_PREV);
+	bool proxima = action_pressed(ACTION_CHAT_NEXT);
+	if (!anterior && !proxima) return;
+	chat_log@ log = g_chat_review.viewing_events ? g_chat_review.events : g_chat_review.messages;
+	bool shift = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);
+	string linha;
+	if (anterior) linha = shift ? log.move_first() : log.move_previous();
+	else linha = shift ? log.move_last() : log.move_next();
+	speak(linha != "" ? linha : tr("chat.empty"));
+}
+
 class chat_line {
 	string speaker_name; // "" = linha de evento/sistema, sem autor
 	string text;
@@ -32,6 +90,9 @@ class chat_log {
 	// falava - era impossível ler o chat enquanto o chat acontecia (recado #52). O cursor só vai
 	// para a primeira linha quando o histórico estava vazio, para haver onde começar.
 	void add(const string&in speaker_name, const string&in text) {
+		// O pacote que o laço está tratando agora JÁ entrou no histórico enquanto uma tela estava
+		// aberta (ver chat_review): registrar de novo duplicaria a linha.
+		if (@g_logging_packet != null && g_logging_packet.logged) return;
 		chat_line line;
 		line.speaker_name = speaker_name;
 		line.text = text;

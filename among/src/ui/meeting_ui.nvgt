@@ -33,6 +33,8 @@ void pump_client_during_vote_menu(menu@ m, string data) {
 		announce_background_events(g_vote_pump_client);
 	}
 	if (@g_vote_pump_ui != null) g_vote_pump_ui.tick_vote_timer();
+	// Reler o chat e os eventos SEM fechar a lista de votação: é na mesa que a conversa importa.
+	chat_review_keys();
 }
 
 class meeting_ui {

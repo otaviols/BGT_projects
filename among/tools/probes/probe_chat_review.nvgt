@@ -1,0 +1,60 @@
+// Sonda do histórico com um menu aberto, sem rede.
+//   nvgt tools/probes/probe_chat_review.nvgt
+//
+// Com um menu aberto (votação, regras da sala), o que chega é dito e entra no histórico NA HORA -
+// para ser relido ali mesmo. Quando o menu fecha, o laço principal trata o mesmo pacote; ele não pode
+// registrar de novo. Os dois caminhos, e o que falharia calado entre eles (a linha duplicada), são
+// conferidos aqui com as funções de verdade: announce_background_events e chat_log.add.
+#include "../../src/core/chat_log.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	chat_log mensagens, eventos;
+	begin_chat_review(mensagens, eventos);
+
+	game_client c; // não conectado: só a fila importa aqui
+	net_packet@ chat = net_packet(S_CHAT_MESSAGE);
+	chat.set_string("name", "Fulano");
+	chat.set_string("text", "foi o vermelho");
+	c.incoming.insert_last(chat);
+	net_packet@ alarme = net_packet(S_DEATH_ALARM);
+	alarme.set_string("name", "Beltrano");
+	alarme.set_string("room_key", "room.electrical");
+	c.incoming.insert_last(alarme);
+
+	println("== com o menu aberto ==");
+	announce_background_events(c); // o que o menu faz a cada quadro
+	confere("o chat entrou no historico de mensagens na hora (" + mensagens.lines.length() + ")", mensagens.lines.length() == 1);
+	confere("o alarme entrou no historico de eventos na hora (" + eventos.lines.length() + ")", eventos.lines.length() == 1);
+	confere("e da para reler: '" + mensagens.move_last() + "'", mensagens.move_last() == "Fulano: foi o vermelho");
+
+	println("== o menu fecha e o laco principal trata os mesmos pacotes ==");
+	for (uint i = 0; i < c.incoming.length(); i++) {
+		net_packet@ p = c.incoming[i];
+		@g_logging_packet = p; // o que o laço faz
+		if (p.type == S_CHAT_MESSAGE) mensagens.add(p.get_string("name"), p.get_string("text"));
+		else eventos.add("", "alarme");
+	}
+	@g_logging_packet = null;
+	confere("nenhuma linha duplicada (mensagens=" + mensagens.lines.length() + ", eventos=" + eventos.lines.length() + ")",
+		mensagens.lines.length() == 1 && eventos.lines.length() == 1);
+
+	println("== e o que chega depois, com o menu fechado, entra normalmente ==");
+	net_packet@ outro = net_packet(S_CHAT_MESSAGE);
+	@g_logging_packet = outro;
+	mensagens.add("Ciclano", "eu estava na elétrica");
+	@g_logging_packet = null;
+	confere("mensagem nova registrada (" + mensagens.lines.length() + ")", mensagens.lines.length() == 2);
+
+	end_chat_review();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

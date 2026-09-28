@@ -64,6 +64,18 @@ gancho (`g_client_frame_hook`): é o único lugar por onde todo laço conectado 
 geral (`apply_master` soma o desconto), nunca na fala - `speak("")` com interrupção calaria o leitor de
 tela lendo a OUTRA janela, que é o que a pessoa foi fazer.
 
+**A leitura do histórico (vírgula, ponto, PageUp/PageDown) funciona DENTRO dos menus** - votação,
+regras da sala, escolha de cor, resultado. Antes as teclas só eram lidas pelos laços principais, e o
+que chegava com um menu aberto só entrava no histórico ao fechar. Três peças (`core/chat_log.nvgt`):
+`chat_review` (qual histórico as teclas percorrem, registrado por `begin_chat_review` na partida e
+na sala de espera), `chat_review_keys()` (a função ÚNICA das teclas, chamada pelos laços e pelos
+bombeamentos dos menus) e o gancho `g_background_log_sink`, pelo qual `announce_background_events`
+registra no histórico o que anuncia. O pacote fica marcado `logged`, e `chat_log.add` recusa a
+segunda linha enquanto o laço trata aquele pacote (`g_logging_packet`) - sem isso, fechar o menu
+duplicava tudo. Na lista de partidas não se anuncia (as esperas de lá já falam os próprios erros).
+Sonda: `tools/probes/probe_chat_review.nvgt`. Laço novo que registra histórico: marque
+`g_logging_packet` e respeite `pkt.announced` antes de falar.
+
 ## Telas, laço do cliente e fila de pacotes
 
 **`dictionary.get(chave, valor&out)` com chave AUSENTE deixa `valor` com LIXO.** É como o

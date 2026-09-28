@@ -24,6 +24,10 @@ class net_packet {
 	//   fechar a tela. O pacote continua na fila e ainda será tratado inteiro, com todos os efeitos.
 	bool announce_checked = false;
 	bool announced = false;
+	// - logged: o que foi anunciado com uma tela aberta JÁ entrou no histórico (chat/eventos), para
+	//   poder ser relido ali mesmo. O laço principal, ao tratar o pacote depois, não o registra de novo
+	//   (ver chat_log.add e g_logging_packet).
+	bool logged = false;
 
 	net_packet(const string&in msg_type) {
 		@obj = json_object();

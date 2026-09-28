@@ -36,14 +36,13 @@ const string SND_MESSAGE_RECEIVED = "sounds/ui/message_received.ogg"; // toca pr
 // tasks/ (ver SND_TASK_COMPLETE / SND_TASK_INPROGRESS).
 const string SND_DIALOG_OPEN = "sounds/ui/panel_appear.ogg";
 const string SND_DIALOG_CLOSE = "sounds/ui/panel_disappear.ogg";
-// Aviso do servidor (reinício anunciado). PROVISÓRIO: aponta para o som de painel até existir um
-// próprio - um toque curto e distinto, que ninguém confunda com menu ou chat. Trocar é só esta linha
-// (e o build_pack). Ver S_SERVER_NOTICE.
-const string SND_SERVER_NOTICE = "sounds/ui/panel_appear.ogg";
-// Alinhado com uma saída da sala (ver game/exit_alignment.nvgt). PROVISÓRIO: o clique de menu, até
-// existir um som próprio - curto, discreto, na família dos marcadores; toca posicionado no lado da
-// saída, então precisa ter ataque rápido para a direção ser percebida.
-const string SND_EXIT_ALIGNED = "sounds/ui/menu_click.ogg";
+// Aviso do servidor (reinício anunciado): o alarme da reunião de emergência, escolha do usuário - já é
+// o som de alerta do jogo, e reinício é o tipo de aviso que não pode passar batido. Ver S_SERVER_NOTICE.
+const string SND_SERVER_NOTICE = SND_MEETING_ALARM;
+// Alinhado com uma saída da sala (ver game/exit_alignment.nvgt): o bipe que marca o motor na tarefa
+// de combustível, escolha do usuário. Quem tem a tarefa ouve o mesmo arquivo no marcador do motor -
+// lá contínuo, aqui um toque único do lado da saída; se confundir, é esta linha que muda.
+const string SND_EXIT_ALIGNED = SND_TASK_BEACON_FUEL_ENGINES;
 
 // --- Cenário / ambiente ---
 const string SND_SHIP_AMBIENCE = "sounds/ambience/ambience.ogg";     // loop, nave inteira, toca a partida inteira
