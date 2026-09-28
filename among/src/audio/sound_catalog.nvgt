@@ -39,10 +39,12 @@ const string SND_DIALOG_CLOSE = "sounds/ui/panel_disappear.ogg";
 // Aviso do servidor (reinício anunciado): o alarme da reunião de emergência, escolha do usuário - já é
 // o som de alerta do jogo, e reinício é o tipo de aviso que não pode passar batido. Ver S_SERVER_NOTICE.
 const string SND_SERVER_NOTICE = SND_MEETING_ALARM;
-// Alinhado com uma saída da sala (ver game/exit_alignment.nvgt): o bipe que marca o motor na tarefa
-// de combustível, escolha do usuário. Quem tem a tarefa ouve o mesmo arquivo no marcador do motor -
-// lá contínuo, aqui um toque único do lado da saída; se confundir, é esta linha que muda.
-const string SND_EXIT_ALIGNED = SND_TASK_BEACON_FUEL_ENGINES;
+// Alinhado com uma saída da sala (ver game/exit_alignment.nvgt): o BIPE da tarefa de alinhar o motor
+// (tasks/beep.ogg), escolha do usuário - o bipe genérico do jogo. O SND_BEEP é guardado SEM o
+// "sounds/" (a tarefa o carrega com o prefixo à mão); o som posicionado quer o caminho inteiro. Escrito
+// por extenso, e não "sounds/" + SND_BEEP: aquela constante é declarada mais abaixo, e uma global
+// inicializada a partir de outra ainda não inicializada sai vazia - som mudo, sem erro.
+const string SND_EXIT_ALIGNED = "sounds/tasks/beep.ogg";
 
 // --- Cenário / ambiente ---
 const string SND_SHIP_AMBIENCE = "sounds/ambience/ambience.ogg";     // loop, nave inteira, toca a partida inteira
