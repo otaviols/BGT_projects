@@ -525,6 +525,15 @@ no radar de objetos onde elas ficam, para fingir), não mata e não sabota: as f
 reunião e a desconfiança. Com um Bobo possível em jogo, toda expulsão fica em dúvida — "é o impostor,
 ou é o Bobo querendo sair?".
 
+**Lobo Mau** (neutro). Com a tecla de habilidade, **engole** quem estiver colado nele. Não fica corpo:
+a pessoa vai para a barriga do lobo. Lá dentro ela não anda, não vota e não faz tarefas; fala só com o
+lobo e com quem mais ele tiver engolido, e só eles a ouvem. Para quem está por perto, engolir soa como
+um assassinato, mas ninguém vai achar corpo nenhum. Na reunião, ninguém anuncia nada: quem foi engolido
+simplesmente não está na lista de votação. Se o lobo **morrer ou for expulso**, todos os que estavam na
+barriga voltam, vivos, onde ele caiu. Ele vence se sobrar vivo com a nave reduzida a ele e no máximo
+mais uma pessoa. Enquanto ele estiver vivo, expulsar os impostores não basta para a tripulação vencer.
+O xerife pode atirar nele sem errar. Engolir tem recarga, e ela começa correndo no início da partida.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

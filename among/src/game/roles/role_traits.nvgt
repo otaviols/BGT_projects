@@ -35,6 +35,7 @@ const string ROLE_SHAPESHIFTER = "shapeshifter";
 const string ROLE_PHANTOM = "phantom";
 const string ROLE_SNIPER = "sniper";
 const string ROLE_JESTER = "jester";
+const string ROLE_WOLF = "wolf";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -43,6 +44,7 @@ const string ABILITY_EXAMINE = "examine";
 const string ABILITY_SHAPESHIFT = "shapeshift";
 const string ABILITY_VANISH = "vanish";
 const string ABILITY_GUESS = "guess";
+const string ABILITY_EAT = "eat";
 // O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
 // mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
 const string ABILITY_ALARM = "alarm";
@@ -59,11 +61,12 @@ const string TEAM_NEUTRAL = "neutral";
 // Condições de vitória PRÓPRIA dos neutros (role_traits.solo_win). Quando uma se cumpre, a partida
 // acaba e só aquele jogador vence.
 const string SOLO_WIN_EJECTED = "ejected"; // ser expulso na votação (o Bobo)
+// Estar vivo quando a nave se reduzir a ele e no máximo mais um (o Lobo Mau). Ver o tick do game_state.
+const string SOLO_WIN_LAST_STANDING = "last_standing";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
-// Vazia por enquanto: o esqueleto entra primeiro, os papéis um a um depois.
 const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
-	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JESTER};
+	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JESTER, ROLE_WOLF};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
 //
@@ -88,6 +91,9 @@ const int SNIPER_MIN_PROTOCOL = 3;
 // Protocolo em que os NEUTROS passaram a existir: um cliente anterior não conhece o terceiro time nem
 // a vitória neutra no fim da partida, e jogaria o Bobo como tripulante comum sem saber o que é.
 const int NEUTRAL_MIN_PROTOCOL = 7;
+// O Lobo Mau trouxe pacotes que só ele usa (engolir, a barriga, a volta de quem foi engolido). Um
+// cliente anterior engolido ficaria andando pela nave como fantasma sem saber onde está.
+const int WOLF_MIN_PROTOCOL = 8;
 
 // Um número do papel que a SALA pode ajustar (recarga, duração, janela de gravação).
 //
@@ -181,6 +187,10 @@ class role_traits {
 	//
 	// O campo fica para um papel futuro cuja habilidade PRECISE recomeçar a cada reunião.
 	bool ability_cooldown_resets_on_meeting = false;
+	// Se a habilidade começa a partida RECARREGANDO, como o kill, em vez de pronta. Para as
+	// habilidades que tiram gente do jogo: o lobo que engolisse no primeiro segundo, com todo mundo
+	// ainda junto no ponto de partida, não daria jogo a ninguém.
+	bool ability_starts_on_cooldown = false;
 
 	// Versão de protocolo que um cliente precisa ter para JOGAR numa sala com este papel ligado. O
 	// padrão serve a todos os papéis da primeira leva; quem precisar de mais declara aqui, e a sala
@@ -195,6 +205,10 @@ class role_traits {
 
 	// --- Time ---
 	bool wins_with_crew = true;
+	// Ameaça à tripulação SEM ser impostor. É o que o xerife pode derrubar sem errar o tiro, e o que
+	// impede a tripulação de vencer por eliminação enquanto estiver vivo - tirar os impostores não
+	// basta se ainda há um lobo comendo gente.
+	bool hostile_to_crew = false;
 	// Vitória PRÓPRIA (neutros): "" = nenhuma, o papel vence com o time dele; senão, uma das
 	// SOLO_WIN_* - e quando ela se cumpre a partida acaba com só este jogador vencendo.
 	string solo_win = "";
@@ -468,9 +482,44 @@ role_traits@ role_jester() {
 	return t;
 }
 
+// Lobo Mau: neutro que ENGOLE os outros, e vence se sobrar com a nave reduzida a ele e mais um.
+//
+// Engolir não é matar, e é isso que o torna um papel e não um segundo impostor. Não fica corpo: quem
+// foi engolido some, e a nave só descobre na reunião, pela lista - quem falta nela não foi anunciado
+// por ninguém (decisão do jogo: a mesa não ouve "fulano foi engolido", só percebe a ausência). E o
+// engolido não morreu: está na barriga, fala com o lobo e com os outros engolidos, e mais ninguém o
+// ouve - nem os fantasmas. Quando o lobo morre ou é expulso, TODOS voltam, vivos, onde ele caiu.
+//
+// Isso muda a conta da tripulação de um jeito que nenhum outro papel muda: matar o lobo DEVOLVE
+// gente. E muda a do lobo: cada engolido é alguém que ele ouve implorar, e que volta contra ele se
+// ele cair.
+//
+// O som, para quem está perto, é o do assassinato - de propósito: quem ouve vai procurar um corpo e
+// não acha nenhum, e essa é a pista que o lobo deixa. Quem está colado vê, como vê um assassinato.
+//
+// Não faz tarefa que conte (vê os pontos no radar, para fingir), não usa duto e não sabota. O xerife
+// pode derrubá-lo sem errar o tiro (hostile_to_crew), e enquanto ele estiver vivo a tripulação não
+// vence por eliminação.
+role_traits@ role_wolf() {
+	role_traits t;
+	t.id = ROLE_WOLF;
+	t.team = TEAM_NEUTRAL;
+	t.tasks_count_for_crew = false;
+	t.wins_with_crew = false;
+	t.hostile_to_crew = true;
+	t.solo_win = SOLO_WIN_LAST_STANDING;
+	t.ability_id = ABILITY_EAT;
+	t.ability_cooldown_seconds = WOLF_EAT_COOLDOWN_SECONDS;
+	t.ability_starts_on_cooldown = true;
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, WOLF_EAT_COOLDOWN_SECONDS, 15.0, 300.0));
+	t.min_protocol = WOLF_MIN_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
 	if (role_id == ROLE_SNIPER) return role_sniper();
 	if (role_id == ROLE_JESTER) return role_jester();
+	if (role_id == ROLE_WOLF) return role_wolf();
 	if (role_id == ROLE_IMPOSTOR) return role_impostor();
 	if (role_id == ROLE_SHAPESHIFTER) return role_shapeshifter();
 	if (role_id == ROLE_PHANTOM) return role_phantom();
@@ -572,10 +621,15 @@ array<string> draw_special_roles(uint player_count, uint impostor_count, const a
 class player_abilities {
 	role_traits@ role;
 	bool alive = true;
+	// Na barriga do lobo. Conta como não-vivo para tudo que a morte tira (votar, reportar, matar), mas
+	// NÃO ganha o que a morte dá ao fantasma: não sabota, não usa habilidade de morto, não faz tarefa.
+	// Está preso, não livre pela nave.
+	bool swallowed = false;
 
-	player_abilities(role_traits@ role, bool alive = true) {
+	player_abilities(role_traits@ role, bool alive = true, bool swallowed = false) {
 		@this.role = @role;
 		this.alive = alive;
+		this.swallowed = swallowed;
 	}
 
 	// --- Ações: todas exigem estar vivo ---
@@ -587,7 +641,7 @@ class player_abilities {
 	// A ÚNICA capacidade que sobrevive à morte, como no jogo original: o impostor morto continua
 	// sabotando. É o que ele ainda tem a oferecer ao time - matar, ventilar e fechar portas acabam
 	// com ele, e sem isto morrer cedo como impostor era virar espectador puro.
-	bool can_sabotage() const { return role.can_sabotage; }
+	bool can_sabotage() const { return role.can_sabotage && !swallowed; }
 	bool can_close_doors() const { return alive && role.can_close_doors; }
 	bool can_report_bodies() const { return alive && role.can_report_bodies; }
 	bool can_call_meeting() const { return alive && role.can_call_meeting; }
@@ -595,14 +649,14 @@ class player_abilities {
 	bool can_vote() const { return alive; }
 	// Tem uma habilidade ativa E pode usá-la neste estado. A recarga é conferida no servidor.
 	bool has_ability() const {
-		if (role.ability_id == "") return false;
+		if (role.ability_id == "" || swallowed) return false;
 		return alive ? role.ability_usable_alive : role.ability_usable_dead;
 	}
 
 	// --- Tarefas ---
 	// NÃO exige estar vivo: fantasma continua fazendo tarefas, e elas continuam contando para a
-	// vitória da tripulação. É o que dá o que fazer a quem morreu cedo.
-	bool does_tasks() const { return role.tasks_count_for_crew; }
+	// vitória da tripulação. É o que dá o que fazer a quem morreu cedo. Na barriga, não.
+	bool does_tasks() const { return role.tasks_count_for_crew && !swallowed; }
 
 	// --- Percepção ---
 	// Fantasma nunca é atrapalhado: sabotagem existe para pressionar quem ainda pode perder alguma

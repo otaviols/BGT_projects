@@ -124,6 +124,12 @@ class game_state {
 	uint64 neutral_winner_peer = 0;
 	float elapsed_time = 0.0;
 
+	// Pacotes que nascem FORA do tick (uma morte pedida por um jogador, por exemplo) e que o tick
+	// entrega junto dos dele, no ponto certo da ordem. Hoje só a volta de quem estava na barriga do
+	// lobo: ela pode vir de um assassinato, de um palpite, da apuração ou de uma saída, e numa fila só
+	// a entrega é uma só - depois do resultado da votação e antes da conferência de vitória.
+	array<net_packet@> pending_events;
+
 	uint bot_count() const {
 		uint count = 0;
 		for (uint i = 0; i < players.length(); i++) {
@@ -239,6 +245,7 @@ class game_state {
 		if (@p == null) return false;
 		if (state != "in_progress") return false; // movimento travado durante reunião/votação
 		if (p.vented) return false; // escondido num vent - só sai/viaja pela rede (ver on_vent_travel)
+		if (p.swallowed()) return false; // na barriga do lobo: vai aonde ele for, não anda sozinho
 		// De onde ele está pra onde quer ir: parede barra sempre, porta fechada só barra quem está do
 		// lado de fora dela (ver game_map.can_move).
 		if (!map.can_move(p.x, p.y, x, y, p.alive)) return false;
@@ -320,10 +327,14 @@ class game_state {
 		// aposta e não uma arma: matar o inocente custa a própria vida, e a tripulação perde duas
 		// pessoas de uma vez. O alvo não fica sabendo de nada - ele só ouve um assassinato do lado,
 		// como qualquer vizinho, e essa ambiguidade é o ponto.
-		misfire = !killer_is_impostor && !target.is_impostor;
+		// O lobo (hostile_to_crew) é alvo LEGÍTIMO do xerife: ele come a tripulação, e errar nele
+		// mataria o xerife por acertar a ameaça certa.
+		misfire = !killer_is_impostor && !target.is_impostor && !target.role().hostile_to_crew;
 		game_player@ victim = misfire ? killer : target;
 
 		victim.alive = false;
+		// Se era o lobo, quem estava na barriga volta - no lugar onde ele caiu.
+		release_belly(victim, victim.x, victim.y);
 		killer.kill_cooldown_remaining = kill_cooldown_for(killer);
 		// Matar REVELA o fantasma. É o preço inteiro do papel: ele atravessa a nave sem ser
 		// percebido, mas o instante do crime o devolve ao mundo - com som, no lugar onde está, para
@@ -408,6 +419,7 @@ class game_state {
 		game_player@ victim = correct ? target : sniper;
 		victim.alive = false;
 		victim_peer = victim.peer_id;
+		release_belly(victim, victim.x, victim.y); // na mesa: voltam para a mesa
 		// Sem corpo, sem rastro e sem recarga: ver o comentário do topo. E sem mexer na
 		// invisibilidade - ninguém está invisível numa reunião, que já a desfaz ao começar.
 		return true;
@@ -451,6 +463,104 @@ class game_state {
 		pkt.set_bool("closed", closed);
 		pkt.set_array("zones", list);
 		return pkt;
+	}
+
+	// --- Lobo Mau ---
+
+	// O lobo engole alguém ao alcance. Devolve false com `fail_key` quando não dá.
+	//
+	// As regras de quem pode ser alvo são as do assassinato (try_kill), pelos mesmos motivos: ninguém
+	// dentro de duto, nem de um lado nem do outro; o escudo do anjo vale contra QUALQUER ataque. O que
+	// muda é o efeito: nada de corpo, e o alvo não morre - vai para a barriga (swallowed_by), com
+	// `alive = false` para sair da contagem, da votação e do radar de todo mundo.
+	bool try_eat(uint64 wolf_peer, uint64 target_peer, string&out fail_key) {
+		fail_key = "";
+		game_player@ lobo = find_player(wolf_peer);
+		game_player@ alvo = find_player(target_peer);
+		if (@lobo == null || !lobo.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (lobo.vented) { fail_key = "role.eat_no_target"; return false; }
+		// Alvo inválido, longe, no duto ou protegido: tudo cai no mesmo "ninguém ao alcance". Uma
+		// recusa própria para o escudo contaria ao lobo que aquela pessoa está blindada.
+		if (@alvo == null || !alvo.alive || alvo.peer_id == lobo.peer_id || alvo.vented || alvo.shield_remaining > 0.0 ||
+				distance_2d(lobo.x, lobo.y, alvo.x, alvo.y) > PLAYER_KILL_RANGE) {
+			fail_key = "role.eat_no_target";
+			return false;
+		}
+
+		alvo.alive = false;
+		alvo.swallowed_by = lobo.peer_id;
+		// A barriga desfaz o que o alvo estava usando para não ser percebido. O disfarce cai (o servidor
+		// transmite o nome de volta - ver ABILITY_EAT em run_ability): lá dentro ele é quem é, e a
+		// lista da reunião precisa ter o nome certo quando ele voltar.
+		if (alvo.invisible()) alvo.invisible_remaining = 0.0;
+		// Quem ele tinha engolido (se o alvo for outro lobo) sai junto, no mesmo ponto: a barriga de um
+		// lobo engolido não passa para o outro.
+		release_belly(alvo, alvo.x, alvo.y);
+		return true;
+	}
+
+	// Quem estava na barriga deste jogador volta, vivo, em (x, y). Chamado em TODA forma de o lobo sair
+	// do jogo - assassinato, palpite do atirador, expulsão, saída da partida -, e é inofensivo para
+	// quem não é lobo (a barriga está vazia). O aviso sai pela fila do tick (pending_events).
+	void release_belly(game_player@ lobo, float x, float y) {
+		if (@lobo == null) return;
+		json_array@ voltaram = json_array();
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.swallowed_by != lobo.peer_id) continue;
+			p.swallowed_by = 0;
+			// Quem saiu da partida lá dentro não volta: o registro dele fica morto (ver remove_from_lobby).
+			if (p.left_match) continue;
+			p.alive = true;
+			p.x = x;
+			p.y = y;
+			// Sem isto, o primeiro passo depois da volta era medido desde o último movimento ANTES de
+			// ser engolido - e a volta seria tratada como um salto qualquer.
+			p.last_move_time = elapsed_time;
+			voltaram.add(p.peer_id);
+		}
+		if (voltaram.length() == 0) return;
+		net_packet@ pkt = net_packet(S_BELLY_RELEASED);
+		pkt.set_array("peers", voltaram);
+		pkt.set_float("x", x);
+		pkt.set_float("y", y);
+		pending_events.insert_last(pkt);
+	}
+
+	// Os dois estão na MESMA barriga - contando o próprio lobo como parte dela.
+	bool in_same_belly(game_player@ a, game_player@ b) const {
+		uint64 barriga_a = a.swallowed() ? a.swallowed_by : a.peer_id;
+		uint64 barriga_b = b.swallowed() ? b.swallowed_by : b.peer_id;
+		if (barriga_a != barriga_b) return false;
+		// O lobo precisa estar vivo para "ser a barriga": morto, ele não carrega ninguém (a soltura já
+		// teria acontecido - isto é só a guarda para um estado que não deveria existir).
+		game_player@ lobo = find_player(barriga_a);
+		return @lobo != null && lobo.alive;
+	}
+
+	uint alive_count() const {
+		uint n = 0;
+		for (uint i = 0; i < players.length(); i++) if (players[i].alive) n++;
+		return n;
+	}
+
+	// Ameaças vivas que não são impostores (o lobo). Ver role_traits.hostile_to_crew.
+	uint alive_hostile_count() const {
+		uint n = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].alive && players[i].role().hostile_to_crew) n++;
+		}
+		return n;
+	}
+
+	// O neutro que venceu por sobrar (SOLO_WIN_LAST_STANDING): vivo, com a nave reduzida a ele e no
+	// máximo mais um. null = ninguém.
+	game_player@ last_standing_winner() const {
+		if (alive_count() > 2) return null;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].alive && players[i].role().solo_win == SOLO_WIN_LAST_STANDING) return players[i];
+		}
+		return null;
 	}
 
 	// --- Reunião / votação ---
@@ -560,6 +670,13 @@ class game_state {
 		// previa este campo desde o começo; ele simplesmente nunca chegou a ser preenchido, e o
 		// cliente lia zero.
 		out_event.set_float("discussion_time", config.discussion_time_seconds);
+		// Quem está na barriga do lobo sai da lista de votação de todos - e é SÓ isso que a mesa fica
+		// sabendo (decisão do jogo: nenhum anúncio de "fulano foi engolido"). A ausência é a pista.
+		json_array@ ausentes = json_array();
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].swallowed()) ausentes.add(players[i].peer_id);
+		}
+		out_event.set_array("absent", ausentes);
 		return true;
 	}
 
@@ -569,6 +686,13 @@ class game_state {
 		if (@voter == null || !voter.alive) return false;
 		for (uint i = 0; i < votes.length(); i++) {
 			if (votes[i].voter_peer_id == voter_peer) return false; // já votou
+		}
+		// O alvo tem que estar na mesa. A lista do cliente já só mostra os vivos, mas ela vem da
+		// máquina do jogador - e quem está na barriga do lobo não aparece nela justamente para que a
+		// ausência seja a pista. Um voto nele, aceito aqui, "expulsaria" quem nem está na reunião.
+		if (target_peer != -1) {
+			game_player@ alvo = find_player(uint64(target_peer));
+			if (@alvo == null || !alvo.alive) return false;
 		}
 		vote_entry v;
 		v.voter_peer_id = voter_peer;
@@ -645,6 +769,8 @@ class game_state {
 			game_player@ ejected = find_player(uint64(best_target));
 			if (@ejected != null) {
 				ejected.alive = false;
+				// Expulsar o lobo devolve quem ele engoliu, e eles voltam para a mesa, onde todo mundo está.
+				release_belly(ejected, MEETING_GATHER_X, MEETING_GATHER_Y);
 				result.set_uint64("ejected_peer", ejected.peer_id);
 				result.set_string("ejected_name", ejected.public_name());
 				// Com a revelação desligada o papel NÃO viaja: o cliente é a máquina do jogador, e
@@ -704,6 +830,8 @@ class game_state {
 		// lhe resta - matar, ventilar e fechar portas acabam com ele -, e sem isso morrer cedo como
 		// impostor era virar espectador. Ver can_sabotage em game/roles/role_traits.nvgt.
 		if (@impostor == null || !impostor.is_impostor) return false;
+		// Morto sabota; engolido não - está preso, não livre pela nave (ver player_abilities).
+		if (impostor.swallowed()) return false;
 		if (!config.sabotages_enabled) return false; // preset "rápido" desliga sabotagem (ver config/presets.nvgt)
 		if (sabotage_id != "lights" && sabotage_id != "oxygen" && sabotage_id != "comms") return false;
 		if (state != "in_progress") return false;
@@ -834,6 +962,11 @@ class game_state {
 	bool can_hear_voice(game_player@ talker, game_player@ listener) const {
 		if (@talker == null || @listener == null) return false;
 		if (state == "waiting" || state == "ended") return true;
+		// A BARRIGA DO LOBO vem antes de tudo, porque é a única regra que atravessa todas as outras:
+		// quem está lá dentro fala com o lobo e com os outros engolidos, e só - sem distância, sem
+		// sabotagem, e sem os fantasmas (a regra de baixo daria a eles a voz dos engolidos, e aos
+		// engolidos a dos mortos). O lobo ouve a barriga sempre; é a graça do papel.
+		if (talker.swallowed() || listener.swallowed()) return in_same_belly(talker, listener);
 		if (!talker.alive) return !listener.alive;
 		if (!listener.alive) return true;
 		// Comunicações sabotadas derrubam o rádio de todos os vivos, impostor incluído; na reunião,
@@ -1303,6 +1436,7 @@ class game_state {
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ b = players[i];
 			if (!b.is_bot) continue;
+			if (b.swallowed()) continue; // na barriga: nem anda, nem faz tarefa, nem vota
 			// Bot MORTO: o tripulante continua fazendo tarefas, como o fantasma de qualquer jogador -
 			// era um fantasma parado, e com vários bots mortos a vitória por tarefas ficava inalcançável.
 			// Ele não vota, não reporta e não conserta (fantasma não opera nada); o impostor morto para.
@@ -1444,6 +1578,7 @@ class game_state {
 		neutral_winner_peer = 0;
 		win_reason = "";
 		elapsed_time = 0.0;
+		pending_events.resize(0);
 		map.open_all_doors();
 	}
 
@@ -1530,8 +1665,24 @@ class game_state {
 			}
 		}
 
+		// Quem voltou da barriga neste tick (ou desde o último): antes da conferência de vitória, e
+		// depois do resultado da votação - o cliente precisa ouvir a expulsão do lobo e SÓ ENTÃO a volta.
+		for (uint i = 0; i < pending_events.length(); i++) events.insert_last(pending_events[i]);
+		pending_events.resize(0);
+
 		if (winner == "") {
-			if (alive_impostor_count() == 0) { winner = "crewmates"; win_reason = "impostors_ejected"; }
+			// O lobo PRIMEIRO: sobrar com a nave reduzida a ele e mais um é a vitória dele, mesmo que o
+			// outro seja um impostor - pela regra de baixo, um impostor e um lobo dariam a maioria ao
+			// impostor, e o lobo nunca venceria.
+			game_player@ sobrevivente = last_standing_winner();
+			if (@sobrevivente != null) {
+				winner = WINNER_NEUTRAL;
+				win_reason = "wolf_survived";
+				neutral_winner_peer = sobrevivente.peer_id;
+			}
+			// Sem impostor vivo a tripulação vence - MAS não com uma ameaça viva: tirar os impostores
+			// com o lobo ainda comendo gente não é vitória (hostile_to_crew).
+			else if (alive_impostor_count() == 0 && alive_hostile_count() == 0) { winner = "crewmates"; win_reason = "impostors_ejected"; }
 			else if (alive_impostor_count() >= alive_crewmate_count()) { winner = "impostors"; win_reason = "majority"; }
 			else {
 				bool all_done = true;

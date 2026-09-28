@@ -117,6 +117,35 @@ vencedor e papéis. Até aqui só as tarefas eram contadas; o resto das colunas 
 Sonda: `tools/probes/probe_jester.nvgt` (os outros dois jogadores são o controle: partida jogada, sem
 vitória).
 
+**LOBO MAU: engolido é `alive = false` + `swallowed_by`, e não um terceiro estado.** A alternativa era
+deixá-lo vivo com uma marca - e aí cada contagem de vitória, a votação, o radar, a câmera, o alvo de
+kill, o reporte, a sabotagem precisariam de uma condição nova, e esquecer uma deixaria um engolido
+votando ou sendo morto. Com `alive = false` tudo isso já o exclui de graça; o que pede condição própria
+é o CONTRÁRIO, as liberdades do fantasma que ele não tem: andar (`try_move_player`), tarefa
+(`on_task_input`), sabotar e habilidade de morto (`player_abilities.swallowed`), passos dos mortos
+(`broadcast_to_dead_players`), chat da mesa e a voz (`can_hear_voice`, que decide a barriga ANTES da
+regra dos fantasmas - senão os mortos ouviriam os engolidos). Um lugar novo que dê algo ao fantasma
+precisa perguntar `swallowed()` também, ou o engolido ganha junto.
+- A volta (`release_belly`) é chamada em TODA saída do lobo: `try_kill`, `try_guess`, `tally_votes`,
+  `remove_from_lobby` e o próprio `try_eat` (lobo engolindo lobo). O aviso sai por `pending_events`,
+  que o tick entrega depois da apuração e antes da conferência de vitória - o cliente ouve a expulsão
+  e SÓ ENTÃO a volta, e a vitória já conta com quem voltou.
+- A vitória dele (`SOLO_WIN_LAST_STANDING`) é conferida ANTES da maioria do impostor: lobo e impostor
+  sozinhos dariam a vitória ao impostor pela regra velha. E `hostile_to_crew` impede a tripulação de
+  vencer por eliminação com ele vivo, e deixa o xerife acertá-lo sem errar o tiro.
+- A reunião não anuncia ninguém (decisão do usuário): `S_MEETING_STARTED.absent` só tira os engolidos
+  da lista de votação, e o servidor recusa voto neles (`cast_vote` passou a conferir o alvo).
+- A recarga COMEÇA correndo (`ability_starts_on_cooldown`, que o cliente lê em
+  `ability_initial_cooldown`): engolir no primeiro segundo, com todos juntos no ponto de partida,
+  acabava a partida de três antes de ela começar.
+- O som para quem está perto é o do KILL, de propósito (quem ouve procura um corpo e não acha). Não há
+  som próprio de engolir: um arquivo `events/` novo seria bem-vindo, mas o do kill não é gambiarra.
+- Pendência conhecida, herdada dos dutos: o elenco dos OUTROS clientes guarda o engolido no último
+  ponto em que andou. Quem passa por ali ouve o nome dele como "jogador por perto", e o impostor que
+  mirar nele tem o kill recusado calado - o mesmo que já acontece com quem entrou num duto.
+Sonda: `tools/probes/probe_wolf.nvgt` (engolir, privacidade dos pacotes, voz da barriga, reunião,
+expulsão devolvendo, e a vitória por sobrar).
+
 **Engenheiro: o duto dele custa uma dedução, e isso foi pago de propósito.** "A tampa abriu na
 navegação, então ele saiu em armas ou no reator" deixa de provar impostor. O som da tampa continua
 IGUAL para os dois - fazer um som diferente devolveria a certeza e mataria o papel. O conserto

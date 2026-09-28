@@ -51,6 +51,12 @@ class game_player {
 	float y = 0.0;
 	uint32 last_move_seq = 0;
 	bool alive = true;
+	// Quem o engoliu (o Lobo Mau), ou 0. Engolido tem `alive = false` - e é isso que o tira de TUDO que
+	// pergunta por vivo (contagem de vitória, votação, radar, alvo de kill) sem uma condição nova em
+	// cada lugar. O que precisa de condição própria é o contrário: as liberdades do fantasma (andar,
+	// fazer tarefa, ouvir os mortos), que o engolido não tem. Ver game_state.try_eat.
+	uint64 swallowed_by = 0;
+	bool swallowed() const { return swallowed_by != 0; }
 	// O papel é a fonte; is_impostor é DERIVADO dele em set_role() e existe porque o resto do servidor
 	// ainda pergunta pelo time em dezenas de lugares (contagem de vivos, vitória, alvo de kill). Os
 	// dois nunca são escritos separados - é o que impede um shapeshifter de contar como tripulante.
@@ -246,6 +252,7 @@ class game_player {
 	void reset_match_state() {
 		named_by_color = false;
 		alive = true;
+		swallowed_by = 0;
 		left_match = false;
 		set_role(ROLE_CREWMATE);
 		vented = false;

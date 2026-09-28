@@ -1,0 +1,292 @@
+// Sonda do Lobo Mau (o segundo papel neutro).
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_wolf.nvgt
+//
+// Parte 1, cinco jogadores (um impostor, um lobo, três tripulantes):
+//   1. o lobo começa RECARREGANDO (engolir no primeiro segundo é recusado);
+//   2. engolir: o engolido fica sabendo e de quem; o resto da nave ouve só o SOM, sem nome; ninguém
+//      recebe morte nenhuma (não há corpo);
+//   3. a barriga: o engolido é ouvido pelo lobo e por mais ninguém, e não ouve os de fora;
+//   4. a reunião: ele está em `absent`, não vota, e um voto nele é recusado;
+//   5. o lobo expulso SOLTA quem engoliu - todos recebem a volta, a partida não acaba (um impostor
+//      contra três), e o engolido volta a andar.
+// Parte 2, três jogadores (um impostor, um lobo, um tripulante): o lobo engole o tripulante, a nave
+// fica com ele e o impostor, e ELE vence - a regra do lobo vem antes da maioria do impostor.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+class sink : voice_receiver {
+	array<uint64> talkers;
+	void on_voice_frame(const string&in wire) {
+		uint64 who; string audio;
+		if (!voice_unwire(wire, who, audio)) return;
+		if (talkers.find(who) == -1) talkers.insert_last(who);
+	}
+	void tick() {}
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+// Uma caixa por cliente, e nada do que chega é jogado fora (ver notes/sondas.md).
+array<array<net_packet@>@> caixa;
+void prepara_caixa(uint quantos) {
+	caixa.resize(0);
+	for (uint i = 0; i < quantos; i++) caixa.insert_last(array<net_packet@>());
+}
+void esvazia_caixa() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+void drena(array<game_client@>@ todos) {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+net_packet@ achado(uint i, const string&in tipo) {
+	for (uint k = 0; k < caixa[i].length(); k++) { if (caixa[i][k].type == tipo) return caixa[i][k]; }
+	return null;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { drena(todos); wait(10); }
+}
+net_packet@ espera(array<game_client@>@ todos, uint i, const string&in tipo, int ms) {
+	timer t;
+	while (t.elapsed < ms) { drena(todos); net_packet@ p = achado(i, tipo); if (@p != null) return p; wait(5); }
+	return null;
+}
+
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8;
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+array<sink@> sinks;
+game_client@ conecta(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	sink@ s = sink();
+	@c.voice = s;
+	sinks.insert_last(s);
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+// Fala alguns quadros e deixa chegar.
+void fala(array<game_client@>@ todos, uint quem) {
+	string audio; for (uint i = 0; i < 320; i++) audio += ascii_to_character(0x7F);
+	for (int f = 0; f < 10; f++) { todos[quem].send_voice(audio); bombeia(todos, 20); }
+	bombeia(todos, 300);
+}
+void zera_vozes() { for (uint i = 0; i < sinks.length(); i++) sinks[i].talkers.resize(0); }
+bool ouviu(uint ouvinte, game_client@ falante) { return sinks[ouvinte].talkers.find(falante.my_peer_id) != -1; }
+
+// Insiste em engolir até o servidor aceitar (a recarga corre no relógio DELE - ver notes/sondas.md).
+// Devolve o resultado aceito, ou o último recusado.
+net_packet@ engole(array<game_client@>@ todos, uint lobo, uint alvo, int prazo_ms) {
+	timer t;
+	net_packet@ ultimo = null;
+	while (t.elapsed < prazo_ms) {
+		esvazia_caixa();
+		todos[lobo].send_use_ability(ABILITY_EAT, todos[alvo].my_peer_id);
+		net_packet@ r = espera(todos, lobo, S_ABILITY_RESULT, 2000);
+		if (@r != null) {
+			@ultimo = r;
+			if (r.get_bool("ok")) return r;
+		}
+		bombeia(todos, 500);
+	}
+	return ultimo;
+}
+
+// Começa uma partida com `n` jogadores e devolve os papéis e posições.
+bool comeca(array<game_client@>@ todos, uint n, const string&in nome_sala, array<string>@ papeis, array<float>@ xs, array<float>@ ys) {
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.voting_time_seconds = 30.0;
+	ov.voice_chat = "on";
+	ov.role_counts.set(ROLE_WOLF, 1);
+	ov.role_values.set(ROLE_WOLF + "." + TUNABLE_COOLDOWN, 15.0);
+	todos[0].send_create_lobby(nome_sala, "classic", ov);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return false; }
+	for (uint i = 1; i < n; i++) { todos[i].send_join_lobby(st.get_string("lobby_id")); wf(todos[i], S_JOIN_RESULT, 5000); }
+	for (uint i = 0; i < n; i++) todos[i].send_voice_state(true);
+	bombeia(todos, 300);
+	esvazia_caixa();
+	todos[0].send_start_game();
+	papeis.resize(n); xs.resize(n); ys.resize(n);
+	for (uint i = 0; i < n; i++) {
+		net_packet@ s = espera(todos, i, S_GAME_START, 8000);
+		if (@s == null) { println("sem S_GAME_START"); return false; }
+		papeis[i] = s.get_string("your_role");
+		xs[i] = s.get_float("your_x"); ys[i] = s.get_float("your_y");
+		if (papeis[i] == ROLE_WOLF) confere("o lobo comeca recarregando (" + s.get_float("ability_initial_cooldown") + " s)", s.get_float("ability_initial_cooldown") >= 14.0);
+	}
+	return true;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (int i = 0; i < 5; i++) {
+		game_client@ c = conecta(addr, "wf" + i + "x" + sfx);
+		if (@c == null) { println("login falhou"); return; }
+		todos.insert_last(c);
+	}
+	prepara_caixa(todos.length());
+
+	println("Parte 1: cinco jogadores");
+	array<string> papeis; array<float> xs, ys;
+	if (!comeca(todos, 5, "lobo", papeis, xs, ys)) return;
+	int lobo = -1, impostor = -1;
+	array<int> tripulantes;
+	for (uint i = 0; i < 5; i++) {
+		if (papeis[i] == ROLE_WOLF) lobo = int(i);
+		else if (role_for(papeis[i]).team == TEAM_IMPOSTOR) impostor = int(i);
+		else tripulantes.insert_last(int(i));
+	}
+	confere("saiu um lobo e um impostor", lobo >= 0 && impostor >= 0 && tripulantes.length() == 3);
+	if (lobo < 0 || impostor < 0) return;
+	int v = tripulantes[0], o1 = tripulantes[1], o2 = tripulantes[2];
+
+	esvazia_caixa();
+	todos[lobo].send_use_ability(ABILITY_EAT, todos[v].my_peer_id);
+	net_packet@ cedo = espera(todos, lobo, S_ABILITY_RESULT, 3000);
+	confere("engolir no comeco e recusado pela recarga", @cedo != null && !cedo.get_bool("ok") && cedo.get_string(MSG_KEY_FIELD) == "role.ability_cooldown");
+
+	anda_ate(todos, todos[lobo], xs[lobo], ys[lobo], xs[v], ys[v]);
+	timer relogio;
+	net_packet@ ok = engole(todos, lobo, v, 30000);
+	println("  (engoliu depois de " + relogio.elapsed + " ms de relogio de parede)");
+	confere("o lobo engoliu", @ok != null && ok.get_bool("ok") && ok.get_string(MSG_KEY_FIELD) == "role.eat_done");
+	if (@ok == null || !ok.get_bool("ok")) return;
+	bombeia(todos, 500);
+	net_packet@ dentro = achado(v, S_SWALLOWED);
+	confere("o engolido sabe que foi engolido e por quem", @dentro != null && dentro.get_uint64("wolf_peer") == todos[lobo].my_peer_id);
+	bool som_ok = true, morte = false, vazou = false;
+	for (uint i = 0; i < 5; i++) {
+		if (@achado(i, S_PLAYER_KILLED) != null) morte = true;
+		if (int(i) != v && @achado(i, S_SWALLOWED) != null) vazou = true;
+		bool deve_ouvir = int(i) != v && int(i) != lobo;
+		if (deve_ouvir != (@achado(i, S_SWALLOW_SOUND) != null)) som_ok = false;
+	}
+	confere("o som vai aos outros tres, e nao ao lobo nem ao engolido", som_ok);
+	confere("ninguem recebe morte (nao ha corpo)", !morte);
+	confere("so o engolido recebe o aviso de engolido", !vazou);
+
+	zera_vozes();
+	fala(todos, v);
+	confere("o lobo ouve a barriga", ouviu(lobo, todos[v]));
+	confere("ninguem de fora ouve a barriga", !ouviu(impostor, todos[v]) && !ouviu(o1, todos[v]) && !ouviu(o2, todos[v]));
+	zera_vozes();
+	fala(todos, lobo);
+	confere("a barriga ouve o lobo", ouviu(v, todos[lobo]));
+	zera_vozes();
+	fala(todos, o1);
+	// O controle: a voz dele CHEGA a quem está do lado (todos nasceram juntos). Sem isto, a linha de
+	// baixo passaria com um servidor que parou de repassar voz para todo mundo.
+	confere("controle: os de fora se ouvem", ouviu(o2, todos[o1]) || ouviu(impostor, todos[o1]));
+	confere("a barriga nao ouve os de fora", !ouviu(v, todos[o1]));
+
+	esvazia_caixa();
+	todos[o1].send_call_meeting();
+	net_packet@ reuniao = espera(todos, o1, S_MEETING_STARTED, 5000);
+	confere("a reuniao comecou", @reuniao != null);
+	if (@reuniao == null) return;
+	json_array@ ausentes = reuniao.get_array("absent");
+	confere("o engolido esta em `absent`", @ausentes != null && ausentes.length() == 1 && uint64(ausentes[0]) == todos[v].my_peer_id);
+	espera(todos, o1, S_VOTING_STARTED, 5000);
+
+	esvazia_caixa();
+	todos[v].send_cast_vote(-1);
+	confere("o engolido nao vota", @espera(todos, v, S_ERROR, 3000) != null && @achado(v, S_VOTE_CAST) == null);
+	esvazia_caixa();
+	todos[o2].send_cast_vote(int64(todos[v].my_peer_id));
+	confere("voto no engolido e recusado", @espera(todos, o2, S_ERROR, 3000) != null && @achado(o2, S_VOTE_CAST) == null);
+
+	esvazia_caixa();
+	todos[lobo].send_cast_vote(-1);
+	todos[impostor].send_cast_vote(int64(todos[lobo].my_peer_id));
+	todos[o1].send_cast_vote(int64(todos[lobo].my_peer_id));
+	todos[o2].send_cast_vote(int64(todos[lobo].my_peer_id));
+	net_packet@ res = espera(todos, o1, S_VOTE_RESULT, 40000);
+	confere("o lobo foi expulso", @res != null && res.get_uint64("ejected_peer") == todos[lobo].my_peer_id);
+	bombeia(todos, 1500);
+	bool todos_souberam = true;
+	for (uint i = 0; i < 5; i++) {
+		net_packet@ volta = achado(i, S_BELLY_RELEASED);
+		json_array@ quem = @volta != null ? volta.get_array("peers") : null;
+		if (@quem == null || quem.length() != 1 || uint64(quem[0]) != todos[v].my_peer_id) todos_souberam = false;
+	}
+	confere("todos recebem a volta do engolido", todos_souberam);
+	bool acabou = false;
+	for (uint i = 0; i < 5; i++) if (@achado(i, S_GAME_OVER) != null) acabou = true;
+	confere("a partida continua (um impostor contra tres)", !acabou);
+
+	esvazia_caixa();
+	anda_ate(todos, todos[v], MEETING_GATHER_X, MEETING_GATHER_Y, MEETING_GATHER_X + 0.5, MEETING_GATHER_Y);
+	bool andou = false;
+	for (uint k = 0; k < caixa[o1].length(); k++) {
+		if (caixa[o1][k].type == S_PLAYER_MOVED && caixa[o1][k].get_uint64("peer_id") == todos[v].my_peer_id) andou = true;
+	}
+	confere("quem voltou anda de novo (e os vivos ouvem)", andou);
+
+	for (uint i = 0; i < 5; i++) todos[i].send_leave_lobby();
+	bombeia(todos, 1000);
+
+	println("Parte 2: tres jogadores - o lobo sobra");
+	array<game_client@> tres = {todos[0], todos[1], todos[2]};
+	prepara_caixa(3);
+	if (!comeca(tres, 3, "lobo2", papeis, xs, ys)) return;
+	lobo = -1; int trip = -1;
+	for (uint i = 0; i < 3; i++) {
+		if (papeis[i] == ROLE_WOLF) lobo = int(i);
+		else if (role_for(papeis[i]).team != TEAM_IMPOSTOR) trip = int(i);
+	}
+	confere("saiu um lobo e um tripulante", lobo >= 0 && trip >= 0);
+	if (lobo < 0 || trip < 0) return;
+	anda_ate(tres, tres[lobo], xs[lobo], ys[lobo], xs[trip], ys[trip]);
+	net_packet@ ok2 = engole(tres, lobo, trip, 30000);
+	confere("o lobo engoliu o ultimo tripulante", @ok2 != null && ok2.get_bool("ok"));
+	net_packet@ fim = espera(tres, lobo, S_GAME_OVER, 5000);
+	confere("a partida acabou", @fim != null);
+	if (@fim != null) {
+		confere("venceu um neutro (" + fim.get_string("winner") + ")", fim.get_string("winner") == "neutral");
+		confere("pelo motivo certo (" + fim.get_string("reason") + ")", fim.get_string("reason") == "wolf_survived");
+		json_array@ neutros = fim.get_array("neutrals");
+		bool revelado = false;
+		if (@neutros != null) for (uint i = 0; i < neutros.length(); i++) {
+			json_object@ n = neutros.get_object(i);
+			if (string(n["role"]) == ROLE_WOLF && bool(n["won"])) revelado = true;
+		}
+		confere("o fim revela o lobo como vencedor", revelado);
+	}
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

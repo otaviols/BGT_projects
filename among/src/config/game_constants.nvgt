@@ -32,7 +32,7 @@ const string GAME_VERSION = "0.40.0";
 // conhece e só é recusado em salas que ligaram o Atirador - a exigência passou a ser POR PAPEL (ver
 // role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
 // a barrar quem só queria jogar com engenheiro.
-const int PROTOCOL_VERSION = 7; // 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo)
+const int PROTOCOL_VERSION = 8; // 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar)
 const int MIN_PROTOCOL_VERSION = 2;
 
 // Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
@@ -217,6 +217,11 @@ const float GUARDIAN_SHIELD_COOLDOWN_SECONDS = 60.0;
 // Alcance para lançar. É o mesmo do kill: o anjo precisa chegar tão perto quanto o impostor
 // precisaria - constante própria só para poder ajustar um sem mexer no outro.
 const float GUARDIAN_SHIELD_RANGE = PLAYER_KILL_RANGE;
+
+// Lobo Mau. A recarga de engolir é um pouco maior que a do kill do impostor: engolir não deixa corpo,
+// e sem corpo não há reunião por reporte - um lobo tão rápido quanto o impostor esvaziaria a nave antes
+// de a mesa perceber que falta gente.
+const float WOLF_EAT_COOLDOWN_SECONDS = 35.0;
 
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
 // Alcance de audição normal, fora de apagão. Era um 40 solto repetido em cada ponto que liga e

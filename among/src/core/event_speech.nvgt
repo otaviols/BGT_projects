@@ -54,7 +54,38 @@ string kill_witnessed_text(net_packet@ pkt) {
 	dictionary@ p = dictionary();
 	p.set("killer", pkt.get_string("killer_name"));
 	p.set("victim", pkt.get_string("victim_name"));
-	return tr("game.kill_witnessed", p);
+	return tr(pkt.get_bool("swallowed", false) ? "game.swallow_witnessed" : "game.kill_witnessed", p);
+}
+
+// "Você foi engolido pelo Lobo Mau, Fulano..." - só para o engolido. O nome é o verdadeiro (ver
+// S_SWALLOWED): lá dentro ele só tem o próprio lobo a quem contar.
+string swallowed_text(net_packet@ pkt) {
+	dictionary@ p = dictionary();
+	p.set("name", pkt.get_string("wolf_name"));
+	return tr("role.you_were_swallowed", p);
+}
+
+// A volta de quem estava na barriga. Para quem voltou, "você saiu"; para os outros, QUEM voltou - é
+// aqui que a nave descobre quem o lobo tinha engolido, e isso já não protege ninguém: o lobo caiu.
+string belly_released_text(net_packet@ pkt, client_roster@ roster, uint64 my_peer) {
+	json_array@ peers = pkt.get_array("peers");
+	if (@peers == null || peers.length() == 0) return "";
+	array<string> nomes;
+	bool eu = false;
+	for (uint i = 0; i < peers.length(); i++) {
+		uint64 quem = uint64(peers[i]);
+		if (quem == my_peer) { eu = true; continue; }
+		roster_entry@ e = @roster != null ? roster.find(quem) : null;
+		if (@e != null) nomes.insert_last(e.name);
+	}
+	string texto = eu ? tr("role.you_were_released") : "";
+	if (nomes.length() > 0) {
+		dictionary@ p = dictionary();
+		p.set("names", join(nomes, ", "));
+		string outros = tr(nomes.length() == 1 ? "role.released_one" : "role.released_many", p);
+		texto = texto == "" ? outros : texto + " " + outros;
+	}
+	return texto;
 }
 
 // Quem venceu, para o anúncio e para a tela de resultado direm a MESMA coisa. Com um neutro vencendo
@@ -201,6 +232,10 @@ string background_event_text(net_packet@ pkt, game_client@ client) {
 	// Quem VIU o assassinato de perto precisa ouvir mesmo no meio de uma tarefa - é exatamente onde
 	// alguém costuma estar quando o impostor mata ao lado.
 	if (t == S_KILL_WITNESSED) return kill_witnessed_text(pkt);
+	// Engolido no meio de uma tarefa: a tela precisa dizer onde ele foi parar, senão ele termina a
+	// minigame achando que conta.
+	if (t == S_SWALLOWED) return swallowed_text(pkt);
+	if (t == S_BELLY_RELEASED) return belly_released_text(pkt, g_match_roster, @client != null ? client.my_peer_id : 0);
 	// A morte na mesa precisa chegar a quem está com a lista de votação aberta - que é exatamente
 	// onde todo mundo está quando ela acontece.
 	if (t == S_MEETING_KILL) return meeting_kill_text(pkt, g_match_roster);

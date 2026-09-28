@@ -233,6 +233,8 @@ class game_server {
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			if (!reaches_client(lobby.players[i])) continue;
 			if (lobby.players[i].peer_id == exclude_peer || lobby.players[i].alive) continue;
+			// Engolido não é fantasma: não acompanha a nave dos mortos (ver can_hear_voice).
+			if (lobby.players[i].swallowed()) continue;
 			send_to(lobby.players[i].peer_id, pkt, false);
 		}
 	}
@@ -364,6 +366,9 @@ class game_server {
 		// papel e tasks, e tirando ele da lobby em que ele está agora.
 		bool match_active = lobby.state != "waiting" && lobby.state != "ended";
 		if (match_active) {
+			// O lobo que sai solta quem engoliu, onde ele estava: a barriga não pode sair da partida
+			// junto com ele. O aviso sai pela fila do tick (pending_events).
+			if (@p != null && p.alive) lobby.release_belly(p, p.x, p.y);
 			if (@p != null) {
 				game_player@ record = game_player(p.peer_id, p.username);
 				record.color = p.color;
@@ -488,8 +493,9 @@ class game_server {
 		// Capacidade, que conhece os três casos (só vivo, vivo e morto, só morto). O anjo da guarda
 		// VIVO cai aqui, e o motivo é próprio: "seu papel só age depois de morrer" - dizer a ele
 		// "fantasma não interage" seria o contrário do que acontece.
-		if (!player_abilities(role, p.alive).has_ability()) {
-			send_ability_result(peer_id, ability, false, p.alive ? "role.ability_only_dead" : "game.ghost_cannot_interact");
+		if (!player_abilities(role, p.alive, p.swallowed()).has_ability()) {
+			string motivo = p.swallowed() ? "role.swallowed_cannot_act" : (p.alive ? "role.ability_only_dead" : "game.ghost_cannot_interact");
+			send_ability_result(peer_id, ability, false, motivo);
 			return;
 		}
 		if (p.ability_cooldown_remaining > 0.0) {
@@ -585,6 +591,44 @@ class game_server {
 			// como um ataque que não acontece, e quem atacou não recebe explicação nenhuma.
 			message_params.set("name", protegido);
 			message_key = "role.shield_cast";
+			return true;
+		}
+		if (ability == ABILITY_EAT) {
+			uint64 alvo_peer = pkt.get_uint64("target_peer_id");
+			if (!lobby.try_eat(p.peer_id, alvo_peer, message_key)) return false;
+			game_player@ alvo = lobby.find_player(alvo_peer);
+			// Engolido larga o posto de câmeras e o scanner, como quem morre: lá dentro não opera nada,
+			// e o cliente dele precisa saber que saiu da câmera.
+			if (lobby.release_cameras(alvo_peer)) {
+				send_camera_state(alvo_peer, false, "");
+				broadcast_camera_watching(lobby);
+			}
+			end_visible_task(lobby, alvo_peer);
+			// Disfarçado, a fantasia cai: na barriga ele é quem é, e quando voltar a lista da reunião
+			// precisa do nome certo. Sem som - ninguém viu a cara dele mudar, ele sumiu.
+			if (alvo.disguised()) {
+				alvo.set_disguise("", 0.0);
+				broadcast_display_name(lobby, alvo);
+				send_to(alvo_peer, net_packet(S_SHIFT_ENDED));
+			}
+			// O engolido fica sabendo onde está e de quem - pelo nome verdadeiro.
+			net_packet@ dentro = net_packet(S_SWALLOWED);
+			dentro.set_uint64("wolf_peer", p.peer_id);
+			dentro.set_string("wolf_name", p.public_name());
+			send_to(alvo_peer, dentro);
+			// Para o resto da nave, o som do assassinato ali - e só. Sem corpo depois (ver role_wolf).
+			net_packet@ som = net_packet(S_SWALLOW_SOUND);
+			som.set_float("x", alvo.x);
+			som.set_float("y", alvo.y);
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				uint64 pid = lobby.players[i].peer_id;
+				if (!reaches_client(lobby.players[i]) || pid == p.peer_id || pid == alvo_peer) continue;
+				send_to(pid, som);
+			}
+			notify_witnesses(lobby, p.peer_id, alvo_peer, alvo.x, alvo.y, true);
+			message_params.set("name", alvo.public_name());
+			message_params.set("peer", "" + alvo_peer); // o cliente do lobo tira o engolido do elenco dele
+			message_key = "role.eat_done";
 			return true;
 		}
 		if (ability == ABILITY_REMOTE_FIX) {
@@ -1233,6 +1277,7 @@ class game_server {
 			else p.color = color_ids[(proxima_cor++) % color_ids.length()];
 			p.named_by_color = lobby.config.color_mode;
 			p.alive = true;
+			p.swallowed_by = 0;
 			p.left_match = false;
 			p.vented = false;
 			p.current_vent_id = "";
@@ -1240,6 +1285,8 @@ class game_server {
 			// A habilidade começa PRONTA, como no original. Não é o cooldown do kill: aquele existe
 			// para o primeiro corpo não aparecer no segundo um da partida.
 			p.ability_cooldown_remaining = 0.0;
+			// ...menos a de quem tira gente do jogo (o lobo), que começa recarregando como o kill.
+			if (p.role().ability_starts_on_cooldown) p.ability_cooldown_remaining = lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN);
 			p.meetings_called = 0;
 			p.radar_index = -1;
 			p.last_move_time = 0.0;
@@ -1372,6 +1419,9 @@ class game_server {
 			// da votação, e o cliente precisa acompanhar sem ter usado a habilidade nenhuma vez ainda
 			// (é por S_ABILITY_RESULT que ele descobriria, e esse só chega depois do primeiro uso).
 			start.set_float("ability_cooldown_seconds", lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN));
+			// Quanto da recarga já está correndo no começo (o lobo começa recarregando). Servidor antigo
+			// não manda: zero, como sempre foi.
+			start.set_float("ability_initial_cooldown", p.ability_cooldown_remaining);
 			// Quantos palpites por reunião (sniper). Pela mesma razão da recarga: o cliente precisa
 			// saber antes do primeiro uso para a tecla responder sem ir à rede.
 			start.set_int("ability_guesses", int(lobby.config.role_value(p.role_id, TUNABLE_GUESSES)));
@@ -1501,6 +1551,9 @@ class game_server {
 		// mais nada (botão, painel, vent - ver game/game_loop.nvgt).
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p == null) return;
+		// Na barriga do lobo não se faz tarefa: o fantasma continua ajudando o time, o engolido não
+		// está livre pela nave. Uma minigame aberta quando ele foi engolido termina aqui sem contar.
+		if (p.swallowed()) return;
 
 		string task_id = pkt.get_string("task_id");
 		bool success = pkt.get_bool("success");
@@ -1599,24 +1652,7 @@ class game_server {
 		// "na frente de alguém" passa a ter o custo óbvio, e matar a dois passos continua anônimo.
 		// Fantasma, quem está no duto e o invisível não veem. O tiro errado do xerife (atirador ==
 		// vítima) fica de fora: diria a quem estava perto que ali havia um xerife que errou.
-		game_player@ matador = lobby.find_player(killer_id);
-		if (killer_id != victim_peer && @matador != null) {
-			game_player@ vitima = lobby.find_player(victim_peer);
-			float vx = event.get_float("x"), vy = event.get_float("y");
-			for (uint i = 0; i < lobby.players.length(); i++) {
-				game_player@ w = lobby.players[i];
-				if (w.peer_id == killer_id || w.peer_id == victim_peer || !w.alive || w.vented || w.invisible()) continue;
-				// No ESCURO (luzes sabotadas) ninguém vê quem matou: ouve-se o assassinato ao lado, e só.
-				// Pela mesma regra de quem as luzes cegam (sabotage_rules/player_abilities) - e é o que dá
-				// ao impostor um motivo a mais para apagar as luzes antes de matar.
-				if (player_abilities(w.role(), w.alive).blinded_by_lights(lobby.active_sabotage)) continue;
-				if (!reaches_client(w) || distance_2d(w.x, w.y, vx, vy) > PLAYER_KILL_RANGE) continue;
-				net_packet@ viu = net_packet(S_KILL_WITNESSED);
-				viu.set_string("killer_name", matador.display_name());
-				viu.set_string("victim_name", @vitima != null ? vitima.public_name() : "");
-				send_to(w.peer_id, viu);
-			}
-		}
+		if (killer_id != victim_peer) notify_witnesses(lobby, killer_id, victim_peer, event.get_float("x"), event.get_float("y"), false);
 		// O assassino recebe o completo para rearmar a recarga do kill (ver game_loop).
 		if (killer_id != victim_peer) {
 			game_player@ assassino = lobby.find_player(killer_id);
@@ -1639,6 +1675,34 @@ class game_server {
 			// quem quiser mais que isso tem que ir até lá. E nunca diz quem matou.
 			alarm.set_string("room_key", @zone != null ? zone.name_key : "");
 			broadcast_to_lobby(lobby, alarm);
+		}
+	}
+
+	// Quem estava colado no crime - dentro do alcance do próprio kill - VIU quem fez, e ouve isso, só
+	// ela. Serve ao assassinato e ao lobo engolindo alguém (`swallowed`), que para quem está ao lado são
+	// a mesma coisa: um ataque que se viu acontecer.
+	//
+	// Mais longe, é o som que conta (a direção, não o nome); colado, fingir que a pessoa não viu era só
+	// confusão. O limite curto é o que mantém o atacante com espaço: agir "na frente de alguém" passa a
+	// ter o custo óbvio, e a dois passos continua anônimo. Fantasma, engolido, quem está no duto e o
+	// invisível não veem.
+	void notify_witnesses(game_state@ lobby, uint64 killer_id, uint64 victim_peer, float vx, float vy, bool swallowed) {
+		game_player@ matador = lobby.find_player(killer_id);
+		if (@matador == null) return;
+		game_player@ vitima = lobby.find_player(victim_peer);
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ w = lobby.players[i];
+			if (w.peer_id == killer_id || w.peer_id == victim_peer || !w.alive || w.vented || w.invisible()) continue;
+			// No ESCURO (luzes sabotadas) ninguém vê quem matou: ouve-se o assassinato ao lado, e só.
+			// Pela mesma regra de quem as luzes cegam (sabotage_rules/player_abilities) - e é o que dá
+			// ao impostor um motivo a mais para apagar as luzes antes de matar.
+			if (player_abilities(w.role(), w.alive).blinded_by_lights(lobby.active_sabotage)) continue;
+			if (!reaches_client(w) || distance_2d(w.x, w.y, vx, vy) > PLAYER_KILL_RANGE) continue;
+			net_packet@ viu = net_packet(S_KILL_WITNESSED);
+			viu.set_string("killer_name", matador.display_name());
+			viu.set_string("victim_name", @vitima != null ? vitima.public_name() : "");
+			viu.set_bool("swallowed", swallowed);
+			send_to(w.peer_id, viu);
 		}
 	}
 
@@ -1874,6 +1938,9 @@ class game_server {
 	// quem está perto de você.
 	array<game_player@>@ radar_targets(game_state@ lobby, game_player@ me, string&out fail_key) {
 		fail_key = "";
+		// Na barriga do lobo não se vê nada lá fora. O cliente já não deixa a tecla chegar aqui; isto é
+		// para o cliente que não obedece.
+		if (me.swallowed()) { fail_key = "role.swallowed_cannot_act"; return null; }
 		// O `me.alive` aqui é o conserto de um bug que sobreviveu a três tentativas: esta condição
 		// olhava só o PAPEL e nunca se a pessoa estava viva. Sabotagem não atinge fantasma em lugar
 		// nenhum do jogo - menos aqui, onde o servidor recusava a varredura de quem já tinha morrido
@@ -2393,7 +2460,13 @@ class game_server {
 		msg.set_uint64("peer_id", peer_id);
 		msg.set_string("name", sender.public_name()); // sala de espera: o nome; modo cor na partida: a cor
 		msg.set_string("text", text);
-		broadcast_to_lobby(lobby, msg);
+		// Quem está na barriga do lobo não lê a mesa: lá dentro só se ouve o lobo e os outros engolidos
+		// (decisão do jogo). O chat escrito seguiria a mesma regra da voz.
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ r = lobby.players[i];
+			if (!reaches_client(r) || r.swallowed()) continue;
+			send_to(r.peer_id, msg);
+		}
 	}
 
 	// Avisa a partida de que UM painel saiu do caminho, sem a sabotagem ter acabado. É o que permite

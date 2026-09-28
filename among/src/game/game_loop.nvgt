@@ -450,6 +450,7 @@ string game_over_reason_text(const string&in reason) {
 	if (reason == "majority") return tr("game.reason_majority");
 	if (reason == "oxygen_depleted") return tr("game.reason_oxygen_depleted");
 	if (reason == "jester_ejected") return tr("game.reason_jester_ejected");
+	if (reason == "wolf_survived") return tr("game.reason_wolf_survived");
 	return "";
 }
 
@@ -538,7 +539,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	bool is_impostor = my_role.team == TEAM_IMPOSTOR;
 	// Recarga da habilidade do papel, acompanhada localmente como a do kill: o servidor é quem
 	// decide, isto é só para responder na hora sem viagem de rede.
-	float my_ability_cooldown_remaining = 0.0;
+	// O lobo começa recarregando (ability_starts_on_cooldown); servidor antigo não manda, e aí é zero.
+	float my_ability_cooldown_remaining = start_pkt.get_float("ability_initial_cooldown", 0.0);
 	float ability_cooldown_config = start_pkt.get_float("ability_cooldown_seconds");
 	// Sniper: quantos palpites por reunião a sala deu a ele, e quantos restam nesta mesa.
 	uint my_guess_count = uint(start_pkt.get_int("ability_guesses"));
@@ -567,6 +569,14 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
 	// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
 	bool alive = true;
+	// Na barriga do Lobo Mau: `alive` é false (sai da votação e do radar de todos), mas não é fantasma -
+	// não anda, não faz tarefa, não usa radar. Vai aonde o lobo for: o ouvinte acompanha a posição dele
+	// (ver o fim do quadro), e é isso que faz a barriga soar como um lugar.
+	bool swallowed = false;
+	uint64 wolf_peer = 0;
+	// Quem o LOBO pediu para engolir: sai do elenco dele quando o servidor confirma, senão o bip de alvo
+	// e a tecla continuariam apontando para quem já está na barriga.
+	uint64 pending_eat_peer = 0;
 	float my_x = start_pkt.get_float("your_x");
 	float my_y = start_pkt.get_float("your_y");
 	roster.load_from_start_packet(start_pkt);
@@ -846,11 +856,21 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// da votação chegar (S_VOTE_RESULT, abaixo) - sem isso os jogadores continuavam
 				// espalhados pelo mapa sem nenhum sinal físico de que uma reunião estava rolando.
 				movement_frozen = true;
+				// Quem está na barriga do lobo sai da lista - e é só isso que a mesa fica sabendo (ver
+				// start_meeting no servidor). Para o cliente, some como um morto: fora da votação.
+				json_array@ ausentes = pkt.get_array("absent");
+				if (@ausentes != null) for (uint i = 0; i < ausentes.length(); i++) {
+					uint64 ausente = uint64(ausentes[i]);
+					if (ausente != client.my_peer_id) roster.mark_dead(ausente);
+				}
 				float gather_x = pkt.get_float("gather_x");
 				float gather_y = pkt.get_float("gather_y");
-				my_x = gather_x;
-				my_y = gather_y;
-				audio.update_listener(my_x, my_y);
+				// O engolido não vai à mesa: continua dentro do lobo, e o lobo está na mesa.
+				if (!swallowed) {
+					my_x = gather_x;
+					my_y = gather_y;
+					audio.update_listener(my_x, my_y);
+				}
 				for (uint i = 0; i < roster.entries.length(); i++) {
 					if (roster.entries[i].alive) roster.update_position(roster.entries[i].peer_id, gather_x, gather_y);
 				}
@@ -995,6 +1015,55 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				string visto = kill_witnessed_text(pkt);
 				if (!pkt.announced) speak(visto, false);
 				events_log.add("", visto);
+			} else if (t == S_SWALLOWED) {
+				// Fui engolido. Como uma morte para o resto do jogo (fora da votação, do radar), mas preso:
+				// quem manda nisso é `swallowed`, lido em cada bloco de ação do laço.
+				swallowed = true;
+				wolf_peer = pkt.get_uint64("wolf_peer");
+				alive = false;
+				mui.alive = false;
+				is_vented = false;
+				// O som da morte é o da vítima, e é o que se ouve ao ser engolido - sem posição: é ele.
+				roster_entry@ eu = roster.find(client.my_peer_id);
+				audio.play_death(@eu != null ? eu.color : -1, my_x, my_y);
+				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+					my_role, alive, known_body_peers, known_body_positions);
+				audio.stop_landmark_beacons(); // tarefa, botão, painel: nada disso está ao alcance aqui
+				string engolido = swallowed_text(pkt);
+				if (!pkt.announced) speak(engolido);
+				events_log.add("", engolido);
+			} else if (t == S_SWALLOW_SOUND) {
+				// O som do assassinato, no ponto - e nada mais. Não vem corpo depois: é a pista do lobo.
+				audio.play_kill_laugh(-1, pkt.get_float("x"), pkt.get_float("y"));
+			} else if (t == S_BELLY_RELEASED) {
+				// O lobo caiu: quem estava na barriga volta, vivo, onde ele caiu.
+				float rx = pkt.get_float("x"), ry = pkt.get_float("y");
+				json_array@ voltaram = pkt.get_array("peers");
+				bool eu_voltei = false;
+				if (@voltaram != null) for (uint i = 0; i < voltaram.length(); i++) {
+					uint64 quem = uint64(voltaram[i]);
+					roster_entry@ e = roster.find(quem);
+					if (@e != null) { e.alive = true; e.x = rx; e.y = ry; }
+					if (quem == client.my_peer_id) eu_voltei = true;
+				}
+				if (eu_voltei) {
+					swallowed = false;
+					wolf_peer = 0;
+					alive = true;
+					mui.alive = true;
+					my_x = rx;
+					my_y = ry;
+					audio.update_listener(my_x, my_y);
+					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+						my_role, alive, known_body_peers, known_body_positions);
+					// Na reunião não há marcadores (ver S_MEETING_STARTED); eles voltam com o fim da votação.
+					if (!movement_frozen) refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
+				}
+				string volta = belly_released_text(pkt, roster, client.my_peer_id);
+				if (volta != "") {
+					if (!pkt.announced) speak(volta);
+					events_log.add("", volta);
+				}
 			} else if (t == S_ABILITY_RESULT) {
 				// Deu: a recarga começa a contar aqui, com o valor que o SERVIDOR mandou. O efeito em
 				// si (o conserto, o tiro) chega pelos pacotes de sempre - não há "som de habilidade"
@@ -1010,6 +1079,13 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// tecla saber responder "você já apontou nesta reunião" sem ir à rede.
 					if (qual == ABILITY_GUESS && guesses_left_this_meeting > 0) guesses_left_this_meeting--;
 					if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
+					// Engoliu: quem foi para a barriga sai do elenco do lobo (bip de alvo, tecla, lista da
+					// reunião). O som é o do assassinato, sem posição - é ele quem fez.
+					if (qual == ABILITY_EAT) {
+						if (pending_eat_peer != 0) roster.mark_dead(pending_eat_peer);
+						pending_eat_peer = 0;
+						audio.play_kill_laugh(-1, my_x, my_y);
+					}
 					if (qual == ABILITY_VANISH) {
 						my_invisible_remaining = pkt.get_float("duration_seconds", PHANTOM_INVISIBLE_SECONDS);
 						task_sound_simple(SND_VANISH); // o dele toca na hora; para os outros vem posicionado
@@ -1182,6 +1258,16 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		}
 
 		float delta = frame_clock.tick(); // sem perder frações - ver core/frame_timer.nvgt
+		// Na barriga, o ouvinte vai aonde o lobo vai: é o único jeito de "estar dentro de alguém" soar
+		// como um lugar - os passos dele, a sala por onde ele passa, a mesa quando ele vai à reunião.
+		if (swallowed) {
+			roster_entry@ lobo = roster.find(wolf_peer);
+			if (@lobo != null && (lobo.x != my_x || lobo.y != my_y)) {
+				my_x = lobo.x;
+				my_y = lobo.y;
+				audio.update_listener(my_x, my_y);
+			}
+		}
 		// Depois de qualquer menu/tela bloqueante (task, lista de tasks, sabotagem, chat, votação -
 		// que usa as MESMAS setas do movimento), o relógio não é pausado durante a espera, então
 		// o primeiro frame ao voltar tem um delta gigante. Sem esse teto, se uma seta de movimento
@@ -1240,11 +1326,12 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		//
 		// Na transição, e não contínuo, pelo mesmo motivo de todo o resto: num jogo em que se está
 		// tentando ouvir passos, um bip repetido por cima é ruído, não ajuda.
-		if (g_settings.target_range_beep && !movement_frozen && !is_vented) {
+		if (g_settings.target_range_beep && !movement_frozen && !is_vented && !swallowed) {
 			player_abilities agora(my_role, alive);
 			float alcance = 0.0;
 			if (agora.can_kill()) alcance = PLAYER_KILL_RANGE;
 			else if (agora.has_ability() && my_role.ability_id == ABILITY_SHIELD) alcance = GUARDIAN_SHIELD_RANGE;
+			else if (agora.has_ability() && my_role.ability_id == ABILITY_EAT) alcance = PLAYER_KILL_RANGE;
 			bool tem_alvo = false;
 			if (alcance > 0.0) {
 				// A mesma função (e as mesmas exclusões) da tecla que vai agir: assim o bip nunca
@@ -1259,7 +1346,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			target_was_in_range = tem_alvo;
 		}
 
-		if (!movement_frozen && !is_vented) {
+		if (!movement_frozen && !is_vented && !swallowed) {
 			// Jogador morto (morto ou expulso) ainda se move como fantasma, igual o Among Us original -
 			// só que em silêncio (sem passos/esbarrão) e invisível pra quem tá vivo (o servidor só
 			// retransmite a posição dele pra outros fantasmas, ver network/server.nvgt on_move).
@@ -1369,7 +1456,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// posição real de quem perguntou - parado na segurança - e essa resposta chegava depois,
 		// falando por cima. Era esse o "radar continua sendo o do jogador".
 		// Q trava/solta o radar no último alvo; enquanto travado, o radar pergunta e bipa sozinho.
-		if (!movement_frozen && !cameras.active) {
+		if (!movement_frozen && !cameras.active && !swallowed) {
 			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_continuous();
 			radar.tick(map, my_x, my_y);
 		}
@@ -1383,7 +1470,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
 		}
 
-		if (!movement_frozen && !cameras.active && action_pressed(ACTION_RADAR)) {
+		if (!movement_frozen && !cameras.active && !swallowed && action_pressed(ACTION_RADAR)) {
 			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -
 			// igual o Among Us original, onde mortos continuam observando a partida.
 			// Ctrl+Tab troca o modo do radar (jogadores <-> objetos da sala).
@@ -1404,7 +1491,12 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// Fantasma (morto ou expulso) entra aqui junto com os vivos porque ele PRECISA conseguir
 		// terminar as tasks dele - é o que mantém viva a chance de vitória dos tripulantes depois de
 		// perder gente. Tudo que não é task fica só pros vivos (ver os testes de "alive" abaixo).
-		if (!movement_frozen && !is_vented) {
+		// Na barriga do lobo nada disto existe: as teclas respondem com onde ele está, em vez de silêncio.
+		if (swallowed && !movement_frozen && (action_pressed(ACTION_INTERACT) || action_pressed(ACTION_ABILITY) ||
+				action_pressed(ACTION_REPORT) || action_pressed(ACTION_RADAR))) {
+			speak(tr("role.swallowed_cannot_act"));
+		}
+		if (!movement_frozen && !is_vented && !swallowed) {
 			if (action_pressed(ACTION_INTERACT)) {
 				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(room_allows_vents), active_sabotage_id, alive);
 				// Duas recusas que poupam trabalho jogado fora: o scanner é de um de cada vez (o
@@ -1528,6 +1620,15 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// O alarme É o botão de emergência, de qualquer lugar: o mesmo pedido, e o servidor
 					// aplica a mesma contagem, recarga e bloqueios (ver role_noisemaker).
 					crew.call_emergency_meeting();
+				} else if (my_role.ability_id == ABILITY_EAT) {
+					// Mirada como o kill: o mais perto ao alcance. Quem engolir sai do elenco na
+					// confirmação (ver S_ABILITY_RESULT).
+					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE);
+					if (@alvo == null) speak(tr("role.eat_no_target"));
+					else {
+						pending_eat_peer = alvo.peer_id;
+						client.send_use_ability(my_role.ability_id, alvo.peer_id);
+					}
 				} else if (my_role.ability_id == ABILITY_SHIELD) {
 					// Habilidade MIRADA: o alvo é quem estiver mais perto, pela mesma função da
 					// tecla de matar - o anjo tem que ir até a pessoa, como o impostor teria.
@@ -1632,7 +1733,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 
 		// Alinhado com uma saída da sala: um aviso no lado dela, uma vez (ver game/exit_alignment.nvgt).
 		// Só quando se está andando de verdade - na reunião, na câmera e no duto ninguém procura porta.
-		if (!movement_frozen && !cameras.active && !is_vented) exits.update(map, audio, my_x, my_y);
+		if (!movement_frozen && !cameras.active && !is_vented && !swallowed) exits.update(map, audio, my_x, my_y);
 
 		// Lista de tarefas / tempo da reunião.
 		//
