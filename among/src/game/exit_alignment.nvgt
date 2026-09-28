@@ -1,0 +1,53 @@
+// exit_alignment.nvgt
+// O aviso de "alinhado com uma saída": pedido antigo dos jogadores. Dentro de uma sala, quando a
+// pessoa fica na faixa de uma passagem - andando reto naquela direção, ela sai por ali -, toca UM som
+// no lado da saída. Só volta a tocar depois de sair do alinhamento e voltar a ele.
+//
+// Sem visão, achar a porta de uma sala era andar até bater na parede e ir tateando de lado ouvindo o
+// esbarrão. Com o aviso, a pessoa atravessa a sala sabendo quando está no eixo certo.
+//
+// Só em SALA: num corredor se está sempre alinhado com as duas pontas, e o aviso viraria ruído.
+// E a saída por onde se ENTROU fica calada ao entrar - senão toda chegada numa sala tocaria um aviso
+// às costas, dizendo o que a pessoa acabou de fazer.
+
+#include "map.nvgt"
+#include "../audio/audio_manager.nvgt"
+#include "../config/game_settings.nvgt"
+
+class exit_alignment {
+	private string zone_id = "";
+	private array<zone_opening@>@ saidas = null;
+	private array<string> alinhadas; // "zona|lado" com que se está alinhado agora
+
+	// A cada quadro em que o jogador pode andar. Toca o aviso ao ENTRAR num alinhamento.
+	void update(game_map@ map, audio_manager@ audio, float x, float y) {
+		if (!g_settings.exit_alignment_beep) { alinhadas.resize(0); return; }
+		map_zone@ z = map.zone_at(x, y);
+		if (@z == null || z.is_corridor) {
+			if (@z != null) zone_id = z.id; // lembra o corredor: é por ele que se vai entrar na próxima sala
+			alinhadas.resize(0);
+			@saidas = null;
+			return;
+		}
+		string veio_de = "";
+		if (z.id != zone_id) {
+			veio_de = zone_id;
+			zone_id = z.id;
+			@saidas = map.openings_of(z.id);
+			alinhadas.resize(0);
+		}
+		if (@saidas == null) @saidas = map.openings_of(z.id);
+
+		array<string> agora;
+		for (uint i = 0; i < saidas.length(); i++) {
+			zone_opening@ s = saidas[i];
+			if (!s.aligned_with(x, y)) continue;
+			string chave = s.to_zone + "|" + s.side;
+			agora.insert_last(chave);
+			if (alinhadas.find(chave) != -1) continue; // já estava alinhado: nada de repetir
+			if (s.to_zone == veio_de) continue;        // a passagem por onde acabou de entrar
+			audio.play_exit_aligned(s.sound_x(x), s.sound_y(y));
+		}
+		alinhadas = agora;
+	}
+}

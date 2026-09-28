@@ -20,6 +20,7 @@
 #include "../audio/voice_chat.nvgt"
 #include "../core/player.nvgt"
 #include "../core/frame_timer.nvgt"
+#include "exit_alignment.nvgt"
 #include "../game/roles/crewmate.nvgt"
 #include "../game/roles/impostor.nvgt"
 #include "../game/task_manager.nvgt"
@@ -727,6 +728,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// quem observa seja outra pessoa.
 	camera_view cameras;
 	cameras.build_room_list(map);
+	exit_alignment exits; // o aviso de alinhado com uma saída da sala
 	string watched_room_id = "";
 
 	while (!game_over) {
@@ -1615,6 +1617,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			map_zone@ watched = cameras.current_zone();
 			if (@watched != null) audio.update_listener(watched.center_x, watched.center_y);
 		}
+
+		// Alinhado com uma saída da sala: um aviso no lado dela, uma vez (ver game/exit_alignment.nvgt).
+		// Só quando se está andando de verdade - na reunião, na câmera e no duto ninguém procura porta.
+		if (!movement_frozen && !cameras.active && !is_vented) exits.update(map, audio, my_x, my_y);
 
 		// Lista de tarefas / tempo da reunião.
 		//

@@ -22,6 +22,7 @@
 #include "../config/game_constants.nvgt"
 #include "../i18n.nvgt"
 #include "../core/frame_timer.nvgt"
+#include "../game/exit_alignment.nvgt"
 
 void run_explore_map_screen() {
 	game_map@ map = build_the_hub_map();
@@ -48,6 +49,7 @@ void run_explore_map_screen() {
 	frame_timer frame_clock;
 	timer footstep_clock;
 	timer wall_bump_clock;
+	exit_alignment exits; // o mesmo aviso de saída da partida: é aqui que se aprende onde ficam as portas
 
 	while (true) {
 		wait(5);
@@ -55,6 +57,7 @@ void run_explore_map_screen() {
 		if (delta > 0.1) delta = 0.1; // mesmo teto do laço da partida: um quadro longo não arremessa ninguém
 
 		if (key_pressed(KEY_ESCAPE)) break;
+		exits.update(map, audio, my_x, my_y);
 
 		float dx = 0.0, dy = 0.0;
 		if (action_down(ACTION_MOVE_NORTH)) dy -= 1.0;

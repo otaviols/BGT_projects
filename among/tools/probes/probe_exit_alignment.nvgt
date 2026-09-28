@@ -1,0 +1,71 @@
+// Sonda do aviso de "alinhado com uma saída", sem rede: simula alguém andando e CONTA os avisos.
+//   nvgt tools/probes/probe_exit_alignment.nvgt
+//
+// Lista as saídas de cada sala (para LER e comparar com o mapa) e confere a regra do aviso:
+//   1. entrar no eixo de uma saída toca uma vez, do lado dela;
+//   2. ficar no eixo não repete;
+//   3. sair do eixo e voltar toca de novo;
+//   4. entrar na sala pela passagem não avisa a passagem por onde se veio;
+//   5. toda sala tem ao menos uma saída (senão ninguém sairia dela).
+#include "../../src/game/exit_alignment.nvgt"
+
+// Conta os avisos em vez de tocar - o resto do audio_manager fica como é.
+class audio_contador : audio_manager {
+	array<string> tocados;
+	void play_exit_aligned(float x, float y) override { tocados.insert_last("" + x + "," + y); }
+}
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	g_settings.exit_alignment_beep = true;
+	game_map@ m = build_the_hub_map();
+
+	println("== saidas de cada sala ==");
+	array<map_zone@>@ salas = m.room_zones();
+	bool todas_tem_saida = true;
+	for (uint i = 0; i < salas.length(); i++) {
+		array<zone_opening@>@ s = m.openings_of(salas[i].id);
+		string linha = tr(salas[i].name_key) + ":";
+		for (uint k = 0; k < s.length(); k++) linha += "  " + s[k].side + "->" + tr(m.find_zone(s[k].to_zone).name_key);
+		println(linha);
+		if (s.length() == 0) todas_tem_saida = false;
+	}
+	confere("toda sala tem ao menos uma saida", todas_tem_saida);
+
+	println("== andando pela cafeteria ==");
+	audio_contador audio;
+	exit_alignment exits;
+	// Começa fora dos eixos (canto da cafeteria), já dentro dela.
+	exits.update(m, audio, -9.0, -6.0);
+	exits.update(m, audio, -9.0, -6.0);
+	confere("fora de qualquer eixo, nada toca", audio.tocados.length() == 0);
+	// Desce até o eixo leste-oeste (y = 0): entra no alinhamento das duas saídas laterais.
+	for (float y = -6.0; y <= 0.0; y += 0.25) exits.update(m, audio, -9.0, y);
+	int ao_entrar = int(audio.tocados.length());
+	confere("entrar no eixo leste-oeste avisa as duas saidas (" + ao_entrar + " avisos)", ao_entrar == 2);
+	for (int i = 0; i < 20; i++) exits.update(m, audio, -9.0, 0.0);
+	confere("parado no eixo, nao repete", int(audio.tocados.length()) == ao_entrar);
+	for (float y = 0.0; y >= -6.0; y -= 0.25) exits.update(m, audio, -9.0, y);
+	for (float y = -6.0; y <= 0.0; y += 0.25) exits.update(m, audio, -9.0, y);
+	confere("saiu do eixo e voltou: avisa de novo (" + (int(audio.tocados.length()) - ao_entrar) + " avisos)", int(audio.tocados.length()) == ao_entrar * 2);
+
+	println("== entrando pela passagem oeste ==");
+	audio_contador audio2;
+	exit_alignment exits2;
+	// Vem do corredor das armas (a oeste da cafeteria) e entra andando no eixo y = 0.
+	for (float x = -16.0; x <= -10.0; x += 0.25) exits2.update(m, audio2, x, 0.0);
+	// Deve ter avisado só a saída LESTE (a de frente), e não a oeste, por onde entrou.
+	bool so_leste = audio2.tocados.length() == 1 && audio2.tocados[0].find("12") == 0;
+	confere("so a saida da frente avisa, nao a de onde veio (" + audio2.tocados.length() + " aviso(s): " + join(audio2.tocados, "; ") + ")", so_leste);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

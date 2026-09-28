@@ -81,6 +81,12 @@ class audio_manager {
 	}
 
 	// --- Cores / mortes ---
+	// O aviso de alinhado com uma saída, no lado dela (ver game/exit_alignment.nvgt). Família dos
+	// marcadores: é orientação, como os marcadores das tarefas.
+	void play_exit_aligned(float x, float y) {
+		spatial.play_once(SND_EXIT_ALIGNED, x, y, family_db(SOUND_FAMILY_BEACONS));
+	}
+
 	void play_death(int color_id, float x, float y) {
 		spatial.play_once(color_death_sound_path(color_id), x, y, family_db(SOUND_FAMILY_EVENTS));
 	}

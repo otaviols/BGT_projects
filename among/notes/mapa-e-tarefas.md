@@ -49,6 +49,16 @@ uma não alcança a outra. Duto em corredor tem um custo que duto em sala não t
 ouvido por quem está passando. E rede de dois dutos é determinística de propósito (quem ouve sabe
 onde ele vai sair) - é a troca de velocidade por previsibilidade.
 
+**As SAÍDAS de uma sala saem da geometria** (`game_map.openings_of`): toda zona que encosta numa
+parede abre uma passagem na faixa de sobreposição. É o que alimenta o aviso de "alinhado com uma
+saída" (`game/exit_alignment.nvgt`, pedido antigo dos jogadores): dentro de uma SALA, entrar na faixa
+de uma passagem toca um som do lado dela, uma vez; volta a tocar só depois de sair do eixo e voltar.
+Corredor não avisa (está sempre alinhado com as duas pontas), e a passagem por onde se entrou fica
+calada. Zona nova ganha as saídas sozinha - mas só se ENCOSTAR de verdade (bordas iguais, com
+tolerância de 0,01); zona com uma folga entre as paredes fica sem saída e sem aviso. Sonda:
+`tools/probes/probe_exit_alignment.nvgt`, que lista as saídas de toda sala (para ler) e simula alguém
+andando. O som é provisório (`SND_EXIT_ALIGNED`, o clique de menu).
+
 **Um tipo pode ter VÁRIAS correntes, e a escolhida mora no JOGADOR.** O destino saía de
 `map.chain_object_at(tipo, fase)`, que é global: todo mundo com "abastecer os motores" ia ao mesmo
 lugar, e rota única é informação de graça para quem deduz - sabia-se de antemão por onde quem estava

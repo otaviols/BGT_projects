@@ -38,6 +38,34 @@ class zone_link {
 	}
 }
 
+// Uma passagem de uma zona para a vizinha (ver game_map.openings_of). `edge` é a coordenada da parede
+// (x para leste/oeste, y para norte/sul); a passagem vai de `span_min` a `span_max` ao longo dela.
+class zone_opening {
+	string to_zone;
+	string side; // "north" | "south" | "east" | "west"
+	float edge;
+	float span_min, span_max;
+	zone_opening() {}
+	zone_opening(const string&in to_zone, const string&in side, float edge, float span_min, float span_max) {
+		this.to_zone = to_zone;
+		this.side = side;
+		this.edge = edge;
+		this.span_min = span_min;
+		this.span_max = span_max;
+	}
+	// Alinhado: andando reto na direção da passagem, sai por ela. A margem tira as beiradas - na
+	// quina, "reto" raspa a parede e não passa.
+	bool aligned_with(float x, float y) const {
+		const float MARGEM = 0.4;
+		float ao_longo = (side == "east" || side == "west") ? y : x;
+		return ao_longo >= span_min + MARGEM && ao_longo <= span_max - MARGEM;
+	}
+	// Onde o aviso toca: na parede, na altura do jogador - de lado para leste/oeste, à frente ou atrás
+	// para norte/sul -, que é o que faz o som dizer DE QUE LADO é a saída.
+	float sound_x(float x) const { return (side == "east" || side == "west") ? edge : x; }
+	float sound_y(float y) const { return (side == "east" || side == "west") ? y : edge; }
+}
+
 class map_zone {
 	string id;
 	string name_key; // chave de i18n, ex: "room.cafeteria"
@@ -234,6 +262,34 @@ class game_map {
 	string room_id_at(float x, float y) const {
 		map_zone@ z = zone_at(x, y);
 		return @z == null ? "" : z.id;
+	}
+
+	// As SAÍDAS de uma zona, calculadas da geometria: toda zona vizinha que encosta numa parede dela
+	// abre uma passagem na faixa em que as duas se sobrepõem. Nada é cadastrado à mão - uma sala nova
+	// ganha as saídas sozinha, e uma saída cadastrada à parte seria mais uma lista para esquecer.
+	array<zone_opening@>@ openings_of(const string&in zone_id) const {
+		array<zone_opening@> saidas;
+		map_zone@ z = find_zone(zone_id);
+		if (@z == null) return saidas;
+		float z_oeste = z.center_x - z.half_w, z_leste = z.center_x + z.half_w;
+		float z_norte = z.center_y - z.half_h, z_sul = z.center_y + z.half_h;
+		for (uint i = 0; i < zones.length(); i++) {
+			map_zone@ n = zones[i];
+			if (n.id == z.id) continue;
+			float n_oeste = n.center_x - n.half_w, n_leste = n.center_x + n.half_w;
+			float n_norte = n.center_y - n.half_h, n_sul = n.center_y + n.half_h;
+			// A faixa em que as duas se sobrepõem (sem max/min: o NVGT não os tem para float).
+			float y0 = z_norte > n_norte ? z_norte : n_norte;
+			float y1 = z_sul < n_sul ? z_sul : n_sul;
+			float x0 = z_oeste > n_oeste ? z_oeste : n_oeste;
+			float x1 = z_leste < n_leste ? z_leste : n_leste;
+			if (abs(z_leste - n_oeste) < 0.01 && y1 - y0 > 0.5) saidas.insert_last(zone_opening(n.id, "east", z_leste, y0, y1));
+			if (abs(z_oeste - n_leste) < 0.01 && y1 - y0 > 0.5) saidas.insert_last(zone_opening(n.id, "west", z_oeste, y0, y1));
+			// Norte é y NEGATIVO (como no movimento).
+			if (abs(z_norte - n_sul) < 0.01 && x1 - x0 > 0.5) saidas.insert_last(zone_opening(n.id, "north", z_norte, x0, x1));
+			if (abs(z_sul - n_norte) < 0.01 && x1 - x0 > 0.5) saidas.insert_last(zone_opening(n.id, "south", z_sul, x0, x1));
+		}
+		return saidas;
 	}
 
 	map_zone@ find_zone(const string&in id) const {

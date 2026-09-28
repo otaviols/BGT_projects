@@ -121,7 +121,13 @@ distinguir norte de sul, ou ponha 0 para desligar), e se o jogo deve **bipar qua
 alcance da sua ação** — matar, atirar ou proteger, conforme o seu papel. Esse bip é só seu: ninguém
 mais ouve, e muito menos a pessoa que entrou no alcance.
 
-Ali também fica o **som quando você usa outra janela**: normal (o padrão), bem mais baixo, ou sem
+Ali também fica o **aviso de saída**, ligado por padrão: dentro de uma sala, quando você fica
+alinhado com uma saída — andando reto naquela direção, você sai por ela —, toca um som do lado dela,
+uma vez só. Ele volta a tocar se você sair do alinhamento e voltar. A passagem por onde você acabou
+de entrar não avisa. Funciona também no **Conhecer o mapa**, que é o melhor lugar para aprender as
+portas de cada sala.
+
+E o **som quando você usa outra janela**: normal (o padrão), bem mais baixo, ou sem
 som. É para quem já morreu e terminou as tarefas e quer fazer outra coisa no computador enquanto a
 partida acaba, sem a conversa por cima. A fala do leitor de tela não muda — silenciá-la interromperia
 o leitor lendo a outra janela.
@@ -249,7 +255,9 @@ se você a trocar nas configurações):
 - **Jogadores** — cicla por quem está na mesma sala que você. Toca um bipe na posição da pessoa e
   fala o nome dela.
 - **Objetos da sala** — cicla pelo que existe na sala onde você está (tarefas, dutos, painéis,
-  botão). Serve para conhecer o lugar e saber onde fica cada coisa.
+  botão). Serve para conhecer o lugar e saber onde fica cada coisa. As tarefas que aparecem são as
+  suas, ainda por fazer; para o **impostor**, que não tem tarefa de verdade, aparecem **todas** as da
+  sala — é o que deixa fingir que está fazendo uma no lugar certo.
 
 **Radar contínuo (Q):** a tecla **Q** liga e desliga o radar contínuo, e a sua escolha fica
 guardada para as próximas partidas.

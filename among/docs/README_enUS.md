@@ -126,7 +126,12 @@ telling north from south, or set 0 to turn it off), and whether the game should 
 comes within range of your action** — kill, shoot or protect, depending on your role. That beep is
 yours alone: nobody else hears it, least of all the person who walked into range.
 
-That screen also has **sound while you use another window**: normal (the default), much quieter, or
+That screen also has the **exit cue**, on by default: inside a room, when you line up with an exit —
+walking straight that way takes you out through it — a sound plays on its side, once. It plays again
+if you leave the line and come back. The passage you just came in through stays quiet. It works in
+**Explore the map** too, which is the best place to learn each room's doors.
+
+And **sound while you use another window**: normal (the default), much quieter, or
 no sound. It is for anyone who has died and finished their tasks and wants to do something else on
 the computer while the match ends, without the conversation on top. Screen reader speech does not
 change — silencing it would interrupt the screen reader reading the other window.
@@ -254,7 +259,9 @@ remap it in settings):
 - **Players** — cycles through whoever is in the same room as you. Plays a beep at the person's
   position and speaks their name.
 - **Room objects** — cycles through what exists in the room you are in (tasks, vents, panels,
-  button). Useful for learning a room and knowing where everything is.
+  button). Useful for learning a room and knowing where everything is. The tasks listed are yours,
+  still to do; for the **impostor**, who has no real tasks, **all** the room's tasks are listed — so
+  they can pretend to be doing one in the right spot.
 
 **Continuous radar (Q):** the **Q** key turns the continuous radar on and off, and your choice is
 remembered for later matches.
