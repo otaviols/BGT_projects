@@ -6,6 +6,24 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.39.0
+
+**Bots mais espertos.** Os bots da tripulação agora reportam os corpos que encontram, consertam
+sabotagens (esperam alguns segundos, para dar a chance de alguém chegar antes) e, depois de mortos,
+continuam fazendo tarefas como fantasmas — só os mortos ouvem os passos deles. Na votação, continuam
+pulando: um bot não decide quem sai da nave.
+
+**As câmeras seguem o mapa.** As setas passam para a sala vizinha naquele lado da nave, como numa
+grade: para cima, a sala ao norte; para a direita, a leste. Se não houver sala para aquele lado, o
+jogo avisa.
+
+**O começo da partida diz primeiro contra quem você joga:** quantos impostores há, ou quem são os
+seus parceiros, e só depois a descrição do papel.
+
+**Som quando você usa outra janela.** Em Configurações, em Como eu ouço o jogo, dá para deixar o som
+do jogo bem mais baixo, ou sem som, enquanto você está em outra janela. A fala do leitor de tela não
+muda.
+
 ## 0.38.0
 
 **Modo cor.** Uma regra nova da sala: na partida ninguém tem nome, só cor. A lista de jogadores, o

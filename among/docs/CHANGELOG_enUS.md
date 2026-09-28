@@ -6,6 +6,22 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.39.0
+
+**Smarter bots.** Crew bots now report the bodies they find, fix sabotages (they wait a few seconds,
+so someone gets the chance to arrive first) and, after dying, keep doing tasks as ghosts — only the
+dead hear their footsteps. They still skip the vote: a bot does not decide who leaves the ship.
+
+**The cameras follow the map.** The arrows move to the neighboring room on that side of the ship, like
+a grid: up to the room to the north, right to the east. If there is no room that way, the game says
+so.
+
+**The start of the match first tells you who you are up against:** how many impostors there are, or
+who your partners are, and only then the role description.
+
+**Sound while you use another window.** In Settings, under How I hear the game, you can make the game
+much quieter, or silent, while you are in another window. Screen reader speech does not change.
+
 ## 0.38.0
 
 **Color mode.** A new lobby rule: in the match nobody has a name, only a color. The player list,
