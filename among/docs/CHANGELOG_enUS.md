@@ -6,6 +6,31 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.40.0
+
+**Room exits.** Inside a room, when you line up with an exit — walking straight takes you out through
+it — a beep plays on its side, once. It plays again if you leave the line and come back. It works in
+Explore the map too, and you can turn it off under How I hear the game.
+
+**Reread the chat inside menus.** Comma, period and PageUp/PageDown work in the vote list, the lobby
+rules, the color picker and the match result, and whatever arrives with the menu open goes straight
+into the history.
+
+**Seeing a kill up close tells you who did it.** Standing right next to the victim, the game tells
+only you: "You saw Someone kill Someone else!". One step further away, it is still just the sound.
+
+**The color you pick counts.** Picking your color in the lobby is now the default: whoever picked keeps
+theirs, and anyone who didn't gets one of the colors left.
+
+**The impostor finds tasks on the radar.** In the objects radar, the impostor now sees all of the room's
+tasks, to pretend to be doing one in the right spot.
+
+**Server restart warning with a sound** — the emergency alarm — and kept in the event history, for
+anyone who was listening to something else.
+
+**Automatic updates are sturdier.** They wait for every game file to be free and retry before giving
+up; if they still fail, they ask you to close any other game windows, in your language.
+
 ## 0.39.0
 
 **Smarter bots.** Crew bots now report the bodies they find, fix sabotages (they wait a few seconds,

@@ -6,6 +6,32 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.40.0
+
+**Saídas das salas.** Dentro de uma sala, quando você fica alinhado com uma saída — andando reto,
+você sai por ela —, toca um bipe do lado dela, uma vez. Ele volta a tocar se você sair do alinhamento
+e voltar. Funciona também no Conhecer o mapa, e dá para desligar em Como eu ouço o jogo.
+
+**Reler o chat dentro dos menus.** Vírgula, ponto e PageUp/PageDown funcionam na votação, nas regras
+da sala, na escolha de cor e no resultado da partida, e o que chega com o menu aberto já entra no
+histórico.
+
+**Quem vê um assassinato de perto sabe quem matou.** Colado na vítima, o jogo diz só para você: "Você
+viu Fulano matar Beltrano!". Um passo mais longe, continua sendo só o som.
+
+**A cor que você escolhe vale.** Escolher a cor na sala passou a ser o padrão: quem escolheu fica com a
+sua, quem não escolheu recebe uma das que sobraram.
+
+**O impostor acha as tarefas no radar.** No radar de objetos, o impostor passa a ver todas as tarefas
+da sala, para fingir que está fazendo uma no lugar certo.
+
+**Aviso de reinício do servidor com som** — o alarme de emergência — e guardado no histórico de
+eventos, para quem estava ouvindo outra coisa.
+
+**A atualização automática ficou mais resistente.** Ela espera todos os arquivos do jogo ficarem livres
+e tenta de novo antes de desistir; se ainda falhar, pede para fechar as outras janelas do jogo, no seu
+idioma.
+
 ## 0.39.0
 
 **Bots mais espertos.** Os bots da tripulação agora reportam os corpos que encontram, consertam
