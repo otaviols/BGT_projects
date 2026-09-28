@@ -6,6 +6,38 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.37.0
+
+**No celular, andar deixou de ser lento.** No Android o personagem andava bem mais devagar que no
+computador — um trajeto de 40 segundos levava 70. Era o jeito de o jogo contar o tempo, e o conserto
+vale para todo lugar: no computador também se andava um pouco abaixo da velocidade certa, então agora
+todo mundo anda um pouco mais rápido.
+
+**Os papéis especiais são sorteados de verdade.** Quando havia mais papéis ligados do que gente no
+time — um impostor só e metamorfo, fantasma e atirador ligados, por exemplo —, saía sempre o mesmo.
+Agora cada um tem a mesma chance.
+
+**A recarga das habilidades não recomeça mais depois da reunião.** Ela fica parada enquanto a reunião
+dura: você sai da votação com o tempo que faltava quando ela começou. A recarga do kill continua
+recomeçando.
+
+**As regras da sala viraram uma lista.** A tecla C, na sala de espera, abre as regras uma por item,
+para percorrer com as setas, em vez de uma frase comprida. Numa sala privada, o primeiro item é o
+código: Enter nele copia. Também dá para copiar todas as regras. Se a partida começar com a lista
+aberta, ela fecha sozinha.
+
+**Copiar o resultado.** A tela de fim de partida tem um item que copia o resultado inteiro.
+
+**Apagar a conta.** Na lista de partidas, a opção Apagar minha conta pede a sua senha e apaga para
+sempre a conta, as estatísticas e os recados que você mandou.
+
+**As câmeras fecham quando a partida acaba.** Quem estava nelas continuava nelas na tela de
+resultado, e todo mundo seguia ouvindo o som de sala observada.
+
+**O alarme do Alarmista também toca quando quem o mata é um bot.**
+
+**Uma brecha de segurança foi fechada:** um jogo modificado conseguia descobrir quem matou quem.
+
 ## 0.36.0
 
 **Todo mundo anda mais rápido.** Era o pedido que mais chegou pelos recados: a velocidade normal

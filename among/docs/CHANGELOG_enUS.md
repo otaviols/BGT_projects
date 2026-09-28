@@ -6,6 +6,37 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.37.0
+
+**Walking on phones is no longer slow.** On Android the character walked much slower than on a
+computer — a 40-second route took 70. It was the way the game counted time, and the fix applies
+everywhere: on computers people were also walking slightly under the right speed, so now everyone
+walks a little faster.
+
+**Special roles are really drawn at random.** When more roles were turned on than people on the team
+— one impostor with shapeshifter, phantom and sniper on, for example — the same one always came out.
+Now each has the same chance.
+
+**Ability cooldowns no longer restart after a meeting.** They are paused while the meeting lasts: you
+leave the vote with the time that was left when it started. The kill cooldown still restarts.
+
+**Lobby rules are now a list.** The C key in the waiting room opens the rules one per item, to browse
+with the arrows, instead of one long sentence. In a private lobby the first item is the code: Enter on
+it copies it. You can also copy all the rules. If the match starts while the list is open, it closes
+by itself.
+
+**Copy the result.** The end-of-match screen has an item that copies the whole result.
+
+**Delete your account.** In the match list, the Delete my account option asks for your password and
+permanently deletes the account, your stats and the messages you sent.
+
+**The cameras close when the match ends.** Whoever was on them stayed on them on the result screen,
+and everyone kept hearing the watched-room sound.
+
+**The Noisemaker's alarm also sounds when a bot is the killer.**
+
+**A security hole was closed:** a modified game could find out who killed whom.
+
 ## 0.36.0
 
 **Everyone walks faster.** It was the most requested change in your messages: normal speed went up,
