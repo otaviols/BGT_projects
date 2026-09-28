@@ -37,7 +37,7 @@ void confere(const string&in o_que, bool ok) {
 	if (!ok) falhas++;
 }
 
-void main() {
+void rodar(bool apagar) {
 	server_address addr = resolve_server_address();
 	string sfx = "" + random(1000, 9999);
 	array<game_client@> todos;
@@ -81,15 +81,45 @@ void main() {
 	anda_ate(todos, todos[perto], xs[perto], ys[perto], 0.6, 0.0);
 	anda_ate(todos, todos[longe], xs[longe], ys[longe], 4.0, 0.0);
 	bombeia(todos, 6000); // recarga de 5 s do kill
+
+	if (apagar) {
+		// A sabotagem tem recarga inicial: insiste até ser aceita (ver notes/sondas.md).
+		bool apagou = false;
+		timer insiste;
+		while (!apagou && insiste.elapsed < 60000) {
+			todos[impostor].send_trigger_sabotage("lights");
+			timer r;
+			while (r.elapsed < 1500 && !apagou) {
+				for (uint i = 0; i < todos.length(); i++) todos[i].update();
+				net_packet@ p = todos[impostor].poll_message();
+				while (@p != null) { if (p.type == S_SABOTAGE_STARTED) apagou = true; @p = todos[impostor].poll_message(); }
+				wait(5);
+			}
+		}
+		confere("as luzes foram apagadas antes do kill", apagou);
+		bombeia(todos, 500);
+	}
+
 	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
 	todos[impostor].send_kill(todos[vitima].my_peer_id);
 
 	net_packet@ viu_perto = wf(todos[perto], S_KILL_WITNESSED, 4000);
 	net_packet@ viu_longe = wf(todos[longe], S_KILL_WITNESSED, 1500);
-	confere("a testemunha colada ouviu quem matou quem",
-		@viu_perto != null && viu_perto.get_string("killer_name") == nomes[impostor] && viu_perto.get_string("victim_name") == nomes[vitima]);
-	confere("a testemunha a 4 de distancia NAO ouviu", @viu_longe == null);
+	if (apagar) {
+		confere("no ESCURO, nem a testemunha colada ve quem matou", @viu_perto == null);
+	} else {
+		confere("a testemunha colada ouviu quem matou quem",
+			@viu_perto != null && viu_perto.get_string("killer_name") == nomes[impostor] && viu_perto.get_string("victim_name") == nomes[vitima]);
+		confere("a testemunha a 4 de distancia NAO ouviu", @viu_longe == null);
+	}
 	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+}
+
+void main() {
+	println("== luzes normais ==");
+	rodar(false);
+	println("== luzes apagadas ==");
+	rodar(true);
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

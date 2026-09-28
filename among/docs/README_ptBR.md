@@ -548,7 +548,8 @@ segundos: é um trajeto que ninguém consegue fazer a pé, e é justamente por i
 Um assassinato, para quem está por perto, é um som: dá a direção, não o nome. Mas quem estiver
 **colado** na vítima — a mesma distância de que o impostor precisa para matar — **vê** quem foi, e o
 jogo diz só para essa pessoa: "Você viu Fulano matar Beltrano!". Um passo mais longe e é só o som.
-O disfarce do metamorfo vale aqui: quem vê, vê o rosto que ele está usando.
+O disfarce do metamorfo vale aqui: quem vê, vê o rosto que ele está usando. E **no escuro, com as
+luzes sabotadas, ninguém vê**: você ouve o assassinato ao seu lado, mas não quem foi.
 
 ## Como se vence
 

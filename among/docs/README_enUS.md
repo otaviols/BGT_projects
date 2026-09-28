@@ -555,7 +555,8 @@ To anyone nearby, a kill is a sound: it gives the direction, not the name. But a
 **right next to** the victim — the same distance the impostor needs to kill — **sees** who did it,
 and the game tells only that person: "You saw Someone kill Someone else!". One step further away and
 it is just the sound. The shapeshifter's disguise applies here: whoever sees it sees the face they
-are wearing.
+are wearing. And **in the dark, with the lights sabotaged, nobody sees**: you hear the kill right
+next to you, but not who did it.
 
 ## How you win
 

@@ -86,7 +86,9 @@ modificado - lê o pacote cru de cada um.
 recebe `S_KILL_WITNESSED`, só ela, com quem matou quem - pedido do usuário: colado, fingir que a pessoa
 não viu era só confusão. O limite é o próprio alcance do kill, e não o do corpo (2,0), para matar a
 dois passos continuar anônimo. Vivo, fora de duto e visível; o disfarce do metamorfo vale (é o rosto
-que se vê); o tiro errado do xerife fica de fora (entregaria o xerife). O bot impostor nunca mata com
+que se vê); o tiro errado do xerife fica de fora (entregaria o xerife); e no ESCURO ninguém vê
+(pedido do usuário), pela mesma regra de quem as luzes cegam (`blinded_by_lights`) - o que dá ao
+impostor um motivo a mais para apagar as luzes antes de matar. O bot impostor nunca mata com
 alguém a menos de `BOT_KILL_WITNESS_RANGE` (6), então nunca gera testemunha. Sonda:
 `tools/probes/probe_kill_witness.nvgt`, com a testemunha LONGE como controle.
 

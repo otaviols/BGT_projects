@@ -1565,6 +1565,10 @@ class game_server {
 			for (uint i = 0; i < lobby.players.length(); i++) {
 				game_player@ w = lobby.players[i];
 				if (w.peer_id == killer_id || w.peer_id == victim_peer || !w.alive || w.vented || w.invisible()) continue;
+				// No ESCURO (luzes sabotadas) ninguém vê quem matou: ouve-se o assassinato ao lado, e só.
+				// Pela mesma regra de quem as luzes cegam (sabotage_rules/player_abilities) - e é o que dá
+				// ao impostor um motivo a mais para apagar as luzes antes de matar.
+				if (player_abilities(w.role(), w.alive).blinded_by_lights(lobby.active_sabotage)) continue;
 				if (!reaches_client(w) || distance_2d(w.x, w.y, vx, vy) > PLAYER_KILL_RANGE) continue;
 				net_packet@ viu = net_packet(S_KILL_WITNESSED);
 				viu.set_string("killer_name", matador.display_name());
