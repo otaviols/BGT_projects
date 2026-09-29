@@ -1,0 +1,122 @@
+// Sonda do bot IMPOSTOR, direto no estado da partida (sem rede), como a probe_bot_ai.
+//   nvgt tools/probes/probe_bot_impostor.nvgt
+//
+// Os recados #155 e #162: com dois bots impostores, eles andavam grudados e nunca matavam - um contava
+// como testemunha do outro -, e o bot impostor ficava caçando desde a cafeteria, na frente de todos.
+// Confere:
+//   1. dois bots impostores numa nave de tripulantes que fazem tarefa: os DOIS matam;
+//   2. nenhuma morte acontece com um tripulante perto da vítima (sem testemunha);
+//   3. eles não andam grudados (fração do tempo a menos de 3 de distância);
+//   4. com a recarga do kill longe de acabar, o bot finge: sai da cafeteria e para em pontos de tarefa.
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+const float DT = 0.05;
+
+game_state@ partida() {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	lobby.sabotage_cooldown_remaining = 999.0; // sabotagem fora: aqui só interessa matar
+	return lobby;
+}
+
+game_player@ bot(game_state@ lobby, uint64 id, const string&in papel, float x, float y) {
+	game_player@ b = game_player(id, "bot" + id);
+	b.is_bot = true;
+	b.set_role(papel);
+	b.x = x; b.y = y;
+	lobby.players.insert_last(b);
+	return b;
+}
+
+void main() {
+	println("== 1-3. dois bots impostores numa nave de oito tripulantes ==");
+	{
+		game_state@ lobby = partida();
+		array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		game_player@ a = bot(lobby, 1, ROLE_IMPOSTOR, 0.0, 0.0);
+		game_player@ b = bot(lobby, 2, ROLE_IMPOSTOR, 0.5, 0.0);
+		a.kill_cooldown_remaining = 5.0;
+		b.kill_cooldown_remaining = 5.0;
+		// Oito tripulantes, cada um com tarefas espalhadas: eles saem da cafeteria e se separam, como
+		// numa partida de verdade. Com menos gente a partida acabaria por maioria no meio do teste.
+		for (uint64 id = 10; id < 18; id++) {
+			game_player@ c = bot(lobby, id, ROLE_CREWMATE, float(random(-20, 20)) / 10.0, float(random(-20, 20)) / 10.0);
+			for (int k = 0; k < 4; k++) {
+				map_object@ s = spots[random(0, int(spots.length()) - 1)];
+				player_task t; t.object_id = s.id; t.task_type = s.task_type;
+				c.tasks.insert_last(t);
+			}
+		}
+		dictionary mortes_por;
+		int mortes = 0, com_testemunha = 0;
+		float t = 0.0, grudados = 0.0;
+		while (t < 240.0 && lobby.state == "in_progress" && mortes < 4) {
+			array<net_packet@>@ ev = lobby.tick(DT);
+			t += DT;
+			if (distance_2d(a.x, a.y, b.x, b.y) < 3.0) grudados += DT;
+			for (uint e = 0; e < ev.length(); e++) {
+				if (ev[e].type != S_PLAYER_KILLED) continue;
+				mortes++;
+				string quem = "" + ev[e].get_uint64("killer_peer");
+				int n = 0; if (mortes_por.exists(quem)) mortes_por.get(quem, n);
+				mortes_por.set(quem, n + 1);
+				// Testemunha: tripulante vivo perto da vítima na hora do crime.
+				float vx = ev[e].get_float("x"), vy = ev[e].get_float("y");
+				for (uint i = 0; i < lobby.players.length(); i++) {
+					game_player@ p = lobby.players[i];
+					if (p.alive && !p.is_impostor && distance_2d(p.x, p.y, vx, vy) <= BOT_KILL_WITNESS_RANGE) { com_testemunha++; break; }
+				}
+			}
+			lobby.bot_requests.resize(0); // reportes e consertos não interessam aqui
+		}
+		int de_a = 0, de_b = 0;
+		if (mortes_por.exists("1")) mortes_por.get("1", de_a);
+		if (mortes_por.exists("2")) mortes_por.get("2", de_b);
+		println("  (" + mortes + " mortes em " + int(t) + " s; bot1=" + de_a + ", bot2=" + de_b + "; grudados " + int(100 * grudados / t) + "% do tempo)");
+		confere("houve mortes", mortes > 0);
+		confere("os DOIS bots impostores mataram", de_a > 0 && de_b > 0);
+		confere("nenhuma morte com testemunha ao lado da vitima", com_testemunha == 0);
+		confere("nao andam grudados (menos de metade do tempo a menos de 3)", grudados / t < 0.5);
+	}
+
+	println("== 4. sem recarga pronta, o bot finge fazer tarefa ==");
+	{
+		game_state@ lobby = partida();
+		game_player@ imp = bot(lobby, 1, ROLE_IMPOSTOR, 0.0, 0.0);
+		imp.kill_cooldown_remaining = 9999.0;
+		// COM tarefa: tripulante sem tarefa nenhuma conta como "tarefas concluídas", e a partida
+		// acabava no primeiro quadro - a primeira versão desta sonda mediu um impostor "parado 90 s"
+		// numa partida que já tinha terminado.
+		array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		for (uint64 id = 10; id < 14; id++) {
+			game_player@ c = bot(lobby, id, ROLE_CREWMATE, 0.3 * id - 3.0, 0.0);
+			player_task tk; tk.object_id = spots[0].id; tk.task_type = spots[0].task_type;
+			c.tasks.insert_last(tk);
+		}
+		float t = 0.0, parado = 0.0, max_longe = 0.0;
+		while (t < 90.0) {
+			float px = imp.x, py = imp.y;
+			lobby.tick(DT); t += DT;
+			lobby.bot_requests.resize(0);
+			if (px == imp.x && py == imp.y) parado += DT;
+			float d = distance_2d(imp.x, imp.y, 0.0, 0.0);
+			if (d > max_longe) max_longe = d;
+		}
+		println("  (foi ate " + int(max_longe) + " da cafeteria; parado " + int(parado) + " s de 90)");
+		confere("saiu da cafeteria (mais de 10 de distancia)", max_longe > 10.0);
+		confere("e parou em pontos de tarefa (mais de 10 s parado no total)", parado > 10.0);
+		confere("nao estava cacando ninguem", !imp.bot_hunting);
+	}
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

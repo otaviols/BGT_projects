@@ -271,6 +271,10 @@ const float BOT_REPORT_REACTION_MAX = 3.0;
 // Bot impostor: caça o tripulante vivo mais próximo, mas só mata se ninguém estiver por perto pra
 // ver - a chance de sabotagem é por segundo (a ~2% ele sabota umas poucas vezes por partida).
 const float BOT_KILL_WITNESS_RANGE = 6.0;
+// Até onde o bot impostor enxerga uma presa ISOLADA para largar a tarefa falsa e ir atrás dela. Menor
+// que a nave de propósito: ele não é um radar, e caçar alguém do outro lado do mapa era o que o fazia
+// perseguir as pessoas desde a cafeteria, na frente de todo mundo (recado #155).
+const float BOT_HUNT_RANGE = 10.0;
 const float BOT_REPATH_INTERVAL_SECONDS = 1.5;
 const float BOT_POST_KILL_MIN_SECONDS = 2.0;
 const float BOT_POST_KILL_MAX_SECONDS = 5.0;

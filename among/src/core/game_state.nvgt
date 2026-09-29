@@ -555,6 +555,14 @@ class game_state {
 		return @lobo != null && lobo.alive;
 	}
 
+	// Alguém está na barriga de um lobo agora. (Quem saiu da partida lá dentro não conta: ele não volta.)
+	bool anyone_in_belly() const {
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].swallowed() && !players[i].left_match) return true;
+		}
+		return false;
+	}
+
 	uint alive_count() const {
 		uint n = 0;
 		for (uint i = 0; i < players.length(); i++) if (players[i].alive) n++;
@@ -1299,47 +1307,84 @@ class game_state {
 	}
 
 	// --- Bot impostor ---
-	// Caça o tripulante vivo mais próximo e mata quando dá: dentro do alcance, sem cooldown e sem
-	// ninguém por perto pra ver. Também solta uma sabotagem de vez em quando. Não usa vent nem
-	// reporta corpo - e não vira "melhor que gente" de propósito, a graça é ele ser um adversário
-	// previsível o bastante pra ser descoberto numa reunião.
-	private game_player@ nearest_prey(game_player@ hunter) const {
+	// Na maior parte do tempo ele FINGE: anda de um ponto de tarefa a outro e fica parado neles, como a
+	// tripulação. Só larga o fingimento quando aparece alguém ISOLADO por perto - aí caça e mata, sem
+	// testemunha. Também solta uma sabotagem de vez em quando. Não usa vent nem reporta corpo, e não
+	// vira "melhor que gente" de propósito: a graça é ser descobrível numa reunião.
+	//
+	// Era o contrário até a 0.42.0: caçava o tripulante mais próximo desde o primeiro segundo. Ficava
+	// na cafeteria atrás de quem estivesse ali e matava na frente de todos (recado #155); e com dois
+	// bots impostores, os dois perseguiam o MESMO alvo, andavam grudados, e um contava como testemunha
+	// do outro - nenhum matava nunca (recados #155 e #162).
+	//
+	// A presa mais próxima de `hunter` a até `max_dist`: tripulante vivo, fora de duto, que nenhum
+	// OUTRO bot impostor já esteja caçando (é o que os separa). Com `isolated_only`, só quem não tem
+	// ninguém por perto para ver.
+	private game_player@ prey_for(game_player@ hunter, float max_dist, bool isolated_only) const {
 		game_player@ best = null;
-		float best_dist = 0.0;
+		float best_dist = max_dist;
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ p = players[i];
-			if (p.is_impostor || !p.alive || p.peer_id == hunter.peer_id) continue;
+			if (p.is_impostor || !p.alive || p.vented || p.peer_id == hunter.peer_id) continue;
+			if (prey_taken_by_other(hunter, p.peer_id)) continue;
 			float dist = distance_2d(hunter.x, hunter.y, p.x, p.y);
-			if (@best == null || dist < best_dist) {
-				best_dist = dist;
-				@best = p;
-			}
+			if (dist > best_dist) continue;
+			if (isolated_only && kill_has_witness(hunter, p)) continue;
+			best_dist = dist;
+			@best = p;
 		}
 		return best;
 	}
 
-	// Alguém vivo (que não seja o assassino nem a vítima) perto o bastante pra testemunhar.
-	private bool kill_has_witness(game_player@ killer, game_player@ victim) const {
+	private bool prey_taken_by_other(game_player@ hunter, uint64 prey_peer) const {
 		for (uint i = 0; i < players.length(); i++) {
-			game_player@ p = players[i];
-			if (!p.alive || p.peer_id == killer.peer_id || p.peer_id == victim.peer_id) continue;
-			if (distance_2d(killer.x, killer.y, p.x, p.y) <= BOT_KILL_WITNESS_RANGE) return true;
+			game_player@ o = players[i];
+			if (o.peer_id == hunter.peer_id || !o.is_bot || !o.is_impostor || !o.bot_hunting) continue;
+			if (o.bot_prey_peer == prey_peer) return true;
 		}
 		return false;
 	}
 
-	// Devolve false quando não há nada a perseguir neste tick (o bot fica parado).
-	private bool update_bot_impostor(game_player@ b, float delta_seconds, array<net_packet@>@ events) {
-		game_player@ prey = nearest_prey(b);
-		if (@prey == null) return false;
+	// Alguém vivo, perto da VÍTIMA, que veria o crime. Os impostores não contam: são do mesmo time, e
+	// contá-los fazia dois bots impostores juntos nunca matarem ninguém.
+	private bool kill_has_witness(game_player@ killer, game_player@ victim) const {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (!p.alive || p.is_impostor || p.peer_id == killer.peer_id || p.peer_id == victim.peer_id) continue;
+			if (distance_2d(victim.x, victim.y, p.x, p.y) <= BOT_KILL_WITNESS_RANGE) return true;
+		}
+		return false;
+	}
 
-		if (b.can_kill() && distance_2d(b.x, b.y, prey.x, prey.y) <= PLAYER_KILL_RANGE && !kill_has_witness(b, prey)) {
-			net_packet@ kill_event;
-			if (try_kill(b.peer_id, prey.peer_id, kill_event)) {
-				events.insert_last(kill_event);
-				b.bot_has_target = false;
-				b.bot_action_timer = random_range(BOT_POST_KILL_MIN_SECONDS, BOT_POST_KILL_MAX_SECONDS); // se afasta do corpo
-				return false;
+	// Um ponto de tarefa qualquer como destino: o fingimento do bot impostor.
+	private void pick_fake_task(game_player@ b) {
+		b.bot_hunting = false;
+		b.bot_prey_peer = 0;
+		b.bot_target_object_id = ""; // nunca conclui nada: só vai até lá e fica parado
+		array<map_object@>@ pontos = map.objects_by_type(OBJ_TASK_SPOT);
+		if (pontos.length() == 0) { b.bot_has_target = false; return; }
+		map_object@ ponto = pontos[random(0, int(pontos.length()) - 1)];
+		b.bot_target_x = ponto.x;
+		b.bot_target_y = ponto.y;
+		b.bot_has_target = true;
+		set_bot_path_to(b, ponto.x, ponto.y);
+	}
+
+	// Devolve false quando o bot fica parado neste tick.
+	private bool update_bot_impostor(game_player@ b, float delta_seconds, array<net_packet@>@ events) {
+		if (b.can_kill()) {
+			// 1. Oportunidade: alguém ao alcance e sem testemunha.
+			game_player@ ao_lado = prey_for(b, PLAYER_KILL_RANGE, true);
+			if (@ao_lado != null) {
+				net_packet@ kill_event;
+				if (try_kill(b.peer_id, ao_lado.peer_id, kill_event)) {
+					events.insert_last(kill_event);
+					b.bot_has_target = false;
+					b.bot_hunting = false;
+					b.bot_prey_peer = 0;
+					b.bot_action_timer = random_range(BOT_POST_KILL_MIN_SECONDS, BOT_POST_KILL_MAX_SECONDS); // se afasta do corpo
+					return false;
+				}
 			}
 		}
 
@@ -1351,6 +1396,18 @@ class game_state {
 			string fail_key;
 			if (trigger_sabotage(b.peer_id, sabotage_id, sabotage_event, fail_key)) events.insert_last(sabotage_event);
 		}
+
+		// 2. Alguém isolado por perto: larga a tarefa falsa e vai atrás. Sem recarga pronta, não caça -
+		// segue fingindo, que é o que um impostor de verdade faz enquanto espera.
+		game_player@ prey = b.can_kill() ? prey_for(b, BOT_HUNT_RANGE, true) : null;
+		if (@prey == null) {
+			// 3. Ninguém: finge tarefa. Largou uma caça no meio? Escolhe um ponto novo.
+			if (b.bot_hunting || !b.bot_has_target) pick_fake_task(b);
+			return b.bot_has_target;
+		}
+		if (!b.bot_hunting || b.bot_prey_peer != prey.peer_id) b.bot_has_target = false; // presa nova: rota nova
+		b.bot_hunting = true;
+		b.bot_prey_peer = prey.peer_id;
 
 		// A presa anda, então o ponto final é atualizado sempre - mas a ROTA só é refeita quando a
 		// presa muda de sala. Refazer a rota a cada instante travava o bot: toda rota nova começa
@@ -1508,8 +1565,11 @@ class game_state {
 						if (next_object_id != "") b.bot_target_object_id = next_object_id;
 					}
 					b.bot_action_timer = random_range(BOT_TASK_MIN_SECONDS, BOT_TASK_MAX_SECONDS);
-				} else if (b.is_impostor) {
+				} else if (b.is_impostor && b.bot_hunting) {
 					b.bot_repath_timer = 0.0; // chegou onde a presa estava: recalcula na hora, sem pausa
+				} else if (b.is_impostor) {
+					// Chegou ao ponto da tarefa falsa: fica parado o tempo de uma tarefa, como a tripulação.
+					b.bot_action_timer = random_range(BOT_TASK_MIN_SECONDS, BOT_TASK_MAX_SECONDS);
 				} else {
 					b.bot_action_timer = random_range(BOT_IDLE_MIN_SECONDS, BOT_IDLE_MAX_SECONDS);
 				}
@@ -1700,7 +1760,12 @@ class game_state {
 			// Sem impostor vivo a tripulação vence - MAS não com uma ameaça viva: tirar os impostores
 			// com o lobo ainda comendo gente não é vitória (hostile_to_crew).
 			else if (alive_impostor_count() == 0 && alive_hostile_count() == 0) { winner = "crewmates"; win_reason = "impostors_ejected"; }
-			else if (alive_impostor_count() >= alive_crewmate_count()) { winner = "impostors"; win_reason = "majority"; }
+			// A maioria NÃO vale com gente na barriga do lobo: engolido não morreu, e o impostor precisa
+			// derrubar o lobo para eles voltarem - a mesma exigência que a tripulação já tem com o lobo vivo
+			// (recado #162: o lobo engolia a tripulação inteira e entregava a vitória aos impostores). De
+			// barriga vazia, a maioria vale como sempre. Decisão do usuário, contra "lobo vivo bloqueia
+			// sempre" (o Town of Us), que deixaria o impostor sem vencer com o lobo só andando pela nave.
+			else if (alive_impostor_count() >= alive_crewmate_count() && !anyone_in_belly()) { winner = "impostors"; win_reason = "majority"; }
 			else {
 				bool all_done = true;
 				for (uint i = 0; i < players.length(); i++) {

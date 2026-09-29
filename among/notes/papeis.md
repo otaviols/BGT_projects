@@ -130,6 +130,11 @@ precisa perguntar `swallowed()` também, ou o engolido ganha junto.
   `remove_from_lobby` e o próprio `try_eat` (lobo engolindo lobo). O aviso sai por `pending_events`,
   que o tick entrega depois da apuração e antes da conferência de vitória - o cliente ouve a expulsão
   e SÓ ENTÃO a volta, e a vitória já conta com quem voltou.
+- Com gente na barriga, os impostores NÃO vencem por maioria (`anyone_in_belly`, recado #162): o lobo
+  engolia a tripulação inteira e entregava a vitória a eles, sem ninguém ter morrido. Decisão do
+  usuário: o impostor precisa derrubar o lobo, como a tripulação precisa. De barriga vazia a maioria
+  vale normalmente - a alternativa descartada era "lobo vivo bloqueia sempre" (o Town of Us).
+  Sonda: `probe_wolf_majority.nvgt`, com a mesma mesa de barriga vazia como controle.
 - A vitória dele (`SOLO_WIN_LAST_STANDING`) é conferida ANTES da maioria do impostor: lobo e impostor
   sozinhos dariam a vitória ao impostor pela regra velha. E `hostile_to_crew` impede a tripulação de
   vencer por eliminação com ele vivo, e deixa o xerife acertá-lo sem errar o tiro.

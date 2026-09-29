@@ -127,6 +127,9 @@ class game_player {
 	float bot_broadcast_timer = 0.0;
 	float bot_repath_timer = 0.0;   // só bot impostor: a presa se move, a rota tem que ser refeita
 	string bot_target_zone = "";    // zona do destino atual, pra saber quando a rota realmente mudou
+	// Bot impostor: está CAÇANDO alguém (e quem), ou fingindo fazer tarefa. Ver update_bot_impostor.
+	bool bot_hunting = false;
+	uint64 bot_prey_peer = 0;
 	// O destino atual é um PAINEL de sabotagem (e não uma tarefa): chegando, o bot pede o conserto.
 	bool bot_fixing = false;
 	// Tempo de "reação" antes de agir sobre algo que ele percebeu (sabotagem começando, corpo no
@@ -284,6 +287,8 @@ class game_player {
 		bot_action_timer = 0.0;
 		bot_voted = false;
 		bot_fixing = false;
+		bot_hunting = false;
+		bot_prey_peer = 0;
 		bot_sabotage_reaction = -1.0;
 		bot_report_reaction = -1.0;
 	}

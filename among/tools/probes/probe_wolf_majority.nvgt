@@ -1,0 +1,57 @@
+// Sonda da maioria do impostor com gente na barriga do lobo (recado #162), sem rede.
+//   nvgt tools/probes/probe_wolf_majority.nvgt
+//
+// O lobo engolia a tripulação inteira e os impostores venciam por maioria, embora ninguém tivesse
+// morrido. Regra decidida: com gente na barriga, a maioria não vale - o impostor precisa derrubar o
+// lobo. O CONTROLE é a mesma mesa de barriga vazia: ali a maioria tem que valer, senão "ninguém
+// venceu" passaria com uma conferência de vitória quebrada.
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Dois impostores, um lobo e um tripulante com tarefa pendente (senão venceria por tarefas).
+game_state@ mesa(bool tripulante_engolido) {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	lobby.sabotage_cooldown_remaining = 999.0;
+	game_player@ i1 = game_player(1, "imp1"); i1.set_role(ROLE_IMPOSTOR); lobby.players.insert_last(i1);
+	game_player@ i2 = game_player(2, "imp2"); i2.set_role(ROLE_IMPOSTOR); lobby.players.insert_last(i2);
+	game_player@ lobo = game_player(3, "lobo"); lobo.set_role(ROLE_WOLF); lobby.players.insert_last(lobo);
+	game_player@ t = game_player(4, "trip"); t.set_role(ROLE_CREWMATE);
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	player_task tk; tk.object_id = spots[0].id; tk.task_type = spots[0].task_type; t.tasks.insert_last(tk);
+	if (tripulante_engolido) { t.alive = false; t.swallowed_by = 3; }
+	lobby.players.insert_last(t);
+	return lobby;
+}
+
+void main() {
+	game_state@ controle = mesa(false);
+	controle.tick(0.05);
+	confere("controle, barriga vazia: 2 impostores contra lobo e tripulante vencem (" + controle.winner + ")", controle.winner == "impostors");
+
+	game_state@ caso = mesa(true);
+	caso.tick(0.05);
+	confere("com o tripulante na barriga, ninguem vence ainda (" + (caso.winner == "" ? "ninguem" : caso.winner) + ")", caso.winner == "");
+
+	// O impostor mata o lobo: o tripulante volta, e agora sim é 2 contra 1.
+	net_packet@ ev;
+	game_player@ i1 = caso.find_player(1);
+	game_player@ lobo = caso.find_player(3);
+	lobo.x = i1.x; lobo.y = i1.y;
+	i1.kill_cooldown_remaining = 0.0;
+	confere("o impostor mata o lobo", caso.try_kill(1, 3, ev));
+	caso.tick(0.05);
+	confere("o tripulante voltou da barriga", caso.find_player(4).alive);
+	confere("e aí a maioria vale (" + caso.winner + ")", caso.winner == "impostors");
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
