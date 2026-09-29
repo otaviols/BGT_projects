@@ -77,7 +77,18 @@
         <meta-data
             android:name="dev.nvgt.capability.DIRECT_TOUCH"
             android:value="true" />
+        <!-- NOSSO: o SDL, por padrão, CONGELA o jogo inteiro quando o app sai do primeiro plano (a
+             pergunta de permissão do microfone, a aba de notificações, um menu do leitor de tela).
+             Congelado, a rede não é atendida e o servidor derruba a conexão depois de 18 s - a
+             suspeita do recado #161, "caio do servidor quando a partida começa" (é quando o
+             microfone abre). Com 0, o jogo segue rodando por trás. -->
+        <meta-data
+            android:name="SDL_ENV.SDL_ANDROID_BLOCK_ON_PAUSE"
+            android:value="0" />
 
+        <!-- NOSSO: sensorLandscape trava o jogo na HORIZONTAL (qualquer um dos dois lados). Na
+             vertical, os dois alto-falantes do celular ficam um em cima do outro e o estéreo some -
+             e o estéreo é metade da orientação deste jogo (recado #165). -->
         <activity
             android:name="com.samtupy.nvgt.NVGTGame"
             android:alwaysRetainTaskState="true"
@@ -85,6 +96,7 @@
             android:exported="true"
             android:label="%APP_LABEL%"
             android:launchMode="singleInstance"
+            android:screenOrientation="sensorLandscape"
             android:preferMinimalPostProcessing="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

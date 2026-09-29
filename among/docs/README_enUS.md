@@ -90,7 +90,9 @@ move and double tap to confirm; two fingers down go back. In a match, the left h
 joystick (touch, drag toward where you want to walk and hold), and the right half does the actions:
 double tap interacts, swiping sideways uses the radar, and a three finger tap opens a menu with every
 action. Typing (the login and the chat) still needs a **keyboard**, Bluetooth or USB, which also
-plays everything as on a computer. If the gestures do not respond with the screen reader on, suspend
+plays everything as on a computer. The game runs **in landscape**: that way the phone's two speakers
+sit one on each side, and left and right sound work again. To type numbers on the panels, tap with
+three fingers: the numbers open, one finger sideways picks and double tap types. If the gestures do not respond with the screen reader on, suspend
 it while you play: the game speaks on its own. Updating is manual: when a new version comes out, the
 game says so and opens the page.
 

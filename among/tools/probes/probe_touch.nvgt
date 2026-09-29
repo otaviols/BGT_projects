@@ -54,13 +54,33 @@ void main() {
 	toca(0.5, 0.5); toca(0.5, 0.5); confere("toque duplo = Enter", apertou(KEY_RETURN));
 	varios(2, 0, 0.2); confere("dois dedos para baixo = Esc", apertou(KEY_ESCAPE));
 	varios(2, 0, 0); confere("toque com dois dedos = espaco", apertou(KEY_SPACE));
-	varios(3, 0, 0); confere("toque com tres dedos = Tab", apertou(KEY_TAB));
+	varios(3, 0.2, 0); confere("tres dedos para a direita = Tab", apertou(KEY_TAB));
+
+	// O modo de números (recado #165): três dedos abrem, um dedo escolhe, toque duplo digita.
 	g_touch_digit = 0;
-	varios(3, 0, -0.2); varios(3, 0, -0.2); varios(3, 0, -0.2);
-	confere("tres dedos para cima tres vezes escolhe o 3 (" + g_touch_digit + ")", g_touch_digit == 3);
-	varios(3, 0.2, 0); confere("tres dedos para a direita digita o 3", apertou(KEY_3));
+	varios(3, 0, 0);
+	confere("toque com tres dedos abre os numeros", g_touch_digit_mode);
+	desliza(0.5, 0.5, 0.8, 0.5); desliza(0.5, 0.5, 0.8, 0.5); desliza(0.5, 0.5, 0.8, 0.5);
+	confere("um dedo para a direita tres vezes escolhe o 3 (" + g_touch_digit + ")", g_touch_digit == 3);
+	confere("e, nos numeros, deslizar NAO aperta seta", !apertou(KEY_RIGHT));
+	toca(0.5, 0.5); toca(0.5, 0.5); confere("toque duplo digita o 3", apertou(KEY_3));
+	confere("e continua nos numeros para o proximo", g_touch_digit_mode);
 	g_touch_digit = 0;
-	varios(3, 0, 0.2); confere("para baixo a partir do 0 da a volta no 9 (" + g_touch_digit + ")", g_touch_digit == 9);
+	desliza(0.5, 0.5, 0.2, 0.5); confere("para a esquerda a partir do 0 da a volta no 9 (" + g_touch_digit + ")", g_touch_digit == 9);
+	varios(2, 0, 0.2);
+	confere("dois dedos para baixo fecham os numeros", !g_touch_digit_mode);
+	confere("e ali nao viraram Esc", !apertou(KEY_ESCAPE));
+
+	// O deslize sai no MEIO do movimento, sem esperar o dedo levantar (recados #161 e #165).
+	{
+		int64 id = proximo_id++;
+		touch_down_at(id, 0.5, 0.5);
+		wait(TOUCH_EARLY_SWIPE_MS + 30);
+		touch_move_at(id, 0.5, 0.3);
+		confere("o deslize saiu com o dedo ainda na tela", apertou(KEY_UP));
+		touch_up_at(id, 0.5, 0.2, true);
+		confere("e nao sai de novo quando o dedo levanta", !apertou(KEY_UP));
+	}
 
 	println("Modo PARTIDA");
 	touch_match_frame();

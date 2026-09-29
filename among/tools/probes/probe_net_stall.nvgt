@@ -1,0 +1,41 @@
+// Sonda do diagnóstico de rede (recado #161: o celular que cai do servidor quando a partida começa).
+//   nvgt tools/probes/probe_net_stall.nvgt
+//
+// O jogo passa a anotar no crash.log - que segue junto de todo recado - quando a rede fica segundos sem
+// ser atendida, e em que tela. A sonda conecta, fica PARADA 4 s sem chamar update(), e confere que a
+// pausa foi anotada, com o contexto. O CONTROLE é uma pausa curta, que NÃO pode aparecer: senão o log
+// encheria de ruído e ninguém o leria.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	game_client c;
+	if (!c.connect_to(addr.host, addr.port)) { println("sem conexao"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) { println("nao conectou"); return; }
+	println("  (o log vai em: " + crash_log_path() + ")");
+	string antes = read_crash_log();
+
+	g_net_stall_context = "sonda pausa curta";
+	wait(1000);
+	c.update();
+	g_net_stall_context = "sonda pausa longa";
+	wait(4000);
+	c.update();
+
+	string depois = read_crash_log();
+	string novo = depois.substr(antes.length());
+	println("  (acrescentado: " + novo.trim_whitespace() + ")");
+	confere("a pausa longa foi anotada, com o contexto", novo.find("sonda pausa longa") >= 0);
+	confere("a pausa curta NAO foi anotada", novo.find("sonda pausa curta") < 0);
+	c.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

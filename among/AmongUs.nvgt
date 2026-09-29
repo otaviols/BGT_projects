@@ -180,12 +180,14 @@ void run_session() {
 			client.clear_incoming();
 			g_voice.leave(); // fora de sala, nem captura nem toca
 
+			g_net_stall_context = "lista de partidas";
 			lobby_browser_result browse = run_lobby_browser_screen(client);
 			if (browse.go_back || !browse.joined) break;
 			is_host = browse.is_host;
 			@lobby_state = browse.initial_lobby_state;
 		}
 
+		g_net_stall_context = "sala de espera"; // diagnóstico de rede: onde uma pausa longa aconteceu
 		net_packet@ start_pkt = run_waiting_room_screen(client, is_host, lobby_state);
 		if (!client.connected) break; // conexão perdida: as telas já avisaram; volta ao menu inicial
 		if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador

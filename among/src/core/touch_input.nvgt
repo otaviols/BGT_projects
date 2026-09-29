@@ -23,6 +23,7 @@
 
 #include "speech.nvgt"
 #include "../config/keybindings.nvgt"
+#include "../i18n.nvgt" // o modo de números fala o que está acontecendo
 
 // Posições chegam normalizadas (0 a 1). Deslocamento mínimo para contar como deslize, e não toque.
 const float TOUCH_SWIPE_MIN = 0.08;
@@ -34,6 +35,11 @@ const float TOUCH_DOUBLE_TAP_DIST = 0.15;
 // Por quanto tempo o aviso do laço da partida vale. Maior que um quadro com folga, menor que o tempo
 // de abrir um menu e começar a deslizar nele.
 const uint TOUCH_MATCH_HEARTBEAT_MS = 250;
+// O deslize dispara assim que o dedo passa do limiar, e não quando sai da tela - esperar a saída era
+// parte do atraso que os jogadores de celular sentiram (recados #161 e #165). A espera mínima desde o
+// primeiro toque é o tempo de os OUTROS dedos pousarem: sem ela, um deslize de dois dedos sairia como
+// de um, se o primeiro dedo andasse antes de o segundo encostar.
+const uint TOUCH_EARLY_SWIPE_MS = 100;
 
 class touch_finger_track {
 	int64 id;
@@ -44,6 +50,11 @@ bool g_touch_enabled = false;
 uint64 g_touch_match_until = 0;
 bool g_touch_action_menu_requested = false;
 int g_touch_digit = 0;
+// O modo de NÚMEROS (recado #165): três dedos abrem, um dedo para os lados escolhe, toque duplo digita,
+// dois dedos para baixo fecham. Era "três dedos para cima e para baixo" - perigoso no meio de uma
+// perseguição, com o impostor atrás. Só existe fora da partida (nos painéis e minijogos), e o laço da
+// partida o desliga ao voltar.
+bool g_touch_digit_mode = false;
 
 array<touch_finger_track@> g_touch_fingers;
 uint g_touch_max_fingers = 0;       // quantos dedos a sequência atual chegou a ter ao mesmo tempo
@@ -55,6 +66,8 @@ int g_touch_pending_modifier = -1;  // Shift apertado junto de uma tecla, soltad
 uint64 g_touch_modifier_release_at = 0;
 uint64 g_touch_last_tap_time = 0;
 float g_touch_last_tap_x = -1, g_touch_last_tap_y = -1;
+uint64 g_touch_seq_start = 0;       // quando a sequência começou (ver TOUCH_EARLY_SWIPE_MS)
+bool g_touch_seq_fired = false;     // o deslize desta sequência já disparou no meio do movimento
 
 void touch_input_enable() {
 	if (g_touch_enabled) return;
@@ -76,6 +89,7 @@ void touch_match_frame() {
 	if (!g_touch_enabled) return;
 	g_touch_match_until = ticks() + TOUCH_MATCH_HEARTBEAT_MS;
 	touch_release_pending_modifier(false);
+	g_touch_digit_mode = false;
 }
 
 // O menu de ações foi pedido por gesto (três dedos na partida). O laço o abre e zera o pedido.
@@ -140,6 +154,8 @@ void touch_down_at(int64 id, float x, float y) {
 	if (g_touch_fingers.length() == 0) {
 		// Começa uma sequência nova.
 		g_touch_max_fingers = 0;
+		g_touch_seq_start = ticks();
+		g_touch_seq_fired = false;
 		@g_touch_first = t;
 		g_touch_seq_stick = touch_in_match() && x < 0.5;
 		g_touch_stick_finger = g_touch_seq_stick ? id : -1;
@@ -152,7 +168,23 @@ void touch_move_at(int64 id, float x, float y) {
 	touch_finger_track@ t = _touch_find(id);
 	if (@t == null) return;
 	t.x = x; t.y = y;
-	if (g_touch_seq_stick && id == g_touch_stick_finger) _touch_update_stick(t);
+	if (g_touch_seq_stick && id == g_touch_stick_finger) { _touch_update_stick(t); return; }
+	// Deslize disparado no meio do movimento (ver TOUCH_EARLY_SWIPE_MS). Vale o PRIMEIRO dedo, como na
+	// saída; os outros só contam para dizer quantos dedos são.
+	if (g_touch_seq_stick || g_touch_seq_fired || @g_touch_first == null || id != g_touch_first.id) return;
+	if (ticks() - g_touch_seq_start < TOUCH_EARLY_SWIPE_MS) return;
+	string dir = _touch_swipe_dir(t);
+	if (dir == "") return;
+	g_touch_seq_fired = true;
+	g_touch_last_tap_time = 0;
+	touch_gesture("swipe_" + dir, g_touch_max_fingers);
+}
+
+// A direção do deslize deste dedo desde onde encostou, ou "" se ele ainda não andou o bastante.
+string _touch_swipe_dir(touch_finger_track@ t) {
+	float dx = t.x - t.start_x, dy = t.y - t.start_y;
+	if (sqrt(dx * dx + dy * dy) < TOUCH_SWIPE_MIN) return "";
+	return abs(dx) > abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
 }
 
 // O manche: a direção do dedo desde onde encostou, em oito sentidos (diagonal segura duas teclas).
@@ -195,10 +227,10 @@ void touch_up_at(int64 id, float x, float y, bool conta) {
 	bool era_manche = g_touch_seq_stick;
 	g_touch_seq_stick = false;
 	if (!conta || era_manche || @g_touch_first == null) return;
-	float dx = g_touch_first.x - g_touch_first.start_x, dy = g_touch_first.y - g_touch_first.start_y;
+	if (g_touch_seq_fired) return; // o deslize já saiu no meio do movimento
 	uint dedos = g_touch_max_fingers;
-	if (sqrt(dx * dx + dy * dy) >= TOUCH_SWIPE_MIN) {
-		string dir = abs(dx) > abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+	string dir = _touch_swipe_dir(g_touch_first);
+	if (dir != "") {
 		touch_gesture("swipe_" + dir, dedos);
 		g_touch_last_tap_time = 0;
 		return;
@@ -227,6 +259,7 @@ void touch_up_at(int64 id, float x, float y, bool conta) {
 // --- O mapa dos gestos (o texto de touch.help diz a mesma coisa; mudou aqui, mude lá) ---
 
 void touch_gesture(const string&in nome, uint dedos) {
+	if (g_touch_digit_mode && !touch_in_match()) { touch_gesture_digits(nome, dedos); return; }
 	// Em qualquer lugar: dois dedos para os lados leem o histórico, para baixo é o Esc.
 	if (dedos == 2 && nome == "swipe_left") { touch_press(g_keys.key(ACTION_CHAT_PREV)); return; }
 	if (dedos == 2 && nome == "swipe_right") { touch_press(g_keys.key(ACTION_CHAT_NEXT)); return; }
@@ -246,18 +279,30 @@ void touch_gesture_menu(const string&in nome, uint dedos) {
 		if (nome == "tap") touch_press(KEY_SPACE);
 		else if (nome == "swipe_up") touch_press(g_keys.key(ACTION_CHAT_SWITCH));
 	} else if (dedos == 3) {
-		// Tab passa de campo nos formulários. E os DÍGITOS, que três telas pedem (os painéis de
-		// sabotagem, rever registros, destravar coletores): três dedos para cima ou para baixo escolhem
-		// o número, e ele é dito; três dedos para a direita o digitam.
-		if (nome == "tap") touch_press(KEY_TAB);
-		else if (nome == "swipe_up" || nome == "swipe_down") {
-			g_touch_digit = (g_touch_digit + (nome == "swipe_up" ? 1 : 9)) % 10;
-			speak("" + g_touch_digit);
-		} else if (nome == "swipe_right") {
-			// Lista, e não KEY_0 + n: em scancode o 0 vem DEPOIS do 9, e a conta digitaria o número errado.
-			array<int> digitos = {KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9};
-			touch_press(digitos[g_touch_digit]);
-		}
+		// Toque com três dedos abre os NÚMEROS, que três telas pedem (os painéis de sabotagem, rever
+		// registros, destravar coletores). Três dedos para a direita passam de campo nos formulários.
+		if (nome == "tap") {
+			g_touch_digit_mode = true;
+			dictionary@ p = dictionary();
+			p.set("digit", "" + g_touch_digit);
+			speak(tr("touch.digits_open", p));
+		} else if (nome == "swipe_right") touch_press(KEY_TAB);
+	}
+}
+
+// Dentro do modo de números: um dedo para os lados escolhe (e fala), toque duplo digita e continua
+// no modo (os códigos têm vários números), dois dedos para baixo ou toque com três dedos fecham.
+void touch_gesture_digits(const string&in nome, uint dedos) {
+	if (dedos == 1 && (nome == "swipe_right" || nome == "swipe_left")) {
+		g_touch_digit = (g_touch_digit + (nome == "swipe_right" ? 1 : 9)) % 10;
+		speak("" + g_touch_digit);
+	} else if (dedos == 1 && nome == "double_tap") {
+		// Lista, e não KEY_0 + n: em scancode o 0 vem DEPOIS do 9, e a conta digitaria o número errado.
+		array<int> digitos = {KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9};
+		touch_press(digitos[g_touch_digit]);
+	} else if ((dedos == 2 && nome == "swipe_down") || (dedos == 3 && nome == "tap")) {
+		g_touch_digit_mode = false;
+		speak(tr("touch.digits_closed"));
 	}
 }
 

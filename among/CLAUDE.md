@@ -184,9 +184,26 @@ que SEGURA as teclas de andar e a direita faz as ações; um menu aberto para de
 sozinha aos gestos de menu. Tecla com Shift (radar para trás) deixa o Shift seguro até o quadro
 seguinte - soltado junto, o jogo já o leria solto. O mapa dos gestos está nas funções
 `touch_gesture_*` e no texto `touch.help`: mudou um, mude o outro. Sonda (no PC, sem aparelho):
-`tools/probes/probe_touch.nvgt`. **Ninguém testou num aparelho**, e a dúvida aberta é o TalkBack:
-ligado, ele pode tomar os toques para si (o manual manda suspendê-lo se os gestos não responderem).
-Escrever (login, chat) ainda exige teclado.
+`tools/probes/probe_touch.nvgt`. O deslize dispara assim que o dedo passa do limiar (depois de
+`TOUCH_EARLY_SWIPE_MS`, o tempo de os outros dedos pousarem), e não quando ele sai da tela - esperar a
+saída somava atraso (recados #161 e #165). Os números dos painéis são um MODO (três dedos abrem, um
+dedo escolhe, toque duplo digita). Escrever (login, chat) ainda exige teclado. Nenhum de nós tem
+aparelho: tudo aqui foi feito às cegas e é validado pelos jogadores.
+
+**O TalkBack não deveria tomar os toques: o manifesto do NVGT já traz
+`dev.nvgt.capability.DIRECT_TOUCH`**, que pede ao Android toque direto na janela do jogo. E o
+manifesto é também onde se passa variável ao SDL antes de ele iniciar: `<meta-data
+android:name="SDL_ENV.<HINT>">`. É por aí que vão duas decisões nossas em
+`tools/android/AndroidManifest.xml`: `SDL_ANDROID_BLOCK_ON_PAUSE=0` (por padrão o SDL CONGELA o jogo
+quando ele sai do primeiro plano - a pergunta do microfone, a aba de notificações - e congelado a rede
+não é atendida: em 18 s o servidor derruba; é a suspeita do "caio do servidor quando a partida começa",
+recado #161, e o `build_android.ps1` confere que ela chegou no APK) e `sensorLandscape` (na vertical o
+estéreo dos alto-falantes do celular some, recado #165).
+
+**O jogo anota no `crash.log` quando a rede fica 3 s ou mais sem ser atendida, e quando a conexão
+cai** (`log_diagnostic`, com o contexto em `g_net_stall_context`). O `crash.log` segue junto de todo
+recado enviado pelo jogo, então o próximo "caí do servidor" chega com a causa - é o substituto de ter o
+aparelho. Sonda: `probe_net_stall.nvgt`.
 
 ## Publicar uma versão
 

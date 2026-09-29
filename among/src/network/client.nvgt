@@ -7,6 +7,7 @@
 #include "packet.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../core/platform.nvgt" // a plataforma que o login declara
+#include "../core/crash_log.nvgt" // o diagnóstico de rede (log_diagnostic)
 // send_create_lobby recebe um lobby_overrides. Antes isto vinha por tabela - quem incluía o cliente
 // já tinha incluído a configuração de lobby antes - e compilava por ordem, não por dependência
 // declarada. Bastava alguém incluir só o cliente para quebrar.
@@ -18,6 +19,13 @@
 // não depender da configuração do jogo - as sondas e ferramentas incluem este arquivo sem ela.
 funcdef void client_frame_hook();
 client_frame_hook@ g_client_frame_hook = null;
+
+// Onde o jogo está (sala de espera, partida, uma tarefa...), para o diagnóstico de rede dizer ONDE a
+// pausa aconteceu. Quem troca de tela atualiza; vazio = não informado.
+string g_net_stall_context = "";
+// A partir de quanto tempo sem atender a rede vale anotar. Um quadro normal leva milissegundos; 3 s
+// já é algo que o jogador sentiria, e ainda longe dos 18 s em que o servidor desiste.
+const uint NET_STALL_LOG_MS = 3000;
 
 // Quem consome os quadros de voz. É uma interface, e não o audio/voice_chat.nvgt direto, para o
 // cliente de rede não depender de microfone e alto-falante (o servidor e as ferramentas de tools/
@@ -67,6 +75,8 @@ class game_client {
 	// primeiro, e o outro continuaria digitando um código que já não conta.
 	string panel_fixed_id = "";
 
+	uint64 last_update_ticks = 0;
+
 	bool connect_to(const string&in host, uint16 port) {
 		@net = network();
 		if (!net.setup_client(MAX_PACKET_CHANNELS, 1)) return false;
@@ -78,6 +88,16 @@ class game_client {
 	// os pacotes recebidos para poll_message() consumir.
 	void update() {
 		if (@g_client_frame_hook != null) g_client_frame_hook();
+		// Quanto tempo a rede ficou sem ser atendida. Acima de alguns segundos o servidor começa a
+		// achar que caímos (18 s derrubam), e o jogador só vê "caí do servidor". Registrar ISSO é o
+		// que permite achar a causa sem ter o aparelho (recado #161, o celular que cai quando a
+		// partida começa): a pausa aparece no crash.log que vai junto do recado.
+		uint64 agora = ticks();
+		if (last_update_ticks > 0 && agora - last_update_ticks >= NET_STALL_LOG_MS) {
+			log_diagnostic("a rede ficou " + ((agora - last_update_ticks) / 1000) + " s sem ser atendida (" +
+				(g_net_stall_context != "" ? g_net_stall_context : "sem contexto") + ")");
+		}
+		last_update_ticks = agora;
 		while (true) {
 			const network_event@ ev = net.request(0);
 			// net.request() nunca retorna null - quando não há nada pendente ele retorna um
@@ -88,6 +108,11 @@ class game_client {
 			if (ev.type == event_connect) {
 				connected = true;
 			} else if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) {
+				// Diz se foi o servidor que desligou ou o tempo que esgotou - são causas diferentes, e
+				// o jogador relata as duas do mesmo jeito.
+				if (connected) log_diagnostic(ev.type == event_disconnect_timeout
+					? "conexao perdida por TEMPO esgotado (" + g_net_stall_context + ")"
+					: "o servidor encerrou a conexao (" + g_net_stall_context + ")");
 				connected = false;
 			} else if (ev.type == event_receive) {
 				if (ev.channel == CHANNEL_VOICE) {

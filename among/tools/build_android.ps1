@@ -97,6 +97,9 @@ try {
 		$texto = [System.Text.Encoding]::Unicode.GetString($ms.ToArray())
 		if ($texto -notmatch "RECORD_AUDIO") { throw "O APK saiu sem permissão de microfone: o build ignorou tools/android/AndroidManifest.xml." }
 		if ($texto -notmatch [regex]::Escape($APP_ID)) { throw "O APK saiu com outro identificador (esperado $APP_ID)." }
+		# O jogo que não congela ao sair do primeiro plano (recado #161). Sem isto, a queda ao começar a
+		# partida volta calada - o manifesto teria saído do template, e nada mais avisaria.
+		if ($texto -notmatch "SDL_ANDROID_BLOCK_ON_PAUSE") { throw "O APK saiu sem SDL_ANDROID_BLOCK_ON_PAUSE: o jogo congelaria (e cairia) ao sair do primeiro plano." }
 
 		"idiomas: $($idiomas -join ', ')"
 	}

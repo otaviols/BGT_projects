@@ -542,6 +542,9 @@ bool copy_game_over_action(menu@ m, const string&in item_id) {
 // Devolve o S_LOBBY_STATE da sala REABERTA quando a partida acabou e o grupo continua junto, ou
 // null quando não há para onde voltar (conexão perdida, ou o servidor fechou a sala).
 net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
+	// Uma pausa longa da rede daqui até o laço começar é anotada como carga da partida (ver o
+	// diagnóstico em client.update) - é a suspeita do celular que cai quando a partida começa.
+	g_net_stall_context = "carregando a partida";
 	game_map@ map = build_the_hub_map();
 	audio_manager@ audio = audio_manager();
 	client_roster@ roster = client_roster();
@@ -777,6 +780,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		client.update();
 		// Gestos: enquanto este laço roda, a tela de toque está no modo PARTIDA (manche e gestos de
 		// jogo). Um menu aberto daqui para de chamar isto, e a tela volta sozinha ao modo MENU.
+		g_net_stall_context = "partida"; // depois do primeiro update: a carga já foi medida
 		touch_match_frame();
 		if (touch_take_action_menu_request()) run_touch_action_menu(client);
 

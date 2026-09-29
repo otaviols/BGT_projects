@@ -72,6 +72,18 @@ bool log_crash(const string&in context) {
 	return file_put_contents(path, report, true); // true = acrescenta ao que já existe
 }
 
+// Uma linha de DIAGNÓSTICO no mesmo arquivo: não é um erro, é algo que o jogo percebeu e que explica
+// um defeito relatado sem aparelho para reproduzir (o celular que cai do servidor, recado #161). Vai
+// no crash.log porque é ele que segue junto de todo recado enviado pelo jogo - um arquivo separado
+// ficaria na máquina de quem jogou, que é exatamente quem não sabe que ele existe.
+bool log_diagnostic(const string&in text) {
+	string path = crash_log_path();
+	if (path == "") return false;
+	datetime now;
+	return file_put_contents(path, "--- " + now.format("%Y-%m-%d %H:%M:%S") + " (versao " + GAME_VERSION +
+		") diagnostico: " + text + "\r\n", true);
+}
+
 // Conteúdo do crash.log, ou "" se não houver nenhum.
 //
 // Serve para anexar o log a um recado do jogador (ver ui/feedback_screen.nvgt). Sem isto o arquivo
