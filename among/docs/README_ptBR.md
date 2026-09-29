@@ -71,9 +71,15 @@ O que mudou em cada versão está no menu inicial, em **Novidades** — e també
 a do Mac é uma imagem de disco: abra e arraste o jogo para Aplicativos). Nesses sistemas a atualização ainda
 é manual: o jogo avisa que saiu versão nova e abre a página de download.
 
-**Android:** há um `.apk` no site. É a primeira versão para celular e ela espera um **teclado**
-(Bluetooth ou USB) — os gestos de toque ainda não existem, então sem teclado não dá para jogar. A
-atualização também é manual: quando sair versão nova, o jogo avisa e abre a página.
+**Android:** há um `.apk` no site. Dá para jogar por **gestos** na tela: no menu inicial, o item
+**Gestos na tela de toque** lista todos. Em resumo: nos menus, deslize um dedo para navegar e toque
+duas vezes para confirmar; dois dedos para baixo voltam. Na partida, a metade esquerda da tela é um
+manche (encoste, arraste para onde quer andar e segure), e a metade direita faz as ações: toque duplo
+interage, deslizar para os lados usa o radar, e um toque com três dedos abre um menu com todas as
+ações. Escrever (o login e o chat) ainda precisa de um **teclado**, Bluetooth ou USB, que também
+serve para jogar tudo como no computador. Se os gestos não responderem com o leitor de tela ligado,
+suspenda o leitor enquanto joga: o jogo fala sozinho. A atualização é manual: quando sair versão
+nova, o jogo avisa e abre a página.
 
 Suas configurações e sua conta não se perdem na atualização: as preferências ficam na pasta de dados
 do usuário, e a sua conta vive no servidor.

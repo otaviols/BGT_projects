@@ -1,0 +1,102 @@
+// Sonda dos gestos de toque (src/core/touch_input.nvgt), no PC, sem aparelho.
+//   nvgt tools/probes/probe_touch.nvgt
+//
+// Entrega às funções de evento os MESMOS toques que o Android entregaria (dedo encosta, anda, sai) e
+// confere que tecla o jogo vê depois do `wait()` - que é como o laço da partida e os menus leem.
+// Roda no PC de propósito: no aparelho, cada tentativa é um build e uma instalação, e um gesto errado
+// apareceria só como "não acontece nada".
+//
+// O que ela NÃO prova: que o Android entrega os toques com o leitor de tela ligado, nem que as
+// coordenadas chegam de 0 a 1 como o SDL promete. Isso só no aparelho.
+#include "../../src/core/touch_input.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+int64 proximo_id = 1;
+// Um dedo que encosta em (x, y), anda até (x2, y2) em passos e sai.
+void desliza(float x, float y, float x2, float y2) {
+	int64 id = proximo_id++;
+	touch_down_at(id, x, y);
+	for (int i = 1; i <= 5; i++) touch_move_at(id, x + (x2 - x) * i / 5.0, y + (y2 - y) * i / 5.0);
+	touch_up_at(id, x2, y2, true);
+}
+void toca(float x, float y) { desliza(x, y, x, y); }
+// Vários dedos juntos, todos fazendo o mesmo movimento.
+void varios(uint n, float dx, float dy) {
+	array<int64> ids;
+	for (uint k = 0; k < n; k++) { ids.insert_last(proximo_id++); touch_down_at(ids[k], 0.6 + k * 0.05, 0.5); }
+	for (uint k = 0; k < n; k++) { touch_move_at(ids[k], 0.6 + k * 0.05 + dx, 0.5 + dy); }
+	for (uint k = 0; k < n; k++) { touch_up_at(ids[k], 0.6 + k * 0.05 + dx, 0.5 + dy, true); }
+}
+// Deixa o motor processar as teclas simuladas e diz se `key` foi apertada neste quadro.
+bool apertou(int key) {
+	wait(30);
+	bool r = key_pressed(key);
+	// Esvazia o que mais tiver sobrado, para o próximo caso começar limpo.
+	for (int k = 0; k < 5; k++) wait(10);
+	return r;
+}
+
+void main() {
+	show_window("probe touch");
+	wait(200);
+	// Liga só o estado, sem registrar os eventos do motor: a sonda os entrega à mão.
+	g_touch_enabled = true;
+
+	println("Modo MENU (sem o laco da partida)");
+	desliza(0.5, 0.5, 0.5, 0.2); confere("um dedo para cima = seta para cima", apertou(KEY_UP));
+	desliza(0.5, 0.5, 0.8, 0.5); confere("um dedo para a direita = seta para a direita", apertou(KEY_RIGHT));
+	toca(0.5, 0.5); confere("um toque so nao aperta Enter", !apertou(KEY_RETURN));
+	toca(0.5, 0.5); toca(0.5, 0.5); confere("toque duplo = Enter", apertou(KEY_RETURN));
+	varios(2, 0, 0.2); confere("dois dedos para baixo = Esc", apertou(KEY_ESCAPE));
+	varios(2, 0, 0); confere("toque com dois dedos = espaco", apertou(KEY_SPACE));
+	varios(3, 0, 0); confere("toque com tres dedos = Tab", apertou(KEY_TAB));
+	g_touch_digit = 0;
+	varios(3, 0, -0.2); varios(3, 0, -0.2); varios(3, 0, -0.2);
+	confere("tres dedos para cima tres vezes escolhe o 3 (" + g_touch_digit + ")", g_touch_digit == 3);
+	varios(3, 0.2, 0); confere("tres dedos para a direita digita o 3", apertou(KEY_3));
+	g_touch_digit = 0;
+	varios(3, 0, 0.2); confere("para baixo a partir do 0 da a volta no 9 (" + g_touch_digit + ")", g_touch_digit == 9);
+
+	println("Modo PARTIDA");
+	touch_match_frame();
+	toca(0.8, 0.5); toca(0.8, 0.5); touch_match_frame();
+	confere("toque duplo na direita = interagir", apertou(g_keys.key(ACTION_INTERACT)));
+	touch_match_frame(); desliza(0.8, 0.5, 0.8, 0.2); touch_match_frame();
+	confere("para cima na direita = reportar", apertou(g_keys.key(ACTION_REPORT)));
+	touch_match_frame(); desliza(0.6, 0.5, 0.9, 0.5); touch_match_frame();
+	confere("para a direita = radar", apertou(g_keys.key(ACTION_RADAR)));
+	touch_match_frame(); desliza(0.9, 0.5, 0.6, 0.5);
+	wait(30);
+	bool radar = key_pressed(g_keys.key(ACTION_RADAR)), shift = key_down(KEY_LSHIFT);
+	confere("para a esquerda = radar com Shift ainda seguro no quadro seguinte", radar && shift);
+	wait(100); touch_match_frame(); wait(30);
+	confere("e o Shift e solto depois", !key_down(KEY_LSHIFT));
+	touch_match_frame(); varios(3, 0, 0); touch_match_frame();
+	confere("toque com tres dedos pede o menu de acoes", touch_take_action_menu_request());
+
+	// O manche: encosta na ESQUERDA e arrasta, SEM soltar.
+	touch_match_frame();
+	int64 id = proximo_id++;
+	touch_down_at(id, 0.25, 0.5);
+	touch_move_at(id, 0.25, 0.3);
+	wait(30); touch_match_frame();
+	confere("manche para cima segura o norte", key_down(g_keys.key(ACTION_MOVE_NORTH)) && !key_down(g_keys.key(ACTION_MOVE_EAST)));
+	touch_move_at(id, 0.40, 0.35);
+	wait(30); touch_match_frame();
+	confere("na diagonal segura norte e leste", key_down(g_keys.key(ACTION_MOVE_NORTH)) && key_down(g_keys.key(ACTION_MOVE_EAST)));
+	touch_move_at(id, 0.40, 0.5);
+	wait(30); touch_match_frame();
+	confere("para a direita solta o norte", !key_down(g_keys.key(ACTION_MOVE_NORTH)) && key_down(g_keys.key(ACTION_MOVE_EAST)));
+	touch_up_at(id, 0.40, 0.5, true);
+	wait(30);
+	confere("soltar o dedo para de andar", !key_down(g_keys.key(ACTION_MOVE_EAST)));
+	confere("e o manche nao virou gesto (nada de radar)", !key_pressed(g_keys.key(ACTION_RADAR)));
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

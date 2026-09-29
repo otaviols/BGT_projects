@@ -23,6 +23,7 @@
 #include "../i18n.nvgt"
 #include "../core/frame_timer.nvgt"
 #include "../game/exit_alignment.nvgt"
+#include "../core/touch_input.nvgt"
 
 void run_explore_map_screen() {
 	game_map@ map = build_the_hub_map();
@@ -53,6 +54,7 @@ void run_explore_map_screen() {
 
 	while (true) {
 		wait(5);
+		touch_match_frame(); // o manche do toque anda aqui como na partida - é onde se aprende o mapa
 		float delta = frame_clock.tick(); // sem perder frações - ver core/frame_timer.nvgt
 		if (delta > 0.1) delta = 0.1; // mesmo teto do laço da partida: um quadro longo não arremessa ninguém
 

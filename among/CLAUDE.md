@@ -173,14 +173,20 @@ O APK entra no deploy junto dos outros pacotes (`AmongUs-android.apk`, na lista 
 de publicar uma versão que deva levá-lo, senão o site fica com o APK da versão anterior sem nada
 avisar.
 
-**O que ainda não foi feito:** o APK já rodou num aparelho de jogador (recado #151, que achou o
-andar lento - corrigido na 0.37.0 com o `frame_timer`), mas ninguém daqui o testou. E o toque não existe — esta versão
-espera **teclado** (Bluetooth ou USB), que é o combinado: gestos vêm depois, e o `touch_keyboard_interface`
-do NVGT mapeia gesto para tecla simulada, então menus, formulários e minigames não precisam de uma
-segunda interface. O que precisa de código de verdade é **andar**, que lê tecla SEGURADA
-(`action_down`) e nenhum gesto expressa isso — é um manche virtual por `on_hold`. E `monitor()` teria
-que ser chamado em todo laço bloqueante, com a mesma disciplina (e a mesma falha silenciosa) do
-`client.update()`.
+**Gestos: `src/core/touch_input.nvgt`, ligado só no Android.** Cada gesto vira a MESMA tecla que o
+teclado apertaria, então menus, formulários e minijogos não têm segunda interface. NÃO usa o
+`touch_keyboard_interface` do NVGT de propósito: aquele só enxerga toques se o `monitor()` dele for
+chamado a cada quadro em TODO laço - dezenas de lugares para esquecer, cada um uma tela surda. Aqui os
+gestos são resolvidos dentro dos próprios eventos de toque do motor, que chegam em qualquer `wait()`;
+o preço é não usar nada que dependa de relógio (toque longo). O único aviso é o do laço da partida
+(`touch_match_frame()`, também no Conhecer o mapa): enquanto ele chama, a metade esquerda vira o manche
+que SEGURA as teclas de andar e a direita faz as ações; um menu aberto para de chamar e a tela volta
+sozinha aos gestos de menu. Tecla com Shift (radar para trás) deixa o Shift seguro até o quadro
+seguinte - soltado junto, o jogo já o leria solto. O mapa dos gestos está nas funções
+`touch_gesture_*` e no texto `touch.help`: mudou um, mude o outro. Sonda (no PC, sem aparelho):
+`tools/probes/probe_touch.nvgt`. **Ninguém testou num aparelho**, e a dúvida aberta é o TalkBack:
+ligado, ele pode tomar os toques para si (o manual manda suspendê-lo se os gestos não responderem).
+Escrever (login, chat) ainda exige teclado.
 
 ## Publicar uma versão
 

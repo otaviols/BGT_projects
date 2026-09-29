@@ -20,6 +20,7 @@
 #include "../audio/voice_chat.nvgt"
 #include "../core/player.nvgt"
 #include "../core/frame_timer.nvgt"
+#include "../core/touch_input.nvgt"
 #include "exit_alignment.nvgt"
 #include "../game/roles/crewmate.nvgt"
 #include "../game/roles/impostor.nvgt"
@@ -222,6 +223,29 @@ void refresh_camera_watching_beacon(audio_manager@ audio, game_map@ map, const s
 
 // Menu de fechar portas: lista as SALAS (corredor não entra - a porta é justamente o corredor que
 // dá pra sala escolhida). Fechar prende quem está dentro e barra quem está fora, por alguns segundos.
+// O menu de ações do toque (três dedos na partida): toda ação do jogo numa lista, para o que não
+// cabe num gesto próprio. Escolher uma APERTA a tecla dela, e o laço da partida a trata no quadro
+// seguinte pelo caminho de sempre - o menu não sabe o que cada ação faz, e nem precisa.
+void run_touch_action_menu(game_client@ client) {
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("touch.action_menu");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@m.background_callback = @pump_client_during_game_menu;
+	// Andar fica de fora (é o manche), e falar também: é SEGURAR a tecla, e um menu só aperta.
+	array<int> acoes = {ACTION_INTERACT, ACTION_REPORT, ACTION_ABILITY, ACTION_KILL, ACTION_VOTE,
+		ACTION_TASK_LIST, ACTION_ROOM_INFO, ACTION_RADAR, ACTION_RADAR_LOCK, ACTION_VENT, ACTION_SABOTAGE,
+		ACTION_DOORS, ACTION_CHAT, ACTION_CHAT_PREV, ACTION_CHAT_NEXT, ACTION_CHAT_SWITCH, ACTION_PING};
+	for (uint i = 0; i < acoes.length(); i++) m.add_item(tr(g_keys.bindings[acoes[i]].name_key), "" + acoes[i]);
+	m.run();
+	string escolhido = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (escolhido != "") touch_press(g_keys.key(parse_int(escolhido)));
+}
+
 void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;
@@ -751,6 +775,10 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	while (!game_over) {
 		wait(5);
 		client.update();
+		// Gestos: enquanto este laço roda, a tela de toque está no modo PARTIDA (manche e gestos de
+		// jogo). Um menu aberto daqui para de chamar isto, e a tela volta sozinha ao modo MENU.
+		touch_match_frame();
+		if (touch_take_action_menu_request()) run_touch_action_menu(client);
 
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {

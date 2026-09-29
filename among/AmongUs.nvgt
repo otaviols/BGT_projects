@@ -38,6 +38,8 @@
 #include "src/network/client.nvgt"
 #include "src/core/crash_log.nvgt"
 #include "src/core/updater.nvgt"
+#include "src/core/platform.nvgt"
+#include "src/core/touch_input.nvgt"
 #include "src/ui/onboarding_screens.nvgt"
 #include "src/ui/lobby_screens.nvgt"
 #include "src/game/game_loop.nvgt"
@@ -94,6 +96,9 @@ void main() {
 	// tela: perguntar pelo microfone no meio de uma partida seria interromper o jogo pela pergunta
 	// mais previsível que existe. Fora do Android isto não faz nada.
 	request_voice_permission();
+	// Gestos na tela de toque (ver src/core/touch_input.nvgt). Só no Android: num notebook com tela de
+	// toque, um toque sem querer viraria tecla apertada no meio da partida.
+	if (is_android()) touch_input_enable();
 
 	// Depois da janela existir, pra que o aviso de versão nova tenha onde aparecer, e antes do menu,
 	// que é onde o jogador fica. Sem internet ou com o site fora do ar isto não diz nada e não

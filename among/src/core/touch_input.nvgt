@@ -1,0 +1,279 @@
+// touch_input.nvgt
+// Gestos na tela de toque (Android), convertidos nas MESMAS teclas que o teclado aperta.
+//
+// Por que não o touch_keyboard_interface do NVGT (include touch.nvgt): ele só enxerga os toques se o
+// `monitor()` dele for chamado a cada quadro, em TODO laço - e este jogo tem dezenas de laços
+// bloqueantes (menus, formulários, minijogos, a votação), cada um seria um lugar para esquecer a
+// chamada e deixar o jogador sem gestos numa tela, calado. Aqui os gestos são resolvidos DENTRO dos
+// eventos de toque do motor, que chegam em qualquer `wait()`: nenhuma tela precisa saber que isto
+// existe. O preço é não usar o que precisa de relógio (toque longo, segurar parado): nada aqui
+// espera tempo passar para decidir, só a ordem dos eventos.
+//
+// E por que converter em TECLAS: menus, formulários e minijogos já respondem ao teclado, e uma
+// segunda interface para cada um seria o dobro de código para manter em sincronia.
+//
+// Dois modos, sem configuração:
+//   - PARTIDA, enquanto o laço da partida (ou o Conhecer o mapa) está rodando - ele avisa por
+//     touch_match_frame() a cada quadro. A metade ESQUERDA da tela vira um manche: encostar e
+//     arrastar para um lado segura a tecla de andar para aquele lado, até soltar. A metade direita
+//     faz os gestos da partida.
+//   - MENU, em qualquer outro lugar (inclusive nos menus e minijogos abertos no meio da partida,
+//     porque aí o laço da partida parou de chamar). A tela inteira faz os gestos de menu.
+// O mapa dos gestos é o texto de touch.help, e mora nas funções touch_gesture_* abaixo.
+
+#include "speech.nvgt"
+#include "../config/keybindings.nvgt"
+
+// Posições chegam normalizadas (0 a 1). Deslocamento mínimo para contar como deslize, e não toque.
+const float TOUCH_SWIPE_MIN = 0.08;
+// Quanto o dedo do manche precisa sair do ponto onde encostou para começar a andar.
+const float TOUCH_STICK_DEADZONE = 0.04;
+// Dois toques de um dedo mais próximos que isto (no tempo e no espaço) são um toque duplo.
+const uint TOUCH_DOUBLE_TAP_MS = 450;
+const float TOUCH_DOUBLE_TAP_DIST = 0.15;
+// Por quanto tempo o aviso do laço da partida vale. Maior que um quadro com folga, menor que o tempo
+// de abrir um menu e começar a deslizar nele.
+const uint TOUCH_MATCH_HEARTBEAT_MS = 250;
+
+class touch_finger_track {
+	int64 id;
+	float start_x, start_y, x, y;
+}
+
+bool g_touch_enabled = false;
+uint64 g_touch_match_until = 0;
+bool g_touch_action_menu_requested = false;
+int g_touch_digit = 0;
+
+array<touch_finger_track@> g_touch_fingers;
+uint g_touch_max_fingers = 0;       // quantos dedos a sequência atual chegou a ter ao mesmo tempo
+bool g_touch_seq_stick = false;     // a sequência começou no manche
+int64 g_touch_stick_finger = -1;
+touch_finger_track@ g_touch_first;  // o primeiro dedo da sequência: é o deslocamento dele que conta
+array<int> g_touch_held;            // teclas que o manche está segurando
+int g_touch_pending_modifier = -1;  // Shift apertado junto de uma tecla, soltado no quadro seguinte
+uint64 g_touch_modifier_release_at = 0;
+uint64 g_touch_last_tap_time = 0;
+float g_touch_last_tap_x = -1, g_touch_last_tap_y = -1;
+
+void touch_input_enable() {
+	if (g_touch_enabled) return;
+	g_touch_enabled = true;
+	// Sem isto o SDL também transforma o toque em clique de mouse, e cada gesto chegaria duas vezes.
+	sdl_set_hint("SDL_TOUCH_MOUSE_EVENTS", "0");
+	sdl_set_hint("SDL_MOUSE_TOUCH_EVENTS", "0");
+	on_touch_finger_down += _touch_down;
+	on_touch_finger_up += _touch_up;
+	on_touch_finger_move += _touch_move;
+	on_touch_finger_cancel += _touch_cancel;
+}
+
+bool touch_in_match() { return g_touch_enabled && ticks() < g_touch_match_until; }
+
+// Chamado pelo laço da partida (e pelo Conhecer o mapa) a cada quadro: liga o modo PARTIDA e solta
+// o Shift que um gesto deixou apertado no quadro anterior.
+void touch_match_frame() {
+	if (!g_touch_enabled) return;
+	g_touch_match_until = ticks() + TOUCH_MATCH_HEARTBEAT_MS;
+	touch_release_pending_modifier(false);
+}
+
+// O menu de ações foi pedido por gesto (três dedos na partida). O laço o abre e zera o pedido.
+bool touch_take_action_menu_request() {
+	bool pedido = g_touch_action_menu_requested;
+	g_touch_action_menu_requested = false;
+	return pedido;
+}
+
+// --- Teclas ---
+
+void touch_press(int key) {
+	if (key < 0) return;
+	simulate_key_down(key);
+	simulate_key_up(key);
+}
+
+// Tecla com Shift. O Shift NÃO pode ser solto no mesmo instante: quem lê o gesto pergunta
+// key_down(Shift) no quadro seguinte, e a essa altura ele já teria subido. Fica apertado até o próximo
+// quadro da partida (ou o próximo toque, o que vier antes de sobrar preso).
+void touch_press_with_shift(int key) {
+	touch_release_pending_modifier(true);
+	simulate_key_down(KEY_LSHIFT);
+	g_touch_pending_modifier = KEY_LSHIFT;
+	g_touch_modifier_release_at = ticks() + 60;
+	touch_press(key);
+}
+
+void touch_release_pending_modifier(bool now) {
+	if (g_touch_pending_modifier < 0) return;
+	if (!now && ticks() < g_touch_modifier_release_at) return;
+	simulate_key_up(g_touch_pending_modifier);
+	g_touch_pending_modifier = -1;
+}
+
+void touch_release_stick() {
+	for (uint i = 0; i < g_touch_held.length(); i++) simulate_key_up(g_touch_held[i]);
+	g_touch_held.resize(0);
+}
+
+// --- Eventos ---
+
+touch_finger_track@ _touch_find(int64 id) {
+	for (uint i = 0; i < g_touch_fingers.length(); i++) if (g_touch_fingers[i].id == id) return g_touch_fingers[i];
+	return null;
+}
+
+// Os eventos do motor só leem o dedo e passam adiante: o resto trabalha com id e posição simples, e é
+// por aí que a sonda (probe_touch) entrega toques de mentira - um touch_finger não se monta à mão.
+bool _touch_down(uint64 device, const touch_finger&inout f) { touch_down_at(f.id, f.x, f.y); return true; }
+bool _touch_move(uint64 device, const touch_finger&inout f, float dx, float dy) { touch_move_at(f.id, f.x, f.y); return true; }
+bool _touch_up(uint64 device, const touch_finger&inout f) { touch_up_at(f.id, f.x, f.y, true); return true; }
+// Cancelado pelo sistema (uma notificação, o leitor de tela tomando o toque): solta o que estava
+// seguro e não conta como gesto nenhum.
+bool _touch_cancel(uint64 device, const touch_finger&inout f) { touch_up_at(f.id, f.x, f.y, false); return true; }
+
+void touch_down_at(int64 id, float x, float y) {
+	touch_release_pending_modifier(true);
+	if (@_touch_find(id) != null) return;
+	touch_finger_track t;
+	t.id = id; t.start_x = x; t.start_y = y; t.x = x; t.y = y;
+	if (g_touch_fingers.length() == 0) {
+		// Começa uma sequência nova.
+		g_touch_max_fingers = 0;
+		@g_touch_first = t;
+		g_touch_seq_stick = touch_in_match() && x < 0.5;
+		g_touch_stick_finger = g_touch_seq_stick ? id : -1;
+	}
+	g_touch_fingers.insert_last(t);
+	if (g_touch_fingers.length() > g_touch_max_fingers) g_touch_max_fingers = g_touch_fingers.length();
+}
+
+void touch_move_at(int64 id, float x, float y) {
+	touch_finger_track@ t = _touch_find(id);
+	if (@t == null) return;
+	t.x = x; t.y = y;
+	if (g_touch_seq_stick && id == g_touch_stick_finger) _touch_update_stick(t);
+}
+
+// O manche: a direção do dedo desde onde encostou, em oito sentidos (diagonal segura duas teclas).
+void _touch_update_stick(touch_finger_track@ t) {
+	float dx = t.x - t.start_x, dy = t.y - t.start_y;
+	array<int> querer;
+	float dist = sqrt(dx * dx + dy * dy);
+	if (dist > TOUCH_STICK_DEADZONE) {
+		// Um eixo só entra se tiver pelo menos 40% do deslocamento: é o que separa "para cima" de
+		// "para cima e para a direita" sem exigir precisão de quem não está vendo a tela.
+		if (abs(dx) >= dist * 0.4) querer.insert_last(g_keys.key(dx > 0 ? ACTION_MOVE_EAST : ACTION_MOVE_WEST));
+		// A tela cresce para BAIXO: y negativo é para cima, que no mapa é o norte.
+		if (abs(dy) >= dist * 0.4) querer.insert_last(g_keys.key(dy < 0 ? ACTION_MOVE_NORTH : ACTION_MOVE_SOUTH));
+	}
+	for (int i = int(g_touch_held.length()) - 1; i >= 0; i--) {
+		if (querer.find(g_touch_held[i]) != -1) continue;
+		simulate_key_up(g_touch_held[i]);
+		g_touch_held.remove_at(i);
+	}
+	for (uint i = 0; i < querer.length(); i++) {
+		if (querer[i] < 0 || g_touch_held.find(querer[i]) != -1) continue;
+		simulate_key_down(querer[i]);
+		g_touch_held.insert_last(querer[i]);
+	}
+}
+
+void touch_up_at(int64 id, float x, float y, bool conta) {
+	touch_finger_track@ t = _touch_find(id);
+	if (@t == null) return;
+	t.x = x; t.y = y;
+	if (id == g_touch_stick_finger) {
+		touch_release_stick();
+		g_touch_stick_finger = -1;
+	}
+	for (uint i = 0; i < g_touch_fingers.length(); i++) {
+		if (g_touch_fingers[i].id == id) { g_touch_fingers.remove_at(i); break; }
+	}
+	if (g_touch_fingers.length() > 0) return;
+	// A sequência acabou: agora se sabe quantos dedos ela teve e para onde o primeiro foi.
+	bool era_manche = g_touch_seq_stick;
+	g_touch_seq_stick = false;
+	if (!conta || era_manche || @g_touch_first == null) return;
+	float dx = g_touch_first.x - g_touch_first.start_x, dy = g_touch_first.y - g_touch_first.start_y;
+	uint dedos = g_touch_max_fingers;
+	if (sqrt(dx * dx + dy * dy) >= TOUCH_SWIPE_MIN) {
+		string dir = abs(dx) > abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+		touch_gesture("swipe_" + dir, dedos);
+		g_touch_last_tap_time = 0;
+		return;
+	}
+	if (dedos == 1) {
+		// Toque de UM dedo só vale em dobro: sem significado para o toque simples, o duplo sai no
+		// instante do segundo toque, sem esperar para ver se vem um terceiro.
+		uint64 agora = ticks();
+		float ddx = g_touch_first.start_x - g_touch_last_tap_x, ddy = g_touch_first.start_y - g_touch_last_tap_y;
+		if (g_touch_last_tap_time > 0 && agora - g_touch_last_tap_time <= TOUCH_DOUBLE_TAP_MS &&
+				sqrt(ddx * ddx + ddy * ddy) <= TOUCH_DOUBLE_TAP_DIST) {
+			g_touch_last_tap_time = 0;
+			touch_gesture("double_tap", 1);
+		} else {
+			g_touch_last_tap_time = agora;
+			g_touch_last_tap_x = g_touch_first.start_x;
+			g_touch_last_tap_y = g_touch_first.start_y;
+		}
+		return;
+	}
+	g_touch_last_tap_time = 0;
+	touch_gesture("tap", dedos);
+	return;
+}
+
+// --- O mapa dos gestos (o texto de touch.help diz a mesma coisa; mudou aqui, mude lá) ---
+
+void touch_gesture(const string&in nome, uint dedos) {
+	// Em qualquer lugar: dois dedos para os lados leem o histórico, para baixo é o Esc.
+	if (dedos == 2 && nome == "swipe_left") { touch_press(g_keys.key(ACTION_CHAT_PREV)); return; }
+	if (dedos == 2 && nome == "swipe_right") { touch_press(g_keys.key(ACTION_CHAT_NEXT)); return; }
+	if (dedos == 2 && nome == "swipe_down") { touch_press(KEY_ESCAPE); return; }
+	if (touch_in_match()) touch_gesture_match(nome, dedos);
+	else touch_gesture_menu(nome, dedos);
+}
+
+void touch_gesture_menu(const string&in nome, uint dedos) {
+	if (dedos == 1) {
+		if (nome == "swipe_up") touch_press(KEY_UP);
+		else if (nome == "swipe_down") touch_press(KEY_DOWN);
+		else if (nome == "swipe_left") touch_press(KEY_LEFT);
+		else if (nome == "swipe_right") touch_press(KEY_RIGHT);
+		else if (nome == "double_tap") touch_press(KEY_RETURN);
+	} else if (dedos == 2) {
+		if (nome == "tap") touch_press(KEY_SPACE);
+		else if (nome == "swipe_up") touch_press(g_keys.key(ACTION_CHAT_SWITCH));
+	} else if (dedos == 3) {
+		// Tab passa de campo nos formulários. E os DÍGITOS, que três telas pedem (os painéis de
+		// sabotagem, rever registros, destravar coletores): três dedos para cima ou para baixo escolhem
+		// o número, e ele é dito; três dedos para a direita o digitam.
+		if (nome == "tap") touch_press(KEY_TAB);
+		else if (nome == "swipe_up" || nome == "swipe_down") {
+			g_touch_digit = (g_touch_digit + (nome == "swipe_up" ? 1 : 9)) % 10;
+			speak("" + g_touch_digit);
+		} else if (nome == "swipe_right") {
+			// Lista, e não KEY_0 + n: em scancode o 0 vem DEPOIS do 9, e a conta digitaria o número errado.
+			array<int> digitos = {KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9};
+			touch_press(digitos[g_touch_digit]);
+		}
+	}
+}
+
+void touch_gesture_match(const string&in nome, uint dedos) {
+	if (dedos == 1) {
+		if (nome == "double_tap") touch_press(g_keys.key(ACTION_INTERACT));
+		else if (nome == "swipe_right") touch_press(g_keys.key(ACTION_RADAR));
+		else if (nome == "swipe_left") touch_press_with_shift(g_keys.key(ACTION_RADAR));
+		else if (nome == "swipe_up") touch_press(g_keys.key(ACTION_REPORT));
+		else if (nome == "swipe_down") touch_press(g_keys.key(ACTION_TASK_LIST));
+	} else if (dedos == 2) {
+		if (nome == "tap") touch_press(g_keys.key(ACTION_ABILITY));
+		else if (nome == "swipe_up") touch_press(g_keys.key(ACTION_KILL));
+	} else if (dedos == 3) {
+		if (nome == "tap") g_touch_action_menu_requested = true;
+		else if (nome == "swipe_up") touch_press(g_keys.key(ACTION_VOTE));
+		else if (nome == "swipe_down") touch_press(g_keys.key(ACTION_ROOM_INFO));
+	}
+}

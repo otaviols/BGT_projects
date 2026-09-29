@@ -17,6 +17,7 @@
 #include "../config/server_address.nvgt"
 #include "../audio/sound_catalog.nvgt"
 #include "settings_screens.nvgt"
+#include "../core/touch_input.nvgt"
 
 // Menu inicial (antes de conectar): conectar, aprender os sons do jogo, ou sair.
 // Retorna true se o jogador escolheu conectar (main.nvgt segue o fluxo normal); false = saiu.
@@ -32,6 +33,9 @@ bool run_main_menu() {
 		m.add_item(tr("menu.explore_map"), "explore_map");
 		m.add_item(tr("menu.practice"), "practice");
 		m.add_item(tr("menu.changelog"), "changelog");
+		// Só com a tela de toque ligada (Android): no computador seria uma lista de coisas que não
+		// existem ali.
+		if (g_touch_enabled) m.add_item(tr("touch.menu_item"), "touch_help");
 		m.add_item(tr("menu.settings"), "settings");
 		m.add_item(tr("menu.support"), "support");
 		m.add_item(tr("menu.exit"), "exit");
@@ -43,11 +47,25 @@ bool run_main_menu() {
 		if (id == "explore_map") { run_explore_map_screen(); continue; }
 		if (id == "practice") { run_practice_screen(); continue; }
 		if (id == "changelog") { run_changelog_screen(); continue; }
+		if (id == "touch_help") { run_touch_help_screen(); continue; }
 		if (id == "settings") { run_settings_menu(); continue; }
 		if (id == "support") { run_support_screen(); continue; }
 		return false; // "exit", ESC ou fechou sem escolher
 	}
 	return false; // inalcançável - o laço só termina via return acima
+}
+
+// A lista dos gestos, um por item, para ler no ritmo de cada um. É um menu, e não uma fala só, porque
+// são onze frases: dita de uma vez, a do meio já teria sido esquecida quando a última acabasse.
+void run_touch_help_screen() {
+	menu m;
+	m.intro_text = tr("touch.menu_item");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	array<string>@ linhas = tr("touch.help").split("|");
+	for (uint i = 0; i < linhas.length(); i++) m.add_item(linhas[i], "" + i);
+	m.run();
 }
 
 // Monta o catálogo de sons pra aprender (audio/sound_catalog.nvgt) e mostra o menu de preview

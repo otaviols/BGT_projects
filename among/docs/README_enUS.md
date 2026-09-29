@@ -84,10 +84,15 @@ What changed in each version is in the main menu, under **What's new** — and a
 `.tar.gz`; the Mac one is a disk image: open it and drag the game to Applications). On those systems updating is
 still manual: the game says a new version is out and opens the download page.
 
-**Android:** there is an `.apk` on the site. It is the first phone version and it expects a
-**keyboard** (Bluetooth or USB) — touch gestures do not exist yet, so without a keyboard you cannot
-play. Updating is manual there too: when a new version comes out, the game says so and opens the
-page.
+**Android:** there is an `.apk` on the site. You can play with **gestures** on the screen: in the
+main menu, the **Touch screen gestures** item lists them all. In short: in menus, swipe one finger to
+move and double tap to confirm; two fingers down go back. In a match, the left half of the screen is a
+joystick (touch, drag toward where you want to walk and hold), and the right half does the actions:
+double tap interacts, swiping sideways uses the radar, and a three finger tap opens a menu with every
+action. Typing (the login and the chat) still needs a **keyboard**, Bluetooth or USB, which also
+plays everything as on a computer. If the gestures do not respond with the screen reader on, suspend
+it while you play: the game speaks on its own. Updating is manual: when a new version comes out, the
+game says so and opens the page.
 
 ## Sending feedback
 
