@@ -6,6 +6,20 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.42.0
+
+**Gestos no Android.** Dá para jogar pela tela de toque. Na partida, a metade esquerda da tela é um
+manche: encoste, arraste para onde quer andar e segure. A metade direita faz as ações, e um toque com
+três dedos abre um menu com todas elas. Nos menus, deslize um dedo para navegar e toque duas vezes para
+confirmar. A lista completa está no novo item do menu inicial, Gestos na tela de toque. É a primeira
+versão: conte pelo recado o que ficou estranho. Escrever ainda precisa de teclado.
+
+**Ouvir os próprios passos depois de morto.** Uma opção nova em Como eu ouço o jogo, desligada por
+padrão. Só você ouve.
+
+**A voz de quem está na barriga do Lobo anda com ele.** Antes, para o lobo, ela ficava presa no lugar
+onde a pessoa foi engolida.
+
 ## 0.41.0
 
 **Papéis neutros.** Um terceiro lado, que não é da tripulação nem dos impostores e vence sozinho. No

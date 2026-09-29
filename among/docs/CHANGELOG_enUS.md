@@ -6,6 +6,20 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.42.0
+
+**Gestures on Android.** You can play with the touch screen. In a match, the left half of the screen
+is a joystick: touch, drag toward where you want to walk and hold. The right half does the actions,
+and a three finger tap opens a menu with all of them. In menus, swipe one finger to move and double
+tap to confirm. The full list is in the new main menu item, Touch screen gestures. This is the first
+version: tell us through feedback what feels odd. Typing still needs a keyboard.
+
+**Hear your own footsteps after you die.** A new option in How I hear the game, off by default. Only
+you hear them.
+
+**The voice of whoever is in the Wolf's belly moves with the wolf.** Before, for the wolf, it stayed
+stuck where the person was swallowed.
+
 ## 0.41.0
 
 **Neutral roles.** A third side, neither crew nor impostor, that wins alone. At the end of the match
