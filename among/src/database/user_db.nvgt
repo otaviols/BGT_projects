@@ -132,6 +132,18 @@ class user_database {
 			"updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
 		) != SQLITE_OK) return false;
 
+		// De onde se joga: UMA linha por jogador por dia, com a plataforma e a versão daquele dia. Por
+		// dia, e não por login, porque o que interessa é quantas PESSOAS jogam em cada plataforma - quem
+		// cai e reconecta dez vezes contaria dez. E sem o horário: ele não responde nada que esta tabela
+		// precisa, e é dado pessoal a menos guardado. Apagar a conta apaga estas linhas (delete_account).
+		db.execute(
+			"CREATE TABLE IF NOT EXISTS client_logins (" +
+			"username TEXT NOT NULL, " +
+			"day TEXT NOT NULL, " +
+			"platform TEXT NOT NULL, " +
+			"version TEXT NOT NULL, " +
+			"PRIMARY KEY (username, day))");
+
 		db.execute("CREATE INDEX IF NOT EXISTS idx_username ON users(username)");
 		return true;
 	}
@@ -222,6 +234,42 @@ class user_database {
 	// Uma transação só: meio apagado (conta sumida, recados ainda com o nome) seria o pior dos dois
 	// mundos. E `user_stats` é apagada à mão - o ON DELETE CASCADE dela só funciona com
 	// `PRAGMA foreign_keys = ON`, que o SQLite deixa desligado por padrão.
+	// Registra que este jogador entrou hoje, desta plataforma e com esta versão. Entrar de novo no
+	// mesmo dia SUBSTITUI (a última do dia vale): quem jogou no celular e depois no computador conta
+	// uma vez, pela última.
+	void record_client_login(const string&in username, const string&in platform, const string&in version) {
+		if (@db == null || username == "") return;
+		sqlite3statement@ st = db.prepare(
+			"INSERT OR REPLACE INTO client_logins (username, day, platform, version) VALUES (?, date('now'), ?, ?)");
+		if (@st == null) return;
+		st.bind_text(1, username, false);
+		st.bind_text(2, platform, false);
+		st.bind_text(3, version, false);
+		st.step();
+	}
+
+	// Jogadores distintos por `coluna` (platform ou version) nos últimos `days` dias. A coluna vem de
+	// quem chama, dentro do servidor, e mesmo assim só as duas passam: ela entra no texto do SQL.
+	array<string>@ count_client_logins(const string&in coluna, int days, array<int>@ contagens) {
+		array<string> nomes;
+		contagens.resize(0);
+		if (@db == null || (coluna != "platform" && coluna != "version")) return nomes;
+		sqlite3statement@ st = db.prepare(
+			"SELECT " + coluna + ", COUNT(DISTINCT username) FROM client_logins " +
+			"WHERE day >= date('now', ?) GROUP BY " + coluna + " ORDER BY 2 DESC");
+		if (@st == null) return nomes;
+		// Numa variável, e não montado na chamada: com `false` o SQLite NÃO copia o texto, e uma string
+		// temporária morre antes do step() - a consulta rodava com lixo no lugar do prazo e voltava
+		// vazia, sem erro nenhum.
+		string prazo = "-" + days + " days";
+		st.bind_text(1, prazo, false);
+		while (st.step() == SQLITE_ROW) {
+			nomes.insert_last(st.column_text(0));
+			contagens.insert_last(st.column_int(1));
+		}
+		return nomes;
+	}
+
 	bool delete_account(const string&in username) {
 		if (@db == null || username == "") return false;
 		int user_id = get_user_id(username);
@@ -231,6 +279,7 @@ class user_database {
 			"DELETE FROM feedback WHERE username = ?",
 			"DELETE FROM translations WHERE username = ?",
 			"DELETE FROM sessions WHERE username = ?",
+			"DELETE FROM client_logins WHERE username = ?",
 			"DELETE FROM users WHERE username = ?"
 		};
 		db.execute("BEGIN");

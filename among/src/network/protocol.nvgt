@@ -149,6 +149,7 @@ const string C_ADMIN_DELETE_TRANSLATION = "c_admin_delete_translation"; // {toke
 const string C_ADMIN_RESOLVE_FEEDBACK = "c_admin_resolve_feedback"; // {token, feedback_id, until, undo}
 const string C_ADMIN_DRAIN = "c_admin_drain";     // {token, seconds}
 const string C_ADMIN_STATUS = "c_admin_status";   // {token}
+const string C_ADMIN_PLATFORMS = "c_admin_platforms"; // {token, days}
 // Recado fixo do saguão. Texto VAZIO apaga. Existe para avisar os jogadores de algo (uma versão
 // nova no site, uma manutenção) sem publicar uma versão do jogo só por causa do aviso.
 const string C_ADMIN_SET_NOTICE = "c_admin_set_notice"; // {token, text}
@@ -255,7 +256,9 @@ const string S_FEEDBACK_REPLIES = "s_feedback_replies";     // {replies: [{reply
 const string S_ADMIN_RESULT = "s_admin_result";             // {ok, message} - só para a ferramenta de administração
 const string S_TRANSLATION_ACK = "s_translation_ack";       // {ok, message_key}
 const string S_ADMIN_TRANSLATIONS = "s_admin_translations"; // {items: [{username, code, content, created_at}]}
-const string S_ADMIN_STATUS = "s_admin_status";             // {connections, lobbies, in_progress, draining_seconds}
+const string S_ADMIN_STATUS = "s_admin_status";             // {connections, lobbies, in_progress, draining_seconds, online_<plataforma>}
+// Jogadores DISTINTOS por plataforma e por versão nos últimos `days` dias (ver record_client_login).
+const string S_ADMIN_PLATFORMS = "s_admin_platforms";       // {days, platforms: [{name, players}], versions: [{name, players}]}
 // Resposta ao próprio observador: entrou, trocou de sala, ou foi recusado/expulso.
 const string S_CAMERA_STATE = "s_camera_state";             // {active, room_id, message_key}
 // Para TODO mundo na partida: qual sala está sendo observada agora ("" = nenhuma).

@@ -1,0 +1,104 @@
+// Sonda da contagem de plataformas (de onde se joga).
+//   AMONGUS_SERVER_HOST=127.0.0.1 AMONGUS_ADMIN_TOKEN=<o do servidor> nvgt tools/probes/probe_platforms.nvgt
+//
+// Confere:
+//   1. quem entra conta como online na plataforma dele (status);
+//   2. o login fica registrado e aparece na contagem por plataforma e por versão;
+//   3. plataforma e versão que não estão na lista - o texto vem da máquina do jogador e vira linha no
+//      banco - são gravadas como "unknown", e não como vieram.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+game_client@ conecta(server_address addr) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	return c.connected ? c : null;
+}
+int contagem(net_packet@ r, const string&in campo, const string&in nome) {
+	json_array@ lista = r.get_array(campo);
+	if (@lista == null) return 0;
+	for (uint i = 0; i < lista.length(); i++) {
+		json_object@ o = lista.get_object(i);
+		if (string(o["name"]) == nome) return int(o["players"]);
+	}
+	return 0;
+}
+
+void main() {
+	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+	if (token == "") { println("defina AMONGUS_ADMIN_TOKEN"); return; }
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+
+	game_client@ admin = conecta(addr);
+	if (@admin == null) { println("sem conexao"); return; }
+	admin.send_admin_platforms(token, 1);
+	net_packet@ antes = wf(admin, S_ADMIN_PLATFORMS, 5000);
+	if (@antes == null) { println("sem resposta do admin (token?)"); return; }
+	int win_antes = contagem(antes, "platforms", "windows");
+	int unk_antes = contagem(antes, "platforms", "unknown");
+	int ver_antes = contagem(antes, "versions", GAME_VERSION);
+	int verunk_antes = contagem(antes, "versions", "unknown");
+
+	array<game_client@> jogadores;
+	for (int i = 0; i < 2; i++) {
+		game_client@ c = conecta(addr);
+		string nome = "pf" + i + "x" + sfx;
+		c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(nome, "probe123");
+		net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+		confere("login " + i, @lr != null && lr.get_bool("ok"));
+		jogadores.insert_last(c);
+	}
+	// Um login com plataforma e versão inventadas, montado à mão como um cliente modificado faria.
+	game_client@ torto = conecta(addr);
+	string nome_torto = "pfx" + sfx;
+	torto.send_register(nome_torto, "probe123"); wf(torto, S_REGISTER_RESULT, 3000);
+	net_packet@ lp = net_packet(C_LOGIN);
+	lp.set_string("username", nome_torto);
+	lp.set_string("password", "probe123");
+	lp.set_int("protocol", PROTOCOL_VERSION);
+	lp.set_string("platform", "playstation'); DROP TABLE users;--");
+	lp.set_string("version", "9.9.9-beta<script>");
+	torto.net.send_reliable(torto.local_peer_id, lp.to_wire(), CHANNEL_RELIABLE); // o send() do cliente é privado
+	confere("login com dados tortos entra (os dados e que nao valem)", @wf(torto, S_LOGIN_RESULT, 5000) != null);
+
+	for (int k = 0; k < 20; k++) { admin.update(); for (uint i = 0; i < jogadores.length(); i++) jogadores[i].update(); torto.update(); wait(10); }
+	admin.send_admin_status(token);
+	net_packet@ st = wf(admin, S_ADMIN_STATUS, 5000);
+	confere("status diz os online por plataforma (windows=" + (@st != null ? st.get_int("online_windows") : -1) + ", unknown=" +
+		(@st != null ? st.get_int("online_unknown") : -1) + ")",
+		@st != null && st.get_int("online_windows") >= 2 && st.get_int("online_unknown") >= 1);
+
+	admin.send_admin_platforms(token, 1);
+	net_packet@ depois = wf(admin, S_ADMIN_PLATFORMS, 5000);
+	confere("a contagem responde", @depois != null);
+	if (@depois != null) {
+		confere("windows subiu 2 (" + win_antes + " -> " + contagem(depois, "platforms", "windows") + ")", contagem(depois, "platforms", "windows") == win_antes + 2);
+		confere("a versao " + GAME_VERSION + " subiu 2", contagem(depois, "versions", GAME_VERSION) == ver_antes + 2);
+		confere("a plataforma inventada virou unknown", contagem(depois, "platforms", "unknown") == unk_antes + 1);
+		confere("a versao inventada virou unknown", contagem(depois, "versions", "unknown") == verunk_antes + 1);
+		json_array@ lista = depois.get_array("platforms");
+		bool vazou = false;
+		for (uint i = 0; i < lista.length(); i++) if (string(lista.get_object(i)["name"]).find("playstation") >= 0) vazou = true;
+		confere("o texto inventado nao foi parar no banco", !vazou);
+	}
+
+	for (uint i = 0; i < jogadores.length(); i++) jogadores[i].disconnect();
+	torto.disconnect();
+	admin.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

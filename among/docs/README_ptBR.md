@@ -115,6 +115,11 @@ vitórias (como tripulante, impostor e papel neutro), etapas de tarefa concluíd
 apaga para sempre a conta, as estatísticas, os recados que você mandou (com as respostas) e as
 traduções que ainda não tinham sido recolhidas. Não tem volta.
 
+**O que o jogo registra ao entrar.** A cada dia em que você joga, o servidor guarda de que tipo de
+aparelho você entrou (Windows, Android, Linux ou Mac) e com qual versão do jogo. Só isso, sem horário
+e sem nada do aparelho em si. Serve para sabermos em quais plataformas vale investir. Apagar a conta
+apaga esses registros também.
+
 ## Configurações
 
 No menu inicial, em **Configurações**:

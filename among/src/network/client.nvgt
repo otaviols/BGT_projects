@@ -6,6 +6,7 @@
 #include "protocol.nvgt"
 #include "packet.nvgt"
 #include "../config/game_constants.nvgt"
+#include "../core/platform.nvgt" // a plataforma que o login declara
 // send_create_lobby recebe um lobby_overrides. Antes isto vinha por tabela - quem incluía o cliente
 // já tinha incluído a configuração de lobby antes - e compilava por ordem, não por dependência
 // declarada. Bastava alguém incluir só o cliente para quebrar.
@@ -177,7 +178,15 @@ class game_client {
 		p.set_string("password", password);
 		p.set_bool("remember", remember);
 		p.set_int("protocol", PROTOCOL_VERSION);
+		set_client_identity(p);
 		send(p);
+	}
+
+	// De onde e com que versão se joga: o servidor conta, para saber se vale investir numa plataforma
+	// (ver record_client_login). Vai nos dois logins, senha e token - quem entra lembrado é a maioria.
+	private void set_client_identity(net_packet@ p) {
+		p.set_string("platform", client_platform_name());
+		p.set_string("version", GAME_VERSION);
 	}
 
 	// Login com o token guardado por "lembrar de mim" (ver C_LOGIN).
@@ -185,6 +194,7 @@ class game_client {
 		net_packet@ p = net_packet(C_LOGIN);
 		p.set_string("token", token);
 		p.set_int("protocol", PROTOCOL_VERSION);
+		set_client_identity(p);
 		send(p);
 	}
 
@@ -303,6 +313,12 @@ class game_client {
 		net_packet@ p = net_packet(C_ADMIN_DRAIN);
 		p.set_string("token", token);
 		p.set_int("seconds", seconds);
+		send(p);
+	}
+	void send_admin_platforms(const string&in token, int days) {
+		net_packet@ p = net_packet(C_ADMIN_PLATFORMS);
+		p.set_string("token", token);
+		p.set_int("days", days);
 		send(p);
 	}
 	void send_admin_status(const string&in token) {

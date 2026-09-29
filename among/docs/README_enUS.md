@@ -119,6 +119,11 @@ impostor and neutral role), task steps completed and kills.
 password and permanently deletes the account, your stats, the messages you sent (with their
 replies), and any translations not yet collected. There is no undo.
 
+**What the game records when you sign in.** On each day you play, the server stores which kind of
+device you signed in from (Windows, Android, Linux or Mac) and which game version. Only that, with no
+time of day and nothing about the device itself. It tells us which platforms are worth investing in.
+Deleting your account deletes these records too.
+
 ## Settings
 
 From the main menu, under **Settings**:

@@ -10,3 +10,18 @@
 // do stub), e fora dele o NVGT devolve -1 de propósito (ver o #ifndef SDL_PLATFORM_ANDROID em
 // xplatform.cpp). Não é preciso compilar duas vezes: o MESMO script responde certo nos dois lados.
 bool is_android() { return ANDROID_SDK_VERSION >= 0; }
+
+// O nome da plataforma que o cliente declara no login, para o servidor contar de onde se joga (ver
+// record_client_login). Um vocabulário FECHADO e em minúsculas, e não o PLATFORM cru: o servidor
+// confere contra a mesma lista, e o texto do sistema varia de versão para versão do NVGT. O Android
+// vem primeiro pelo motivo do topo deste arquivo - pelo PLATFORM ele seria contado como Linux.
+string client_platform_name() {
+	if (is_android()) return "android";
+	string p = PLATFORM.lower();
+	if (p.find("ios") >= 0 || p.find("iphone") >= 0) return "ios";
+	if (p.find("win") >= 0) return "windows";
+	if (p.find("mac") >= 0 || p.find("darwin") >= 0) return "mac";
+	if (p.find("linux") >= 0) return "linux";
+	return "other";
+}
+const array<string> CLIENT_PLATFORMS = {"windows", "android", "linux", "mac", "ios", "other"};

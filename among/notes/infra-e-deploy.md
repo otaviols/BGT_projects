@@ -85,6 +85,20 @@ adianta embrulhar a chamada nele. A saída que funciona nos dois é hexar os byt
 qualquer binário que for para uma coluna TEXT, e o teste local no Windows NÃO pega - confira contra
 a produção (sonda + `kubectl exec ... base64 among_users.db`, olhando o comprimento da coluna).
 
+**`bind_text(i, texto, false)` NÃO copia o texto: passar uma string montada na chamada é passar lixo.**
+O `false` diz ao SQLite que a string continua viva até o `step()`, e uma temporária
+(`bind_text(1, "-" + days + " days", false)`) já morreu. Sintoma: a consulta roda sem erro e volta
+VAZIA - foi a contagem de plataformas, com três logins gravados na tabela. Monte o texto numa variável
+local antes do bind (todos os outros binds do arquivo já passavam variáveis, e por isso nunca tinham
+mordido).
+
+**De onde se joga: `nvgt tools/server_admin.nvgt platforms [dias]`.** Jogadores DISTINTOS por
+plataforma e por versão no período (padrão 30 dias), da tabela `client_logins` - uma linha por
+jogador por dia, a última do dia vale. O `status` diz também quem está online agora por plataforma.
+"unknown" é cliente anterior à 0.43.0, que não dizia de onde vinha, ou um cliente que mandou algo
+fora da lista (o servidor não grava o texto que chega). Apagar a conta apaga as linhas dela. Sonda:
+`probe_platforms.nvgt`.
+
 **"Lembrar de mim" guarda um token de sessão, nunca a senha.** O NVGT não alcança o Cofre de
 Credenciais do Windows nem DPAPI, então senha em disco seria texto puro. O servidor emite um
 token aleatório no login com `remember` (tabela `sessions`, só o SHA-256 dele; vence depois de
@@ -152,6 +166,7 @@ kubectl logs -n amongus deploy/amongus-server -f
 infra\read_feedback.ps1 [-After <id>] [-WithCrashLog] [-Out arquivo]   # recados dos jogadores
 infra\reply_feedback.ps1 -Id <id> -Text "..."   # responder; o jogador ouve dentro do jogo
 infra\read_translations.ps1                    # traduções enviadas pelo jogo -> translations_inbox/ (e apaga do servidor)
+nvgt tools/server_admin.nvgt platforms 30     # jogadores distintos por plataforma e versão (precisa de AMONGUS_ADMIN_TOKEN)
 ```
 
 

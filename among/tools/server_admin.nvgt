@@ -5,6 +5,7 @@
 //   nvgt tools/server_admin.nvgt status            -> conexões, salas, partidas em andamento
 //   nvgt tools/server_admin.nvgt drain <segundos>  -> avisa todo mundo e proíbe partidas novas
 //   nvgt tools/server_admin.nvgt notice "texto"    -> recado fixo do saguão (sem texto = apaga)
+//   nvgt tools/server_admin.nvgt platforms [dias]  -> jogadores distintos por plataforma e versão (padrão 30 dias)
 //   (o token vem de AMONGUS_ADMIN_TOKEN; AMONGUS_SERVER_HOST aponta para outro servidor)
 //
 // "status" imprime uma linha por campo, "chave=valor", para o PowerShell ler sem adivinhar formato.
@@ -45,6 +46,8 @@ void main() {
 		println("lobbies=" + st.get_int("lobbies"));
 		println("in_progress=" + st.get_int("in_progress"));
 		println("draining_seconds=" + st.get_int("draining_seconds"));
+		array<string> plataformas = {"windows", "android", "linux", "mac", "ios", "other", "unknown"};
+		for (uint i = 0; i < plataformas.length(); i++) println("online_" + plataformas[i] + "=" + st.get_int("online_" + plataformas[i]));
 	} else if (cmd == "drain") {
 		int seconds = ARGS.length() > 2 ? parse_int(ARGS[2]) : 120;
 		c.send_admin_drain(token, seconds);
@@ -59,6 +62,22 @@ void main() {
 		if (@r == null) println("erro=sem resposta (token errado ou servidor antigo)");
 		else if (!r.get_bool("ok")) println("erro=" + r.get_string("message"));
 		else println(r.get_string("notice") == "" ? "ok=recado apagado" : ("ok=" + r.get_string("notice")));
+	} else if (cmd == "platforms") {
+		int days = ARGS.length() > 2 ? parse_int(ARGS[2]) : 30;
+		c.send_admin_platforms(token, days);
+		net_packet@ r = espera(c, S_ADMIN_PLATFORMS, 8000);
+		if (@r == null) { println("erro=sem resposta (token errado ou servidor antigo)"); c.disconnect(); return; }
+		println("dias=" + r.get_int("days"));
+		array<string> campos = {"platforms", "versions"};
+		array<string> prefixos = {"plataforma_", "versao_"};
+		for (uint k = 0; k < campos.length(); k++) {
+			json_array@ lista = r.get_array(campos[k]);
+			if (@lista == null) continue;
+			for (uint i = 0; i < lista.length(); i++) {
+				json_object@ o = lista.get_object(i);
+				println(prefixos[k] + string(o["name"]) + "=" + int(o["players"]));
+			}
+		}
 	} else {
 		println("erro=comando desconhecido " + cmd);
 	}

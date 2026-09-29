@@ -3,6 +3,7 @@
 // core/game_state.nvgt. Mantém-se sempre de pé; jogadores criam/entram em partidas.
 
 #include "protocol.nvgt"
+#include "../core/platform.nvgt" // a lista de plataformas que o login aceita
 #include "packet.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../config/colors.nvgt"
@@ -462,6 +463,7 @@ class game_server {
 		else if (t == C_ADMIN_RESOLVE_FEEDBACK) on_admin_resolve_feedback(peer_id, pkt);
 		else if (t == C_ADMIN_DRAIN) on_admin_drain(peer_id, pkt);
 		else if (t == C_ADMIN_STATUS) on_admin_status(peer_id, pkt);
+		else if (t == C_ADMIN_PLATFORMS) on_admin_platforms(peer_id, pkt);
 		else if (t == C_ADMIN_SET_NOTICE) on_admin_set_notice(peer_id, pkt);
 		else if (t == C_CAMERA_ENTER) on_camera_enter(peer_id, pkt);
 		else if (t == C_CAMERA_LEAVE) on_camera_leave(peer_id, pkt);
@@ -765,6 +767,11 @@ class game_server {
 				conn.username = username;
 				conn.authenticated = true;
 				conn.protocol_version = protocol;
+				// Só um nome da lista: o texto vem da máquina do jogador e vira linha no banco.
+				string plataforma = pkt.get_string("platform", "unknown");
+				if (CLIENT_PLATFORMS.find(plataforma) < 0) plataforma = "unknown";
+				conn.client_platform = plataforma;
+				g_user_db.record_client_login(username, plataforma, safe_client_version(pkt.get_string("version", "")));
 			}
 			result.set_bool("ok", true);
 			result.set_string("message", "login.success");
@@ -2397,6 +2404,41 @@ class game_server {
 		send_to(peer_id, result);
 	}
 
+	// A versão que o cliente diz ter, se tiver cara de versão ("0.43.0"); senão "unknown". Vem da
+	// máquina do jogador e vira linha no banco.
+	string safe_client_version(const string&in v) {
+		if (v == "" || v.length() > 16) return "unknown";
+		for (uint i = 0; i < v.length(); i++) {
+			string c = v.substr(i, 1);
+			if (c != "." && (c < "0" || c > "9")) return "unknown";
+		}
+		return v;
+	}
+
+	void on_admin_platforms(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		int days = pkt.get_int("days", 30);
+		if (days < 1) days = 1;
+		if (days > 3650) days = 3650;
+		net_packet@ r = net_packet(S_ADMIN_PLATFORMS);
+		r.set_int("days", days);
+		array<string> colunas = {"platform", "version"};
+		array<string> campos = {"platforms", "versions"};
+		for (uint c = 0; c < colunas.length(); c++) {
+			array<int> contagens;
+			array<string>@ nomes = g_user_db.count_client_logins(colunas[c], days, contagens);
+			json_array@ lista = json_array();
+			for (uint i = 0; i < nomes.length(); i++) {
+				json_object@ o = json_object();
+				o.set("name", nomes[i]);
+				o.set("players", contagens[i]);
+				lista.add(o);
+			}
+			r.set_array(campos[c], lista);
+		}
+		send_to(peer_id, r);
+	}
+
 	void on_admin_status(uint64 peer_id, net_packet@ pkt) {
 		if (!admin_token_ok(peer_id, pkt)) return;
 		net_packet@ st = net_packet(S_ADMIN_STATUS);
@@ -2404,6 +2446,14 @@ class game_server {
 		st.set_int("lobbies", int(lobbies.length()));
 		st.set_int("in_progress", int(matches_in_progress()));
 		st.set_int("draining_seconds", draining_seconds_left());
+		// Quem está conectado AGORA, por plataforma (só quem já entrou na conta).
+		for (uint p = 0; p < CLIENT_PLATFORMS.length(); p++) st.set_int("online_" + CLIENT_PLATFORMS[p], 0);
+		st.set_int("online_unknown", 0);
+		for (uint i = 0; i < connections.length(); i++) {
+			if (!connections[i].authenticated) continue;
+			string campo = "online_" + connections[i].client_platform;
+			st.set_int(campo, st.get_int(campo) + 1);
+		}
 		send_to(peer_id, st);
 	}
 
