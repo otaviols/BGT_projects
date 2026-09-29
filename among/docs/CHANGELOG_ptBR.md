@@ -6,6 +6,23 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.43.0
+
+**Na barriga do Lobo você sabe onde está.** Engolido, você ouve o nome das salas por onde o lobo
+passa, e o radar e a tecla de onde estou mostram a sala dele.
+
+**O Lobo não entrega mais a vitória aos impostores.** Enquanto houver gente na barriga, os impostores
+não vencem por maioria: eles precisam derrubar o lobo para quem foi engolido voltar.
+
+**Bots impostores mais difíceis de descobrir.** Eles fingem fazer tarefas como a tripulação, cada um
+vai atrás de uma pessoa diferente e só matam quando a vítima está sozinha. Antes, dois bots impostores
+andavam grudados e não matavam ninguém.
+
+**Som novo para o Lobo engolindo alguém.**
+
+**De onde se joga.** Ao entrar, o jogo passa a informar de que tipo de aparelho você joga e com qual
+versão, para sabermos em quais plataformas vale investir. O manual explica o que é guardado.
+
 ## 0.42.0
 
 **Gestos no Android.** Dá para jogar pela tela de toque. Na partida, a metade esquerda da tela é um

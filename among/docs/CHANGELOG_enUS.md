@@ -6,6 +6,24 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.43.0
+
+**In the Wolf's belly you know where you are.** Swallowed, you hear the name of each room the wolf
+walks through, and the radar and the where-am-I key show the wolf's room.
+
+**The Wolf no longer hands the win to the impostors.** While anyone is in the belly, the impostors
+cannot win by majority: they have to take the wolf down so the swallowed come back.
+
+**Impostor bots are harder to spot.** They pretend to do tasks like the crew, each goes after a
+different person, and they only kill when the victim is alone. Before, two impostor bots walked stuck
+together and never killed anyone.
+
+**A new sound for the Wolf swallowing someone.**
+
+**Where people play from.** When you sign in, the game now reports which kind of device you play on
+and which version, so we know which platforms are worth investing in. The manual explains what is
+stored.
+
 ## 0.42.0
 
 **Gestures on Android.** You can play with the touch screen. In a match, the left half of the screen
