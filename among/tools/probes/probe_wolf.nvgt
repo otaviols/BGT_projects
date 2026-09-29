@@ -15,6 +15,7 @@
 #include "../../src/config/game_constants.nvgt"
 #include "../../src/config/server_address.nvgt"
 #include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/map.nvgt"
 
 class sink : voice_receiver {
 	array<uint64> talkers;
@@ -219,6 +220,28 @@ void main() {
 	// baixo passaria com um servidor que parou de repassar voz para todo mundo.
 	confere("controle: os de fora se ouvem", ouviu(o2, todos[o1]) || ouviu(impostor, todos[o1]));
 	confere("a barriga nao ouve os de fora", !ouviu(v, todos[o1]));
+
+	// O radar da barriga (recado #160): o lobo vai para longe de todos, e o radar do engolido tem que
+	// achá-lo COLADO - a varredura parte de onde o lobo está, e não de onde a pessoa foi engolida.
+	{
+		game_map@ mapa = build_the_hub_map();
+		map_object@ longe = mapa.find_object("vent_navigation");
+		anda_ate(todos, todos[lobo], xs[v], ys[v], longe.x, longe.y);
+		bombeia(todos, 800);
+		bool achou_lobo_colado = false, erro = false;
+		for (int k = 0; k < 6 && !achou_lobo_colado; k++) {
+			esvazia_caixa();
+			todos[v].send_radar_scan(1);
+			net_packet@ r = espera(todos, v, S_RADAR_RESULT, 2000);
+			if (@achado(v, S_ERROR) != null) erro = true;
+			if (@r != null && r.get_uint64("peer_id") == todos[lobo].my_peer_id && r.get_float("distance") < 2.0) achou_lobo_colado = true;
+		}
+		confere("o radar do engolido responde (sem recusa)", !erro);
+		confere("e acha o lobo colado, la na sala dele", achou_lobo_colado);
+		// O lobo volta para perto de todos, para a reunião de logo abaixo começar como antes.
+		anda_ate(todos, todos[lobo], longe.x, longe.y, xs[v], ys[v]);
+		bombeia(todos, 500);
+	}
 
 	esvazia_caixa();
 	todos[o1].send_call_meeting();

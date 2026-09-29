@@ -149,6 +149,11 @@ precisa perguntar `swallowed()` também, ou o engolido ganha junto.
 - O elenco dos OUTROS clientes guarda o engolido no último ponto em que andou; quem passa por ali não
   o ouve anunciado porque o servidor manda a cada um quem é perceptível perto dele (S_NEARBY_PLAYERS,
   ver notes/som.md). Era um defeito herdado dos dutos, consertado junto.
+- O engolido fica ONDE O LOBO ESTÁ, no servidor (`follow_wolves`, a cada tick): o radar dele varre a
+  sala do lobo sem regra nova nenhuma no radar, e é cegado pela sabotagem como o LOBO seria (os
+  "olhos" em `radar_targets`), não com a imunidade de fantasma. No cliente, a sala é dita quando o
+  lobo muda de sala, e a tecla de onde estou responde por ela (recado #160, decisão do usuário: os
+  dois modos do radar, do ponto do lobo). Não vaza nada: o engolido só fala com o próprio lobo.
 - A VOZ da barriga, no cliente do lobo, toca SEM posição (`g_voice.inside_me`). Posicionada pelo
   elenco, ela ficava presa no ponto onde a pessoa foi engolida enquanto o lobo andava - justo o que o
   papel promete (ouvir as vítimas) virava um som parado no mapa. Sintoma relatado pelo usuário: "a voz

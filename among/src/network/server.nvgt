@@ -1970,9 +1970,14 @@ class game_server {
 	// quem está perto de você.
 	array<game_player@>@ radar_targets(game_state@ lobby, game_player@ me, string&out fail_key) {
 		fail_key = "";
-		// Na barriga do lobo não se vê nada lá fora. O cliente já não deixa a tecla chegar aqui; isto é
-		// para o cliente que não obedece.
-		if (me.swallowed()) { fail_key = "role.swallowed_cannot_act"; return null; }
+		// Na barriga do lobo, o radar varre a sala DO LOBO (recado #160; a posição do engolido segue a
+		// dele, ver follow_wolves) e é cegado como o lobo seria: o engolido vê pelos olhos de quem o
+		// carrega, e não com a imunidade de fantasma.
+		game_player@ olhos = me;
+		if (me.swallowed()) {
+			game_player@ lobo = lobby.find_player(me.swallowed_by);
+			if (@lobo != null) @olhos = lobo;
+		}
 		// O `me.alive` aqui é o conserto de um bug que sobreviveu a três tentativas: esta condição
 		// olhava só o PAPEL e nunca se a pessoa estava viva. Sabotagem não atinge fantasma em lugar
 		// nenhum do jogo - menos aqui, onde o servidor recusava a varredura de quem já tinha morrido
@@ -1985,7 +1990,7 @@ class game_server {
 		// É o que mantém o radar do impostor inteiro no apagão que ele mesmo causou - uma arma que
 		// atinge o próprio dono deixa de ser usada. Trocar por lights_out_for() parece arrumação e é
 		// mudança de equilíbrio.
-		bool blinded_by_sabotage = me.alive && !me.role().immune_to_comms;
+		bool blinded_by_sabotage = olhos.alive && !olhos.role().immune_to_comms;
 		if (blinded_by_sabotage && lobby.active_sabotage == "comms") {
 			fail_key = "sabotage.comms.radar_down";
 			return null;

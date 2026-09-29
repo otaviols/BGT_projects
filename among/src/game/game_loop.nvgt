@@ -1301,6 +1301,14 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				my_x = lobo.x;
 				my_y = lobo.y;
 				audio.update_listener(my_x, my_y);
+				// A sala por onde o lobo passa, dita como a gente ouve a própria (recado #160): lá dentro
+				// é a única noção de onde se está. Na reunião o lobo é levado à mesa, e isso não é andar.
+				map_zone@ zona_lobo = map.zone_at(my_x, my_y);
+				string id_lobo = @zona_lobo != null ? zona_lobo.id : "";
+				if (id_lobo != last_zone_id) {
+					last_zone_id = id_lobo;
+					if (@zona_lobo != null && !movement_frozen) speak(tr(zona_lobo.name_key));
+				}
 			}
 		}
 		// Depois de qualquer menu/tela bloqueante (task, lista de tasks, sabotagem, chat, votação -
@@ -1492,7 +1500,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// posição real de quem perguntou - parado na segurança - e essa resposta chegava depois,
 		// falando por cima. Era esse o "radar continua sendo o do jogador".
 		// Q trava/solta o radar no último alvo; enquanto travado, o radar pergunta e bipa sozinho.
-		if (!movement_frozen && !cameras.active && !swallowed) {
+		// O engolido também usa o radar: ele varre a sala do lobo (ver follow_wolves no servidor).
+		if (!movement_frozen && !cameras.active) {
 			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_continuous();
 			radar.tick(map, my_x, my_y);
 		}
@@ -1506,7 +1515,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
 		}
 
-		if (!movement_frozen && !cameras.active && !swallowed && action_pressed(ACTION_RADAR)) {
+		if (!movement_frozen && !cameras.active && action_pressed(ACTION_RADAR)) {
 			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -
 			// igual o Among Us original, onde mortos continuam observando a partida.
 			// Ctrl+Tab troca o modo do radar (jogadores <-> objetos da sala).
@@ -1528,9 +1537,16 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 		// terminar as tasks dele - é o que mantém viva a chance de vitória dos tripulantes depois de
 		// perder gente. Tudo que não é task fica só pros vivos (ver os testes de "alive" abaixo).
 		// Na barriga do lobo nada disto existe: as teclas respondem com onde ele está, em vez de silêncio.
-		if (swallowed && !movement_frozen && (action_pressed(ACTION_INTERACT) || action_pressed(ACTION_ABILITY) ||
-				action_pressed(ACTION_REPORT) || action_pressed(ACTION_RADAR))) {
-			speak(tr("role.swallowed_cannot_act"));
+		if (swallowed && !movement_frozen) {
+			// Onde estou: a sala do lobo, que é onde ele está.
+			if (action_pressed(ACTION_ROOM_INFO)) {
+				map_zone@ zona = map.zone_at(my_x, my_y);
+				dictionary@ lp = dictionary();
+				lp.set("room", @zona != null ? tr(zona.name_key) : tr("game.nothing_nearby"));
+				speak(tr("role.swallowed_where", lp));
+			} else if (action_pressed(ACTION_INTERACT) || action_pressed(ACTION_ABILITY) || action_pressed(ACTION_REPORT)) {
+				speak(tr("role.swallowed_cannot_act"));
+			}
 		}
 		if (!movement_frozen && !is_vented && !swallowed) {
 			if (action_pressed(ACTION_INTERACT)) {

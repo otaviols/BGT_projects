@@ -555,6 +555,21 @@ class game_state {
 		return @lobo != null && lobo.alive;
 	}
 
+	// Quem está na barriga fica ONDE O LOBO ESTÁ. É o que faz o radar do engolido varrer a sala do
+	// lobo (recado #160: ele queria saber o que acontece lá fora) sem nenhuma regra nova no radar - a
+	// varredura já parte da posição de quem pergunta. Para os outros nada muda: o engolido está com
+	// alive = false, e ninguém o percebe onde quer que ele esteja.
+	void follow_wolves() {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (!p.swallowed()) continue;
+			game_player@ lobo = find_player(p.swallowed_by);
+			if (@lobo == null || !lobo.alive) continue;
+			p.x = lobo.x;
+			p.y = lobo.y;
+		}
+	}
+
 	// Alguém está na barriga de um lobo agora. (Quem saiu da partida lá dentro não conta: ele não volta.)
 	bool anyone_in_belly() const {
 		for (uint i = 0; i < players.length(); i++) {
@@ -1667,6 +1682,7 @@ class game_state {
 		bool em_reuniao = state != "in_progress";
 		for (uint i = 0; i < players.length(); i++) players[i].tick_cooldowns(delta_seconds, em_reuniao);
 		tick_bots(delta_seconds, events);
+		follow_wolves();
 		tick_killer_trails();
 
 		if (doors_cooldown_remaining > 0.0) {
