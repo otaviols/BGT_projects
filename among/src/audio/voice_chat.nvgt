@@ -154,6 +154,10 @@ class voice_chat : voice_receiver {
 	client_roster@ roster = null;
 	uint64 my_peer_id = 0;
 	bool spatial = false;
+	// Quem está na MINHA barriga (sou o Lobo Mau). A voz deles toca sem posição, "dentro" de mim: o
+	// elenco guarda cada um no ponto onde foi engolido, e posicionada pelo elenco a voz ficava presa lá
+	// enquanto o lobo andava - o contrário do que o papel promete.
+	array<uint64> inside_me;
 	array<voice_stream@> streams;
 	// Auto-escuta (tela de configurações): o que passa pelo microfone volta para o alto-falante.
 	bool monitoring = false;
@@ -182,6 +186,7 @@ class voice_chat : voice_receiver {
 		for (uint i = 0; i < r.entries.length(); i++) remember_name(r.entries[i].peer_id, r.entries[i].name);
 		spatial = true;
 		allowed = room_allows;
+		inside_me.resize(0);
 		stop_all();
 	}
 	// Sala de espera (ou fim da partida): todo mundo se ouve, sem posição.
@@ -375,7 +380,7 @@ class voice_chat : voice_receiver {
 		s.snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES) + g_settings.voice_volume_db(name_of(s.peer_id));
 		roster_entry@ me = @roster != null ? roster.find(my_peer_id) : null;
 		roster_entry@ who = @roster != null ? roster.find(s.peer_id) : null;
-		if (!spatial || @me == null || @who == null) {
+		if (!spatial || @me == null || @who == null || inside_me.find(s.peer_id) != -1) {
 			s.snd.spatialization_enabled = false;
 			return;
 		}

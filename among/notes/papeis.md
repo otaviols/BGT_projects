@@ -144,6 +144,10 @@ precisa perguntar `swallowed()` também, ou o engolido ganha junto.
 - O elenco dos OUTROS clientes guarda o engolido no último ponto em que andou; quem passa por ali não
   o ouve anunciado porque o servidor manda a cada um quem é perceptível perto dele (S_NEARBY_PLAYERS,
   ver notes/som.md). Era um defeito herdado dos dutos, consertado junto.
+- A VOZ da barriga, no cliente do lobo, toca SEM posição (`g_voice.inside_me`). Posicionada pelo
+  elenco, ela ficava presa no ponto onde a pessoa foi engolida enquanto o lobo andava - justo o que o
+  papel promete (ouvir as vítimas) virava um som parado no mapa. Sintoma relatado pelo usuário: "a voz
+  fica presa lá onde ele comeu".
 Sonda: `tools/probes/probe_wolf.nvgt` (engolir, privacidade dos pacotes, voz da barriga, reunião,
 expulsão devolvendo, e a vitória por sobrar).
 

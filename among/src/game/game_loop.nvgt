@@ -1071,6 +1071,8 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				bool eu_voltei = false;
 				if (@voltaram != null) for (uint i = 0; i < voltaram.length(); i++) {
 					uint64 quem = uint64(voltaram[i]);
+					int dentro = g_voice.inside_me.find(quem);
+					if (dentro != -1) g_voice.inside_me.remove_at(dentro);
 					roster_entry@ e = roster.find(quem);
 					if (@e != null) { e.alive = true; e.x = rx; e.y = ry; }
 					if (quem == client.my_peer_id) eu_voltei = true;
@@ -1111,7 +1113,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 					// Engoliu: quem foi para a barriga sai do elenco do lobo (bip de alvo, tecla, lista da
 					// reunião). O som de engolir toca no ponto dele - é ele quem fez.
 					if (qual == ABILITY_EAT) {
-						if (pending_eat_peer != 0) roster.mark_dead(pending_eat_peer);
+						if (pending_eat_peer != 0) {
+							roster.mark_dead(pending_eat_peer);
+							// A voz de quem engoli passa a tocar dentro de mim, e não onde ele foi comido.
+							g_voice.inside_me.insert_last(pending_eat_peer);
+						}
 						pending_eat_peer = 0;
 						audio.play_wolf_swallow(my_x, my_y);
 					}
