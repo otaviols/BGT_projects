@@ -54,6 +54,13 @@ where everything is before there is an impostor nearby.
 the site, maintenance. It is spoken when it arrives and stays pinned at the top of the game list, so
 you can read it again whenever you want. It disappears once it no longer applies.
 
+**The match list updates by itself.** New rooms show up, people joining and leaving change the
+count, and the cursor stays on the item where you were. What happens is spoken without interrupting:
+someone created a room, a match started, a match ended and is open. Matches in progress also show up
+in the list, marked "in progress", so you know they exist; private matches never show up. In the
+list, **P** says who is in the hall, and the history keys (comma, period, PageUp) read the hall chat
+and the announcements, as in a match.
+
 **Before playing:** the main menu has a **Learn the game sounds** option. It plays every sound in
 the game along with its name. It is well worth going through it once — the whole game depends on
 recognising these sounds.

@@ -56,6 +56,14 @@ string seconds_text(float value) {
 // com a tecla de configurações.
 string lobby_summary_text(json_object@ entry) {
 	if (@entry == null) return "";
+	// Em andamento: só o nome e quantos jogam. O resto (impostores, kill) só serve para decidir se
+	// vale entrar, e nesta não se entra agora.
+	if (entry.exists("in_progress") && bool(entry["in_progress"])) {
+		dictionary@ rp = dictionary();
+		rp.set("name", string(entry["name"]));
+		rp.set("count", "" + int(entry["current"]));
+		return tr("lobby.running_entry", rp);
+	}
 	dictionary@ p = dictionary();
 	p.set("current", "" + int(entry["current"]));
 	p.set("max", "" + int(entry["max"]));

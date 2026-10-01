@@ -157,7 +157,7 @@ const string C_ADMIN_SET_NOTICE = "c_admin_set_notice"; // {token, text}
 // Servidor -> Cliente
 const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id, session_token?} - peer_id = como o SERVIDOR me identifica
 const string S_REGISTER_RESULT = "s_register_result";     // {ok, message}
-const string S_LOBBY_LIST = "s_lobby_list";               // {lobbies: [...]}
+const string S_LOBBY_LIST = "s_lobby_list";               // {lobbies: [{id, name, current, max, config, host, in_progress}]} - in_progress só a partir do protocolo 9
 const string S_LOBBY_STATE = "s_lobby_state";             // {lobby_id, players: [...], config}
 const string S_JOIN_RESULT = "s_join_result";             // {ok, message}
 const string S_GAME_START = "s_game_start";                // {map_name, your_role, your_color, your_peer_id, players, tasks, kill_cooldown_seconds, impostor_count, impostor_partners: [{peer_id, name}] (só pra impostor)}
@@ -248,6 +248,15 @@ const string S_CHAT_MESSAGE = "s_chat_message";             // {peer_id, name, t
 // TRADUZ ("Recado do servidor:"), para ninguém confundir com fala de outro jogador.
 const string S_HALL_STATE = "s_hall_state";                 // {players: [nomes], notice}
 const string S_HALL_CHAT = "s_hall_chat";                   // {name, text}
+// --- Saguão ao vivo (protocolo 9) ---
+const int HALL_LIVE_PROTOCOL = 9;
+// A lista de partidas, mandada SOZINHA a quem está no saguão sempre que ela muda - o cliente refaz o
+// menu sem mexer no cursor. Mesmo formato do S_LOBBY_LIST, e um tipo próprio para nenhuma espera pela
+// resposta de C_LIST_LOBBIES confundir uma com a outra. Partida privada nunca entra.
+const string S_LOBBY_LIST_PUSH = "s_lobby_list_push";       // {lobbies: [...]}
+// O que mudou na lista, para ser DITO: uma sala nova, uma partida que começou, uma que acabou e reabriu.
+// Só de partidas públicas - sai da mesma lista, que já não tem as privadas.
+const string S_HALL_EVENT = "s_hall_event";                 // {kind: created|started|reopened, room, by}
 // Confirmação de que o recado foi GRAVADO (não só recebido). O jogador precisa disto: sem resposta,
 // mandar feedback é falar no vácuo, e quem não tem certeza de que chegou manda de novo.
 const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}

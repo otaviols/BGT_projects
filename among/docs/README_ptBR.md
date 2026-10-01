@@ -52,6 +52,13 @@ cada coisa antes de haver um impostor por perto.
 site, uma manutenção. Ele é falado quando chega e fica fixo no topo da lista de partidas, para você
 reler quando quiser. Some quando deixa de valer.
 
+**A lista de partidas se atualiza sozinha.** Salas novas aparecem, quem entra e sai muda a contagem,
+e o cursor continua no item onde você estava. O que acontece é dito sem interromper: alguém criou uma
+sala, uma partida começou, uma partida acabou e está aberta. Partidas em andamento também aparecem na
+lista, marcadas como "em andamento", para você saber que existem; partidas privadas nunca aparecem.
+Na lista, **P** diz quem está no saguão, e as teclas do histórico (vírgula, ponto, PageUp) leem a
+conversa do saguão e os avisos, como na partida.
+
 **Antes de jogar:** no menu inicial existe a opção **Aprender os sons do jogo**. Ela toca cada som
 do jogo com o nome dele. Vale muito a pena passar por ela uma vez — o jogo inteiro depende de
 reconhecer esses sons.

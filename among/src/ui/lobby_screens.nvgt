@@ -52,6 +52,14 @@ class lobby_browser_result {
 class hall_view {
 	array<string> names;
 	chat_log@ log = chat_log();
+	// O que ACONTECEU no saguão, separado da conversa: o recado do servidor, salas criadas, partidas
+	// que começaram ou reabriram. É o segundo histórico das teclas de leitura (PageUp troca), como os
+	// eventos da partida - misturado ao chat, um aviso de sala nova empurraria a conversa para cima.
+	chat_log@ events = chat_log();
+	// A lista de partidas mais nova que o servidor mandou sozinho (S_LOBBY_LIST_PUSH), e se ela ainda
+	// não foi posta no menu.
+	json_array@ pushed_list = null;
+	bool list_changed = false;
 	// Recado fixo de quem opera o servidor (ver C_ADMIN_SET_NOTICE). Ele chega em todo retrato do
 	// saguão, então `ja_falado` é o que impede a mesma frase de ser repetida a cada vez que alguém
 	// entra ou sai da lista - o recado é dito quando MUDA, e fica disponível na lista de partidas
@@ -88,7 +96,7 @@ void drain_hall_packets(game_client@ client) {
 				// texto cru escrito por quem opera o servidor, e sem o rótulo soaria como a fala de
 				// outro jogador.
 				string aviso = tr("hall.notice", notice_params(g_hall.notice));
-				g_hall.log.add("", aviso);
+				g_hall.events.add("", aviso);
 				speak(aviso, false);
 			}
 		} else if (p.type == S_SERVER_NOTICE) {
@@ -96,8 +104,18 @@ void drain_hall_packets(game_client@ client) {
 			// outra coisa poder reler.
 			string aviso = tr_server_message(p);
 			ui_sound(SND_SERVER_NOTICE);
-			g_hall.log.add("", aviso);
+			g_hall.events.add("", aviso);
 			speak(aviso, false);
+		} else if (p.type == S_LOBBY_LIST_PUSH) {
+			@g_hall.pushed_list = p.get_array("lobbies");
+			g_hall.list_changed = true;
+		} else if (p.type == S_HALL_EVENT) {
+			// Dito sem interromper, como o chat do saguão: quem está lendo a lista não pode ser cortado.
+			string aviso = hall_event_text(p);
+			if (aviso != "") {
+				g_hall.events.add("", aviso);
+				speak(aviso, false);
+			}
 		} else if (p.type == S_HALL_CHAT) {
 			string name = p.get_string("name");
 			string text = p.get_string("text");
@@ -108,6 +126,18 @@ void drain_hall_packets(game_client@ client) {
 		client.incoming.remove_at(i);
 		i--;
 	}
+}
+
+// "Fulano criou a sala X", "A partida X começou", "A partida X acabou e está aberta".
+string hall_event_text(net_packet@ p) {
+	string kind = p.get_string("kind");
+	dictionary@ d = dictionary();
+	d.set("room", p.get_string("room"));
+	d.set("name", p.get_string("by"));
+	if (kind == "created") return tr(p.get_string("by") != "" ? "hall.event_created" : "hall.event_created_anon", d);
+	if (kind == "started") return tr("hall.event_started", d);
+	if (kind == "reopened") return tr("hall.event_reopened", d);
+	return "";
 }
 
 // Quem está no saguão, pronto para falar. O próprio jogador entra na conta - ele é um dos que
@@ -133,6 +163,8 @@ bool run_menu_with_refresh(menu@ m) {
 }
 
 game_client@ g_lobby_pump_client;
+// O histórico das teclas de leitura é o do saguão (ver run_lobby_browser_screen).
+bool g_hall_review = false;
 void pump_client_during_menu(menu@ m, string data) {
 	if (@g_lobby_pump_client == null) return;
 	g_lobby_pump_client.update();
@@ -141,7 +173,9 @@ void pump_client_during_menu(menu@ m, string data) {
 	// cor - é dito e entra no histórico na hora, e as teclas de leitura funcionam. Só ali: na lista de
 	// partidas as esperas já falam os próprios erros, e anunciar aqui os diria duas vezes.
 	if (@g_chat_review != null) {
-		announce_background_events(g_lobby_pump_client);
+		// Na lista de partidas o histórico é o do SAGUÃO, e lá as esperas já falam os próprios
+		// erros - anunciar os pacotes aqui os diria duas vezes.
+		if (!g_hall_review) announce_background_events(g_lobby_pump_client);
 		chat_review_keys();
 	}
 }
@@ -209,7 +243,82 @@ void run_hall_compose(game_client@ client) {
 
 // Busca a lista de lobbies em espera no servidor e monta um menu navegável: cada partida existente
 // + "Criar partida" + "Atualizar lista" + "Voltar".
+// As teclas de leitura (vírgula, ponto, PageUp) valem em toda a lista de partidas e nas telas abertas
+// a partir dela, sobre o histórico do SAGUÃO: a conversa e os avisos. É o mesmo hábito da partida.
 lobby_browser_result run_lobby_browser_screen(game_client@ client) {
+	begin_chat_review(g_hall.log, g_hall.events);
+	g_hall_review = true;
+	lobby_browser_result r = run_lobby_browser_inner(client);
+	g_hall_review = false;
+	end_chat_review();
+	return r;
+}
+
+// Os itens da lista de partidas. Separado do laço porque a lista é refeita AO VIVO, com o menu aberto,
+// quando o servidor manda uma nova (S_LOBBY_LIST_PUSH).
+void fill_browser_menu(menu@ m, json_array@ lobbies, uint reply_count) {
+	// O recado do servidor fica FIXO no topo, acima das partidas: ele é dito uma vez quando chega,
+	// e quem estava numa partida no momento em que foi posto precisa de um lugar para achá-lo.
+	// Não é selecionável para nada - escolhê-lo só reabre a lista, e a própria linha já é o texto.
+	if (g_hall.notice != "") m.add_item(tr("hall.notice", notice_params(g_hall.notice)), "__notice__");
+
+	if (@lobbies != null) {
+		for (uint i = 0; i < lobbies.length(); i++) {
+			json_object@ entry = lobbies.get_object(i);
+			if (@entry == null) continue;
+			// Em andamento: aparece para se saber que existe, mas escolhê-la só explica (ver "__running__").
+			bool rodando = entry.exists("in_progress") && bool(entry["in_progress"]);
+			m.add_item(lobby_summary_text(entry), (rodando ? "__running__" : "") + string(entry["id"]));
+		}
+	}
+	// O saguão vem antes de tudo: é onde se descobre que há mais gente online, e o motivo mais
+	// comum de ninguém jogar era achar que não havia ninguém.
+	m.add_item(tr("hall.menu_item"), "__hall__");
+	m.add_item(tr("menu.create_lobby"), "__create__");
+	// Partida privada não aparece na lista: esta é a única porta para ela.
+	m.add_item(tr("lobby.join_by_code"), "__join_code__");
+	m.add_item(tr("lobby.refresh"), "__refresh__");
+	// O recado fica aqui, e não no menu inicial, por uma razão prática: o menu inicial vem ANTES
+	// do login, e sem sessão autenticada o servidor não teria como saber de quem é o recado. Aqui
+	// o jogador já entrou, e este é o lugar onde ele volta entre uma partida e outra - que é
+	// exatamente quando alguém lembra de contar o que achou estranho.
+	m.add_item(tr("feedback.menu_item"), "__feedback__");
+	m.add_item(tr("translation.menu_item"), "__translation__");
+	if (reply_count > 0) {
+		dictionary@ rp = dictionary();
+		rp.set("count", "" + reply_count);
+		m.add_item(tr("feedback.replies_menu_item", rp), "__replies__");
+	}
+	if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
+	m.add_item(tr("stats.menu_item"), "__stats__");
+	m.add_item(tr("account.delete_menu_item"), "__delete_account__");
+	m.add_item(tr("menu.back"), "__back__");
+}
+
+// Roda o menu da lista de partidas. Devolve true se o jogador pediu F5.
+//
+// Três coisas além do menu: o F5; a tecla P, que diz quem está no saguão (a mesma da sala de espera);
+// e a lista NOVA que o servidor manda sozinho - o menu é refeito no lugar, e o cursor volta ao MESMO
+// item, sem falar nada: para quem usa leitor de tela, itens trocando de lugar sob o cursor seriam uma
+// lista que muda de assunto sozinha. O que mudou é dito à parte, pelos avisos do saguão.
+bool run_browser_menu(menu@ m, uint reply_count) {
+	while (m.monitor()) {
+		wait(5);
+		if (key_pressed(KEY_F5)) return true;
+		if (key_pressed(KEY_P)) speak(hall_people_text());
+		if (g_hall.list_changed) {
+			g_hall.list_changed = false;
+			string onde = m.focused_item >= 0 ? m.get_item_id(m.focused_item) : "";
+			m.delete_all_items();
+			fill_browser_menu(m, g_hall.pushed_list, reply_count);
+			int i = onde != "" ? m.get_item_index(onde) : -1;
+			m.set_focused_item(i >= 0 ? i : 0, false);
+		}
+	}
+	return false;
+}
+
+lobby_browser_result run_lobby_browser_inner(game_client@ client) {
 	lobby_browser_result result;
 	audio_manager@ audio = audio_manager();
 	audio.play_intro();
@@ -238,45 +347,15 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 		m.intro_text = @lobbies == null || lobbies.length() == 0 ? tr("lobby.no_lobbies") : tr("menu.join_lobby");
+		// Sem a busca pela primeira letra: a tecla P diz quem está no saguão, e com a busca ligada ela
+		// pularia para o item que começa com P. Com poucas partidas na lista, a busca faz pouca falta.
+		m.first_letter_navigation = false;
 		@g_lobby_pump_client = client;
 		@m.background_callback = @pump_client_during_menu;
+		g_hall.list_changed = false; // a lista acabou de ser pedida: uma empurrada antiga não vale mais
+		fill_browser_menu(m, lobbies, reply_count);
 
-		// O recado do servidor fica FIXO no topo, acima das partidas: ele é dito uma vez quando chega,
-		// e quem estava numa partida no momento em que foi posto precisa de um lugar para achá-lo.
-		// Não é selecionável para nada - escolhê-lo só reabre a lista, e a própria linha já é o texto.
-		if (g_hall.notice != "") m.add_item(tr("hall.notice", notice_params(g_hall.notice)), "__notice__");
-
-		if (@lobbies != null) {
-			for (uint i = 0; i < lobbies.length(); i++) {
-				json_object@ entry = lobbies.get_object(i);
-				if (@entry == null) continue;
-				m.add_item(lobby_summary_text(entry), string(entry["id"]));
-			}
-		}
-		// O saguão vem antes de tudo: é onde se descobre que há mais gente online, e o motivo mais
-		// comum de ninguém jogar era achar que não havia ninguém.
-		m.add_item(tr("hall.menu_item"), "__hall__");
-		m.add_item(tr("menu.create_lobby"), "__create__");
-		// Partida privada não aparece na lista: esta é a única porta para ela.
-		m.add_item(tr("lobby.join_by_code"), "__join_code__");
-		m.add_item(tr("lobby.refresh"), "__refresh__");
-		// O recado fica aqui, e não no menu inicial, por uma razão prática: o menu inicial vem ANTES
-		// do login, e sem sessão autenticada o servidor não teria como saber de quem é o recado. Aqui
-		// o jogador já entrou, e este é o lugar onde ele volta entre uma partida e outra - que é
-		// exatamente quando alguém lembra de contar o que achou estranho.
-		m.add_item(tr("feedback.menu_item"), "__feedback__");
-		m.add_item(tr("translation.menu_item"), "__translation__");
-		if (reply_count > 0) {
-			dictionary@ rp = dictionary();
-			rp.set("count", "" + reply_count);
-			m.add_item(tr("feedback.replies_menu_item", rp), "__replies__");
-		}
-		if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
-		m.add_item(tr("stats.menu_item"), "__stats__");
-		m.add_item(tr("account.delete_menu_item"), "__delete_account__");
-		m.add_item(tr("menu.back"), "__back__");
-
-		if (run_menu_with_refresh(m)) continue; // F5: pergunta a lista de partidas de novo
+		if (run_browser_menu(m, reply_count)) continue; // F5: pergunta a lista de partidas de novo
 		string id = m.selected_item_id;
 
 		if (id == "__forget__") {
@@ -301,6 +380,10 @@ lobby_browser_result run_lobby_browser_screen(game_client@ client) {
 			return result;
 		}
 		if (id == "__refresh__" || id == "__notice__") continue;
+		if (id.substr(0, 11) == "__running__") {
+			speak(tr("lobby.running_selected"));
+			continue;
+		}
 		if (id == "__hall__") {
 			run_hall_screen(client);
 			continue;

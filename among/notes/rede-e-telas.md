@@ -177,6 +177,20 @@ saído, embora a conversa já o excluísse, porque o envio recalcula na hora). S
 `drain_hall_packets`, chamado TAMBÉM de dentro das esperas por resposta do servidor: elas descartam
 o que não esperam, e sem isso uma mensagem que chegasse durante a busca da lista de partidas sumia.
 
+**Saguão ao vivo (protocolo 9): a lista vai SOZINHA, e os avisos saem da DIFERENÇA.** `tick_hall`
+compara a lista pública a cada 0,5 s e, mudou, manda `S_LOBBY_LIST_PUSH` a quem está no saguão, com
+os avisos (`S_HALL_EVENT`: sala criada, partida começou, reabriu) tirados da comparação com a anterior.
+A alternativa descartada era pendurar um aviso em cada lugar que mexe numa sala - criar, entrar,
+sair, começar, reabrir, fechar, bots, regras -, e esquecer um seria defeito calado. A lista sai de
+`public_lobby_list`, a MESMA da resposta ao pedido, e a primeira regra dela é que partida privada não
+entra (decisão do usuário: nem "em andamento" ela aparece); por isso aviso de privada é impossível,
+não só evitado. Partida em andamento só vai a cliente de protocolo 9 - um anterior a mostraria como
+sala comum. No cliente, a lista nova refaz o MESMO menu e devolve o cursor ao mesmo item sem falar
+(`run_browser_menu`): para leitor de tela, item mudando de lugar sob o cursor é uma lista que troca de
+assunto sozinha. A busca por primeira letra fica desligada ali, para o P (quem está no saguão) não
+pular para um item. Sonda: `probe_hall_live.nvgt` (a privada nunca é mencionada; o controle é a
+pública chegar pelo mesmo caminho).
+
 **A sala SOBREVIVE à partida - o que morre é o estado dela.** No fim do jogo a lobby volta a
 "waiting" com a mesma gente dentro (`reopen_lobby` no servidor, `reopen_for_next_match` no
 game_state), em vez de fechar e jogar todo mundo no navegador de partidas. Duas coisas têm que

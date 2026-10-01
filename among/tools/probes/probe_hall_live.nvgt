@@ -1,0 +1,129 @@
+// Sonda do saguão ao vivo (protocolo 9): a lista de partidas que chega sozinha e os avisos.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_hall_live.nvgt
+//
+// Confere, com um OBSERVADOR parado no saguão:
+//   1. uma sala PÚBLICA nova chega na lista empurrada e vira o aviso "criou a sala";
+//   2. uma sala PRIVADA não aparece em lista nenhuma nem em aviso nenhum (pedido do usuário) - e o
+//      controle é a pública de antes ter aparecido pelo MESMO caminho;
+//   3. a pública começando vira "em andamento" na lista e o aviso "começou";
+//   4. um cliente ANTIGO (protocolo 8) não recebe a partida em andamento na lista pedida.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ entra(server_address addr, const string&in nome, int protocolo = PROTOCOL_VERSION) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	net_packet@ lp = net_packet(C_LOGIN);
+	lp.set_string("username", nome);
+	lp.set_string("password", "probe123");
+	lp.set_int("protocol", protocolo);
+	c.net.send_reliable(c.local_peer_id, lp.to_wire(), CHANNEL_RELIABLE);
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+// Junta, por um tempo, tudo que o observador recebe e que importa aqui.
+array<net_packet@> recebidos;
+void escuta(game_client@ obs, game_client@ outro, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		obs.update(); outro.update();
+		net_packet@ p = obs.poll_message();
+		while (@p != null) {
+			if (p.type == S_LOBBY_LIST_PUSH || p.type == S_HALL_EVENT) recebidos.insert_last(p);
+			@p = obs.poll_message();
+		}
+		outro.clear_incoming();
+		wait(10);
+	}
+}
+// A sala com este nome na última lista empurrada (null = não está).
+json_object@ na_lista(const string&in nome) {
+	json_object@ achada = null;
+	for (uint i = 0; i < recebidos.length(); i++) {
+		if (recebidos[i].type != S_LOBBY_LIST_PUSH) continue;
+		@achada = null;
+		json_array@ l = recebidos[i].get_array("lobbies");
+		for (uint k = 0; k < l.length(); k++) if (string(l.get_object(k)["name"]) == nome) @achada = l.get_object(k);
+	}
+	return achada;
+}
+bool aviso(const string&in kind, const string&in sala) {
+	for (uint i = 0; i < recebidos.length(); i++) {
+		if (recebidos[i].type == S_HALL_EVENT && recebidos[i].get_string("kind") == kind && recebidos[i].get_string("room") == sala) return true;
+	}
+	return false;
+}
+// Alguma coisa recebida - lista OU aviso - fala desta sala?
+bool mencionou(const string&in sala) {
+	for (uint i = 0; i < recebidos.length(); i++) {
+		if (recebidos[i].type == S_HALL_EVENT && recebidos[i].get_string("room") == sala) return true;
+		if (recebidos[i].type != S_LOBBY_LIST_PUSH) continue;
+		json_array@ l = recebidos[i].get_array("lobbies");
+		for (uint k = 0; k < l.length(); k++) if (string(l.get_object(k)["name"]) == sala) return true;
+	}
+	return false;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	game_client@ obs = entra(addr, "hlo" + sfx);
+	game_client@ dono = entra(addr, "hld" + sfx);
+	if (@obs == null || @dono == null) { println("login falhou"); return; }
+
+	string publica = "publica" + sfx, privada = "privada" + sfx;
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	dono.send_create_lobby(privada, "classic", ov, "COD" + sfx);
+	escuta(obs, dono, 1500);
+	confere("a sala privada NAO aparece em lista nem aviso", !mencionou(privada));
+	dono.send_leave_lobby();
+	escuta(obs, dono, 800);
+
+	recebidos.resize(0);
+	dono.send_create_lobby(publica, "classic", ov);
+	escuta(obs, dono, 1500);
+	confere("controle: a publica chegou na lista empurrada", @na_lista(publica) != null);
+	confere("e virou o aviso 'criou a sala'", aviso("created", publica));
+	confere("a privada continua fora de tudo", !mencionou(privada));
+
+	recebidos.resize(0);
+	for (int b = 0; b < 3; b++) { dono.send_add_bot(); escuta(obs, dono, 200); }
+	dono.send_start_game();
+	escuta(obs, dono, 2000);
+	json_object@ rodando = na_lista(publica);
+	confere("a publica aparece EM ANDAMENTO", @rodando != null && bool(rodando["in_progress"]));
+	confere("e virou o aviso 'comecou'", aviso("started", publica));
+
+	// Um cliente antigo não pode receber a partida em andamento: mostraria como sala comum.
+	game_client@ velho = entra(addr, "hlv" + sfx, 8);
+	velho.send_list_lobbies();
+	net_packet@ lista = wf(velho, S_LOBBY_LIST, 5000);
+	bool viu = false;
+	if (@lista != null) {
+		json_array@ l = lista.get_array("lobbies");
+		for (uint k = 0; k < l.length(); k++) if (string(l.get_object(k)["name"]) == publica) viu = true;
+	}
+	confere("cliente antigo nao recebe a partida em andamento", @lista != null && !viu);
+
+	obs.disconnect(); dono.disconnect(); velho.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
