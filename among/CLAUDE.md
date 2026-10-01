@@ -325,6 +325,13 @@ roda ANTES do da câmera e pede a varredura ao servidor; a resposta chegava depo
 que a câmera já tinha dito. Sintoma: a câmera "funciona", mas responde pela sala errada. Quando um
 modo novo reaproveita uma tecla, o bloco antigo precisa ser desligado explicitamente nele.
 
+**`string.length()` conta BYTES, não letras, e `substr` corta no meio de uma letra.** O texto é UTF-8:
+"ação é" tem 6 letras e length 9 (acento vale 2, emoji 4). Um teto escrito com `length()` é, em
+português, bem menor do que diz - o chat "de 300" cortava frases de 150 letras -, e o corte deixava um
+byte solto que o leitor de tela lê como lixo. Para tamanho ou corte de texto que alguém vai ler, use
+`utf8_length`/`utf8_truncate` (`src/core/utf8.nvgt`). E `s[i]` devolve um texto, não um byte: o byte é
+`character_to_ascii(s.substr(i, 1))`. Sonda: `probe_text_limits.nvgt`.
+
 **`sound.stream_pcm` BLOQUEIA quando o buffer do stream enche - e para sempre se o som parou.** É o
 "o jogo não responde" sem `crash.log`: não é exceção, é o jogo preso numa chamada nativa. Nunca
 escreva num stream sem saber quanto ainda cabe (a voz descarta acima de 1 s esperando e refaz o som

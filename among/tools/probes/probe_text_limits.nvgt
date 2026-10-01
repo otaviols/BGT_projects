@@ -1,0 +1,79 @@
+// Sonda dos tetos de texto: chat em LETRAS (1000), sem cortar uma letra ao meio; recado do servidor sem teto.
+//   AMONGUS_SERVER_HOST=127.0.0.1 AMONGUS_ADMIN_TOKEN=<o do servidor> nvgt tools/probes/probe_text_limits.nvgt
+//
+// O teto do chat era 300 contados em BYTES: em português, cada acento vale 2, e frases de 150 letras
+// eram cortadas - às vezes no meio de uma letra, deixando um byte solto que o leitor lia como lixo. E o
+// recado do servidor usava o mesmo teto, cortando o que o administrador queria deixar.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/core/utf8.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ entra(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	return @lr != null && lr.get_bool("ok") ? c : null;
+}
+string repete(const string&in s, uint n) { string r; for (uint i = 0; i < n; i++) r += s; return r; }
+// Todo byte de continuação (10xxxxxx) está depois de um início de letra que pede bytes?
+bool utf8_valido(const string&in s) {
+	uint faltam = 0;
+	for (uint i = 0; i < s.length(); i++) {
+		uint b = uint(character_to_ascii(s.substr(i, 1))) & 0xFF;
+		if (faltam > 0) { if ((b & 0xC0) != 0x80) return false; faltam--; continue; }
+		if ((b & 0x80) == 0) continue;
+		if ((b & 0xE0) == 0xC0) faltam = 1;
+		else if ((b & 0xF0) == 0xE0) faltam = 2;
+		else if ((b & 0xF8) == 0xF0) faltam = 3;
+		else return false;
+	}
+	return faltam == 0;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	game_client@ a = entra(addr, "tla" + sfx);
+	game_client@ b = entra(addr, "tlb" + sfx);
+	if (@a == null || @b == null) { println("login falhou"); return; }
+	b.clear_incoming();
+
+	a.send_hall_chat(repete("á", 999));
+	net_packet@ m1 = wf(b, S_HALL_CHAT, 5000);
+	confere("controle: 999 letras acentuadas chegam inteiras (" + (@m1 != null ? utf8_length(m1.get_string("text")) : 0) + ")",
+		@m1 != null && utf8_length(m1.get_string("text")) == 999);
+
+	a.send_hall_chat(repete("á", 1100));
+	net_packet@ m2 = wf(b, S_HALL_CHAT, 5000);
+	string t2 = @m2 != null ? m2.get_string("text") : "";
+	confere("1100 letras chegam cortadas em 1000 (" + utf8_length(t2) + ")", utf8_length(t2) == MAX_CHAT_LENGTH);
+	confere("e o corte nao quebra letra nenhuma", utf8_valido(t2));
+
+	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+	if (token == "") { println("  (sem AMONGUS_ADMIN_TOKEN: o recado do servidor nao foi testado)"); }
+	else {
+		string recado = repete("ã", 3000);
+		a.send_admin_set_notice(token, recado);
+		net_packet@ r = wf(a, S_ADMIN_RESULT, 5000);
+		confere("o recado do servidor de 3000 letras fica inteiro", @r != null && r.get_string("notice") == recado);
+		a.send_admin_set_notice(token, ""); // não deixa o recado de teste no ar
+		wf(a, S_ADMIN_RESULT, 5000);
+	}
+	a.disconnect(); b.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

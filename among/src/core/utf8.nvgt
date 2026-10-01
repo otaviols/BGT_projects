@@ -1,0 +1,30 @@
+// utf8.nvgt
+// Tamanho e corte de texto em LETRAS, e não em bytes.
+//
+// O `string` do NVGT é UTF-8 e o `length()` dele conta BYTES: "ação é" tem 6 letras e length 9 (cada
+// letra acentuada vale 2, um emoji vale 4). Todo teto escrito com length() era, em português, bem
+// menor do que dizia - o chat de "300" cortava frases de 150 letras acentuadas. E o substr() corta onde
+// mandar, inclusive NO MEIO de uma letra: o pedaço que sobra é um byte inválido, que o leitor de tela
+// lê como lixo. Medido em scratchpad: "ação" cortado em 2 virou "a" + um byte solto.
+//
+// Uma letra começa em todo byte que NÃO é de continuação (os de continuação são 10xxxxxx). Contar e
+// cortar por aí é o suficiente: não precisa decodificar nada.
+
+uint utf8_length(const string&in s) {
+	uint n = 0;
+	for (uint i = 0; i < s.length(); i++) {
+		if ((uint(character_to_ascii(s.substr(i, 1))) & 0xC0) != 0x80) n++;
+	}
+	return n;
+}
+
+// Os primeiros `max_chars` caracteres de `s`, cortando sempre ENTRE letras.
+string utf8_truncate(const string&in s, uint max_chars) {
+	uint n = 0;
+	for (uint i = 0; i < s.length(); i++) {
+		if ((uint(character_to_ascii(s.substr(i, 1))) & 0xC0) == 0x80) continue;
+		if (n == max_chars) return s.substr(0, i);
+		n++;
+	}
+	return s;
+}

@@ -549,6 +549,7 @@
   "chat.compose_title": "Enviar mensagem",
   "chat.compose_label": "Mensagem",
   "chat.sent": "Mensagem enviada.",
+  "chat.too_long": "A mensagem tem {count} letras, e o limite é {max}. Encurte e envie de novo.",
   "chat.compose_closed": "A reunião acabou; a caixa de mensagem fechou.",
   "chat.dead_cannot_send": "Você está morto, só pode ler o chat.",
   "chat.only_in_meeting": "O chat só funciona durante as reuniões.",

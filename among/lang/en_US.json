@@ -549,6 +549,7 @@
   "chat.compose_title": "Send message",
   "chat.compose_label": "Message",
   "chat.sent": "Message sent.",
+  "chat.too_long": "The message has {count} characters, and the limit is {max}. Shorten it and send again.",
   "chat.compose_closed": "The meeting is over; the message box closed.",
   "chat.dead_cannot_send": "You're dead, you can only read the chat.",
   "chat.only_in_meeting": "Chat is only available during meetings.",

@@ -9,6 +9,7 @@
 #include "menu.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
+#include "../core/utf8.nvgt"
 #include "../network/protocol.nvgt"
 #include "../i18n.nvgt"
 
@@ -40,8 +41,8 @@ json_array@ fetch_unread_feedback_replies(game_client@ client) {
 string feedback_excerpt(const string&in text) {
 	const uint MAX = 60;
 	string t = text.replace("\n", " ", true).replace("\r", "", true);
-	if (t.length() <= MAX) return t;
-	return t.substr(0, MAX) + "...";
+	if (utf8_length(t) <= MAX) return t;
+	return utf8_truncate(t, MAX) + "..."; // em letras: substr cortava no meio de um acento
 }
 
 // Lista as respostas; Enter numa delas lê o recado e a resposta e a marca como ouvida. A marcação

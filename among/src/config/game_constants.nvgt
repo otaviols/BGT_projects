@@ -61,9 +61,11 @@ const uint NETWORK_TICKS_PER_SECOND = 20;
 // Jogadores
 // Código de partida privada: curto o bastante para ser ditado, longo o bastante para uma frase.
 const uint MAX_JOIN_CODE_LENGTH = 32;
-// Tamanho máximo de uma mensagem de chat. Vem da máquina do jogador, como tudo mais: sem teto, uma
-// mensagem de um megabyte viraria uma fala infinita no leitor de tela de todo mundo na sala.
-const uint MAX_CHAT_LENGTH = 300;
+// Tamanho máximo de uma mensagem de chat, em LETRAS (utf8_length - ver src/core/utf8.nvgt). Vem da
+// máquina do jogador, como tudo mais: sem teto, uma mensagem de um megabyte viraria uma fala infinita no
+// leitor de tela de todo mundo na sala. Era 300 contados em BYTES - em português, cada acento vale 2,
+// e frases de 150 letras eram cortadas, às vezes no meio de uma letra. 1000 é decisão do usuário.
+const uint MAX_CHAT_LENGTH = 1000;
 // Chave do recado fixo do saguão na tabela de ajustes do servidor (database/user_db.nvgt). Fica numa
 // constante porque quem escreve (o servidor) e quem lê (o próprio servidor, ao subir) precisam usar
 // exatamente a mesma string - errar uma letra faria o recado "sumir" a cada reinício, calado.

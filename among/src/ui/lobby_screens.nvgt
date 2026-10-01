@@ -231,6 +231,7 @@ void run_hall_compose(game_client@ client) {
 		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return; }
 		if (f.is_pressed(f_send)) {
 			string text = f.get_text(f_text);
+			if (chat_too_long(text)) continue; // avisa e deixa encurtar (ver chat_too_long)
 			if (text != "") {
 				client.send_hall_chat(text);
 				speak(tr("chat.sent"));

@@ -4,6 +4,7 @@
 // entrou/saiu, corpo reportado, sabotagem, etc.). Navegação: vírgula/ponto andam entre linhas,
 // Shift+ponto/vírgula pulam pro fim/começo (ver game/game_loop.nvgt e ui/lobby_screens.nvgt).
 
+#include "utf8.nvgt"
 #include "form.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
@@ -166,6 +167,17 @@ bool drain_chat_while_composing(game_client@ client, chat_log@ messages) {
 //
 // Antes disto o jogo parecia travar ao abrir a caixa: ninguém ouvia o chat enquanto escrevia, e
 // quem estava digitando quando a votação acabava continuava numa caixa fantasma.
+// A mensagem passou do limite? Diz quanto, para a pessoa saber o quanto cortar.
+bool chat_too_long(const string&in text) {
+	uint n = utf8_length(text);
+	if (n <= MAX_CHAT_LENGTH) return false;
+	dictionary@ p = dictionary();
+	p.set("count", "" + n);
+	p.set("max", "" + MAX_CHAT_LENGTH);
+	speak(tr("chat.too_long", p));
+	return true;
+}
+
 void run_chat_compose(game_client@ client, chat_log@ messages = null) {
 	audio_form f;
 	f.create_window(tr("chat.compose_title"), false);
@@ -195,6 +207,9 @@ void run_chat_compose(game_client@ client, chat_log@ messages = null) {
 		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return; }
 		if (f.is_pressed(f_send)) {
 			string text = f.get_text(f_text);
+			// Passou do limite: avisa e deixa a caixa aberta para encurtar. O servidor cortaria calado,
+			// e quem escreveu só descobriria pela metade que os outros ouviram.
+			if (chat_too_long(text)) continue;
 			if (text != "") {
 				client.send_chat_message(text);
 				speak(tr("chat.sent"));

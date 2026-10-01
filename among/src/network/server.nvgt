@@ -4,6 +4,7 @@
 
 #include "protocol.nvgt"
 #include "../core/platform.nvgt" // a lista de plataformas que o login aceita
+#include "../core/utf8.nvgt" // tetos de texto em letras, e não em bytes
 #include "packet.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../config/colors.nvgt"
@@ -283,7 +284,7 @@ class game_server {
 		if (!in_hall(conn)) return; // quem está numa sala fala na sala, não aqui
 		string text = pkt.get_string("text").trim_whitespace();
 		if (text == "") return;
-		if (text.length() > MAX_CHAT_LENGTH) text = text.substr(0, MAX_CHAT_LENGTH);
+		text = utf8_truncate(text, MAX_CHAT_LENGTH); // em letras, e sem cortar uma no meio (ver utf8.nvgt)
 		net_packet@ msg = net_packet(S_HALL_CHAT);
 		msg.set_string("name", conn.username); // nome é identidade: viaja como está, sem tradução
 		msg.set_string("text", text);
@@ -2475,9 +2476,8 @@ class game_server {
 			return;
 		}
 		string text = pkt.get_string("text", "").trim_whitespace();
-		// O mesmo teto do chat: é uma frase para ser FALADA por leitor de tela ao entrar no saguão, e
-		// um texto longo ali vira um parágrafo que ninguém espera terminar.
-		if (text.length() > MAX_CHAT_LENGTH) text = text.substr(0, MAX_CHAT_LENGTH);
+		// SEM teto: só quem tem o token de administração chega até aqui, então um limite não protege de
+		// ninguém - e o de antes (o do chat, contado em bytes) cortava o recado que se queria deixar.
 		server_notice = text;
 		if (@g_user_db != null) g_user_db.set_setting(SETTING_HALL_NOTICE, text);
 		send_hall_state();
@@ -2497,7 +2497,7 @@ class game_server {
 		}
 		int feedback_id = pkt.get_int("feedback_id", 0);
 		string text = pkt.get_string("text", "").trim_whitespace();
-		if (text.length() > MAX_FEEDBACK_TEXT_LENGTH) text = text.substr(0, MAX_FEEDBACK_TEXT_LENGTH);
+		text = utf8_truncate(text, MAX_FEEDBACK_TEXT_LENGTH);
 		if (feedback_id <= 0 || text == "") {
 			result.set_bool("ok", false);
 			result.set_string("message", "bad_request");
@@ -2707,7 +2707,7 @@ class game_server {
 		// chega pela rede pode não ter passado pela tela nenhuma. O crash.log tem folga maior porque
 		// é ele que carrega o rastro do erro - cortar curto demais jogaria fora justamente o fim do
 		// arquivo, que é onde está o crash mais recente.
-		if (text.length() > MAX_FEEDBACK_TEXT_LENGTH) text = text.substr(0, MAX_FEEDBACK_TEXT_LENGTH);
+		text = utf8_truncate(text, MAX_FEEDBACK_TEXT_LENGTH);
 		string crash_log = pkt.get_string("crash_log");
 		if (crash_log.length() > MAX_FEEDBACK_CRASH_LOG_LENGTH) {
 			// Fica com o FINAL: num log que acumula (ver core/crash_log.nvgt), o que interessa é o
@@ -2749,7 +2749,7 @@ class game_server {
 		}
 		string text = pkt.get_string("text");
 		if (text == "") return;
-		if (text.length() > MAX_CHAT_LENGTH) text = text.substr(0, MAX_CHAT_LENGTH);
+		text = utf8_truncate(text, MAX_CHAT_LENGTH); // em letras, e sem cortar uma no meio (ver utf8.nvgt)
 
 		net_packet@ msg = net_packet(S_CHAT_MESSAGE);
 		msg.set_uint64("peer_id", peer_id);

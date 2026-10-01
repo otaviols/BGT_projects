@@ -16,6 +16,7 @@
 #include "../network/client.nvgt"
 #include "../network/protocol.nvgt"
 #include "../core/crash_log.nvgt"
+#include "../core/utf8.nvgt"
 #include "../i18n.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../config/game_settings.nvgt"
@@ -64,7 +65,7 @@ bool run_feedback_screen(game_client@ client, feedback_context@ context = null) 
 			f.focus(f_text);
 			continue;
 		}
-		if (text.length() > MAX_FEEDBACK_TEXT_LENGTH) text = text.substr(0, MAX_FEEDBACK_TEXT_LENGTH);
+		text = utf8_truncate(text, MAX_FEEDBACK_TEXT_LENGTH); // em letras, sem cortar uma no meio
 
 		bool in_match = @context != null && context.in_match;
 		string role = @context != null ? context.role : "";
