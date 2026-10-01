@@ -6,6 +6,22 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.44.0
+
+**Modo espectador.** Dá para assistir uma partida sem jogar: na sala de espera, a tecla A marca que
+você vai só assistir a próxima; e numa sala privada que já está em andamento, digitar o código faz
+você entrar assistindo. Você acompanha um jogador por vez e ouve a partida de onde ele está (setas
+para os lados trocam), e na reunião ouve a mesa. Ninguém sabe o papel de ninguém até o fim, e a sua voz
+chega só a outros espectadores.
+
+**A lista de partidas se atualiza sozinha.** Salas novas aparecem sem precisar do F5, o cursor fica
+onde você estava, e o jogo diz quando alguém cria uma sala, quando uma partida começa e quando ela
+acaba e abre de novo. Partidas em andamento aparecem marcadas; as privadas nunca aparecem. Na lista,
+P diz quem está no saguão, e vírgula e ponto leem a conversa e os avisos do saguão.
+
+**Na barriga do Lobo você ouve a reunião.** Engolido, você ouve a mesa e lê o chat, mas a mesa
+continua sem ouvir você.
+
 ## 0.43.1
 
 **O jogo não trava mais com o chat de voz.** Quando muita voz chegava de uma vez (depois de uma

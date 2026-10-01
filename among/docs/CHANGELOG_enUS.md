@@ -6,6 +6,22 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.44.0
+
+**Spectator mode.** You can watch a match without playing: in the waiting room, the A key marks that
+you will only watch the next one; and for a private lobby whose match is already running, typing the
+code lets you in as a spectator. You follow one player at a time and hear the match from where they
+are (left and right switch), and at a meeting you hear the table. Nobody knows anyone's role until
+the end, and your voice only reaches other spectators.
+
+**The match list updates by itself.** New rooms show up without F5, the cursor stays where you were,
+and the game tells you when someone creates a room, when a match starts and when it ends and opens
+again. Matches in progress show up marked; private ones never show up. In the list, P says who is in
+the hall, and comma and period read the hall chat and announcements.
+
+**In the Wolf's belly you hear the meeting.** Swallowed, you hear the table and read the chat, but
+the table still cannot hear you.
+
 ## 0.43.1
 
 **The game no longer freezes with voice chat.** When a lot of voice arrived at once (after a meeting,
