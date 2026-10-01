@@ -50,6 +50,13 @@ const string BACKGROUND_AUDIO_NORMAL = "normal";
 const string BACKGROUND_AUDIO_QUIET = "quiet";
 const string BACKGROUND_AUDIO_MUTE = "mute";
 
+// Quem lê a conversa (ver game_settings.chat_voice). TEM que vir antes de `game_settings g_settings`:
+// global se inicializa na ordem do arquivo, e o construtor que lesse uma constante declarada depois a
+// encontraria vazia - null pointer na abertura, o jogo fechava sem abrir (a 0.45.0).
+const string CHAT_VOICE_SAME = "same"; // como o resto do jogo
+const string CHAT_VOICE_SR = "sr";     // sempre o leitor de tela
+const string CHAT_VOICE_TTS = "tts";   // sempre a voz do jogo
+
 class game_settings {
 	private settings store;
 	array<int> volumes; // porcentagem por família, 0 a 100
@@ -353,10 +360,6 @@ game_settings g_settings;
 
 // O que o jogo pendura no g_client_frame_hook (ver network/client.nvgt), ligado em AmongUs.nvgt.
 void background_audio_hook() { g_settings.apply_background_audio(); }
-
-const string CHAT_VOICE_SAME = "same"; // como o resto do jogo
-const string CHAT_VOICE_SR = "sr";     // sempre o leitor de tela
-const string CHAT_VOICE_TTS = "tts";   // sempre a voz do jogo
 
 // Fala uma mensagem de CONVERSA pelo caminho que o jogador escolheu para ela (ver chat_voice). Troca o
 // interruptor do speech.nvgt (`use_sr`) só durante esta fala e o devolve: o resto do jogo continua

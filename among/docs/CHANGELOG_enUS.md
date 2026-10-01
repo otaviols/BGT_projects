@@ -6,6 +6,11 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.45.1
+
+**The game opens again.** Version 0.45.0 closed by itself on launch. If you got it, download the game
+again from the website: it cannot update itself.
+
 ## 0.45.0
 
 **Two new game modes**, chosen when creating the lobby. Neither has meetings, reported bodies, vents

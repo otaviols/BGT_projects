@@ -337,6 +337,13 @@ byte solto que o leitor de tela lê como lixo. Para tamanho ou corte de texto qu
 escreva num stream sem saber quanto ainda cabe (a voz descarta acima de 1 s esperando e refaz o som
 que parou - ver [notes/voz.md](notes/voz.md)). Sonda: `tools/probes/probe_stream_block.nvgt`.
 
+**Global se inicializa na ordem do ARQUIVO - uma constante declarada depois da global que a usa está
+vazia.** Sintoma: o jogo fecha ao abrir (código 65; do fonte, "Failed to initialize global variable
+'g_settings'" com "Null pointer access" no construtor). Compila limpo e passa em toda sonda que não
+abre o cliente inteiro - foi a 0.45.0 no ar, e quem atualizou ficou sem updater para sair dela. Constante
+que um construtor de global lê vem ANTES da global. O `build_clients.ps1` agora abre o exe compilado
+e recusa o build se ele fechar sozinho.
+
 **Uma compilação do NVGT pode sair defeituosa.** Aconteceu: mesmo código-fonte, um build gerou binário
 com segfault na inicialização e o seguinte saiu bom. Compilar com sucesso **não** é o mesmo que o
 binário funcionar. Por isso o `deploy.ps1` testa a imagem antes de publicar; se algo assim aparecer de

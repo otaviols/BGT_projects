@@ -63,6 +63,21 @@ try {
 		Write-Host "== mac == pulado: sem stub\nvgt_mac.bin em $nvgtHome (ver CLAUDE.md, Compilar)"
 	}
 	Build-One "windows" @("AmongUs.zip") ""
+
+	# Abre o jogo compilado e confere que ele continua aberto. Erro na inicialização das globais (a
+	# 0.45.0: uma constante declarada depois da global que a usava) compila limpo, passa em toda sonda e
+	# fecha o jogo antes de abrir - e o updater de quem atualizou morre junto, sem como consertar sozinho.
+	Write-Host "== abrindo o AmongUs.exe compilado =="
+	$smoke = Join-Path $env:TEMP "amongus_smoke"
+	if (Test-Path $smoke) { Remove-Item -Recurse -Force $smoke }
+	Expand-Archive AmongUs.zip $smoke
+	$game = Start-Process (Join-Path $smoke "AmongUs.exe") -WorkingDirectory $smoke -PassThru
+	Start-Sleep -Seconds 6
+	$alive = -not $game.HasExited
+	if ($alive) { Stop-Process $game -Force }
+	Remove-Item -Recurse -Force $smoke -ErrorAction SilentlyContinue
+	if (-not $alive) { throw "O AmongUs.exe compilado FECHOU sozinho (código $($game.ExitCode)). Rode 'nvgt AmongUs.nvgt' para ver o erro." }
+	Write-Host "ok: o jogo abriu"
 }
 finally {
 	Pop-Location

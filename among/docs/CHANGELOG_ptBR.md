@@ -6,6 +6,11 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.45.1
+
+**O jogo volta a abrir.** A 0.45.0 fechava sozinha ao abrir. Se você ficou com ela, baixe o jogo de
+novo no site: ela não consegue se atualizar sozinha.
+
 ## 0.45.0
 
 **Dois modos de jogo novos**, escolhidos ao criar a sala. Nos dois não há reunião, corpo reportado,
