@@ -1006,6 +1006,14 @@ class game_state {
 		// quem está lá dentro fala com o lobo e com os outros engolidos, e só - sem distância, sem
 		// sabotagem, e sem os fantasmas (a regra de baixo daria a eles a voz dos engolidos, e aos
 		// engolidos a dos mortos). O lobo ouve a barriga sempre; é a graça do papel.
+		// Na REUNIÃO, quem está na barriga ouve a mesa (decisão do usuário: ficar surdo à discussão
+		// inteira tirava o engolido do jogo justo na hora que mais importa). Só ouve: a voz dele
+		// continua chegando apenas ao lobo e aos outros engolidos, pela regra logo abaixo. As
+		// comunicações sabotadas valem como para a mesa - quem não é ouvido nela não é ouvido aqui.
+		bool reuniao = state == "meeting" || state == "voting";
+		if (reuniao && listener.swallowed() && !talker.swallowed() && talker.alive) {
+			return !voice_down_for(active_sabotage, talker.alive, true, config.comms_affects_meeting);
+		}
 		if (talker.swallowed() || listener.swallowed()) return in_same_belly(talker, listener);
 		if (!talker.alive) return !listener.alive;
 		if (!listener.alive) return true;

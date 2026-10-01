@@ -252,6 +252,18 @@ void main() {
 	confere("o engolido esta em `absent`", @ausentes != null && ausentes.length() == 1 && uint64(ausentes[0]) == todos[v].my_peer_id);
 	espera(todos, o1, S_VOTING_STARTED, 5000);
 
+	// Na reunião, a barriga OUVE a mesa (voz e chat) - mas continua sendo ouvida só pelo lobo.
+	zera_vozes();
+	fala(todos, o1);
+	confere("na reuniao, o engolido ouve a mesa", ouviu(v, todos[o1]));
+	zera_vozes();
+	fala(todos, v);
+	confere("e a mesa continua sem ouvir o engolido", !ouviu(o1, todos[v]) && !ouviu(o2, todos[v]) && !ouviu(impostor, todos[v]));
+	confere("controle: o lobo ouve o engolido na reuniao", ouviu(lobo, todos[v]));
+	esvazia_caixa();
+	todos[o1].send_chat_message("oi mesa");
+	confere("o engolido le o chat da reuniao", @espera(todos, v, S_CHAT_MESSAGE, 3000) != null);
+
 	esvazia_caixa();
 	todos[v].send_cast_vote(-1);
 	confere("o engolido nao vota", @espera(todos, v, S_ERROR, 3000) != null && @achado(v, S_VOTE_CAST) == null);

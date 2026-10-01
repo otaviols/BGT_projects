@@ -546,7 +546,8 @@ ou é o Bobo querendo sair?".
 **Lobo Mau** (neutro). Com a tecla de habilidade, **engole** quem estiver colado nele. Não fica corpo:
 a pessoa vai para a barriga do lobo. Lá dentro ela não anda, não vota e não faz tarefas; fala só com o
 lobo e com quem mais ele tiver engolido, e só eles a ouvem. Ela ouve o nome das salas por onde o lobo
-passa, e o radar e a tecla de onde estou mostram a sala dele. Quem está por perto ouve o som de engolir, mas
+passa, e o radar e a tecla de onde estou mostram a sala dele. Na reunião, ela ouve a mesa e lê o
+chat, mas a mesa continua sem ouvi-la. Quem está por perto ouve o som de engolir, mas
 não fica sabendo quem engoliu quem. Na reunião, ninguém anuncia nada: quem foi engolido
 simplesmente não está na lista de votação. Se o lobo **morrer ou for expulso**, todos os que estavam na
 barriga voltam, vivos, onde ele caiu. Ele vence se sobrar vivo com a nave reduzida a ele e no máximo

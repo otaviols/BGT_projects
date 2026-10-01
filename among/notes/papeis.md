@@ -154,6 +154,10 @@ precisa perguntar `swallowed()` também, ou o engolido ganha junto.
   "olhos" em `radar_targets`), não com a imunidade de fantasma. No cliente, a sala é dita quando o
   lobo muda de sala, e a tecla de onde estou responde por ela (recado #160, decisão do usuário: os
   dois modos do radar, do ponto do lobo). Não vaza nada: o engolido só fala com o próprio lobo.
+- Na REUNIÃO a barriga ouve a mesa (voz e chat), e a mesa continua sem ouvi-la: a regra mora em
+  `can_hear_voice`, ANTES da regra da barriga, e vale só no sentido mesa -> engolido. Era surda à
+  discussão inteira, e isso tirava o engolido do jogo justo na hora que mais importa (decisão do
+  usuário). É também a base do modo espectador, que vai ouvir do mesmo jeito.
 - A VOZ da barriga, no cliente do lobo, toca SEM posição (`g_voice.inside_me`). Posicionada pelo
   elenco, ela ficava presa no ponto onde a pessoa foi engolida enquanto o lobo andava - justo o que o
   papel promete (ouvir as vítimas) virava um som parado no mapa. Sintoma relatado pelo usuário: "a voz

@@ -2540,13 +2540,11 @@ class game_server {
 		msg.set_uint64("peer_id", peer_id);
 		msg.set_string("name", sender.public_name()); // sala de espera: o nome; modo cor na partida: a cor
 		msg.set_string("text", text);
-		// Quem está na barriga do lobo não lê a mesa: lá dentro só se ouve o lobo e os outros engolidos
-		// (decisão do jogo). O chat escrito seguiria a mesma regra da voz.
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			game_player@ r = lobby.players[i];
-			if (!reaches_client(r) || r.swallowed()) continue;
-			send_to(r.peer_id, msg);
-		}
+		// Vai a todos, inclusive a quem está na barriga do lobo: o chat só existe na reunião, e a barriga
+		// ouve a mesa (ver can_hear_voice). Já foi diferente - o engolido não lia nada -, e quem
+		// decidiu mudar foi o usuário: surdo à discussão, ele ficava fora do jogo justo na hora que
+		// mais importa.
+		broadcast_to_lobby(lobby, msg);
 	}
 
 	// Avisa a partida de que UM painel saiu do caminho, sem a sabotagem ter acabado. É o que permite
