@@ -150,7 +150,7 @@ bool drain_chat_while_composing(game_client@ client, chat_log@ messages) {
 		string name = spoken_name(p.get_string("name")); // modo cor: a cor de quem falou
 		string text = p.get_string("text");
 		if (@messages != null) messages.add(name, text);
-		if (!p.announced) speak(name + ": " + text, false);
+		if (!p.announced) speak_chat(name + ": " + text);
 		client.incoming.remove_at(i);
 		i--;
 	}

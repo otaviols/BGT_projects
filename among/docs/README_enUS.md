@@ -169,7 +169,10 @@ defaults.
 
 **Voice and screen reader** — choose the system voice, its rate and volume, and whether the game
 should use the screen reader when one is present. This is what makes the game work for people
-playing without NVDA: turn off "use screen reader" and speed the system voice up to taste.
+playing without NVDA: turn off "use screen reader" and speed the system voice up to taste. There
+you also choose **who reads the chat** (what people write): same as the rest of the game, always the
+screen reader, or always the game voice. That way you hear the conversation in one voice and the
+game's announcements in another.
 
 **Language** — the list shows every installed language. The change takes effect immediately, and the
 game opens in the chosen language next time. The game ships with US English and Brazilian

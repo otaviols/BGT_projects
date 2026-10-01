@@ -261,7 +261,9 @@ void announce_background_events(game_client@ client) {
 		pkt.announced = true; // o laço principal ainda vai tratá-lo; só não vai repetir a fala
 		// Sem interromper: quem está no meio de uma task ouvindo tons não pode ter o tom cortado.
 		// A exceção é a contagem final do oxigênio, onde um número atrasado é pior que um cortado.
-		speak(text, pkt.type == S_SABOTAGE_COUNTDOWN && pkt.get_bool("final"));
+		// A conversa vai pela voz escolhida para ela (ver speak_chat); o resto, pela do jogo.
+		if (pkt.type == S_CHAT_MESSAGE) speak_chat(text);
+		else speak(text, pkt.type == S_SABOTAGE_COUNTDOWN && pkt.get_bool("final"));
 		// E entra no histórico JÁ, para ser relido sem fechar a tela (ver chat_review em chat_log).
 		if (@g_background_log_sink != null && !pkt.logged) {
 			g_background_log_sink(pkt, text);

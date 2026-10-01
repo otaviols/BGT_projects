@@ -866,7 +866,7 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				// Sem interromper: uma mensagem de chat espera a fala atual acabar. Interrompendo, duas
 				// pessoas falando em sequência cortavam a primeira no meio, e um anúncio do jogo (quem
 				// reportou, quanto tempo falta) morria por causa de um "oi" no chat.
-				if (!pkt.announced) speak(chat_name + ": " + chat_text, false);
+				if (!pkt.announced) speak_chat(chat_name + ": " + chat_text);
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
 				else audio.play_message_received();
 			} else if (t == S_BODY_REPORTED) {

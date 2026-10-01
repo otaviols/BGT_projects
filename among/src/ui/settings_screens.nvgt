@@ -351,6 +351,12 @@ void run_voice_screen() {
 	if (tts.voice > -1) f.set_list_position(f_voices, tts.voice);
 	int f_rate = f.create_slider(tr("settings.voice_rate"), tts.rate, -10, 10);
 	int f_volume = f.create_slider(tr("settings.voice_volume"), tts.volume, 0, 100);
+	// Quem lê a conversa (ver game_settings.chat_voice): o resto do jogo segue o quadro de cima.
+	int f_chat = f.create_list(tr("settings.chat_voice"));
+	f.add_list_item(f_chat, tr("settings.chat_voice.same"), CHAT_VOICE_SAME);
+	f.add_list_item(f_chat, tr("settings.chat_voice.sr"), CHAT_VOICE_SR);
+	f.add_list_item(f_chat, tr("settings.chat_voice.tts"), CHAT_VOICE_TTS);
+	f.set_list_position(f_chat, g_settings.chat_voice == CHAT_VOICE_SR ? 1 : (g_settings.chat_voice == CHAT_VOICE_TTS ? 2 : 0));
 	int f_save = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 	f.focus(f_use_sr); // audio_form nasce sem foco nenhum
@@ -385,6 +391,8 @@ void run_voice_screen() {
 			return;
 		}
 		if (f.is_pressed(f_save)) {
+			int cv = f.get_list_position(f_chat);
+			g_settings.chat_voice = cv >= 0 ? f.get_list_item_id(f_chat, cv) : CHAT_VOICE_SAME;
 			g_settings.save();
 			speak(tr("settings.saved"));
 			return;

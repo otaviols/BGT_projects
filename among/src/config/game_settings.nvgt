@@ -193,6 +193,11 @@ class game_settings {
 	// fantasma - e isto não cria informação nenhuma para os outros: só toca no cliente de quem morreu, e
 	// os vivos continuam sem receber a posição dele (ver on_move no servidor).
 	bool ghost_own_footsteps = false;
+	// Quem lê a CONVERSA (chat da partida, da sala de espera e do saguão): "igual ao jogo", o leitor de
+	// tela ou a voz do jogo. Pedido do recado #89 e decisão do usuário: duas categorias só - o que as
+	// pessoas escrevem e o que o jogo narra -, para quem quer separar as duas coisas pelo timbre. O
+	// resto do jogo segue a escolha que já existia (leitor de tela ou voz do jogo).
+	string chat_voice = CHAT_VOICE_SAME;
 	private bool _window_was_active = true;
 
 	float background_offset_db() const {
@@ -235,6 +240,8 @@ class game_settings {
 		background_audio = store.read_string("background_audio", BACKGROUND_AUDIO_NORMAL);
 		exit_alignment_beep = store.read_number("exit_alignment_beep", 1) != 0;
 		ghost_own_footsteps = store.read_number("ghost_own_footsteps", 0) != 0;
+		chat_voice = store.read_string("chat_voice", CHAT_VOICE_SAME);
+		if (chat_voice != CHAT_VOICE_SR && chat_voice != CHAT_VOICE_TTS) chat_voice = CHAT_VOICE_SAME;
 		if (background_audio != BACKGROUND_AUDIO_QUIET && background_audio != BACKGROUND_AUDIO_MUTE) background_audio = BACKGROUND_AUDIO_NORMAL;
 		language = store.read_string("language", DEFAULT_LANGUAGE);
 		if (language == "") language = DEFAULT_LANGUAGE;
@@ -322,6 +329,7 @@ class game_settings {
 		store.write_string("background_audio", background_audio);
 		store.write_number("exit_alignment_beep", exit_alignment_beep ? 1 : 0);
 		store.write_number("ghost_own_footsteps", ghost_own_footsteps ? 1 : 0);
+		store.write_string("chat_voice", chat_voice);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));
 		store.write_number("radar_continuous", radar_continuous ? 1 : 0);
@@ -345,6 +353,21 @@ game_settings g_settings;
 
 // O que o jogo pendura no g_client_frame_hook (ver network/client.nvgt), ligado em AmongUs.nvgt.
 void background_audio_hook() { g_settings.apply_background_audio(); }
+
+const string CHAT_VOICE_SAME = "same"; // como o resto do jogo
+const string CHAT_VOICE_SR = "sr";     // sempre o leitor de tela
+const string CHAT_VOICE_TTS = "tts";   // sempre a voz do jogo
+
+// Fala uma mensagem de CONVERSA pelo caminho que o jogador escolheu para ela (ver chat_voice). Troca o
+// interruptor do speech.nvgt (`use_sr`) só durante esta fala e o devolve: o resto do jogo continua
+// como estava. Sem interromper, por padrão - é como o chat sempre foi dito.
+void speak_chat(const string&in text, bool interrupt = false) {
+	if (g_settings.chat_voice == CHAT_VOICE_SAME) { speak(text, interrupt); return; }
+	bool antes = use_sr;
+	use_sr = g_settings.chat_voice == CHAT_VOICE_SR;
+	speak(text, interrupt);
+	use_sr = antes;
+}
 
 // Som de interface (abrir/fechar diálogo, avisos de menu). Fica aqui e não no audio_manager porque
 // quem toca isso são as telas, que não têm um audio_manager por perto.

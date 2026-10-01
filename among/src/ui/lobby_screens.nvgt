@@ -121,7 +121,7 @@ void drain_hall_packets(game_client@ client) {
 			string text = p.get_string("text");
 			g_hall.log.add(name, text);
 			// Sem interromper: quem está lendo a lista de partidas não pode ser cortado no meio.
-			speak(name + ": " + text, false);
+			speak_chat(name + ": " + text);
 		} else continue;
 		client.incoming.remove_at(i);
 		i--;
@@ -1214,7 +1214,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 				// Sem interromper: uma mensagem de chat espera a fala atual acabar. Interrompendo, duas
 				// pessoas falando em sequência cortavam a primeira no meio, e um anúncio do jogo (quem
 				// reportou, quanto tempo falta) morria por causa de um "oi" no chat.
-				if (!pkt.announced) speak(chat_name + ": " + chat_text, false);
+				if (!pkt.announced) speak_chat(chat_name + ": " + chat_text);
 				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
 				else audio.play_message_received();
 			} else if (pkt.type == S_PONG && ping_pending) {

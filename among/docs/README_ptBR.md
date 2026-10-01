@@ -167,7 +167,9 @@ fábrica.
 
 **Voz e leitor de tela** — escolha a voz do sistema, a velocidade e o volume dela, e se o jogo deve
 usar o leitor de tela quando houver um. É o que resolve para quem joga sem NVDA: desmarque "usar
-leitor de tela" e acelere a voz do sistema ao seu gosto.
+leitor de tela" e acelere a voz do sistema ao seu gosto. Ali também se escolhe **quem lê o chat** (o
+que as pessoas escrevem): igual ao resto do jogo, sempre o leitor de tela, ou sempre a voz do jogo.
+Assim dá para ouvir a conversa numa voz e os avisos do jogo em outra.
 
 **Idioma** — a lista mostra todos os idiomas instalados. A troca vale na hora, e o jogo abre no
 idioma escolhido da próxima vez. O jogo vem com português do Brasil e inglês dos Estados Unidos, e

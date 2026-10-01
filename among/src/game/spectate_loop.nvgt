@@ -142,7 +142,7 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 				string nome = spoken_name(pkt.get_string("name"));
 				string texto = pkt.get_string("text");
 				messages_log.add(nome, texto);
-				if (!pkt.announced) speak(nome + ": " + texto, false);
+				if (!pkt.announced) speak_chat(nome + ": " + texto);
 				audio.play_message_received();
 			} else if (t == S_SABOTAGE_STARTED) {
 				sabotagem = pkt.get_string("sabotage_id");
