@@ -108,7 +108,13 @@ void main() {
 	// Se a atualização começou, o jogo TEM que sair agora: o script que vai trocar os arquivos está
 	// esperando este processo morrer pra conseguir escrever por cima do executável. Continuar aqui
 	// deixaria os dois travados, um esperando o outro.
-	if (run_update_check()) return;
+	//
+	// Aberto pelo iniciador (o AmongUs.exe; este é o AmongUsGame.exe), a conferência já foi feita lá, e
+	// o que falta é dar o sinal de que a inicialização passou - é por ele que o iniciador sabe que não
+	// precisa oferecer a volta para a versão anterior (ver launcher.nvgt). Aberto direto, faz como
+	// sempre fez.
+	if (launched_by_launcher()) file_put_contents(game_started_marker_path(), GAME_VERSION);
+	else if (run_update_check()) return;
 
 	// Se a verificação acima NÃO iniciou uma atualização, então nenhuma está em curso e é seguro
 	// varrer o que uma anterior possa ter deixado para trás na pasta do jogo.

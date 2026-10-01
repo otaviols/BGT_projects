@@ -71,6 +71,11 @@ instala e abre de novo. Não há nada para baixar à mão nem pasta para descomp
 
 Você pode recusar e continuar jogando na versão atual — a pergunta volta na próxima vez que abrir.
 
+No Windows, abra sempre o **AmongUs.exe**. Ele confere a atualização e abre o jogo, que é o
+`AmongUsGame.exe` ao lado. Se uma versão nova tiver um defeito e fechar logo ao abrir, o AmongUs.exe
+percebe e oferece voltar para a versão que você usava antes; essa versão com defeito fica pulada até
+sair uma mais nova.
+
 O que mudou em cada versão está no menu inicial, em **Novidades** — e também no arquivo
 `NOVIDADES.md`, na pasta `docs` dentro da pasta do jogo (onde este manual também fica).
 

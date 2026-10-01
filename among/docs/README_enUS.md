@@ -75,6 +75,11 @@ unpack.
 You can decline and keep playing the version you have — the question comes back next time you open
 it.
 
+On Windows, always open **AmongUs.exe**. It checks for updates and opens the game, which is the
+`AmongUsGame.exe` next to it. If a new version has a defect and closes right after opening,
+AmongUs.exe notices and offers to go back to the version you used before; the faulty version is then
+skipped until a newer one comes out.
+
 Your settings and your account survive an update: preferences live in the user data folder, and your
 account lives on the server.
 

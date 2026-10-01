@@ -61,7 +61,8 @@ Antes de afirmar algo, **verifique contra o código**, não contra a memória da
 
 | Caminho | O que é |
 |---|---|
-| `AmongUs.nvgt` | ponto de entrada do cliente |
+| `AmongUs.nvgt` | ponto de entrada do cliente (no Windows vira `AmongUsGame.exe`) |
+| `launcher.nvgt` | o iniciador: no Windows é o `AmongUs.exe` que o jogador abre - ver "O iniciador" em [notes/infra-e-deploy.md](notes/infra-e-deploy.md) |
 | `server_main.nvgt` | ponto de entrada do servidor |
 | `src/` | **todo** o código: `config/`, `core/`, `game/`, `network/`, `ui/`, `database/`, `audio/`, `i18n.nvgt` |
 | `lang/` | **só dados** de tradução (`pt_BR.json`, `en_US.json`) — o motor de i18n fica em `src/` |

@@ -100,6 +100,9 @@ update_info@ check_for_update() {
 	string remote_version = data.exists("version") ? string(data["version"]) : "";
 	if (remote_version == "") return info;
 	if (!is_newer(remote_version, GAME_VERSION)) return info;
+	// A versão de que o jogador acabou de VOLTAR (ver launcher.nvgt): oferecê-la de novo levaria de
+	// volta ao mesmo jogo que fecha ao abrir. A próxima versão, a que conserta, é oferecida normalmente.
+	if (remote_version == skipped_update_version()) return info;
 
 	info.available = true;
 	info.version = remote_version;
@@ -145,6 +148,87 @@ string to_forward_slashes(const string&in path) {
 string powershell_path() {
 	string root = read_environment_variable("SystemRoot", "C:\\Windows");
 	return to_forward_slashes(root) + "/System32/WindowsPowerShell/v1.0/powershell.exe";
+}
+
+// O jogo de verdade, ao lado do iniciador (launcher.nvgt), que é o AmongUs.exe que o jogador abre. Os
+// dois na mesma pasta porque o jogo acha sounds.dat, lang/ e lib/ pela pasta do PRÓPRIO executável.
+const string GAME_EXE_NAME = "AmongUsGame.exe";
+// Argumento com que o iniciador abre o jogo: o jogo então não confere atualização (o iniciador acabou
+// de conferir) e grava o sinal de que abriu (ver game_started_marker_path).
+const string LAUNCHER_ARG = "--launcher";
+
+// Onde fica o que precisa sobreviver a uma atualização: a cópia da versão anterior e a versão pulada.
+// Fora da pasta do jogo de propósito - a atualização copia por cima dela, e o jogador não precisa ver
+// uma pasta a mais ali. Vazio se o sistema não tem LOCALAPPDATA: aí simplesmente não há volta.
+string update_state_directory() {
+	string base = read_environment_variable("LOCALAPPDATA", "");
+	if (base == "") return "";
+	return base + "\\AmongUsAudiogame";
+}
+
+string previous_version_directory() {
+	string base = update_state_directory();
+	return base == "" ? "" : base + "\\versao_anterior";
+}
+
+// A versão que o jogador recusou por fechar ao abrir. Arquivo de texto, e não as preferências do jogo:
+// o iniciador e o jogo leem os dois, e duas instâncias abertas do mesmo arquivo de preferências podiam
+// se sobrescrever ao salvar.
+string skipped_update_version() {
+	string base = update_state_directory();
+	if (base == "") return "";
+	return file_get_contents(base + "\\pular_versao.txt").trim_whitespace();
+}
+
+void set_skipped_update_version(const string&in version) {
+	string base = update_state_directory();
+	if (base == "") return;
+	if (!directory_exists(base)) directory_create(base);
+	file_put_contents(base + "\\pular_versao.txt", version);
+}
+
+// A versão guardada em versao_anterior/, ou vazio se não há cópia completa.
+string previous_version_available() {
+	string dir = previous_version_directory();
+	if (dir == "") return "";
+	string v = file_get_contents(dir + "\\versao.txt").trim_whitespace();
+	if (v == "" || v == GAME_VERSION) return "";
+	return v;
+}
+
+// O sinal de que o jogo passou da inicialização. Na pasta do jogo, e não na temporária, porque é a
+// única que o iniciador sabe que o jogo enxerga igual a ele.
+string game_started_marker_path() {
+	return game_directory() + "\\.jogo_abriu";
+}
+
+// O que o iniciador conclui depois de abrir o jogo.
+enum game_start_result {
+	GAME_STARTED,      // o jogo passou da inicialização
+	GAME_FAILED,       // fechou ANTES de passar - o caso da 0.45.0
+	GAME_START_UNKNOWN // nem uma coisa nem outra dentro do prazo: segue a vida, não há o que fazer
+}
+
+// Espera o jogo dar sinal de vida. Um minuto de prazo é folga: o sinal sai logo depois de a janela
+// abrir, antes de qualquer tela que espere o jogador.
+//
+// Pelo SINAL, e não pelo código de saída: o process do NVGT não expõe o código (wait() devolve 0 para
+// um processo que saiu com 7), e "fechou depressa" sozinho não distingue defeito de alguém que abriu e
+// saiu do menu na hora. Quem chegou ao sinal e depois saiu, saiu porque quis.
+game_start_result wait_for_game_start(process@ proc, const string&in marker, uint timeout_ms) {
+	timer t;
+	while (t.elapsed < timeout_ms) {
+		if (file_exists(marker)) return GAME_STARTED;
+		if (!proc.running) return file_exists(marker) ? GAME_STARTED : GAME_FAILED;
+		wait(100);
+	}
+	return GAME_START_UNKNOWN;
+}
+
+// O jogo foi aberto pelo iniciador?
+bool launched_by_launcher() {
+	for (uint i = 0; i < ARGS.length(); i++) if (ARGS[i] == LAUNCHER_ARG) return true;
+	return false;
 }
 
 // Escreve o script que faz a troca e o dispara. Devolve false se nem sequer conseguiu gravar o
@@ -221,14 +305,18 @@ bool launch_updater_script(const string&in package_url) {
 	// aqui uma vez só - antes isto concatenava com DIRECTORY_TEMP, que JÁ termina em barra, e saíam
 	// caminhos com barra dupla no meio.
 	string script_path = work_dir + "\\amongus_update.ps1";
-	string script = build_updater_script(exe, dir, work_dir, package_url);
+	string script = build_updater_script(exe, dir, work_dir, package_url, previous_version_directory());
 	return write_and_run_updater_script(script_path, script);
 }
 
 // O texto do script de atualização, separado de quem o roda para a sonda poder executá-lo numa
 // instalação de MENTIRA (tools/probes/probe_updater_script.nvgt). Rodando do fonte, o "executável do
 // jogo" é o nvgt.exe - chamar o atualizador de verdade copiaria arquivos para dentro do NVGT.
-string build_updater_script(const string&in exe, const string&in dir, const string&in work_dir, const string&in package_url) {
+//
+// `backup_dir`: onde guardar a versão atual antes de copiar a nova por cima (vazio = não guardar). É
+// essa cópia que o iniciador devolve quando a versão nova fecha ao abrir (ver launcher.nvgt).
+string build_updater_script(const string&in exe, const string&in dir, const string&in work_dir, const string&in package_url,
+		const string&in backup_dir = "") {
 	// A mensagem de falha no IDIOMA do jogador. Era fixa em português sem acento, e o recado #152 veio
 	// de quem joga em inglês. {error} e {folder} só existem quando o script roda, então o PowerShell os
 	// troca; o endereço já vai pronto daqui.
@@ -245,22 +333,10 @@ string build_updater_script(const string&in exe, const string&in dir, const stri
 		"$dir = '" + dir + "'\n"
 		"$work = '" + work_dir + "'\n"
 		"$url = '" + package_url + "'\n"
+		"$backup = '" + backup_dir + "'\n"
+		"$version = '" + GAME_VERSION + "'\n"
 		"\n"
-		"# Espera TODOS os arquivos que serao trocados ficarem livres - o executavel e as bibliotecas\n"
-		"# de lib/. Conferir so o executavel nao bastava: o recado #152 falhou em\n"
-		"# lib/nvdaControllerClient64.dll 'em uso por outro processo' (outra janela do jogo aberta, um\n"
-		"# antivirus examinando o arquivo, o jogo ainda terminando de fechar). Aberto SEM\n"
-		"# compartilhamento ('None'): so passa quando ninguem mais segura o arquivo.\n"
-		"$alvos = @($exe) + @(Get-ChildItem -Path (Join-Path $dir 'lib') -File -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })\n"
-		"$deadline = (Get-Date).AddSeconds(90)\n"
-		"while ((Get-Date) -lt $deadline) {\n"
-		"  $livre = $true\n"
-		"  foreach ($f in $alvos) {\n"
-		"    try { $fs = [IO.File]::Open($f, 'Open', 'ReadWrite', 'None'); $fs.Close() } catch { $livre = $false; break }\n"
-		"  }\n"
-		"  if ($livre) { break }\n"
-		"  Start-Sleep -Milliseconds 500\n"
-		"}\n"
+		+ ps_wait_for_install_files() +
 		"\n"
 		"# Definidos ANTES do try: o bloco finally lá embaixo apaga os dois, e ele roda mesmo quando o\n"
 		"# try falha na primeira linha - com as variáveis declaradas só lá dentro, a limpeza tentaria\n"
@@ -288,6 +364,22 @@ string build_updater_script(const string&in exe, const string&in dir, const stri
 		"  # jogador continua com a versão que já tinha funcionando.\n"
 		"  $newExe = Join-Path $unpacked (Split-Path $exe -Leaf)\n"
 		"  if (-not (Test-Path $newExe)) { throw 'pacote invalido' }\n"
+		"\n"
+		"  # Guarda a versao atual ANTES de copiar por cima: se a nova fechar ao abrir, o iniciador\n"
+		"  # volta para esta. So o que o pacote novo vai substituir. O versao.txt vai por ULTIMO - e\n"
+		"  # o sinal de copia completa; qualquer falha apaga a copia pela metade, e a atualizacao segue\n"
+		"  # sem rede de seguranca em vez de nao acontecer.\n"
+		"  if ($backup -ne '') {\n"
+		"    try {\n"
+		"      Remove-Item -Recurse -Force $backup -ErrorAction SilentlyContinue\n"
+		"      New-Item -ItemType Directory -Force -Path $backup | Out-Null\n"
+		"      foreach ($item in Get-ChildItem -Path $unpacked) {\n"
+		"        $atual = Join-Path $dir $item.Name\n"
+		"        if (Test-Path $atual) { Copy-Item -Path $atual -Destination $backup -Recurse -Force -ErrorAction Stop }\n"
+		"      }\n"
+		"      Set-Content -Path (Join-Path $backup 'versao.txt') -Value $version -Encoding ASCII\n"
+		"    } catch { Remove-Item -Recurse -Force $backup -ErrorAction SilentlyContinue }\n"
+		"  }\n"
 		"\n"
 		"  # Com novas tentativas: um arquivo segurado por um instante (o antivirus examinando o que\n"
 		"  # acabou de ser liberado) nao pode derrubar a atualizacao inteira.\n"
@@ -326,6 +418,65 @@ string build_updater_script(const string&in exe, const string&in dir, const stri
 		"  }\n"
 		"}\n";
 	return script;
+}
+
+// Trecho de PowerShell que espera TODOS os arquivos da instalação ficarem livres - os dois executáveis
+// (o iniciador e o jogo) e as bibliotecas de lib/. Conferir só um executável não bastava: o recado #152
+// falhou em lib/nvdaControllerClient64.dll "em uso por outro processo" (outra janela do jogo aberta, um
+// antivírus examinando o arquivo, o jogo ainda terminando de fechar). Aberto SEM compartilhamento
+// ('None'): só passa quando ninguém mais segura o arquivo. Usa $dir, que o script define antes.
+string ps_wait_for_install_files() {
+	return
+		"$alvos = @(Get-ChildItem -Path $dir -Filter *.exe -File -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) + @(Get-ChildItem -Path (Join-Path $dir 'lib') -File -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })\n"
+		"$deadline = (Get-Date).AddSeconds(90)\n"
+		"while ((Get-Date) -lt $deadline) {\n"
+		"  $livre = $true\n"
+		"  foreach ($f in $alvos) {\n"
+		"    try { $fs = [IO.File]::Open($f, 'Open', 'ReadWrite', 'None'); $fs.Close() } catch { $livre = $false; break }\n"
+		"  }\n"
+		"  if ($livre) { break }\n"
+		"  Start-Sleep -Milliseconds 500\n"
+		"}\n";
+}
+
+// O script que DEVOLVE a versão anterior (guardada pela atualização em `backup_dir`). Mesmo motivo do
+// script de atualização: o iniciador que o pede está rodando, e as bibliotecas de lib/ que ele usa só
+// ficam livres depois que ele fecha. A cópia é apagada no fim: se a versão anterior também não abrir,
+// não há uma terceira para onde voltar, e oferecer a mesma volta de novo seria um laço.
+string build_rollback_script(const string&in exe, const string&in dir, const string&in backup_dir) {
+	dictionary@ fp = dictionary();
+	fp.set("url", DOWNLOAD_PAGE_URL);
+	string failure_template = tr("launcher.rollback_failed", fp);
+	return
+		"\xEF\xBB\xBF"
+		"$ErrorActionPreference = 'Stop'\n"
+		"$exe = '" + exe + "'\n"
+		"$dir = '" + dir + "'\n"
+		"$backup = '" + backup_dir + "'\n"
+		"\n"
+		+ ps_wait_for_install_files() +
+		"\n"
+		"try {\n"
+		"  $tentativa = 0\n"
+		"  while ($true) {\n"
+		"    try { Copy-Item -Path (Join-Path $backup '*') -Destination $dir -Recurse -Force -ErrorAction Stop; break }\n"
+		"    catch { $tentativa++; if ($tentativa -ge 8) { throw }; Start-Sleep -Seconds 2 }\n"
+		"  }\n"
+		"  Remove-Item -Force (Join-Path $dir 'versao.txt') -ErrorAction SilentlyContinue\n"
+		"  Remove-Item -Recurse -Force $backup -ErrorAction SilentlyContinue\n"
+		"  Start-Process -FilePath $exe -WorkingDirectory $dir\n"
+		"}\n"
+		"catch {\n"
+		"  # Sem relancar: o jogo nesta pasta e o que fecha ao abrir, e relancar so traria a mesma\n"
+		"  # pergunta de volta. A mensagem leva a pagina de download.\n"
+		"  Add-Type -AssemblyName System.Windows.Forms\n"
+		"  $msg = " + ps_single_quoted(failure_template) + "\n"
+		"  $msg = $msg.Replace('{error}', $_.Exception.Message)\n"
+		"  [System.Windows.Forms.MessageBox]::Show($msg, 'Among Us Audiogame') | Out-Null\n"
+		"}\n"
+		"finally {\n"
+		"  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n"
+		"}\n";
 }
 
 bool write_and_run_updater_script(const string&in script_path, const string&in script) {

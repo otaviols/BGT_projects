@@ -51,6 +51,33 @@ gravar o `.ps1` com BOM UTF-8 (sem ele o PowerShell 5.1 embaralha os acentos; er
 mensagem antiga não tinha acento, e era sempre em português). Quem está numa versão ANTERIOR ao
 conserto continua com o script velho na primeira atualização - o conserto vale da seguinte em diante.
 
+**O iniciador (`launcher.nvgt`): no Windows, o `AmongUs.exe` NÃO é o jogo.** O jogo vira
+`AmongUsGame.exe` na mesma pasta, e o `AmongUs.exe` é um programa pequeno que confere a atualização,
+abre o jogo com `--launcher` e espera o arquivo `.jogo_abriu`, que o jogo grava logo depois de abrir a
+janela. Se o jogo fechar ANTES do sinal, o iniciador oferece voltar para a versão anterior. Existe por
+causa da 0.45.0: o erro estava na inicialização das globais, antes da primeira linha do jogo, e o
+atualizador morria junto - quem atualizou ficou sem saída. Nenhuma proteção dentro do jogo pega isso.
+- **Pelo sinal, não pelo código de saída:** o `process` do NVGT não expõe o código (`wait()` devolve 0
+  para quem saiu com 7), e "fechou depressa" não distingue defeito de quem saiu do menu na hora.
+- **A cópia da versão anterior** fica em `%LOCALAPPDATA%\AmongUsAudiogame\versao_anterior`, gravada
+  pelo script de atualização antes de copiar por cima; o `versao.txt` vai por último e é o sinal de
+  cópia completa. A volta apaga a cópia (sem laço) e grava a versão em `pular_versao.txt`, que o
+  atualizador respeita até sair uma mais nova. Arquivo de texto, e não as preferências: o iniciador e
+  o jogo abririam o mesmo arquivo de preferências e um sobrescreveria o outro.
+- **O iniciador inclui só o atualizador** (e por ele as constantes, o i18n e a fala). Tudo que ele
+  inclui pode derrubá-lo do mesmo jeito - não ponha preferências, rede ou som ali.
+- **O zip do Windows é remontado pelo `build_clients.ps1`** (o NVGT compila um script por pacote): o
+  `AmongUs.exe` do jogo vira `AmongUsGame.exe` e o `launcher.exe` vira `AmongUs.exe`, com o mesmo
+  `lib/`. O teste de abertura do build abre pelo iniciador e exige o jogo de pé E o iniciador fechado.
+- **Linux, Mac e Android não têm iniciador** - lá o jogo segue abrindo direto, como antes. E quem abrir
+  o `AmongUsGame.exe` direto também: o jogo só pula a própria conferência quando vem do iniciador.
+- **A rede só vale a partir da segunda atualização:** a primeira para a versão com iniciador ainda é
+  feita pelo script antigo, que não guarda cópia.
+- Testar a falha sem esperar um defeito de verdade: compile um `.nvgt` com
+  `int x = quebra();` numa global que lança, ponha o exe como `AmongUsGame.exe` numa cópia do pacote e
+  abra o `AmongUs.exe` com `LOCALAPPDATA` apontando para uma pasta de mentira - o iniciador tem que
+  ficar aberto mostrando o aviso.
+
 **Sonda do atualizador:** `tools/probes/probe_updater_script.nvgt` roda o script de verdade numa
 instalação de MENTIRA (sandbox em `%TEMP%` com um `hostname.exe` fazendo o papel do jogo, pacote
 servido por `python -m http.server`, e outro processo segurando a DLL por 8 s). Montagem: pasta
@@ -58,7 +85,11 @@ servido por `python -m http.server`, e outro processo segurando a DLL por 8 s). 
 o mesmo com "novo" compactado em `srv\update.zip`, `python -m http.server 8765 --directory srv`, um
 `powershell -Command` que abre a DLL com `[IO.File]::Open(..., 'Open', 'Read', 'None')` e dorme 8 s,
 e então `nvgt tools/probes/probe_updater_script.nvgt <sandbox> http://127.0.0.1:8765/update.zip` -
-a DLL tem que terminar "novo". NUNCA chame `launch_updater_script` rodando do fonte: o
+a DLL tem que terminar "novo", a cópia em `<sandbox>\backup` com "velho", e depois da volta a DLL
+"velho" de novo. Ponha também um `AmongUsGame.exe` na instalação e no pacote. **Entre duas rodadas,
+pare o servidor pela linha de comando** (`Get-CimInstance Win32_Process` com `http.server`):
+`Stop-Process` no `python` que o `Start-Process` devolveu pode deixar o servidor de verdade vivo, e a
+rodada seguinte esperou 90 s por arquivo e falhou sem motivo aparente. NUNCA chame `launch_updater_script` rodando do fonte: o
 "executável do jogo" é o `nvgt.exe`, e a cópia iria para dentro da instalação do NVGT - por isso o
 texto do script saiu para `build_updater_script`, que recebe os caminhos.
 

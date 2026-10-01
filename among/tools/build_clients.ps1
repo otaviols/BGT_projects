@@ -64,20 +64,48 @@ try {
 	}
 	Build-One "windows" @("AmongUs.zip") ""
 
-	# Abre o jogo compilado e confere que ele continua aberto. Erro na inicialização das globais (a
-	# 0.45.0: uma constante declarada depois da global que a usava) compila limpo, passa em toda sonda e
-	# fecha o jogo antes de abrir - e o updater de quem atualizou morre junto, sem como consertar sozinho.
+	# No Windows o AmongUs.exe que o jogador abre é o INICIADOR (launcher.nvgt), e o jogo vira
+	# AmongUsGame.exe na mesma pasta: se uma versão do jogo fechar ao abrir, o iniciador ainda está de pé
+	# para devolver a anterior. O NVGT compila um script por pacote, então o zip é remontado aqui. Os
+	# dois executáveis dividem lib/ - é o mesmo NVGT.
+	Write-Host "== iniciador =="
+	if (Test-Path launcher.zip) { Remove-Item -Force launcher.zip }
+	nvgt -c -pwindows launcher.nvgt
+	if ($LASTEXITCODE -ne 0 -or -not (Test-Path launcher.zip)) { throw "Build do iniciador falhou." }
+	$stage = Join-Path $env:TEMP "amongus_stage"
+	$launcherStage = Join-Path $env:TEMP "amongus_launcher_stage"
+	foreach ($d in @($stage, $launcherStage)) { if (Test-Path $d) { Remove-Item -Recurse -Force $d } }
+	Expand-Archive AmongUs.zip $stage
+	Expand-Archive launcher.zip $launcherStage
+	Move-Item (Join-Path $stage "AmongUs.exe") (Join-Path $stage "AmongUsGame.exe")
+	Copy-Item (Join-Path $launcherStage "launcher.exe") (Join-Path $stage "AmongUs.exe")
+	Remove-Item -Force AmongUs.zip, launcher.zip
+	# ZipFile, e não Compress-Archive: o do PowerShell 5.1 grava os caminhos com barra invertida.
+	Add-Type -AssemblyName System.IO.Compression.FileSystem
+	[IO.Compression.ZipFile]::CreateFromDirectory($stage, (Join-Path $root "AmongUs.zip"))
+	Remove-Item -Recurse -Force $stage, $launcherStage
+	"AmongUs.zip: {0:N1} MB (iniciador + jogo)" -f ((Get-Item AmongUs.zip).Length / 1MB)
+
+	# Abre o pacote como o jogador abre - pelo iniciador - e confere que o JOGO ficou de pé. Erro na
+	# inicialização das globais (a 0.45.0: uma constante declarada depois da global que a usava) compila
+	# limpo, passa em toda sonda e fecha o jogo antes de abrir.
 	Write-Host "== abrindo o AmongUs.exe compilado =="
 	$smoke = Join-Path $env:TEMP "amongus_smoke"
 	if (Test-Path $smoke) { Remove-Item -Recurse -Force $smoke }
 	Expand-Archive AmongUs.zip $smoke
-	$game = Start-Process (Join-Path $smoke "AmongUs.exe") -WorkingDirectory $smoke -PassThru
-	Start-Sleep -Seconds 6
-	$alive = -not $game.HasExited
-	if ($alive) { Stop-Process $game -Force }
+	$launcher = Start-Process (Join-Path $smoke "AmongUs.exe") -WorkingDirectory $smoke -PassThru
+	Start-Sleep -Seconds 8
+	$gameExe = Join-Path $smoke "AmongUsGame.exe"
+	$game = Get-Process -Name AmongUsGame -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $gameExe }
+	$launcherDone = $launcher.HasExited
+	if ($game) { $game | Stop-Process -Force }
+	if (-not $launcher.HasExited) { Stop-Process $launcher -Force }
+	Start-Sleep -Seconds 1
 	Remove-Item -Recurse -Force $smoke -ErrorAction SilentlyContinue
-	if (-not $alive) { throw "O AmongUs.exe compilado FECHOU sozinho (código $($game.ExitCode)). Rode 'nvgt AmongUs.nvgt' para ver o erro." }
-	Write-Host "ok: o jogo abriu"
+	if (-not $game) { throw "O jogo compilado NÃO ficou aberto. Rode 'nvgt AmongUs.nvgt' para ver o erro." }
+	# O iniciador sai assim que vê o sinal do jogo; ainda aberto quer dizer que não viu.
+	if (-not $launcherDone) { throw "O iniciador não viu o sinal de que o jogo abriu (ver game_started_marker_path)." }
+	Write-Host "ok: o iniciador abriu o jogo e saiu"
 }
 finally {
 	Pop-Location

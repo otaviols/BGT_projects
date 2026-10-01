@@ -20,7 +20,8 @@ void main() {
 	string work = sandbox + "/work";
 	directory_create(work);
 
-	string script = build_updater_script(install + "/AmongUs.exe", install, work, url);
+	string backup = sandbox + "/backup";
+	string script = build_updater_script(install + "/AmongUs.exe", install, work, url, backup);
 	println("script comeca com BOM: " + (script.substr(0, 3) == "\xEF\xBB\xBF"));
 	println("mensagem traduzida no script: " + (script.find("não pôde ser concluída") >= 0));
 	string caminho = work + "/amongus_update.ps1";
@@ -30,4 +31,17 @@ void main() {
 	run(args, PROCESS_WAIT);
 	println("o script levou " + (t.elapsed / 1000) + " s");
 	println("dll depois da atualizacao: '" + file_get_contents(install + "/lib/nvdaControllerClient64.dll").trim_whitespace() + "'");
+	// A cópia da versão anterior: é dela que o iniciador volta quando a nova fecha ao abrir.
+	println("dll guardada na copia: '" + file_get_contents(backup + "/lib/nvdaControllerClient64.dll").trim_whitespace() + "'");
+	println("versao da copia: '" + file_get_contents(backup + "/versao.txt").trim_whitespace() + "' (esperado " + GAME_VERSION + ")");
+
+	// E a volta: o script do iniciador devolve a cópia e a apaga (sem laço de voltar duas vezes).
+	directory_create(work); // o script de atualização apaga a pasta de trabalho vazia ao terminar
+	string rb = work + "/amongus_rollback.ps1";
+	file_put_contents(rb, build_rollback_script(install + "/AmongUs.exe", install, backup));
+	array<string> rargs = {powershell_path(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", rb};
+	run(rargs, PROCESS_WAIT);
+	println("dll depois da volta: '" + file_get_contents(install + "/lib/nvdaControllerClient64.dll").trim_whitespace() + "'");
+	println("copia apagada depois da volta: " + !directory_exists(backup));
+	println("versao.txt NAO ficou na instalacao: " + !file_exists(install + "/versao.txt"));
 }

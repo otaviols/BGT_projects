@@ -1,0 +1,81 @@
+// launcher.nvgt
+// O iniciador: é ELE o AmongUs.exe que o jogador abre (só no Windows). Confere a atualização, abre o
+// jogo de verdade (AmongUsGame.exe, na mesma pasta) e espera o sinal de que ele passou da
+// inicialização. Se o jogo fechar antes do sinal, oferece voltar para a versão anterior.
+//
+// Existe por causa da 0.45.0: um erro na inicialização das variáveis globais fechava o jogo antes da
+// primeira linha de código dele - e o atualizador, que mora dentro do jogo, morria junto. Quem
+// atualizou ficou preso numa versão que não abria e não tinha como sair dela sozinho. Nenhuma proteção
+// DENTRO do jogo pega esse caso; quem roda primeiro tem que ser outro programa.
+//
+// Por isso este arquivo é pequeno e muda pouco: tudo que ele inclui é também o que pode derrubá-lo.
+// Só o atualizador (e, por ele, as constantes, o i18n e a fala). Nada de preferências, rede ou som.
+#include "src/core/updater.nvgt"
+#include "settings.nvgt"
+
+void load_player_language() {
+	// O idioma das preferências do jogo, lido e solto na hora: o jogo abre o mesmo arquivo logo depois.
+	settings store;
+	string idioma = DEFAULT_LANGUAGE;
+	if (store.setup("BGT", "AmongUsAudiogame", false)) {
+		idioma = store.read_string("language", DEFAULT_LANGUAGE);
+		store.close(false); // só leitura: nada a gravar por cima do que o jogo salvou
+	}
+	if (!g_i18n.load_language(idioma)) g_i18n.load_language(DEFAULT_LANGUAGE);
+}
+
+// O jogo fechou sem passar da inicialização: volta para a versão anterior, se houver, ou manda para o
+// site. Nunca fica calado - calado é exatamente o "o jogo não abre" que isto veio resolver.
+void offer_recovery() {
+	string anterior = previous_version_available();
+	dictionary@ p = dictionary();
+	p.set("version", GAME_VERSION);
+	p.set("previous", anterior);
+	p.set("url", DOWNLOAD_PAGE_URL);
+	if (anterior != "" && question(tr("app.title"), tr("launcher.rollback_confirm", p)) == 1) {
+		string work = writable_work_directory();
+		if (work != "") {
+			// Pulada ANTES da volta: a versão anterior, ao abrir, confere a atualização e ofereceria de
+			// novo justamente a que fecha.
+			set_skipped_update_version(GAME_VERSION);
+			string script = build_rollback_script(SCRIPT_EXECUTABLE, game_directory(), previous_version_directory());
+			if (write_and_run_updater_script(work + "\\amongus_rollback.ps1", script)) {
+				speak(tr("launcher.rolling_back", p));
+				wait(3500);
+				return;
+			}
+		}
+	}
+	alert(tr("app.title"), tr("launcher.game_failed_site", p));
+	urlopen(DOWNLOAD_PAGE_URL);
+}
+
+void main() {
+	load_player_language();
+
+	if (run_update_check()) return; // o script de atualização espera este processo fechar
+	clean_update_leftovers();
+
+	string jogo = game_directory() + "\\" + GAME_EXE_NAME;
+	// O sinal só serve se der para escrevê-lo: numa pasta que não deixa, o jogo abre sem a rede de
+	// segurança em vez de não abrir.
+	string sinal = game_started_marker_path();
+	file_delete(sinal);
+	bool com_sinal = file_put_contents(sinal, "");
+	if (com_sinal) file_delete(sinal);
+
+	array<string> args = {to_forward_slashes(jogo), LAUNCHER_ARG};
+	process@ proc = run(args, PROCESS_BACKGROUND);
+	if (@proc == null) {
+		dictionary@ p = dictionary();
+		p.set("game", GAME_EXE_NAME);
+		alert(tr("app.title"), tr("launcher.cant_start", p));
+		urlopen(DOWNLOAD_PAGE_URL);
+		return;
+	}
+	if (!com_sinal) return;
+
+	game_start_result r = wait_for_game_start(proc, sinal, 60000);
+	file_delete(sinal);
+	if (r == GAME_FAILED) offer_recovery();
+}
