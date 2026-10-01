@@ -168,3 +168,15 @@ marcado A continua marcado, quem entrou pelo código fica para jogar (a não ser
 No cliente é uma tela própria (`spectate_loop.nvgt`), e não `run_game` com bandeira, pelo mesmo
 motivo da lista à parte. Sonda: `probe_spectate.nvgt` (inclusive que nenhum pacote com papel ou
 assassino chega a quem assiste).
+
+**MODOS (`lobby_config.game_mode`): pega-pega e todos lobos.** O modo vem da PREDEFINIÇÃO e não é um
+campo solto, porque cada modo é um pacote de regras que só faz sentido junto - e `validate()` o AMARRA
+(sem duto, sem sabotagem, sem papel especial; pega-pega com 1 pegador), para o formulário do anfitrião
+não desmontar o modo depois. Os dois não têm reunião (`meetings_allowed()`, que `start_meeting`, o botão
+e o reporte perguntam - e os bots param de tentar reportar), nem porta trancada. A vitória mora num
+ramo próprio do tick, ANTES da conferência clássica: todos lobos vence o último de pé (e não o "ele e
+mais um" do lobo clássico); pega-pega vence o pegador só com TODOS pegos (um contra um ainda é pega, ao
+contrário da maioria), e a tripulação pelas tarefas, com os fantasmas ajudando. A largada do pegador
+(`TAG_HEAD_START_SECONDS`) é recusada no servidor (`try_move_player`, kill recarregando 10 s, o bot
+parado) e contada no cliente para todos. Decisões do usuário; sonda: `probe_game_modes.nvgt` (sem rede,
+com os controles de cada regra) e `probe_game_modes_net.nvgt`.

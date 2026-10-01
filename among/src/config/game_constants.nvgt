@@ -94,6 +94,17 @@ const float PLAYER_MOVE_SPEED = 2.5;
 // jogador não tem tempo de reagir ao próprio mapa - o jogo é todo de ouvido.
 const int MOVE_SPEED_MIN_PERCENT = 50;
 const int MOVE_SPEED_MAX_PERCENT = 200;
+// MODOS DE JOGO, além do clássico. Os dois desligam reunião, corpo reportado, duto e sabotagem.
+//   tag    - pega-pega: um pegador (impostor) parado no começo, kill rápido, velocidade máxima; a
+//            tripulação vence completando as tarefas, o pegador pegando todo mundo.
+//   wolves - todos são lobos: todos se engolem, e vence o último de pé.
+const string GAME_MODE_CLASSIC = "classic";
+const string GAME_MODE_TAG = "tag";
+const string GAME_MODE_WOLVES = "wolves";
+// No pega-pega, o pegador fica PARADO este tempo no começo, com contagem para todos (decisão do usuário).
+const float TAG_HEAD_START_SECONDS = 10.0;
+// Os modos exigem o cliente que sabe deles (contagem do pegador, sem reunião, vitória própria).
+const int MODES_PROTOCOL = 9;
 float move_speed_for_percent(int percent) { return PLAYER_MOVE_SPEED * float(percent) / 100.0; }
 const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servidor (anti-cheat simples)
 const float PLAYER_INTERACT_RANGE = 1.4; // distância máxima para usar objetos/tasks/vents

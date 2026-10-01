@@ -267,6 +267,8 @@ class game_state {
 		if (state != "in_progress") return false; // movimento travado durante reunião/votação
 		if (p.vented) return false; // escondido num vent - só sai/viaja pela rede (ver on_vent_travel)
 		if (p.swallowed()) return false; // na barriga do lobo: vai aonde ele for, não anda sozinho
+		// Pega-pega: o pegador fica parado no começo (TAG_HEAD_START_SECONDS), com contagem para todos.
+		if (in_tag_head_start() && p.is_impostor) return false;
 		// De onde ele está pra onde quer ir: parede barra sempre, porta fechada só barra quem está do
 		// lado de fora dela (ver game_map.can_move).
 		if (!map.can_move(p.x, p.y, x, y, p.alive)) return false;
@@ -463,6 +465,7 @@ class game_state {
 		if (state != "in_progress") return false;
 		game_player@ impostor = find_player(impostor_peer);
 		if (@impostor == null || !impostor.is_impostor || !impostor.alive) return false;
+		if (config.game_mode != GAME_MODE_CLASSIC) return false; // os modos não têm sabotagem, e trancar porta é uma delas
 		if (doors_cooldown_remaining > 0.0) return false;
 
 		map_zone@ room = map.find_zone(room_id);
@@ -574,6 +577,20 @@ class game_state {
 		}
 	}
 
+	// Pega-pega nos primeiros segundos: o pegador ainda está parado.
+	bool in_tag_head_start() const {
+		return config.game_mode == GAME_MODE_TAG && elapsed_time < TAG_HEAD_START_SECONDS;
+	}
+
+	// Todas as tarefas que contam estão feitas (a vitória por tarefas da tripulação).
+	bool crew_tasks_done() const {
+		for (uint i = 0; i < players.length(); i++) {
+			if (!counts_for_task_win(players[i])) continue;
+			if (!players[i].all_tasks_completed()) return false;
+		}
+		return players.length() > 0;
+	}
+
 	// Alguém está na barriga de um lobo agora. (Quem saiu da partida lá dentro não conta: ele não volta.)
 	bool anyone_in_belly() const {
 		for (uint i = 0; i < players.length(); i++) {
@@ -641,6 +658,7 @@ class game_state {
 
 	bool start_meeting(uint64 caller_peer, const string&in reason, net_packet@&out out_event) {
 		if (state != "in_progress") return false;
+		if (!config.meetings_allowed()) return false; // pega-pega e todos-lobos não têm reunião
 		game_player@ caller = find_player(caller_peer);
 		if (@caller == null || !caller.alive) return false;
 		if (reason == "button" && caller.meetings_called >= config.emergency_meetings_per_player) return false;
@@ -1422,7 +1440,8 @@ class game_state {
 	private bool update_bot_impostor(game_player@ b, float delta_seconds, array<net_packet@>@ events) {
 		if (b.can_kill()) {
 			// 1. Oportunidade: alguém ao alcance e sem testemunha.
-			game_player@ ao_lado = prey_for(b, PLAYER_KILL_RANGE, true);
+			// No pega-pega não há testemunha a temer: não há reunião para contar a ninguém.
+			game_player@ ao_lado = prey_for(b, PLAYER_KILL_RANGE, config.game_mode != GAME_MODE_TAG);
 			if (@ao_lado != null) {
 				net_packet@ kill_event;
 				if (try_kill(b.peer_id, ao_lado.peer_id, kill_event)) {
@@ -1447,7 +1466,8 @@ class game_state {
 
 		// 2. Alguém isolado por perto: larga a tarefa falsa e vai atrás. Sem recarga pronta, não caça -
 		// segue fingindo, que é o que um impostor de verdade faz enquanto espera.
-		game_player@ prey = b.can_kill() ? prey_for(b, BOT_HUNT_RANGE, true) : null;
+		game_player@ prey = b.can_kill() ? prey_for(b, config.game_mode == GAME_MODE_TAG ? 999.0 : BOT_HUNT_RANGE,
+			config.game_mode != GAME_MODE_TAG) : null;
 		if (@prey == null) {
 			// 3. Ninguém: finge tarefa. Largou uma caça no meio? Escolhe um ponto novo.
 			if (b.bot_hunting || !b.bot_has_target) pick_fake_task(b);
@@ -1559,12 +1579,13 @@ class game_state {
 			game_player@ b = players[i];
 			if (!b.is_bot) continue;
 			if (b.swallowed()) continue; // na barriga: nem anda, nem faz tarefa, nem vota
+			if (b.is_impostor && in_tag_head_start()) continue; // o pegador ainda está parado
 			// Bot MORTO: o tripulante continua fazendo tarefas, como o fantasma de qualquer jogador -
 			// era um fantasma parado, e com vários bots mortos a vitória por tarefas ficava inalcançável.
 			// Ele não vota, não reporta e não conserta (fantasma não opera nada); o impostor morto para.
 			// Os passos dele só chegam a outros mortos (ver tick_lobbies no servidor).
 			if (!b.alive && (b.is_impostor || state != "in_progress")) continue;
-			if (b.alive && !b.is_impostor && state == "in_progress") bot_crew_react(b, delta_seconds);
+			if (b.alive && !b.is_impostor && state == "in_progress" && config.meetings_allowed()) bot_crew_react(b, delta_seconds);
 
 			if (state == "voting") {
 				if (b.bot_voted) continue;
@@ -1796,7 +1817,20 @@ class game_state {
 		for (uint i = 0; i < pending_events.length(); i++) events.insert_last(pending_events[i]);
 		pending_events.resize(0);
 
-		if (winner == "") {
+		if (winner == "" && config.game_mode == GAME_MODE_WOLVES) {
+			// Todos lobos: vence o ÚLTIMO de pé (decisão do usuário). Sem tarefa, sem maioria - só sobrar.
+			if (alive_count() <= 1) {
+				winner = WINNER_NEUTRAL;
+				win_reason = "last_wolf";
+				for (uint i = 0; i < players.length(); i++) if (players[i].alive) neutral_winner_peer = players[i].peer_id;
+			}
+		} else if (winner == "" && config.game_mode == GAME_MODE_TAG) {
+			// Pega-pega: o pegador vence pegando TODO mundo (não por maioria - um contra um ainda é pega),
+			// a tripulação vence completando as tarefas. Pegador que saiu entrega a partida.
+			if (alive_impostor_count() == 0) { winner = "crewmates"; win_reason = "impostors_ejected"; }
+			else if (alive_crewmate_count() == 0) { winner = "impostors"; win_reason = "all_caught"; }
+			else if (crew_tasks_done()) { winner = "crewmates"; win_reason = "tasks_completed"; }
+		} else if (winner == "") {
 			// O lobo PRIMEIRO: sobrar com a nave reduzida a ele e mais um é a vitória dele, mesmo que o
 			// outro seja um impostor - pela regra de baixo, um impostor e um lobo dariam a maioria ao
 			// impostor, e o lobo nunca venceria.

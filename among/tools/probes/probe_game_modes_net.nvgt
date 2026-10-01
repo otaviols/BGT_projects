@@ -1,0 +1,76 @@
+// Sonda de rede dos modos: o início traz o modo, todos-lobos dá lobo a todo humano, e não há reunião.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_game_modes_net.nvgt
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+array<game_client@> todos;
+game_client@ entra(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+void bombeia(int ms) { timer t; while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) { todos[i].update(); } wait(10); } }
+
+// Cria a sala com o preset, junta os três e começa. Devolve os inícios recebidos.
+array<net_packet@>@ comeca(const string&in preset, const string&in nome) {
+	array<net_packet@> inicios;
+	lobby_overrides ov;
+	todos[0].send_create_lobby(nome, preset, ov);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@st == null) return inicios;
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(st.get_string("lobby_id")); wf(todos[i], S_JOIN_RESULT, 5000); }
+	bombeia(300);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[0].send_start_game();
+	for (uint i = 0; i < todos.length(); i++) inicios.insert_last(wf(todos[i], S_GAME_START, 8000));
+	return inicios;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	for (int i = 0; i < 3; i++) { game_client@ c = entra(addr, "gm" + i + "x" + sfx); if (@c == null) { println("login falhou"); return; } todos.insert_last(c); }
+
+	println("== pega-pega ==");
+	array<net_packet@>@ t = comeca("tag", "pega" + sfx);
+	confere("o inicio diz o modo e a largada", @t[0] != null && t[0].get_string("game_mode") == GAME_MODE_TAG && t[0].get_float("head_start") == TAG_HEAD_START_SECONDS);
+	int pegadores = 0;
+	for (uint i = 0; i < t.length(); i++) if (@t[i] != null && t[i].get_string("your_role") == ROLE_IMPOSTOR) pegadores++;
+	confere("um pegador so (" + pegadores + ")", pegadores == 1);
+	uint crew = t[0].get_string("your_role") == ROLE_IMPOSTOR ? 1 : 0;
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[crew].send_call_meeting();
+	net_packet@ err = wf(todos[crew], S_ERROR, 3000);
+	confere("pedir reuniao e recusado com o motivo do modo", @err != null && err.get_string(MSG_KEY_FIELD) == "mode.no_meetings");
+	for (uint i = 0; i < todos.length(); i++) todos[i].send_leave_lobby();
+	bombeia(800);
+
+	println("== todos lobos ==");
+	array<net_packet@>@ w = comeca("wolves", "lobos" + sfx);
+	bool todos_lobos = true;
+	for (uint i = 0; i < w.length(); i++) if (@w[i] == null || w[i].get_string("your_role") != ROLE_WOLF) todos_lobos = false;
+	confere("todo humano e lobo", todos_lobos);
+	confere("o inicio diz o modo", @w[0] != null && w[0].get_string("game_mode") == GAME_MODE_WOLVES);
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

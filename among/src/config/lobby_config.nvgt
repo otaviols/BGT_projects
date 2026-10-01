@@ -250,6 +250,13 @@ class lobby_config {
 	bool color_mode = false;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
+	// O modo de jogo (GAME_MODE_*). Vem da predefinição escolhida ao criar a sala - não é um campo que se
+	// ajusta solto, porque cada modo é um pacote de regras que só faz sentido junto (ver validate()).
+	string game_mode = GAME_MODE_CLASSIC;
+
+	// Reunião existe neste modo? Os modos novos não têm: no pega-pega e no todos-lobos não há o que
+	// discutir nem em quem votar - é fugir e pegar.
+	bool meetings_allowed() const { return game_mode == GAME_MODE_CLASSIC; }
 	// Papéis especiais em jogo: id -> quantos. Ausente = zero. TUDO desligado por padrão, em todo
 	// preset: quem não mexer joga o jogo de sempre, e é isso que torna a chegada dos papéis segura.
 	dictionary role_counts;
@@ -329,6 +336,7 @@ class lobby_config {
 		// Modo cor: os nomes chegam como MARCA de cor, que só o cliente do protocolo 5 sabe traduzir -
 		// um anterior falaria a marca crua ("#cor:3") no lugar de cada nome.
 		if (color_mode) maior = 5;
+		if (game_mode != GAME_MODE_CLASSIC && maior < MODES_PROTOCOL) maior = MODES_PROTOCOL;
 		array<string>@ ids = role_counts.get_keys();
 		for (uint i = 0; i < ids.length(); i++) {
 			int n = 0;
@@ -342,6 +350,18 @@ class lobby_config {
 	// Corrige valores fora dos limites aceitáveis. Retorna true se algo foi ajustado.
 	bool validate() {
 		bool changed = false;
+		// O modo manda em parte das regras, e é aqui que elas são AMARRADAS: o anfitrião pode mexer no
+		// formulário depois, e um pega-pega com duto ou com xerife deixaria de ser pega-pega.
+		if (game_mode != GAME_MODE_TAG && game_mode != GAME_MODE_WOLVES) game_mode = GAME_MODE_CLASSIC;
+		if (game_mode != GAME_MODE_CLASSIC) {
+			if (sabotages_enabled || vents_enabled) changed = true;
+			sabotages_enabled = false;
+			vents_enabled = false;
+			if (role_counts.get_keys().length() > 0) changed = true;
+			role_counts.delete_all();
+			role_chances.delete_all();
+		}
+		if (game_mode == GAME_MODE_TAG && impostor_count != 1) { impostor_count = 1; changed = true; }
 		if (max_players < MIN_PLAYERS) { max_players = MIN_PLAYERS; changed = true; }
 		if (max_players > MAX_PLAYERS) { max_players = MAX_PLAYERS; changed = true; }
 		int max_impostors = int(max_players / 2) - 1;
@@ -453,6 +473,7 @@ class lobby_config {
 		o.set("vents_enabled", vents_enabled);
 		o.set("color_choice", color_choice);
 		o.set("color_mode", color_mode);
+		o.set("game_mode", game_mode);
 		// Sempre presente, mesmo vazio: é como o cliente distingue "sala sem papéis" de "servidor
 		// antigo que nem sabe o que é papel".
 		json_object@ roles = json_object();

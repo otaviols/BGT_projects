@@ -42,7 +42,39 @@ lobby_config@ preset_chaos() {
 	return cfg;
 }
 
+// Pega-pega (pedido do usuário): um pegador parado nos primeiros segundos, kill a cada 5 segundos e
+// todo mundo na velocidade máxima. A tripulação precisa completar as tarefas antes de ser toda pega.
+lobby_config@ preset_tag() {
+	lobby_config cfg;
+	cfg.lobby_name = "Pega-pega";
+	cfg.max_players = 10;
+	cfg.impostor_count = 1;
+	cfg.task_count_per_crewmate = 4;
+	cfg.kill_cooldown_seconds = 5.0;
+	cfg.move_speed_percent = MOVE_SPEED_MAX_PERCENT;
+	cfg.sabotages_enabled = false;
+	cfg.vents_enabled = false;
+	cfg.game_mode = GAME_MODE_TAG;
+	return cfg;
+}
+
+// Todos lobos (recado #157): todo mundo engole todo mundo, e vence o último de pé. Engolir recarrega no
+// mínimo que o papel permite - aqui não há mais nada a fazer além de caçar e fugir.
+lobby_config@ preset_wolves() {
+	lobby_config cfg;
+	cfg.lobby_name = "Todos lobos";
+	cfg.max_players = 10;
+	cfg.impostor_count = 1; // ignorado: no modo, ninguém é impostor
+	cfg.sabotages_enabled = false;
+	cfg.vents_enabled = false;
+	cfg.role_values.set(ROLE_WOLF + "." + TUNABLE_COOLDOWN, 15.0);
+	cfg.game_mode = GAME_MODE_WOLVES;
+	return cfg;
+}
+
 lobby_config@ get_preset(const string&in name) {
+	if (name == "tag") return preset_tag();
+	if (name == "wolves") return preset_wolves();
 	if (name == "classic") return preset_classic();
 	if (name == "quick") return preset_quick();
 	if (name == "chaos") return preset_chaos();
@@ -50,6 +82,6 @@ lobby_config@ get_preset(const string&in name) {
 }
 
 array<string>@ preset_names() {
-	array<string> names = {"classic", "quick", "chaos"};
+	array<string> names = {"classic", "quick", "chaos", "tag", "wolves"};
 	return names;
 }

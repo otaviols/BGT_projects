@@ -655,6 +655,15 @@ continua dizendo quem é bot.
 | Rápido | até 6 | 1 | 3 cada | 15 s | desligada |
 | Caos | até 10 | 3 | 4 cada | 12 s | ligada |
 
+**Modos de jogo.** Dois presets mudam a regra do jogo, e não só os números. Nos dois não há reunião,
+nem corpo reportado, duto ou sabotagem:
+
+- **Pega-pega:** um pegador fica parado nos primeiros 10 segundos, com contagem para todos; depois ele
+  pega a cada 5 segundos, e todo mundo anda na velocidade máxima. A tripulação vence completando as
+  tarefas - quem já foi pego continua fazendo as dele, como fantasma -, e o pegador, pegando todo mundo.
+- **Todos lobos:** todo jogador é Lobo Mau, e todos se engolem. Quem é engolido volta se quem o engoliu
+  for engolido por outro. Vence o último de pé.
+
 Os presets abaixo são o ponto de partida; o teto de uma partida é **15 jogadores**.
 
 **Dá para ajustar o preset na hora de criar a sala.** Além do preset, a tela de criação tem campos

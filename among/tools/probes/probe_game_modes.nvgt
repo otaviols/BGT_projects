@@ -1,0 +1,96 @@
+// Sonda dos modos pega-pega e todos lobos, direto no estado da partida (sem rede).
+//   nvgt tools/probes/probe_game_modes.nvgt
+#include "../../src/core/game_state.nvgt"
+#include "../../src/config/presets.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+game_state@ mesa(const string&in preset) {
+	game_state@ lobby = game_state();
+	@lobby.config = get_preset(preset);
+	lobby.config.validate();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	return lobby;
+}
+game_player@ jogador(game_state@ lobby, uint64 id, const string&in papel, bool com_tarefa = false) {
+	game_player@ p = game_player(id, "j" + id);
+	p.set_role(papel);
+	if (com_tarefa) {
+		array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		player_task t; t.object_id = spots[0].id; t.task_type = spots[0].task_type;
+		p.tasks.insert_last(t);
+	}
+	lobby.players.insert_last(p);
+	return p;
+}
+
+void main() {
+	println("== predefinicoes ==");
+	lobby_config@ tag = get_preset("tag");
+	tag.vents_enabled = true; tag.sabotages_enabled = true; tag.set_role_count(ROLE_SHERIFF, 1); tag.impostor_count = 3;
+	tag.validate();
+	confere("pega-pega amarra: sem duto, sem sabotagem, sem papel, 1 pegador",
+		!tag.vents_enabled && !tag.sabotages_enabled && tag.role_count(ROLE_SHERIFF) == 0 && tag.impostor_count == 1);
+	confere("pega-pega nao tem reuniao, classico tem", !tag.meetings_allowed() && get_preset("classic").meetings_allowed());
+
+	println("== pega-pega ==");
+	{
+		game_state@ lobby = mesa("tag");
+		game_player@ imp = jogador(lobby, 1, ROLE_IMPOSTOR);
+		game_player@ c1 = jogador(lobby, 2, ROLE_CREWMATE, true);
+		game_player@ c2 = jogador(lobby, 3, ROLE_CREWMATE, true);
+		lobby.tick(0.05);
+		confere("o pegador NAO anda na largada", !lobby.try_move_player(1, imp.x + 0.05, imp.y));
+		confere("controle: a tripulacao anda", lobby.try_move_player(2, c1.x + 0.05, c1.y));
+		net_packet@ ev;
+		confere("nao ha reuniao", !lobby.start_meeting(2, "button", ev));
+		for (int i = 0; i < 210; i++) lobby.tick(0.05);
+		imp.last_move_time = lobby.elapsed_time - 0.1;
+		confere("depois de 10 s o pegador anda", lobby.try_move_player(1, imp.x + 0.05, imp.y));
+		c2.alive = false;
+		lobby.tick(0.05);
+		confere("um pegador contra um tripulante NAO acaba a partida (" + lobby.winner + ")", lobby.winner == "");
+		c1.alive = false;
+		lobby.tick(0.05);
+		confere("pegar o ultimo da a vitoria ao pegador (" + lobby.winner + "/" + lobby.win_reason + ")",
+			lobby.winner == "impostors" && lobby.win_reason == "all_caught");
+	}
+	{
+		game_state@ lobby = mesa("tag");
+		jogador(lobby, 1, ROLE_IMPOSTOR);
+		game_player@ c1 = jogador(lobby, 2, ROLE_CREWMATE, true);
+		game_player@ c2 = jogador(lobby, 3, ROLE_CREWMATE, true);
+		c2.alive = false; // fantasma: a tarefa dele continua contando
+		lobby.tick(0.05);
+		confere("controle: com tarefa pendente, ninguem venceu", lobby.winner == "");
+		c1.tasks[0].completed = true; c2.tasks[0].completed = true;
+		lobby.tick(0.05);
+		confere("tarefas feitas (inclusive a do fantasma) dao a vitoria a tripulacao (" + lobby.winner + ")", lobby.winner == "crewmates");
+	}
+
+	println("== todos lobos ==");
+	{
+		game_state@ lobby = mesa("wolves");
+		jogador(lobby, 1, ROLE_WOLF);
+		game_player@ b = jogador(lobby, 2, ROLE_WOLF);
+		game_player@ c = jogador(lobby, 3, ROLE_WOLF);
+		lobby.tick(0.05);
+		confere("tres de pe: ninguem venceu", lobby.winner == "");
+		c.alive = false; c.swallowed_by = 1;
+		lobby.tick(0.05);
+		confere("DOIS de pe ainda nao acaba (" + lobby.winner + ")", lobby.winner == "");
+		b.alive = false; b.swallowed_by = 1;
+		lobby.tick(0.05);
+		confere("o ultimo de pe vence (" + lobby.winner + "/" + lobby.win_reason + ", " + lobby.neutral_winner_peer + ")",
+			lobby.winner == WINNER_NEUTRAL && lobby.win_reason == "last_wolf" && lobby.neutral_winner_peer == 1);
+	}
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

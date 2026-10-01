@@ -596,6 +596,8 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 		f.add_list_item(f_preset, tr("lobby.preset.classic_desc"), "classic");
 		f.add_list_item(f_preset, tr("lobby.preset.quick_desc"), "quick");
 		f.add_list_item(f_preset, tr("lobby.preset.chaos_desc"), "chaos");
+		f.add_list_item(f_preset, tr("lobby.preset.tag_desc"), "tag");
+		f.add_list_item(f_preset, tr("lobby.preset.wolves_desc"), "wolves");
 		// Partindo de uma configuração salva, a lista já abre no preset sobre o qual ela foi feita -
 		// senão o anfitrião teria de lembrar qual era, e errar aqui muda as regras por baixo dos
 		// ajustes que ele acabou de carregar.

@@ -71,6 +71,10 @@ string lobby_summary_text(json_object@ entry) {
 
 	json_object@ cfg = entry.get_object("config");
 	if (@cfg == null) return text; // servidor antigo: sem configuração, o nome e a lotação bastam
+	// Os modos não são uma partida comum: o nome do modo vale mais que impostores e kill, que nem se
+	// aplicam do mesmo jeito.
+	string modo = cfg.exists("game_mode") ? string(cfg["game_mode"]) : GAME_MODE_CLASSIC;
+	if (modo != GAME_MODE_CLASSIC) return text + " - " + tr("mode." + modo);
 
 	dictionary@ ip = dictionary();
 	ip.set("count", "" + int(cfg["impostor_count"]));

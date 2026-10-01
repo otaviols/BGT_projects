@@ -1391,6 +1391,7 @@ class game_server {
 		pkt.set_bool("voice_chat", lobby.config.voice_chat);
 		pkt.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
 		pkt.set_bool("color_mode", lobby.config.color_mode);
+		pkt.set_string("game_mode", lobby.config.game_mode);
 		pkt.set_bool("in_meeting", lobby.state == "meeting" || lobby.state == "voting");
 		pkt.set_uint64("follow", primeiro_vivo);
 		send_to(spec.peer_id, pkt);
@@ -1459,6 +1460,8 @@ class game_server {
 		for (uint i = 0; i < ordem.length(); i++) shuffled.insert_last(lobby.players[ordem[i]]);
 
 		int impostor_count = lobby.config.resolved_impostor_count(shuffled.length());
+		// Todos lobos: ninguém é impostor - cada jogador vira lobo, mais abaixo.
+		if (lobby.config.game_mode == GAME_MODE_WOLVES) impostor_count = 0;
 		array<int>@ color_ids = all_color_ids();
 		shuffle_int_array(color_ids);
 		// Sala que deixa escolher: quem escolheu fica com a cor dele (a unicidade já foi garantida na
@@ -1517,7 +1520,10 @@ class game_server {
 		for (uint i = 0; i < shuffled.length(); i++) {
 			game_player@ p = shuffled[i];
 			string team = int(i) < impostor_count ? TEAM_IMPOSTOR : TEAM_CREW;
-			p.set_role(role_of[i] != "" ? role_of[i] : base_role_of_team(team));
+			string papel = role_of[i] != "" ? role_of[i] : base_role_of_team(team);
+			// Todos lobos: todo jogador é lobo. Bot não sabe engolir, então fica de presa.
+			if (lobby.config.game_mode == GAME_MODE_WOLVES) papel = p.is_bot ? ROLE_CREWMATE : ROLE_WOLF;
+			p.set_role(papel);
 			if (lobby.config.color_choice && p.chosen_color >= 0) p.color = p.chosen_color;
 			else p.color = color_ids[(proxima_cor++) % color_ids.length()];
 			p.named_by_color = lobby.config.color_mode;
@@ -1532,6 +1538,8 @@ class game_server {
 			p.ability_cooldown_remaining = 0.0;
 			// ...menos a de quem tira gente do jogo (o lobo), que começa recarregando como o kill.
 			if (p.role().ability_starts_on_cooldown) p.ability_cooldown_remaining = lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN);
+			// Pega-pega: o pegador só pega depois de sair do lugar.
+			if (lobby.config.game_mode == GAME_MODE_TAG && p.is_impostor) p.kill_cooldown_remaining = TAG_HEAD_START_SECONDS;
 			p.meetings_called = 0;
 			p.radar_index = -1;
 			p.last_move_time = 0.0;
@@ -1683,6 +1691,9 @@ class game_server {
 			start.set_bool("vents_enabled", lobby.config.vents_enabled);
 			// Modo cor: o cliente anuncia a cor do jogador junto do papel (os nomes já chegam como cor).
 			start.set_bool("color_mode", lobby.config.color_mode);
+			// O modo, e no pega-pega quanto o pegador fica parado: a contagem é feita por cada cliente.
+			start.set_string("game_mode", lobby.config.game_mode);
+			start.set_float("head_start", lobby.config.game_mode == GAME_MODE_TAG ? TAG_HEAD_START_SECONDS : 0.0);
 			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
 			// um ou três, senão a discussão da reunião é chute puro.
 			start.set_int("impostor_count", impostor_count);
@@ -1959,6 +1970,7 @@ class game_server {
 		if (@lobby == null || lobby.state != "in_progress") return;
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p == null || !p.alive) return;
+		if (!lobby.config.meetings_allowed()) { send_error(peer_id, "mode.no_meetings"); return; }
 
 		body_info@ body = lobby.find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
 		if (@body == null) return;
@@ -2030,6 +2042,7 @@ class game_server {
 		}
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p == null || !p.alive) return;
+		if (!lobby.config.meetings_allowed()) { send_error(peer_id, "mode.no_meetings"); return; }
 		string button_block_reason = lobby.emergency_button_block_reason();
 		if (button_block_reason != "") { send_error(peer_id, button_block_reason); return; }
 

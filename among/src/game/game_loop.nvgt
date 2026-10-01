@@ -475,6 +475,8 @@ string game_over_reason_text(const string&in reason) {
 	if (reason == "oxygen_depleted") return tr("game.reason_oxygen_depleted");
 	if (reason == "jester_ejected") return tr("game.reason_jester_ejected");
 	if (reason == "wolf_survived") return tr("game.reason_wolf_survived");
+	if (reason == "last_wolf") return tr("game.reason_last_wolf");
+	if (reason == "all_caught") return tr("game.reason_all_caught");
 	return "";
 }
 
@@ -622,6 +624,11 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	float move_speed = start_pkt.get_float("move_speed", 2.2);
 	float footstep_interval = footstep_interval_for(move_speed);
 	bool room_allows_vents = start_pkt.get_bool("vents_enabled", true);
+	// Modo de jogo (pega-pega, todos lobos). No pega-pega, quanto o pegador fica parado no começo: a
+	// contagem é feita aqui, e dita a todos - como o relógio da reunião.
+	string game_mode = start_pkt.get_string("game_mode", GAME_MODE_CLASSIC);
+	float head_start = start_pkt.get_float("head_start", 0.0);
+	int head_start_said = int(head_start) + 1; // o último número dito da contagem
 
 	// Cooldown de kill acompanhado localmente (só é preciso de verdade pro impostor) - o servidor
 	// continua sendo quem decide de fato se o kill vale (ver network/server.on_kill), isso aqui é só
@@ -745,6 +752,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	// acesso à configuração da sala depois que a partida começa - quem um dia quiser uma tecla que
 	// responda "o que está em jogo aqui?" já tem o dado à mão (ver roles_in_play_text).
 	role_text += " " + role_desc;
+	// O modo vem por último: ele muda a regra de tudo o que veio antes ("aqui não há reunião").
+	if (game_mode == GAME_MODE_TAG) role_text += " " + tr("mode.tag_intro");
+	else if (game_mode == GAME_MODE_WOLVES) role_text += " " + tr("mode.wolves_intro");
 	while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
 	speak(role_text);
 	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
@@ -1358,6 +1368,25 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			my_disguise_remaining -= delta;
 			if (my_disguise_remaining < 0.0) my_disguise_remaining = 0.0;
 		}
+		// Pega-pega: a contagem do pegador parado. Um número por segundo, com o tique da votação, e o
+		// "valendo" no fim. Dita a TODOS - quem foge precisa dela tanto quanto quem pega.
+		if (head_start > 0.0) {
+			head_start -= delta;
+			int falta = int(head_start + 0.999);
+			if (falta < head_start_said && falta > 0 && (falta <= 5 || falta == 10)) {
+				head_start_said = falta;
+				ui_sound(SND_VOTE_TIMER);
+				dictionary@ hp = dictionary();
+				hp.set("seconds", "" + falta);
+				speak(tr(falta == 10 ? "tag.head_start" : "tag.countdown", hp), false);
+			}
+			if (head_start <= 0.0) {
+				head_start = 0.0;
+				string vale = tr("tag.go");
+				speak(vale);
+				events_log.add("", vale);
+			}
+		}
 		if (my_invisible_remaining > 0.0) {
 			my_invisible_remaining -= delta;
 			if (my_invisible_remaining < 0.0) my_invisible_remaining = 0.0;
@@ -1393,7 +1422,9 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			target_was_in_range = tem_alvo;
 		}
 
-		if (!movement_frozen && !is_vented && !swallowed) {
+		// O pegador não sai do lugar durante a contagem (o servidor recusa o passo de qualquer jeito).
+		bool parado_na_largada = head_start > 0.0 && my_role.team == TEAM_IMPOSTOR;
+		if (!movement_frozen && !is_vented && !swallowed && !parado_na_largada) {
 			// Jogador morto (morto ou expulso) ainda se move como fantasma, igual o Among Us original -
 			// só que em silêncio (sem passos/esbarrão) e invisível pra quem tá vivo (o servidor só
 			// retransmite a posição dele pra outros fantasmas, ver network/server.nvgt on_move).

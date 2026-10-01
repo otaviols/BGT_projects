@@ -656,6 +656,15 @@ ones are bots.
 
 ## Match presets
 
+**Game modes.** Two presets change the game's rules, not just the numbers. Neither has meetings,
+reported bodies, vents or sabotage:
+
+- **Tag:** one tagger stands still for the first 10 seconds, with a countdown for everyone; after that
+  they catch every 5 seconds, and everyone walks at top speed. The crew wins by finishing the tasks -
+  whoever was caught keeps doing theirs as a ghost -, and the tagger by catching everyone.
+- **All wolves:** every player is a Big Bad Wolf, and everyone swallows everyone. Whoever is swallowed
+  comes back if their swallower gets swallowed by someone else. The last one standing wins.
+
 | Preset | Players | Impostors | Tasks | Kill cooldown | Sabotage |
 |---|---|---|---|---|---|
 | Classic | up to 10 | automatic | 5 each | 25 s | on |
