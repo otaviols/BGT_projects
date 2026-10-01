@@ -149,7 +149,14 @@ if (-not $SkipServer) {
 					while ((Get-Date) -lt $deadline) {
 						$st = nvgt tools/server_admin.nvgt status 2>&1
 						$emAndamento = ($st | Select-String -Pattern "^in_progress=(\d+)").Matches
-						if ($emAndamento.Count -eq 0) { Write-Warning "Não consegui ler o estado do servidor; seguindo."; break }
+						# Leitura que falhou NÃO é "nenhuma partida": continua esperando até o prazo, que os
+						# jogadores já ouviram. Antes isto saía do laço e trocava na hora - na 0.46.0 uma única
+						# leitura perdida derrubou partidas que tinham 5 minutos prometidos para acabar.
+						if ($emAndamento.Count -eq 0) {
+							Write-Warning "Não consegui ler o estado do servidor ($("$st".Trim())); esperando mesmo assim."
+							Start-Sleep -Seconds 15
+							continue
+						}
 						$n = [int]$emAndamento[0].Groups[1].Value
 						if ($n -eq 0) { Write-Host "Nenhuma partida em andamento. Trocando o servidor."; break }
 						Write-Host ("  {0} partida(s) em andamento; faltam {1:N0} s do prazo." -f $n, ($deadline - (Get-Date)).TotalSeconds)
