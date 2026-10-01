@@ -188,7 +188,11 @@ seguinte - soltado junto, o jogo já o leria solto. O mapa dos gestos está nas 
 `tools/probes/probe_touch.nvgt`. O deslize dispara assim que o dedo passa do limiar (depois de
 `TOUCH_EARLY_SWIPE_MS`, o tempo de os outros dedos pousarem), e não quando ele sai da tela - esperar a
 saída somava atraso (recados #161 e #165). Os números dos painéis são um MODO (três dedos abrem, um
-dedo escolhe, toque duplo digita). Escrever (login, chat) ainda exige teclado. Nenhum de nós tem
+dedo escolhe, toque duplo digita). Escrever abre o teclado da tela sozinho: todo laço de `audio_form`
+tem um `screen_keyboard_follower` (`src/core/screen_keyboard.nvgt`) que chama `start_text_input()` com
+o foco num campo de texto - funções que a documentação do NVGT NÃO lista (estão no `src/input.cpp` dele;
+por meses achamos que não existiam). Formulário novo: ponha o seguidor, senão no celular o campo fica
+surdo. Sonda: `probe_screen_keyboard.nvgt`. Nenhum de nós tem
 aparelho: tudo aqui foi feito às cegas e é validado pelos jogadores.
 
 **O TalkBack não deveria tomar os toques: o manifesto do NVGT já traz

@@ -2,6 +2,7 @@
 // Telas de lobby: navegador de partidas (listar/criar/entrar) e sala de espera (pronto/iniciar).
 
 #include "menu.nvgt"
+#include "../core/screen_keyboard.nvgt"
 #include "form.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
@@ -215,6 +216,7 @@ void run_hall_screen(game_client@ client) {
 // parece um travamento.
 void run_hall_compose(game_client@ client) {
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("hall.title"), false);
 	int f_text = f.create_input_box(tr("chat.compose_label"));
 	int f_send = f.create_button(tr("menu.confirm"), true);
@@ -228,6 +230,7 @@ void run_hall_compose(game_client@ client) {
 		drain_hall_packets(client);
 		if (!client.connected) { g_voice.typing = false; return; }
 		f.monitor();
+		teclado_tela.follow(f);
 		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return; }
 		if (f.is_pressed(f_send)) {
 			string text = f.get_text(f_text);
@@ -474,6 +477,7 @@ bool wait_for_join_result(game_client@ client) {
 // Pede o código de uma partida privada. Devolve "" se o jogador desistiu.
 string run_join_code_screen(game_client@ client) {
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("lobby.join_by_code"), false);
 	int f_code = f.create_input_box(tr("lobby.join_code_prompt"), "");
 	int f_ok = f.create_button(tr("menu.confirm"), true);
@@ -484,6 +488,7 @@ string run_join_code_screen(game_client@ client) {
 		wait(5);
 		client.update();
 		f.monitor();
+		teclado_tela.follow(f);
 		if (f.is_pressed(f_cancel)) return "";
 		if (f.is_pressed(f_ok)) return f.get_text(f_code);
 	}
@@ -514,6 +519,7 @@ bool run_role_tunables_form(game_client@ client, lobby_overrides@ ov, json_objec
 	json_object@ atuais = @current != null ? current.get_object("role_values") : null;
 
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("lobby.role_tunables_title"), false);
 	array<int> campos;
 	array<string> chaves; // "papel.numero", na mesma ordem dos campos
@@ -541,6 +547,7 @@ bool run_role_tunables_form(game_client@ client, lobby_overrides@ ov, json_objec
 		wait(5);
 		client.update(); // a sala continua viva enquanto ele preenche (ver o prazo de 18 s no CLAUDE.md)
 		f.monitor();
+		teclado_tela.follow(f);
 		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return false; }
 		if (f.is_pressed(f_ok)) {
 			g_voice.typing = false;
@@ -585,6 +592,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	if (@current == null) creating = true;
 
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr(creating ? "menu.create_lobby" : "lobby.edit_settings"), false); // não sobrescreve o título da janela
 	int f_name = -1, f_code = -1, f_preset = -1;
 	if (creating) {
@@ -694,6 +702,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 		wait(5);
 		client.update(); // mantém a conexão viva enquanto o jogador preenche o formulário
 		f.monitor();
+		teclado_tela.follow(f);
 		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return r; }
 		if (f.is_pressed(f_ok)) {
 			g_voice.typing = false;

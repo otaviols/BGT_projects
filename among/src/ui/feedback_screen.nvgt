@@ -12,6 +12,7 @@
 // e o crash.log é justamente o arquivo que hoje morre na máquina do jogador sem nunca chegar aqui.
 
 #include "form.nvgt"
+#include "../core/screen_keyboard.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../network/protocol.nvgt"
@@ -38,6 +39,7 @@ bool run_feedback_screen(game_client@ client, feedback_context@ context = null) 
 	speak(tr("feedback.hint"));
 
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("feedback.title"), false);
 	// Multilinha (o 6º parâmetro): um relato útil raramente cabe numa linha só, e uma caixa de uma
 	// linha desestimula o jogador a explicar o que aconteceu. O limite de tamanho é o mesmo que o
@@ -50,6 +52,7 @@ bool run_feedback_screen(game_client@ client, feedback_context@ context = null) 
 	while (true) {
 		wait(5);
 		f.monitor();
+		teclado_tela.follow(f);
 		// A conexão precisa continuar sendo servida enquanto a tela está aberta: o laço de um form
 		// não chama client.update() sozinho, e sem isso o ENet fica sem keepalive e o peer pode cair
 		// justamente enquanto o jogador escreve (mesmo problema já resolvido no navegador de lobbies

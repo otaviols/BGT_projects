@@ -6,6 +6,17 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.46.0
+
+**On Android, the phone's keyboard opens by itself** when you reach a text field: login, password,
+chat, room code. You no longer need a Bluetooth keyboard to type. Tell us through feedback how it
+works together with TalkBack.
+
+**On Windows, the game protects itself from a faulty version.** Keep opening AmongUs.exe: it checks
+for updates and opens the game. If a new version closes right after opening, as happened with 0.45.0,
+it notices and offers to go back to the version you used before. The protection starts working from
+the next update on.
+
 ## 0.45.1
 
 **The game opens again.** Version 0.45.0 closed by itself on launch. If you got it, download the game

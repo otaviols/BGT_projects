@@ -1,8 +1,8 @@
 {
-	"version": "0.45.1",
+	"version": "0.46.0",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "O jogo volta a abrir. A 0.45.0 fechava sozinha ao abrir. Se você ficou com ela, baixe o jogo de novo no site: ela não consegue se atualizar sozinha.",
-		"en_US": "The game opens again. Version 0.45.0 closed by itself on launch. If you got it, download the game again from the website: it cannot update itself."
+		"pt_BR": "No Android, o teclado do celular se abre sozinho quando você chega num campo de texto: login, senha, chat, código da sala. Não precisa mais de teclado Bluetooth para escrever. Conte pelo recado como ficou junto com o TalkBack. No Windows, o jogo se protege de uma versão com defeito. Continue abrindo o AmongUs.exe: ele confere a atualização e abre o jogo. Se uma versão nova fechar logo ao abrir, como aconteceu com a 0.45.0, ele percebe e oferece voltar para a versão que você usava antes. A proteção começa a valer a partir da próxima atualização.",
+		"en_US": "On Android, the phone's keyboard opens by itself when you reach a text field: login, password, chat, room code. You no longer need a Bluetooth keyboard to type. Tell us through feedback how it works together with TalkBack. On Windows, the game protects itself from a faulty version. Keep opening AmongUs.exe: it checks for updates and opens the game. If a new version closes right after opening, as happened with 0.45.0, it notices and offers to go back to the version you used before. The protection starts working from the next update on."
 	}
 }

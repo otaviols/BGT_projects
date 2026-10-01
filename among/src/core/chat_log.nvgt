@@ -5,6 +5,7 @@
 // Shift+ponto/vírgula pulam pro fim/começo (ver game/game_loop.nvgt e ui/lobby_screens.nvgt).
 
 #include "utf8.nvgt"
+#include "screen_keyboard.nvgt"
 #include "form.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
@@ -180,6 +181,7 @@ bool chat_too_long(const string&in text) {
 
 void run_chat_compose(game_client@ client, chat_log@ messages = null) {
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("chat.compose_title"), false);
 	int f_text = f.create_input_box(tr("chat.compose_label"));
 	int f_send = f.create_button(tr("menu.confirm"), true);
@@ -204,6 +206,7 @@ void run_chat_compose(game_client@ client, chat_log@ messages = null) {
 			return;
 		}
 		f.monitor();
+		teclado_tela.follow(f);
 		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return; }
 		if (f.is_pressed(f_send)) {
 			string text = f.get_text(f_text);

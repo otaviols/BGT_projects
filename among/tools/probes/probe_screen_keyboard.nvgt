@@ -1,0 +1,50 @@
+// Sonda do teclado da tela (src/core/screen_keyboard.nvgt), no PC: liga o seguidor à força e confere
+// que a entrada de texto abre no campo de texto, fecha fora dele e fecha quando a tela acaba.
+//   nvgt tools/probes/probe_screen_keyboard.nvgt
+// No PC a entrada de texto vem ligada da abertura; a sonda a desliga antes e religa no fim.
+#include "../../src/core/screen_keyboard.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void tela(audio_form@ f, int campo, int botao) {
+	screen_keyboard_follower teclado;
+	teclado.enabled = true;
+	f.focus_silently(botao);
+	teclado.follow(f);
+	confere("no botao, sem teclado", !text_input_active() && !teclado.is_open);
+	f.focus_silently(campo);
+	teclado.follow(f);
+	confere("no campo de texto, teclado aberto", text_input_active() && teclado.is_open);
+	teclado.follow(f);
+	confere("seguir de novo no mesmo campo nao muda nada", text_input_active() && teclado.is_open);
+	f.focus_silently(botao);
+	teclado.follow(f);
+	confere("de volta ao botao, teclado fechado", !text_input_active() && !teclado.is_open);
+	f.focus_silently(campo);
+	teclado.follow(f);
+	// sai da função com o teclado aberto: o destrutor tem que fechar
+}
+
+void main() {
+	show_window("sonda teclado");
+	stop_text_input();
+	audio_form f;
+	f.create_window("teste", false, true);
+	int campo = f.create_input_box("nome");
+	int botao = f.create_button("ok");
+	tela(f, campo, botao);
+	confere("ao sair da tela, o destrutor fechou o teclado", !text_input_active());
+
+	screen_keyboard_follower desligado; // fora do Android: não mexe em nada
+	f.focus_silently(campo);
+	desligado.follow(f);
+	confere("fora do Android o seguidor nao abre nada", !text_input_active() && !desligado.is_open);
+
+	start_text_input();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

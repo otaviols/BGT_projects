@@ -6,6 +6,17 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.46.0
+
+**No Android, o teclado do celular se abre sozinho** quando você chega num campo de texto: login,
+senha, chat, código da sala. Não precisa mais de teclado Bluetooth para escrever. Conte pelo recado
+como ficou junto com o TalkBack.
+
+**No Windows, o jogo se protege de uma versão com defeito.** Continue abrindo o AmongUs.exe: ele
+confere a atualização e abre o jogo. Se uma versão nova fechar logo ao abrir, como aconteceu com a
+0.45.0, ele percebe e oferece voltar para a versão que você usava antes. A proteção começa a valer a
+partir da próxima atualização.
+
 ## 0.45.1
 
 **O jogo volta a abrir.** A 0.45.0 fechava sozinha ao abrir. Se você ficou com ela, baixe o jogo de

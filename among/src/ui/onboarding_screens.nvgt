@@ -4,6 +4,7 @@
 // campos, Enter confirma, Esc cancela) e totalmente falados pelo leitor de tela.
 
 #include "form.nvgt"
+#include "../core/screen_keyboard.nvgt"
 #include "explore_screen.nvgt"
 #include "changelog_screen.nvgt"
 #include "practice_screen.nvgt"
@@ -202,6 +203,7 @@ login_result run_login_screen(game_client@ client) {
 	}
 
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("menu.login"), false); // não sobrescreve o título da janela (nome do jogo)
 	// Já vem com o último usuário que entrou nesta máquina; se houver um, o foco pula direto pra
 	// senha, que é o único campo que ainda precisa ser digitado.
@@ -221,6 +223,7 @@ login_result run_login_screen(game_client@ client) {
 		wait(5);
 		client.update();
 		f.monitor();
+		teclado_tela.follow(f);
 		if (f.is_pressed(f_cancel)) return result;
 
 		bool wants_register = f.is_pressed(f_register);

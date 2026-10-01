@@ -1,0 +1,46 @@
+// screen_keyboard.nvgt
+// O teclado da tela do Android, aberto enquanto o foco está num campo de texto.
+//
+// No celular, nada de texto chegava ao jogo sem um teclado Bluetooth: o Android só mostra o teclado
+// da tela quando o aplicativo PEDE (start_text_input), e nem o jogo nem o form.nvgt do NVGT pediam.
+// A documentação do NVGT não lista essas funções - elas existem (src/input.cpp do NVGT) e foi lá que
+// se descobriu.
+//
+// Só no Android. No PC a entrada de texto já vem ligada desde a abertura, e desligá-la ao sair de um
+// campo apagaria a digitação de todo o resto do jogo.
+//
+// Uso, em todo laço de audio_form:
+//   screen_keyboard_follower teclado_tela;
+//   while (...) { f.monitor(); teclado_tela.follow(f); ... }
+// O fechamento ao sair da tela é do destrutor: as telas têm vários `return` dentro do laço, e lembrar
+// de fechar em cada um seria um teclado esquecido aberto por cima do jogo.
+#include "form.nvgt"
+#include "platform.nvgt"
+
+class screen_keyboard_follower {
+	private bool opened = false;
+	// Ligado por fora só pela sonda (probe_screen_keyboard), que roda no PC - nenhum de nós tem aparelho.
+	bool enabled = is_android();
+
+	bool get_is_open() const property { return opened; }
+
+	void follow(audio_form@ f) {
+		if (!enabled) return;
+		int foco = f.get_current_focus();
+		bool quer = foco >= 0 && f.get_control_type(foco) == ct_input;
+		if (quer && !opened) {
+			start_text_input();
+			opened = true;
+		} else if (!quer && opened) {
+			close();
+		}
+	}
+
+	void close() {
+		if (!opened) return;
+		stop_text_input();
+		opened = false;
+	}
+
+	~screen_keyboard_follower() { close(); }
+}

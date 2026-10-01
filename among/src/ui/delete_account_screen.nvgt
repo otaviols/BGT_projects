@@ -8,6 +8,7 @@
 // digitou a senha depois de ouvir o aviso já decidiu.
 
 #include "form.nvgt"
+#include "../core/screen_keyboard.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../network/protocol.nvgt"
@@ -20,6 +21,7 @@ bool run_delete_account_screen(game_client@ client) {
 	speak(tr("account.delete_warning"));
 
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("account.delete_title"), false);
 	int f_pass = f.create_input_box(tr("account.delete_password"), "", "*");
 	int f_ok = f.create_button(tr("account.delete_confirm"), false);
@@ -29,6 +31,7 @@ bool run_delete_account_screen(game_client@ client) {
 	while (true) {
 		wait(5);
 		f.monitor();
+		teclado_tela.follow(f);
 		client.update(); // mantém a conexão viva enquanto o jogador digita (ver notes/rede-e-telas.md)
 		if (f.is_pressed(f_cancel)) return false;
 		if (!f.is_pressed(f_ok)) continue;

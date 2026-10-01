@@ -14,6 +14,7 @@
 // de mensagem e nos formulários.
 
 #include "../network/client.nvgt"
+#include "../core/screen_keyboard.nvgt"
 #include "../core/platform.nvgt"
 #include "../config/game_settings.nvgt"
 #include "../config/keybindings.nvgt"
@@ -466,6 +467,7 @@ class voice_chat : voice_receiver {
 	// fazer com uma voz alheia, e separá-las em dois lugares faria procurar.
 	private void run_player_voice_form(const string&in name) {
 		audio_form f;
+		screen_keyboard_follower teclado_tela;
 		f.create_window(name, false);
 		int f_muted = f.create_checkbox(tr("voice.mute_checkbox"), g_settings.is_muted(name));
 		int f_volume = f.create_slider(tr("voice.volume_label"), g_settings.voice_volume_of(name), 0, VOICE_VOLUME_MAX_PERCENT);
@@ -477,6 +479,7 @@ class voice_chat : voice_receiver {
 			wait(5);
 			if (@client != null) client.update(); // a voz continua chegando enquanto se ajusta
 			f.monitor();
+			teclado_tela.follow(f);
 			if (f.is_pressed(f_cancel)) return;
 			if (f.is_pressed(f_ok)) {
 				bool quer_mudo = f.is_checked(f_muted);

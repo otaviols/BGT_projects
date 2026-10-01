@@ -88,8 +88,9 @@ a do Mac é uma imagem de disco: abra e arraste o jogo para Aplicativos). Nesses
 duas vezes para confirmar; dois dedos para baixo voltam. Na partida, a metade esquerda da tela é um
 manche (encoste, arraste para onde quer andar e segure), e a metade direita faz as ações: toque duplo
 interage, deslizar para os lados usa o radar, e um toque com três dedos abre um menu com todas as
-ações. Escrever (o login e o chat) ainda precisa de um **teclado**, Bluetooth ou USB, que também
-serve para jogar tudo como no computador. O jogo roda **na horizontal**: é assim que os dois
+ações. Para escrever (o login, a senha, o chat, o código da sala), basta chegar ao campo de texto: o
+**teclado do celular** se abre sozinho, e fecha quando você sai do campo. Um teclado Bluetooth ou USB
+também funciona, e com ele dá para jogar tudo como no computador. O jogo roda **na horizontal**: é assim que os dois
 alto-falantes do celular ficam um de cada lado, e o som da esquerda e da direita volta a funcionar.
 Para digitar números nos painéis, toque com três dedos: os números se abrem, um dedo para os lados
 escolhe e o toque duplo digita. Se os gestos não responderem com o leitor de tela ligado,

@@ -3,6 +3,7 @@
 // de sair de cada tela (ver config/game_settings.nvgt) e vale já na próxima partida.
 
 #include "menu.nvgt"
+#include "../core/screen_keyboard.nvgt"
 #include "form.nvgt"
 #include "speech.nvgt"
 #include "../config/game_settings.nvgt"
@@ -87,6 +88,7 @@ void run_settings_menu(game_client@ client = null) {
 // ele é: para onde fica o sul, e se há alguém ao alcance da sua ação.
 void run_hearing_screen() {
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("settings.hearing"), false);
 	int f_pitch = f.create_input_box(tr("settings.spatial_pitch"), "" + g_settings.spatial_pitch_percent);
 	int f_beep = f.create_checkbox(tr("settings.target_range_beep"), g_settings.target_range_beep);
@@ -108,6 +110,7 @@ void run_hearing_screen() {
 		wait(5);
 		if (@g_settings_pump_client != null) g_settings_pump_client.update(); // a sala continua viva
 		f.monitor();
+		teclado_tela.follow(f);
 		if (f.is_pressed(f_cancel)) { speak(tr("settings.cancelled")); return; }
 		if (f.is_pressed(f_ok)) {
 			int p = parse_int(f.get_text(f_pitch));
@@ -134,6 +137,7 @@ void run_hearing_screen() {
 // novo; o anterior é cortado, senão dois ou três sons se empilhariam enquanto a seta é segurada.
 void run_volume_screen() {
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("settings.volumes"), false);
 
 	array<int> sliders;
@@ -155,6 +159,7 @@ void run_volume_screen() {
 		wait(5);
 		pump_settings_client();
 		f.monitor();
+		teclado_tela.follow(f);
 
 		if (f.is_pressed(f_cancel)) {
 			g_settings.volumes = original; // desfaz tudo, inclusive o que já estava sendo ouvido
@@ -341,6 +346,7 @@ void run_language_screen() {
 // nada do que já estava salvo se perde.
 void run_voice_screen() {
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("settings.voice"), false);
 	int f_use_sr = f.create_checkbox(tr("settings.voice_use_screen_reader"), use_sr);
 	int f_voices = f.create_list(tr("settings.voice_voice"));
@@ -373,6 +379,7 @@ void run_voice_screen() {
 		wait(5);
 		pump_settings_client();
 		f.monitor();
+		teclado_tela.follow(f);
 
 		use_sr = f.is_checked(f_use_sr);
 		int voice = f.get_list_position(f_voices);
@@ -408,6 +415,7 @@ void run_voice_screen() {
 // A tecla de falar se troca em Teclas, como as outras.
 void run_voice_chat_screen() {
 	audio_form f;
+	screen_keyboard_follower teclado_tela;
 	f.create_window(tr("settings.voice_chat"), false);
 	int f_enabled = f.create_checkbox(tr("settings.voice_chat_enabled"), g_settings.voice_chat_enabled);
 	int f_mode = f.create_list(tr("settings.voice_mode"));
@@ -442,6 +450,7 @@ void run_voice_chat_screen() {
 		wait(5);
 		pump_settings_client();
 		f.monitor();
+		teclado_tela.follow(f);
 		// Os valores valem na hora, porque o teste de microfone usa exatamente o que está na tela.
 		g_settings.voice_chat_enabled = f.is_checked(f_enabled);
 		int mode_pos = f.get_list_position(f_mode);
