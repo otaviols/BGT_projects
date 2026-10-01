@@ -6,6 +6,19 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.43.1
+
+**The game no longer freezes with voice chat.** When a lot of voice arrived at once (after a meeting,
+or in the Wolf's belly, where voice never stops), the game could stop responding. Now, at worst, a
+tiny bit of voice is skipped.
+
+**Android:** the game runs in landscape, so the phone's two speakers sit one on each side. Swipe
+gestures respond faster. To type numbers on the panels, tap with three fingers: one finger sideways
+picks and double tap types. And the game no longer freezes when it leaves the foreground, as with the
+microphone question, which dropped some people from the server when the match started.
+
+**If you get disconnected, send feedback from the game:** it now carries the reason along.
+
 ## 0.43.0
 
 **In the Wolf's belly you know where you are.** Swallowed, you hear the name of each room the wolf

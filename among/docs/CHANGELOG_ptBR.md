@@ -6,6 +6,19 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.43.1
+
+**O jogo não trava mais com o chat de voz.** Quando muita voz chegava de uma vez (depois de uma
+reunião, ou na barriga do Lobo, onde a voz chega sem parar), o jogo podia parar de responder. Agora,
+no pior caso, some um pedacinho de voz.
+
+**Android:** o jogo roda na horizontal, para os dois alto-falantes ficarem um de cada lado. Os
+gestos de deslizar respondem mais rápido. Para digitar números nos painéis, toque com três dedos:
+um dedo para os lados escolhe e o toque duplo digita. E o jogo não congela mais quando sai da frente,
+como na pergunta do microfone, que derrubava algumas pessoas do servidor no começo da partida.
+
+**Se você cair do servidor, mande um recado pelo jogo:** ele passa a levar junto o motivo da queda.
+
 ## 0.43.0
 
 **Na barriga do Lobo você sabe onde está.** Engolido, você ouve o nome das salas por onde o lobo
