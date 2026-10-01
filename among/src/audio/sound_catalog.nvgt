@@ -323,8 +323,22 @@ float footstep_volume_db(const string&in floor_prefix) {
 	// então com o ganho ele sobe para -53 - praticamente o mesmo -54,8 do próprio MetalTile. Um piso
 	// que precisasse de ganho com ruído pior que isso ficaria chiando, e a resposta seria outro piso.
 	// Ferramenta: tools/measure_footsteps.py.
-	if (floor_prefix == "GlassTile") return 17.0;
+	// +19, e não mais +17 (recado #134, "os passos na sala do motor quase não se ouvem"): medido de
+	// novo, o vidro corrigido ficava a -31,9 dB, uns 2 abaixo do metal - e é justamente o piso da sala
+	// com o ambiente mais alto do jogo (ver ambience_correction_db). O ruído de fundo continua seguro:
+	// -70,5 + 19 = -51,5 dBFS.
+	if (floor_prefix == "GlassTile") return 19.0;
 	return 0.0; // MetalTile e MetalBeltTile já são a referência
+}
+
+// Correção de volume do AMBIENTE de cada sala, pelo arquivo - o mesmo princípio dos passos: o número
+// segue a gravação, e é medido (corpo do som, como em tools/measure_footsteps.py), não chutado.
+//
+// O motor era o ambiente mais alto do jogo, -28,0 dB de corpo contra -33,5 da cafeteria, e cobria os
+// passos de quem andava lá (recado #134). -5 o põe no nível das outras salas.
+float ambience_correction_db(const string&in path) {
+	if (path == SND_AMBIENT_ENGINE) return -5.0;
+	return 0.0;
 }
 
 // Caminho de UMA variante de passo, contando a pasta. Todo lugar que toca passo passa por aqui.

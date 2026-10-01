@@ -98,6 +98,12 @@ virando 3,4 MB sem perda audível, e o download caiu de 60 MB para 29 MB. Som no
 `-c:a libvorbis -q:a 3`. Depois da conversão, o maior peso do zip passou a ser `lib/phonon.dll`
 (17,9 MB comprimido), que é o motor de áudio posicionado e não sai.
 
+**Passo inaudível pode ser culpa do AMBIENTE, não do passo.** Recado #134: "os passos na sala do motor
+quase não se ouvem". O vidro, já corrigido, estava só 2 dB abaixo do metal; o que cobria os passos era
+o ambiente do motor, o mais alto do jogo (corpo -28,0 dB, contra -33,5 da cafeteria). Os ambientes
+ganharam a tabela deles (`ambience_correction_db`, por arquivo, como os passos), e o motor desceu 5.
+Antes de subir um piso, meça o ambiente da sala junto.
+
 **Volume de som se mede, não se chuta - e depois se confere de ouvido.** Os arquivos de passo vinham
 com até 15 dB de diferença entre pisos, o que num jogo onde o passo alheio é a pista principal deixa
 uma sala segura por acidente. A correção é por piso, em dB, em `footstep_volume_db()` - no código, e

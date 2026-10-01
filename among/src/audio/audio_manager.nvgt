@@ -150,7 +150,7 @@ class audio_manager {
 			int half_w = @zone != null ? int(zone.half_w) : 8; // fallback caso a sala não seja encontrada
 			int half_h = @zone != null ? int(zone.half_h) : 8;
 			int slot = spatial.play_room_ambience(obj.sound_path, obj.x, obj.y, half_w, half_h,
-				AMBIENCE_VOLUME_DB + family_db(SOUND_FAMILY_AMBIENCE));
+				AMBIENCE_VOLUME_DB + ambience_correction_db(obj.sound_path) + family_db(SOUND_FAMILY_AMBIENCE));
 			if (slot != -1) decoration_ambient_slots.insert_last(slot);
 		}
 	}
