@@ -176,7 +176,10 @@ class meeting_ui {
 		// Pausa de suspense: o som toca sozinho primeiro, e só DEPOIS vem o anúncio de quem foi
 		// expulso - tocar os dois juntos (como estava antes) atropelava a fala e tirava a graça do
 		// suspense, igual no jogo original onde o resultado só aparece depois do som.
-		wait(1500);
+		// Atendendo a rede durante a pausa: um wait(1500) seco deixava a voz se acumular e chegar toda
+		// de uma vez depois - a rajada que enchia o buffer da voz e travava o jogo (ver notes/voz.md).
+		timer suspense;
+		while (suspense.elapsed < 1500) { wait(10); client.update(); }
 
 		uint64 ejected_peer = pkt.get_uint64("ejected_peer");
 		if (ejected_peer == 0) {

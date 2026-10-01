@@ -37,6 +37,20 @@ reiniciar o relógio perde o resto e a entrega fica lenta - foi um defeito da so
 defeito do jogo. Sondas (em `tools/probes/`): `probe_sender` (mede a captura real: esperado 50 pacotes/s),
 `probe_playback` (de ouvido, cinco caminhos de reprodução), `probe_stream` (stream_pcm sob tremor).
 
+**...e precisa também de se proteger de ela ENCHER: com o buffer cheio, `stream_pcm` BLOQUEIA.** O
+lado de secar estava coberto; o de encher, não. Medido em `probe_stream_block`: com o buffer de 2 s
+cheio, cada quadro de 20 ms segura a chamada uns 50 ms esperando o som consumir (escrever 4 s de voz
+levou 10 s de relógio), e com o som PARADO a chamada nunca volta. Sintoma: "o jogo não responde", sem
+`crash.log` (não é exceção de script - o jogo está preso numa chamada nativa). É o que explicava
+recados antigos e seguidos - #49, #66, #76 ("no responde" no meio da partida), #88/#111 ("quando eu
+falo, o jogo dos outros trava") - e o travamento que o usuário viveu na barriga do lobo, onde a voz
+chega sem parar. O buffer enche quando a voz chega em RAJADA: qualquer tela ou `wait` que deixe a rede
+um tempo sem atender (o `wait(1500)` do resultado da votação, uma tarefa) acumula pacotes, e eles
+chegam todos de uma vez. Conserto (`on_voice_frame`): com mais de `VOICE_MAX_BUFFERED_MS` (1 s)
+esperando, o quadro é DESCARTADO (`frames_dropped`); e se o som da pessoa não está mais tocando, a voz
+é refeita do zero (`renew_stream`) em vez de receber dados que ninguém consome. Sonda:
+`probe_voice_no_freeze` (uma rajada de 5 s, e o som parado à força no meio da fala).
+
 **A tecla de falar é uma letra: toda caixa de texto liga `g_voice.typing`** (chat, regras da sala)
 enquanto está aberta, senão digitar a letra abre o microfone no meio da mensagem.
 

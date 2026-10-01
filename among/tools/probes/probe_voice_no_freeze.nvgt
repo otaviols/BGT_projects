@@ -1,0 +1,52 @@
+// Sonda: a voz recebida NUNCA trava o jogo (VOICE_MAX_BUFFERED_MS e renew_stream em voice_chat).
+//   nvgt tools/probes/probe_voice_no_freeze.nvgt
+//
+// A probe_stream_block mostrou o defeito no motor: com o buffer da voz cheio, o stream_pcm espera o
+// som consumir (uns 50 ms por quadro de 20 ms), e com o som parado ele nunca volta - o "não responde".
+// Esta sonda passa pelo MESMO caminho do jogo (on_voice_frame) e confere:
+//   1. uma rajada de 5 s de voz de uma vez (mais do que o buffer de 2 s comporta): nenhuma chamada
+//      demora, e o excesso é DESCARTADO (frames_dropped) - o controle de que a rajada encheu mesmo;
+//   2. com o som da pessoa PARADO à força no meio da fala, a próxima chamada volta (a voz é refeita).
+// Se o conserto sumir, o caso 2 não termina: o `timeout` de quem roda é quem acusa.
+#include "../../src/audio/voice_chat.nvgt"
+#include "../../src/network/protocol.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+string quadro() {
+	array<float> mono(VOICE_CAPTURE_FRAMES, 0.0);
+	for (uint i = 0; i < mono.length(); i++) mono[i] = 0.2 * sin(i * 0.05);
+	return voice_wire(7, voice_encode(mono));
+}
+
+void main() {
+	g_settings.voice_chat_enabled = true;
+	string w = quadro();
+
+	println("== 1. rajada de 5 s de voz de uma vez ==");
+	timer t;
+	int pior = 0;
+	for (int i = 0; i < 250; i++) {
+		timer c;
+		g_voice.on_voice_frame(w);
+		if (c.elapsed > pior) pior = c.elapsed;
+	}
+	println("  (250 quadros em " + t.elapsed + " ms; pior chamada " + pior + " ms; descartados " + g_voice.frames_dropped + ")");
+	confere("nenhuma chamada segurou o jogo (pior < 30 ms)", pior < 30);
+	confere("o excesso foi descartado (a rajada encheu mesmo)", g_voice.frames_dropped > 0);
+
+	println("== 2. o som parado no meio da fala ==");
+	g_voice.streams[0].snd.stop();
+	timer t2;
+	for (int i = 0; i < 150; i++) g_voice.on_voice_frame(w);
+	println("  (150 quadros em " + t2.elapsed + " ms)");
+	confere("as chamadas voltaram (o som foi refeito)", t2.elapsed < 3000);
+	confere("e a voz nova esta tocando", g_voice.streams.length() > 0 && g_voice.streams[0].snd.playing);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

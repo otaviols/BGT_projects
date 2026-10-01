@@ -325,6 +325,11 @@ roda ANTES do da câmera e pede a varredura ao servidor; a resposta chegava depo
 que a câmera já tinha dito. Sintoma: a câmera "funciona", mas responde pela sala errada. Quando um
 modo novo reaproveita uma tecla, o bloco antigo precisa ser desligado explicitamente nele.
 
+**`sound.stream_pcm` BLOQUEIA quando o buffer do stream enche - e para sempre se o som parou.** É o
+"o jogo não responde" sem `crash.log`: não é exceção, é o jogo preso numa chamada nativa. Nunca
+escreva num stream sem saber quanto ainda cabe (a voz descarta acima de 1 s esperando e refaz o som
+que parou - ver [notes/voz.md](notes/voz.md)). Sonda: `tools/probes/probe_stream_block.nvgt`.
+
 **Uma compilação do NVGT pode sair defeituosa.** Aconteceu: mesmo código-fonte, um build gerou binário
 com segfault na inicialização e o seguinte saiu bom. Compilar com sucesso **não** é o mesmo que o
 binário funcionar. Por isso o `deploy.ps1` testa a imagem antes de publicar; se algo assim aparecer de

@@ -1,0 +1,40 @@
+// Sonda: quando o stream_pcm da voz TRAVA o jogo?
+//   nvgt tools/probes/probe_stream_block.nvgt <caso>
+//     tocando   - buffer cheio, som tocando: cada chamada espera o som consumir (lento, mas anda)
+//     parado    - buffer cheio, som PARADO: a chamada nunca volta (o jogo "não responde")
+//     silencio  - fala, pausa até o buffer secar, e fala de novo por mais que o buffer comporta
+//
+// A suspeita do "o jogo não responde" (recados #88/#111 - "quando eu falo, o jogo dos outros trava" -
+// e a barriga do lobo): a voz recebida vai para um buffer de 2 s, e o código só se protege de ele
+// SECAR, nunca de ele ENCHER. Um caso por processo: um caso que trava não deixa o outro rodar.
+#include "../../src/audio/voice_chat.nvgt"
+
+void escreve(sound@ s, float segundos, const string&in caso) {
+	array<float> pedaco(960, 0.0); // 20 ms a 48 kHz, o tamanho de um quadro de voz
+	timer total;
+	int pior = 0, feitas = 0, pedidas = int(segundos * 50);
+	for (int i = 1; i <= pedidas; i++) {
+		timer t;
+		s.stream_pcm(pedaco, VOICE_SAMPLE_RATE, 1);
+		if (t.elapsed > pior) pior = t.elapsed;
+		feitas = i;
+		if (total.elapsed > 12000) break;
+	}
+	println(caso + ": " + feitas + " de " + pedidas + " chamadas em " + total.elapsed + " ms; pior " + pior + " ms; tocando=" + s.playing);
+}
+
+void main() {
+	string caso = ARGS.length() > 1 ? ARGS[1] : "tocando";
+	sound s;
+	array<float> inicio(960, 0.0);
+	s.stream_pcm(inicio, VOICE_SAMPLE_RATE, 1, VOICE_SAMPLE_RATE * 2);
+	if (caso == "parado") s.stop();
+	if (caso == "silencio") {
+		escreve(s, 0.5, "fala 1");
+		wait(3000); // pausa maior que o buffer: ele seca
+		println("depois da pausa: tocando=" + s.playing);
+		escreve(s, 4.0, "fala 2");
+		return;
+	}
+	escreve(s, 5.0, caso);
+}

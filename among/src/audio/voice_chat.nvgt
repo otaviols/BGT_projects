@@ -35,6 +35,13 @@ const int VOICE_STREAM_IDLE_MS = 2000;
 // da qual a próxima chegada conta como fala nova e junta folga de novo.
 const int VOICE_JITTER_MS = 120;
 const int VOICE_TALK_GAP_MS = 350;
+// Quanto de voz pode ficar ESPERANDO no buffer de 2 s de cada pessoa. Acima disto o quadro que chega
+// é descartado. Não é qualidade, é o jogo não travar: com o buffer cheio, o stream_pcm do NVGT ESPERA
+// o som consumir - medido (probe_stream_block): cada quadro de 20 ms segurava o jogo uns 50 ms, e com
+// o som parado a chamada nunca voltava. Era o "o jogo não responde" (recados #88/#111: "quando eu
+// falo, o jogo dos outros trava"; e na barriga do lobo, onde a voz chega sem parar). Um segundo de
+// folga sobre o de reserva garante que a chamada nunca chegue perto de esperar.
+const int VOICE_MAX_BUFFERED_MS = 1000;
 
 // --- mu-law (G.711) ---------------------------------------------------------------------------
 uint8 ulaw_from_sample(float f) {
@@ -147,6 +154,7 @@ class voice_chat : voice_receiver {
 	bool mic_muted = false;
 	bool transmitting = false;
 	uint frames_sent = 0; // só para as sondas de tools/voice medirem a captura
+	uint frames_dropped = 0; // quadros recebidos jogados fora para o buffer não encher (VOICE_MAX_BUFFERED_MS)
 	timer hangover;
 	array<float> pending; // captura acumulada até dar um quadro de envio
 	// Para posicionar as vozes: o elenco (com a posição de todos, inclusive a minha) e quem sou eu.
@@ -332,6 +340,18 @@ class voice_chat : voice_receiver {
 		return s;
 	}
 
+	// Troca a voz desta pessoa por uma nova, do zero - o som velho não é mais usado.
+	private voice_stream@ renew_stream(voice_stream@ velho) {
+		velho.snd.stop();
+		voice_stream@ novo = voice_stream();
+		novo.peer_id = velho.peer_id;
+		for (uint i = 0; i < streams.length(); i++) {
+			if (streams[i] is velho) { @streams[i] = novo; return novo; }
+		}
+		streams.insert_last(novo);
+		return novo;
+	}
+
 	private void expire_streams() {
 		for (uint i = 0; i < streams.length(); i++) {
 			if (streams[i].last_frame.elapsed <= VOICE_STREAM_IDLE_MS) continue;
@@ -348,6 +368,10 @@ class voice_chat : voice_receiver {
 		if (!voice_unwire(wire, talker, audio)) return;
 		if (g_settings.is_muted(name_of(talker))) return;
 		voice_stream@ s = stream_for(talker);
+		// O som desta pessoa PAROU (acabou sozinho, ou algo o parou): escrever mais nele trava o jogo
+		// para sempre - o stream_pcm espera um consumo que não vem (ver VOICE_MAX_BUFFERED_MS). Começa
+		// uma voz nova, do zero, no lugar.
+		if (s.written > 0 && !s.snd.playing) @s = renew_stream(s);
 		if (s.last_frame.elapsed > VOICE_TALK_GAP_MS) s.playing = false; // pausa: a próxima é fala nova
 		// A fila secou (a rede atrasou mais que a folga, ou o relógio de quem fala anda um pouco
 		// mais devagar que o meu alto-falante): daqui em diante cada pacote tocaria com folga zero
@@ -356,6 +380,13 @@ class voice_chat : voice_receiver {
 		s.last_frame.restart();
 		array<float>@ pcm = voice_decode(audio);
 		if (s.playing) {
+			// Folga demais já esperando: descarta este quadro em vez de esperar o buffer esvaziar. Um
+			// pedaço de voz perdido é um estalo; esperar é o jogo parado (ver VOICE_MAX_BUFFERED_MS).
+			uint64 tocado = uint64(s.since_start.elapsed) * VOICE_SAMPLE_RATE / 1000;
+			if (s.written > tocado + uint64(VOICE_SAMPLE_RATE * VOICE_MAX_BUFFERED_MS / 1000)) {
+				frames_dropped++;
+				return;
+			}
 			s.snd.stream_pcm(pcm, VOICE_SAMPLE_RATE, 1);
 			s.written += pcm.length();
 		} else {
