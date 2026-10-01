@@ -221,8 +221,12 @@ Sempre, e nesta ordem:
    registrada AQUI, e não no cabeçalho do changelog: o changelog vai para o jogador (é o
    `NOVIDADES.md` da pasta do jogo), e nome de script é informação interna. O script recusa se a
    versão do changelog não bater com `GAME_VERSION`, ou se um dos idiomas estiver faltando.
-4. Compile o que mudou.
-5. `infra\deploy.ps1 -StorageAccount amongusaudiogame` (use `-SkipServer` quando só o cliente mudou).
+4. **Commite**, e rode `tools\release.ps1` (sem redirecionar a saída). Ele confere versão, árvore
+   limpa e site; regera o `sounds.dat` se um som mudou; compila clientes, Android e - só se o código
+   dele mudou desde o commit no ar - o servidor; faz o push, o deploy com aviso aos jogadores, e confere
+   no ar o que ficou publicado. `-Conferir` faz só as conferências. Os passos à mão continuam
+   possíveis (`build_clients.ps1`, `build_android.ps1`, `infra\deploy.ps1 -StorageAccount
+   amongusaudiogame [-SkipServer]`), mas cada um deles já escapou calado uma vez.
 
 As duas versões **têm que bater**. O `version.json` é o que os clientes instalados comparam contra si
 mesmos: se ele ficar para trás, ninguém é avisado da atualização.
