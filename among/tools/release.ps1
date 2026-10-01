@@ -1,4 +1,4 @@
-# release.ps1
+﻿# release.ps1
 # Publica uma versão do começo ao fim, conferindo cada passo que já falhou calado alguma vez.
 #
 #   tools\release.ps1                     # o normal: confere, compila, publica (servidor só se mudou)
@@ -44,7 +44,7 @@ try {
 	if ($LASTEXITCODE -ne 0) { throw "O version.json não saiu (veja acima): a versão do changelog bate com GAME_VERSION nos dois idiomas?" }
 
 	$sujo = git status --porcelain
-	if ($sujo) { throw "Há mudanças por commitar (inclusive o version.json, se ele acabou de mudar):`n$sujo" }
+	if ($sujo) { throw "Há mudanças por commitar (inclusive o version.json, se ele acabou de mudar):`n$($sujo -join "`n")" }
 
 	# Comparada como versão, e não como texto: "0.10.0" é MAIOR que "0.9.0".
 	$noAr = ""

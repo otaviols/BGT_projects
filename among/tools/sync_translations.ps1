@@ -1,4 +1,4 @@
-# sync_translations.ps1
+﻿# sync_translations.ps1
 # Sincroniza a pasta lang/ do jogo com o repositório de traduções (github.com/otaviols/game-translations).
 #
 #   tools\sync_translations.ps1

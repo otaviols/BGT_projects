@@ -174,6 +174,11 @@ PowerShell é um `case` no `switch` do `admin.ps1`. Leitura de recados vai por c
 `kubectl cp` virava erro fatal) - é por isso que o leitor antigo não funcionava nesta máquina; o
 `admin.ps1` baixa para `Continue` só em volta do `kubectl cp` e confere se o arquivo chegou.
 
+**Script `.ps1` com acento PRECISA de BOM UTF-8.** Sem ele o PowerShell 5.1 lê o arquivo na página
+de código do sistema e toda mensagem com acento sai "versÃ£o", "nÃ£o" - todos os nossos scripts
+estavam assim, e ninguém lia as mensagens de erro direito. Todos ganharam o BOM; script novo,
+também (o editor do VS Code: "Save with Encoding" > "UTF-8 with BOM").
+
 **Fora do git:** `terraform.tfvars`, `*.tfstate`, `sounds.dat`, `*.zip`, `*.exe`, `crash.log`,
 `among_users.db`, `server.txt`.
 

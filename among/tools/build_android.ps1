@@ -1,4 +1,4 @@
-# build_android.ps1
+﻿# build_android.ps1
 # Gera o APK do cliente e CONFERE o que saiu dentro dele.
 #
 #   tools\build_android.ps1 [-KeepIdsig]

@@ -1,4 +1,4 @@
-# admin.ps1
+﻿# admin.ps1
 # A administração do jogo, toda num lugar só.
 #
 #   infra\admin.ps1 recados                    # recados pendentes dos jogadores

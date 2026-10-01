@@ -1,4 +1,4 @@
-# Gera o beacon do distribuidor a partir dos sons originais do jogo.
+﻿# Gera o beacon do distribuidor a partir dos sons originais do jogo.
 #
 #   tools\beacon_distribuidor.ps1
 #

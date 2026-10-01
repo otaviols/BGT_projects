@@ -1,4 +1,4 @@
-# Maquete da tarefa "calibrar o distribuidor", para OUVIR antes de existir código.
+﻿# Maquete da tarefa "calibrar o distribuidor", para OUVIR antes de existir código.
 #
 # A ideia: o ponteiro do mostrador gira, e você aperta quando ele passa pelo alvo.
 #

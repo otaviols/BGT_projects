@@ -1,4 +1,4 @@
-# deploy.ps1
+﻿# deploy.ps1
 # Publica uma versão: manda o servidor pro cluster e o cliente pro site de download.
 #
 # Rode da raiz do projeto (a pasta among), depois de ter gerado os pacotes:

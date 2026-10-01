@@ -1,4 +1,4 @@
-# build_clients.ps1
+﻿# build_clients.ps1
 # Compila o cliente para todas as plataformas que esta máquina consegue, com um nome por pacote.
 #
 #   tools\build_clients.ps1
