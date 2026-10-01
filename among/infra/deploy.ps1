@@ -39,11 +39,11 @@ $root = Split-Path -Parent $PSScriptRoot
 # verdade é aqui, no que vai ao ar.
 #
 # Recolher do servidor faz parte da conferência: uma tradução que o jogador mandou ontem e ninguém
-# baixou está tão atrasada quanto uma ignorada. `read_translations.ps1` traz e APAGA do servidor,
+# baixou está tão atrasada quanto uma ignorada. `admin.ps1 traducoes` traz e APAGA do servidor,
 # então o que vier fica em translations_inbox/ e o conferidor abaixo recusa até alguém tratar.
 if (-not $SkipTranslations) {
 	Write-Host "Conferindo traducoes..."
-	& (Join-Path $PSScriptRoot "read_translations.ps1") | Out-Host
+	& (Join-Path $PSScriptRoot "admin.ps1") traducoes | Out-Host
 	if ($LASTEXITCODE -ne 0) { throw "Nao consegui recolher as traducoes do servidor. Resolva, ou rode com -SkipTranslations." }
 	python (Join-Path $root "tools\check_translations_all.py") | Out-Host
 	if ($LASTEXITCODE -ne 0) {

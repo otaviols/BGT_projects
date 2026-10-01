@@ -117,10 +117,12 @@ pelo próprio servidor, autenticados, e ficam na tabela `feedback` do mesmo SQLi
 volume, então sobrevivem a deploy.
 
 ```
-infra\read_feedback.ps1                 # todos
-infra\read_feedback.ps1 -After 40       # só os que chegaram depois do #40
-infra\read_feedback.ps1 -WithCrashLog   # inclui o crash.log anexado
-infra\read_feedback.ps1 -Out recados.txt  # grava em arquivo UTF-8
+infra\admin.ps1 recados                 # os pendentes
+infra\admin.ps1 recados -Depois 40      # só os que chegaram depois do #40
+infra\admin.ps1 recados -Crash          # inclui o crash.log anexado
+infra\admin.ps1 recados -Saida r.txt    # grava em arquivo UTF-8
+
+Todos os comandos estão no topo de infra\admin.ps1 (responder, arquivar, aviso, traduções, status...).
 ```
 
 ## Reiniciar sem derrubar ninguém
@@ -136,17 +138,17 @@ infra\deploy.ps1 -StorageAccount amongusaudiogame -DrainSeconds 600   # mais pac
 infra\deploy.ps1 -StorageAccount amongusaudiogame -DrainSeconds 0     # trocar na hora (derruba)
 ```
 
-À mão, com o token no ambiente (o deploy busca sozinho no segredo `amongus-admin`):
+À mão (o token é buscado sozinho no segredo `amongus-admin`):
 
 ```
-nvgt tools/server_admin.nvgt status      # conexões, salas, partidas em andamento
-nvgt tools/server_admin.nvgt drain 120   # avisar e travar partidas novas por 2 minutos
+infra\admin.ps1 status      # conexões, salas, partidas em andamento
+infra\admin.ps1 drenar 120  # avisar e travar partidas novas por 2 minutos
 ```
 
 ### Responder a um recado
 
 ```
-infra\reply_feedback.ps1 -Id 31 -Text "Obrigado! Manda o email certo por aqui mesmo."
+infra\admin.ps1 responder 31 "Obrigado! Manda o email certo por aqui mesmo."
 ```
 
 O jogador ouve a resposta na hora, se estiver conectado, ou na próxima vez que abrir o jogo, com o

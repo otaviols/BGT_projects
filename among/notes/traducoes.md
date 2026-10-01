@@ -15,10 +15,10 @@ faz os dois sentidos - traz os da comunidade para `lang/`, manda os embutidos pa
 comunidade em `lang/`: o próximo sync sobrescreve; edite no repositório de traduções.
 
 **Como uma tradução chega:** o jogador manda pelo jogo ("Enviar uma tradução", na lista de partidas)
--> fica no banco do servidor, UMA por (usuário, idioma), reenvio substitui -> `infra\read_translations.ps1`
+-> fica no banco do servidor, UMA por (usuário, idioma), reenvio substitui -> `infra\admin.ps1 traducoes`
 traz para `translations_inbox/` e APAGA do servidor -> `python tools/check_translation.py <arquivo>`
 diz o que falta/sobra -> copiar para `<clone>\among-us\lang\<código>.json` (o clone fica ao lado do BGT_projects: `C:\git\game-translations` ou `D:\git\...`),
-commit, push -> responder ao jogador com `reply_feedback.ps1` se ele mandou recado -> o próximo build
+commit, push -> responder ao jogador com `admin.ps1 responder` se ele mandou recado -> o próximo build
 traz. O `build_clients.ps1` recolhe a caixa de entrada sozinho e PARA se houver algo para revisar
 (`-SkipInbox` pula). Pull request no repositório também serve para quem sabe usar GitHub.
 
@@ -33,7 +33,7 @@ no escuro.
 Isso nasceu de um erro: a **0.32.0 subiu com um espanhol COMPLETO parado na caixa** (614 chaves,
 zero faltando) enquanto o jogo distribuía um de 518 com 96 buracos. O `build_clients` já conferia -
 mas tem `-SkipInbox`, e eu pulei. Por isso o portão de verdade fica no DEPLOY, que é o que vai ao
-ar, e por isso ele **recolhe do servidor junto** (`read_translations.ps1`): uma tradução que o
+ar, e por isso ele **recolhe do servidor junto** (`admin.ps1 traducoes`): uma tradução que o
 jogador mandou ontem e ninguém baixou está tão atrasada quanto uma ignorada.
 
 **Envio de jogador NÃO é necessariamente melhoria - compare a contagem de chaves antes de promover.**

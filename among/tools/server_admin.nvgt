@@ -1,14 +1,24 @@
 // tools/server_admin.nvgt
-// Comandos de administração do servidor. Chamado pelo infra/deploy.ps1 (reinício anunciado) e
-// utilizável à mão:
+// TODOS os comandos de administração que passam pelo servidor. Não rode direto: use infra\admin.ps1,
+// que busca o token no cluster e chama isto (o infra/deploy.ps1 também chama, para o reinício
+// anunciado).
 //
-//   nvgt tools/server_admin.nvgt status            -> conexões, salas, partidas em andamento
-//   nvgt tools/server_admin.nvgt drain <segundos>  -> avisa todo mundo e proíbe partidas novas
-//   nvgt tools/server_admin.nvgt notice "texto"    -> recado fixo do saguão (sem texto = apaga)
-//   nvgt tools/server_admin.nvgt platforms [dias]  -> jogadores distintos por plataforma e versão (padrão 30 dias)
+//   status                      -> conexões, salas, partidas em andamento, quem está online por plataforma
+//   drain <segundos>            -> avisa todo mundo e proíbe partidas novas
+//   notice ["texto"]            -> recado fixo do saguão (sem texto = apaga)
+//   platforms [dias]            -> jogadores distintos por plataforma e versão (padrão 30 dias)
+//   reply <id> <texto...>       -> responde a um recado; o jogador ouve dentro do jogo
+//   resolve <id> [until|undo]   -> arquiva um recado (until: todos até ele; undo: desarquiva)
+//   translations <pasta> [keep] -> traz as traduções enviadas pelo jogo e as APAGA do servidor
 //   (o token vem de AMONGUS_ADMIN_TOKEN; AMONGUS_SERVER_HOST aponta para outro servidor)
 //
-// "status" imprime uma linha por campo, "chave=valor", para o PowerShell ler sem adivinhar formato.
+// Eram quatro programas quase iguais (este, reply_feedback, resolve_feedback e read_translations), cada
+// um com a mesma conexão, a mesma espera e o mesmo tratamento de token - e cada conserto tinha que ser
+// feito quatro vezes. A saída é "chave=valor" onde o PowerShell lê (status, drain) e frase onde quem lê
+// é gente.
+//
+// Quem mexe no banco é sempre o SERVIDOR, por comando de rede: ele mantém o SQLite aberto o tempo
+// todo, e duas mãos no mesmo arquivo é pedir corrupção.
 
 #include "../src/network/client.nvgt"
 #include "../src/config/game_constants.nvgt"
@@ -25,61 +35,142 @@ net_packet@ espera(game_client@ c, const string&in tipo, int ms) {
 	return null;
 }
 
+// A resposta de um comando que só diz "deu ou não deu", já com o motivo em frase.
+string motivo(net_packet@ r) {
+	if (@r == null) return "o servidor nao respondeu (token errado ou servidor antigo)";
+	string m = r.get_string("message", "");
+	if (m == "bad_token") return "o servidor recusou o token";
+	if (m == "server_has_no_token") return "o servidor esta sem token (segredo amongus-admin nao criado)";
+	if (m == "feedback_not_found") return "esse recado nao existe";
+	return m;
+}
+
+// Junta os argumentos a partir de `from` num texto só: o PowerShell pode entregar uma frase em pedaços.
+string resto(uint from) {
+	string text = "";
+	for (uint i = from; i < ARGS.length(); i++) text += (i > from ? " " : "") + ARGS[i];
+	return text;
+}
+
+void cmd_status(game_client@ c, const string&in token) {
+	c.send_admin_status(token);
+	net_packet@ st = espera(c, S_ADMIN_STATUS, 8000);
+	if (@st == null) { println("erro=sem status (token errado ou servidor antigo)"); return; }
+	println("connections=" + st.get_int("connections"));
+	println("lobbies=" + st.get_int("lobbies"));
+	println("in_progress=" + st.get_int("in_progress"));
+	println("draining_seconds=" + st.get_int("draining_seconds"));
+	array<string> plataformas = {"windows", "android", "linux", "mac", "ios", "other", "unknown"};
+	for (uint i = 0; i < plataformas.length(); i++) println("online_" + plataformas[i] + "=" + st.get_int("online_" + plataformas[i]));
+}
+
+void cmd_drain(game_client@ c, const string&in token) {
+	int seconds = ARGS.length() > 2 ? parse_int(ARGS[2]) : 120;
+	c.send_admin_drain(token, seconds);
+	net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
+	println(@r != null && r.get_bool("ok") ? "ok=" + r.get_string("message") : "erro=" + motivo(r));
+}
+
+void cmd_notice(game_client@ c, const string&in token) {
+	// Sem texto, apaga. É o caminho mais usado depois de um aviso de manutenção: o recado tem que sair
+	// quando deixa de valer, senão ele vira parte fixa da tela e ninguém mais o escuta.
+	c.send_admin_set_notice(token, resto(2));
+	net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
+	if (@r == null || !r.get_bool("ok")) println("erro=" + motivo(r));
+	else println(r.get_string("notice") == "" ? "ok=recado apagado" : ("ok=" + r.get_string("notice")));
+}
+
+void cmd_platforms(game_client@ c, const string&in token) {
+	int days = ARGS.length() > 2 ? parse_int(ARGS[2]) : 30;
+	c.send_admin_platforms(token, days);
+	net_packet@ r = espera(c, S_ADMIN_PLATFORMS, 8000);
+	if (@r == null) { println("erro=" + motivo(null)); return; }
+	println("dias=" + r.get_int("days"));
+	array<string> campos = {"platforms", "versions"};
+	array<string> prefixos = {"plataforma_", "versao_"};
+	for (uint k = 0; k < campos.length(); k++) {
+		json_array@ lista = r.get_array(campos[k]);
+		if (@lista == null) continue;
+		for (uint i = 0; i < lista.length(); i++) {
+			json_object@ o = lista.get_object(i);
+			println(prefixos[k] + string(o["name"]) + "=" + int(o["players"]));
+		}
+	}
+}
+
+void cmd_reply(game_client@ c, const string&in token) {
+	if (ARGS.length() < 4) { println("uso: reply <id do recado> <texto da resposta>"); return; }
+	int id = parse_int(ARGS[2]);
+	c.send_admin_reply(token, id, resto(3));
+	net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
+	if (@r != null && r.get_bool("ok")) println("Resposta gravada ao recado #" + id + ". O jogador ouve dentro do jogo.");
+	else println("Recusado: " + motivo(r));
+}
+
+void cmd_resolve(game_client@ c, const string&in token) {
+	if (ARGS.length() < 3) { println("uso: resolve <id> [until|undo]"); return; }
+	int id = parse_int(ARGS[2]);
+	string modo = ARGS.length() > 3 ? ARGS[3] : "";
+	c.send_admin_resolve_feedback(token, id, modo == "until", modo == "undo");
+	net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
+	if (@r == null || !r.get_bool("ok")) { println("Recusado: " + motivo(r)); return; }
+	int n = r.get_int("count", 0);
+	if (modo == "undo") println(n > 0 ? "Recado #" + id + " desarquivado." : "Esse recado nao estava arquivado.");
+	else if (n == 0) println("Nenhum recado para arquivar (ja estavam todos).");
+	else println(n + " recado(s) arquivado(s).");
+}
+
+// Cada envio vira <código>__<usuário>.json na pasta e é APAGADO do servidor depois de gravado (a menos
+// de "keep"): o banco do servidor é caixa de entrada, não arquivo.
+void cmd_translations(game_client@ c, const string&in token) {
+	if (ARGS.length() < 3) { println("uso: translations <pasta de destino> [keep]"); return; }
+	string destino = ARGS[2];
+	bool keep = ARGS.length() > 3 && ARGS[3] == "keep";
+	if (!directory_exists(destino) && !directory_create(destino)) { println("nao consegui criar " + destino); return; }
+	c.send_admin_list_translations(token);
+	net_packet@ lista = espera(c, S_ADMIN_TRANSLATIONS, 8000);
+	if (@lista == null) { println("Recusado: " + motivo(espera(c, S_ADMIN_RESULT, 500))); return; }
+	json_array@ items = lista.get_array("items");
+	if (@items == null || items.length() == 0) { println("Nenhuma traducao enviada."); return; }
+	println(items.length() + " traducao(oes) enviada(s):");
+	for (uint i = 0; i < items.length(); i++) {
+		json_object@ it = items.get_object(i);
+		string user = string(it["username"]);
+		string code = string(it["code"]);
+		string content = string(it["content"]);
+		string arquivo = destino + "/" + code + "__" + user + ".json";
+		bool gravou = file_put_contents(arquivo, content);
+		println("  " + code + " de " + user + " (" + string(it["created_at"]) + ", " + content.length() + " bytes) -> " + arquivo + (gravou ? "" : "  [NAO GRAVOU]"));
+		if (gravou && !keep) {
+			c.send_admin_delete_translation(token, user, code);
+			net_packet@ r = espera(c, S_ADMIN_RESULT, 5000);
+			if (@r == null || !r.get_bool("ok", false)) println("     (nao consegui apagar do servidor)");
+		}
+	}
+	if (keep) println("(mantidas no servidor: keep)");
+}
+
 void main() {
-	if (ARGS.length() < 2) { println("uso: nvgt tools/server_admin.nvgt status | drain <segundos>"); return; }
+	if (ARGS.length() < 2) { println("uso: use infra\\admin.ps1 (ver o topo deste arquivo)"); exit(2); }
 	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
-	if (token == "") { println("erro=AMONGUS_ADMIN_TOKEN nao definido"); return; }
+	if (token == "") { println("erro=AMONGUS_ADMIN_TOKEN nao definido - use infra\\admin.ps1"); exit(2); }
 	string cmd = ARGS[1];
+	array<string> conhecidos = {"status", "drain", "notice", "platforms", "reply", "resolve", "translations"};
+	if (conhecidos.find(cmd) < 0) { println("erro=comando desconhecido " + cmd); exit(2); }
 
 	server_address address = resolve_server_address();
 	game_client c;
-	if (!c.connect_to(address.host, address.port)) { println("erro=nao conectou em " + address.display); return; }
+	if (!c.connect_to(address.host, address.port)) { println("erro=nao conectou em " + address.display); exit(1); }
 	timer t;
 	while (!c.connected && t.elapsed < 8000) { c.update(); wait(10); }
-	if (!c.connected) { println("erro=sem resposta de " + address.display); return; }
+	if (!c.connected) { println("erro=sem resposta de " + address.display); exit(1); }
 
-	if (cmd == "status") {
-		c.send_admin_status(token);
-		net_packet@ st = espera(c, S_ADMIN_STATUS, 8000);
-		if (@st == null) { println("erro=sem status (token errado ou servidor antigo)"); c.disconnect(); return; }
-		println("connections=" + st.get_int("connections"));
-		println("lobbies=" + st.get_int("lobbies"));
-		println("in_progress=" + st.get_int("in_progress"));
-		println("draining_seconds=" + st.get_int("draining_seconds"));
-		array<string> plataformas = {"windows", "android", "linux", "mac", "ios", "other", "unknown"};
-		for (uint i = 0; i < plataformas.length(); i++) println("online_" + plataformas[i] + "=" + st.get_int("online_" + plataformas[i]));
-	} else if (cmd == "drain") {
-		int seconds = ARGS.length() > 2 ? parse_int(ARGS[2]) : 120;
-		c.send_admin_drain(token, seconds);
-		net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
-		println(@r == null ? "erro=sem resposta" : (r.get_bool("ok") ? "ok=" + r.get_string("message") : "erro=" + r.get_string("message")));
-	} else if (cmd == "notice") {
-		// Sem argumento, apaga. É o caminho mais usado depois de um aviso de manutenção: o recado tem
-		// que sair quando deixa de valer, senão ele vira parte fixa da tela e ninguém mais o escuta.
-		string text = ARGS.length() > 2 ? ARGS[2] : "";
-		c.send_admin_set_notice(token, text);
-		net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
-		if (@r == null) println("erro=sem resposta (token errado ou servidor antigo)");
-		else if (!r.get_bool("ok")) println("erro=" + r.get_string("message"));
-		else println(r.get_string("notice") == "" ? "ok=recado apagado" : ("ok=" + r.get_string("notice")));
-	} else if (cmd == "platforms") {
-		int days = ARGS.length() > 2 ? parse_int(ARGS[2]) : 30;
-		c.send_admin_platforms(token, days);
-		net_packet@ r = espera(c, S_ADMIN_PLATFORMS, 8000);
-		if (@r == null) { println("erro=sem resposta (token errado ou servidor antigo)"); c.disconnect(); return; }
-		println("dias=" + r.get_int("days"));
-		array<string> campos = {"platforms", "versions"};
-		array<string> prefixos = {"plataforma_", "versao_"};
-		for (uint k = 0; k < campos.length(); k++) {
-			json_array@ lista = r.get_array(campos[k]);
-			if (@lista == null) continue;
-			for (uint i = 0; i < lista.length(); i++) {
-				json_object@ o = lista.get_object(i);
-				println(prefixos[k] + string(o["name"]) + "=" + int(o["players"]));
-			}
-		}
-	} else {
-		println("erro=comando desconhecido " + cmd);
-	}
+	if (cmd == "status") cmd_status(c, token);
+	else if (cmd == "drain") cmd_drain(c, token);
+	else if (cmd == "notice") cmd_notice(c, token);
+	else if (cmd == "platforms") cmd_platforms(c, token);
+	else if (cmd == "reply") cmd_reply(c, token);
+	else if (cmd == "resolve") cmd_resolve(c, token);
+	else if (cmd == "translations") cmd_translations(c, token);
 	c.disconnect();
 }

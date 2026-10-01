@@ -2440,7 +2440,7 @@ class game_server {
 		g_user_db.mark_feedback_reply_read(pkt.get_int("reply_id", 0), conn.username);
 	}
 
-	// Quem faz o jogo responde a um recado, pela ferramenta de administração (tools/reply_feedback).
+	// Quem faz o jogo responde a um recado, pela ferramenta de administração (infra\admin.ps1 responder).
 	//
 	// A comparação do token é o único portão: não há conta de administrador, porque uma conta seria
 	// mais uma senha para vazar dentro do mesmo banco que ela protege. Token vazio no servidor

@@ -70,7 +70,7 @@ Antes de afirmar algo, **verifique contra o código**, não contra a memória da
 | `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `check_translation.py`, ferramentas de administração, `probes/` (sondas que conversam com um servidor de verdade) |
 | `docs/` | manuais e histórico de versões, distribuídos com o jogo numa pasta `docs/` |
 | `notes/` | as notas de projeto por área (som, papéis, mapa, partida, rede, voz, sondas, infra, traduções). **Não** vai para o jogador — é `docs/` que vai |
-| `infra/` | Terraform, Dockerfile, manifests do Kubernetes, `deploy.ps1`, `read_feedback.ps1` |
+| `infra/` | Terraform, Dockerfile, manifests do Kubernetes, `deploy.ps1`, `admin.ps1` (recados, avisos, traduções, status - tudo da administração) |
 
 `lang/` fica fora de `src/` de propósito: é lido por caminho em tempo de execução, e esse caminho
 precisa ser o mesmo rodando do fonte ou do build compilado.
@@ -232,7 +232,7 @@ vive na memória do processo; trocar o pod no meio de uma partida derrubou todo 
 foi assim que se descobriu). O `deploy.ps1` agora, com a imagem nova pronta e conferida, manda
 `C_ADMIN_DRAIN` ao servidor atual: todo jogador conectado ouve "o servidor vai reiniciar em N
 minutos", nenhuma partida nova começa, e o script espera as partidas em andamento acabarem (ou o
-prazo, `-DrainSeconds`, padrão 300; 0 = trocar na hora). `tools/server_admin.nvgt status|drain`
+prazo, `-DrainSeconds`, padrão 300; 0 = trocar na hora). `infra\admin.ps1 status|drenar`
 também serve à mão. O cliente, por sua vez, DETECTA conexão perdida (antes o laço rodava para
 sempre numa nave vazia, sem aviso) e volta ao menu inicial avisando.
 
@@ -397,7 +397,7 @@ que o binário sobe.
 
 ## Pendências conhecidas
 
-- **Recados do beta:** a caixa atual é o `infra\read_feedback.ps1`, e não esta lista — uma lista
+- **Recados do beta:** a caixa atual é o `infra\admin.ps1 recados`, e não esta lista — uma lista
   de recados copiada aqui envelhece e passa a ser lida como pendência depois de atendida (foi o que
   aconteceu: ela listava como abertos pedidos já resolvidos). Aqui só entra o que foi DECIDIDO e
   ainda não foi feito.

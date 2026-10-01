@@ -2,7 +2,7 @@
 // Constantes globais do jogo. Nada aqui deve depender de estado de partida.
 
 // DEFAULT_LANGUAGE vem daqui. Declarado, e não herdado da ordem de inclusão: uma ferramenta que
-// inclua só o cliente (tools/reply_feedback) quebrava sem isto.
+// inclua só o cliente (tools/server_admin) quebrava sem isto.
 #include "../i18n.nvgt"
 
 // Versão deste build. É ela que o updater compara com o version.json publicado no site

@@ -32,7 +32,7 @@ try {
 	# build para para você revisar (tools\check_translation.py) e commitar no repositório. Senão a
 	# tradução ficaria esquecida no servidor até alguém lembrar de olhar.
 	if (-not $SkipInbox) {
-		& (Join-Path $PSScriptRoot "..\infra\read_translations.ps1") | Out-Host
+		& (Join-Path $PSScriptRoot "..\infra\admin.ps1") traducoes | Out-Host
 		$inbox = Join-Path $root "translations_inbox"
 		$pendentes = if (Test-Path $inbox) { Get-ChildItem $inbox -Filter *.json } else { @() }
 		if ($pendentes) {

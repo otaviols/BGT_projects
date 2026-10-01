@@ -8,8 +8,7 @@ dele — aprendeu algo que teria economizado tempo, escreva aqui, na mesma sess�
 ## Tradução e identidade
 
 **O recado do saguão é a ÚNICA exceção à regra abaixo, e por um motivo que não tem volta.** Ele é
-texto escrito à mão por quem opera o servidor (`infra\set_notice.ps1`, ou
-`tools/server_admin.nvgt notice "..."`), e não existe chave de tradução para uma frase que ainda não
+texto escrito à mão por quem opera o servidor (`infra\admin.ps1 aviso "..."`), e não existe chave de tradução para uma frase que ainda não
 foi escrita. Por isso ele viaja como TEXTO, e o cliente sempre o anuncia atrás de um rótulo que ELE
 traduz ("Recado do servidor:") - sem o rótulo, soaria como a fala de outro jogador. Duas decisões
 que o sustentam: ele vai em TODO `S_HALL_STATE`, e não uma vez no login (avisar de uma manutenção só
@@ -140,7 +139,7 @@ poder decidir, por sala, o que oferecer a quem.
 **Subir o mínimo é o que PERMITE apagar compatibilidade**, e foi assim que o legado saiu na 0.31.0.
 Duas cautelas, nessa ordem: só corte quando a base já estiver numa versão que saiba **explicar** a
 recusa (um cliente que não tem a chave `login.update_required` fala a chave crua, e a pessoa vai
-rever a senha em vez de atualizar); e decida pelos **dados**, não pela impressão - `read_feedback`
+rever a senha em vez de atualizar); e decida pelos **dados**, não pela impressão - `admin.ps1 recados`
 mostra a versão de cada recado, e foi ele que mostrou que a base migra no mesmo dia em que a versão
 sai. Sonda: `tools/probes/probe_protocol.nvgt` (testa a recusa mandando -1, então vale contra
 produção seja qual for o mínimo).

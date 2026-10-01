@@ -293,9 +293,9 @@ class game_client {
 		send(p);
 	}
 
-	// Ferramenta de administração (tools/reply_feedback.nvgt). Não é chamado por nenhuma tela do jogo:
+	// Ferramenta de administração (tools/server_admin.nvgt reply). Não é chamado por nenhuma tela do jogo:
 	// o token vem do ambiente de quem administra, nunca de dentro do cliente distribuído.
-	// Arquiva recados já tratados (ver tools/resolve_feedback.nvgt). Autorizado pelo mesmo token de
+	// Arquiva recados já tratados (ver tools/server_admin.nvgt resolve). Autorizado pelo mesmo token de
 	// ambiente do C_ADMIN_REPLY: não há conta de administrador de propósito.
 	void send_admin_resolve_feedback(const string&in token, int feedback_id, bool until, bool undo) {
 		net_packet@ p = net_packet(C_ADMIN_RESOLVE_FEEDBACK);
@@ -320,7 +320,7 @@ class game_client {
 		send(p);
 	}
 
-	// Ferramenta de administração (tools/read_translations.nvgt).
+	// Ferramenta de administração (tools/server_admin.nvgt translations).
 	void send_admin_list_translations(const string&in token) {
 		net_packet@ p = net_packet(C_ADMIN_LIST_TRANSLATIONS);
 		p.set_string("token", token);

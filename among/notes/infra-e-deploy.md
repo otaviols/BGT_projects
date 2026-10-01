@@ -123,7 +123,7 @@ VAZIA - foi a contagem de plataformas, com três logins gravados na tabela. Mont
 local antes do bind (todos os outros binds do arquivo já passavam variáveis, e por isso nunca tinham
 mordido).
 
-**De onde se joga: `nvgt tools/server_admin.nvgt platforms [dias]`.** Jogadores DISTINTOS por
+**De onde se joga: `infra\admin.ps1 plataformas [dias]`.** Jogadores DISTINTOS por
 plataforma e por versão no período (padrão 30 dias), da tabela `client_logins` - uma linha por
 jogador por dia, a última do dia vale. O `status` diz também quem está online agora por plataforma.
 "unknown" é cliente anterior à 0.43.0, que não dizia de onde vinha, ou um cliente que mandou algo
@@ -145,26 +145,34 @@ posição, ele ouvia a discussão de longe, quase inaudível.
 se o token bater com `AMONGUS_ADMIN_TOKEN` no servidor (segredo `amongus-admin` do cluster; sem ele
 o servidor recusa tudo). Não há conta de administrador de propósito: seria mais uma senha dentro do
 banco que ela protege. Para testar local: `$env:AMONGUS_ADMIN_TOKEN` antes de subir o servidor e
-`reply_feedback.ps1 -Local`. A variável `AMONGUS_SERVER_HOST` faz qualquer ferramenta ou sonda
+`admin.ps1 <comando> -Local`. A variável `AMONGUS_SERVER_HOST` faz qualquer ferramenta ou sonda
 apontar para outro servidor sem criar `server.txt` (que o jogo de verdade também leria).
 
-**Ferramenta que inclui só o cliente precisa dos `#include` certos.** `tools/reply_feedback` não
+**Ferramenta que inclui só o cliente precisa dos `#include` certos.** `tools/reply_feedback` (hoje parte do `tools/server_admin`) não
 compilava: `protocol.nvgt` usa `tr()` e `game_constants.nvgt` usa `DEFAULT_LANGUAGE`, e os dois
 vinham por ordem de inclusão. Agora os dois incluem `i18n.nvgt`. Sintoma: "No matching symbol 'tr'"
 numa ferramenta nova, com o jogo compilando normalmente.
 
-**`read_feedback.ps1` mostra os recados PENDENTES; `-All` traz os arquivados junto.** O padrão já
+**`admin.ps1 recados` mostra os PENDENTES; `-Todos` traz os arquivados junto.** O padrão já
 foi "os 20 mais recentes", e isso pareceu truncamento - os recados chegam em dezenas por dia; hoje o
-filtro é por estado, não por quantidade. `-After <id>` continua servindo para retomar de onde parou.
+filtro é por estado, não por quantidade. `-Depois <id>` serve para retomar de onde parou.
 
-**Recado tratado se ARQUIVA, não se apaga** (`infra\resolve_feedback.ps1 -Id 42` ou `-Until 96`, e
-`-Undo` desfaz). O contexto de um recado - versão, papel, sala, crash.log - é justamente o que falta
+**Recado tratado se ARQUIVA, não se apaga** (`infra\admin.ps1 arquivar 42`, ou `arquivar 96 -Ate`, e
+`desarquivar 42` desfaz). O contexto de um recado - versão, papel, sala, crash.log - é justamente o que falta
 quando o mesmo problema volta meses depois. Quem escreve no banco é o SERVIDOR, por comando de rede
-(`C_ADMIN_RESOLVE_FEEDBACK`, mesmo token do `reply_feedback`), e nunca uma ferramenta mexendo no
+(`C_ADMIN_RESOLVE_FEEDBACK`, mesmo token do responder), e nunca uma ferramenta mexendo no
 arquivo por fora: ele mantém o SQLite aberto o tempo todo, e duas mãos no mesmo arquivo é pedir
 corrupção. A coluna entra por `ALTER TABLE` ao abrir o banco, porque o `CREATE TABLE IF NOT EXISTS`
-não roda num banco que já existe - e o `read_feedback` tolera os dois formatos, já que é usado antes
+não roda num banco que já existe - e o leitor (`tools/read_feedback.py`) tolera os dois formatos, já que é usado antes
 e depois do deploy que acrescenta a coluna.
+
+**`infra\admin.ps1` é a ÚNICA porta da administração** (eram cinco scripts e quatro ferramentas
+quase iguais). Comando novo: o lado de rede vai em `tools/server_admin.nvgt` (um `cmd_*`), o lado
+PowerShell é um `case` no `switch` do `admin.ps1`. Leitura de recados vai por cópia do banco
+(`tools/read_feedback.py`), e escrita SEMPRE por comando ao servidor. **Native com stderr sob
+`$ErrorActionPreference = "Stop"` morre no PowerShell 5.1** (o aviso "Removing leading '/'" do
+`kubectl cp` virava erro fatal) - é por isso que o leitor antigo não funcionava nesta máquina; o
+`admin.ps1` baixa para `Continue` só em volta do `kubectl cp` e confere se o arquivo chegou.
 
 **Fora do git:** `terraform.tfvars`, `*.tfstate`, `sounds.dat`, `*.zip`, `*.exe`, `crash.log`,
 `among_users.db`, `server.txt`.
@@ -194,10 +202,12 @@ volume junto.
 ```
 kubectl get pods -n amongus
 kubectl logs -n amongus deploy/amongus-server -f
-infra\read_feedback.ps1 [-After <id>] [-WithCrashLog] [-Out arquivo]   # recados dos jogadores
-infra\reply_feedback.ps1 -Id <id> -Text "..."   # responder; o jogador ouve dentro do jogo
-infra\read_translations.ps1                    # traduções enviadas pelo jogo -> translations_inbox/ (e apaga do servidor)
-nvgt tools/server_admin.nvgt platforms 30     # jogadores distintos por plataforma e versão (precisa de AMONGUS_ADMIN_TOKEN)
+infra\admin.ps1 recados [-Depois <id>] [-Crash] [-Saida arquivo]   # recados dos jogadores
+infra\admin.ps1 responder <id> "..."     # o jogador ouve dentro do jogo
+infra\admin.ps1 arquivar <id> [-Ate]     # tira da caixa (desarquivar <id> desfaz)
+infra\admin.ps1 aviso "..." | -Apagar    # recado fixo do saguão
+infra\admin.ps1 traducoes                # traduções enviadas pelo jogo -> translations_inbox/ (e apaga do servidor)
+infra\admin.ps1 status | drenar <s> | plataformas <dias>
 ```
 
 

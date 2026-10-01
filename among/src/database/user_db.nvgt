@@ -100,7 +100,7 @@ class user_database {
 
 		// Traduções enviadas pelo jogo. Chave (username, code): cada pessoa tem no máximo UMA versão
 		// de cada idioma guardada aqui - reenviar substitui. É o que impede a tabela de crescer com
-		// dez versões do mesmo arquivo, e a ferramenta que recolhe (tools/read_translations) apaga o
+		// dez versões do mesmo arquivo, e a ferramenta que recolhe (tools/server_admin translations) apaga o
 		// que já trouxe. O banco é caixa de entrada, não arquivo.
 		if (db.execute(
 			"CREATE TABLE IF NOT EXISTS translations (" +
