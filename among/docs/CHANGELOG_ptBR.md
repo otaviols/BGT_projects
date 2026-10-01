@@ -6,6 +6,26 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.45.0
+
+**Dois modos de jogo novos**, escolhidos ao criar a sala. Nos dois não há reunião, corpo reportado,
+duto nem sabotagem.
+
+- **Pega-pega:** um pegador fica parado nos primeiros 10 segundos, com contagem para todos, e depois
+  pega a cada 5 segundos; todo mundo anda na velocidade máxima. A tripulação vence completando as
+  tarefas (quem já foi pego continua fazendo as suas, como fantasma), e o pegador vence pegando todo
+  mundo.
+- **Todos lobos:** todo jogador é Lobo Mau e todos se engolem. Vence o último de pé.
+
+**Quem lê o chat.** Na tela de voz, uma opção nova escolhe quem fala o que as pessoas escrevem:
+igual ao resto do jogo, sempre o leitor de tela ou sempre a voz do jogo. Assim dá para separar a
+conversa dos avisos do jogo pela voz.
+
+**O chat aceita 1000 letras**, e não corta mais uma letra acentuada pela metade. Antes, frases com
+acento eram cortadas bem antes do limite.
+
+**Sala do motor:** o som ambiente ficou mais baixo, e os passos no piso de vidro, mais altos.
+
 ## 0.44.0
 
 **Modo espectador.** Dá para assistir uma partida sem jogar: na sala de espera, a tecla A marca que

@@ -6,6 +6,26 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.45.0
+
+**Two new game modes**, chosen when creating the lobby. Neither has meetings, reported bodies, vents
+or sabotage.
+
+- **Tag:** one tagger stands still for the first 10 seconds, with a countdown for everyone, and then
+  catches every 5 seconds; everyone walks at top speed. The crew wins by finishing the tasks (whoever
+  was caught keeps doing theirs as a ghost), and the tagger wins by catching everyone.
+- **All wolves:** every player is a Big Bad Wolf and everyone swallows everyone. The last one standing
+  wins.
+
+**Who reads the chat.** On the voice screen, a new option chooses who speaks what people write: same
+as the rest of the game, always the screen reader, or always the game voice. That way you can tell
+the conversation apart from the game's announcements by voice.
+
+**The chat takes 1000 letters**, and no longer cuts an accented letter in half. Before, sentences
+with accents were cut well before the limit.
+
+**Engine room:** the ambient sound is quieter, and footsteps on the glass floor are louder.
+
 ## 0.44.0
 
 **Spectator mode.** You can watch a match without playing: in the waiting room, the A key marks that
