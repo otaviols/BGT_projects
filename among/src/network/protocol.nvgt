@@ -250,6 +250,18 @@ const string S_HALL_STATE = "s_hall_state";                 // {players: [nomes]
 const string S_HALL_CHAT = "s_hall_chat";                   // {name, text}
 // --- Saguão ao vivo (protocolo 9) ---
 const int HALL_LIVE_PROTOCOL = 9;
+// --- Espectador (também protocolo 9) ---
+// Na sala de espera: "vou assistir a próxima partida" (on = true) ou "vou jogar". Quem assiste não
+// entra no sorteio da equipe.
+const string C_SET_SPECTATE = "c_set_spectate";             // {on}
+// O espectador escolhe de quem acompanhar a partida: a voz que ele ouve é a que chega perto dessa pessoa.
+const string C_SPECTATE_FOLLOW = "c_spectate_follow";       // {peer_id}
+// Para quem vai assistir, no lugar do S_GAME_START: o elenco e as regras que a tela precisa - e NADA de
+// papel, de ninguém (decisão do usuário: o espectador só descobre no fim, como todo mundo).
+const string S_SPECTATE_START = "s_spectate_start";         // {players: [{peer_id, name, color, x, y, alive}], voice_chat, comms_affects_meeting, color_mode, in_meeting, follow}
+const int SPECTATE_PROTOCOL = 9;
+// Quantos podem assistir a mesma partida. Cada um recebe o tráfego público da partida inteira.
+const uint MAX_SPECTATORS = 10;
 // A lista de partidas, mandada SOZINHA a quem está no saguão sempre que ela muda - o cliente refaz o
 // menu sem mexer no cursor. Mesmo formato do S_LOBBY_LIST, e um tipo próprio para nenhuma espera pela
 // resposta de C_LIST_LOBBIES confundir uma com a outra. Partida privada nunca entra.

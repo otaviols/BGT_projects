@@ -43,6 +43,7 @@
 #include "src/ui/onboarding_screens.nvgt"
 #include "src/ui/lobby_screens.nvgt"
 #include "src/game/game_loop.nvgt"
+#include "src/game/spectate_loop.nvgt"
 #include "src/audio/voice_chat.nvgt"
 #include "src/i18n.nvgt"
 #include "src/config/game_constants.nvgt"
@@ -194,7 +195,10 @@ void run_session() {
 
 		// No fim da partida o servidor reabre a MESMA sala e manda o retrato dela; com ele em mãos, a
 		// volta é direto para a sala de espera. Sem ele (sala fechada, servidor antigo), navegador.
-		@rejoin_state = run_game(client, start_pkt);
+		// Quem vai assistir recebe S_SPECTATE_START no lugar do S_GAME_START, e assiste numa tela própria
+		// (ver src/game/spectate_loop.nvgt). A volta é a mesma: o retrato da sala reaberta.
+		if (start_pkt.type == S_SPECTATE_START) @rejoin_state = run_spectate(client, start_pkt);
+		else @rejoin_state = run_game(client, start_pkt);
 		if (!client.connected) break;
 	}
 

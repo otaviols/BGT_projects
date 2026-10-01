@@ -340,6 +340,19 @@ class game_client {
 		p.set_int("seconds", seconds);
 		send(p);
 	}
+	// Sala de espera: "vou assistir" (true) ou "vou jogar".
+	void send_set_spectate(bool on) {
+		net_packet@ p = net_packet(C_SET_SPECTATE);
+		p.set_bool("on", on);
+		send(p);
+	}
+	// Espectador: de quem acompanhar a partida.
+	void send_spectate_follow(uint64 peer) {
+		net_packet@ p = net_packet(C_SPECTATE_FOLLOW);
+		p.set_uint64("peer_id", peer);
+		send(p);
+	}
+
 	void send_admin_platforms(const string&in token, int days) {
 		net_packet@ p = net_packet(C_ADMIN_PLATFORMS);
 		p.set_string("token", token);

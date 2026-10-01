@@ -234,6 +234,8 @@ string lobby_players_text(json_array@ players, uint max_players, bool show_color
 		// O bot é anunciado como tal: ele conta para a lotação e joga, mas saber que aquele "jogador"
 		// é um bot muda completamente o peso do que ele fizer numa votação.
 		if (pj.exists("is_bot") && bool(pj["is_bot"])) nome += " " + tr("lobby.info.bot_suffix");
+		// Quem vai assistir (ou já assiste) está na sala, mas não joga: dizer isso evita contar com ele.
+		if (pj.exists("spectating") && bool(pj["spectating"])) nome += " " + tr("lobby.info.spectating_suffix");
 		nomes.insert_last(nome);
 	}
 

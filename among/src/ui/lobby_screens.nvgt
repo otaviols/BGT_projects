@@ -933,6 +933,15 @@ class lobby_snapshot {
 		}
 	}
 
+	bool is_spectating(uint64 peer_id) const {
+		if (@players == null) return false;
+		for (uint i = 0; i < players.length(); i++) {
+			json_object@ pj = players.get_object(i);
+			if (@pj != null && uint64(pj["peer_id"]) == peer_id) return pj.exists("spectating") && bool(pj["spectating"]);
+		}
+		return false;
+	}
+
 	string name_of(uint64 peer_id) const {
 		if (@players == null) return "";
 		for (uint i = 0; i < players.length(); i++) {
@@ -1220,7 +1229,9 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 				events_log.add("", aviso);
 			} else if (pkt.type == S_ERROR) {
 				if (!pkt.announced) speak(tr_server_message(pkt));
-			} else if (pkt.type == S_GAME_START) {
+			} else if (pkt.type == S_GAME_START || pkt.type == S_SPECTATE_START) {
+				// A partida começou - para jogar ou para assistir (quem marcou A, ou entrou pelo código
+				// com ela já andando). Quem chama decide a tela pelo tipo do pacote.
 				@g_logging_packet = null;
 				end_chat_review(); // a partida liga o histórico dela
 				return pkt;
@@ -1273,6 +1284,13 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 			speak(tr("lobby.back_from_settings"));
 		}
 		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players, lobby_color_choice(snapshot.config)));
+		// A: assistir a próxima partida em vez de jogar (ou voltar a jogar). O estado vem do retrato da
+		// sala, que o servidor reenvia a todos na hora - é por ele que a tecla sabe o que alternar.
+		if (key_pressed(KEY_A)) {
+			bool vou_assistir = !snapshot.is_spectating(client.my_peer_id);
+			client.send_set_spectate(vou_assistir);
+			speak(tr(vou_assistir ? "spectate.will_watch" : "spectate.will_play"));
+		}
 		// E: escolher a cor. Funciona em qualquer sala - a escolha vira a preferência guardada -, mas só
 		// VALE numa sala que deixa escolher, e a tela diz isso quando não deixa.
 		if (key_pressed(KEY_E)) run_color_choice_screen(client, snapshot);

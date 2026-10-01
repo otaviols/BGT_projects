@@ -227,6 +227,12 @@ class game_server {
 			if (lobby.players[i].peer_id == exclude_peer) continue;
 			send_to(lobby.players[i].peer_id, pkt, reliable);
 		}
+		// Quem ASSISTE recebe o que é público na partida - por isso aqui, e só aqui: o que vai a um
+		// jogador só (o papel, a morte com o nome do assassino, a barriga) nunca passa por esta função.
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			if (lobby.spectators[i].peer_id == exclude_peer) continue;
+			send_to(lobby.spectators[i].peer_id, pkt, reliable);
+		}
 	}
 
 	// Fantasma (morto/expulso) só é visto/ouvido por outros fantasmas - vivos nunca recebem a posição
@@ -311,8 +317,21 @@ class game_server {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || !lobby.config.voice_chat) return;
 		game_player@ talker = lobby.find_player(peer_id);
+		// Espectador falando: só outros espectadores ouvem (decisão do usuário) - nem a partida, nem os
+		// fantasmas. Um canal novo de informação para quem ainda joga seria trapaça entregue de graça.
+		if (@talker == null) {
+			game_player@ spec = lobby.find_spectator(peer_id);
+			if (@spec == null) return;
+			string sw = voice_wire(peer_id, audio);
+			for (uint i = 0; i < lobby.spectators.length(); i++) {
+				game_player@ s = lobby.spectators[i];
+				if (s.peer_id == peer_id || !s.voice_enabled) continue;
+				net.send_unreliable(s.peer_id, sw, CHANNEL_VOICE);
+			}
+			return;
+		}
 		// Dentro do duto ninguém é ouvido: a voz posicionada entregaria onde o duto está.
-		if (@talker == null || talker.vented) return;
+		if (talker.vented) return;
 		// Disfarçado também não: a voz chega ao cliente identificada pelo PEER, e o cliente resolve
 		// o nome pelo elenco dele - o disfarce troca o nome no radar, não no elenco. Uma frase e o
 		// shapeshifter estaria entregue. Calar o microfone é o preço da fantasia, e o cliente dele
@@ -327,6 +346,11 @@ class game_server {
 			if (!reaches_client(p) || p.peer_id == peer_id || !p.voice_enabled) continue;
 			if (!lobby.can_hear_voice(talker, p)) continue;
 			net.send_unreliable(p.peer_id, wire, CHANNEL_VOICE);
+		}
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			game_player@ s = lobby.spectators[i];
+			if (!s.voice_enabled || !lobby.spectator_hears(talker, s)) continue;
+			net.send_unreliable(s.peer_id, wire, CHANNEL_VOICE);
 		}
 	}
 
@@ -347,6 +371,15 @@ class game_server {
 	}
 
 	void remove_from_lobby(game_state@ lobby, uint64 peer_id) {
+		// Espectador saindo: some da lista dele e pronto. Não há registro a deixar (ele não conta para
+		// nada) nem aviso à partida - ninguém lá dentro sabia quem assistia.
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			if (lobby.spectators[i].peer_id != peer_id) continue;
+			lobby.spectators[i].wants_to_spectate = false;
+			lobby.spectators[i].follow_peer = 0;
+			lobby.spectators.remove_at(i);
+			return;
+		}
 		// Quem sai (ou cai) larga o posto - senão ele fica preso a alguém que não está mais aqui.
 		if (lobby.release_cameras(peer_id)) broadcast_camera_watching(lobby);
 		end_visible_task(lobby, peer_id);
@@ -465,6 +498,8 @@ class game_server {
 		else if (t == C_ADMIN_DRAIN) on_admin_drain(peer_id, pkt);
 		else if (t == C_ADMIN_STATUS) on_admin_status(peer_id, pkt);
 		else if (t == C_ADMIN_PLATFORMS) on_admin_platforms(peer_id, pkt);
+		else if (t == C_SET_SPECTATE) on_set_spectate(peer_id, pkt);
+		else if (t == C_SPECTATE_FOLLOW) on_spectate_follow(peer_id, pkt);
 		else if (t == C_ADMIN_SET_NOTICE) on_admin_set_notice(peer_id, pkt);
 		else if (t == C_CAMERA_ENTER) on_camera_enter(peer_id, pkt);
 		else if (t == C_CAMERA_LEAVE) on_camera_leave(peer_id, pkt);
@@ -628,6 +663,7 @@ class game_server {
 				if (!reaches_client(lobby.players[i]) || pid == p.peer_id || pid == alvo_peer) continue;
 				send_to(pid, som);
 			}
+			for (uint i = 0; i < lobby.spectators.length(); i++) send_to(lobby.spectators[i].peer_id, som);
 			notify_witnesses(lobby, p.peer_id, alvo_peer, alvo.x, alvo.y, true);
 			message_params.set("name", alvo.public_name());
 			message_params.set("peer", "" + alvo_peer); // o cliente do lobo tira o engolido do elenco dele
@@ -1077,6 +1113,29 @@ class game_server {
 				fail_key = "lobby.code_not_found";
 			}
 		}
+		// Partida PRIVADA em andamento, aberta pelo código: quem chega entra ASSISTINDO (decisão do
+		// usuário). Só a privada - a pública em andamento aparece na lista, mas não se assiste a
+		// partida de estranhos. E só pelo código: o id sozinho já circulou na lista um dia.
+		if (@lobby != null && lobby.state != "waiting" && lobby.state != "ended" && lobby.is_private() &&
+				lobby_id == "" && conn.protocol_version >= SPECTATE_PROTOCOL) {
+			if (lobby.spectators.length() >= MAX_SPECTATORS) {
+				result.set_bool("ok", false);
+				result.set_string(MSG_KEY_FIELD, "spectate.full");
+				send_to(peer_id, result);
+				return;
+			}
+			leave_current_lobby(peer_id);
+			conn.lobby_id = lobby.lobby_id;
+			conn.wants_to_spectate = false; // no fim da partida ele fica na sala para jogar a próxima
+			lobby.spectators.insert_last(conn);
+			result.set_bool("ok", true);
+			result.set_bool("spectating", true);
+			send_to(peer_id, result);
+			send_hall_state();
+			send_lobby_state(lobby, peer_id);
+			send_spectate_start(lobby, conn);
+			return;
+		}
 		if (@lobby != null && lobby.state != "waiting") { @lobby = null; fail_key = "lobby.in_progress"; }
 		if (@lobby != null && lobby.players.length() >= lobby.config.max_players) { @lobby = null; fail_key = "lobby.full"; }
 		// Sala com papéis especiais só recebe cliente que sabe o que eles são. Recusar na porta, e
@@ -1146,7 +1205,7 @@ class game_server {
 		if (@lobby == null) return;
 		remove_from_lobby(lobby, peer_id);
 		game_player@ conn = find_connection(peer_id);
-		if (@conn != null) conn.lobby_id = "";
+		if (@conn != null) { conn.lobby_id = ""; conn.wants_to_spectate = false; }
 		send_hall_state(); // voltou ao saguão
 	}
 
@@ -1263,12 +1322,77 @@ class game_server {
 			// A cor escolhida (-1 = nenhuma): é assim que a tela de escolha diz quais cores estão
 			// tomadas e por quem, e a lista de jogadores diz a cor de cada um numa sala que deixa escolher.
 			pj.set("color", lobby.players[i].chosen_color);
+			pj.set("spectating", lobby.players[i].wants_to_spectate);
+			players_json.add(pj);
+		}
+		// E quem está assistindo AGORA (entrou pelo código com a partida andando): aparece na lista
+		// da sala marcado, para quem está na sala de espera saber que ele está ali.
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			json_object@ pj = json_object();
+			pj.set("peer_id", lobby.spectators[i].peer_id);
+			pj.set("name", lobby.spectators[i].username);
+			pj.set("is_bot", false);
+			pj.set("color", -1);
+			pj.set("spectating", true);
 			players_json.add(pj);
 		}
 		pkt.set_array("players", players_json);
 
 		if (target_peer != 0) send_to(target_peer, pkt);
 		else broadcast_to_lobby(lobby, pkt);
+	}
+
+	// --- Espectador ---
+
+	// Sala de espera: "vou assistir" / "vou jogar". Só ali - no meio da partida, quem joga não vira
+	// espectador (sairia sabendo os papéis que viu, e voltaria para assistir sabendo).
+	void on_set_spectate(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "waiting") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || p.is_bot) return;
+		p.wants_to_spectate = pkt.get_bool("on");
+		send_lobby_state(lobby, 0); // a lista de quem está na sala diz quem vai assistir
+	}
+
+	void on_spectate_follow(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		game_player@ spec = lobby.find_spectator(peer_id);
+		if (@spec == null) return;
+		game_player@ alvo = lobby.find_player(pkt.get_uint64("peer_id"));
+		if (@alvo == null || !alvo.alive) return;
+		spec.follow_peer = alvo.peer_id;
+	}
+
+	// O começo para quem assiste: o elenco, com quem está vivo, e as regras que a tela precisa. Nenhum
+	// papel - de ninguém. Serve aos dois caminhos: quem marcou "vou assistir" (no início da partida) e
+	// quem entrou pelo código com ela já andando (aí `in_meeting` diz se ela está numa reunião).
+	void send_spectate_start(game_state@ lobby, game_player@ spec) {
+		json_array@ roster = json_array();
+		uint64 primeiro_vivo = 0;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			json_object@ rj = json_object();
+			rj.set("peer_id", p.peer_id);
+			rj.set("name", p.public_name());
+			rj.set("color", p.color);
+			rj.set("x", p.x);
+			rj.set("y", p.y);
+			rj.set("alive", p.alive);
+			roster.add(rj);
+			if (primeiro_vivo == 0 && p.alive) primeiro_vivo = p.peer_id;
+		}
+		spec.follow_peer = primeiro_vivo;
+		net_packet@ pkt = net_packet(S_SPECTATE_START);
+		pkt.set_array("players", roster);
+		pkt.set_string("map_name", lobby.map.name);
+		pkt.set_bool("voice_chat", lobby.config.voice_chat);
+		pkt.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
+		pkt.set_bool("color_mode", lobby.config.color_mode);
+		pkt.set_bool("in_meeting", lobby.state == "meeting" || lobby.state == "voting");
+		pkt.set_uint64("follow", primeiro_vivo);
+		send_to(spec.peer_id, pkt);
 	}
 
 	// --- Início de partida ---
@@ -1284,7 +1408,12 @@ class game_server {
 			send_error(peer_id, "server.restart_soon_no_start", p);
 			return;
 		}
-		if (lobby.players.length() < MIN_PLAYERS) {
+		// Quem marcou "vou assistir" não conta para o mínimo: a partida tem que ter gente para jogar.
+		uint jogam = 0;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (!(lobby.players[i].wants_to_spectate && !lobby.players[i].is_bot)) jogam++;
+		}
+		if (jogam < MIN_PLAYERS) {
 			dictionary@ p = dictionary();
 			p.set("min", "" + MIN_PLAYERS);
 			send_error(peer_id, "lobby.min_players_warning", p);
@@ -1306,6 +1435,16 @@ class game_server {
 				send_error(peer_id, "lobby.roles_need_update", p);
 				return;
 			}
+		}
+
+		// Quem vai assistir sai da equipe AGORA, antes do sorteio: a partida inteira é feita só com quem
+		// joga, e o espectador passa a viver na lista dele (ver game_state.spectators).
+		for (int i = int(lobby.players.length()) - 1; i >= 0; i--) {
+			game_player@ p = lobby.players[i];
+			if (!p.wants_to_spectate || p.is_bot) continue;
+			p.reset_match_state();
+			lobby.spectators.insert_last(p);
+			lobby.players.remove_at(i);
 		}
 
 		// Sorteio dos papéis, bot e gente no mesmo bolo: a IA de impostor caça, mata quando ninguém
@@ -1589,6 +1728,7 @@ class game_server {
 			send_to(p.peer_id, start);
 		}
 
+		for (uint i = 0; i < lobby.spectators.length(); i++) send_spectate_start(lobby, lobby.spectators[i]);
 		broadcast_to_lobby(lobby, lobby.build_task_progress_packet()); // placar zerado, pra todo mundo já começar sabendo o total
 	}
 
@@ -1751,6 +1891,8 @@ class game_server {
 			if (!reaches_client(lobby.players[i]) || pid == victim_peer || pid == killer_id) continue;
 			send_to(pid, publico);
 		}
+		// Quem assiste ouve o assassinato como qualquer um ouviria: onde, e não quem.
+		for (uint i = 0; i < lobby.spectators.length(); i++) send_to(lobby.spectators[i].peer_id, publico);
 		// TESTEMUNHA: quem estava colado na vítima - dentro do alcance do próprio kill - VIU quem matou,
 		// e ouve isso, só ela. Mais longe, é o som que conta (a direção, não o nome); colado, fingir que
 		// a pessoa não viu era só confusão. O limite curto é o que mantém o impostor com espaço: matar
@@ -2729,8 +2871,18 @@ class game_server {
 		}
 		// Sobrou só bot (ou ninguém): não há para quem reabrir, e uma sala assim ficaria para sempre
 		// na lista sem nunca começar nada - bot não aperta Enter.
-		if (lobby.human_count() == 0) { close_lobby(index); return; }
+		if (lobby.human_count() == 0 && lobby.spectators.length() == 0) { close_lobby(index); return; }
 		lobby.reopen_for_next_match();
+		// Quem assistia volta para a sala de espera, como membro. Quem tinha marcado "vou assistir"
+		// continua marcado; quem entrou pelo código no meio fica para jogar a próxima - a não ser que
+		// a sala já esteja cheia, e aí continua assistindo em vez de passar da lotação no sorteio.
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			game_player@ s = lobby.spectators[i];
+			s.reset_match_state();
+			if (lobby.players.length() >= lobby.config.max_players) s.wants_to_spectate = true;
+			lobby.players.insert_last(s);
+		}
+		lobby.spectators.resize(0);
 		// O anfitrião pode ter caído no meio da partida: sem isto a sala reabriria sem ninguém que
 		// possa iniciar a próxima.
 		if (@lobby.find_player(lobby.host_peer_id) == null) {
@@ -2758,6 +2910,9 @@ class game_server {
 		// Os game_player são objetos de CONEXÃO e continuam vivos depois da lobby - limpar o estado
 		// de partida deles é o que impede a próxima sala de herdar morte, papel e tasks da anterior.
 		lobby.reset_players_after_match();
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			if (lobby.spectators[i].lobby_id == lobby.lobby_id) lobby.spectators[i].lobby_id = "";
+		}
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			game_player@ conn = find_connection(lobby.players[i].peer_id);
 			if (@conn == null) continue; // bot: some junto com a lobby

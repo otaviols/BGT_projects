@@ -1,0 +1,250 @@
+// spectate_loop.nvgt
+// A partida para quem ASSISTE (modo espectador).
+//
+// O espectador acompanha um jogador vivo por vez: ouve a partida de onde essa pessoa está - os passos,
+// os sons, a voz que chega até ela - e na reunião ouve a mesa. Setas para os lados trocam de pessoa;
+// a tecla de "onde estou" diz quem ele acompanha e em que sala. Ele não age em nada, e não sabe papel
+// nenhum até o fim (decisões do usuário). A voz dele só chega a outros espectadores - quem decide isso
+// é o servidor (ver on_voice_frame), e esta tela só deixa o microfone funcionar.
+//
+// Uma tela própria, e não run_game com uma bandeira: o laço da partida pergunta "posso?" em dezenas de
+// lugares, e um espectador escondido lá dentro seria um jogador a quem esquecemos de tirar uma
+// capacidade. Aqui ele não tem nenhuma para começar.
+
+#include "game_loop.nvgt"
+
+// Os vivos da partida, na ordem do elenco, sem o próprio espectador (que entra no elenco só como
+// âncora da voz - ver run_spectate).
+array<roster_entry@>@ spectate_candidates(client_roster@ roster, uint64 my_peer) {
+	array<roster_entry@> r;
+	for (uint i = 0; i < roster.entries.length(); i++) {
+		roster_entry@ e = roster.entries[i];
+		if (e.alive && e.peer_id != my_peer) r.insert_last(e);
+	}
+	return r;
+}
+
+string spectate_where_text(game_map@ map, roster_entry@ alvo) {
+	if (@alvo == null) return tr("spectate.nobody");
+	map_zone@ z = map.zone_at(alvo.x, alvo.y);
+	dictionary@ p = dictionary();
+	p.set("name", alvo.name);
+	p.set("room", @z != null ? tr(z.name_key) : tr("game.unknown_room"));
+	return tr("spectate.following", p);
+}
+
+net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
+	game_map@ map = build_the_hub_map();
+	audio_manager@ audio = audio_manager();
+	client_roster@ roster = client_roster();
+	roster.load_from_start_packet(start_pkt);
+	json_array@ vivos_json = start_pkt.get_array("players");
+	if (@vivos_json != null) {
+		for (uint i = 0; i < vivos_json.length(); i++) {
+			json_object@ pj = vivos_json.get_object(i);
+			if (@pj != null && pj.exists("alive") && !bool(pj["alive"])) roster.mark_dead(uint64(pj["peer_id"]));
+		}
+	}
+	@g_match_roster = roster;
+	// O próprio espectador entra no elenco só como ÂNCORA: a voz posicionada mede a distância de cada
+	// pessoa até "mim" (voice_chat.place), e "eu" passo a estar onde está quem eu acompanho.
+	roster.add(client.my_peer_id, "", -1, 0.0, 0.0);
+	roster.mark_dead(client.my_peer_id); // nunca aparece como alguém a acompanhar, nem na lista da reunião
+
+	chat_log@ messages_log = chat_log();
+	chat_log@ events_log = chat_log();
+	begin_chat_review(messages_log, events_log);
+	meeting_ui@ mui = meeting_ui(client, audio, roster, events_log, false);
+	mui.alive = false; // não vota
+
+	bool voice_room_allows = start_pkt.get_bool("voice_chat", false);
+	bool voice_comms_affects_meeting = start_pkt.get_bool("comms_affects_meeting", false);
+	g_voice.begin_match(roster, client.my_peer_id, voice_room_allows);
+
+	uint64 seguindo = start_pkt.get_uint64("follow", 0);
+	bool reuniao = start_pkt.get_bool("in_meeting", false);
+	string sabotagem = "";
+	float footstep_interval = footstep_interval_for(2.2);
+
+	audio.start_ship_ambience();
+	audio.start_room_ambience(map);
+	string abertura = tr("spectate.start") + " " + spectate_where_text(map, roster.find(seguindo));
+	speak(abertura);
+	events_log.add("", abertura);
+
+	net_packet@ back_to_lobby = null;
+	bool fim = false;
+	string ultima_sala = "";
+	while (!fim) {
+		wait(5);
+		client.update();
+		touch_match_frame(); // no celular, os gestos de partida (setas, Esc) valem aqui também
+		if (!client.connected) { speak(tr("net.connection_lost")); break; }
+
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			string t = pkt.type;
+			@g_logging_packet = pkt;
+			try {
+			if (t == S_PLAYER_MOVED) {
+				uint64 quem = pkt.get_uint64("peer_id");
+				float x = pkt.get_float("x"), y = pkt.get_float("y");
+				roster.update_position(quem, x, y);
+				roster_entry@ e = roster.find(quem);
+				if (@e != null && e.alive && float(e.footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
+					e.footstep_clock.restart();
+					map_zone@ z = map.zone_at(x, y);
+					string prefix = @z != null ? z.floor_sound_prefix : "Tile";
+					audio.play_footstep(prefix, footstep_variant_count(prefix), x, y);
+				}
+			} else if (t == S_PLAYER_KILLED) {
+				mui.on_player_killed(pkt); // som do assassinato no ponto, e marca morto
+			} else if (t == S_SWALLOW_SOUND) {
+				audio.play_wolf_swallow(pkt.get_float("x"), pkt.get_float("y"));
+			} else if (t == S_BELLY_RELEASED) {
+				json_array@ voltaram = pkt.get_array("peers");
+				if (@voltaram != null) for (uint i = 0; i < voltaram.length(); i++) {
+					roster_entry@ e = roster.find(uint64(voltaram[i]));
+					if (@e != null) { e.alive = true; e.x = pkt.get_float("x"); e.y = pkt.get_float("y"); }
+				}
+				string volta = belly_released_text(pkt, roster, client.my_peer_id);
+				if (volta != "") { if (!pkt.announced) speak(volta); events_log.add("", volta); }
+			} else if (t == S_PLAYER_LEFT) {
+				roster.mark_dead(pkt.get_uint64("peer_id"));
+			} else if (t == S_BODY_REPORTED) {
+				mui.on_body_reported(pkt);
+			} else if (t == S_MEETING_STARTED) {
+				reuniao = true;
+				audio.stop_all_body_beacons();
+				json_array@ ausentes = pkt.get_array("absent");
+				if (@ausentes != null) for (uint i = 0; i < ausentes.length(); i++) roster.mark_dead(uint64(ausentes[i]));
+				float gx = pkt.get_float("gather_x"), gy = pkt.get_float("gather_y");
+				for (uint i = 0; i < roster.entries.length(); i++) {
+					if (roster.entries[i].alive) roster.update_position(roster.entries[i].peer_id, gx, gy);
+				}
+				audio.stop_room_ambience();
+				mui.on_meeting_started(pkt);
+			} else if (t == S_VOTING_STARTED) {
+				mui.on_voting_started(pkt);
+			} else if (t == S_VOTE_CAST) {
+				mui.on_vote_cast(pkt);
+			} else if (t == S_VOTE_RESULT) {
+				mui.on_vote_result(pkt);
+				reuniao = false;
+				audio.start_room_ambience(map);
+			} else if (t == S_MEETING_KILL) {
+				roster.mark_dead(pkt.get_uint64("victim_peer"));
+				audio.play_meeting_kill();
+				string aviso = meeting_kill_text(pkt, roster);
+				if (!pkt.announced) speak(aviso);
+				events_log.add("", aviso);
+			} else if (t == S_CHAT_MESSAGE) {
+				string nome = spoken_name(pkt.get_string("name"));
+				string texto = pkt.get_string("text");
+				messages_log.add(nome, texto);
+				if (!pkt.announced) speak(nome + ": " + texto, false);
+				audio.play_message_received();
+			} else if (t == S_SABOTAGE_STARTED) {
+				sabotagem = pkt.get_string("sabotage_id");
+				mui.on_sabotage_started(pkt);
+			} else if (t == S_SABOTAGE_COUNTDOWN) {
+				mui.on_sabotage_countdown(pkt);
+			} else if (t == S_SABOTAGE_FIXED) {
+				sabotagem = "";
+				mui.on_sabotage_fixed(pkt);
+			} else if (t == S_DEATH_ALARM) {
+				string alarme = death_alarm_text(pkt);
+				if (!pkt.announced) speak(alarme);
+				events_log.add("", alarme);
+			} else if (t == S_SERVER_NOTICE) {
+				string aviso = tr_server_message(pkt);
+				ui_sound(SND_SERVER_NOTICE);
+				if (!pkt.announced) speak(aviso);
+				events_log.add("", aviso);
+			} else if (t == S_GAME_OVER) {
+				audio.stop_ship_ambience();
+				audio.stop_room_ambience();
+				audio.stop_all_body_beacons();
+				mui.on_game_over(pkt);
+				run_game_over_screen(client, pkt);
+				@back_to_lobby = wait_for_reopened_lobby(client);
+				fim = true;
+			}
+			}
+			catch {
+				log_crash("espectador, pacote " + t);
+			}
+			if (fim) break;
+			@pkt = client.poll_message();
+		}
+		@g_logging_packet = null;
+		if (fim) break;
+
+		// Quem eu acompanho morreu (ou foi engolido, ou saiu): passo ao próximo vivo, e digo.
+		roster_entry@ alvo = roster.find(seguindo);
+		if (@alvo == null || !alvo.alive) {
+			array<roster_entry@>@ vivos = spectate_candidates(roster, client.my_peer_id);
+			if (vivos.length() > 0) {
+				@alvo = vivos[0];
+				seguindo = alvo.peer_id;
+				client.send_spectate_follow(seguindo);
+				speak(spectate_where_text(map, alvo), false);
+			}
+		}
+
+		// Eu estou onde ele está: o ouvinte do áudio e a âncora da voz.
+		if (@alvo != null) {
+			roster.update_position(client.my_peer_id, alvo.x, alvo.y);
+			audio.update_listener(alvo.x, alvo.y);
+			map_zone@ z = map.zone_at(alvo.x, alvo.y);
+			string sala = @z != null ? z.id : "";
+			if (sala != ultima_sala) {
+				ultima_sala = sala;
+				if (@z != null && !reuniao) speak(tr(z.name_key), false);
+			}
+		}
+		// Na reunião a voz é a da mesa, sem posição - como para os jogadores.
+		g_voice.spatial = !reuniao;
+		g_voice.allowed = voice_room_allows && !voice_down_for(sabotagem, true, reuniao, voice_comms_affects_meeting);
+
+		// Trocar de quem acompanhar: setas para os lados (lidas uma vez cada - ver CLAUDE.md).
+		bool para_tras = key_pressed(KEY_LEFT);
+		bool para_frente = key_pressed(KEY_RIGHT);
+		if (para_tras || para_frente) {
+			array<roster_entry@>@ vivos = spectate_candidates(roster, client.my_peer_id);
+			if (vivos.length() == 0) speak(tr("spectate.nobody"));
+			else {
+				int i = 0;
+				for (uint k = 0; k < vivos.length(); k++) if (vivos[k].peer_id == seguindo) i = int(k);
+				i = (i + (para_frente ? 1 : int(vivos.length()) - 1)) % int(vivos.length());
+				seguindo = vivos[i].peer_id;
+				client.send_spectate_follow(seguindo);
+				ultima_sala = ""; // a sala nova é dita junto do nome
+				map_zone@ z = map.zone_at(vivos[i].x, vivos[i].y);
+				if (@z != null) ultima_sala = z.id;
+				speak(spectate_where_text(map, vivos[i]));
+			}
+		}
+		if (action_pressed(ACTION_ROOM_INFO)) speak(spectate_where_text(map, roster.find(seguindo)));
+		if (action_pressed(ACTION_TASK_LIST) && reuniao) mui.announce_time_remaining();
+		if (action_pressed(ACTION_TALK)) {
+			if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(who_is_speaking_text());
+			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
+		}
+		chat_review_keys();
+
+		if (key_pressed(KEY_ESCAPE)) {
+			if (yes_no(tr("spectate.quit_confirm"), null, tr("menu.yes"), tr("menu.no"))) {
+				client.send_leave_lobby();
+				break;
+			}
+		}
+	}
+	audio.stop_ship_ambience();
+	audio.stop_room_ambience();
+	audio.stop_all_body_beacons();
+	@g_match_roster = null;
+	end_chat_review();
+	return back_to_lobby;
+}

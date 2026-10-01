@@ -1,0 +1,187 @@
+// Sonda do modo espectador.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_spectate.nvgt
+//
+// Sala PRIVADA com três jogadores (j0 anfitrião, j1, j2) e S, que marca "vou assistir" (tecla A).
+// Confere:
+//   1. S recebe S_SPECTATE_START (e não S_GAME_START), o elenco não o inclui, e a partida tem 3;
+//   2. nada que revele papel chega a S: nem your_role, nem parceiros, nem quem matou;
+//   3. L entra pelo CÓDIGO com a partida andando e vira espectador;
+//   4. voz: S ouve quem acompanha; os jogadores não ouvem espectador; os espectadores se ouvem;
+//   5. S não age: pedir reunião não abre reunião nenhuma (o CONTROLE é j1 pedir e abrir);
+//   6. a reunião e o fim da partida chegam a quem assiste, e na volta à sala L vira membro para jogar
+//      e S continua marcado para assistir.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+class sink : voice_receiver {
+	array<uint64> talkers;
+	void on_voice_frame(const string&in wire) {
+		uint64 who; string audio;
+		if (!voice_unwire(wire, who, audio)) return;
+		if (talkers.find(who) == -1) talkers.insert_last(who);
+	}
+	void tick() {}
+}
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+array<game_client@> todos;
+array<sink@> sinks;
+array<array<net_packet@>@> caixa;
+void drena() {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+void bombeia(int ms) { timer t; while (t.elapsed < ms) { drena(); wait(10); } }
+void esvazia() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+net_packet@ achado(uint i, const string&in tipo) {
+	for (uint k = 0; k < caixa[i].length(); k++) if (caixa[i][k].type == tipo) return caixa[i][k];
+	return null;
+}
+net_packet@ espera(uint i, const string&in tipo, int ms) {
+	timer t;
+	while (t.elapsed < ms) { drena(); net_packet@ p = achado(i, tipo); if (@p != null) return p; wait(5); }
+	return null;
+}
+game_client@ entra(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	sink@ s = sink(); @c.voice = s;
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	todos.insert_last(c); sinks.insert_last(s); caixa.insert_last(array<net_packet@>());
+	return c;
+}
+void fala(uint quem) {
+	string audio; for (uint i = 0; i < 320; i++) audio += ascii_to_character(0x7F);
+	for (int f = 0; f < 10; f++) { todos[quem].send_voice(audio); bombeia(20); }
+	bombeia(300);
+}
+void zera() { for (uint i = 0; i < sinks.length(); i++) sinks[i].talkers.resize(0); }
+bool ouviu(uint ouvinte, uint falante) { return sinks[ouvinte].talkers.find(todos[falante].my_peer_id) != -1; }
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	// 0..2 jogam, 3 = S (assiste desde o começo), 4 = L (entra pelo código no meio)
+	for (int i = 0; i < 5; i++) if (@entra(addr, "sp" + i + "x" + sfx) == null) { println("login falhou"); return; }
+	const uint S = 3, L = 4;
+	string codigo = "SP" + sfx;
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.voice_chat = "on";
+	ov.voting_time_seconds = 20.0;
+	todos[0].send_create_lobby("assistir", "classic", ov, codigo);
+	if (@espera(0, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
+	for (uint i = 1; i <= S; i++) { todos[i].send_join_by_code(codigo); espera(i, S_JOIN_RESULT, 5000); }
+	for (uint i = 0; i < todos.length(); i++) todos[i].send_voice_state(true);
+	bombeia(300);
+	esvazia();
+	todos[S].send_set_spectate(true);
+	net_packet@ st = espera(0, S_LOBBY_STATE, 3000);
+	bool marcado = false;
+	if (@st != null) {
+		json_array@ l = st.get_array("players");
+		for (uint k = 0; k < l.length(); k++) if (uint64(l.get_object(k)["peer_id"]) == todos[S].my_peer_id) marcado = bool(l.get_object(k)["spectating"]);
+	}
+	confere("a sala mostra S marcado para assistir", marcado);
+
+	esvazia();
+	todos[0].send_start_game();
+	net_packet@ ss = espera(S, S_SPECTATE_START, 8000);
+	confere("S recebe S_SPECTATE_START", @ss != null);
+	confere("e NAO recebe S_GAME_START", @achado(S, S_GAME_START) == null);
+	if (@ss == null) return;
+	confere("o inicio de S nao tem papel", !ss.exists("your_role") && !ss.exists("impostor_partners"));
+	int impostor = -1;
+	array<float> xs(3), ys(3);
+	for (uint i = 0; i < 3; i++) {
+		net_packet@ g = espera(i, S_GAME_START, 5000);
+		if (@g == null) { println("jogador " + i + " sem inicio"); return; }
+		xs[i] = g.get_float("your_x"); ys[i] = g.get_float("your_y");
+		if (g.get_string("your_role") == ROLE_IMPOSTOR) impostor = int(i);
+		json_array@ el = g.get_array("players");
+		if (i == 0) confere("o elenco dos jogadores tem 3 e nao inclui S (" + el.length() + ")", el.length() == 3);
+	}
+	if (impostor < 0) { println("sem impostor humano"); return; }
+
+	// L entra pelo código, com a partida andando.
+	esvazia();
+	todos[L].send_join_by_code(codigo);
+	net_packet@ jr = espera(L, S_JOIN_RESULT, 5000);
+	confere("L entra pelo codigo com a partida andando, como espectador", @jr != null && jr.get_bool("ok") && jr.get_bool("spectating", false));
+	confere("e recebe o inicio de espectador", @espera(L, S_SPECTATE_START, 3000) != null);
+
+	// Voz: S acompanha j1.
+	uint seguido = impostor == 1 ? 2 : 1;
+	todos[S].send_spectate_follow(todos[seguido].my_peer_id);
+	bombeia(300);
+	zera(); fala(seguido);
+	confere("S ouve quem acompanha", ouviu(S, seguido));
+	zera(); fala(S);
+	confere("nenhum jogador ouve o espectador", !ouviu(0, S) && !ouviu(1, S) && !ouviu(2, S));
+	confere("o outro espectador ouve", ouviu(L, S));
+
+	// S não age.
+	esvazia();
+	todos[S].send_call_meeting();
+	bombeia(1000);
+	confere("S pedir reuniao nao abre reuniao", @achado(0, S_MEETING_STARTED) == null);
+	todos[seguido].send_call_meeting();
+	confere("controle: um jogador pede e a reuniao abre", @espera(0, S_MEETING_STARTED, 5000) != null);
+	confere("a reuniao chega a quem assiste", @espera(S, S_MEETING_STARTED, 3000) != null && @espera(L, S_MEETING_STARTED, 3000) != null);
+	espera(0, S_VOTING_STARTED, 5000);
+
+	// Todos votam no impostor: a tripulação vence e a partida acaba.
+	bombeia(300);
+	esvazia();
+	for (uint i = 0; i < 3; i++) todos[i].send_cast_vote(int(i) == impostor ? -1 : int64(todos[impostor].my_peer_id));
+	confere("o fim da partida chega a quem assiste", @espera(S, S_GAME_OVER, 30000) != null && @espera(L, S_GAME_OVER, 5000) != null);
+	bombeia(1500);
+
+	// Nada que revele papel chegou a quem assiste, em toda a partida.
+	bool vazou = false;
+	for (uint i = S; i <= L; i++) for (uint k = 0; k < caixa[i].length(); k++) {
+		net_packet@ p = caixa[i][k];
+		if (p.exists("your_role") || p.exists("impostor_partners") || p.exists("killer_peer")) vazou = true;
+	}
+	confere("nenhum pacote com papel ou assassino chegou a quem assiste", !vazou);
+
+	// A volta para a sala.
+	net_packet@ volta = null;
+	for (uint k = 0; k < caixa[S].length(); k++) if (caixa[S][k].type == S_LOBBY_STATE) @volta = caixa[S][k];
+	bool s_marcado = false, l_joga = false, l_na_sala = false;
+	if (@volta != null) {
+		json_array@ l = volta.get_array("players");
+		for (uint k = 0; k < l.length(); k++) {
+			json_object@ o = l.get_object(k);
+			uint64 id = uint64(o["peer_id"]);
+			if (id == todos[S].my_peer_id) s_marcado = bool(o["spectating"]);
+			if (id == todos[L].my_peer_id) { l_na_sala = true; l_joga = !bool(o["spectating"]); }
+		}
+	}
+	confere("na sala reaberta, S continua marcado para assistir", s_marcado);
+	confere("e L virou membro da sala, para jogar a proxima", l_na_sala && l_joga);
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

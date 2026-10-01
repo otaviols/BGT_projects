@@ -152,3 +152,19 @@ na mesma mesa; o fantasma fica onde morreu, então com posição ele ouvia a dis
 fantasmas - espalhados pelo mapa - de tão longe que virava silêncio. Morto não tem lugar.
 
 
+
+**ESPECTADOR: uma lista à parte (`game_state.spectators`), e não jogadores marcados.** Toda a lógica
+do jogo - votos, kill, vitória, tarefas, papéis, `find_player` - procura em `players`, então um
+espectador não tem como influenciar nada por acidente: um `if` esquecido não existe porque não há `if`
+a esquecer. O que ele RECEBE é que é escolhido, caso a caso: `broadcast_to_lobby` inclui os
+espectadores (é o canal do que é público); o que vai a um jogador só (papel, parceiros, a morte com o
+nome do assassino, a barriga) nunca passa por ela. Laços que mandam pacote público jogador a jogador
+(a morte pública em `announce_kill`, o som de engolir) precisam incluir a lista à mão - quem
+acrescentar um laço assim, lembre. Decisões do usuário: não vê papel até o fim; a voz dele chega só a
+outros espectadores; ouve como quem está ao lado de quem acompanha (`spectator_hears`), e a mesa na
+reunião; entra marcando A na sala de espera, ou pelo CÓDIGO de uma sala privada em andamento - a pública
+em andamento só aparece na lista. Na reabertura da sala os espectadores voltam como membros: quem tinha
+marcado A continua marcado, quem entrou pelo código fica para jogar (a não ser que a sala esteja cheia).
+No cliente é uma tela própria (`spectate_loop.nvgt`), e não `run_game` com bandeira, pelo mesmo
+motivo da lista à parte. Sonda: `probe_spectate.nvgt` (inclusive que nenhum pacote com papel ou
+assassino chega a quem assiste).

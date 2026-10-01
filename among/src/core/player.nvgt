@@ -59,6 +59,11 @@ class game_player {
 	// cada lugar. O que precisa de condição própria é o contrário: as liberdades do fantasma (andar,
 	// fazer tarefa, ouvir os mortos), que o engolido não tem. Ver game_state.try_eat.
 	uint64 swallowed_by = 0;
+	// ESPECTADOR. `wants_to_spectate` é a escolha feita na sala de espera (tecla A) e sobrevive de uma
+	// partida para a outra - quem quer só assistir não precisa marcar de novo a cada rodada. `follow_peer`
+	// é de quem ele acompanha a partida agora (ver game_state.spectator_hears).
+	bool wants_to_spectate = false;
+	uint64 follow_peer = 0;
 	bool swallowed() const { return swallowed_by != 0; }
 	// O papel é a fonte; is_impostor é DERIVADO dele em set_role() e existe porque o resto do servidor
 	// ainda pergunta pelo time em dezenas de lugares (contagem de vivos, vitória, alvo de kill). Os
@@ -264,6 +269,7 @@ class game_player {
 		named_by_color = false;
 		alive = true;
 		swallowed_by = 0;
+		follow_peer = 0;
 		nearby_sent.resize(0);
 		nearby_sent_once = false;
 		left_match = false;

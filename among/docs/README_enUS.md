@@ -223,11 +223,26 @@ your file and English — worth sending a message about it.
 | C | opens this match's rules as a list: arrows go through one rule at a time, with items to copy the code (private match) and all the rules. If the match starts while it is open, it closes by itself |
 | O | change the rules (host only): the fields come with the current values, and anything left blank stays as it is. Everyone is told. |
 | E | pick your color. A color already taken is read with the name of whoever took it. Your pick is saved and sent to the next lobbies by itself; it only counts in lobbies that let players choose (in the others, colors are drawn) |
+| A | switches between playing and only **watching** the next match (see "Watching a match") |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
 | Y | write in chat |
 | Comma / Period | move through messages |
 | ESC | leave the match |
+
+## Watching a match
+
+You can watch a match without playing, in two ways: in the waiting room, the **A** key marks that you
+will only watch the next one (you stay in the lobby, but you are not in the crew); or, for a **private
+lobby** whose match is already running, typing its code lets you in as a spectator. Public matches in
+progress only show up in the list - you cannot watch strangers' matches.
+
+While watching, you follow one living player at a time and hear the match from where they are: the
+footsteps, the sounds, the voices that reach them. **Left and right** switch who you follow, and the
+**where am I** key says who and in which room. At a meeting you hear the table. You do not know anyone's
+role until the end, like everyone else, and you cannot do anything in the match. Your voice only reaches
+other spectators. When the match ends you go back to the waiting room like everyone else; whoever came
+in with the code stays to play the next one.
 
 ## Keys during a match
 

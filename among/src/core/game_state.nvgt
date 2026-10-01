@@ -72,6 +72,10 @@ class game_state {
 	lobby_config@ config;
 	game_map@ map;
 	array<game_player@> players;
+	// Quem ASSISTE a partida. Uma lista à parte, e não jogadores marcados: toda a lógica do jogo -
+	// votos, kill, vitória, tarefas, papéis - procura em `players`, então um espectador não tem como
+	// influenciar nada por acidente. O que ele recebe é escolhido no servidor, caso a caso.
+	array<game_player@> spectators;
 	array<body_info> bodies;
 	array<vote_entry> votes;
 
@@ -576,6 +580,27 @@ class game_state {
 			if (players[i].swallowed() && !players[i].left_match) return true;
 		}
 		return false;
+	}
+
+	game_player@ find_spectator(uint64 peer_id) const {
+		for (uint i = 0; i < spectators.length(); i++) if (spectators[i].peer_id == peer_id) return spectators[i];
+		return null;
+	}
+
+	// O espectador ouve a voz de `talker`? Como quem está ao lado de quem ele acompanha: andando, a
+	// voz que chega até essa pessoa; na reunião, a mesa inteira (a mesma regra que a barriga do lobo
+	// ganhou). Fantasma e barriga nunca: o espectador assiste a partida dos vivos. E as comunicações
+	// sabotadas calam para ele o que calam para todos.
+	bool spectator_hears(game_player@ talker, game_player@ spec) const {
+		if (@talker == null || @spec == null) return false;
+		if (state == "waiting" || state == "ended") return true;
+		if (!talker.alive) return false;
+		bool reuniao = state == "meeting" || state == "voting";
+		if (voice_down_for(active_sabotage, true, reuniao, config.comms_affects_meeting)) return false;
+		if (reuniao) return true;
+		game_player@ alvo = find_player(spec.follow_peer);
+		if (@alvo == null) return false;
+		return distance_2d(talker.x, talker.y, alvo.x, alvo.y) <= VOICE_RANGE;
 	}
 
 	uint alive_count() const {
