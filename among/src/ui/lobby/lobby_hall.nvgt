@@ -1,0 +1,179 @@
+// lobby_hall.nvgt
+// O saguão: a conversa, quem está lá e os avisos que chegam enquanto se olha a lista.
+//
+// Parte das telas de sala (src/ui/lobby_screens.nvgt), que é quem inclui este arquivo e declara
+// os #include de todas as partes: elas se chamam umas às outras e não compilam sozinhas.
+
+// menu.run() e o monitor() de audio_form bloqueiam localmente enquanto o jogador decide (às vezes
+// dezenas de segundos, alternando entre janelas ao testar com vários clientes) sem nunca chamar
+// client.update(). Sem isso a conexão para de ser "servida" (nada de keepalive/ack via ENet) e o
+// servidor pode considerá-la caída, fazendo a lista de lobbies parecer travada/vazia mesmo com o
+// servidor funcionando. background_callback do menu.nvgt roda a cada iteração do monitor() interno,
+// então usamos ele pra manter a rede viva enquanto o menu está aberto.
+// O saguão: quem está conectado fora de qualquer sala, e a conversa entre eles. Existe para o
+// grupo se combinar antes de criar a partida - antes disto, quem chegava ao servidor não tinha como
+// saber se havia mais alguém online.
+class hall_view {
+	array<string> names;
+	chat_log@ log = chat_log();
+	// O que ACONTECEU no saguão, separado da conversa: o recado do servidor, salas criadas, partidas
+	// que começaram ou reabriram. É o segundo histórico das teclas de leitura (PageUp troca), como os
+	// eventos da partida - misturado ao chat, um aviso de sala nova empurraria a conversa para cima.
+	chat_log@ events = chat_log();
+	// A lista de partidas mais nova que o servidor mandou sozinho (S_LOBBY_LIST_PUSH), e se ela ainda
+	// não foi posta no menu.
+	json_array@ pushed_list = null;
+	bool list_changed = false;
+	// Recado fixo de quem opera o servidor (ver C_ADMIN_SET_NOTICE). Ele chega em todo retrato do
+	// saguão, então `ja_falado` é o que impede a mesma frase de ser repetida a cada vez que alguém
+	// entra ou sai da lista - o recado é dito quando MUDA, e fica disponível na lista de partidas
+	// para reler quando o jogador quiser.
+	string notice;
+	private string ja_falado;
+
+	// Devolve true se este recado ainda não foi falado nesta sessão.
+	bool notice_is_new() const { return notice != "" && notice != ja_falado; }
+	void notice_was_spoken() { ja_falado = notice; }
+}
+
+hall_view g_hall;
+
+dictionary@ notice_params(const string&in text) { dictionary@ d = dictionary(); d.set("text", text); return d; }
+
+// Tira da fila os pacotes do saguão, onde quer que ela esteja sendo lida.
+//
+// Precisa ser chamado DENTRO das esperas por resposta do servidor, e não só no laço do menu: essas
+// esperas consomem a fila e jogam fora o que não estão esperando (ver CLAUDE.md), então uma
+// mensagem do saguão que chegasse durante a busca da lista de partidas sumia sem deixar rastro.
+// Aqui só os pacotes do saguão são retirados; o resto fica intacto para quem está esperando.
+void drain_hall_packets(game_client@ client) {
+	for (uint i = 0; i < client.incoming.length(); i++) {
+		net_packet@ p = client.incoming[i];
+		if (p.type == S_HALL_STATE) {
+			g_hall.names.resize(0);
+			json_array@ names = p.get_array("players");
+			if (@names != null) for (uint k = 0; k < names.length(); k++) g_hall.names.insert_last(string(names[k]));
+			g_hall.notice = p.get_string("notice", "");
+			if (g_hall.notice_is_new()) {
+				g_hall.notice_was_spoken();
+				// Sem interromper, como o chat do saguão: quem está lendo a lista de partidas não pode
+				// ser cortado no meio. E sempre com o rótulo traduzido na frente - o recado em si é
+				// texto cru escrito por quem opera o servidor, e sem o rótulo soaria como a fala de
+				// outro jogador.
+				string aviso = tr("hall.notice", notice_params(g_hall.notice));
+				g_hall.events.add("", aviso);
+				speak(aviso, false);
+			}
+		} else if (p.type == S_SERVER_NOTICE) {
+			// Aviso do servidor (reinício): som, fala e o histórico do saguão, para quem estava ouvindo
+			// outra coisa poder reler.
+			string aviso = tr_server_message(p);
+			ui_sound(SND_SERVER_NOTICE);
+			g_hall.events.add("", aviso);
+			speak(aviso, false);
+		} else if (p.type == S_LOBBY_LIST_PUSH) {
+			@g_hall.pushed_list = p.get_array("lobbies");
+			g_hall.list_changed = true;
+		} else if (p.type == S_HALL_EVENT) {
+			// Dito sem interromper, como o chat do saguão: quem está lendo a lista não pode ser cortado.
+			string aviso = hall_event_text(p);
+			if (aviso != "") {
+				g_hall.events.add("", aviso);
+				speak(aviso, false);
+			}
+		} else if (p.type == S_HALL_CHAT) {
+			string name = p.get_string("name");
+			string text = p.get_string("text");
+			g_hall.log.add(name, text);
+			// Sem interromper: quem está lendo a lista de partidas não pode ser cortado no meio.
+			speak_chat(name + ": " + text);
+		} else continue;
+		client.incoming.remove_at(i);
+		i--;
+	}
+}
+
+// "Fulano criou a sala X", "A partida X começou", "A partida X acabou e está aberta".
+string hall_event_text(net_packet@ p) {
+	string kind = p.get_string("kind");
+	dictionary@ d = dictionary();
+	d.set("room", p.get_string("room"));
+	d.set("name", p.get_string("by"));
+	if (kind == "created") return tr(p.get_string("by") != "" ? "hall.event_created" : "hall.event_created_anon", d);
+	if (kind == "started") return tr("hall.event_started", d);
+	if (kind == "reopened") return tr("hall.event_reopened", d);
+	return "";
+}
+
+// Quem está no saguão, pronto para falar. O próprio jogador entra na conta - ele é um dos que
+// estão ali, e uma lista que o omitisse faria "1 pessoa" soar como "tem mais alguém".
+string hall_people_text() {
+	if (g_hall.names.length() <= 1) return tr("hall.alone");
+	dictionary@ p = dictionary();
+	p.set("names", join(g_hall.names, ", "));
+	return tr("hall.people", p);
+}
+
+// Conversa do saguão: o histórico como lista navegável (é assim que se relê o que já foi dito) e
+// uma caixa para escrever. A lista é remontada a cada volta, então o que chegou enquanto a caixa
+// estava aberta já aparece.
+void run_hall_screen(game_client@ client) {
+	while (true) {
+		if (!client.connected) return;
+		menu m;
+		// Quem está no saguão é a informação que se vem buscar aqui: ela abre a tela, e é o que se
+		// ouve de novo a cada F5.
+		m.intro_text = hall_people_text();
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
+
+		m.add_item(tr("hall.write"), "__write__");
+		m.add_item(tr("lobby.refresh"), "__refresh__");
+		if (g_hall.log.empty) m.add_item(tr("hall.no_messages"), "__none__");
+		else for (uint i = 0; i < g_hall.log.lines.length(); i++) m.add_item(g_hall.log.format_line(i), "__line__");
+		m.add_item(tr("menu.back"), "__back__");
+		if (run_menu_with_refresh(m)) continue; // F5: remonta com quem está lá agora
+
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		if (id == "__refresh__") continue;
+		if (id == "__write__") run_hall_compose(client);
+	}
+}
+
+// Caixa de mensagem do saguão. Enquanto ela está aberta o jogo continua ouvindo o saguão (o laço
+// bombeia e drena), pelo mesmo motivo da caixa de chat da partida: uma caixa que emudece o mundo
+// parece um travamento.
+void run_hall_compose(game_client@ client) {
+	audio_form f;
+	screen_keyboard_follower teclado_tela;
+	f.create_window(tr("hall.title"), false);
+	int f_text = f.create_input_box(tr("chat.compose_label"));
+	int f_send = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_text); // audio_form nasce sem foco nenhum
+	g_voice.typing = true; // a tecla de falar é uma letra
+
+	while (true) {
+		wait(5);
+		client.update();
+		drain_hall_packets(client);
+		if (!client.connected) { g_voice.typing = false; return; }
+		f.monitor();
+		teclado_tela.follow(f);
+		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return; }
+		if (f.is_pressed(f_send)) {
+			string text = f.get_text(f_text);
+			if (chat_too_long(text)) continue; // avisa e deixa encurtar (ver chat_too_long)
+			if (text != "") {
+				client.send_hall_chat(text);
+				speak(tr("chat.sent"));
+			}
+			g_voice.typing = false;
+			return;
+		}
+	}
+}

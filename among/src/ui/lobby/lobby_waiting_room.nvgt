@@ -1,0 +1,421 @@
+// lobby_waiting_room.nvgt
+// A sala de espera: regras, cor, estatísticas, troca de dono e o laço da sala até a partida começar.
+//
+// Parte das telas de sala (src/ui/lobby_screens.nvgt), que é quem inclui este arquivo e declara
+// os #include de todas as partes: elas se chamam umas às outras e não compilam sozinhas.
+
+// Último retrato da sala que o servidor mandou: quem está nela, quais são as regras, e o teto de
+// jogadores. Guardado porque as teclas de "quem está aqui" e "quais as regras" respondem na hora, sem
+// ir perguntar nada ao servidor.
+//
+// É uma classe, e não três variáveis soltas no laço, porque o retrato chega por dois caminhos - o
+// pacote da criação da sala e os S_LOBBY_STATE que chegam depois - e os dois precisam aplicá-lo do
+// mesmo jeito. Quando eram variáveis soltas, só o segundo caminho existia.
+class lobby_snapshot {
+	json_array@ players = null;
+	json_object@ config = null;
+	uint max_players = MAX_PLAYERS;
+	string join_code = ""; // vazio = pública
+
+	void apply(net_packet@ pkt) {
+		if (@pkt == null) return;
+		join_code = pkt.get_string("join_code", "");
+		@players = pkt.get_array("players");
+		@config = pkt.get_object("config");
+		max_players = uint(pkt.get_int("max_players", int(MAX_PLAYERS)));
+	}
+
+	// Entrega os nomes ao chat de voz, para silenciar por nome já na sala de espera.
+	void feed_voice_names() const {
+		if (@players == null) return;
+		g_voice.forget_names();
+		for (uint i = 0; i < players.length(); i++) {
+			json_object@ pj = players.get_object(i);
+			if (@pj != null) g_voice.remember_name(uint64(pj["peer_id"]), string(pj["name"]));
+		}
+	}
+
+	bool is_spectating(uint64 peer_id) const {
+		if (@players == null) return false;
+		for (uint i = 0; i < players.length(); i++) {
+			json_object@ pj = players.get_object(i);
+			if (@pj != null && uint64(pj["peer_id"]) == peer_id) return pj.exists("spectating") && bool(pj["spectating"]);
+		}
+		return false;
+	}
+
+	string name_of(uint64 peer_id) const {
+		if (@players == null) return "";
+		for (uint i = 0; i < players.length(); i++) {
+			json_object@ pj = players.get_object(i);
+			if (@pj != null && uint64(pj["peer_id"]) == peer_id) return string(pj["name"]);
+		}
+		return "";
+	}
+}
+
+// As regras da sala como lista navegável (tecla C na sala de espera): uma regra por item, e dois
+// itens de ação - copiar o código (sala privada) e copiar todas as regras.
+//
+// É a tela que alguém lê enquanto o anfitrião aperta Enter, então ela fecha sozinha quando a partida
+// começa e deixa o S_GAME_START na fila para a sala de espera tratar (ver match_aware_menu). Não
+// acompanha mudanças feitas pelo anfitrião com ela aberta: mostra o retrato de quando abriu, e
+// reabrir mostra o novo.
+string g_rules_join_code = "";
+
+void run_rules_screen(game_client@ client, lobby_snapshot@ snapshot) {
+	menu m;
+	m.intro_text = tr("lobby.rules_title");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+
+	g_rules_join_code = snapshot.join_code;
+	if (snapshot.join_code != "") {
+		dictionary@ cp = dictionary();
+		cp.set("code", snapshot.join_code);
+		m.add_item(tr("lobby.rules_code_item", cp), "__code__");
+	}
+	array<string>@ linhas = lobby_config_lines(snapshot.config);
+	for (uint i = 0; i < linhas.length(); i++) m.add_item(linhas[i], "rule");
+	m.add_item(tr("lobby.rules_copy_all"), "__copy_all__");
+	m.add_item(tr("menu.back"), "__back__");
+	run_menu_until_next_match(m, client, @rules_screen_action);
+}
+
+bool rules_screen_action(menu@ m, const string&in item_id) {
+	if (item_id == "__code__") {
+		dictionary@ cp = dictionary();
+		cp.set("code", g_rules_join_code);
+		speak(tr(copy_to_clipboard(g_rules_join_code) ? "lobby.code_copied" : "clipboard.failed", cp));
+		return true;
+	}
+	if (item_id == "__copy_all__") {
+		array<string> pular = {"__copy_all__", "__back__"};
+		speak(tr(copy_to_clipboard(menu_items_as_text(m, pular)) ? "lobby.rules_copied" : "clipboard.failed"));
+		return true;
+	}
+	// Enter numa regra não fecha a tela: quem aperta Enter numa lista de leitura quer continuar
+	// lendo, e fechar ali o jogaria de volta à sala no meio da consulta.
+	return item_id == "rule";
+}
+
+// " Partida privada. Código: xyz." - ou nada, se for pública. Dito na entrada e na tecla C: é
+// assim que o anfitrião relembra o código para ditar aos amigos.
+string private_lobby_text(const string&in join_code) {
+	if (join_code == "") return "";
+	dictionary@ p = dictionary();
+	p.set("code", join_code);
+	return " " + tr("lobby.info.private_code", p);
+}
+
+// Atualiza is_host/host_peer_id a partir de um novo valor vindo do servidor (S_LOBBY_STATE ou
+// S_PLAYER_LEFT) e anuncia a troca de anfitrião - só quando já sabíamos quem era antes (host_peer_id
+// != 0), pra não anunciar nada na entrada na sala.
+void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inout is_host,
+		uint64 new_host_peer_id, const string&in new_host_name) {
+	bool was_known = host_peer_id != 0;
+	bool changed = was_known && new_host_peer_id != host_peer_id;
+	host_peer_id = new_host_peer_id;
+	is_host = client.my_peer_id == host_peer_id;
+	if (!changed) return;
+	if (is_host) {
+		speak(tr("lobby.you_are_host") + " " + tr("lobby.host_start_hint"));
+	} else if (new_host_name != "") {
+		dictionary@ p = dictionary();
+		p.set("name", new_host_name);
+		speak(tr("lobby.new_host", p));
+	}
+}
+
+// Sala de espera: fala entradas/saídas, o anfitrião inicia a partida (Enter) e qualquer um pode
+// sair (ESC). Retorna o pacote S_GAME_START quando a partida começa, ou null se o jogador saiu
+// antes disso.
+// Não existe mais "marcar pronto": ninguém usava pra nada (o servidor nunca exigiu que todos
+// estivessem prontos pra começar), era só um passo a mais antes de jogar.
+// Servidor antigo não manda o campo, e nele não há relay de voz de qualquer jeito.
+bool lobby_allows_voice(json_object@ config) {
+	return @config != null && config.exists("voice_chat") && bool(config["voice_chat"]);
+}
+
+// "Minhas estatísticas": pede ao servidor e mostra como lista navegável, um número por item. Pede a
+// cada abertura, e não guarda: a conta é do servidor, e um número guardado envelheceria.
+void run_stats_screen(game_client@ client) {
+	client.send_get_stats();
+	net_packet@ s = null;
+	timer espera;
+	while (@s == null && espera.elapsed < 8000) {
+		wait(5);
+		client.update();
+		drain_hall_packets(client);
+		for (uint i = 0; i < client.incoming.length(); i++) {
+			if (client.incoming[i].type != S_STATS) continue;
+			@s = client.incoming[i];
+			client.incoming.remove_at(i);
+			break;
+		}
+	}
+	if (@s == null) { speak(tr("stats.no_answer")); return; }
+
+	menu m;
+	m.intro_text = tr("stats.title");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+	array<string> campos = {"games_played", "games_won", "crewmate_wins", "impostor_wins", "neutral_wins", "tasks_completed", "kills"};
+	for (uint i = 0; i < campos.length(); i++) {
+		dictionary@ p = dictionary();
+		p.set("count", "" + s.get_int(campos[i]));
+		m.add_item(tr("stats." + campos[i], p), campos[i]);
+	}
+	m.add_item(tr("menu.back"), "__back__");
+	m.run();
+}
+
+bool lobby_color_choice(json_object@ config) {
+	return @config != null && config.exists("color_choice") && bool(config["color_choice"]);
+}
+
+// Quem da sala (fora eu) escolheu esta cor, ou "" se ninguém.
+string color_owner_name(lobby_snapshot@ snapshot, int color, uint64 my_peer_id) {
+	if (@snapshot.players == null) return "";
+	for (uint i = 0; i < snapshot.players.length(); i++) {
+		json_object@ pj = snapshot.players.get_object(i);
+		if (@pj == null || !pj.exists("color") || int(pj["color"]) != color) continue;
+		if (uint64(pj["peer_id"]) == my_peer_id) continue;
+		return string(pj["name"]);
+	}
+	return "";
+}
+
+// Tela de escolha de cor (tecla E na sala de espera). A primeira opção é "sem preferência": quem a
+// escolhe recebe uma cor sorteada. Cor já tomada vem dita com o nome de quem a tomou e não é pedida ao
+// servidor - pedir só para ouvir "já é de fulano" seria uma viagem de rede e uma frase a mais. O
+// servidor confere de novo (duas pessoas podem escolher a mesma no mesmo instante).
+//
+// Fecha sozinha se a partida começar (ver match_aware_menu), como a tela de regras.
+void run_color_choice_screen(game_client@ client, lobby_snapshot@ snapshot) {
+	menu m;
+	m.intro_text = tr(lobby_color_choice(snapshot.config) ? "lobby.color_pick_title" : "lobby.color_pick_title_random");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+
+	m.add_item(tr("lobby.color_pick_none"), "-1");
+	for (int c = 0; c < int(COLOR_COUNT); c++) {
+		string texto = tr("color." + color_key(c));
+		string dono = color_owner_name(snapshot, c, client.my_peer_id);
+		if (dono != "") {
+			dictionary@ dp = dictionary();
+			dp.set("name", dono);
+			texto += ", " + tr("lobby.color_taken_by", dp);
+		}
+		if (c == g_settings.preferred_color) texto += ", " + tr("lobby.color_yours");
+		m.add_item(texto, "" + c);
+	}
+	if (run_menu_until_next_match(m, client)) return; // a partida começou: a sala de espera trata
+	string id = m.selected_item_id;
+	if (id == "") return; // Esc
+	int cor = parse_int(id);
+	if (cor >= 0) {
+		string dono = color_owner_name(snapshot, cor, client.my_peer_id);
+		if (dono != "") {
+			dictionary@ tp = dictionary();
+			tp.set("color", color_mark(cor));
+			tp.set("name", dono);
+			speak(tr("lobby.color_taken", tp));
+			return;
+		}
+	}
+	g_settings.preferred_color = cor;
+	g_settings.save();
+	client.send_choose_color(cor);
+	if (cor < 0) { speak(tr("lobby.color_pick_cleared")); return; }
+	dictionary@ cp = dictionary();
+	cp.set("color", color_mark(cor));
+	speak(tr(lobby_color_choice(snapshot.config) ? "lobby.color_pick_done" : "lobby.color_pick_saved", cp));
+}
+
+net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
+		net_packet@ initial_lobby_state = null) {
+	audio_manager@ audio = audio_manager();
+	uint64 host_peer_id = 0; // 0 = ainda não recebemos nenhum S_LOBBY_STATE
+
+	chat_log@ messages_log = chat_log();
+	chat_log@ events_log = chat_log();
+	// As teclas de leitura e o registro do que chega com um menu aberto (regras, cor) valem para estes
+	// históricos - ver chat_review. O "estou lendo eventos ou mensagens" mora lá agora.
+	begin_chat_review(messages_log, events_log);
+	timer@ ping_clock = timer();
+	bool ping_pending = false;
+
+	// O retrato que veio da criação da sala vale desde já. Sem isto, quem cria a partida fica sem
+	// resposta para P e C enquanto estiver sozinho: o próximo retrato só chega quando alguém entra.
+	lobby_snapshot snapshot;
+	snapshot.apply(initial_lobby_state);
+	if (@initial_lobby_state != null) {
+		apply_host_change(client, host_peer_id, is_host, initial_lobby_state.get_uint64("host_peer_id"), "");
+	}
+	// A cor preferida vai sozinha ao entrar: quem já escolheu uma vez não precisa escolher em toda
+	// sala. Se outra pessoa já a pegou, o servidor avisa (lobby.color_taken) e a tecla E resolve.
+	if (g_settings.preferred_color >= 0) client.send_choose_color(g_settings.preferred_color);
+	// Na sala de espera todo mundo se ouve, sem posição (ver game_state.can_hear_voice). A regra da
+	// sala pode mudar enquanto se espera (tecla O do anfitrião), por isso é reaplicada a cada retrato.
+	g_voice.begin_lobby(lobby_allows_voice(snapshot.config));
+	g_voice.my_peer_id = client.my_peer_id;
+	snapshot.feed_voice_names();
+
+	// A dica das teclas vem junto do aviso de entrada: numa sala de espera ninguém vai descobrir
+	// sozinho que P e C fazem alguma coisa, e é justamente ali que essas duas respostas importam.
+	speak(tr(is_host ? "lobby.host_start_hint" : "lobby.waiting_for_host") + " " + tr("lobby.info.keys_hint")
+		+ private_lobby_text(snapshot.join_code));
+
+	while (true) {
+		wait(10);
+		client.update();
+		if (!client.connected) { speak(tr("net.connection_lost")); end_chat_review(); return null; }
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			// Já dito/registrado com um menu aberto (regras, cor)? Então nem fala nem registra de novo:
+			// `announced` para a fala, g_logging_packet para o histórico (ver chat_review).
+			@g_logging_packet = pkt;
+			if (pkt.type == S_PLAYER_JOINED) {
+				dictionary@ p = dictionary();
+				p.set("name", pkt.get_string("name"));
+				string joined_text = tr("lobby.player_joined", p);
+				if (!pkt.announced) speak(joined_text);
+				events_log.add("", joined_text);
+				audio.play_player_enter();
+			} else if (pkt.type == S_PLAYER_LEFT) {
+				dictionary@ p = dictionary();
+				p.set("name", pkt.get_string("name", "?"));
+				string left_text = tr("lobby.player_left", p);
+				if (!pkt.announced) speak(left_text);
+				events_log.add("", left_text);
+				audio.play_player_leave();
+				apply_host_change(client, host_peer_id, is_host, pkt.get_uint64("host_peer_id"), "");
+			} else if (pkt.type == S_LOBBY_STATE) {
+				snapshot.apply(pkt);
+				g_voice.allowed = lobby_allows_voice(snapshot.config);
+				snapshot.feed_voice_names();
+				uint64 new_host_id = pkt.get_uint64("host_peer_id");
+				apply_host_change(client, host_peer_id, is_host, new_host_id, snapshot.name_of(new_host_id));
+			} else if (pkt.type == S_CHAT_MESSAGE) {
+				string chat_name = pkt.get_string("name");
+				string chat_text = pkt.get_string("text");
+				messages_log.add(chat_name, chat_text);
+				// Sem interromper: uma mensagem de chat espera a fala atual acabar. Interrompendo, duas
+				// pessoas falando em sequência cortavam a primeira no meio, e um anúncio do jogo (quem
+				// reportou, quanto tempo falta) morria por causa de um "oi" no chat.
+				if (!pkt.announced) speak_chat(chat_name + ": " + chat_text);
+				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
+				else audio.play_message_received();
+			} else if (pkt.type == S_PONG && ping_pending) {
+				ping_pending = false;
+				dictionary@ ping_params = dictionary();
+				ping_params.set("ms", "" + int(ping_clock.elapsed));
+				speak(tr("game.ping_result", ping_params));
+			} else if (pkt.type == S_SERVER_NOTICE) {
+				// Reinício anunciado: som, fala, e o histórico de eventos da sala para reler.
+				string aviso = tr_server_message(pkt);
+				ui_sound(SND_SERVER_NOTICE);
+				if (!pkt.announced) speak(aviso);
+				events_log.add("", aviso);
+			} else if (pkt.type == S_ERROR) {
+				if (!pkt.announced) speak(tr_server_message(pkt));
+			} else if (pkt.type == S_GAME_START || pkt.type == S_SPECTATE_START) {
+				// A partida começou - para jogar ou para assistir (quem marcou A, ou entrou pelo código
+				// com ela já andando). Quem chama decide a tela pelo tipo do pacote.
+				@g_logging_packet = null;
+				end_chat_review(); // a partida liga o histórico dela
+				return pkt;
+			}
+			@pkt = client.poll_message();
+		}
+		@g_logging_packet = null;
+
+		if (is_host && key_pressed(KEY_RETURN)) {
+			client.send_start_game();
+		}
+
+		// B adiciona um bot, Shift+B tira o último - só o anfitrião, e o servidor confere de novo
+		// (ver on_add_bot). Entrada e saída de bot são anunciadas pelo caminho normal de
+		// S_PLAYER_JOINED / S_PLAYER_LEFT, então não precisa falar nada aqui.
+		if (key_pressed(KEY_B)) {
+			if (!is_host) speak(tr("lobby.bot_host_only"));
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) client.send_remove_bot();
+			else client.send_add_bot();
+		}
+
+		// O: o anfitrião muda as regras com a sala já aberta. Sem isto, mudar qualquer coisa era
+		// desfazer a sala e criar outra - e perder quem já tinha entrado. A resposta vem pelo caminho
+		// normal (um S_LOBBY_STATE novo para todos, mais o aviso falado), então nada especial aqui.
+		if (key_pressed(KEY_O)) {
+			if (!is_host) speak(tr("lobby.edit_host_only"));
+			else {
+				lobby_form_result r = run_lobby_settings_form(client, snapshot.config);
+				if (r.ok) client.send_update_lobby_config(r.ov);
+			}
+		}
+
+		// P: quem está na sala. C: quais são as regras desta partida.
+		//
+		// As duas respondem do último estado recebido, sem pedir nada ao servidor: a resposta é
+		// imediata, e numa sala de espera o estado já chega sozinho a cada pessoa que entra ou sai.
+		// Medir o ping ANTES de entrar na partida é quando ele mais serve: dá para decidir se vale
+		// jogar agora ou esperar. A resposta é o S_PONG, tratado no laço de pacotes acima.
+		if (action_pressed(ACTION_PING) && !ping_pending) {
+			ping_pending = true;
+			ping_clock.restart();
+			client.send_ping();
+		}
+		// F3 abre as configurações sem sair da sala: antes, mudar um volume ou uma tecla no meio da
+		// espera custava desconectar e entrar de novo - e perder a sala.
+		if (key_pressed(KEY_F3)) {
+			// O cliente vai junto: sem alguém servindo a rede, vinte segundos mexendo num volume
+			// bastavam para o servidor concluir que o jogador caiu e tirá-lo da sala.
+			run_settings_menu(client);
+			speak(tr("lobby.back_from_settings"));
+		}
+		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players, lobby_color_choice(snapshot.config)));
+		// A: assistir a próxima partida em vez de jogar (ou voltar a jogar). O estado vem do retrato da
+		// sala, que o servidor reenvia a todos na hora - é por ele que a tecla sabe o que alternar.
+		if (key_pressed(KEY_A)) {
+			bool vou_assistir = !snapshot.is_spectating(client.my_peer_id);
+			client.send_set_spectate(vou_assistir);
+			speak(tr(vou_assistir ? "spectate.will_watch" : "spectate.will_play"));
+		}
+		// E: escolher a cor. Funciona em qualquer sala - a escolha vira a preferência guardada -, mas só
+		// VALE numa sala que deixa escolher, e a tela diz isso quando não deixa.
+		if (key_pressed(KEY_E)) run_color_choice_screen(client, snapshot);
+		// C abre as regras como LISTA: eram lidas numa frase só, e com papéis e tempos ligados ela
+		// passou a durar mais de um minuto, sem jeito de voltar a um item.
+		if (key_pressed(KEY_C)) run_rules_screen(client, snapshot);
+
+		if (action_pressed(ACTION_CHAT)) run_chat_compose(client, messages_log);
+		if (action_pressed(ACTION_TALK)) {
+			if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(who_is_speaking_text());
+			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
+		}
+
+		// Leitura do histórico: a mesma função da partida e dos menus (ver chat_review).
+		chat_review_keys();
+
+		if (key_pressed(KEY_ESCAPE)) {
+			client.send_leave_lobby();
+			end_chat_review();
+			return null;
+		}
+	}
+	return null; // inalcançável - o laço só termina via return acima
+}

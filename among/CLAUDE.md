@@ -244,8 +244,8 @@ prazo, `-DrainSeconds`, padrão 300; 0 = trocar na hora). `infra\admin.ps1 statu
 também serve à mão. O cliente, por sua vez, DETECTA conexão perdida (antes o laço rodava para
 sempre numa nave vazia, sem aviso) e volta ao menu inicial avisando.
 
-**O servidor só precisa de deploy quando o código dele muda** (`src/network/server.nvgt`,
-`src/core/game_state.nvgt`, protocolo, banco). Som, UI e textos são só cliente.
+**O servidor só precisa de deploy quando o código dele muda** (`src/network/server.nvgt` e
+`src/network/server/`, `src/core/game_state.nvgt` e `src/core/game_state/`, protocolo, banco). Som, UI e textos são só cliente.
 
 Para o servidor, a imagem é etiquetada com o **commit** (`git rev-parse --short HEAD`, e não a versão
 do jogo - é o que diz exatamente qual código está no pod: `kubectl -n amongus get deploy amongus-server
@@ -363,6 +363,19 @@ novo, **recompile antes de investigar o código**.
 **Comentário explica o porquê, não o quê.** O código já diz o que faz; os comentários existem para a
 decisão, a alternativa descartada e o problema que aquilo evita. É o padrão em todo o projeto —
 mantenha.
+
+**Classe grande se divide por assunto com `mixin class`, não com classe nova.** O AngelScript não tem
+classe parcial; o `mixin class nome_part { ... }` num arquivo à parte, mais `class x : nome_part`, põe
+os métodos de volta na mesma classe - eles enxergam os campos e métodos de todas as partes, privados
+inclusive. É assim que moram o `game_server` (`src/network/server/`) e o `game_state`
+(`src/core/game_state/`): os campos e o laço no arquivo principal, um arquivo por assunto. Método novo
+vai na parte do assunto dele; campo novo, no arquivo principal. Funções soltas se dividem só movendo
+para outro arquivo incluído - mantendo a ORDEM das globais (ver a armadilha das globais, acima): as
+telas de sala estão em `src/ui/lobby/`, incluídas pelo `lobby_screens.nvgt` nessa ordem.
+
+**Mudança que só move código se prova por comparação:** `tools\run_probes.ps1 -Saida antes.txt` antes,
+de novo depois, e as duas listas têm que bater (`-Raiz` roda numa cópia - um `git worktree` - para não
+travar a pasta de trabalho durante os ~40 minutos da rodada).
 
 **Valor vindo do cliente é validado no servidor.** As configurações de sala passam por
 `lobby_config.validate()` depois de aplicadas: elas vêm da máquina do jogador.

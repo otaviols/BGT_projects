@@ -1,0 +1,305 @@
+// lobby_browser.nvgt
+// A lista de partidas: atualizar sozinha, entrar, entrar por código, assistir.
+//
+// Parte das telas de sala (src/ui/lobby_screens.nvgt), que é quem inclui este arquivo e declara
+// os #include de todas as partes: elas se chamam umas às outras e não compilam sozinhas.
+
+// Resultado do navegador de lobbies: o jogador criou uma partida, entrou em uma existente, ou
+// voltou ao menu anterior.
+class lobby_browser_result {
+	bool joined = false;
+	bool go_back = false;
+	bool is_host = false;
+
+	// O primeiro S_LOBBY_STATE, quando ele chegou ANTES da sala de espera abrir.
+	//
+	// Quem cria a partida recebe esse retrato na hora da criação, e a espera que confirma a criação
+	// tirava o pacote da fila e o jogava fora. A sala de espera então começava sem saber quem está
+	// nela nem quais são as regras, e o servidor só manda outro retrato quando alguém entra ou sai -
+	// então P e C ficavam mudos para o anfitrião sozinho, e passavam a funcionar "sozinhos" quando
+	// chegava a segunda pessoa. Guardar o pacote é o que fecha esse buraco.
+	net_packet@ initial_lobby_state = null;
+}
+
+// Roda um menu deixando o F5 recarregá-lo; devolve true se foi isso que o jogador pediu.
+//
+// menu.run() é um laço fechado (`while (monitor()) wait(5)`) que só enxerga as teclas da própria
+// lista, então uma tecla a mais exige abrir esse laço aqui - sem tocar na menu.nvgt instalada.
+// Quem chama é que remonta o menu: só ele sabe o que a lista deveria mostrar agora.
+bool run_menu_with_refresh(menu@ m) {
+	while (m.monitor()) {
+		wait(5);
+		if (key_pressed(KEY_F5)) return true;
+	}
+	return false;
+}
+
+game_client@ g_lobby_pump_client;
+
+// O histórico das teclas de leitura é o do saguão (ver run_lobby_browser_screen).
+bool g_hall_review = false;
+
+void pump_client_during_menu(menu@ m, string data) {
+	if (@g_lobby_pump_client == null) return;
+	g_lobby_pump_client.update();
+	drain_hall_packets(g_lobby_pump_client);
+	// Dentro da SALA DE ESPERA (há histórico ativo): o que chega com um menu aberto - regras, escolha de
+	// cor - é dito e entra no histórico na hora, e as teclas de leitura funcionam. Só ali: na lista de
+	// partidas as esperas já falam os próprios erros, e anunciar aqui os diria duas vezes.
+	if (@g_chat_review != null) {
+		// Na lista de partidas o histórico é o do SAGUÃO, e lá as esperas já falam os próprios
+		// erros - anunciar os pacotes aqui os diria duas vezes.
+		if (!g_hall_review) announce_background_events(g_lobby_pump_client);
+		chat_review_keys();
+	}
+}
+
+// Busca a lista de lobbies em espera no servidor e monta um menu navegável: cada partida existente
+// + "Criar partida" + "Atualizar lista" + "Voltar".
+// As teclas de leitura (vírgula, ponto, PageUp) valem em toda a lista de partidas e nas telas abertas
+// a partir dela, sobre o histórico do SAGUÃO: a conversa e os avisos. É o mesmo hábito da partida.
+lobby_browser_result run_lobby_browser_screen(game_client@ client) {
+	begin_chat_review(g_hall.log, g_hall.events);
+	g_hall_review = true;
+	lobby_browser_result r = run_lobby_browser_inner(client);
+	g_hall_review = false;
+	end_chat_review();
+	return r;
+}
+
+// Os itens da lista de partidas. Separado do laço porque a lista é refeita AO VIVO, com o menu aberto,
+// quando o servidor manda uma nova (S_LOBBY_LIST_PUSH).
+void fill_browser_menu(menu@ m, json_array@ lobbies, uint reply_count) {
+	// O recado do servidor fica FIXO no topo, acima das partidas: ele é dito uma vez quando chega,
+	// e quem estava numa partida no momento em que foi posto precisa de um lugar para achá-lo.
+	// Não é selecionável para nada - escolhê-lo só reabre a lista, e a própria linha já é o texto.
+	if (g_hall.notice != "") m.add_item(tr("hall.notice", notice_params(g_hall.notice)), "__notice__");
+
+	if (@lobbies != null) {
+		for (uint i = 0; i < lobbies.length(); i++) {
+			json_object@ entry = lobbies.get_object(i);
+			if (@entry == null) continue;
+			// Em andamento: aparece para se saber que existe, mas escolhê-la só explica (ver "__running__").
+			bool rodando = entry.exists("in_progress") && bool(entry["in_progress"]);
+			m.add_item(lobby_summary_text(entry), (rodando ? "__running__" : "") + string(entry["id"]));
+		}
+	}
+	// O saguão vem antes de tudo: é onde se descobre que há mais gente online, e o motivo mais
+	// comum de ninguém jogar era achar que não havia ninguém.
+	m.add_item(tr("hall.menu_item"), "__hall__");
+	m.add_item(tr("menu.create_lobby"), "__create__");
+	// Partida privada não aparece na lista: esta é a única porta para ela.
+	m.add_item(tr("lobby.join_by_code"), "__join_code__");
+	m.add_item(tr("lobby.refresh"), "__refresh__");
+	// O recado fica aqui, e não no menu inicial, por uma razão prática: o menu inicial vem ANTES
+	// do login, e sem sessão autenticada o servidor não teria como saber de quem é o recado. Aqui
+	// o jogador já entrou, e este é o lugar onde ele volta entre uma partida e outra - que é
+	// exatamente quando alguém lembra de contar o que achou estranho.
+	m.add_item(tr("feedback.menu_item"), "__feedback__");
+	m.add_item(tr("translation.menu_item"), "__translation__");
+	if (reply_count > 0) {
+		dictionary@ rp = dictionary();
+		rp.set("count", "" + reply_count);
+		m.add_item(tr("feedback.replies_menu_item", rp), "__replies__");
+	}
+	if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
+	m.add_item(tr("stats.menu_item"), "__stats__");
+	m.add_item(tr("account.delete_menu_item"), "__delete_account__");
+	m.add_item(tr("menu.back"), "__back__");
+}
+
+// Roda o menu da lista de partidas. Devolve true se o jogador pediu F5.
+//
+// Três coisas além do menu: o F5; a tecla P, que diz quem está no saguão (a mesma da sala de espera);
+// e a lista NOVA que o servidor manda sozinho - o menu é refeito no lugar, e o cursor volta ao MESMO
+// item, sem falar nada: para quem usa leitor de tela, itens trocando de lugar sob o cursor seriam uma
+// lista que muda de assunto sozinha. O que mudou é dito à parte, pelos avisos do saguão.
+bool run_browser_menu(menu@ m, uint reply_count) {
+	while (m.monitor()) {
+		wait(5);
+		if (key_pressed(KEY_F5)) return true;
+		if (key_pressed(KEY_P)) speak(hall_people_text());
+		if (g_hall.list_changed) {
+			g_hall.list_changed = false;
+			string onde = m.focused_item >= 0 ? m.get_item_id(m.focused_item) : "";
+			m.delete_all_items();
+			fill_browser_menu(m, g_hall.pushed_list, reply_count);
+			int i = onde != "" ? m.get_item_index(onde) : -1;
+			m.set_focused_item(i >= 0 ? i : 0, false);
+		}
+	}
+	return false;
+}
+
+lobby_browser_result run_lobby_browser_inner(game_client@ client) {
+	lobby_browser_result result;
+	audio_manager@ audio = audio_manager();
+	audio.play_intro();
+
+	// Anunciado UMA vez por visita ao navegador: o jogador que voltar de uma partida ouve de novo se
+	// ainda não leu, mas não a cada "atualizar lista".
+	bool replies_announced = false;
+
+	while (true) {
+		if (!client.connected) { speak(tr("net.connection_lost")); result.go_back = true; return result; }
+		client.send_list_lobbies();
+		json_array@ lobbies = wait_for_lobby_list(client);
+		// As respostas aos recados vêm em pedido próprio, depois da lista: a espera pela lista joga
+		// fora o que não é lista (ver CLAUDE.md), então os dois não podem viajar na mesma esperada.
+		json_array@ replies = fetch_unread_feedback_replies(client);
+		uint reply_count = @replies != null ? replies.length() : 0;
+		if (reply_count > 0 && !replies_announced) {
+			replies_announced = true;
+			dictionary@ rp = dictionary();
+			rp.set("count", "" + reply_count);
+			speak(tr(reply_count == 1 ? "feedback.replies_one" : "feedback.replies_many", rp));
+		}
+
+		menu m;
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		m.intro_text = @lobbies == null || lobbies.length() == 0 ? tr("lobby.no_lobbies") : tr("menu.join_lobby");
+		// Sem a busca pela primeira letra: a tecla P diz quem está no saguão, e com a busca ligada ela
+		// pularia para o item que começa com P. Com poucas partidas na lista, a busca faz pouca falta.
+		m.first_letter_navigation = false;
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
+		g_hall.list_changed = false; // a lista acabou de ser pedida: uma empurrada antiga não vale mais
+		fill_browser_menu(m, lobbies, reply_count);
+
+		if (run_browser_menu(m, reply_count)) continue; // F5: pergunta a lista de partidas de novo
+		string id = m.selected_item_id;
+
+		if (id == "__forget__") {
+			// Esquece este computador: o servidor invalida o token e o próximo login pede a senha.
+			client.send_logout(g_settings.session_token);
+			g_settings.session_token = "";
+			g_settings.save();
+			speak(tr("login.forgotten"));
+			continue;
+		}
+		if (id == "__stats__") {
+			run_stats_screen(client);
+			continue;
+		}
+		if (id == "__delete_account__") {
+			// Apagada, a conexão deixou de estar logada: a sessão acaba e o jogo volta ao menu inicial.
+			if (run_delete_account_screen(client)) { result.go_back = true; return result; }
+			continue;
+		}
+		if (id == "" || id == "__back__") {
+			result.go_back = true;
+			return result;
+		}
+		if (id == "__refresh__" || id == "__notice__") continue;
+		if (id.substr(0, 11) == "__running__") {
+			speak(tr("lobby.running_selected"));
+			continue;
+		}
+		if (id == "__hall__") {
+			run_hall_screen(client);
+			continue;
+		}
+		if (id == "__feedback__") {
+			run_feedback_screen(client);
+			continue;
+		}
+		if (id == "__translation__") {
+			run_send_translation_screen(client);
+			continue;
+		}
+		if (id == "__replies__") {
+			run_feedback_replies_screen(client, replies);
+			continue;
+		}
+		if (id == "__join_code__") {
+			string code = run_join_code_screen(client);
+			if (code == "") continue;
+			client.send_join_by_code(code);
+			if (wait_for_join_result(client)) {
+				result.joined = true;
+				result.is_host = false;
+				return result;
+			}
+			continue;
+		}
+		if (id == "__create__") {
+			net_packet@ created = run_create_lobby_screen(client);
+			if (@created != null) {
+				result.joined = true;
+				result.is_host = true;
+				@result.initial_lobby_state = created;
+				return result;
+			}
+			continue;
+		}
+
+		client.send_join_lobby(id);
+		if (wait_for_join_result(client)) {
+			result.joined = true;
+			result.is_host = false;
+			return result;
+		}
+	}
+	return result; // inalcançável - o laço só termina via return acima
+}
+
+json_array@ wait_for_lobby_list(game_client@ client) {
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		drain_hall_packets(client); // o saguão não pode ser engolido por uma espera (ver drain_hall_packets)
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_LOBBY_LIST) return pkt.get_array("lobbies");
+			@pkt = client.poll_message();
+		}
+	}
+	return null;
+}
+
+// Espera a resposta e, se não deu, DIZ por quê: código errado, sala cheia e partida já começada
+// pedem reações diferentes do jogador, e "não foi possível entrar" não distingue nenhuma.
+bool wait_for_join_result(game_client@ client) {
+	timer@ wait_clock = timer();
+	while (float(wait_clock.elapsed) / 1000.0 < 5.0) {
+		wait(20);
+		client.update();
+		drain_hall_packets(client); // o saguão não pode ser engolido por uma espera (ver drain_hall_packets)
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == S_JOIN_RESULT) {
+				if (pkt.get_bool("ok")) return true;
+				string motivo = pkt.get_string(MSG_KEY_FIELD, "");
+				speak(tr(motivo != "" ? motivo : "lobby.join_failed"));
+				return false;
+			}
+			@pkt = client.poll_message();
+		}
+	}
+	speak(tr("lobby.join_failed"));
+	return false;
+}
+
+// Pede o código de uma partida privada. Devolve "" se o jogador desistiu.
+string run_join_code_screen(game_client@ client) {
+	audio_form f;
+	screen_keyboard_follower teclado_tela;
+	f.create_window(tr("lobby.join_by_code"), false);
+	int f_code = f.create_input_box(tr("lobby.join_code_prompt"), "");
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_code); // audio_form nasce sem foco - ver CLAUDE.md
+
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		teclado_tela.follow(f);
+		if (f.is_pressed(f_cancel)) return "";
+		if (f.is_pressed(f_ok)) return f.get_text(f_code);
+	}
+	return ""; // inalcançável
+}
