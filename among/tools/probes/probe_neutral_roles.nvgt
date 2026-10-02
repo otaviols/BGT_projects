@@ -98,6 +98,20 @@ void main() {
 	game_state@ sem = mesa(ROLE_AMNESIAC);
 	confere("sem corpo perto, nada", !sem.try_remember(1, novo, falha) && falha == "role.no_body_near");
 
+	println("== medico ==");
+	game_state@ d = mesa(ROLE_DOCTOR);
+	d.find_player(4).kill_cooldown_remaining = 0.0;
+	d.try_kill(4, 3, ev);
+	uint64 voltou; float rx, ry;
+	confere("revive quem acabou de morrer", d.try_revive(1, voltou, rx, ry, falha) && voltou == 3 && d.find_player(3).alive && d.bodies.length() == 0);
+	game_state@ tarde = mesa(ROLE_DOCTOR);
+	tarde.find_player(4).kill_cooldown_remaining = 0.0;
+	tarde.try_kill(4, 3, ev);
+	tarde.elapsed_time += DOCTOR_REVIVE_WINDOW_SECONDS + 1.0;
+	confere("controle: passada a janela, nao revive", !tarde.try_revive(1, voltou, rx, ry, falha) && falha == "role.revive_too_late" && !tarde.find_player(3).alive);
+	game_state@ nada = mesa(ROLE_DOCTOR);
+	confere("sem corpo perto, nada", !nada.try_revive(1, voltou, rx, ry, falha) && falha == "role.no_body_near");
+
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

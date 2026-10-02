@@ -499,6 +499,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_BODY_PLACED) on_body_placed(pkt);
 		else if (t == S_BODY_SOUND) on_body_sound(pkt);
 		else if (t == S_ROLE_CHANGED) on_role_changed(pkt);
+		else if (t == S_PLAYER_REVIVED) on_player_revived(pkt);
 		else if (t == S_BELLY_RELEASED) on_belly_released(pkt);
 		else if (t == S_ABILITY_RESULT) on_ability_result(pkt);
 		else if (t == S_CAMERA_PLAYERS) on_camera_players(pkt);

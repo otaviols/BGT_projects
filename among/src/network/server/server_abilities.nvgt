@@ -128,6 +128,24 @@ mixin class server_abilities_part {
 			message_key = "role.drag_picked";
 			return true;
 		}
+		if (ability == ABILITY_REVIVE) {
+			uint64 voltou = 0;
+			float rx = 0.0, ry = 0.0;
+			if (!lobby.try_revive(p.peer_id, voltou, rx, ry, message_key)) return false;
+			// O corpo sai do mapa e a pessoa volta - para todos, sem dizer quem reviveu.
+			net_packet@ sumiu = net_packet(S_BODY_REMOVED);
+			sumiu.set_uint64("peer_id", voltou);
+			broadcast_to_lobby(lobby, sumiu);
+			net_packet@ vivo = net_packet(S_PLAYER_REVIVED);
+			vivo.set_uint64("peer_id", voltou);
+			vivo.set_float("x", rx);
+			vivo.set_float("y", ry);
+			broadcast_to_lobby(lobby, vivo);
+			game_player@ quem = lobby.find_player(voltou);
+			message_params.set("name", @quem != null ? quem.public_name() : "");
+			message_key = "role.revive_done";
+			return true;
+		}
 		if (ability == ABILITY_DOUSE) {
 			// A mesma tecla encharca e põe fogo: com todos encharcados, é o fogo.
 			if (lobby.not_doused_count(p) == 0) {

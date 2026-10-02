@@ -133,6 +133,24 @@ void main() {
 	b.handle_packet(solta);
 	confere("solto: de volta, vivo, onde o lobo estava", !b.swallowed && b.wolf_peer == 0 && b.alive);
 
+	println("== revivido pelo medico ==");
+	match_session@ rv = nova_partida(ROLE_CREWMATE);
+	net_packet@ morri = net_packet(S_PLAYER_KILLED);
+	morri.set_uint64("peer_id", 1); morri.set_uint64("killer_peer", 2); morri.set_float("x", 3.0); morri.set_float("y", 1.0);
+	rv.handle_packet(morri);
+	net_packet@ volta = net_packet(S_PLAYER_REVIVED);
+	volta.set_uint64("peer_id", 1); volta.set_float("x", 3.0); volta.set_float("y", 1.0);
+	rv.handle_packet(volta);
+	confere("revivido: vivo de novo, onde caiu, sem o proprio corpo na lista", rv.alive && rv.mui.alive && rv.my_x == 3.0 && rv.known_body_peers.length() == 0);
+	match_session@ outro = nova_partida(ROLE_CREWMATE);
+	net_packet@ morreu2 = net_packet(S_PLAYER_KILLED);
+	morreu2.set_uint64("peer_id", 2); morreu2.set_uint64("killer_peer", 3); morreu2.set_float("x", 1.0); morreu2.set_float("y", 0.0);
+	outro.handle_packet(morreu2);
+	net_packet@ volta2 = net_packet(S_PLAYER_REVIVED);
+	volta2.set_uint64("peer_id", 2); volta2.set_float("x", 1.0); volta2.set_float("y", 0.0);
+	outro.handle_packet(volta2);
+	confere("outro revivido volta ao elenco, e o corpo dele sai", outro.roster.find(2).alive && outro.known_body_peers.length() == 0);
+
 	println("== amnesico que vira impostor ==");
 	match_session@ am = nova_partida(ROLE_AMNESIAC);
 	net_packet@ muda = net_packet(S_ROLE_CHANGED);

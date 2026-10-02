@@ -69,4 +69,27 @@ mixin class match_net_death_part {
 	void on_body_sound(net_packet@ pkt) {
 		audio.play_body_sound(pkt.get_string("kind"), pkt.get_float("x"), pkt.get_float("y"));
 	}
+
+	// O médico trouxe alguém de volta. Se fui eu: vivo de novo, onde caí. Se foi outro: ele volta ao elenco
+	// (votação, quem está perto) e o corpo dele, se eu o conhecia, sai.
+	void on_player_revived(net_packet@ pkt) {
+		uint64 quem = pkt.get_uint64("peer_id");
+		float rx = pkt.get_float("x"), ry = pkt.get_float("y");
+		roster_entry@ e = roster.find(quem);
+		if (@e != null) { e.alive = true; e.x = rx; e.y = ry; }
+		int i = known_body_peers.find(quem);
+		if (i >= 0) { known_body_peers.remove_at(i); known_body_positions.remove_at(i); }
+		if (quem == client.my_peer_id) {
+			alive = true;
+			mui.alive = true;
+			my_x = rx;
+			my_y = ry;
+			audio.update_listener(my_x, my_y);
+			string texto = tr("role.you_were_revived");
+			speak(texto);
+			events_log.add("", texto);
+		}
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+	}
 }

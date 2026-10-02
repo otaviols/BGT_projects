@@ -562,6 +562,10 @@ especiais, ele não tem o que apontar.
 
 Na mesa ninguém está protegido: o escudo do anjo cai quando a reunião começa.
 
+**Médico** (tripulação). Perto de um corpo, a tecla H **traz a pessoa de volta**, viva, onde ela caiu
+— mas só se a morte foi há pouco (15 segundos por padrão; a sala ajusta). Quem volta já sabe quem o
+matou, e pode contar. A recarga entre um e outro é de 30 segundos.
+
 **Prefeito** (tripulação). Na reunião, o voto dele **vale por dois**, e em segredo: ele vota como
 todo mundo, e quando a sala mostra os votos ele aparece uma vez só. Só a contagem sabe.
 

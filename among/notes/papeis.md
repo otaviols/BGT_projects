@@ -366,6 +366,12 @@ com uma sala reaberta onde todos voltaram a tripulante (custou uma rodada achar 
   começa recarregando, e a habilidade também (on_use_ability arma a recarga já com o papel novo).
 Sondas: `probe_neutral_roles.nvgt` (sem rede) e o caso do `S_ROLE_CHANGED` no `probe_match_packets`.
 
+**Médico (0.47.0): o único limite é a JANELA depois da morte** (`TUNABLE_WINDOW`, decisão do usuário):
+quem volta sabe quem o matou e pode contar, e essa é a graça. Voltar é público (`S_PLAYER_REVIVED` a
+todos, junto do `S_BODY_REMOVED`), porque a lista de votação e o elenco de todo mundo precisam voltar
+a contá-lo - mas não diz quem reviveu. Sondas: o caso no `probe_neutral_roles` (com a janela vencida
+como controle) e no `probe_match_packets`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

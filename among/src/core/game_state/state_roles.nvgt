@@ -360,4 +360,27 @@ mixin class state_roles_part {
 		p.execution_target = morto.execution_target;
 		return true;
 	}
+
+	// --- Médico ---
+
+	// Traz de volta o morto ao alcance, se a morte foi há menos que a janela. Ele volta onde caiu, vivo,
+	// com as tarefas e o papel de antes; o corpo some.
+	bool try_revive(uint64 doctor_peer, uint64&out victim, float&out x, float&out y, string&out fail_key) {
+		game_player@ d = find_player(doctor_peer);
+		if (@d == null || !d.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		int i = body_index_near(d.x, d.y);
+		if (i < 0) { fail_key = "role.no_body_near"; return false; }
+		game_player@ morto = find_player(bodies[i].victim_peer_id);
+		if (@morto == null || morto.left_match) { fail_key = "role.no_body_near"; return false; }
+		if (elapsed_time - bodies[i].death_time > config.role_value(ROLE_DOCTOR, TUNABLE_WINDOW)) { fail_key = "role.revive_too_late"; return false; }
+		victim = morto.peer_id;
+		x = bodies[i].x;
+		y = bodies[i].y;
+		morto.alive = true;
+		morto.swallowed_by = 0;
+		morto.x = x;
+		morto.y = y;
+		bodies.remove_at(i);
+		return true;
+	}
 }

@@ -566,6 +566,10 @@ have nothing to point at.
 
 Nobody is protected at the table: the guardian's shield falls when the meeting begins.
 
+**Doctor** (crew). Near a body, the H key **brings the person back**, alive, where they fell — but only
+if they died a moment ago (15 seconds by default; the room can change it). Whoever comes back already
+knows who killed them, and can tell. The cooldown between revives is 30 seconds.
+
 **Mayor** (crew). In a meeting their vote **counts as two**, secretly: they vote like everyone else,
 and when the room shows the votes they appear only once. Only the count knows.
 

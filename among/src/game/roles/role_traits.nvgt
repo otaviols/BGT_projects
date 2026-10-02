@@ -43,6 +43,7 @@ const string ROLE_CARRIER = "carrier";
 const string ROLE_EXECUTIONER = "executioner";
 const string ROLE_ARSONIST = "arsonist";
 const string ROLE_AMNESIAC = "amnesiac";
+const string ROLE_DOCTOR = "doctor";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -57,6 +58,7 @@ const string ABILITY_CLEAN = "clean"; // lixeiro: some com o corpo ao alcance
 const string ABILITY_DRAG = "drag";   // carregador: pega o corpo ao alcance, e larga onde estiver
 const string ABILITY_DOUSE = "douse"; // incendiário: encharca quem está colado; com todos encharcados, põe fogo
 const string ABILITY_REMEMBER = "remember"; // amnésico: herda o papel do morto ao alcance
+const string ABILITY_REVIVE = "revive"; // médico: traz de volta o morto ao alcance, se ainda der tempo
 // O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
 // mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
 const string ABILITY_ALARM = "alarm";
@@ -83,7 +85,8 @@ const string SOLO_WIN_IGNITE = "ignite";
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
 	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JESTER, ROLE_WOLF,
-	ROLE_MAYOR, ROLE_SWAPPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC};
+	ROLE_MAYOR, ROLE_SWAPPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC,
+	ROLE_DOCTOR};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
 //
@@ -127,6 +130,7 @@ const string TUNABLE_DURATION = "duration";           // quanto o efeito dura
 const string TUNABLE_KILL_COOLDOWN = "kill_cooldown"; // recarga do tiro (xerife), separada da do impostor
 const string TUNABLE_TRAIL = "trail";                 // por quanto tempo o rastro do assassino é gravado
 const string TUNABLE_GUESSES = "guesses";             // quantos palpites por reunião (sniper)
+const string TUNABLE_WINDOW = "window";               // até quantos segundos depois da morte ainda dá (médico)
 
 class role_tunable {
 	string key;
@@ -637,7 +641,23 @@ role_traits@ role_amnesiac() {
 	return t;
 }
 
+// Médico: tripulante que traz de volta o morto ao alcance - só até alguns segundos depois da morte (a
+// janela, que a sala ajusta). Quem volta já sabe quem o matou e pode contar: a graça é essa (decisão do
+// usuário), e é por isso que o único limite é o tempo - um impostor que mata longe de todos continua
+// seguro, um que mata perto do médico não.
+role_traits@ role_doctor() {
+	role_traits t;
+	t.id = ROLE_DOCTOR;
+	t.ability_id = ABILITY_REVIVE;
+	t.ability_cooldown_seconds = DOCTOR_REVIVE_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_WINDOW, DOCTOR_REVIVE_WINDOW_SECONDS, 3.0, 60.0));
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, DOCTOR_REVIVE_COOLDOWN_SECONDS, 10.0, 300.0));
+	t.min_protocol = BODY_ROLES_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_DOCTOR) return role_doctor();
 	if (role_id == ROLE_EXECUTIONER) return role_executioner();
 	if (role_id == ROLE_ARSONIST) return role_arsonist();
 	if (role_id == ROLE_AMNESIAC) return role_amnesiac();
