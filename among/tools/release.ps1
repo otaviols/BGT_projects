@@ -43,6 +43,14 @@ try {
 	python tools\make_version_json.py
 	if ($LASTEXITCODE -ne 0) { throw "O version.json não saiu (veja acima): a versão do changelog bate com GAME_VERSION nos dois idiomas?" }
 
+	# Traduções ANTES de tudo, e nas conferências: uma tradução enviada pelo jogo para o build no meio
+	# da publicação (a 0.50.0 parou assim), e o sync muda `lang/` - que é rastreado - e sujaria a árvore
+	# que o deploy do servidor exige limpa. Aqui ela aparece no -Conferir, com tempo de promover.
+	& infra\admin.ps1 traducoes | Out-Host
+	$caixa = Get-ChildItem translations_inbox -Filter *.json -ErrorAction SilentlyContinue
+	if ($caixa) { throw "Há $($caixa.Count) tradução(ões) em translations_inbox para revisar e promover (ver notes/traducoes.md)." }
+	& tools\sync_translations.ps1 | Out-Host
+
 	$sujo = git status --porcelain
 	if ($sujo) { throw "Há mudanças por commitar (inclusive o version.json, se ele acabou de mudar):`n$($sujo -join "`n")" }
 

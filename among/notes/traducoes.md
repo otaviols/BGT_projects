@@ -50,6 +50,12 @@ envios do mesmo idioma podem ser o mesmo arquivo com nomes diferentes. Processad
 descartado -, o arquivo vai para `translations_inbox/processadas/`: a subpasta não dispara o portão e
 guarda quem mandou o quê.
 
+**O `tools\release.ps1` recolhe e sincroniza as traduções logo nas conferências** (também no
+`-Conferir`). Antes isso só acontecia dentro do `build_clients`, no meio da publicação: a 0.50.0 parou
+ali com um espanhol novo na caixa, e o sync, que muda `lang/` (rastreado), deixaria a árvore suja para
+o deploy do servidor recusar. Se a conferência acusar algo, promova e commite o `lang/` atualizado antes
+de publicar.
+
 **`parse_json` LANÇA exceção em JSON malformado** (não devolve null). Já derrubou o servidor inteiro
 num teste - um envio com `{` solto matou o processo. Todo `parse_json` de conteúdo que vem de fora
 (rede, arquivo de idioma, version.json) fica em try/catch; ver `validate_translation_json`.
