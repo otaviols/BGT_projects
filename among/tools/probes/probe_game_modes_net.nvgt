@@ -70,6 +70,34 @@ void main() {
 	confere("todo humano e lobo", todos_lobos);
 	confere("o inicio diz o modo", @w[0] != null && w[0].get_string("game_mode") == GAME_MODE_WOLVES);
 
+	for (uint i = 0; i < todos.length(); i++) todos[i].send_leave_lobby();
+	bombeia(800);
+
+	println("== trocar de modo com a sala aberta ==");
+	lobby_overrides cria;
+	todos[0].send_create_lobby("troca" + sfx, "classic", cria);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	todos[1].send_join_lobby(st.get_string("lobby_id"));
+	wf(todos[1], S_JOIN_RESULT, 5000);
+	bombeia(300);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	lobby_overrides troca;
+	troca.game_mode = GAME_MODE_TAG;
+	todos[0].send_update_lobby_config(troca);
+	net_packet@ novo = wf(todos[1], S_LOBBY_STATE, 5000);
+	json_object@ cfg = @novo != null ? novo.get_object("config") : null;
+	confere("a sala virou pega-pega", @cfg != null && string(cfg["game_mode"]) == GAME_MODE_TAG);
+	confere("com a base do pega-pega (pega a cada 5 s, nao os 25 do classico)", @cfg != null && float(cfg["kill_cooldown_seconds"]) == 5.0);
+	net_packet@ aviso = wf(todos[1], S_ERROR, 3000);
+	confere("quem esta na sala ouve que o modo mudou", @aviso != null && aviso.get_string(MSG_KEY_FIELD) == "lobby.mode_changed.tag");
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	lobby_overrides mesmo;
+	mesmo.game_mode = GAME_MODE_TAG;
+	mesmo.max_players = 6;
+	todos[0].send_update_lobby_config(mesmo);
+	net_packet@ igual = wf(todos[1], S_ERROR, 3000);
+	confere("mexer nas regras sem trocar o modo da o aviso de sempre", @igual != null && igual.get_string(MSG_KEY_FIELD) == "lobby.config_changed");
+
 	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

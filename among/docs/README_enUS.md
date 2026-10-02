@@ -662,8 +662,11 @@ ones are bots.
 
 ## Match presets
 
-**Game modes.** Two presets change the game's rules, not just the numbers. Neither has meetings,
-reported bodies, vents or sabotage:
+**Game modes.** When creating the room, the **Game mode** field picks between classic and two modes
+that change the game's rules, not just the numbers. The host can switch modes with the room open, on
+the same screen used to edit the rules: the screen then shows only what applies to the chosen mode, the
+fields go back to its defaults, and everyone in the room hears that the mode changed. Neither mode has
+meetings, reported bodies, vents, sabotage or roles:
 
 - **Tag:** one tagger stands still for the first 10 seconds, with a countdown for everyone; after that
   they catch every 5 seconds, and everyone walks at top speed. The crew wins by finishing the tasks -

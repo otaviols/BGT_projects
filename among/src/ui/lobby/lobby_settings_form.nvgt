@@ -109,12 +109,24 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 		// Vazio = pública. Com código, a partida some da lista e só entra quem o digitar. Fica logo
 		// depois do nome porque "é só para os amigos?" é a primeira decisão de quem cria uma sala.
 		f_code = f.create_input_box(tr("lobby.join_code"), "");
+	}
+	// O modo de jogo, separado das predefinições: o modo muda QUAIS regras existem (pega-pega não tem
+	// reunião nem papel), e a predefinição só muda os números do clássico. Misturados numa lista só, o
+	// anfitrião não tinha como trocar de modo com a sala aberta, e o formulário mostrava papéis no
+	// pega-pega. Ao trocar, a tela esconde o que não vale e volta os campos ao padrão do modo.
+	int f_mode = f.create_list(tr("lobby.game_mode"));
+	f.add_list_item(f_mode, tr("lobby.mode.classic_desc"), GAME_MODE_CLASSIC);
+	f.add_list_item(f_mode, tr("lobby.preset.tag_desc"), GAME_MODE_TAG);
+	f.add_list_item(f_mode, tr("lobby.preset.wolves_desc"), GAME_MODE_WOLVES);
+	string modo = @current != null && current.exists("game_mode") ? string(current["game_mode"]) : preset_base;
+	if (modo == GAME_MODE_TAG) f.set_list_position(f_mode, 1);
+	else if (modo == GAME_MODE_WOLVES) f.set_list_position(f_mode, 2);
+	else { f.set_list_position(f_mode, 0); modo = GAME_MODE_CLASSIC; }
+	if (creating) {
 		f_preset = f.create_list(tr("menu.settings"));
 		f.add_list_item(f_preset, tr("lobby.preset.classic_desc"), "classic");
 		f.add_list_item(f_preset, tr("lobby.preset.quick_desc"), "quick");
 		f.add_list_item(f_preset, tr("lobby.preset.chaos_desc"), "chaos");
-		f.add_list_item(f_preset, tr("lobby.preset.tag_desc"), "tag");
-		f.add_list_item(f_preset, tr("lobby.preset.wolves_desc"), "wolves");
 		// Partindo de uma configuração salva, a lista já abre no preset sobre o qual ela foi feita -
 		// senão o anfitrião teria de lembrar qual era, e errar aqui muda as regras por baixo dos
 		// ajustes que ele acabou de carregar.
@@ -201,9 +213,23 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	int f_save_as = creating ? f.create_input_box(tr("lobby.preset_save_as"), "") : -1;
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+
+	// O que cada modo mostra. Só do clássico: tudo que é reunião, papel, sabotagem e duto. Fora do todos
+	// lobos: recarga de kill (lá quem engole tem a recarga do lobo) e tarefas (lá vence o último de pé).
+	array<int> so_classico = {f_preset, f_impostors, f_discussion, f_voting, f_meetings, f_sabotages, f_vents,
+		f_reveal, f_votes, f_emergency_cd, f_comms_meeting};
+	for (uint i = 0; i < f_roles.length(); i++) { so_classico.insert_last(f_roles[i]); so_classico.insert_last(f_role_chances[i]); }
+	array<int> fora_dos_lobos = {f_kill_cooldown, f_tasks, f_long_tasks};
+	// O que volta ao padrão quando o modo muda: o valor de hoje era do modo de antes.
+	array<int> textos = {f_kill_cooldown, f_max_players, f_impostors, f_tasks, f_long_tasks, f_discussion, f_voting,
+		f_meetings, f_emergency_cd, f_speed};
+	for (uint i = 0; i < f_roles.length(); i++) { textos.insert_last(f_roles[i]); textos.insert_last(f_role_chances[i]); }
+	array<int> listas = {f_sabotages, f_vents, f_colors, f_color_mode, f_reveal, f_votes, f_comms_meeting, f_voice};
+	lobby_form_show_for_mode(f, modo, so_classico, fora_dos_lobos);
+
 	// Um audio_form nasce sem foco: sem isto o primeiro campo não recebia o que era digitado até o
 	// jogador apertar Tab.
-	f.focus(creating ? f_name : f_kill_cooldown);
+	f.focus(creating ? f_name : f_mode);
 	if (!creating) speak(tr("lobby.edit_settings_hint"));
 
 	g_voice.typing = true; // a tecla de falar é uma letra; aqui ela é texto
@@ -212,6 +238,16 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 		client.update(); // mantém a conexão viva enquanto o jogador preenche o formulário
 		f.monitor();
 		teclado_tela.follow(f);
+		int pos_modo = f.get_list_position(f_mode);
+		string modo_agora = pos_modo >= 0 ? f.get_list_item_id(f_mode, pos_modo) : modo;
+		if (modo_agora != modo) {
+			modo = modo_agora;
+			for (uint i = 0; i < textos.length(); i++) f.set_text(textos[i], "");
+			for (uint i = 0; i < listas.length(); i++) f.set_list_position(listas[i], 0);
+			lobby_form_show_for_mode(f, modo, so_classico, fora_dos_lobos);
+			// Dito com o foco ainda na lista: quem trocou precisa saber que o resto da tela mudou junto.
+			speak(tr("lobby.mode_form_reset"), false);
+		}
 		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return r; }
 		if (f.is_pressed(f_ok)) {
 			g_voice.typing = false;
@@ -222,16 +258,22 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 				r.save_as = f.get_text(f_save_as);
 				int preset_index = f.get_list_position(f_preset);
 				r.preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";
+				// Fora do clássico o modo É o preset (é o que o servidor entende na criação).
+				if (modo != GAME_MODE_CLASSIC) r.preset_id = modo;
+			} else {
+				r.ov.game_mode = modo;
 			}
 			// -1 em número e "" em texto significam "não mexi nisto": é o servidor que decide o
 			// valor final. Mandar 0 no lugar seria pedir uma partida com zero tarefas por engano.
-			r.ov.kill_cooldown_seconds = text_to_float_or_default(f.get_text(f_kill_cooldown));
+			r.ov.kill_cooldown_seconds = text_to_float_or_default(visible_text(f, f_kill_cooldown));
 			r.ov.max_players = text_to_int_or_default(f.get_text(f_max_players));
-			r.ov.impostor_count = text_to_int_or_default(f.get_text(f_impostors));
+			r.ov.impostor_count = text_to_int_or_default(visible_text(f, f_impostors));
 			// Papéis: vazio significa ZERO, e não "não mexi" - é a única forma de o anfitrião
 			// desligar um papel que estava ligado (apagando o número). Por isso o campo é mandado
 			// sempre, com 0 quando vazio.
-			for (uint i = 0; i < f_roles.length(); i++) {
+			// Fora do clássico não há papel nenhum: o dicionário vai vazio, que é "não mexi" (e o servidor
+			// limpa os papéis de qualquer jeito ao validar o modo).
+			if (modo == GAME_MODE_CLASSIC) for (uint i = 0; i < f_roles.length(); i++) {
 				int n = text_to_int_or_default(f.get_text(f_roles[i]));
 				r.ov.role_counts.set(CONFIGURABLE_ROLE_IDS[i], n < 0 ? 0 : n);
 				// Chance vazia = 100 ("sempre"), que é o que quem só ligou o papel espera. O servidor
@@ -239,11 +281,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 				int c = text_to_int_or_default(f.get_text(f_role_chances[i]));
 				r.ov.role_chances.set(CONFIGURABLE_ROLE_IDS[i], c < 0 ? 100 : c);
 			}
-			r.ov.task_count_per_crewmate = text_to_int_or_default(f.get_text(f_tasks));
-			r.ov.long_task_count = text_to_int_or_default(f.get_text(f_long_tasks));
-			r.ov.discussion_time_seconds = text_to_float_or_default(f.get_text(f_discussion));
-			r.ov.voting_time_seconds = text_to_float_or_default(f.get_text(f_voting));
-			r.ov.emergency_meetings_per_player = text_to_int_or_default(f.get_text(f_meetings));
+			r.ov.task_count_per_crewmate = text_to_int_or_default(visible_text(f, f_tasks));
+			r.ov.long_task_count = text_to_int_or_default(visible_text(f, f_long_tasks));
+			r.ov.discussion_time_seconds = text_to_float_or_default(visible_text(f, f_discussion));
+			r.ov.voting_time_seconds = text_to_float_or_default(visible_text(f, f_voting));
+			r.ov.emergency_meetings_per_player = text_to_int_or_default(visible_text(f, f_meetings));
 			int sab_index = f.get_list_position(f_sabotages);
 			r.ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";
 			int vents_index = f.get_list_position(f_vents);
@@ -259,17 +301,32 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.show_votes = votes_index >= 0 ? f.get_list_item_id(f_votes, votes_index) : "";
 			int voice_index = f.get_list_position(f_voice);
 			r.ov.voice_chat = voice_index >= 0 ? f.get_list_item_id(f_voice, voice_index) : "";
-			r.ov.emergency_cooldown_seconds = text_to_float_or_default(f.get_text(f_emergency_cd));
+			r.ov.emergency_cooldown_seconds = text_to_float_or_default(visible_text(f, f_emergency_cd));
 			int cm_index = f.get_list_position(f_comms_meeting);
 			r.ov.comms_in_meeting = cm_index >= 0 ? f.get_list_item_id(f_comms_meeting, cm_index) : "";
 				// Os tempos das profissoes vem numa SEGUNDA tela, e so das que foram ligadas aqui: numa
 				// tela so seriam mais nove campos para percorrer de ouvido mesmo numa sala sem papel
 				// nenhum. Quem nao ligou nada nao ve tela nenhuma.
-				if (!run_role_tunables_form(client, r.ov, current)) { r.ok = false; return r; }
+				if (modo == GAME_MODE_CLASSIC && !run_role_tunables_form(client, r.ov, current)) { r.ok = false; return r; }
 			return r;
 		}
 	}
 	return r; // inalcançável - o laço só termina via return acima
+}
+
+// Mostra no formulário só o que vale para o modo (ver o comentário da lista de modos acima). Campos -1
+// (o da predefinição, que só existe na criação) ficam de fora.
+void lobby_form_show_for_mode(audio_form@ f, const string&in modo, array<int>@ so_classico, array<int>@ fora_dos_lobos) {
+	for (uint i = 0; i < so_classico.length(); i++)
+		if (so_classico[i] >= 0) f.set_state(so_classico[i], true, modo == GAME_MODE_CLASSIC);
+	for (uint i = 0; i < fora_dos_lobos.length(); i++)
+		if (fora_dos_lobos[i] >= 0) f.set_state(fora_dos_lobos[i], true, modo != GAME_MODE_WOLVES);
+}
+
+// O texto de um campo, ou "" se ele está escondido pelo modo: escondido é "não mexi", e não o valor
+// que ficou lá do modo anterior.
+string visible_text(audio_form@ f, int c) {
+	return f.is_visible(c) ? f.get_text(c) : "";
 }
 
 // Valor atual de um campo como texto para pré-preencher o formulário - "" quando não há configuração

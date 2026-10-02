@@ -130,6 +130,14 @@ mixin class server_lobby_part {
 
 		lobby_overrides overrides;
 		overrides.read_from_packet(pkt);
+		// Trocar de modo troca a BASE das regras, e não só o campo: um pega-pega começa com o pegar a
+		// cada 5 segundos e todo mundo na velocidade máxima, e herdar os 25 segundos do clássico faria
+		// um pega-pega que não é. Os ajustes do formulário entram por cima, como na criação - o
+		// formulário zera os campos ao trocar de modo, então o que vier preenchido foi escolhido.
+		string modo_antes = lobby.config.game_mode;
+		bool troca_modo = (overrides.game_mode == GAME_MODE_CLASSIC || overrides.game_mode == GAME_MODE_TAG
+			|| overrides.game_mode == GAME_MODE_WOLVES) && overrides.game_mode != modo_antes;
+		if (troca_modo) @lobby.config = get_preset(overrides.game_mode);
 		overrides.apply_to(lobby.config);
 		lobby.config.validate();
 
@@ -137,7 +145,10 @@ mixin class server_lobby_part {
 		// vai apertar C de novo por conta própria, e uma partida com regras que mudaram em silêncio é
 		// uma partida em que alguém joga com as regras erradas.
 		send_lobby_state(lobby, 0);
-		broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.config_changed"));
+		// O modo mudar é maior que "as regras mudaram": é outro jogo. Por isso tem aviso próprio, com o
+		// nome do modo - uma chave por modo, porque o nome tem que chegar no idioma de quem ouve.
+		if (troca_modo) broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.mode_changed." + lobby.config.game_mode));
+		else broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.config_changed"));
 	}
 
 	void on_leave_lobby(uint64 peer_id, net_packet@ pkt) {
