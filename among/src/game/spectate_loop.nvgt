@@ -36,6 +36,7 @@ string spectate_where_text(game_map@ map, roster_entry@ alvo) {
 net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 	game_map@ map = build_the_hub_map();
 	audio_manager@ audio = audio_manager();
+	radar_ui@ radar = radar_ui(client, audio); // o radar de quem assiste (ver radar_eyes no servidor)
 	client_roster@ roster = client_roster();
 	roster.load_from_start_packet(start_pkt);
 	json_array@ vivos_json = start_pkt.get_array("players");
@@ -99,6 +100,8 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 				}
 			} else if (t == S_PLAYER_KILLED) {
 				mui.on_player_killed(pkt); // som do assassinato no ponto, e marca morto
+			} else if (t == S_RADAR_RESULT) {
+				radar.handle_result(pkt);
 			} else if (t == S_SWALLOW_SOUND) {
 				audio.play_wolf_swallow(pkt.get_float("x"), pkt.get_float("y"));
 			} else if (t == S_BELLY_RELEASED) {
@@ -207,6 +210,19 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 		g_voice.spatial = !reuniao;
 		g_voice.allowed = voice_room_allows && !voice_down_for(sabotagem, true, reuniao, voice_comms_affects_meeting);
 
+		// O radar, do ponto de quem ele acompanha (o servidor responde por ele - ver radar_eyes). Os
+		// objetos são os da sala do acompanhado, sem tarefas (quem assiste não tem nenhuma).
+		if (!reuniao && @alvo != null) {
+			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_continuous();
+			radar.tick(map, alvo.x, alvo.y);
+			if (action_pressed(ACTION_RADAR)) {
+				array<string> sem_tarefas;
+				if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
+				else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, alvo.x, alvo.y, sem_tarefas, sabotagem);
+				else radar.scan_next(map, alvo.x, alvo.y, sem_tarefas, sabotagem);
+			}
+		}
+
 		// Trocar de quem acompanhar: setas para os lados (lidas uma vez cada - ver CLAUDE.md).
 		bool para_tras = key_pressed(KEY_LEFT);
 		bool para_frente = key_pressed(KEY_RIGHT);
@@ -228,7 +244,9 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 		if (action_pressed(ACTION_ROOM_INFO)) speak(spectate_where_text(map, roster.find(seguindo)));
 		if (action_pressed(ACTION_TASK_LIST) && reuniao) mui.announce_time_remaining();
 		if (action_pressed(ACTION_TALK)) {
-			if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
+			if ((key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) && (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)))
+				speak(tr(g_voice.toggle_everyone_muted() ? "voice.everyone_muted" : "voice.everyone_unmuted"));
+			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
 			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(who_is_speaking_text());
 			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
 		}

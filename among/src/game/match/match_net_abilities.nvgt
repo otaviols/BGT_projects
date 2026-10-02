@@ -63,6 +63,9 @@ mixin class match_net_abilities_part {
 		if (eu_voltei) {
 			swallowed = false;
 			wolf_peer = 0;
+			// As recargas recomeçam, como o servidor faz (ver release_belly) - senão a tecla diria "pronta".
+			if (my_role.ability_starts_on_cooldown) my_ability_cooldown_remaining = ability_cooldown_config;
+			if (my_role.can_kill) my_kill_cooldown_remaining = kill_cooldown_config;
 			alive = true;
 			mui.alive = true;
 			my_x = rx;

@@ -52,7 +52,7 @@ cada coisa antes de haver um impostor por perto.
 site, uma manutenção. Ele é falado quando chega e fica fixo no topo da lista de partidas, para você
 reler quando quiser. Some quando deixa de valer.
 
-**A lista de partidas se atualiza sozinha.** Salas novas aparecem, quem entra e sai muda a contagem,
+**Cada partida da lista diz quem está nela**, no fim da linha (só as pessoas, sem os bots), para você saber se há conhecidos. **A lista de partidas se atualiza sozinha.** Salas novas aparecem, quem entra e sai muda a contagem,
 e o cursor continua no item onde você estava. O que acontece é dito sem interromper: alguém criou uma
 sala, uma partida começou, uma partida acabou e está aberta. Partidas em andamento também aparecem na
 lista, marcadas como "em andamento", para você saber que existem; partidas privadas nunca aparecem.
@@ -245,7 +245,8 @@ em andamento só aparecem na lista - não dá para assistir partida de estranhos
 
 Assistindo, você acompanha um jogador vivo por vez e ouve a partida de onde ele está: os passos, os
 sons, a voz que chega até ele. **Setas para os lados** trocam de quem acompanhar, e a tecla de **onde
-estou** diz quem e em que sala. Na reunião você ouve a mesa. Você não sabe o papel de ninguém até o
+estou** diz quem e em que sala. O **radar** (Tab, com Shift, Ctrl e Q como na partida) funciona do
+ponto de quem você acompanha, e enxerga o que ele enxerga. Na reunião você ouve a mesa. Você não sabe o papel de ninguém até o
 fim, como todo mundo, e não pode fazer nada na partida. A sua voz chega só a outros espectadores. Quando
 a partida acaba, você volta para a sala de espera como os outros; quem entrou pelo código fica para
 jogar a próxima.
@@ -265,6 +266,10 @@ jogar a próxima.
 | C | dizer em que sala você está |
 | T | lista das suas tarefas, seu progresso e o do time |
 | F1 | medir o ping com o servidor |
+| X | falar no chat de voz (segurando; no modo automático, liga e desliga o microfone) |
+| Ctrl + X | escolher quem silenciar |
+| Shift + X | quem está falando agora |
+| Ctrl + Shift + X | silenciar **todas** as vozes de uma vez; de novo, elas voltam |
 | ESC | sair da partida (pede confirmação) |
 
 **Tripulante**

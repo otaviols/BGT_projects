@@ -22,7 +22,9 @@ mixin class match_frame_keys_part {
 		// está falando agora, e sozinha - só no modo automático, onde ela não teria função - liga e
 		// desliga o microfone. No modo de segurar, ela é a própria fala e não faz nada aqui.
 		if (action_pressed(ACTION_TALK)) {
-			if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
+			if ((key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) && (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)))
+				speak(tr(g_voice.toggle_everyone_muted() ? "voice.everyone_muted" : "voice.everyone_unmuted"));
+			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
 			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(who_is_speaking_text());
 			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
 		}

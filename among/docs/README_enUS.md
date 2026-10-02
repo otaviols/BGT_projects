@@ -54,7 +54,7 @@ where everything is before there is an impostor nearby.
 the site, maintenance. It is spoken when it arrives and stays pinned at the top of the game list, so
 you can read it again whenever you want. It disappears once it no longer applies.
 
-**The match list updates by itself.** New rooms show up, people joining and leaving change the
+**Each match in the list says who is in it**, at the end of the line (only people, not bots), so you know if there are friends there. **The match list updates by itself.** New rooms show up, people joining and leaving change the
 count, and the cursor stays on the item where you were. What happens is spoken without interrupting:
 someone created a room, a match started, a match ended and is open. Matches in progress also show up
 in the list, marked "in progress", so you know they exist; private matches never show up. In the
@@ -241,6 +241,9 @@ your file and English — worth sending a message about it.
 
 ## Watching a match
 
+The **radar** (Tab, with Shift, Ctrl and Q as in a match) works from the point of the player you are
+following, and sees what they see.
+
 You can watch a match without playing, in two ways: in the waiting room, the **A** key marks that you
 will only watch the next one (you stay in the lobby, but you are not in the crew); or, for a **private
 lobby** whose match is already running, typing its code lets you in as a spectator. Public matches in
@@ -268,6 +271,10 @@ in with the code stays to play the next one.
 | C | say which room you are in |
 | T | your task list, your progress and the team's |
 | F1 | measure ping to the server |
+| X | talk in voice chat (hold it; in automatic mode, turns the microphone on and off) |
+| Ctrl + X | choose whom to mute |
+| Shift + X | who is talking right now |
+| Ctrl + Shift + X | mute **every** voice at once; again, they come back |
 | ESC | leave the match (asks for confirmation) |
 
 **Crewmate**

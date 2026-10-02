@@ -140,6 +140,13 @@ void main() {
 	confere("nenhum jogador ouve o espectador", !ouviu(0, S) && !ouviu(1, S) && !ouviu(2, S));
 	confere("o outro espectador ouve", ouviu(L, S));
 
+	// O radar de quem assiste responde do ponto de quem ele acompanha (pedido do usuário).
+	esvazia();
+	todos[S].send_radar_scan(1);
+	net_packet@ radar = espera(S, S_RADAR_RESULT, 3000);
+	confere("S usa o radar, e o servidor responde", @radar != null);
+	confere("sem recusa de radar para quem assiste", @achado(S, S_ERROR) == null);
+
 	// S não age.
 	esvazia();
 	todos[S].send_call_meeting();

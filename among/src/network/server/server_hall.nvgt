@@ -85,6 +85,13 @@ mixin class server_hall_part {
 			entry.set("in_progress", andamento);
 			game_player@ anfitriao = lobby.find_player(lobby.host_peer_id);
 			entry.set("host", @anfitriao != null ? anfitriao.username : "");
+			// Quem está nela (pedido do usuário): para saber se há conhecidos antes de entrar. Só as que
+			// já aparecem na lista - as privadas nem chegam aqui. Bots ficam de fora: ninguém procura
+			// um conhecido entre eles, e a contagem já os inclui.
+			json_array@ nomes = json_array();
+			for (uint p = 0; p < lobby.players.length(); p++)
+				if (!lobby.players[p].is_bot && !lobby.players[p].left_match) nomes.add(lobby.players[p].username);
+			entry.set("players", nomes);
 			list.add(entry);
 		}
 		return list;

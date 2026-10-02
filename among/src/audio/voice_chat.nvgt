@@ -223,6 +223,21 @@ class voice_chat : voice_receiver {
 
 	// Devolve o estado novo. Quem chama é o laço do jogo (a tecla é lida num lugar só, para dois
 	// blocos não disputarem o mesmo evento de tecla).
+	// Todas as vozes caladas de uma vez (Ctrl+Shift + a tecla de falar), pedido do usuário: um gesto só
+	// para silenciar a sala inteira quando precisar, sem passar pela lista de quem silenciar. Vale até
+	// ser desligado de novo, de partida em partida - não é preferência salva, é o momento.
+	bool everyone_muted = false;
+
+	bool toggle_everyone_muted() {
+		everyone_muted = !everyone_muted;
+		// Calar já: quem estava no meio de uma frase não termina de falar por cima do pedido.
+		if (everyone_muted) {
+			for (uint i = 0; i < streams.length(); i++) streams[i].snd.stop();
+			streams.resize(0);
+		}
+		return everyone_muted;
+	}
+
 	bool toggle_mic_muted() {
 		mic_muted = !mic_muted;
 		if (transmitting) set_transmitting(false, false);
@@ -367,7 +382,7 @@ class voice_chat : voice_receiver {
 		uint64 talker;
 		string audio;
 		if (!voice_unwire(wire, talker, audio)) return;
-		if (g_settings.is_muted(name_of(talker))) return;
+		if (everyone_muted || g_settings.is_muted(name_of(talker))) return;
 		voice_stream@ s = stream_for(talker);
 		// O som desta pessoa PAROU (acabou sozinho, ou algo o parou): escrever mais nele trava o jogo
 		// para sempre - o stream_pcm espera um consumo que não vem (ver VOICE_MAX_BUFFERED_MS). Começa

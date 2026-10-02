@@ -144,11 +144,25 @@ mixin class server_ship_part {
 		return nearby;
 	}
 
+	// De que ponto o radar responde. Jogador: o dele. ESPECTADOR: o de quem ele acompanha, com a percepção
+	// dele (pedido do usuário) - quem assiste precisa saber quem está perto para acompanhar a partida, e
+	// enxergar mais do que o acompanhado entregaria o que o jogo esconde (duto, invisível, escuro).
+	game_player@ radar_eyes(game_state@ lobby, uint64 peer_id) {
+		game_player@ me = lobby.find_player(peer_id);
+		if (@me != null) return me;
+		game_player@ espectador = lobby.find_spectator(peer_id);
+		if (@espectador == null || espectador.follow_peer == 0) return null;
+		return lobby.find_player(espectador.follow_peer);
+	}
+
 	void on_radar_scan(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
-		game_player@ me = lobby.find_player(peer_id);
+		game_player@ me = radar_eyes(lobby, peer_id);
 		if (@me == null) return; // fantasma (morto/expulso) também pode usar o radar - só não aparece nele
+		// Onde parou na lista é de quem PERGUNTA: o espectador não pode mexer na posição do acompanhado.
+		game_player@ quem_pergunta = lobby.find_player(peer_id);
+		if (@quem_pergunta == null) @quem_pergunta = lobby.find_spectator(peer_id);
 
 		string fail_key;
 		array<game_player@>@ nearby = radar_targets(lobby, me, fail_key);
@@ -162,10 +176,10 @@ mixin class server_ship_part {
 		}
 
 		int direction = pkt.get_int("direction", 1);
-		me.radar_index = (me.radar_index + direction) % int(nearby.length());
-		if (me.radar_index < 0) me.radar_index += int(nearby.length());
+		quem_pergunta.radar_index = (quem_pergunta.radar_index + direction) % int(nearby.length());
+		if (quem_pergunta.radar_index < 0) quem_pergunta.radar_index += int(nearby.length());
 
-		fill_radar_result(result, me, nearby[me.radar_index]);
+		fill_radar_result(result, me, nearby[quem_pergunta.radar_index]);
 		send_to(peer_id, result);
 	}
 
@@ -174,7 +188,7 @@ mixin class server_ship_part {
 	void on_radar_track(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
-		game_player@ me = lobby.find_player(peer_id);
+		game_player@ me = radar_eyes(lobby, peer_id);
 		if (@me == null) return;
 
 		net_packet@ result = net_packet(S_RADAR_RESULT);

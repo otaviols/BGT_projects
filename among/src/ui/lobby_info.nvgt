@@ -55,7 +55,21 @@ string seconds_text(float value) {
 // a mais é tempo esperando para chegar na sala seguinte. Aqui entra só o que decide se vale entrar
 // - quantos impostores, quão rápido é o kill, e se há sabotagem. O resto ele ouve dentro da sala,
 // com a tecla de configurações.
+// Uma linha da lista de partidas: o resumo e, no fim, quem está nela. Os nomes vão por último para
+// quem percorre a lista ouvir primeiro o nome da sala e a lotação, e poder seguir adiante antes deles.
 string lobby_summary_text(json_object@ entry) {
+	string texto = lobby_summary_base_text(entry);
+	if (@entry == null) return texto;
+	json_array@ nomes = entry.get_array("players");
+	if (@nomes == null || nomes.length() == 0) return texto;
+	array<string> lista;
+	for (uint i = 0; i < nomes.length(); i++) lista.insert_last(string(nomes[i]));
+	dictionary@ p = dictionary();
+	p.set("names", join(lista, ", "));
+	return texto + " - " + tr("lobby.entry_players", p);
+}
+
+string lobby_summary_base_text(json_object@ entry) {
 	if (@entry == null) return "";
 	// Em andamento: só o nome e quantos jogam. O resto (impostores, kill) só serve para decidir se
 	// vale entrar, e nesta não se entra agora.

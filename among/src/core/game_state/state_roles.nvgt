@@ -59,6 +59,11 @@ mixin class state_roles_part {
 			// Sem isto, o primeiro passo depois da volta era medido desde o último movimento ANTES de
 			// ser engolido - e a volta seria tratada como um salto qualquer.
 			p.last_move_time = elapsed_time;
+			// Volta como no começo da partida: a recarga de quem a começa correndo (o lobo) e a do kill
+			// recomeçam inteiras. Lá dentro o relógio continuava andando, e todo mundo saía da barriga
+			// com tudo pronto - no todos lobos isso virava uma devoração em cadeia (relato do usuário).
+			if (p.role().ability_starts_on_cooldown) p.ability_cooldown_remaining = config.role_value(p.role_id, TUNABLE_COOLDOWN);
+			if (p.role().can_kill) p.kill_cooldown_remaining = config.kill_cooldown_seconds;
 			voltaram.add(p.peer_id);
 		}
 		if (voltaram.length() == 0) return;

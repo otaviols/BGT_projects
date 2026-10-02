@@ -91,6 +91,20 @@ void main() {
 			lobby.winner == WINNER_NEUTRAL && lobby.win_reason == "last_wolf" && lobby.neutral_winner_peer == 1);
 	}
 
+	println("== saindo da barriga ==");
+	{
+		// Lá dentro o relógio andava, e todo mundo saía com o engolir pronto: devoração em cadeia.
+		game_state@ lobby = mesa("wolves");
+		game_player@ a = jogador(lobby, 1, ROLE_WOLF);
+		game_player@ b = jogador(lobby, 2, ROLE_WOLF);
+		jogador(lobby, 3, ROLE_WOLF);
+		b.alive = false; b.swallowed_by = 1;
+		b.ability_cooldown_remaining = 0.0;
+		lobby.release_belly(a, 0.0, 0.0);
+		confere("quem sai da barriga volta com o engolir recarregando (" + b.ability_cooldown_remaining + ")",
+			b.alive && b.ability_cooldown_remaining == lobby.config.role_value(ROLE_WOLF, TUNABLE_COOLDOWN));
+	}
+
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

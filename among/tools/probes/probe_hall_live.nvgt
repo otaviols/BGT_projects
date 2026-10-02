@@ -102,6 +102,12 @@ void main() {
 	escuta(obs, dono, 1500);
 	confere("controle: a publica chegou na lista empurrada", @na_lista(publica) != null);
 	confere("e virou o aviso 'criou a sala'", aviso("created", publica));
+	// Quem está nela, para saber se há conhecidos (só nas públicas, que são as que aparecem).
+	json_object@ com_nomes = na_lista(publica);
+	json_array@ nomes = @com_nomes != null ? com_nomes.get_array("players") : null;
+	bool tem_dono = false;
+	if (@nomes != null) for (uint i = 0; i < nomes.length(); i++) if (string(nomes[i]) == "hld" + sfx) tem_dono = true;
+	confere("a linha da publica diz quem esta nela", tem_dono);
 	confere("a privada continua fora de tudo", !mencionou(privada));
 
 	recebidos.resize(0);
