@@ -1,0 +1,57 @@
+// match_net_tasks.nvgt
+// Tarefas: resultado, tarefa visível de outro jogador, andamento da equipe.
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: um método por mensagem do
+// servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_net_tasks_part {
+	// Rede de segurança: o caminho normal já marca a task como feita na hora, otimista,
+	// assim que a minigame termina (ver a tecla de interagir abaixo) - aqui só cobre o caso raro
+	// de ainda não estar marcada quando essa confirmação do servidor chega.
+	void on_task_result(net_packet@ pkt) {
+		string task_id = pkt.get_string("task_id");
+		string next_object_id = pkt.get_string("next_object_id", "");
+		if (pkt.get_bool("ok") && next_object_id != "" && task_id != next_object_id) {
+			// A tarefa avançou de fase em vez de acabar. O caminho normal já avançou na hora
+			// (ver a tecla de interagir); isto cobre o caso de a confirmação chegar antes.
+			bool ja_avancou = false;
+			for (uint i = 0; i < my_tasks.length(); i++) if (my_tasks[i].object_id == next_object_id) ja_avancou = true;
+			if (!ja_avancou) advance_task_locally(map, audio, my_tasks, my_task_object_ids, task_id,
+				next_object_id, active_sabotage_id, my_role, alive);
+		} else if (pkt.get_bool("ok") && !is_task_completed(my_tasks, task_id)) {
+			mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, task_id, active_sabotage_id, my_role, alive);
+			if (my_tasks_all_completed(my_tasks)) {
+				string all_done_text = tr("task.all_completed");
+				speak(all_done_text);
+				events_log.add("", all_done_text);
+			}
+		}
+	}
+
+	// Alguém (não eu) está no scanner. O som toca no ponto da task, para quem estiver perto
+	// ouvir; o nome é dito só para quem está na mesma sala - de longe, o scanner é só um
+	// som, e é indo até lá que se confere quem é.
+	// O scanner é de um de cada vez: este mesmo aviso diz se ele está ocupado agora.
+	void on_task_visible(net_packet@ pkt) {
+		scanner_busy = pkt.get_bool("active");
+		if (pkt.get_bool("active")) {
+			map_object@ spot = map.find_object(pkt.get_string("object_id"));
+			if (@spot != null) {
+				audio.start_visible_task(spot.x, spot.y);
+				if (map.room_id_at(my_x, my_y) == spot.room_id) {
+					dictionary@ vp = dictionary();
+					vp.set("name", pkt.get_string("name"));
+					string aviso = tr("game.visible_task_scan", vp);
+					speak(aviso);
+					events_log.add("", aviso);
+				}
+			}
+		} else {
+			audio.stop_visible_task();
+		}
+	}
+
+	void on_task_progress(net_packet@ pkt) {
+		team_task_percent = pkt.get_int("percent");
+	}
+}

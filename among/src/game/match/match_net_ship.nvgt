@@ -1,0 +1,135 @@
+// match_net_ship.nvgt
+// A nave: sabotagens, portas, dutos e câmeras.
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: um método por mensagem do
+// servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_net_ship_part {
+	void on_sabotage_started(net_packet@ pkt) {
+		oxygen_code = pkt.get_string("oxygen_code", "");
+		mui.on_sabotage_started(pkt);
+		string sabotage_id = pkt.get_string("sabotage_id");
+		active_sabotage_id = sabotage_id;
+		fixed_sabotage_panels.resize(0); // sabotagem nova, painéis todos de pé outra vez
+		// Os efeitos (corpos calados, alcance de audição, beacons dos painéis desta sabotagem)
+		// saem todos daqui, para o fantasma e o vivo nunca discordarem sobre o que está ligado.
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+		if (voice_just_went_down(voice_room_allows, active_sabotage_id, alive)) {
+			string radio_text = tr("sabotage.comms.voice_down");
+			speak(radio_text);
+			events_log.add("", radio_text);
+		}
+
+		string hint_text = sabotage_fix_hint_text(map, sabotage_id, fixed_sabotage_panels);
+		if (hint_text != "") {
+			speak(hint_text);
+			events_log.add("", hint_text);
+		}
+	}
+
+	void on_camera_state(net_packet@ pkt) {
+		bool was_active = cameras.active;
+		if (pkt.get_bool("active")) {
+			cameras.start(pkt.get_string("room_id"));
+			string nome_sala = cameras.current_room_text();
+			if (!was_active) {
+				task_sound_simple(SND_CAMERA_ON);
+				// A dica só na ENTRADA: repeti-la a cada troca de sala atrapalharia justamente
+				// quem já sabe operar e está varrendo a nave.
+				// Chave NOVA (hint_grid), e não a antiga com texto novo: as traduções da comunidade
+				// ainda diriam "esquerda e direita trocam de sala" e caem no inglês certo até traduzirem.
+				speak(nome_sala + ". " + tr("camera.hint_grid"));
+			} else {
+				speak(nome_sala);
+			}
+		} else {
+			if (was_active) task_sound_simple(SND_CAMERA_OFF);
+			cameras.stop();
+			// Volta a ouvir o próprio entorno: sem isto o jogador continuaria escutando a sala
+			// que estava observando, parado na segurança, sem entender por quê.
+			audio.update_listener(my_x, my_y);
+			string motivo = pkt.get_string("message_key");
+			if (motivo != "") speak(tr(motivo));
+		}
+	}
+
+	void on_camera_players(net_packet@ pkt) {
+		speak(watched_room_players_text(pkt.get_array("names")));
+	}
+
+	void on_camera_watching(net_packet@ pkt) {
+		watched_room_id = pkt.get_string("room_id");
+		refresh_camera_watching_beacon(audio, map, watched_room_id);
+	}
+
+	// Um painel saiu do caminho, mas a sabotagem continua. Guardar QUAL evita mandar alguém
+	// atravessar a nave para resolver o que já está resolvido.
+	void on_sabotage_progress(net_packet@ pkt) {
+		string done_id = pkt.get_string("object_id");
+		if (done_id != "" && fixed_sabotage_panels.find(done_id) == -1) fixed_sabotage_panels.insert_last(done_id);
+	}
+
+	void on_sabotage_countdown(net_packet@ pkt) {
+		mui.on_sabotage_countdown(pkt);
+	}
+
+	void on_sabotage_fixed(net_packet@ pkt) {
+		mui.on_sabotage_fixed(pkt);
+		active_sabotage_id = "";
+		fixed_sabotage_panels.resize(0);
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+		if (my_role.can_sabotage) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
+	}
+
+	void on_vent_state(net_packet@ pkt) {
+		bool was_vented = is_vented;
+		is_vented = pkt.get_bool("vented");
+		my_x = pkt.get_float("x");
+		my_y = pkt.get_float("y");
+		audio.update_listener(my_x, my_y);
+		if (is_vented) {
+			// Entrando de fora, ou viajando pra outro vent da rede - os dois casos chegam como
+			// "vented=true", o que muda é só a posição (já atualizada acima).
+			// O passo da viagem é tocado AQUI, depois que o ouvinte já foi movido: tocando antes,
+			// o som saía no destino enquanto os ouvidos ainda estavam na origem, e ficava mudo.
+			// O piso é o do DUTO, não o da sala onde o vent desemboca - quem viaja está lá dentro.
+			if (was_vented) {
+				audio.play_footstep("VentTile", footstep_variant_count("VentTile"), my_x, my_y);
+			}
+			speak(tr(was_vented ? "game.vent_traveled" : "game.vent_entered"));
+		} else {
+			speak(tr("game.vent_exited"));
+		}
+	}
+
+	// Alguém entrou ou saiu de um vent perto de você. Não diz QUEM - o som posicionado da
+	// tampa é a informação, e é ela que dá ao vent o preço que ele não tem em recarga.
+	void on_vent_sound(net_packet@ pkt) {
+		map_object@ used_vent = map.find_object(pkt.get_string("vent_id"));
+		if (@used_vent != null) audio.play_object_interact(used_vent);
+	}
+
+	// O servidor é quem manda: aqui as portas fecham e abrem SÓ por pacote (sem relógio
+	// local), então cliente e servidor nunca discordam sobre uma porta estar aberta.
+	void on_doors_state(net_packet@ pkt) {
+		bool closing = pkt.get_bool("closed");
+		array<string> door_zones;
+		json_array@ zones_json = pkt.get_array("zones");
+		if (@zones_json != null) {
+			for (uint i = 0; i < zones_json.length(); i++) door_zones.insert_last(string(zones_json[i]));
+		}
+		if (closing) map.close_doors(door_zones, 0.0);
+		else map.open_doors(door_zones);
+		for (uint i = 0; i < door_zones.length(); i++) {
+			map_zone@ door_zone = map.find_zone(door_zones[i]);
+			if (@door_zone != null) audio.play_door(door_zone.center_x, door_zone.center_y, closing);
+		}
+		if (closing) {
+			string doors_text = tr("game.doors_closed");
+			speak(doors_text);
+			events_log.add("", doors_text);
+		}
+	}
+}

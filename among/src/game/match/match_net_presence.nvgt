@@ -1,0 +1,71 @@
+// match_net_presence.nvgt
+// Quem está na partida e onde: movimento, saída, nome trocado, quem está por perto, avisos do servidor.
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: um método por mensagem do
+// servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_net_presence_part {
+	void on_player_moved(net_packet@ pkt) {
+		uint64 moved_peer = pkt.get_uint64("peer_id");
+		float moved_x = pkt.get_float("x");
+		float moved_y = pkt.get_float("y");
+		roster.update_position(moved_peer, moved_x, moved_y);
+
+		// Passos de outros jogadores - throttled por jogador, senão tocaria a cada pacote
+		// de posição (várias vezes por segundo).
+		roster_entry@ moved_entry = roster.find(moved_peer);
+		if (@moved_entry != null && moved_entry.alive && float(moved_entry.footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
+			moved_entry.footstep_clock.restart();
+			map_zone@ moved_zone = map.zone_at(moved_x, moved_y);
+			string moved_prefix = @moved_zone != null ? moved_zone.floor_sound_prefix : "Tile";
+			audio.play_footstep(moved_prefix, footstep_variant_count(moved_prefix), moved_x, moved_y);
+		}
+	}
+
+	void on_player_left(net_packet@ pkt) {
+		uint64 left_peer = pkt.get_uint64("peer_id");
+		roster.mark_dead(left_peer);
+		string left_name = pkt.get_string("name", "");
+		if (left_name != "") {
+			dictionary@ left_params = dictionary();
+			left_params.set("name", left_name);
+			string left_text = tr("lobby.player_left", left_params);
+			if (!pkt.announced) speak(left_text);
+			events_log.add("", left_text);
+		}
+	}
+
+	// O nome com que alguém aparece mudou (metamorfo entrando ou saindo do disfarce). O
+	// elenco é a fonte de todo nome que este cliente fala sozinho, então renomear aqui
+	// vale para tudo de uma vez - inclusive para o anúncio de quem está por perto, que
+	// era por onde o disfarce vazava.
+	void on_player_renamed(net_packet@ pkt) {
+		roster.rename(pkt.get_uint64("peer_id"), pkt.get_string("name"));
+	}
+
+	// Reinício anunciado no meio da partida: som e histórico - quem estava ouvindo outra
+	// coisa precisa poder reler que o servidor vai cair.
+	void on_server_notice(net_packet@ pkt) {
+		string aviso = tr_server_message(pkt);
+		ui_sound(SND_SERVER_NOTICE);
+		if (!pkt.announced) speak(aviso);
+		events_log.add("", aviso);
+	}
+
+	void on_nearby_players(net_packet@ pkt) {
+		roster.set_perceptible(pkt);
+	}
+
+	// Traduzido AQUI, no idioma deste jogador: o servidor manda a chave, não a frase
+	// (ver network/protocol.nvgt).
+	void on_error(net_packet@ pkt) {
+		if (!pkt.announced) speak(tr_server_message(pkt));
+	}
+
+	void on_pong(net_packet@ pkt) {
+		ping_pending = false;
+		dictionary@ ping_params = dictionary();
+		ping_params.set("ms", "" + int(ping_clock.elapsed));
+		speak(tr("game.ping_result", ping_params));
+	}
+}

@@ -1,0 +1,34 @@
+// match_net_end.nvgt
+// O fim da partida.
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: um método por mensagem do
+// servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_net_end_part {
+	// A partida acabou - corta todo som ambiente/contínuo antes da tela de resultado, senão
+	// parecia que a partida ainda tava rolando (ambiente da nave, beacons, alarme, corpo).
+	void on_game_over(net_packet@ pkt) {
+		audio.stop_ship_ambience();
+		audio.stop_room_ambience();
+		audio.stop_landmark_beacons();
+		audio.stop_sabotage_alarm();
+		audio.stop_visible_task();
+		audio.stop_all_body_beacons();
+		// E o posto de câmeras, que ficava de fora desta lista: quem estava nele continuava
+		// "nas câmeras" durante o resultado, e o som de sala observada seguia para todos. O
+		// servidor novo já fecha o posto antes do fim (S_CAMERA_STATE); isto cobre o antigo e
+		// garante que o cliente não dependa da ordem dos pacotes.
+		if (cameras.active) {
+			cameras.stop();
+			task_sound_simple(SND_CAMERA_OFF);
+		}
+		audio.stop_camera_watching();
+		mui.on_game_over(pkt);
+		run_game_over_screen(client, pkt);
+		// A sala continua de pé com a mesma turma: o servidor manda o retrato dela logo depois
+		// do fim da partida (ver reopen_lobby). Quem chama usa isso para voltar direto à sala
+		// de espera, sem passar pelo navegador de partidas.
+		@back_to_lobby = wait_for_reopened_lobby(client);
+		game_over = true;
+	}
+}

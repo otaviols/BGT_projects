@@ -29,6 +29,14 @@
 #include "../game/map.nvgt"
 #include "../i18n.nvgt"
 #include "../config/game_constants.nvgt"
+// A match_session trata cada mensagem do servidor num arquivo por assunto (src/game/match/).
+#include "match/match_net_presence.nvgt"
+#include "match/match_net_death.nvgt"
+#include "match/match_net_meeting.nvgt"
+#include "match/match_net_tasks.nvgt"
+#include "match/match_net_ship.nvgt"
+#include "match/match_net_abilities.nvgt"
+#include "match/match_net_end.nvgt"
 
 // As teclas do jogo não são mais constantes: vêm do mapa remapeável do jogador, em
 // config/keybindings.nvgt. Aqui se pergunta pela AÇÃO (action_pressed(ACTION_KILL)), nunca pela
@@ -547,7 +555,7 @@ bool copy_game_over_action(menu@ m, const string&in item_id) {
 // Era uma função só (run_game) com dezenas de variáveis locais; virou classe para poder ser dividida
 // por assunto e exercitada por sonda sem teclado nem janela. O porquê de cada campo está onde ele é
 // inicializado, no construtor - que é o antigo começo da função, na mesma ordem.
-class match_session {
+class match_session : match_net_presence_part, match_net_death_part, match_net_meeting_part, match_net_tasks_part, match_net_ship_part, match_net_abilities_part, match_net_end_part {
 	game_client@ client;
 	net_packet@ start_pkt;
 	game_map@ map;
@@ -880,485 +888,7 @@ class match_session {
 			// registrado com o TIPO do pacote (a informação que mais importa pra achar o culpado
 			// depois) e o jogo segue no pacote seguinte. Ver core/crash_log.nvgt.
 			try {
-			if (t == S_PLAYER_MOVED) {
-				uint64 moved_peer = pkt.get_uint64("peer_id");
-				float moved_x = pkt.get_float("x");
-				float moved_y = pkt.get_float("y");
-				roster.update_position(moved_peer, moved_x, moved_y);
-
-				// Passos de outros jogadores - throttled por jogador, senão tocaria a cada pacote
-				// de posição (várias vezes por segundo).
-				roster_entry@ moved_entry = roster.find(moved_peer);
-				if (@moved_entry != null && moved_entry.alive && float(moved_entry.footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
-					moved_entry.footstep_clock.restart();
-					map_zone@ moved_zone = map.zone_at(moved_x, moved_y);
-					string moved_prefix = @moved_zone != null ? moved_zone.floor_sound_prefix : "Tile";
-					audio.play_footstep(moved_prefix, footstep_variant_count(moved_prefix), moved_x, moved_y);
-				}
-			} else if (t == S_PLAYER_LEFT) {
-				uint64 left_peer = pkt.get_uint64("peer_id");
-				roster.mark_dead(left_peer);
-				string left_name = pkt.get_string("name", "");
-				if (left_name != "") {
-					dictionary@ left_params = dictionary();
-					left_params.set("name", left_name);
-					string left_text = tr("lobby.player_left", left_params);
-					if (!pkt.announced) speak(left_text);
-					events_log.add("", left_text);
-				}
-			} else if (t == S_TASK_RESULT) {
-				// Rede de segurança: o caminho normal já marca a task como feita na hora, otimista,
-				// assim que a minigame termina (ver a tecla de interagir abaixo) - aqui só cobre o caso raro
-				// de ainda não estar marcada quando essa confirmação do servidor chega.
-				string task_id = pkt.get_string("task_id");
-				string next_object_id = pkt.get_string("next_object_id", "");
-				if (pkt.get_bool("ok") && next_object_id != "" && task_id != next_object_id) {
-					// A tarefa avançou de fase em vez de acabar. O caminho normal já avançou na hora
-					// (ver a tecla de interagir); isto cobre o caso de a confirmação chegar antes.
-					bool ja_avancou = false;
-					for (uint i = 0; i < my_tasks.length(); i++) if (my_tasks[i].object_id == next_object_id) ja_avancou = true;
-					if (!ja_avancou) advance_task_locally(map, audio, my_tasks, my_task_object_ids, task_id,
-						next_object_id, active_sabotage_id, my_role, alive);
-				} else if (pkt.get_bool("ok") && !is_task_completed(my_tasks, task_id)) {
-					mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, task_id, active_sabotage_id, my_role, alive);
-					if (my_tasks_all_completed(my_tasks)) {
-						string all_done_text = tr("task.all_completed");
-						speak(all_done_text);
-						events_log.add("", all_done_text);
-					}
-				}
-			} else if (t == S_PLAYER_KILLED) {
-				mui.on_player_killed(pkt);
-				if (pkt.get_uint64("peer_id") == client.my_peer_id) {
-					alive = false;
-					mui.alive = false;
-					// Virou fantasma: sabotagem não atinge morto, então o que estava ligado sai agora.
-					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-						my_role, alive, known_body_peers, known_body_positions);
-						// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
-					// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
-					// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
-					string killed_text = you_were_killed_text(pkt, roster);
-					if (!pkt.announced) speak(killed_text);
-					events_log.add("", killed_text);
-				}
-				if (pkt.get_uint64("killer_peer") == client.my_peer_id) my_kill_cooldown_remaining = kill_cooldown_config;
-				known_body_peers.insert_last(pkt.get_uint64("peer_id"));
-				known_body_positions.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0.0));
-			} else if (t == S_CHAT_MESSAGE) {
-				string chat_name = spoken_name(pkt.get_string("name")); // modo cor: a cor de quem falou
-				string chat_text = pkt.get_string("text");
-				messages_log.add(chat_name, chat_text);
-				// Sem interromper: uma mensagem de chat espera a fala atual acabar. Interrompendo, duas
-				// pessoas falando em sequência cortavam a primeira no meio, e um anúncio do jogo (quem
-				// reportou, quanto tempo falta) morria por causa de um "oi" no chat.
-				if (!pkt.announced) speak_chat(chat_name + ": " + chat_text);
-				if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
-				else audio.play_message_received();
-			} else if (t == S_BODY_REPORTED) {
-				mui.on_body_reported(pkt);
-				// A limpeza dos corpos não é feita aqui e sim no S_MEETING_STARTED logo abaixo, que
-				// chega em seguida: lá TODOS somem de uma vez, não só o que foi reportado.
-			} else if (t == S_MEETING_STARTED) {
-				// A reunião teleporta todo mundo: o alvo que estava bipando não faz mais sentido. O
-				// MODO contínuo continua ligado - é preferência do jogador, não estado de partida.
-				radar.stop_tracking_public();
-				// Todo corpo some do mapa quando a reunião começa - é o que o servidor faz com a lista
-				// dele (ver start_meeting). Sem isto o cliente continuava ouvindo o som de um corpo que
-				// não existe mais e anunciando "você encontrou o corpo de fulano" em cima dele.
-				known_body_peers.resize(0);
-				known_body_positions.resize(0);
-				near_body_last_frame = false;
-				audio.stop_all_body_beacons();
-				// Todo mundo (vivo) é teleportado pra cafeteria e o movimento trava até o resultado
-				// da votação chegar (S_VOTE_RESULT, abaixo) - sem isso os jogadores continuavam
-				// espalhados pelo mapa sem nenhum sinal físico de que uma reunião estava rolando.
-				movement_frozen = true;
-				// Quem está na barriga do lobo sai da lista - e é só isso que a mesa fica sabendo (ver
-				// start_meeting no servidor). Para o cliente, some como um morto: fora da votação.
-				json_array@ ausentes = pkt.get_array("absent");
-				if (@ausentes != null) for (uint i = 0; i < ausentes.length(); i++) {
-					uint64 ausente = uint64(ausentes[i]);
-					if (ausente != client.my_peer_id) roster.mark_dead(ausente);
-				}
-				float gather_x = pkt.get_float("gather_x");
-				float gather_y = pkt.get_float("gather_y");
-				// O engolido não vai à mesa: continua dentro do lobo, e o lobo está na mesa.
-				if (!swallowed) {
-					my_x = gather_x;
-					my_y = gather_y;
-					audio.update_listener(my_x, my_y);
-				}
-				for (uint i = 0; i < roster.entries.length(); i++) {
-					if (roster.entries[i].alive) roster.update_position(roster.entries[i].peer_id, gather_x, gather_y);
-				}
-				// Todo mundo parado na cafeteria discutindo não devia continuar ouvindo o ambiente de
-				// TODA a nave (beacons de botão/painel/vent, ambiente de cada sala) - isso só faz
-				// sentido andando pelo mapa. Volta quando a votação termina (ver S_VOTE_RESULT).
-				audio.stop_room_ambience();
-				audio.stop_landmark_beacons();
-				// O alarme de sabotagem tocando por cima da discussão inteira era insuportável (e não
-				// dá pra consertar painel nenhum durante a reunião mesmo - o servidor até congela o
-				// tempo da sabotagem, ver game_state.tick). Volta a tocar quando a votação acaba.
-				audio.stop_sabotage_alarm();
-				// O palpite do sniper é POR REUNIÃO: cada mesa nova devolve a ele o que tinha. Quem
-				// manda a verdade é o servidor, que também conta; isto aqui é só para a tecla poder
-				// responder na hora, sem viagem de rede.
-				guesses_left_this_meeting = my_guess_count;
-				mui.on_meeting_started(pkt);
-			} else if (t == S_MEETING_KILL) {
-				// Morte na mesa por um palpite. Ninguém fica sabendo quem apontou - ver S_MEETING_KILL
-				// no protocolo. O texto mora em event_speech.nvgt, com os outros.
-				uint64 morto = pkt.get_uint64("victim_peer");
-				roster.mark_dead(morto);
-				audio.play_meeting_kill();
-				string aviso = meeting_kill_text(pkt, roster);
-				if (!pkt.announced) speak(aviso);
-				events_log.add("", aviso);
-				if (morto == client.my_peer_id) {
-					alive = false;
-					mui.alive = false;
-					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-						my_role, alive, known_body_peers, known_body_positions);
-				}
-			} else if (t == S_VOTING_STARTED) {
-				mui.on_voting_started(pkt);
-			} else if (t == S_VOTE_CAST) {
-				mui.on_vote_cast(pkt);
-			} else if (t == S_VOTE_RESULT) {
-				mui.on_vote_result(pkt);
-				movement_frozen = false;
-				if (pkt.get_uint64("ejected_peer") == client.my_peer_id) {
-					alive = false;
-					mui.alive = false; // virou fantasma: sabotagem deixa de atingi-lo (ver apply_sabotage_effects)
-					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-						my_role, alive, known_body_peers, known_body_positions);
-					}
-				// O servidor rearma o cooldown de kill de todo impostor ao fim da votação (ver
-				// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
-				// falharia calada.
-				if (my_role.can_kill) my_kill_cooldown_remaining = kill_cooldown_config;
-				// E a habilidade, pelos mesmos motivos e para quem o papel declara (ver
-				// ability_cooldown_resets_on_meeting em role_traits).
-				if (my_role.ability_id != "" && my_role.ability_cooldown_resets_on_meeting)
-					my_ability_cooldown_remaining = ability_cooldown_config;
-				audio.start_room_ambience(map);
-				// A sabotagem continua de pé depois da reunião: os efeitos dela voltam por aqui, que é
-				// o único lugar que sabe se este jogador ainda está vivo para ser atingido por ela.
-				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-					my_role, alive, known_body_peers, known_body_positions);
-			} else if (t == S_SABOTAGE_STARTED) {
-				oxygen_code = pkt.get_string("oxygen_code", "");
-				mui.on_sabotage_started(pkt);
-				string sabotage_id = pkt.get_string("sabotage_id");
-				active_sabotage_id = sabotage_id;
-				fixed_sabotage_panels.resize(0); // sabotagem nova, painéis todos de pé outra vez
-				// Os efeitos (corpos calados, alcance de audição, beacons dos painéis desta sabotagem)
-				// saem todos daqui, para o fantasma e o vivo nunca discordarem sobre o que está ligado.
-				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-					my_role, alive, known_body_peers, known_body_positions);
-				if (voice_just_went_down(voice_room_allows, active_sabotage_id, alive)) {
-					string radio_text = tr("sabotage.comms.voice_down");
-					speak(radio_text);
-					events_log.add("", radio_text);
-				}
-
-				string hint_text = sabotage_fix_hint_text(map, sabotage_id, fixed_sabotage_panels);
-				if (hint_text != "") {
-					speak(hint_text);
-					events_log.add("", hint_text);
-				}
-			} else if (t == S_CAMERA_STATE) {
-				bool was_active = cameras.active;
-				if (pkt.get_bool("active")) {
-					cameras.start(pkt.get_string("room_id"));
-					string nome_sala = cameras.current_room_text();
-					if (!was_active) {
-						task_sound_simple(SND_CAMERA_ON);
-						// A dica só na ENTRADA: repeti-la a cada troca de sala atrapalharia justamente
-						// quem já sabe operar e está varrendo a nave.
-						// Chave NOVA (hint_grid), e não a antiga com texto novo: as traduções da comunidade
-						// ainda diriam "esquerda e direita trocam de sala" e caem no inglês certo até traduzirem.
-						speak(nome_sala + ". " + tr("camera.hint_grid"));
-					} else {
-						speak(nome_sala);
-					}
-				} else {
-					if (was_active) task_sound_simple(SND_CAMERA_OFF);
-					cameras.stop();
-					// Volta a ouvir o próprio entorno: sem isto o jogador continuaria escutando a sala
-					// que estava observando, parado na segurança, sem entender por quê.
-					audio.update_listener(my_x, my_y);
-					string motivo = pkt.get_string("message_key");
-					if (motivo != "") speak(tr(motivo));
-				}
-			} else if (t == S_VANISH_ENDED) {
-				my_invisible_remaining = 0.0;
-				// O som da volta é dele e de mais ninguém - sem posição, porque não é um evento do
-				// mundo: é o aviso de que ele voltou a ser percebido.
-				task_sound_simple(SND_VANISH);
-				speak(tr("role.vanish_ended"));
-			} else if (t == S_PLAYER_RENAMED) {
-				// O nome com que alguém aparece mudou (metamorfo entrando ou saindo do disfarce). O
-				// elenco é a fonte de todo nome que este cliente fala sozinho, então renomear aqui
-				// vale para tudo de uma vez - inclusive para o anúncio de quem está por perto, que
-				// era por onde o disfarce vazava.
-				roster.rename(pkt.get_uint64("peer_id"), pkt.get_string("name"));
-			} else if (t == S_SHIFT_SOUND) {
-				// Alguém mudou de cara por perto. Posicionado e sem nome nenhum: quem ouve sabe que
-				// algo aconteceu ali, não quem nem em quem.
-				audio.play_shapeshift(pkt.get_float("x"), pkt.get_float("y"));
-			} else if (t == S_SHIFT_ENDED) {
-				my_disguise_remaining = 0.0;
-				speak(tr("role.shift_ended"));
-			} else if (t == S_DEATH_ALARM) {
-				// O alarme toca SEM posição, para a nave inteira: ele não marca um lugar - a sala vai
-				// dita na fala logo em seguida -, é o aviso de que aconteceu. Antes da fala, para o
-				// som chamar a atenção e o texto explicar.
-				task_sound_simple(SND_NOISEMAKER_ALARM);
-				string alarm_text = death_alarm_text(pkt);
-				// `!pkt.announced`: se uma tela bloqueante já disse isto, não repete ao fechá-la.
-				if (!pkt.announced) speak(alarm_text);
-				events_log.add("", alarm_text); // dá para reler: é a informação mais valiosa da partida
-			} else if (t == S_SERVER_NOTICE) {
-				// Reinício anunciado no meio da partida: som e histórico - quem estava ouvindo outra
-				// coisa precisa poder reler que o servidor vai cair.
-				string aviso = tr_server_message(pkt);
-				ui_sound(SND_SERVER_NOTICE);
-				if (!pkt.announced) speak(aviso);
-				events_log.add("", aviso);
-			} else if (t == S_KILL_WITNESSED) {
-				// Sem interromper: chega logo depois do som do assassinato, e cortar a fala anterior
-				// podia engolir justamente o aviso de reunião ou de sabotagem que estava sendo dito.
-				string visto = kill_witnessed_text(pkt);
-				if (!pkt.announced) speak(visto, false);
-				events_log.add("", visto);
-			} else if (t == S_NEARBY_PLAYERS) {
-				roster.set_perceptible(pkt);
-			} else if (t == S_SWALLOWED) {
-				// Fui engolido. Como uma morte para o resto do jogo (fora da votação, do radar), mas preso:
-				// quem manda nisso é `swallowed`, lido em cada bloco de ação do laço.
-				swallowed = true;
-				wolf_peer = pkt.get_uint64("wolf_peer");
-				alive = false;
-				mui.alive = false;
-				is_vented = false;
-				// O som de engolir, no próprio ponto: é com ele.
-				audio.play_wolf_swallow(my_x, my_y);
-				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-					my_role, alive, known_body_peers, known_body_positions);
-				audio.stop_landmark_beacons(); // tarefa, botão, painel: nada disso está ao alcance aqui
-				string engolido = swallowed_text(pkt);
-				if (!pkt.announced) speak(engolido);
-				events_log.add("", engolido);
-			} else if (t == S_SWALLOW_SOUND) {
-				// O som de engolir, no ponto - e nada mais: nem quem, nem quem foi engolido.
-				audio.play_wolf_swallow(pkt.get_float("x"), pkt.get_float("y"));
-			} else if (t == S_BELLY_RELEASED) {
-				// O lobo caiu: quem estava na barriga volta, vivo, onde ele caiu.
-				float rx = pkt.get_float("x"), ry = pkt.get_float("y");
-				json_array@ voltaram = pkt.get_array("peers");
-				bool eu_voltei = false;
-				if (@voltaram != null) for (uint i = 0; i < voltaram.length(); i++) {
-					uint64 quem = uint64(voltaram[i]);
-					int dentro = g_voice.inside_me.find(quem);
-					if (dentro != -1) g_voice.inside_me.remove_at(dentro);
-					roster_entry@ e = roster.find(quem);
-					if (@e != null) { e.alive = true; e.x = rx; e.y = ry; }
-					if (quem == client.my_peer_id) eu_voltei = true;
-				}
-				if (eu_voltei) {
-					swallowed = false;
-					wolf_peer = 0;
-					alive = true;
-					mui.alive = true;
-					my_x = rx;
-					my_y = ry;
-					audio.update_listener(my_x, my_y);
-					apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-						my_role, alive, known_body_peers, known_body_positions);
-					// Na reunião não há marcadores (ver S_MEETING_STARTED); eles voltam com o fim da votação.
-					if (!movement_frozen) refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
-				}
-				string volta = belly_released_text(pkt, roster, client.my_peer_id);
-				if (volta != "") {
-					if (!pkt.announced) speak(volta);
-					events_log.add("", volta);
-				}
-			} else if (t == S_ABILITY_RESULT) {
-				// Deu: a recarga começa a contar aqui, com o valor que o SERVIDOR mandou. O efeito em
-				// si (o conserto, o tiro) chega pelos pacotes de sempre - não há "som de habilidade"
-				// genérico, porque cada uma tem um ouvinte e um som próprios. Não deu: o motivo vem
-				// como chave, e a recarga fica como estava.
-				if (pkt.get_bool("ok")) {
-					my_ability_cooldown_remaining = pkt.get_float("cooldown_seconds", 0.0);
-					// O escudo é a única habilidade com som próprio, e ele toca SEM posição: é a
-					// confirmação de que saiu, não um evento do mundo. No ponto do protegido, quem
-					// estivesse por perto ouviria que alguém acabou de ser blindado.
-					string qual = pkt.get_string("ability");
-					// O palpite saiu: gasta um. Quem conta de verdade é o servidor - isto é só para a
-					// tecla saber responder "você já apontou nesta reunião" sem ir à rede.
-					if (qual == ABILITY_GUESS && guesses_left_this_meeting > 0) guesses_left_this_meeting--;
-					if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
-					// Engoliu: quem foi para a barriga sai do elenco do lobo (bip de alvo, tecla, lista da
-					// reunião). O som de engolir toca no ponto dele - é ele quem fez.
-					if (qual == ABILITY_EAT) {
-						if (pending_eat_peer != 0) {
-							roster.mark_dead(pending_eat_peer);
-							// A voz de quem engoli passa a tocar dentro de mim, e não onde ele foi comido.
-							g_voice.inside_me.insert_last(pending_eat_peer);
-						}
-						pending_eat_peer = 0;
-						audio.play_wolf_swallow(my_x, my_y);
-					}
-					if (qual == ABILITY_VANISH) {
-						my_invisible_remaining = pkt.get_float("duration_seconds", PHANTOM_INVISIBLE_SECONDS);
-						task_sound_simple(SND_VANISH); // o dele toca na hora; para os outros vem posicionado
-					}
-					if (qual == ABILITY_SHAPESHIFT) {
-						my_disguise_remaining = pkt.get_float("duration_seconds", SHAPESHIFT_DURATION_SECONDS);
-						// O som dele toca aqui, na hora, sem esperar a rede - como o do duto. Para os
-						// outros ele chega posicionado, por S_SHIFT_SOUND.
-						task_sound_simple(SND_SHAPE_SHIFT);
-						// A voz cala enquanto durar - quem decide isso é o laço, por quadro (ver
-						// g_voice.allowed mais abaixo), a partir deste mesmo contador.
-					}
-					// O que a habilidade tem a dizer vem do servidor. O exame monta a frase à parte
-					// porque a lista de salas chega como CHAVES, para serem traduzidas aqui.
-					string retorno = qual == ABILITY_EXAMINE ? examine_result_text(pkt) : tr_server_message(pkt);
-					if (retorno != "") {
-						speak(retorno);
-						// No registro de eventos: é uma pista, e o jogador vai querer reler antes de
-						// falar na reunião.
-						events_log.add("", retorno);
-					}
-				} else {
-					string motivo = tr_server_message(pkt);
-					if (motivo != "") speak(motivo);
-				}
-			} else if (t == S_CAMERA_PLAYERS) {
-				speak(watched_room_players_text(pkt.get_array("names")));
-			} else if (t == S_CAMERA_WATCHING) {
-				watched_room_id = pkt.get_string("room_id");
-				refresh_camera_watching_beacon(audio, map, watched_room_id);
-			} else if (t == S_SABOTAGE_PROGRESS) {
-				// Um painel saiu do caminho, mas a sabotagem continua. Guardar QUAL evita mandar alguém
-				// atravessar a nave para resolver o que já está resolvido.
-				string done_id = pkt.get_string("object_id");
-				if (done_id != "" && fixed_sabotage_panels.find(done_id) == -1) fixed_sabotage_panels.insert_last(done_id);
-			} else if (t == S_SABOTAGE_COUNTDOWN) {
-				mui.on_sabotage_countdown(pkt);
-			} else if (t == S_SABOTAGE_FIXED) {
-				mui.on_sabotage_fixed(pkt);
-				active_sabotage_id = "";
-				fixed_sabotage_panels.resize(0);
-				apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
-					my_role, alive, known_body_peers, known_body_positions);
-				if (my_role.can_sabotage) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
-			} else if (t == S_VENT_STATE) {
-				bool was_vented = is_vented;
-				is_vented = pkt.get_bool("vented");
-				my_x = pkt.get_float("x");
-				my_y = pkt.get_float("y");
-				audio.update_listener(my_x, my_y);
-				if (is_vented) {
-					// Entrando de fora, ou viajando pra outro vent da rede - os dois casos chegam como
-					// "vented=true", o que muda é só a posição (já atualizada acima).
-					// O passo da viagem é tocado AQUI, depois que o ouvinte já foi movido: tocando antes,
-					// o som saía no destino enquanto os ouvidos ainda estavam na origem, e ficava mudo.
-					// O piso é o do DUTO, não o da sala onde o vent desemboca - quem viaja está lá dentro.
-					if (was_vented) {
-						audio.play_footstep("VentTile", footstep_variant_count("VentTile"), my_x, my_y);
-					}
-					speak(tr(was_vented ? "game.vent_traveled" : "game.vent_entered"));
-				} else {
-					speak(tr("game.vent_exited"));
-				}
-			} else if (t == S_VENT_SOUND) {
-				// Alguém entrou ou saiu de um vent perto de você. Não diz QUEM - o som posicionado da
-				// tampa é a informação, e é ela que dá ao vent o preço que ele não tem em recarga.
-				map_object@ used_vent = map.find_object(pkt.get_string("vent_id"));
-				if (@used_vent != null) audio.play_object_interact(used_vent);
-			} else if (t == S_DOORS_STATE) {
-				// O servidor é quem manda: aqui as portas fecham e abrem SÓ por pacote (sem relógio
-				// local), então cliente e servidor nunca discordam sobre uma porta estar aberta.
-				bool closing = pkt.get_bool("closed");
-				array<string> door_zones;
-				json_array@ zones_json = pkt.get_array("zones");
-				if (@zones_json != null) {
-					for (uint i = 0; i < zones_json.length(); i++) door_zones.insert_last(string(zones_json[i]));
-				}
-				if (closing) map.close_doors(door_zones, 0.0);
-				else map.open_doors(door_zones);
-				for (uint i = 0; i < door_zones.length(); i++) {
-					map_zone@ door_zone = map.find_zone(door_zones[i]);
-					if (@door_zone != null) audio.play_door(door_zone.center_x, door_zone.center_y, closing);
-				}
-				if (closing) {
-					string doors_text = tr("game.doors_closed");
-					speak(doors_text);
-					events_log.add("", doors_text);
-				}
-			} else if (t == S_TASK_VISIBLE) {
-				// Alguém (não eu) está no scanner. O som toca no ponto da task, para quem estiver perto
-				// ouvir; o nome é dito só para quem está na mesma sala - de longe, o scanner é só um
-				// som, e é indo até lá que se confere quem é.
-				// O scanner é de um de cada vez: este mesmo aviso diz se ele está ocupado agora.
-				scanner_busy = pkt.get_bool("active");
-				if (pkt.get_bool("active")) {
-					map_object@ spot = map.find_object(pkt.get_string("object_id"));
-					if (@spot != null) {
-						audio.start_visible_task(spot.x, spot.y);
-						if (map.room_id_at(my_x, my_y) == spot.room_id) {
-							dictionary@ vp = dictionary();
-							vp.set("name", pkt.get_string("name"));
-							string aviso = tr("game.visible_task_scan", vp);
-							speak(aviso);
-							events_log.add("", aviso);
-						}
-					}
-				} else {
-					audio.stop_visible_task();
-				}
-			} else if (t == S_TASK_PROGRESS) {
-				team_task_percent = pkt.get_int("percent");
-			} else if (t == S_RADAR_RESULT) {
-				radar.handle_result(pkt);
-			} else if (t == S_GAME_OVER) {
-				// A partida acabou - corta todo som ambiente/contínuo antes da tela de resultado, senão
-				// parecia que a partida ainda tava rolando (ambiente da nave, beacons, alarme, corpo).
-				audio.stop_ship_ambience();
-				audio.stop_room_ambience();
-				audio.stop_landmark_beacons();
-				audio.stop_sabotage_alarm();
-				audio.stop_visible_task();
-				audio.stop_all_body_beacons();
-				// E o posto de câmeras, que ficava de fora desta lista: quem estava nele continuava
-				// "nas câmeras" durante o resultado, e o som de sala observada seguia para todos. O
-				// servidor novo já fecha o posto antes do fim (S_CAMERA_STATE); isto cobre o antigo e
-				// garante que o cliente não dependa da ordem dos pacotes.
-				if (cameras.active) {
-					cameras.stop();
-					task_sound_simple(SND_CAMERA_OFF);
-				}
-				audio.stop_camera_watching();
-				mui.on_game_over(pkt);
-				run_game_over_screen(client, pkt);
-				// A sala continua de pé com a mesma turma: o servidor manda o retrato dela logo depois
-				// do fim da partida (ver reopen_lobby). Quem chama usa isso para voltar direto à sala
-				// de espera, sem passar pelo navegador de partidas.
-				@back_to_lobby = wait_for_reopened_lobby(client);
-				game_over = true;
-			} else if (t == S_ERROR) {
-				// Traduzido AQUI, no idioma deste jogador: o servidor manda a chave, não a frase
-				// (ver network/protocol.nvgt).
-				if (!pkt.announced) speak(tr_server_message(pkt));
-			} else if (t == S_PONG && ping_pending) {
-				ping_pending = false;
-				dictionary@ ping_params = dictionary();
-				ping_params.set("ms", "" + int(ping_clock.elapsed));
-				speak(tr("game.ping_result", ping_params));
-			}
+				handle_packet(pkt);
 			}
 			catch {
 				log_crash("pacote " + t);
@@ -1965,6 +1495,50 @@ class match_session {
 			}
 		}
 		return !game_over;
+	}
+
+	// Cada mensagem do servidor tem o seu método (on_<mensagem>), nos arquivos de src/game/match/.
+	void handle_packet(net_packet@ pkt) {
+		string t = pkt.type;
+		if (t == S_PLAYER_MOVED) on_player_moved(pkt);
+		else if (t == S_PLAYER_LEFT) on_player_left(pkt);
+		else if (t == S_TASK_RESULT) on_task_result(pkt);
+		else if (t == S_PLAYER_KILLED) on_player_killed(pkt);
+		else if (t == S_CHAT_MESSAGE) on_chat_message(pkt);
+		else if (t == S_BODY_REPORTED) on_body_reported(pkt);
+		else if (t == S_MEETING_STARTED) on_meeting_started(pkt);
+		else if (t == S_MEETING_KILL) on_meeting_kill(pkt);
+		else if (t == S_VOTING_STARTED) on_voting_started(pkt);
+		else if (t == S_VOTE_CAST) on_vote_cast(pkt);
+		else if (t == S_VOTE_RESULT) on_vote_result(pkt);
+		else if (t == S_SABOTAGE_STARTED) on_sabotage_started(pkt);
+		else if (t == S_CAMERA_STATE) on_camera_state(pkt);
+		else if (t == S_VANISH_ENDED) on_vanish_ended(pkt);
+		else if (t == S_PLAYER_RENAMED) on_player_renamed(pkt);
+		else if (t == S_SHIFT_SOUND) on_shift_sound(pkt);
+		else if (t == S_SHIFT_ENDED) on_shift_ended(pkt);
+		else if (t == S_DEATH_ALARM) on_death_alarm(pkt);
+		else if (t == S_SERVER_NOTICE) on_server_notice(pkt);
+		else if (t == S_KILL_WITNESSED) on_kill_witnessed(pkt);
+		else if (t == S_NEARBY_PLAYERS) on_nearby_players(pkt);
+		else if (t == S_SWALLOWED) on_swallowed(pkt);
+		else if (t == S_SWALLOW_SOUND) on_swallow_sound(pkt);
+		else if (t == S_BELLY_RELEASED) on_belly_released(pkt);
+		else if (t == S_ABILITY_RESULT) on_ability_result(pkt);
+		else if (t == S_CAMERA_PLAYERS) on_camera_players(pkt);
+		else if (t == S_CAMERA_WATCHING) on_camera_watching(pkt);
+		else if (t == S_SABOTAGE_PROGRESS) on_sabotage_progress(pkt);
+		else if (t == S_SABOTAGE_COUNTDOWN) on_sabotage_countdown(pkt);
+		else if (t == S_SABOTAGE_FIXED) on_sabotage_fixed(pkt);
+		else if (t == S_VENT_STATE) on_vent_state(pkt);
+		else if (t == S_VENT_SOUND) on_vent_sound(pkt);
+		else if (t == S_DOORS_STATE) on_doors_state(pkt);
+		else if (t == S_TASK_VISIBLE) on_task_visible(pkt);
+		else if (t == S_TASK_PROGRESS) on_task_progress(pkt);
+		else if (t == S_RADAR_RESULT) on_radar_result(pkt);
+		else if (t == S_GAME_OVER) on_game_over(pkt);
+		else if (t == S_ERROR) on_error(pkt);
+		else if (t == S_PONG && ping_pending) on_pong(pkt);
 	}
 
 	// O fim da partida: devolve o retrato da sala reaberta, ou null se o jogador saiu sem sala.

@@ -1,0 +1,123 @@
+// match_net_meeting.nvgt
+// Reunião: corpo reportado, começo, morte na mesa, votação e resultado, e o chat (que só existe na reunião).
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: um método por mensagem do
+// servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_net_meeting_part {
+	void on_chat_message(net_packet@ pkt) {
+		string chat_name = spoken_name(pkt.get_string("name")); // modo cor: a cor de quem falou
+		string chat_text = pkt.get_string("text");
+		messages_log.add(chat_name, chat_text);
+		// Sem interromper: uma mensagem de chat espera a fala atual acabar. Interrompendo, duas
+		// pessoas falando em sequência cortavam a primeira no meio, e um anúncio do jogo (quem
+		// reportou, quanto tempo falta) morria por causa de um "oi" no chat.
+		if (!pkt.announced) speak_chat(chat_name + ": " + chat_text);
+		if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_message_sent();
+		else audio.play_message_received();
+	}
+
+	void on_body_reported(net_packet@ pkt) {
+		mui.on_body_reported(pkt);
+		// A limpeza dos corpos não é feita aqui e sim no S_MEETING_STARTED logo abaixo, que
+		// chega em seguida: lá TODOS somem de uma vez, não só o que foi reportado.
+	}
+
+	// A reunião teleporta todo mundo: o alvo que estava bipando não faz mais sentido. O
+	// MODO contínuo continua ligado - é preferência do jogador, não estado de partida.
+	void on_meeting_started(net_packet@ pkt) {
+		radar.stop_tracking_public();
+		// Todo corpo some do mapa quando a reunião começa - é o que o servidor faz com a lista
+		// dele (ver start_meeting). Sem isto o cliente continuava ouvindo o som de um corpo que
+		// não existe mais e anunciando "você encontrou o corpo de fulano" em cima dele.
+		known_body_peers.resize(0);
+		known_body_positions.resize(0);
+		near_body_last_frame = false;
+		audio.stop_all_body_beacons();
+		// Todo mundo (vivo) é teleportado pra cafeteria e o movimento trava até o resultado
+		// da votação chegar (S_VOTE_RESULT, abaixo) - sem isso os jogadores continuavam
+		// espalhados pelo mapa sem nenhum sinal físico de que uma reunião estava rolando.
+		movement_frozen = true;
+		// Quem está na barriga do lobo sai da lista - e é só isso que a mesa fica sabendo (ver
+		// start_meeting no servidor). Para o cliente, some como um morto: fora da votação.
+		json_array@ ausentes = pkt.get_array("absent");
+		if (@ausentes != null) for (uint i = 0; i < ausentes.length(); i++) {
+			uint64 ausente = uint64(ausentes[i]);
+			if (ausente != client.my_peer_id) roster.mark_dead(ausente);
+		}
+		float gather_x = pkt.get_float("gather_x");
+		float gather_y = pkt.get_float("gather_y");
+		// O engolido não vai à mesa: continua dentro do lobo, e o lobo está na mesa.
+		if (!swallowed) {
+			my_x = gather_x;
+			my_y = gather_y;
+			audio.update_listener(my_x, my_y);
+		}
+		for (uint i = 0; i < roster.entries.length(); i++) {
+			if (roster.entries[i].alive) roster.update_position(roster.entries[i].peer_id, gather_x, gather_y);
+		}
+		// Todo mundo parado na cafeteria discutindo não devia continuar ouvindo o ambiente de
+		// TODA a nave (beacons de botão/painel/vent, ambiente de cada sala) - isso só faz
+		// sentido andando pelo mapa. Volta quando a votação termina (ver S_VOTE_RESULT).
+		audio.stop_room_ambience();
+		audio.stop_landmark_beacons();
+		// O alarme de sabotagem tocando por cima da discussão inteira era insuportável (e não
+		// dá pra consertar painel nenhum durante a reunião mesmo - o servidor até congela o
+		// tempo da sabotagem, ver game_state.tick). Volta a tocar quando a votação acaba.
+		audio.stop_sabotage_alarm();
+		// O palpite do sniper é POR REUNIÃO: cada mesa nova devolve a ele o que tinha. Quem
+		// manda a verdade é o servidor, que também conta; isto aqui é só para a tecla poder
+		// responder na hora, sem viagem de rede.
+		guesses_left_this_meeting = my_guess_count;
+		mui.on_meeting_started(pkt);
+	}
+
+	// Morte na mesa por um palpite. Ninguém fica sabendo quem apontou - ver S_MEETING_KILL
+	// no protocolo. O texto mora em event_speech.nvgt, com os outros.
+	void on_meeting_kill(net_packet@ pkt) {
+		uint64 morto = pkt.get_uint64("victim_peer");
+		roster.mark_dead(morto);
+		audio.play_meeting_kill();
+		string aviso = meeting_kill_text(pkt, roster);
+		if (!pkt.announced) speak(aviso);
+		events_log.add("", aviso);
+		if (morto == client.my_peer_id) {
+			alive = false;
+			mui.alive = false;
+			apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+				my_role, alive, known_body_peers, known_body_positions);
+		}
+	}
+
+	void on_voting_started(net_packet@ pkt) {
+		mui.on_voting_started(pkt);
+	}
+
+	void on_vote_cast(net_packet@ pkt) {
+		mui.on_vote_cast(pkt);
+	}
+
+	void on_vote_result(net_packet@ pkt) {
+		mui.on_vote_result(pkt);
+		movement_frozen = false;
+		if (pkt.get_uint64("ejected_peer") == client.my_peer_id) {
+			alive = false;
+			mui.alive = false; // virou fantasma: sabotagem deixa de atingi-lo (ver apply_sabotage_effects)
+			apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+				my_role, alive, known_body_peers, known_body_positions);
+			}
+		// O servidor rearma o cooldown de kill de todo impostor ao fim da votação (ver
+		// tally_votes) - o cliente precisa acompanhar, senão anunciaria "pode matar" e a tecla
+		// falharia calada.
+		if (my_role.can_kill) my_kill_cooldown_remaining = kill_cooldown_config;
+		// E a habilidade, pelos mesmos motivos e para quem o papel declara (ver
+		// ability_cooldown_resets_on_meeting em role_traits).
+		if (my_role.ability_id != "" && my_role.ability_cooldown_resets_on_meeting)
+			my_ability_cooldown_remaining = ability_cooldown_config;
+		audio.start_room_ambience(map);
+		// A sabotagem continua de pé depois da reunião: os efeitos dela voltam por aqui, que é
+		// o único lugar que sabe se este jogador ainda está vivo para ser atingido por ela.
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+	}
+}

@@ -1,0 +1,46 @@
+// match_net_death.nvgt
+// Mortes: a própria, a testemunhada, o alarme do faz-barulho.
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: um método por mensagem do
+// servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_net_death_part {
+	void on_player_killed(net_packet@ pkt) {
+		mui.on_player_killed(pkt);
+		if (pkt.get_uint64("peer_id") == client.my_peer_id) {
+			alive = false;
+			mui.alive = false;
+			// Virou fantasma: sabotagem não atinge morto, então o que estava ligado sai agora.
+			apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+				my_role, alive, known_body_peers, known_body_positions);
+				// Dizer QUEM matou: no Among Us original a vítima vê o assassino, e aqui isso não vaza
+			// nada pros vivos - morto não manda mensagem no chat nem vota (o servidor recusa os
+			// dois). Sem o nome, "você foi eliminado" não dizia nada pra quem levou a facada.
+			string killed_text = you_were_killed_text(pkt, roster);
+			if (!pkt.announced) speak(killed_text);
+			events_log.add("", killed_text);
+		}
+		if (pkt.get_uint64("killer_peer") == client.my_peer_id) my_kill_cooldown_remaining = kill_cooldown_config;
+		known_body_peers.insert_last(pkt.get_uint64("peer_id"));
+		known_body_positions.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0.0));
+	}
+
+	// O alarme toca SEM posição, para a nave inteira: ele não marca um lugar - a sala vai
+	// dita na fala logo em seguida -, é o aviso de que aconteceu. Antes da fala, para o
+	// som chamar a atenção e o texto explicar.
+	void on_death_alarm(net_packet@ pkt) {
+		task_sound_simple(SND_NOISEMAKER_ALARM);
+		string alarm_text = death_alarm_text(pkt);
+		// `!pkt.announced`: se uma tela bloqueante já disse isto, não repete ao fechá-la.
+		if (!pkt.announced) speak(alarm_text);
+		events_log.add("", alarm_text); // dá para reler: é a informação mais valiosa da partida
+	}
+
+	// Sem interromper: chega logo depois do som do assassinato, e cortar a fala anterior
+	// podia engolir justamente o aviso de reunião ou de sabotagem que estava sendo dito.
+	void on_kill_witnessed(net_packet@ pkt) {
+		string visto = kill_witnessed_text(pkt);
+		if (!pkt.announced) speak(visto, false);
+		events_log.add("", visto);
+	}
+}

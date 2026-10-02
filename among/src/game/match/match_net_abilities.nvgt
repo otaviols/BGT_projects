@@ -1,0 +1,139 @@
+// match_net_abilities.nvgt
+// Habilidades: resultado de cada uma, fantasma, metamorfo, lobo (barriga), radar.
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: um método por mensagem do
+// servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_net_abilities_part {
+	void on_vanish_ended(net_packet@ pkt) {
+		my_invisible_remaining = 0.0;
+		// O som da volta é dele e de mais ninguém - sem posição, porque não é um evento do
+		// mundo: é o aviso de que ele voltou a ser percebido.
+		task_sound_simple(SND_VANISH);
+		speak(tr("role.vanish_ended"));
+	}
+
+	// Alguém mudou de cara por perto. Posicionado e sem nome nenhum: quem ouve sabe que
+	// algo aconteceu ali, não quem nem em quem.
+	void on_shift_sound(net_packet@ pkt) {
+		audio.play_shapeshift(pkt.get_float("x"), pkt.get_float("y"));
+	}
+
+	void on_shift_ended(net_packet@ pkt) {
+		my_disguise_remaining = 0.0;
+		speak(tr("role.shift_ended"));
+	}
+
+	// Fui engolido. Como uma morte para o resto do jogo (fora da votação, do radar), mas preso:
+	// quem manda nisso é `swallowed`, lido em cada bloco de ação do laço.
+	void on_swallowed(net_packet@ pkt) {
+		swallowed = true;
+		wolf_peer = pkt.get_uint64("wolf_peer");
+		alive = false;
+		mui.alive = false;
+		is_vented = false;
+		// O som de engolir, no próprio ponto: é com ele.
+		audio.play_wolf_swallow(my_x, my_y);
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+		audio.stop_landmark_beacons(); // tarefa, botão, painel: nada disso está ao alcance aqui
+		string engolido = swallowed_text(pkt);
+		if (!pkt.announced) speak(engolido);
+		events_log.add("", engolido);
+	}
+
+	// O som de engolir, no ponto - e nada mais: nem quem, nem quem foi engolido.
+	void on_swallow_sound(net_packet@ pkt) {
+		audio.play_wolf_swallow(pkt.get_float("x"), pkt.get_float("y"));
+	}
+
+	// O lobo caiu: quem estava na barriga volta, vivo, onde ele caiu.
+	void on_belly_released(net_packet@ pkt) {
+		float rx = pkt.get_float("x"), ry = pkt.get_float("y");
+		json_array@ voltaram = pkt.get_array("peers");
+		bool eu_voltei = false;
+		if (@voltaram != null) for (uint i = 0; i < voltaram.length(); i++) {
+			uint64 quem = uint64(voltaram[i]);
+			int dentro = g_voice.inside_me.find(quem);
+			if (dentro != -1) g_voice.inside_me.remove_at(dentro);
+			roster_entry@ e = roster.find(quem);
+			if (@e != null) { e.alive = true; e.x = rx; e.y = ry; }
+			if (quem == client.my_peer_id) eu_voltei = true;
+		}
+		if (eu_voltei) {
+			swallowed = false;
+			wolf_peer = 0;
+			alive = true;
+			mui.alive = true;
+			my_x = rx;
+			my_y = ry;
+			audio.update_listener(my_x, my_y);
+			apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+				my_role, alive, known_body_peers, known_body_positions);
+			// Na reunião não há marcadores (ver S_MEETING_STARTED); eles voltam com o fim da votação.
+			if (!movement_frozen) refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
+		}
+		string volta = belly_released_text(pkt, roster, client.my_peer_id);
+		if (volta != "") {
+			if (!pkt.announced) speak(volta);
+			events_log.add("", volta);
+		}
+	}
+
+	// Deu: a recarga começa a contar aqui, com o valor que o SERVIDOR mandou. O efeito em
+	// si (o conserto, o tiro) chega pelos pacotes de sempre - não há "som de habilidade"
+	// genérico, porque cada uma tem um ouvinte e um som próprios. Não deu: o motivo vem
+	// como chave, e a recarga fica como estava.
+	void on_ability_result(net_packet@ pkt) {
+		if (pkt.get_bool("ok")) {
+			my_ability_cooldown_remaining = pkt.get_float("cooldown_seconds", 0.0);
+			// O escudo é a única habilidade com som próprio, e ele toca SEM posição: é a
+			// confirmação de que saiu, não um evento do mundo. No ponto do protegido, quem
+			// estivesse por perto ouviria que alguém acabou de ser blindado.
+			string qual = pkt.get_string("ability");
+			// O palpite saiu: gasta um. Quem conta de verdade é o servidor - isto é só para a
+			// tecla saber responder "você já apontou nesta reunião" sem ir à rede.
+			if (qual == ABILITY_GUESS && guesses_left_this_meeting > 0) guesses_left_this_meeting--;
+			if (qual == ABILITY_SHIELD) task_sound_simple(SND_SHIELD_CAST);
+			// Engoliu: quem foi para a barriga sai do elenco do lobo (bip de alvo, tecla, lista da
+			// reunião). O som de engolir toca no ponto dele - é ele quem fez.
+			if (qual == ABILITY_EAT) {
+				if (pending_eat_peer != 0) {
+					roster.mark_dead(pending_eat_peer);
+					// A voz de quem engoli passa a tocar dentro de mim, e não onde ele foi comido.
+					g_voice.inside_me.insert_last(pending_eat_peer);
+				}
+				pending_eat_peer = 0;
+				audio.play_wolf_swallow(my_x, my_y);
+			}
+			if (qual == ABILITY_VANISH) {
+				my_invisible_remaining = pkt.get_float("duration_seconds", PHANTOM_INVISIBLE_SECONDS);
+				task_sound_simple(SND_VANISH); // o dele toca na hora; para os outros vem posicionado
+			}
+			if (qual == ABILITY_SHAPESHIFT) {
+				my_disguise_remaining = pkt.get_float("duration_seconds", SHAPESHIFT_DURATION_SECONDS);
+				// O som dele toca aqui, na hora, sem esperar a rede - como o do duto. Para os
+				// outros ele chega posicionado, por S_SHIFT_SOUND.
+				task_sound_simple(SND_SHAPE_SHIFT);
+				// A voz cala enquanto durar - quem decide isso é o laço, por quadro (ver
+				// g_voice.allowed mais abaixo), a partir deste mesmo contador.
+			}
+			// O que a habilidade tem a dizer vem do servidor. O exame monta a frase à parte
+			// porque a lista de salas chega como CHAVES, para serem traduzidas aqui.
+			string retorno = qual == ABILITY_EXAMINE ? examine_result_text(pkt) : tr_server_message(pkt);
+			if (retorno != "") {
+				speak(retorno);
+				// No registro de eventos: é uma pista, e o jogador vai querer reler antes de
+				// falar na reunião.
+				events_log.add("", retorno);
+			}
+		} else {
+			string motivo = tr_server_message(pkt);
+			if (motivo != "") speak(motivo);
+		}
+	}
+
+	void on_radar_result(net_packet@ pkt) {
+		radar.handle_result(pkt);
+	}
+}
