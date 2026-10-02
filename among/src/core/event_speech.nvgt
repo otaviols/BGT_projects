@@ -94,6 +94,16 @@ string game_winner_text(net_packet@ pkt) {
 	string winner = pkt.get_string("winner");
 	if (winner == "crewmates") return tr("game.crewmates_win");
 	if (winner == "impostors") return tr("game.impostors_win");
+	if (winner == WINNER_LOVERS) {
+		json_array@ casais = pkt.get_array("lovers");
+		if (@casais != null && casais.length() > 0) {
+			json_object@ c = casais.get_object(0);
+			dictionary@ lp = dictionary();
+			lp.set("a", string(c["a"]));
+			lp.set("b", string(c["b"]));
+			return tr("game.lovers_win", lp);
+		}
+	}
 	json_array@ neutros = pkt.get_array("neutrals");
 	if (@neutros != null) {
 		for (uint i = 0; i < neutros.length(); i++) {

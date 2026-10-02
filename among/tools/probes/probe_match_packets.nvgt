@@ -151,6 +151,13 @@ void main() {
 	outro.handle_packet(volta2);
 	confere("outro revivido volta ao elenco, e o corpo dele sai", outro.roster.find(2).alive && outro.known_body_peers.length() == 0);
 
+	println("== morte de amor ==");
+	match_session@ ap = nova_partida(ROLE_CREWMATE);
+	net_packet@ amor = net_packet(S_HEARTBREAK);
+	amor.set_float("x", 2.0); amor.set_float("y", 0.0);
+	ap.handle_packet(amor);
+	confere("o par morreu: vira fantasma, e o proprio corpo fica onde caiu", !ap.alive && !ap.mui.alive && ap.known_body_peers.length() == 1);
+
 	println("== amnesico que vira impostor ==");
 	match_session@ am = nova_partida(ROLE_AMNESIAC);
 	net_packet@ muda = net_packet(S_ROLE_CHANGED);

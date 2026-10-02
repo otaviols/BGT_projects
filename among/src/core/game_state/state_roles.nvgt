@@ -366,6 +366,14 @@ mixin class state_roles_part {
 	// Traz de volta o morto ao alcance, se a morte foi há menos que a janela. Ele volta onde caiu, vivo,
 	// com as tarefas e o papel de antes; o corpo some.
 	bool try_revive(uint64 doctor_peer, uint64&out victim, float&out x, float&out y, string&out fail_key) {
+		uint64 par_ignorado;
+		return try_revive(doctor_peer, victim, x, y, par_ignorado, fail_key);
+	}
+
+	// `partner`: o par de apaixonados que volta junto (0 = nenhum). Sem isto, reviver um apaixonado
+	// não servia de nada - o par continuava morto, e no tick seguinte o revivido morria de amor de novo.
+	bool try_revive(uint64 doctor_peer, uint64&out victim, float&out x, float&out y, uint64&out partner, string&out fail_key) {
+		partner = 0;
 		game_player@ d = find_player(doctor_peer);
 		if (@d == null || !d.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
 		int i = body_index_near(d.x, d.y);
@@ -381,6 +389,90 @@ mixin class state_roles_part {
 		morto.x = x;
 		morto.y = y;
 		bodies.remove_at(i);
+		if (morto.lover != 0) {
+			game_player@ par = find_player(morto.lover);
+			for (uint b = 0; @par != null && !par.alive && !par.swallowed() && b < bodies.length(); b++) {
+				if (bodies[b].victim_peer_id != par.peer_id) continue;
+				par.alive = true;
+				par.x = bodies[b].x;
+				par.y = bodies[b].y;
+				bodies.remove_at(b);
+				partner = par.peer_id;
+				break;
+			}
+		}
 		return true;
+	}
+
+	// --- Modificadores ---
+
+	// Sorteia os modificadores depois dos papéis, entre os HUMANOS: Flash e Gigante (um de velocidade por
+	// pessoa) e os casais de apaixonados (cada vaga é um casal). Cada vaga rola a própria chance, como as
+	// dos papéis, e o que não couber simplesmente não sai.
+	void assign_modifiers() {
+		array<string> velocidade = {MOD_FLASH, MOD_GIANT};
+		for (uint v = 0; v < velocidade.length(); v++) {
+			int vagas = config.role_count(velocidade[v]);
+			for (int n = 0; n < vagas; n++) {
+				if (random(1, 100) > config.role_chance(velocidade[v])) continue;
+				array<game_player@> livres;
+				for (uint i = 0; i < players.length(); i++)
+					if (!players[i].is_bot && players[i].speed_modifier == "") livres.insert_last(players[i]);
+				if (livres.length() == 0) break;
+				livres[random(0, livres.length() - 1)].speed_modifier = velocidade[v];
+			}
+		}
+		int casais = config.role_count(MOD_LOVERS);
+		for (int n = 0; n < casais; n++) {
+			if (random(1, 100) > config.role_chance(MOD_LOVERS)) continue;
+			array<game_player@> livres;
+			for (uint i = 0; i < players.length(); i++)
+				if (!players[i].is_bot && players[i].lover == 0) livres.insert_last(players[i]);
+			if (livres.length() < 2) break;
+			int a = random(0, livres.length() - 1);
+			game_player@ pa = livres[a];
+			livres.remove_at(a);
+			game_player@ pb = livres[random(0, livres.length() - 1)];
+			pa.lover = pb.peer_id;
+			pb.lover = pa.peer_id;
+		}
+	}
+
+	// O casal sobra: os dois vivos e, no máximo, mais uma pessoa.
+	bool lovers_win_now() const {
+		if (alive_count() > 3) return false;
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].lover == 0 || !players[i].alive) continue;
+			game_player@ par = find_player(players[i].lover);
+			if (@par != null && par.alive) return true;
+		}
+		return false;
+	}
+
+	// Quem morre de amor: o apaixonado vivo cujo par morreu (engolido não é morto - pode voltar). Só com
+	// a partida andando: morto na mesa (palpite, expulsão), o par cai quando a reunião acaba, e não na
+	// mesa - um corpo deixado ali seria reportado pela reunião seguinte inteira. Cada um vira corpo onde
+	// está, e a lista volta para o servidor avisar.
+	array<uint64>@ take_heartbreaks() {
+		array<uint64> mortos;
+		if (state != "in_progress" || winner != "") return mortos;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.lover == 0 || !p.alive) continue;
+			game_player@ par = find_player(p.lover);
+			if (@par == null || par.alive || par.swallowed()) continue;
+			p.alive = false;
+			body_info body;
+			body.id = "body_" + p.peer_id;
+			body.victim_peer_id = p.peer_id;
+			body.x = p.x;
+			body.y = p.y;
+			body.room_id = map.room_id_at(p.x, p.y);
+			body.death_time = elapsed_time;
+			body.killer_peer_id = p.peer_id; // sem assassino: o rastro do detetive nasce vazio
+			bodies.insert_last(body);
+			mortos.insert_last(p.peer_id);
+		}
+		return mortos;
 	}
 }

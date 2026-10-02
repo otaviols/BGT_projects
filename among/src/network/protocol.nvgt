@@ -197,6 +197,9 @@ const string S_BODY_PLACED = "s_body_placed";            // {peer_id (o morto), 
 // O som de limpar ou de arrastar um corpo, posicionado e sem nome.
 // O médico trouxe alguém de volta: para todos (a lista de votação e o elenco voltam a contá-lo), e quem
 // voltou se reconhece pelo peer_id. Não diz quem reviveu.
+// Privado: o seu par de apaixonados morreu, e você morre junto (a partida recebe um S_PLAYER_KILLED
+// sem assassino, como de qualquer morte).
+const string S_HEARTBREAK = "s_heartbreak";              // {x, y}
 const string S_PLAYER_REVIVED = "s_player_revived";      // {peer_id, x, y}
 const string S_BODY_SOUND = "s_body_sound";              // {kind: "clean"|"drag", x, y}
 // O lobo saiu do jogo (morto, expulso, saiu): quem estava na barriga volta vivo em (x, y). Para todos.

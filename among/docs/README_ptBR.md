@@ -617,6 +617,21 @@ basta para a tripulação vencer, e o xerife pode atirar nele sem errar.
 papel do morto** — qualquer um, inclusive de impostor. Ninguém mais fica sabendo, exceto os impostores
 quando ele vira um deles. A habilidade do papel herdado começa recarregando.
 
+### Modificadores
+
+Um modificador é uma marca **por cima** do papel: um xerife pode ser veloz, um impostor pode estar
+apaixonado por um tripulante. A sala os liga como os papéis (quantos e a chance), e eles vêm desligados.
+Quem recebe um ouve junto com o papel. Bots não recebem.
+
+- **Flash:** anda 50% mais rápido.
+- **Gigante:** anda 50% mais devagar.
+
+  O som dos passos é o mesmo; o que muda é o ritmo, e é por ele que os outros percebem.
+- **Casal de apaixonados:** duas pessoas sorteadas, que sabem uma da outra (podem ser de times
+  diferentes). Se uma morrer, a outra **morre junto**, onde estiver; se a morte foi na reunião, a outra
+  cai quando a reunião acaba. Se sobrarem as duas e no máximo mais uma pessoa, o casal **vence junto**.
+  O médico que revive uma traz a outra de volta também.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

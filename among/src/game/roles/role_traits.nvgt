@@ -99,6 +99,25 @@ const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_N
 // apontar um deles seria gastar o palpite à toa.
 bool role_is_guessable(const string&in role_id) { return CONFIGURABLE_ROLE_IDS.find(role_id) != -1; }
 
+// MODIFICADORES: uma marca POR CIMA do papel, e não um papel. O casal de apaixonados pode ser um
+// impostor e um tripulante; o veloz pode ser xerife. A sala os configura como os papéis (quantos e a
+// chance, nos mesmos role_counts/role_chances, o que dá formulário, protocolo e configuração salva de
+// graça), mas eles NÃO entram no sorteio dos papéis nem no palpite do atirador - por isso a lista é
+// separada. Bot nunca recebe modificador, como nunca recebe papel especial.
+const string MOD_LOVERS = "lovers"; // quantos CASAIS; os dois se conhecem, morrem juntos e vencem juntos
+const string MOD_FLASH = "flash";   // anda 50% mais rápido
+const string MOD_GIANT = "giant";   // anda 50% mais devagar
+const array<string> CONFIGURABLE_MODIFIER_IDS = {MOD_LOVERS, MOD_FLASH, MOD_GIANT};
+
+bool is_modifier_id(const string&in id) { return CONFIGURABLE_MODIFIER_IDS.find(id) != -1; }
+// O que a sala pode ligar: papéis e modificadores, na ordem do formulário e da leitura das regras.
+bool is_configurable_id(const string&in id) { return CONFIGURABLE_ROLE_IDS.find(id) != -1 || is_modifier_id(id); }
+array<string>@ configurable_ids() {
+	array<string> ids = CONFIGURABLE_ROLE_IDS;
+	for (uint i = 0; i < CONFIGURABLE_MODIFIER_IDS.length(); i++) ids.insert_last(CONFIGURABLE_MODIFIER_IDS[i]);
+	return ids;
+}
+
 // Um papel especial ligado numa sala exige que TODO cliente dela saiba o que ele é. A partir desta
 // versão de protocolo o cliente lê `your_role`; antes dela, lê só o booleano e jogaria um engenheiro
 // como tripulante comum sem saber que não é.

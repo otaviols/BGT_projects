@@ -176,6 +176,7 @@ mixin class server_accounts_part {
 			if (lobby.winner == "crewmates" && r.wins_with_crew) coluna = "crewmate_wins";
 			else if (lobby.winner == "impostors" && r.team == TEAM_IMPOSTOR) coluna = "impostor_wins";
 			else if (lobby.winner == WINNER_NEUTRAL && p.peer_id == lobby.neutral_winner_peer) coluna = "neutral_wins";
+			else if (lobby.winner == WINNER_LOVERS && p.lover != 0 && p.alive) coluna = "neutral_wins";
 			if (coluna == "") continue;
 			g_user_db.increment_stat(p.username, "games_won", 1);
 			g_user_db.increment_stat(p.username, coluna, 1);

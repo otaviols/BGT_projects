@@ -157,7 +157,7 @@ class lobby_overrides {
 			array<string>@ ids = roles.get_keys();
 			for (uint i = 0; i < ids.length(); i++) {
 				// Só ids conhecidos: o resto vem da máquina do jogador e não tem o que fazer aqui.
-				if (CONFIGURABLE_ROLE_IDS.find(ids[i]) != -1) role_counts.set(ids[i], int(roles[ids[i]]));
+				if (is_configurable_id(ids[i])) role_counts.set(ids[i], int(roles[ids[i]]));
 			}
 		}
 		role_chances.delete_all();
@@ -165,7 +165,7 @@ class lobby_overrides {
 		if (@chances != null) {
 			array<string>@ ids = chances.get_keys();
 			for (uint i = 0; i < ids.length(); i++) {
-				if (CONFIGURABLE_ROLE_IDS.find(ids[i]) != -1) role_chances.set(ids[i], int(chances[ids[i]]));
+				if (is_configurable_id(ids[i])) role_chances.set(ids[i], int(chances[ids[i]]));
 			}
 		}
 		// Os valores não são filtrados aqui: a chave é composta ("papel.numero"), e quem confere se o
@@ -349,7 +349,7 @@ class lobby_config {
 		for (uint i = 0; i < ids.length(); i++) {
 			int n = 0;
 			if (!role_counts.get(ids[i], n) || n <= 0) continue;
-			int exigido = role_for(ids[i]).min_protocol;
+			int exigido = is_modifier_id(ids[i]) ? BODY_ROLES_PROTOCOL : role_for(ids[i]).min_protocol;
 			if (exigido > maior) maior = exigido;
 		}
 		return maior;
@@ -398,7 +398,7 @@ class lobby_config {
 		// legítimo numa sala pequena, porque quase nunca saem três.
 		array<string>@ ids = role_counts.get_keys();
 		for (uint i = 0; i < ids.length(); i++) {
-			if (CONFIGURABLE_ROLE_IDS.find(ids[i]) == -1) { role_counts.delete(ids[i]); changed = true; continue; }
+			if (!is_configurable_id(ids[i])) { role_counts.delete(ids[i]); changed = true; continue; }
 			int n = role_count(ids[i]);
 			if (n < 0) { n = 0; changed = true; }
 			// Mais vagas de um papel do que gente cabe na sala não é intenção, é engano de digitação.

@@ -524,6 +524,24 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 				}
 				broadcast_to_lobby(lobby, events[e], 0, reliable);
 			}
+			// Quem morreu de amor neste tick: um corpo onde caiu, como qualquer morte - a partida ouve o
+			// assassinato sem nome, e ele ouve por quê.
+			array<uint64>@ de_amor = lobby.take_heartbreaks();
+			for (uint c = 0; c < de_amor.length(); c++) {
+				game_player@ quem = lobby.find_player(de_amor[c]);
+				if (@quem == null) continue;
+				end_visible_task(lobby, quem.peer_id);
+				if (lobby.release_cameras(quem.peer_id)) { send_camera_state(quem.peer_id, false, ""); broadcast_camera_watching(lobby); }
+				net_packet@ publico = net_packet(S_PLAYER_KILLED);
+				publico.set_uint64("peer_id", quem.peer_id);
+				publico.set_float("x", quem.x);
+				publico.set_float("y", quem.y);
+				broadcast_to_lobby(lobby, publico, quem.peer_id);
+				net_packet@ dele = net_packet(S_HEARTBREAK);
+				dele.set_float("x", quem.x);
+				dele.set_float("y", quem.y);
+				if (reaches_client(quem)) send_to(quem.peer_id, dele);
+			}
 			// O carrasco que perdeu o alvo neste tick vira Bobo, e só ele fica sabendo.
 			array<uint64>@ viraram_bobo = lobby.convert_lost_executioners();
 			for (uint c = 0; c < viraram_bobo.length(); c++) {

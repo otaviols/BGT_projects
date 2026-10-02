@@ -290,6 +290,7 @@ string game_over_reason_text(const string&in reason) {
 	if (reason == "all_caught") return tr("game.reason_all_caught");
 	if (reason == "executioner_won") return tr("game.reason_executioner_won");
 	if (reason == "arsonist_ignited") return tr("game.reason_arsonist_ignited");
+	if (reason == "lovers_survived") return tr("game.reason_lovers_survived");
 	return "";
 }
 

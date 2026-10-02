@@ -273,6 +273,7 @@ mixin class server_match_part {
 		// O alvo de cada carrasco, depois dos papéis (precisa saber quem é da tripulação). Quem fica sem
 		// alvo vira Bobo já aqui, e o início dele sai com o papel novo.
 		lobby.assign_execution_targets();
+		lobby.assign_modifiers();
 
 		json_array@ roster = json_array();
 		for (uint i = 0; i < lobby.players.length(); i++) {
@@ -326,7 +327,14 @@ mixin class server_match_part {
 			start.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
 			// Velocidade e dutos: o cliente anda e oferece o duto sozinho, sem perguntar, então precisa
 			// da MESMA regra que o servidor usa para aceitar o passo e o duto.
-			start.set_float("move_speed", lobby.config.move_speed());
+			// Flash e Gigante andam no próprio ritmo; a sala só dá a base.
+			start.set_float("move_speed", lobby.config.move_speed() * p.speed_multiplier());
+			start.set_float("room_move_speed", lobby.config.move_speed());
+			start.set_string("speed_modifier", p.speed_modifier);
+			if (p.lover != 0) {
+				game_player@ par = lobby.find_player(p.lover);
+				if (@par != null) start.set_string("lover_name", par.public_name());
+			}
 			start.set_bool("vents_enabled", lobby.config.vents_enabled);
 			// Modo cor: o cliente anuncia a cor do jogador junto do papel (os nomes já chegam como cor).
 			start.set_bool("color_mode", lobby.config.color_mode);

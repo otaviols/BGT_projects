@@ -103,6 +103,16 @@ class game_player {
 	// O alvo do Carrasco (0 = nenhum) e quem o Incendiário já encharcou.
 	uint64 execution_target = 0;
 	array<uint64> doused;
+	// Modificadores (ver CONFIGURABLE_MODIFIER_IDS): o de velocidade ("" | MOD_FLASH | MOD_GIANT) e o par
+	// de apaixonados (0 = nenhum).
+	string speed_modifier = "";
+	uint64 lover = 0;
+
+	float speed_multiplier() const {
+		if (speed_modifier == MOD_FLASH) return FLASH_SPEED_MULTIPLIER;
+		if (speed_modifier == MOD_GIANT) return GIANT_SPEED_MULTIPLIER;
+		return 1.0;
+	}
 	int radar_index = -1;
 	float last_move_time = 0.0;
 	array<player_task> tasks;
@@ -294,6 +304,8 @@ class game_player {
 		next_drag_sound = 0.0;
 		execution_target = 0;
 		doused.resize(0);
+		speed_modifier = "";
+		lover = 0;
 		radar_index = -1;
 		last_move_time = 0.0;
 		bot_has_target = false;

@@ -251,7 +251,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		if (!map.can_move(p.x, p.y, x, y, p.alive)) return false;
 		float delta = elapsed_time - p.last_move_time;
 		if (delta <= 0.0) delta = 1.0 / NETWORK_TICKS_PER_SECOND;
-		bool ok = p.try_move(x, y, delta, config.move_speed());
+		bool ok = p.try_move(x, y, delta, config.move_speed() * p.speed_multiplier());
 		// SÓ avança o relógio de referência quando o movimento é ACEITO. Antes avançava sempre,
 		// mesmo numa rejeição - aí a janela de tempo pro próximo pacote ficava minúscula (só o
 		// intervalo entre pacotes, não desde a última posição CONFIRMADA), enquanto o cliente
@@ -518,7 +518,13 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 			// outro seja um impostor - pela regra de baixo, um impostor e um lobo dariam a maioria ao
 			// impostor, e o lobo nunca venceria.
 			game_player@ sobrevivente = last_standing_winner();
-			if (@sobrevivente != null) {
+			// O casal que sobra (os dois e mais um) vence junto - antes da maioria, senão um impostor
+			// apaixonado e o terceiro dariam a vitória aos impostores.
+			if (lovers_win_now()) {
+				winner = WINNER_LOVERS;
+				win_reason = "lovers_survived";
+			}
+			else if (@sobrevivente != null) {
 				winner = WINNER_NEUTRAL;
 				win_reason = "wolf_survived";
 				neutral_winner_peer = sobrevivente.peer_id;
@@ -583,6 +589,18 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 				neutros.add(n);
 			}
 			go.set_array("neutrals", neutros);
+			// O casal, revelado no fim como os neutros (e o vencedor, se foi ele).
+			json_array@ casais = json_array();
+			for (uint i = 0; i < players.length(); i++) {
+				if (players[i].lover == 0 || players[i].lover < players[i].peer_id) continue;
+				game_player@ par = find_player(players[i].lover);
+				if (@par == null) continue;
+				json_object@ c = json_object();
+				c.set("a", players[i].username);
+				c.set("b", par.username);
+				casais.add(c);
+			}
+			go.set_array("lovers", casais);
 			events.insert_last(go);
 			// A lobby não volta pra sala de espera: ela ACABA aqui. Quem faz o enterro é o servidor,
 			// assim que terminar de transmitir este pacote (ver tick_lobbies).

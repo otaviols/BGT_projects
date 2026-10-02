@@ -624,6 +624,21 @@ missing.
 **take the dead player's role** — any role, including impostor. Nobody else is told, except the
 impostors when they become one of them. The inherited role's ability starts on cooldown.
 
+### Modifiers
+
+A modifier is a mark **on top of** the role: a sheriff can be fast, an impostor can be in love with a
+crewmate. The room turns them on like roles (how many and the chance), and they come off. Whoever gets
+one hears it along with the role. Bots do not get them.
+
+- **Flash:** walks 50% faster.
+- **Giant:** walks 50% slower.
+
+  Footsteps sound the same; what changes is the pace, and that is how the others notice.
+- **Lovers:** two drawn people who know about each other (they can be on different teams). If one
+  dies, the other **dies too**, wherever they are; if the death was in a meeting, the other falls when
+  the meeting ends. If the two of them and at most one more are left, the couple **wins together**. A
+  doctor who revives one brings the other back too.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

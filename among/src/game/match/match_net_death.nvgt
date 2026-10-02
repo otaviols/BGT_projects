@@ -92,4 +92,17 @@ mixin class match_net_death_part {
 		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 			my_role, alive, known_body_peers, known_body_positions);
 	}
+
+	// O seu par de apaixonados morreu, e você morre junto, onde está.
+	void on_heartbreak(net_packet@ pkt) {
+		alive = false;
+		mui.alive = false;
+		known_body_peers.insert_last(client.my_peer_id);
+		known_body_positions.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0.0));
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+		string texto = tr("modifier.heartbreak");
+		speak(texto);
+		events_log.add("", texto);
+	}
 }

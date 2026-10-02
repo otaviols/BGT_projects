@@ -151,8 +151,9 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	json_object@ current_chances = @current != null ? current.get_object("role_chances") : null;
 	array<int> f_roles;
 	array<int> f_role_chances;
-	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
-		string id = CONFIGURABLE_ROLE_IDS[i];
+	array<string>@ ids_da_sala = configurable_ids(); // papéis e modificadores
+	for (uint i = 0; i < ids_da_sala.length(); i++) {
+		string id = ids_da_sala[i];
 		string atual = "";
 		if (@current_roles != null && current_roles.exists(id) && int(current_roles[id]) > 0) atual = "" + int(current_roles[id]);
 		f_roles.insert_last(f.create_input_box(tr("lobby.role_count." + id), atual));
@@ -274,11 +275,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			// limpa os papéis de qualquer jeito ao validar o modo).
 			if (modo == GAME_MODE_CLASSIC) for (uint i = 0; i < f_roles.length(); i++) {
 				int n = text_to_int_or_default(f.get_text(f_roles[i]));
-				r.ov.role_counts.set(CONFIGURABLE_ROLE_IDS[i], n < 0 ? 0 : n);
+				r.ov.role_counts.set(ids_da_sala[i], n < 0 ? 0 : n);
 				// Chance vazia = 100 ("sempre"), que é o que quem só ligou o papel espera. O servidor
 				// ainda recorta para 0..100 e descarta chance de papel sem vaga.
 				int c = text_to_int_or_default(f.get_text(f_role_chances[i]));
-				r.ov.role_chances.set(CONFIGURABLE_ROLE_IDS[i], c < 0 ? 100 : c);
+				r.ov.role_chances.set(ids_da_sala[i], c < 0 ? 100 : c);
 			}
 			r.ov.task_count_per_crewmate = text_to_int_or_default(visible_text(f, f_tasks));
 			r.ov.long_task_count = text_to_int_or_default(visible_text(f, f_long_tasks));

@@ -91,6 +91,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	bool voice_comms_affects_meeting;
 	float move_speed;
 	float footstep_interval;
+	// A distância de um passo na velocidade da SALA: os passos dos outros soam a cada passo andado, e não
+	// a cada tanto tempo - é isso que faz o Flash soar apressado e o Gigante arrastado.
+	float step_length;
 	bool room_allows_vents;
 	string game_mode;
 	float head_start;
@@ -217,6 +220,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// manda: nele a velocidade era a fixa de antes e os dutos estavam sempre liberados.
 		move_speed = start_pkt.get_float("move_speed", 2.2);
 		footstep_interval = footstep_interval_for(move_speed);
+		float velocidade_da_sala = start_pkt.get_float("room_move_speed", move_speed);
+		step_length = velocidade_da_sala * footstep_interval_for(velocidade_da_sala);
 		room_allows_vents = start_pkt.get_bool("vents_enabled", true);
 		// Modo de jogo (pega-pega, todos lobos). No pega-pega, quanto o pegador fica parado no começo: a
 		// contagem é feita aqui, e dita a todos - como o relógio da reunião.
@@ -340,6 +345,15 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// responda "o que está em jogo aqui?" já tem o dado à mão (ver roles_in_play_text).
 		role_text += " " + role_desc;
 		// O Carrasco ouve o alvo junto com o papel - é a única coisa que ele precisa saber para jogar.
+		// Os modificadores, depois do papel: o veloz e o gigante sabem do próprio passo, e o apaixonado de quem.
+		string mod_velocidade = start_pkt.get_string("speed_modifier", "");
+		if (mod_velocidade != "") role_text += " " + tr("modifier.assigned_" + mod_velocidade);
+		string amor = start_pkt.get_string("lover_name", "");
+		if (amor != "") {
+			dictionary@ lp = dictionary();
+			lp.set("name", spoken_name(amor));
+			role_text += " " + tr("modifier.assigned_lovers", lp);
+		}
 		string alvo_carrasco = start_pkt.get_string("execution_target_name", "");
 		if (alvo_carrasco != "") {
 			dictionary@ ap = dictionary();
@@ -500,6 +514,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_BODY_SOUND) on_body_sound(pkt);
 		else if (t == S_ROLE_CHANGED) on_role_changed(pkt);
 		else if (t == S_PLAYER_REVIVED) on_player_revived(pkt);
+		else if (t == S_HEARTBREAK) on_heartbreak(pkt);
 		else if (t == S_BELLY_RELEASED) on_belly_released(pkt);
 		else if (t == S_ABILITY_RESULT) on_ability_result(pkt);
 		else if (t == S_CAMERA_PLAYERS) on_camera_players(pkt);

@@ -129,18 +129,24 @@ mixin class server_abilities_part {
 			return true;
 		}
 		if (ability == ABILITY_REVIVE) {
-			uint64 voltou = 0;
+			uint64 voltou = 0, par = 0;
 			float rx = 0.0, ry = 0.0;
-			if (!lobby.try_revive(p.peer_id, voltou, rx, ry, message_key)) return false;
-			// O corpo sai do mapa e a pessoa volta - para todos, sem dizer quem reviveu.
-			net_packet@ sumiu = net_packet(S_BODY_REMOVED);
-			sumiu.set_uint64("peer_id", voltou);
-			broadcast_to_lobby(lobby, sumiu);
-			net_packet@ vivo = net_packet(S_PLAYER_REVIVED);
-			vivo.set_uint64("peer_id", voltou);
-			vivo.set_float("x", rx);
-			vivo.set_float("y", ry);
-			broadcast_to_lobby(lobby, vivo);
+			if (!lobby.try_revive(p.peer_id, voltou, rx, ry, par, message_key)) return false;
+			// O corpo sai do mapa e a pessoa volta - para todos, sem dizer quem reviveu. O par de
+			// apaixonados que voltou junto, igual, de onde ele caiu.
+			array<uint64> voltaram = {voltou};
+			if (par != 0) voltaram.insert_last(par);
+			for (uint v = 0; v < voltaram.length(); v++) {
+				game_player@ quem_voltou = lobby.find_player(voltaram[v]);
+				net_packet@ sumiu = net_packet(S_BODY_REMOVED);
+				sumiu.set_uint64("peer_id", voltaram[v]);
+				broadcast_to_lobby(lobby, sumiu);
+				net_packet@ vivo = net_packet(S_PLAYER_REVIVED);
+				vivo.set_uint64("peer_id", voltaram[v]);
+				vivo.set_float("x", quem_voltou.x);
+				vivo.set_float("y", quem_voltou.y);
+				broadcast_to_lobby(lobby, vivo);
+			}
 			game_player@ quem = lobby.find_player(voltou);
 			message_params.set("name", @quem != null ? quem.public_name() : "");
 			message_key = "role.revive_done";

@@ -372,6 +372,27 @@ todos, junto do `S_BODY_REMOVED`), porque a lista de votação e o elenco de tod
 a contá-lo - mas não diz quem reviveu. Sondas: o caso no `probe_neutral_roles` (com a janela vencida
 como controle) e no `probe_match_packets`.
 
+**Modificadores (0.47.0): marca POR CIMA do papel, configurada como papel.** Ficam nos mesmos
+`role_counts`/`role_chances` da sala (formulário, protocolo e configuração salva vêm de graça), mas
+numa lista à parte (`CONFIGURABLE_MODIFIER_IDS`): não entram no sorteio dos papéis nem no palpite do
+atirador. Quem pergunta "isto a sala pode ligar?" usa `is_configurable_id`/`configurable_ids()`,
+nunca só `CONFIGURABLE_ROLE_IDS` - foram três filtros a trocar (leitura do pacote, validação, protocolo
+exigido) e mais o formulário e a leitura das regras. Sorteados em `assign_modifiers`, depois dos
+papéis e dos alvos, só entre humanos.
+- **Flash e Gigante (50% cada lado, decisão do usuário):** a velocidade do servidor vem de
+  `config.move_speed() * p.speed_multiplier()` em `try_move_player`, e o cliente recebe a dele no
+  `S_GAME_START`. **Os passos dos OUTROS passaram a soar por distância andada** (`step_length`, a
+  distância de um passo na velocidade da SALA), e não por tempo: por tempo, todo mundo soava no mesmo
+  ritmo, e a cadência era justamente o que o usuário quis que dissesse quem é veloz ou gigante. Na
+  velocidade normal dá o mesmo ritmo de antes.
+- **Apaixonados:** morrer de amor sai de `take_heartbreaks`, chamada pelo servidor a cada tick - vira
+  corpo onde o par estiver (a partida ouve uma morte sem assassino; ele, `S_HEARTBREAK`). Só com a
+  partida andando: morto na mesa, o par cai quando a reunião acaba (um corpo na mesa seria reportado
+  pela reunião seguinte inteira). Engolido não é morto. A vitória (`WINNER_LOVERS`, o casal e no
+  máximo mais um) vem ANTES da maioria do impostor. E o médico que revive um apaixonado traz o par
+  junto - sem isso o revivido morria de amor de novo no tick seguinte.
+Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

@@ -1,0 +1,123 @@
+// Sonda dos modificadores (Flash, Gigante, casal de apaixonados), direto no estado da partida, sem rede.
+//   nvgt tools/probes/probe_modifiers.nvgt
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Cinco humanos e um bot: 1 a 3 tripulantes, 4 impostor, 5 tripulante, 6 bot. Todos no centro.
+game_state@ mesa() {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	lobby.sabotage_cooldown_remaining = 999.0;
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	for (uint i = 1; i <= 6; i++) {
+		game_player@ p = game_player(i, "j" + i);
+		p.set_role(i == 4 ? ROLE_IMPOSTOR : ROLE_CREWMATE);
+		p.is_bot = i == 6;
+		p.x = 0.0; p.y = 0.0;
+		player_task tk; tk.object_id = spots[0].id; tk.task_type = spots[0].task_type; p.tasks.insert_last(tk);
+		lobby.players.insert_last(p);
+	}
+	return lobby;
+}
+
+// Um segundo de caminhada em linha reta: aceito ou não pela velocidade de quem anda.
+bool anda(game_state@ lobby, uint64 peer, float distancia) {
+	game_player@ p = lobby.find_player(peer);
+	p.x = 0.0; p.y = 0.0;
+	lobby.elapsed_time += 1.0;
+	p.last_move_time = lobby.elapsed_time - 1.0;
+	return lobby.try_move_player(peer, distancia, 0.0);
+}
+
+void main() {
+	println("== sorteio ==");
+	game_state@ s = mesa();
+	s.config.set_role_count(MOD_FLASH, 1);
+	s.config.set_role_count(MOD_GIANT, 1);
+	s.config.set_role_count(MOD_LOVERS, 1);
+	confere("a sala guarda os modificadores ao validar", !s.config.validate() || s.config.role_count(MOD_LOVERS) == 1);
+	confere("e exige o protocolo deles", s.config.required_protocol() >= BODY_ROLES_PROTOCOL);
+	s.assign_modifiers();
+	int flash = 0, gigante = 0, apaixonados = 0;
+	bool bot_limpo = true, par_mutuo = true;
+	for (uint i = 0; i < s.players.length(); i++) {
+		game_player@ p = s.players[i];
+		if (p.speed_modifier == MOD_FLASH) flash++;
+		if (p.speed_modifier == MOD_GIANT) gigante++;
+		if (p.lover != 0) { apaixonados++; if (s.find_player(p.lover).lover != p.peer_id) par_mutuo = false; }
+		if (p.is_bot && (p.speed_modifier != "" || p.lover != 0)) bot_limpo = false;
+	}
+	confere("um Flash e um Gigante", flash == 1 && gigante == 1);
+	confere("um casal, cada um apaixonado pelo outro", apaixonados == 2 && par_mutuo);
+	confere("bot nao recebe modificador", bot_limpo);
+
+	println("== velocidade ==");
+	game_state@ v = mesa();
+	float base = v.config.move_speed();
+	v.find_player(2).speed_modifier = MOD_FLASH;
+	v.find_player(3).speed_modifier = MOD_GIANT;
+	confere("controle: o comum nao anda 1,4 vezes a velocidade", !anda(v, 1, base * 1.4));
+	confere("o Flash anda", anda(v, 2, base * 1.4));
+	confere("o comum anda 0,7 vezes", anda(v, 1, base * 0.7));
+	confere("o Gigante nao anda 0,7 vezes", !anda(v, 3, base * 0.7));
+	confere("mas anda 0,4 vezes", anda(v, 3, base * 0.4));
+
+	println("== apaixonados ==");
+	game_state@ a = mesa();
+	a.find_player(1).lover = 2; a.find_player(2).lover = 1;
+	net_packet@ ev;
+	a.find_player(4).kill_cooldown_remaining = 0.0;
+	a.try_kill(4, 1, ev);
+	array<uint64>@ de_amor = a.take_heartbreaks();
+	confere("o par morre junto, e vira corpo", de_amor.length() == 1 && de_amor[0] == 2 && !a.find_player(2).alive && a.bodies.length() == 2);
+	game_state@ controle = mesa();
+	controle.find_player(4).kill_cooldown_remaining = 0.0;
+	controle.try_kill(4, 1, ev);
+	confere("controle: sem casal, ninguem morre de amor", controle.take_heartbreaks().length() == 0);
+	game_state@ eng = mesa();
+	eng.find_player(1).lover = 2; eng.find_player(2).lover = 1;
+	eng.find_player(1).alive = false; eng.find_player(1).swallowed_by = 4;
+	confere("engolido nao e morto: o par nao morre", eng.take_heartbreaks().length() == 0);
+	game_state@ mes = mesa();
+	mes.find_player(1).lover = 2; mes.find_player(2).lover = 1;
+	mes.find_player(1).alive = false;
+	mes.state = "voting";
+	confere("na reuniao, o par espera a reuniao acabar", mes.take_heartbreaks().length() == 0 && mes.find_player(2).alive);
+	mes.state = "in_progress";
+	confere("e cai quando ela acaba", mes.take_heartbreaks().length() == 1);
+
+	println("== vitoria do casal ==");
+	game_state@ w = mesa();
+	w.find_player(1).lover = 2; w.find_player(2).lover = 1;
+	w.find_player(5).alive = false;
+	w.find_player(6).alive = false;
+	w.tick(0.05);
+	confere("controle: quatro vivos, o casal ainda nao vence (" + w.winner + ")", w.winner == "");
+	w.find_player(3).alive = false;
+	w.tick(0.05);
+	confere("o casal e mais um: o casal vence (" + w.winner + ")", w.winner == WINNER_LOVERS);
+
+	println("== medico e o casal ==");
+	game_state@ m = mesa();
+	m.find_player(5).set_role(ROLE_DOCTOR);
+	m.find_player(1).lover = 2; m.find_player(2).lover = 1;
+	m.find_player(2).x = 0.5;
+	m.find_player(4).kill_cooldown_remaining = 0.0;
+	m.try_kill(4, 1, ev);
+	m.take_heartbreaks();
+	uint64 voltou, par; float rx, ry; string falha;
+	confere("revivendo um, o par volta junto", m.try_revive(5, voltou, rx, ry, par, falha) && par != 0
+		&& m.find_player(1).alive && m.find_player(2).alive);
+	confere("e ninguem morre de amor de novo", m.take_heartbreaks().length() == 0);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

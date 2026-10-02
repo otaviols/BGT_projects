@@ -21,8 +21,9 @@
 string roles_in_play_text(json_object@ role_counts, json_object@ role_chances = null) {
 	if (@role_counts == null) return "";
 	array<string> partes;
-	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
-		string id = CONFIGURABLE_ROLE_IDS[i];
+	array<string>@ ids = configurable_ids(); // papéis e modificadores
+	for (uint i = 0; i < ids.length(); i++) {
+		string id = ids[i];
 		if (!role_counts.exists(id)) continue;
 		int n = int(role_counts[id]);
 		if (n <= 0) continue;

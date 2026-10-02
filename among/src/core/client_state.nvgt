@@ -16,6 +16,7 @@ class roster_entry {
 	float x = 0.0;
 	float y = 0.0;
 	timer footstep_clock; // usado pra não tocar passo dele a cada pacote de posição, só de vez em quando
+	float step_distance = 0.0; // quanto andou desde o último passo tocado (ver on_player_moved)
 }
 
 // O elenco da partida em andamento, para quem precisa de um nome sem ter o objeto à mão - hoje, os
