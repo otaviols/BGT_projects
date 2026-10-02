@@ -1,0 +1,196 @@
+// server_accounts.nvgt
+// Contas: cadastro, login (com senha ou token de sessão), sair, apagar conta, cor preferida e estatísticas.
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+
+mixin class server_accounts_part {
+	void on_login(uint64 peer_id, net_packet@ pkt) {
+		string username = pkt.get_string("username");
+		string password = pkt.get_string("password");
+		string token = pkt.get_string("token");
+		net_packet@ result = net_packet(S_LOGIN_RESULT);
+
+		// O corte por protocolo vem ANTES de conferir a senha: a resposta é a mesma S_LOGIN_RESULT que
+		// todo cliente já entende, só que com o motivo certo. Recusar aqui, e não na conexão, é o que
+		// deixa o cliente ouvir o porquê - na conexão ele só veria a rede cair.
+		int protocol = pkt.get_int("protocol", 0);
+		if (protocol < MIN_PROTOCOL_VERSION) {
+			result.set_bool("ok", false);
+			result.set_string("message", "login.update_required");
+			send_to(peer_id, result);
+			println("[login] protocolo " + protocol + " recusado (minimo " + MIN_PROTOCOL_VERSION + ")");
+			return;
+		}
+
+		bool ok;
+		if (token != "") {
+			username = g_user_db.session_user(token);
+			ok = username != "";
+		} else {
+			ok = g_user_db.verify_login(username, password);
+		}
+		if (ok) {
+			game_player@ conn = find_connection(peer_id);
+			if (@conn != null) {
+				conn.username = username;
+				conn.authenticated = true;
+				conn.protocol_version = protocol;
+				// Só um nome da lista: o texto vem da máquina do jogador e vira linha no banco.
+				string plataforma = pkt.get_string("platform", "unknown");
+				if (CLIENT_PLATFORMS.find(plataforma) < 0) plataforma = "unknown";
+				conn.client_platform = plataforma;
+				g_user_db.record_client_login(username, plataforma, safe_client_version(pkt.get_string("version", "")));
+			}
+			result.set_bool("ok", true);
+			result.set_string("message", "login.success");
+			result.set_string("username", username);
+			// Pediu para lembrar: sai um token novo; o cliente guarda o token, nunca a senha.
+			if (token == "" && pkt.get_bool("remember")) result.set_string("session_token", g_user_db.create_session(username));
+			// O cliente não tem como descobrir sozinho com que id o servidor o identifica (o id que
+			// o ENet dele devolve é só um handle local) - sem isso ele compara maçã com laranja em
+			// todo peer_id que chega e às vezes "acerta" o de outro jogador (ver game_client).
+			result.set_uint64("peer_id", peer_id);
+		} else {
+			result.set_bool("ok", false);
+			result.set_string("message", "login.invalid_credentials");
+		}
+		send_to(peer_id, result);
+		if (ok) {
+			// Antes do retrato do saguão: a sessão velha tem que sair da lista de quem está online,
+			// senão o mesmo nome apareceria duas vezes nela.
+			drop_other_sessions(peer_id, username);
+			// Depois de responder, e não antes: assim quem acabou de entrar já se vê na lista.
+			send_hall_state();
+		}
+	}
+
+	// Uma conta, uma sessão: entrar de novo DERRUBA a anterior.
+	//
+	// A alternativa - recusar a entrada nova - parece mais educada e é pior na prática: uma conexão
+	// que caiu feio (queda de luz, cabo arrancado, jogo fechado no braço) continua de pé para o
+	// servidor até o ENet desistir dela, e nesse meio-tempo a pessoa não conseguiria voltar ao
+	// próprio jogo. Derrubando, reconectar simplesmente funciona - e quem empresta a conta descobre
+	// na hora que duas pessoas não cabem nela.
+	//
+	// `softly` porque o ENet entrega o que está na fila antes de desligar: assim o aviso do porquê
+	// chega a quem foi derrubado, em vez de ele só ver a conexão cair sem explicação.
+	void drop_other_sessions(uint64 keep_peer_id, const string&in username) {
+		for (int i = int(connections.length()) - 1; i >= 0; i--) {
+			game_player@ other = connections[i];
+			if (other.peer_id == keep_peer_id || !other.authenticated || other.username != username) continue;
+			send_error(other.peer_id, "login.session_replaced");
+			net.disconnect_peer_softly(other.peer_id);
+			// A limpeza é feita AQUI, e não deixada para o evento de desconexão: o peer já saiu do
+			// mapa da rede, e sem isto a sessão velha continuaria pendurada na sala (contando como
+			// jogador, recebendo pacotes que ninguém lê) até o ENet avisar.
+			on_disconnect(other.peer_id);
+		}
+	}
+
+	void on_logout(uint64 peer_id, net_packet@ pkt) {
+		g_user_db.delete_session(pkt.get_string("token"));
+	}
+
+	// Apaga a conta de quem está conectado. Só do saguão (fora de sala): apagar no meio de uma sala
+	// deixaria um jogador sem conta dentro dela. Confere a SENHA de novo (ver C_DELETE_ACCOUNT).
+	//
+	// Depois de apagar, a conexão deixa de estar autenticada e toda outra sessão da conta cai - um
+	// segundo computador logado continuaria "dentro" de uma conta que não existe mais.
+	void on_delete_account(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		net_packet@ result = net_packet(S_DELETE_ACCOUNT_RESULT);
+		string fail = "";
+		if (@conn == null || !conn.authenticated) fail = "account.delete_not_logged_in";
+		else if (conn.lobby_id != "") fail = "account.delete_in_lobby";
+		else if (!g_user_db.verify_login(conn.username, pkt.get_string("password"))) fail = "account.delete_wrong_password";
+		string username = @conn != null ? conn.username : "";
+		if (fail == "" && !g_user_db.delete_account(username)) fail = "account.delete_failed";
+		result.set_bool("ok", fail == "");
+		result.set_string("message", fail == "" ? "account.deleted" : fail);
+		send_to(peer_id, result);
+		if (fail != "") return;
+
+		println("[conta] apagada: " + username);
+		drop_other_sessions(peer_id, username);
+		conn.authenticated = false;
+		conn.username = "";
+		send_hall_state(); // saiu da lista de quem está online
+	}
+
+	// A cor que o jogador quer, escolhida na sala de espera (tecla E). Só da sala, e só antes da
+	// partida: a cor da partida é decidida no início. Quem chegou primeiro fica com a cor - a unicidade
+	// é garantida AQUI, na hora da escolha, para o início da partida não ter conflito a resolver e a
+	// pessoa saber na hora que precisa escolher outra. A resposta é o retrato da sala de sempre.
+	void on_choose_color(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		game_player@ p = find_connection(peer_id);
+		if (@lobby == null || @p == null || lobby.state != "waiting") return;
+		int cor = pkt.get_int("color", -1);
+		if (cor < -1 || cor >= int(COLOR_COUNT)) return; // vem da máquina do jogador
+		if (cor >= 0) {
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				game_player@ outro = lobby.players[i];
+				if (outro.peer_id == peer_id || outro.chosen_color != cor) continue;
+				dictionary@ params = dictionary();
+				params.set("color", color_mark(cor));
+				params.set("name", outro.username);
+				send_error(peer_id, "lobby.color_taken", params);
+				return;
+			}
+		}
+		p.chosen_color = cor;
+		send_lobby_state(lobby, 0);
+	}
+
+	void on_get_stats(uint64 peer_id) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+		user_stats@ s = g_user_db.get_stats(conn.username);
+		net_packet@ r = net_packet(S_STATS);
+		r.set_int("games_played", s.games_played);
+		r.set_int("games_won", s.games_won);
+		r.set_int("crewmate_wins", s.crewmate_wins);
+		r.set_int("impostor_wins", s.impostor_wins);
+		r.set_int("neutral_wins", s.neutral_wins);
+		r.set_int("tasks_completed", s.tasks_completed);
+		r.set_int("kills", s.kills);
+		send_to(peer_id, r);
+	}
+
+	// Estatísticas da partida que acabou, para cada PESSOA (bot não tem conta). Mora aqui, e não no
+	// game_state, porque o banco é do servidor - o game_state roda também nas sondas, sem banco.
+	//
+	// Quem venceu sai do vencedor da partida e do PAPEL: "crewmates" vence quem joga com a tripulação
+	// (wins_with_crew), "impostors" o time impostor, e o neutro só quando é ele o vencedor sozinho.
+	// Quem saiu no meio conta a partida, mas não a vitória - não estava lá quando ela aconteceu.
+	void record_match_stats(game_state@ lobby) {
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (p.is_bot || p.username == "") continue;
+			g_user_db.increment_stat(p.username, "games_played", 1);
+			if (p.left_match) continue;
+			role_traits@ r = p.role();
+			string coluna = "";
+			if (lobby.winner == "crewmates" && r.wins_with_crew) coluna = "crewmate_wins";
+			else if (lobby.winner == "impostors" && r.team == TEAM_IMPOSTOR) coluna = "impostor_wins";
+			else if (lobby.winner == WINNER_NEUTRAL && p.peer_id == lobby.neutral_winner_peer) coluna = "neutral_wins";
+			if (coluna == "") continue;
+			g_user_db.increment_stat(p.username, "games_won", 1);
+			g_user_db.increment_stat(p.username, coluna, 1);
+		}
+	}
+
+	void on_register(uint64 peer_id, net_packet@ pkt) {
+		string username = pkt.get_string("username");
+		string password = pkt.get_string("password");
+		string err;
+		bool ok = g_user_db.create_user(username, password, err);
+
+		net_packet@ result = net_packet(S_REGISTER_RESULT);
+		result.set_bool("ok", ok);
+		result.set_string("message", ok ? "login.register_success" : ("login." + err));
+		send_to(peer_id, result);
+	}
+}

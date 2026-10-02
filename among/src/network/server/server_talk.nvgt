@@ -1,0 +1,94 @@
+// server_talk.nvgt
+// Voz e chat escrito: quem ouve quem é decidido aqui (ver notes/voz.md).
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+
+mixin class server_talk_part {
+	// Um quadro de voz de `peer_id`. O servidor não decodifica nada - só decide QUEM recebe (a regra
+	// está em game_state.can_hear_voice) e repassa os bytes como vieram. É o pacote mais frequente
+	// do jogo (50 por segundo por pessoa falando), então nada aqui aloca além do envelope.
+	void on_voice_frame(uint64 peer_id, const string&in audio) {
+		if (audio.length() == 0 || audio.length() > VOICE_MAX_FRAME_BYTES) return;
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || !lobby.config.voice_chat) return;
+		game_player@ talker = lobby.find_player(peer_id);
+		// Espectador falando: só outros espectadores ouvem (decisão do usuário) - nem a partida, nem os
+		// fantasmas. Um canal novo de informação para quem ainda joga seria trapaça entregue de graça.
+		if (@talker == null) {
+			game_player@ spec = lobby.find_spectator(peer_id);
+			if (@spec == null) return;
+			string sw = voice_wire(peer_id, audio);
+			for (uint i = 0; i < lobby.spectators.length(); i++) {
+				game_player@ s = lobby.spectators[i];
+				if (s.peer_id == peer_id || !s.voice_enabled) continue;
+				net.send_unreliable(s.peer_id, sw, CHANNEL_VOICE);
+			}
+			return;
+		}
+		// Dentro do duto ninguém é ouvido: a voz posicionada entregaria onde o duto está.
+		if (talker.vented) return;
+		// Disfarçado também não: a voz chega ao cliente identificada pelo PEER, e o cliente resolve
+		// o nome pelo elenco dele - o disfarce troca o nome no radar, não no elenco. Uma frase e o
+		// shapeshifter estaria entregue. Calar o microfone é o preço da fantasia, e o cliente dele
+		// sabe disso (ver g_voice.allowed no laço da partida).
+		if (talker.disguised()) return;
+		// Invisível também não: a voz é posicionada, então uma frase diria exatamente onde ele está -
+		// e ele acabou de pagar uma habilidade para não estar em lugar nenhum.
+		if (talker.invisible()) return;
+		string wire = voice_wire(peer_id, audio);
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (!reaches_client(p) || p.peer_id == peer_id || !p.voice_enabled) continue;
+			if (!lobby.can_hear_voice(talker, p)) continue;
+			net.send_unreliable(p.peer_id, wire, CHANNEL_VOICE);
+		}
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			game_player@ s = lobby.spectators[i];
+			if (!s.voice_enabled || !lobby.spectator_hears(talker, s)) continue;
+			net.send_unreliable(s.peer_id, wire, CHANNEL_VOICE);
+		}
+	}
+
+	void on_voice_state(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null) return;
+		conn.voice_enabled = pkt.get_bool("enabled");
+	}
+
+	// Roteamento do chat: só existe chat na lobby (waiting) e durante reunião/votação, e nesses dois
+	// casos ele é aberto pra todo mundo.
+	// Não existe mais chat durante a partida em andamento. O que existia era um chat por facção
+	// (impostores conversando entre si), e isso entregava o jogo: quem NÃO recebia aquelas mensagens
+	// sabia na hora que os outros eram impostores - e o impostor sabia quem era o parceiro sem
+	// precisar descobrir. Conversa é na reunião, com todo mundo junto, que é onde ela vale.
+	void on_chat_message(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		game_player@ sender = lobby.find_player(peer_id);
+		if (@sender == null) return;
+
+		if (lobby.state == "in_progress") {
+			send_error(peer_id, "chat.only_in_meeting");
+			return;
+		}
+		if (!sender.alive) { // morto só lê o chat, não manda mensagem
+			send_error(peer_id, "chat.dead_cannot_send");
+			return;
+		}
+		string text = pkt.get_string("text");
+		if (text == "") return;
+		text = utf8_truncate(text, MAX_CHAT_LENGTH); // em letras, e sem cortar uma no meio (ver utf8.nvgt)
+
+		net_packet@ msg = net_packet(S_CHAT_MESSAGE);
+		msg.set_uint64("peer_id", peer_id);
+		msg.set_string("name", sender.public_name()); // sala de espera: o nome; modo cor na partida: a cor
+		msg.set_string("text", text);
+		// Vai a todos, inclusive a quem está na barriga do lobo: o chat só existe na reunião, e a barriga
+		// ouve a mesa (ver can_hear_voice). Já foi diferente - o engolido não lia nada -, e quem
+		// decidiu mudar foi o usuário: surdo à discussão, ele ficava fora do jogo justo na hora que
+		// mais importa.
+		broadcast_to_lobby(lobby, msg);
+	}
+}

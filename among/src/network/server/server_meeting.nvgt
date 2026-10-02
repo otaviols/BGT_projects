@@ -1,0 +1,143 @@
+// server_meeting.nvgt
+// Reunião: reportar corpo, chamar pelo botão, votar.
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+
+mixin class server_meeting_part {
+	void on_report_body(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive) return;
+		if (!lobby.config.meetings_allowed()) { send_error(peer_id, "mode.no_meetings"); return; }
+
+		body_info@ body = lobby.find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
+		if (@body == null) return;
+		if (lobby.meetings_blocked_by_sabotage()) { send_error(peer_id, "sabotage.blocks_meeting"); return; }
+
+		net_packet@ reported = net_packet(S_BODY_REPORTED);
+		reported.set_uint64("reporter_peer", peer_id);
+		reported.set_uint64("body_peer", body.victim_peer_id);
+		// ONDE o corpo foi achado é metade da informação de uma reunião - sem isso a discussão
+		// começava sem ninguém saber de que sala se está falando. Vai a chave de i18n da sala (o
+		// servidor é quem tem o mapa aqui), o cliente só traduz.
+		map_zone@ body_zone = lobby.map.find_zone(body.room_id);
+		reported.set_string("room_key", @body_zone != null ? body_zone.name_key : "");
+		broadcast_to_lobby(lobby, reported);
+
+		for (uint i = 0; i < lobby.bodies.length(); i++) {
+			if (lobby.bodies[i].id == body.id) { lobby.bodies.remove_at(i); break; }
+		}
+
+		net_packet@ event;
+		if (lobby.start_meeting(peer_id, "body", event)) {
+			// Reunião leva todo mundo para a cafeteria - ninguém fica operando câmera. Sem chave de
+			// aviso: o anúncio da reunião já explica o que aconteceu.
+			close_cameras(lobby);
+			interrupt_visible_task(lobby);
+			broadcast_meeting_and_voting(lobby, event);
+		}
+	}
+
+	// Manda o aviso de reunião (com a posição de teleporte) e, na sequência, já abre a votação - não
+	// existe mais uma fase de discussão separada esperando um timer (ver game_state.start_meeting()).
+	void broadcast_meeting_and_voting(game_state@ lobby, net_packet@ meeting_event) {
+		broadcast_to_lobby(lobby, meeting_event);
+		// Quem foi tirado do vent pela reunião (ver game_state.start_meeting) precisa saber - senão o
+		// cliente segue achando que está escondido e continua bloqueando o movimento sozinho.
+		if (lobby.meeting_doors_opened.length() > 0) {
+			broadcast_to_lobby(lobby, lobby.build_doors_packet(lobby.meeting_doors_opened, false));
+		}
+		for (uint i = 0; i < lobby.meeting_unvented_peers.length(); i++) {
+			net_packet@ vent_state = net_packet(S_VENT_STATE);
+			vent_state.set_bool("vented", false);
+			vent_state.set_float("x", MEETING_GATHER_X);
+			vent_state.set_float("y", MEETING_GATHER_Y);
+			send_to(lobby.meeting_unvented_peers[i], vent_state);
+		}
+		// E quem teve a fantasia desfeita pela reunião, pelo mesmo motivo: sem o aviso, o
+		// shapeshifter volta da votação achando que ainda está com a cara de outro. Sem som aqui -
+		// todo mundo está junto na cafeteria, e um estalo do nada denunciaria quem era.
+		for (uint i = 0; i < lobby.meeting_unshifted_peers.length(); i++) {
+			send_to(lobby.meeting_unshifted_peers[i], net_packet(S_SHIFT_ENDED));
+			// E a partida inteira volta a ver o nome verdadeiro dele: na mesa se vota por NOME, e um
+			// elenco que ficasse com a fantasia faria o voto cair na pessoa errada.
+			game_player@ voltou = lobby.find_player(lobby.meeting_unshifted_peers[i]);
+			if (@voltou != null) broadcast_display_name(lobby, voltou);
+		}
+		net_packet@ vs = net_packet(S_VOTING_STARTED);
+		vs.set_float("voting_time", lobby.voting_timer);
+		broadcast_to_lobby(lobby, vs);
+	}
+
+	void on_call_meeting(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		if (lobby.state != "in_progress") {
+			// Já tem reunião/votação rolando, ou a partida acabou - sem isso o botão parecia
+			// simplesmente não fazer nada quando apertado de novo nesse meio tempo.
+			send_error(peer_id, "game.meeting_call_failed");
+			return;
+		}
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive) return;
+		if (!lobby.config.meetings_allowed()) { send_error(peer_id, "mode.no_meetings"); return; }
+		string button_block_reason = lobby.emergency_button_block_reason();
+		if (button_block_reason != "") { send_error(peer_id, button_block_reason); return; }
+
+		// Recarga depois da última reunião: diz quanto falta, em vez do genérico "não deu certo".
+		if (lobby.emergency_button_cooldown_reason() != "") {
+			dictionary@ cd = dictionary();
+			cd.set("seconds", "" + int(lobby.meeting_cooldown_remaining + 0.5));
+			send_error(peer_id, lobby.emergency_button_cooldown_reason(), cd);
+			return;
+		}
+
+		// Não valida distância até o botão aqui: a posição que o servidor tem vem do canal de
+		// movimento não confiável e pode estar sempre um pouco atrás da posição real (o cliente já
+		// só deixa chamar isso quando o jogador está perto o bastante, via find_interactable) -
+		// checar de novo aqui só causava falha na primeira tentativa (posição ainda desatualizada)
+		// e sucesso na segunda, de forma inconsistente. Chamar reunião não tem risco sério de ser
+		// abusado à distância (o limite de reuniões por jogador já existe), então confiamos no
+		// cliente pra essa validação específica.
+		net_packet@ event;
+		if (lobby.start_meeting(peer_id, "button", event)) {
+			close_cameras(lobby);
+			interrupt_visible_task(lobby);
+			broadcast_meeting_and_voting(lobby, event);
+		} else {
+			// Sem isso o jogador aperta o botão e não acontece nada nem fala nada - ex.: já gastou
+			// as reuniões de emergência permitidas, ou uma reunião/votação já está em andamento.
+			send_error(peer_id, "game.meeting_call_failed");
+		}
+	}
+
+	void on_cast_vote(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		int64 target = pkt.get_int64("target_peer", -1);
+		if (!lobby.cast_vote(peer_id, target)) {
+			// Antes o cliente não sabia se o voto foi mesmo aceito - dava pra abrir o menu de novo e
+			// "votar" outra vez sem nenhum aviso, mesmo o servidor já ignorando o segundo voto.
+			send_error(peer_id, "game.already_voted");
+			return;
+		}
+		game_player@ voter = lobby.find_player(peer_id);
+		if (@voter != null) {
+			net_packet@ cast_pkt = net_packet(S_VOTE_CAST);
+			cast_pkt.set_uint64("voter_peer", peer_id);
+			cast_pkt.set_string("voter_name", voter.public_name());
+			// Com os votos abertos, o ALVO vai junto, na hora. Fechados, nem viaja: o cliente é a
+			// máquina do jogador, e "manda mas não fala" seria mandar para quem quisesse ler.
+			cast_pkt.set_bool("target_revealed", lobby.config.show_votes);
+			if (lobby.config.show_votes) {
+				cast_pkt.set_bool("skipped", target == -1);
+				game_player@ tp = target == -1 ? null : lobby.find_player(uint64(target));
+				cast_pkt.set_string("target_name", @tp != null ? tp.public_name() : "");
+			}
+			broadcast_to_lobby(lobby, cast_pkt);
+		}
+	}
+}

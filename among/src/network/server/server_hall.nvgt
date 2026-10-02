@@ -1,0 +1,138 @@
+// server_hall.nvgt
+// O saguão: quem está na lista de partidas, a conversa de lá e a lista de salas que se atualiza sozinha.
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+
+mixin class server_hall_part {
+	// Está no saguão: conectado, autenticado e fora de qualquer sala. É a definição inteira - não há
+	// um "entrar no saguão" para o cliente pedir, porque isso seria um estado a mais para sair de
+	// sincronia com o que o servidor já sabe.
+	bool in_hall(game_player@ p) const {
+		return @p != null && !p.is_bot && p.authenticated && p.lobby_id == "";
+	}
+
+	void broadcast_to_hall(net_packet@ pkt) {
+		for (uint i = 0; i < connections.length(); i++) {
+			if (!in_hall(connections[i])) continue;
+			send_to(connections[i].peer_id, pkt);
+		}
+	}
+
+	// Quem está no saguão agora, para todos que estão nele. Mandado sempre que essa lista pode ter
+	// mudado: login, entrar numa sala, sair de uma, e queda de conexão.
+	void send_hall_state() {
+		net_packet@ pkt = net_packet(S_HALL_STATE);
+		json_array@ names = json_array();
+		for (uint i = 0; i < connections.length(); i++) {
+			if (!in_hall(connections[i])) continue;
+			names.add(connections[i].username);
+		}
+		pkt.set_array("players", names);
+		// O recado vai em TODO retrato do saguão, e não uma vez no login: quem entra numa sala e volta
+		// precisa continuar podendo lê-lo, e é o mesmo pacote que reabre o saguão para ele. Quem
+		// decide se vale falar de novo é o cliente, que guarda o último que ouviu.
+		pkt.set_string("notice", server_notice);
+		broadcast_to_hall(pkt);
+	}
+
+	void on_hall_chat(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (!in_hall(conn)) return; // quem está numa sala fala na sala, não aqui
+		string text = pkt.get_string("text").trim_whitespace();
+		if (text == "") return;
+		text = utf8_truncate(text, MAX_CHAT_LENGTH); // em letras, e sem cortar uma no meio (ver utf8.nvgt)
+		net_packet@ msg = net_packet(S_HALL_CHAT);
+		msg.set_string("name", conn.username); // nome é identidade: viaja como está, sem tradução
+		msg.set_string("text", text);
+		broadcast_to_hall(msg);
+	}
+
+	void on_list_lobbies(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		// As partidas EM ANDAMENTO só vão a quem as entende (protocolo 9): um cliente anterior as
+		// mostraria como salas comuns, e quem escolhesse uma ouviria só "não foi possível entrar".
+		bool com_andamento = @conn != null && conn.protocol_version >= HALL_LIVE_PROTOCOL;
+		net_packet@ result = net_packet(S_LOBBY_LIST);
+		result.set_array("lobbies", public_lobby_list(com_andamento));
+		send_to(peer_id, result);
+	}
+
+	// A lista PÚBLICA de partidas. Uma função só para a resposta ao pedido e para a lista ao vivo do
+	// saguão (tick_hall), senão as duas acabariam divergindo - e a regra mais importante dela é a
+	// primeira linha do laço: partida privada não entra, nunca, em nenhuma das duas.
+	json_array@ public_lobby_list(bool com_andamento) {
+		json_array@ list = json_array();
+		for (uint i = 0; i < lobbies.length(); i++) {
+			game_state@ lobby = lobbies[i];
+			// Partida privada não aparece: o sentido dela é ser encontrada só por quem tem o código.
+			// Listá-la "trancada" só convidaria tentativa de adivinhação. E nem como "em andamento"
+			// (pedido do usuário): saber que ela existe já é mais do que quem não tem o código deve saber.
+			if (lobby.is_private()) continue;
+			if (lobby.state == "ended") continue;
+			bool andamento = lobby.state != "waiting";
+			if (andamento && !com_andamento) continue;
+			json_object@ entry = json_object();
+			entry.set("id", lobby.lobby_id);
+			entry.set("name", lobby.lobby_name);
+			entry.set("current", int(lobby.players.length()));
+			entry.set("max", int(lobby.config.max_players));
+			// A configuração vai junto na LISTA, e não só depois de entrar: escolher uma sala sem
+			// saber quantos impostores tem e se a sabotagem está ligada é escolher no escuro, e o
+			// preço de descobrir é entrar, olhar e sair.
+			entry.set("config", lobby.config.to_json(lobby.players.length()));
+			entry.set("in_progress", andamento);
+			game_player@ anfitriao = lobby.find_player(lobby.host_peer_id);
+			entry.set("host", @anfitriao != null ? anfitriao.username : "");
+			list.add(entry);
+		}
+		return list;
+	}
+
+	dictionary hall_known; // id da sala -> "waiting" | "running", na última lista mandada
+
+	void tick_hall(float delta) {
+		hall_list_clock += delta;
+		if (hall_list_clock < 0.5) return;
+		hall_list_clock = 0.0;
+		json_array@ lista = public_lobby_list(true);
+		string sig = lista.stringify();
+		if (sig == hall_list_sig) return;
+		hall_list_sig = sig;
+
+		array<net_packet@> avisos;
+		dictionary agora;
+		for (uint i = 0; i < lista.length(); i++) {
+			json_object@ e = lista.get_object(i);
+			string id = string(e["id"]);
+			bool rodando = bool(e["in_progress"]);
+			agora.set(id, rodando ? "running" : "waiting");
+			string kind = "";
+			if (!hall_known.exists(id)) {
+				if (!rodando) kind = "created";
+			} else {
+				string antes;
+				hall_known.get(id, antes);
+				if (antes == "waiting" && rodando) kind = "started";
+				else if (antes == "running" && !rodando) kind = "reopened";
+			}
+			if (kind == "") continue;
+			net_packet@ aviso = net_packet(S_HALL_EVENT);
+			aviso.set_string("kind", kind);
+			aviso.set_string("room", string(e["name"]));
+			aviso.set_string("by", string(e["host"]));
+			avisos.insert_last(aviso);
+		}
+		hall_known = agora;
+
+		net_packet@ push = net_packet(S_LOBBY_LIST_PUSH);
+		push.set_array("lobbies", lista);
+		for (uint i = 0; i < connections.length(); i++) {
+			game_player@ c = connections[i];
+			if (!in_hall(c) || c.protocol_version < HALL_LIVE_PROTOCOL) continue;
+			send_to(c.peer_id, push);
+			for (uint k = 0; k < avisos.length(); k++) send_to(c.peer_id, avisos[k]);
+		}
+	}
+}

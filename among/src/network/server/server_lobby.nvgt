@@ -1,0 +1,317 @@
+// server_lobby.nvgt
+// A sala de espera: criar, entrar (inclusive assistindo), configurar, sair, bots, e o estado da sala mandado a cada um.
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+
+mixin class server_lobby_part {
+	void on_create_lobby(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+		leave_current_lobby(peer_id); // ninguém entra numa lobby estando em outra
+
+		game_state@ lobby = game_state();
+		lobby.lobby_id = "lobby_" + (++g_lobby_counter);
+		lobby.lobby_name = pkt.get_string("lobby_name", "Partida de " + conn.username);
+		@lobby.config = get_preset(pkt.get_string("preset", "classic"));
+		// Os ajustes do anfitrião entram por cima do preset; o que ele não mexeu chega como -1 e é
+		// ignorado. Clientes antigos, que só mandavam o cooldown, continuam funcionando: os campos
+		// que eles não enviam viram -1 aqui pelo valor padrão da leitura.
+		lobby_overrides overrides;
+		overrides.read_from_packet(pkt);
+		overrides.apply_to(lobby.config);
+		// validate() DEPOIS de aplicar, e não antes: estes números vieram da máquina do jogador, e é
+		// aqui que um "1000 jogadores" ou um cooldown de meio segundo voltam para dentro dos limites.
+		lobby.config.validate();
+		lobby.join_code = normalize_join_code(pkt.get_string("join_code", ""));
+		lobby.host_peer_id = peer_id;
+		@lobby.map = build_the_hub_map();
+
+		conn.lobby_id = lobby.lobby_id;
+		conn.chosen_color = -1; // escolha de outra sala não ocupa cor aqui; o cliente reenvia a preferência
+		lobby.players.insert_last(conn);
+		lobbies.insert_last(lobby);
+
+		send_lobby_state(lobby, peer_id);
+		send_hall_state(); // quem criou a sala saiu do saguão (entrar numa sala não é o único caminho)
+	}
+
+	void on_join_lobby(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+
+		string lobby_id = pkt.get_string("lobby_id");
+		string join_code = normalize_join_code(pkt.get_string("join_code", ""));
+		net_packet@ result = net_packet(S_JOIN_RESULT);
+
+		// Sem id, a porta é o código: a partida privada não está na lista, então o cliente não tem
+		// como saber o id dela. Com id, o código é exigido se a partida for privada - senão bastaria
+		// saber o id (que já circulou na lista um dia) para pular a tranca.
+		game_state@ lobby;
+		string fail_key = "lobby.join_failed";
+		if (lobby_id == "") {
+			@lobby = find_lobby_by_code(join_code);
+			if (@lobby == null) fail_key = "lobby.code_not_found";
+		} else {
+			@lobby = find_lobby(lobby_id);
+			if (@lobby != null && lobby.is_private() && lobby.join_code != join_code) {
+				@lobby = null;
+				fail_key = "lobby.code_not_found";
+			}
+		}
+		// Partida PRIVADA em andamento, aberta pelo código: quem chega entra ASSISTINDO (decisão do
+		// usuário). Só a privada - a pública em andamento aparece na lista, mas não se assiste a
+		// partida de estranhos. E só pelo código: o id sozinho já circulou na lista um dia.
+		if (@lobby != null && lobby.state != "waiting" && lobby.state != "ended" && lobby.is_private() &&
+				lobby_id == "" && conn.protocol_version >= SPECTATE_PROTOCOL) {
+			if (lobby.spectators.length() >= MAX_SPECTATORS) {
+				result.set_bool("ok", false);
+				result.set_string(MSG_KEY_FIELD, "spectate.full");
+				send_to(peer_id, result);
+				return;
+			}
+			leave_current_lobby(peer_id);
+			conn.lobby_id = lobby.lobby_id;
+			conn.wants_to_spectate = false; // no fim da partida ele fica na sala para jogar a próxima
+			lobby.spectators.insert_last(conn);
+			result.set_bool("ok", true);
+			result.set_bool("spectating", true);
+			send_to(peer_id, result);
+			send_hall_state();
+			send_lobby_state(lobby, peer_id);
+			send_spectate_start(lobby, conn);
+			return;
+		}
+		if (@lobby != null && lobby.state != "waiting") { @lobby = null; fail_key = "lobby.in_progress"; }
+		if (@lobby != null && lobby.players.length() >= lobby.config.max_players) { @lobby = null; fail_key = "lobby.full"; }
+		// Sala com papéis especiais só recebe cliente que sabe o que eles são. Recusar na porta, e
+		// não no início da partida: quem entrasse ficaria esperando uma partida que nunca ia começar
+		// por causa dele, sem saber. (O cliente velho ouve a chave crua, e é o melhor que dá: ele
+		// não tem o texto. O updater já avisou antes.)
+		if (@lobby != null && conn.protocol_version < lobby.config.required_protocol()) { @lobby = null; fail_key = "lobby.needs_update"; }
+
+		if (@lobby == null) {
+			result.set_bool("ok", false);
+			result.set_string("message", "lobby_unavailable");
+			// O motivo vai como chave: "não deu" não diz ao jogador se errou o código, se a sala
+			// encheu ou se a partida já começou - e cada um desses pede uma reação diferente dele.
+			//
+			result.set_string(MSG_KEY_FIELD, fail_key);
+			send_to(peer_id, result);
+			return;
+		}
+
+		leave_current_lobby(peer_id); // ninguém entra numa lobby estando em outra
+		conn.lobby_id = lobby.lobby_id;
+		conn.chosen_color = -1; // escolha de outra sala não ocupa cor aqui; o cliente reenvia a preferência
+		lobby.players.insert_last(conn);
+
+		result.set_bool("ok", true);
+		send_to(peer_id, result);
+
+		send_hall_state(); // entrou numa sala: sai da lista do saguão
+
+		net_packet@ joined = net_packet(S_PLAYER_JOINED);
+		joined.set_uint64("peer_id", peer_id);
+		joined.set_string("name", conn.username);
+		broadcast_to_lobby(lobby, joined, peer_id);
+
+		send_lobby_state(lobby, 0);
+	}
+
+	// O anfitrião muda as regras da sala aberta. Os ajustes entram POR CIMA da configuração atual, e
+	// não de um preset: o que ele deixou em branco tem que continuar valendo como está. E a validação
+	// roda de novo, pelo mesmo motivo de sempre - os números vieram da máquina do jogador.
+	void on_update_lobby_config(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) { send_error(peer_id, "lobby.edit_host_only"); return; }
+		if (lobby.state != "waiting") { send_error(peer_id, "lobby.edit_only_in_waiting"); return; }
+
+		lobby_overrides overrides;
+		overrides.read_from_packet(pkt);
+		overrides.apply_to(lobby.config);
+		lobby.config.validate();
+
+		// Todo mundo recebe o retrato novo E um aviso falado: quem já ouviu as regras uma vez não
+		// vai apertar C de novo por conta própria, e uma partida com regras que mudaram em silêncio é
+		// uma partida em que alguém joga com as regras erradas.
+		send_lobby_state(lobby, 0);
+		broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.config_changed"));
+	}
+
+	void on_leave_lobby(uint64 peer_id, net_packet@ pkt) {
+		leave_current_lobby(peer_id);
+	}
+
+	// Tira o jogador da lobby em que ele estiver, se estiver em alguma. Usado ao sair de propósito e
+	// como garantia antes de entrar em outra: estar em duas lobbies ao mesmo tempo mandaria pacote
+	// pro lugar errado e contaria o jogador duas vezes.
+	void leave_current_lobby(uint64 peer_id) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		remove_from_lobby(lobby, peer_id);
+		game_player@ conn = find_connection(peer_id);
+		if (@conn != null) { conn.lobby_id = ""; conn.wants_to_spectate = false; }
+		send_hall_state(); // voltou ao saguão
+	}
+
+	// Um nome da lista que ninguém da sala esteja usando (gente ou bot, sem diferenciar maiúsculas):
+	// dois "Armstrong" na mesma votação seriam um voto que pode cair na pessoa errada.
+	string free_bot_name(game_state@ lobby) {
+		array<string> livres;
+		for (uint n = 0; n < BOT_NAMES.length(); n++) {
+			bool em_uso = false;
+			for (uint i = 0; i < lobby.players.length() && !em_uso; i++)
+				em_uso = lobby.players[i].username.lower() == BOT_NAMES[n].lower();
+			if (!em_uso) livres.insert_last(BOT_NAMES[n]);
+		}
+		if (livres.length() == 0) return "Bot " + (lobby.bot_count() + 1); // mais bots que nomes: não acontece com MAX_BOTS_PER_LOBBY de hoje
+		return livres[random(0, int(livres.length()) - 1)];
+	}
+
+	// Só o anfitrião mexe nisso, e só na sala de espera: adicionar/tirar jogador no meio da partida
+	// bagunçaria a contagem de vivos que decide quem venceu.
+	void on_add_bot(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) return;
+		if (lobby.state != "waiting") { send_error(peer_id, "lobby.bot_only_in_waiting"); return; }
+		if (lobby.players.length() >= lobby.config.max_players) { send_error(peer_id, "lobby.bot_lobby_full"); return; }
+		if (lobby.bot_count() >= MAX_BOTS_PER_LOBBY) { send_error(peer_id, "lobby.bot_limit_reached"); return; }
+
+		game_player@ bot = game_player(++g_bot_peer_counter, "");
+		// Nome de bot NÃO é traduzido, e isso é de propósito: é um nome próprio, como o de qualquer
+		// jogador. Ele vai para o elenco, para o chat e para a tela de votação, onde é comparado com
+		// o que as pessoas falam entre si - se cada cliente o traduzisse para um idioma diferente,
+		// duas pessoas na mesma partida estariam acusando "nomes" diferentes pelo mesmo bot.
+		bot.username = free_bot_name(lobby);
+		bot.is_bot = true;
+		bot.authenticated = true;
+		bot.lobby_id = lobby.lobby_id;
+		lobby.players.insert_last(bot);
+
+		net_packet@ joined = net_packet(S_PLAYER_JOINED);
+		joined.set_uint64("peer_id", bot.peer_id);
+		joined.set_string("name", bot.username);
+		broadcast_to_lobby(lobby, joined);
+		send_lobby_state(lobby, 0);
+	}
+
+	void on_remove_bot(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) return;
+		if (lobby.state != "waiting") { send_error(peer_id, "lobby.bot_only_in_waiting"); return; }
+
+		// Tira o último adicionado (é o que a tecla sugere: adiciona com B, desfaz com Shift+B).
+		for (int i = int(lobby.players.length()) - 1; i >= 0; i--) {
+			if (!lobby.players[i].is_bot) continue;
+			string bot_name = lobby.players[i].username;
+			uint64 bot_peer = lobby.players[i].peer_id;
+			lobby.players.remove_at(i);
+
+			net_packet@ left = net_packet(S_PLAYER_LEFT);
+			left.set_uint64("peer_id", bot_peer);
+			left.set_string("name", bot_name);
+			left.set_uint64("host_peer_id", lobby.host_peer_id);
+			broadcast_to_lobby(lobby, left);
+			send_lobby_state(lobby, 0);
+			return;
+		}
+		send_error(peer_id, "lobby.bot_none_to_remove");
+	}
+
+	// Envia o estado da lobby. Se target_peer for 0, transmite para todos os membros.
+	void send_lobby_state(game_state@ lobby, uint64 target_peer) {
+		net_packet@ pkt = net_packet(S_LOBBY_STATE);
+		pkt.set_string("lobby_id", lobby.lobby_id);
+		pkt.set_string("lobby_name", lobby.lobby_name);
+		pkt.set_int("max_players", int(lobby.config.max_players));
+		pkt.set_uint64("host_peer_id", lobby.host_peer_id);
+		pkt.set_object("config", lobby.config.to_json(lobby.players.length()));
+		// O código vai para quem JÁ está dentro: é como o anfitrião o relembra para ditar aos amigos,
+		// e como quem entrou sabe que está numa sala fechada. Quem está fora nunca vê este pacote.
+		pkt.set_string("join_code", lobby.join_code);
+
+		json_array@ players_json = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			json_object@ pj = json_object();
+			pj.set("peer_id", lobby.players[i].peer_id);
+			pj.set("name", lobby.players[i].username);
+			// Quem é bot vai marcado: numa sala com bots, saber quantos dos "jogadores" são de
+			// verdade muda a leitura de quanta gente falta para começar.
+			pj.set("is_bot", lobby.players[i].is_bot);
+			// A cor escolhida (-1 = nenhuma): é assim que a tela de escolha diz quais cores estão
+			// tomadas e por quem, e a lista de jogadores diz a cor de cada um numa sala que deixa escolher.
+			pj.set("color", lobby.players[i].chosen_color);
+			pj.set("spectating", lobby.players[i].wants_to_spectate);
+			players_json.add(pj);
+		}
+		// E quem está assistindo AGORA (entrou pelo código com a partida andando): aparece na lista
+		// da sala marcado, para quem está na sala de espera saber que ele está ali.
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			json_object@ pj = json_object();
+			pj.set("peer_id", lobby.spectators[i].peer_id);
+			pj.set("name", lobby.spectators[i].username);
+			pj.set("is_bot", false);
+			pj.set("color", -1);
+			pj.set("spectating", true);
+			players_json.add(pj);
+		}
+		pkt.set_array("players", players_json);
+
+		if (target_peer != 0) send_to(target_peer, pkt);
+		else broadcast_to_lobby(lobby, pkt);
+	}
+
+	// Sala de espera: "vou assistir" / "vou jogar". Só ali - no meio da partida, quem joga não vira
+	// espectador (sairia sabendo os papéis que viu, e voltaria para assistir sabendo).
+	void on_set_spectate(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "waiting") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || p.is_bot) return;
+		p.wants_to_spectate = pkt.get_bool("on");
+		send_lobby_state(lobby, 0); // a lista de quem está na sala diz quem vai assistir
+	}
+
+	void on_spectate_follow(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		game_player@ spec = lobby.find_spectator(peer_id);
+		if (@spec == null) return;
+		game_player@ alvo = lobby.find_player(pkt.get_uint64("peer_id"));
+		if (@alvo == null || !alvo.alive) return;
+		spec.follow_peer = alvo.peer_id;
+	}
+
+	// O começo para quem assiste: o elenco, com quem está vivo, e as regras que a tela precisa. Nenhum
+	// papel - de ninguém. Serve aos dois caminhos: quem marcou "vou assistir" (no início da partida) e
+	// quem entrou pelo código com ela já andando (aí `in_meeting` diz se ela está numa reunião).
+	void send_spectate_start(game_state@ lobby, game_player@ spec) {
+		json_array@ roster = json_array();
+		uint64 primeiro_vivo = 0;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			json_object@ rj = json_object();
+			rj.set("peer_id", p.peer_id);
+			rj.set("name", p.public_name());
+			rj.set("color", p.color);
+			rj.set("x", p.x);
+			rj.set("y", p.y);
+			rj.set("alive", p.alive);
+			roster.add(rj);
+			if (primeiro_vivo == 0 && p.alive) primeiro_vivo = p.peer_id;
+		}
+		spec.follow_peer = primeiro_vivo;
+		net_packet@ pkt = net_packet(S_SPECTATE_START);
+		pkt.set_array("players", roster);
+		pkt.set_string("map_name", lobby.map.name);
+		pkt.set_bool("voice_chat", lobby.config.voice_chat);
+		pkt.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
+		pkt.set_bool("color_mode", lobby.config.color_mode);
+		pkt.set_string("game_mode", lobby.config.game_mode);
+		pkt.set_bool("in_meeting", lobby.state == "meeting" || lobby.state == "voting");
+		pkt.set_uint64("follow", primeiro_vivo);
+		send_to(spec.peer_id, pkt);
+	}
+}

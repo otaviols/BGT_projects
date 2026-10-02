@@ -1,0 +1,337 @@
+// server_ship.nvgt
+// O que se faz com a nave: dutos, radar, sabotagens, portas e câmeras.
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+
+mixin class server_ship_part {
+	// Entra num vent perto (achado por proximidade, igual qualquer outro objeto interativo). Uma vez
+	// dentro, sair ou viajar pra outro vent da mesma rede usa on_vent_travel (tecla V no cliente) -
+	// esses não dependem de proximidade porque a rede inteira conta como "dentro do vent".
+	void on_use_vent(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		// Capacidade, e não identidade: o engenheiro também usa os dutos (ver role_traits). Perguntar
+		// "é impostor?" aqui era o que obrigaria cada papel novo a revisitar este ponto.
+		if (@p == null || p.vented || !player_abilities(p.role(), p.alive).can_vent(lobby.config.vents_enabled)) return;
+
+		string vent_id = pkt.get_string("vent_id");
+		map_object@ vent = lobby.map.find_object(vent_id);
+		if (@vent == null || vent.obj_type != OBJ_VENT) return;
+		if (distance_2d(p.x, p.y, vent.x, vent.y) > PLAYER_INTERACT_RANGE) return;
+
+		p.x = vent.x;
+		p.y = vent.y;
+		p.vented = true;
+		p.current_vent_id = vent_id;
+
+		net_packet@ result = net_packet(S_VENT_STATE);
+		result.set_bool("vented", true);
+		result.set_float("x", p.x);
+		result.set_float("y", p.y);
+		send_to(peer_id, result);
+		broadcast_vent_sound(lobby, peer_id, vent_id);
+	}
+
+	// A tampa do vent abrindo é ouvida por quem está por perto - é o que equilibra o vent, que não
+	// tem recarga nenhuma (igual ao jogo original, onde entrar e sair é livre, mas visível e audível
+	// pra quem estiver na sala). Vai pra todo mundo MENOS quem usou: esse já toca o som no próprio
+	// cliente, na hora, sem esperar a rede.
+	// Viajar de um vent pro outro NÃO faz som pra ninguém de fora: a tampa não abre, o impostor segue
+	// escondido - também como no original.
+	void broadcast_vent_sound(game_state@ lobby, uint64 user_peer, const string&in vent_id) {
+		if (vent_id == "") return;
+		net_packet@ vent_sound = net_packet(S_VENT_SOUND);
+		vent_sound.set_string("vent_id", vent_id);
+		broadcast_to_lobby(lobby, vent_sound, user_peer);
+	}
+
+	// Sair do vent (target_vent_id == "") ou viajar pra outro vent CONECTADO ao atual, permanecendo
+	// escondido - só chamado enquanto já vented (ver tecla V / menu de vent no cliente).
+	void on_vent_travel(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || !p.alive || !p.vented) return;
+
+		string target_id = pkt.get_string("target_vent_id");
+
+		if (target_id == "") {
+			string exited_vent_id = p.current_vent_id;
+			p.vented = false;
+			p.current_vent_id = "";
+			broadcast_vent_sound(lobby, peer_id, exited_vent_id); // a tampa abrindo, ouvida por quem está perto
+			net_packet@ moved = net_packet(S_PLAYER_MOVED);
+			moved.set_uint64("peer_id", peer_id);
+			moved.set_float("x", p.x);
+			moved.set_float("y", p.y);
+			broadcast_to_lobby(lobby, moved, peer_id, false);
+
+			net_packet@ result = net_packet(S_VENT_STATE);
+			result.set_bool("vented", false);
+			result.set_float("x", p.x);
+			result.set_float("y", p.y);
+			send_to(peer_id, result);
+			return;
+		}
+
+		map_object@ current_vent = lobby.map.find_object(p.current_vent_id);
+		map_object@ target_vent = lobby.map.find_object(target_id);
+		if (@current_vent == null || @target_vent == null || target_vent.obj_type != OBJ_VENT) return;
+		if (lobby.map.vent_connections(current_vent).find(target_id) == -1) return; // não conectado
+
+		p.x = target_vent.x;
+		p.y = target_vent.y;
+		p.current_vent_id = target_id;
+
+		net_packet@ result = net_packet(S_VENT_STATE);
+		result.set_bool("vented", true);
+		result.set_float("x", p.x);
+		result.set_float("y", p.y);
+		send_to(peer_id, result);
+	}
+
+	// Quem `me` consegue perceber pelo radar agora. Uma função só para o radar normal e o travado:
+	// se a regra de percepção morasse em dois lugares, um dia um deles deixaria de excluir o duto.
+	//
+	// Sabotagem não atrapalha quem sabota: o impostor mantém o radar inteiro nos dois casos abaixo.
+	// É a mesma lógica do jogo original, onde o apagão não cega o impostor - a sabotagem é uma
+	// arma dele, e uma arma que atinge o próprio dono deixa de ser usada.
+	//
+	// Devolve null com `fail_key` preenchida quando o radar está fora (comunicações sabotadas): é o
+	// equivalente aqui ao "esconder as tasks" do jogo original - tira a ferramenta principal de saber
+	// quem está perto de você.
+	array<game_player@>@ radar_targets(game_state@ lobby, game_player@ me, string&out fail_key) {
+		fail_key = "";
+		// Na barriga do lobo, o radar varre a sala DO LOBO (recado #160; a posição do engolido segue a
+		// dele, ver follow_wolves) e é cegado como o lobo seria: o engolido vê pelos olhos de quem o
+		// carrega, e não com a imunidade de fantasma.
+		game_player@ olhos = me;
+		if (me.swallowed()) {
+			game_player@ lobo = lobby.find_player(me.swallowed_by);
+			if (@lobo != null) @olhos = lobo;
+		}
+		// O `me.alive` aqui é o conserto de um bug que sobreviveu a três tentativas: esta condição
+		// olhava só o PAPEL e nunca se a pessoa estava viva. Sabotagem não atinge fantasma em lugar
+		// nenhum do jogo - menos aqui, onde o servidor recusava a varredura de quem já tinha morrido
+		// e continuava fazendo tarefas pelo time. E como o cliente do morto aplica a regra certa e
+		// não recusa nada, o pedido saía e quem dizia "não" era o SERVIDOR: por isso toda correção
+		// feita do lado do cliente parecia não surtir efeito. Regra geral que fica: quando um
+		// conserto de percepção "não pega", procure a mesma decisão do outro lado da rede.
+		//
+		// Nota: as luzes reusam a imunidade de COMUNICAÇÕES de propósito, e não `immune_to_lights`.
+		// É o que mantém o radar do impostor inteiro no apagão que ele mesmo causou - uma arma que
+		// atinge o próprio dono deixa de ser usada. Trocar por lights_out_for() parece arrumação e é
+		// mudança de equilíbrio.
+		bool blinded_by_sabotage = olhos.alive && !olhos.role().immune_to_comms;
+		if (blinded_by_sabotage && lobby.active_sabotage == "comms") {
+			fail_key = "sabotage.comms.radar_down";
+			return null;
+		}
+		array<game_player@>@ nearby = lobby.players_in_same_room(me.peer_id);
+		// Luzes apagadas: o radar vira quase um tato - só sente quem está bem colado, mesmo estando
+		// todo mundo na mesma sala.
+		if (blinded_by_sabotage && lobby.active_sabotage == "lights") {
+			array<game_player@> in_reach;
+			for (uint i = 0; i < nearby.length(); i++) {
+				if (distance_2d(me.x, me.y, nearby[i].x, nearby[i].y) <= RADAR_LIGHTS_OUT_RANGE) in_reach.insert_last(nearby[i]);
+			}
+			nearby = in_reach;
+		}
+		return nearby;
+	}
+
+	void on_radar_scan(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ me = lobby.find_player(peer_id);
+		if (@me == null) return; // fantasma (morto/expulso) também pode usar o radar - só não aparece nele
+
+		string fail_key;
+		array<game_player@>@ nearby = radar_targets(lobby, me, fail_key);
+		if (@nearby == null) { send_error(peer_id, fail_key); return; }
+
+		net_packet@ result = net_packet(S_RADAR_RESULT);
+		if (nearby.length() == 0) {
+			result.set_bool("empty", true);
+			send_to(peer_id, result);
+			return;
+		}
+
+		int direction = pkt.get_int("direction", 1);
+		me.radar_index = (me.radar_index + direction) % int(nearby.length());
+		if (me.radar_index < 0) me.radar_index += int(nearby.length());
+
+		fill_radar_result(result, me, nearby[me.radar_index]);
+		send_to(peer_id, result);
+	}
+
+	// Radar travado: o alvo ainda pode ser percebido? Responde pela MESMA lista do radar normal - o
+	// alvo que entrou num duto, saiu da sala ou sumiu no escuro deixa de estar nela, e a trava cai.
+	void on_radar_track(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		game_player@ me = lobby.find_player(peer_id);
+		if (@me == null) return;
+
+		net_packet@ result = net_packet(S_RADAR_RESULT);
+		result.set_bool("track", true);
+
+		string fail_key;
+		array<game_player@>@ nearby = radar_targets(lobby, me, fail_key);
+		uint64 target_peer = pkt.get_uint64("peer_id");
+		game_player@ target = null;
+		if (@nearby != null) {
+			for (uint i = 0; i < nearby.length(); i++) {
+				if (nearby[i].peer_id == target_peer) { @target = nearby[i]; break; }
+			}
+		}
+		if (@target == null) {
+			result.set_bool("empty", true);
+			result.set_bool("lost", true);
+			send_to(peer_id, result);
+			return;
+		}
+		fill_radar_result(result, me, target);
+		send_to(peer_id, result);
+	}
+
+	void fill_radar_result(net_packet@ result, game_player@ me, game_player@ target) {
+		result.set_bool("empty", false);
+		result.set_uint64("peer_id", target.peer_id);
+		result.set_string("name", target.display_name()); // o disfarce do shapeshifter vale aqui
+		result.set_float("x", target.x);
+		result.set_float("y", target.y);
+		result.set_float("distance", distance_2d(me.x, me.y, target.x, target.y));
+	}
+
+	void on_trigger_sabotage(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		string sabotage_id = pkt.get_string("sabotage_id");
+
+		net_packet@ event;
+		string fail_key;
+		if (lobby.trigger_sabotage(peer_id, sabotage_id, event, fail_key)) {
+			// Comunicações fora derrubam o posto de câmeras junto com o radar e os marcadores: é a
+			// resposta do impostor contra a segurança, e sem ela a câmera seria vigilância sem
+			// contrapartida.
+			if (sabotage_id == "comms") close_cameras(lobby, "camera.comms_down");
+			broadcast_to_lobby(lobby, event);
+		} else {
+			// Antes falhava calado - o impostor escolhia a sabotagem no menu e não acontecia nada,
+			// sem nenhuma pista de que a lobby simplesmente não permite sabotagem (preset "rápido"),
+			// de que ainda está em recarga, ou de que é a mesma da vez passada.
+			send_error(peer_id, fail_key);
+		}
+	}
+
+	void on_close_doors(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		array<string>@ closed_zones;
+		if (!lobby.close_doors_of_room(peer_id, pkt.get_string("room_id"), closed_zones)) {
+			send_error(peer_id, "game.doors_unavailable");
+			return;
+		}
+		broadcast_to_lobby(lobby, lobby.build_doors_packet(closed_zones, true));
+	}
+
+	// Fecha o posto de câmeras, seja quem for que esteja nele, e AVISA quem estava observando.
+	//
+	// O aviso é a parte que faltava: sem ele o cliente de quem observava continuava na câmera - sem
+	// andar, ouvindo outra sala, esperando um ESC que não resolvia nada, porque para o servidor ele
+	// já tinha saído. Todo lugar que derruba a câmera passa por aqui.
+	void close_cameras(game_state@ lobby, const string&in message_key = "") {
+		uint64 quem = lobby.release_cameras_any();
+		if (quem == 0) return;
+		send_camera_state(quem, false, "", message_key);
+		broadcast_camera_watching(lobby);
+	}
+
+	// Reunião: todo mundo é teleportado, e uma task visível pela metade não pode continuar soando
+	// numa enfermaria vazia. Chamado junto do close_cameras nos dois começos de reunião.
+	void interrupt_visible_task(game_state@ lobby) {
+		end_visible_task(lobby);
+	}
+
+	void send_camera_state(uint64 peer_id, bool active, const string&in room_id, const string&in message_key = "") {
+		net_packet@ pkt = net_packet(S_CAMERA_STATE);
+		pkt.set_bool("active", active);
+		pkt.set_string("room_id", room_id);
+		pkt.set_string("message_key", message_key);
+		send_to(peer_id, pkt);
+	}
+
+	// Conta para a partida INTEIRA qual sala está sob observação. É isto que faz o zumbido tocar
+	// para quem está lá - e também para quem entrar na sala depois, que é o caso que um aviso
+	// pontual não cobriria.
+	void broadcast_camera_watching(game_state@ lobby) {
+		net_packet@ pkt = net_packet(S_CAMERA_WATCHING);
+		pkt.set_string("room_id", lobby.camera_room_id);
+		broadcast_to_lobby(lobby, pkt);
+	}
+
+	void on_camera_enter(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		string fail = lobby.try_enter_cameras(peer_id);
+		if (fail != "") {
+			send_camera_state(peer_id, false, "", fail);
+			return;
+		}
+		send_camera_state(peer_id, true, lobby.camera_room_id);
+		broadcast_camera_watching(lobby);
+	}
+
+	void on_camera_leave(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		if (!lobby.release_cameras(peer_id)) return;
+		send_camera_state(peer_id, false, "");
+		broadcast_camera_watching(lobby);
+	}
+
+	void on_camera_switch(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.camera_user_peer != peer_id) return;
+		// A sala tem que existir no mapa: o id vem do cliente, e um id inventado deixaria a câmera
+		// apontada para lugar nenhum - sem som, sem erro, parecendo defeito.
+		string room_id = pkt.get_string("room_id");
+		map_zone@ zone = lobby.map.find_zone(room_id);
+		if (@zone == null) return;
+		lobby.camera_room_id = room_id;
+		send_camera_state(peer_id, true, room_id);
+		broadcast_camera_watching(lobby);
+	}
+
+	// Quem está na sala observada. Só responde a quem realmente está no posto - a pergunta é sobre
+	// uma sala que só faz sentido para quem a está observando, e responder a qualquer um daria um
+	// radar de sala arbitrária a quem não pagou o preço de ficar parado na segurança.
+	void on_camera_scan(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.camera_user_peer != peer_id) return;
+
+		array<game_player@>@ there = lobby.players_in_room(lobby.camera_room_id, peer_id);
+		json_array@ names = json_array();
+		for (uint i = 0; i < there.length(); i++) names.add(there[i].display_name());
+
+		net_packet@ result = net_packet(S_CAMERA_PLAYERS);
+		result.set_array("names", names);
+		send_to(peer_id, result);
+	}
+
+	// Avisa a partida de que UM painel saiu do caminho, sem a sabotagem ter acabado. É o que permite
+	// ao cliente não oferecer de novo um painel já resolvido.
+	void broadcast_sabotage_progress(game_state@ lobby, const string&in sabotage_id,
+			const string&in object_id, int fixed, int required) {
+		net_packet@ pkt = net_packet(S_SABOTAGE_PROGRESS);
+		pkt.set_string("sabotage_id", sabotage_id);
+		pkt.set_string("object_id", object_id);
+		pkt.set_int("fixed", fixed);
+		pkt.set_int("required", required);
+		broadcast_to_lobby(lobby, pkt);
+	}
+}

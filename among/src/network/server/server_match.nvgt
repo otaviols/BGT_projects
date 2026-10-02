@@ -1,0 +1,622 @@
+// server_match.nvgt
+// A partida em si: o começo (papéis, tarefas, modo), andar, tarefas, matar e quem testemunha, quem está perto.
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+
+mixin class server_match_part {
+	// Conta a cada jogador quem é perceptível perto dele, quando isso muda (ver S_NEARBY_PLAYERS).
+	//
+	// O elenco do cliente guarda o ÚLTIMO ponto de todo mundo, e só o servidor sabe quem sumiu sem andar:
+	// quem entrou num duto, foi engolido pelo lobo ou ficou invisível continuava "parado" no elenco dos
+	// outros - quem passasse por ali ouvia o nome dele como "jogador por perto", e o impostor que mirasse
+	// ali tinha o kill recusado calado. Avisar a TODOS que fulano sumiu entregaria o duto e o lobo; esta
+	// lista só fala do entorno de cada um, que é o que ele perceberia de qualquer jeito.
+	void send_nearby_players(game_state@ lobby) {
+		if (lobby.state != "in_progress") return;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ me = lobby.players[i];
+			if (!reaches_client(me)) continue;
+			array<uint64>@ perto = lobby.players_near(me, PERCEPTION_SET_RANGE);
+			perto.sort_ascending();
+			if (me.nearby_sent_once && perto == me.nearby_sent) continue;
+			me.nearby_sent = perto;
+			me.nearby_sent_once = true;
+			json_array@ lista = json_array();
+			for (uint k = 0; k < perto.length(); k++) lista.add(perto[k]);
+			net_packet@ pkt = net_packet(S_NEARBY_PLAYERS);
+			pkt.set_array("peers", lista);
+			send_to(me.peer_id, pkt);
+		}
+	}
+
+	void on_start_game(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.host_peer_id != peer_id) return;
+		// Reinício a caminho: uma partida que começasse agora seria derrubada no meio. Melhor não
+		// começar - e dizer por quê, com o tempo que falta.
+		if (draining()) {
+			dictionary@ p = dictionary();
+			p.set("minutes", "" + ((draining_seconds_left() + 59) / 60));
+			send_error(peer_id, "server.restart_soon_no_start", p);
+			return;
+		}
+		// Quem marcou "vou assistir" não conta para o mínimo: a partida tem que ter gente para jogar.
+		uint jogam = 0;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (!(lobby.players[i].wants_to_spectate && !lobby.players[i].is_bot)) jogam++;
+		}
+		if (jogam < MIN_PLAYERS) {
+			dictionary@ p = dictionary();
+			p.set("min", "" + MIN_PLAYERS);
+			send_error(peer_id, "lobby.min_players_warning", p);
+			return;
+		}
+		// Papéis ligados DEPOIS de alguém velho já estar dentro (a porta só barra quem chega): a partida
+		// não começa, e o anfitrião ouve QUEM precisa atualizar - senão ele desligaria os papéis sem
+		// saber por quê, ou expulsaria a pessoa errada.
+		int exigido = lobby.config.required_protocol();
+		if (exigido > 0) {
+			array<string> outdated;
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				game_player@ p = lobby.players[i];
+				if (!p.is_bot && p.protocol_version < exigido) outdated.insert_last(p.username);
+			}
+			if (outdated.length() > 0) {
+				dictionary@ p = dictionary();
+				p.set("names", join(outdated, ", "));
+				send_error(peer_id, "lobby.roles_need_update", p);
+				return;
+			}
+		}
+
+		// Quem vai assistir sai da equipe AGORA, antes do sorteio: a partida inteira é feita só com quem
+		// joga, e o espectador passa a viver na lista dele (ver game_state.spectators).
+		for (int i = int(lobby.players.length()) - 1; i >= 0; i--) {
+			game_player@ p = lobby.players[i];
+			if (!p.wants_to_spectate || p.is_bot) continue;
+			p.reset_match_state();
+			lobby.spectators.insert_last(p);
+			lobby.players.remove_at(i);
+		}
+
+		// Sorteio dos papéis, bot e gente no mesmo bolo: a IA de impostor caça, mata quando ninguém
+		// está vendo e sabota (ver game_state.update_bot_impostor), então um bot impostor é uma
+		// partida de verdade - e do outro lado, um humano sozinho contra bots tem quem o cace.
+		// Embaralha pela função compartilhada com a sonda de justiça (ver shuffle_player_order).
+		array<int> ordem;
+		for (uint i = 0; i < lobby.players.length(); i++) ordem.insert_last(int(i));
+		shuffle_player_order(ordem);
+		array<game_player@> shuffled;
+		for (uint i = 0; i < ordem.length(); i++) shuffled.insert_last(lobby.players[ordem[i]]);
+
+		int impostor_count = lobby.config.resolved_impostor_count(shuffled.length());
+		// Todos lobos: ninguém é impostor - cada jogador vira lobo, mais abaixo.
+		if (lobby.config.game_mode == GAME_MODE_WOLVES) impostor_count = 0;
+		array<int>@ color_ids = all_color_ids();
+		shuffle_int_array(color_ids);
+		// Sala que deixa escolher: quem escolheu fica com a cor dele (a unicidade já foi garantida na
+		// hora da escolha, em on_choose_color), e as cores escolhidas saem do sorteio dos outros.
+		if (lobby.config.color_choice) {
+			for (uint i = 0; i < shuffled.length(); i++) {
+				int escolhida = shuffled[i].chosen_color;
+				if (escolhida < 0) continue;
+				int at = color_ids.find(escolhida);
+				if (at >= 0) color_ids.remove_at(at);
+			}
+		}
+		uint proxima_cor = 0;
+
+		// Tasks comuns desta partida: sorteadas UMA vez, aqui, e entregues iguais a todo tripulante
+		// (ver COMMON_TASK_TYPES). O resto do sorteio, mais abaixo, é individual e usa só as tasks
+		// não-comuns - senão uma task comum poderia sair duas vezes pra mesma pessoa.
+		array<map_object@> common_spots;
+		array<map_object@> personal_spots;
+		array<map_object@>@ all_spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		array<string> chosen_common_types;
+		for (uint i = 0; i < COMMON_TASK_TYPES.length(); i++) {
+			if (random_range(0.0, 1.0) <= COMMON_TASK_CHANCE) chosen_common_types.insert_last(COMMON_TASK_TYPES[i]);
+		}
+		for (uint i = 0; i < all_spots.length(); i++) {
+			map_object@ spot = all_spots[i];
+			bool is_common_type = COMMON_TASK_TYPES.find(spot.task_type) != -1;
+			if (!is_common_type) {
+				personal_spots.insert_last(spot);
+				continue;
+			}
+			// Task comum que não foi sorteada nesta partida não existe pra ninguém.
+			if (chosen_common_types.find(spot.task_type) != -1) common_spots.insert_last(spot);
+		}
+
+		// Papéis especiais, sorteados DENTRO de cada time: os N primeiros do embaralhamento são o time
+		// impostor, e cada papel de impostor sai entre eles; os de tripulação, entre o resto. Como a
+		// lista já está embaralhada, "os primeiros de cada time" é um sorteio. A configuração pode
+		// pedir mais papéis do que há gente no time (a sala foi validada pela LOTAÇÃO, não por quem
+		// veio): quem não couber não sai. A regra inteira - chance por vaga, bot fora, quem não cabe
+		// - mora em draw_special_roles (game/roles/role_traits.nvgt), para a sonda poder chamar a
+		// MESMA função em vez de reimplementá-la e passar com o código quebrado.
+		//
+		// O S_GAME_START anuncia o que a sala CONFIGUROU, nunca o que saiu daqui: dizer o resultado
+		// entregaria de graça a dedução que a chance existe para criar.
+		array<bool> bot_flags;
+		for (uint i = 0; i < shuffled.length(); i++) bot_flags.insert_last(shuffled[i].is_bot);
+		array<string> role_of = draw_special_roles(shuffled.length(), uint(impostor_count), bot_flags,
+			lobby.config.role_counts, lobby.config.role_chances);
+
+		// Teto de tarefas visíveis da PARTIDA inteira, contado sobre quem está na sala (bot incluído:
+		// ele ocupa lugar e o scanner dele soa igual). Ver visible_task_cap.
+		uint teto_visiveis = visible_task_cap(shuffled.length());
+		uint visiveis_dadas = 0;
+
+		for (uint i = 0; i < shuffled.length(); i++) {
+			game_player@ p = shuffled[i];
+			string team = int(i) < impostor_count ? TEAM_IMPOSTOR : TEAM_CREW;
+			string papel = role_of[i] != "" ? role_of[i] : base_role_of_team(team);
+			// Todos lobos: todo jogador é lobo. Bot não sabe engolir, então fica de presa.
+			if (lobby.config.game_mode == GAME_MODE_WOLVES) papel = p.is_bot ? ROLE_CREWMATE : ROLE_WOLF;
+			p.set_role(papel);
+			if (lobby.config.color_choice && p.chosen_color >= 0) p.color = p.chosen_color;
+			else p.color = color_ids[(proxima_cor++) % color_ids.length()];
+			p.named_by_color = lobby.config.color_mode;
+			p.alive = true;
+			p.swallowed_by = 0;
+			p.left_match = false;
+			p.vented = false;
+			p.current_vent_id = "";
+			p.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
+			// A habilidade começa PRONTA, como no original. Não é o cooldown do kill: aquele existe
+			// para o primeiro corpo não aparecer no segundo um da partida.
+			p.ability_cooldown_remaining = 0.0;
+			// ...menos a de quem tira gente do jogo (o lobo), que começa recarregando como o kill.
+			if (p.role().ability_starts_on_cooldown) p.ability_cooldown_remaining = lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN);
+			// Pega-pega: o pegador só pega depois de sair do lugar.
+			if (lobby.config.game_mode == GAME_MODE_TAG && p.is_impostor) p.kill_cooldown_remaining = TAG_HEAD_START_SECONDS;
+			p.meetings_called = 0;
+			p.radar_index = -1;
+			p.last_move_time = 0.0;
+			p.tasks.resize(0);
+			p.x = float(random(-30, 30)) / 10.0;
+			p.y = float(random(-30, 30)) / 10.0;
+
+			// Quem tem tarefas é quem as tem CONTANDO para o time (ver role_traits): o engenheiro faz
+			// tarefas como qualquer tripulante, e o impostor só finge fazê-las.
+			if (p.role().tasks_count_for_crew) {
+				// Quantas tarefas deste jogador já caíram em cada sala do mapa. Começa com as comuns,
+				// que são obrigatórias: elas ocupam vaga no teto por sala como qualquer outra, senão
+				// "no máximo duas na mesma sala" seria mentira para quem tem o cartão.
+				dictionary tasks_por_sala;
+
+				// Primeiro as comuns, IGUAIS pra todo mundo (mesmo ponto do mapa, inclusive).
+				for (uint c = 0; c < common_spots.length(); c++) {
+					player_task pt;
+					pt.object_id = common_spots[c].id;
+					pt.task_type = common_spots[c].task_type;
+					p.tasks.insert_last(pt);
+					int ja = 0;
+					if (!tasks_por_sala.get(common_spots[c].room_id, ja)) ja = 0;
+					tasks_por_sala.set(common_spots[c].room_id, ja + 1);
+				}
+				// Depois as individuais, sorteadas POR CATEGORIA: primeiro as longas que a sala pediu,
+				// depois curtas até fechar o total. Sortear tudo de um monte só devolvia partidas em
+				// que um jogador andava a nave inteira e outro resolvia tudo num canto - e a diferença
+				// entre esses dois jogadores, num jogo em que andar faz barulho, é enorme.
+				array<map_object@> long_pool;
+				array<map_object@> short_pool;
+				for (uint s = 0; s < personal_spots.length(); s++) {
+					// Ponto do MEIO de uma corrente não entra no sorteio: ele é a continuação de uma
+					// tarefa, não uma tarefa (ver is_chain_start em game/map.nvgt).
+					if (lobby.map.object_in_chain(personal_spots[s].id) && !lobby.map.is_chain_start(personal_spots[s].id)) continue;
+					// Tarefa VISÍVEL sai do monte quando o teto da sala já foi atingido (ver
+					// visible_task_cap): ela é a única prova de inocência do jogo, e o sorteio por
+					// jogador é independente - sem o corte aqui, a variância sozinha entregava álibi a
+					// meia sala de vez em quando.
+					if (task_is_visible(personal_spots[s].task_type) && visiveis_dadas >= teto_visiveis) continue;
+					if (task_is_long(personal_spots[s].task_type)) long_pool.insert_last(personal_spots[s]);
+					else short_pool.insert_last(personal_spots[s]);
+				}
+				shuffle_object_array(long_pool);
+				shuffle_object_array(short_pool);
+
+				uint total = lobby.config.task_count_per_crewmate;
+				total = total > p.tasks.length() ? total - p.tasks.length() : 0;
+				uint want_long = lobby.config.long_task_count;
+				if (want_long > total) want_long = total;
+				if (want_long > long_pool.length()) want_long = long_pool.length();
+				// O que faltar de longa vira curta, e vice-versa: o mapa tem um número fixo de pontos
+				// de cada tipo, e é melhor entregar o total pedido do que respeitar a proporção à risca.
+				uint want_short = total - want_long;
+				if (want_short > short_pool.length()) {
+					uint sobra = want_short - short_pool.length();
+					want_short = short_pool.length();
+					if (want_long + sobra <= long_pool.length()) want_long += sobra;
+				}
+				// As duas categorias saem pelo MESMO caminho e compartilham o teto por sala: separar
+				// deixaria um jogador com duas longas e duas curtas na mesma sala.
+				array<map_object@> escolhidos;
+				pick_task_spots(long_pool, want_long, tasks_por_sala, escolhidos);
+				pick_task_spots(short_pool, want_short, tasks_por_sala, escolhidos);
+				for (uint t = 0; t < escolhidos.length(); t++) {
+					player_task pt;
+					pt.object_id = escolhidos[t].id;
+					pt.task_type = escolhidos[t].task_type;
+					pt.phase_count = lobby.map.phase_count_of(pt.task_type);
+					// Tarefa de várias fases: a CORRENTE é sorteada por jogador, entre as que começam
+					// neste ponto. É o que faz o abastecimento variar de destino - dois tripulantes com
+					// a mesma tarefa podem atravessar a nave em direções opostas, e quem deduz deixa de
+					// saber de antemão por onde eles vão passar.
+					array<array<string>@>@ correntes = lobby.map.chains_starting_at(pt.task_type, pt.object_id);
+					if (correntes.length() > 0) {
+						array<string>@ escolhida = correntes[random(0, int(correntes.length()) - 1)];
+						pt.chain = escolhida;
+						pt.phase_count = escolhida.length();
+					}
+					p.tasks.insert_last(pt);
+					if (task_is_visible(pt.task_type)) visiveis_dadas++;
+				}
+			}
+		}
+
+		lobby.bodies.resize(0);
+		lobby.votes.resize(0);
+		lobby.active_sabotage = "";
+		lobby.last_sabotage_id = "";
+		lobby.meeting_cooldown_remaining = 0.0;
+		lobby.doors_cooldown_remaining = 0.0;
+		lobby.map.open_all_doors();
+		lobby.sabotage_fixed_panels.resize(0);
+		lobby.winner = "";
+		lobby.elapsed_time = 0.0;
+		// Zerar isto era esquecido: o valor sobrava da partida ANTERIOR nessa mesma lobby.
+		lobby.sabotage_cooldown_remaining = SABOTAGE_INITIAL_COOLDOWN_SECONDS;
+		lobby.state = "in_progress";
+
+		json_array@ roster = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			json_object@ rj = json_object();
+			rj.set("peer_id", lobby.players[i].peer_id);
+			rj.set("name", lobby.players[i].public_name()); // no modo cor, a marca da cor
+			rj.set("color", lobby.players[i].color);
+			rj.set("x", lobby.players[i].x);
+			rj.set("y", lobby.players[i].y);
+			roster.add(rj);
+		}
+
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (p.is_bot) continue; // não tem pra quem mandar
+			net_packet@ start = net_packet(S_GAME_START);
+			start.set_string("map_name", lobby.map.name);
+			start.set_string("your_role", p.role_id);
+			// O que a SALA configurou (id -> quantos, e a chance de cada um), para todo mundo: assim
+			// como o número de impostores, saber que "pode haver um xerife" muda a leitura de tudo o
+			// que acontece. É a configuração, e nunca o resultado do sorteio: dizer o que realmente
+			// saiu entregaria a dedução que a chance existe para criar.
+			json_object@ cfg_json = lobby.config.to_json(lobby.players.length());
+			start.set_object("role_counts", cfg_json.get_object("role_counts"));
+			start.set_object("role_chances", cfg_json.get_object("role_chances"));
+			start.set_int("your_color", p.color);
+			start.set_uint64("your_peer_id", p.peer_id);
+			start.set_float("your_x", p.x);
+			start.set_float("your_y", p.y);
+			start.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
+			// A recarga da habilidade DESTE papel, pela mesma razão do kill: o servidor a rearma no fim
+			// da votação, e o cliente precisa acompanhar sem ter usado a habilidade nenhuma vez ainda
+			// (é por S_ABILITY_RESULT que ele descobriria, e esse só chega depois do primeiro uso).
+			start.set_float("ability_cooldown_seconds", lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN));
+			// Quanto da recarga já está correndo no começo (o lobo começa recarregando). Servidor antigo
+			// não manda: zero, como sempre foi.
+			start.set_float("ability_initial_cooldown", p.ability_cooldown_remaining);
+			// Quantos palpites por reunião (sniper). Pela mesma razão da recarga: o cliente precisa
+			// saber antes do primeiro uso para a tecla responder sem ir à rede.
+			start.set_int("ability_guesses", int(lobby.config.role_value(p.role_id, TUNABLE_GUESSES)));
+			start.set_float("sabotage_cooldown_seconds", lobby.sabotage_cooldown_remaining);
+			// Regra de voz da sala: sem ela o cliente capturaria e mandaria áudio que o servidor iria
+			// descartar - microfone aberto à toa.
+			start.set_bool("voice_chat", lobby.config.voice_chat);
+			// O cliente decide sozinho se abre o microfone, e precisa da MESMA regra que o servidor
+			// usa para decidir quem ouve - senão ele cala a reunião que o servidor deixaria passar.
+			start.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
+			// Velocidade e dutos: o cliente anda e oferece o duto sozinho, sem perguntar, então precisa
+			// da MESMA regra que o servidor usa para aceitar o passo e o duto.
+			start.set_float("move_speed", lobby.config.move_speed());
+			start.set_bool("vents_enabled", lobby.config.vents_enabled);
+			// Modo cor: o cliente anuncia a cor do jogador junto do papel (os nomes já chegam como cor).
+			start.set_bool("color_mode", lobby.config.color_mode);
+			// O modo, e no pega-pega quanto o pegador fica parado: a contagem é feita por cada cliente.
+			start.set_string("game_mode", lobby.config.game_mode);
+			start.set_float("head_start", lobby.config.game_mode == GAME_MODE_TAG ? TAG_HEAD_START_SECONDS : 0.0);
+			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
+			// um ou três, senão a discussão da reunião é chute puro.
+			start.set_int("impostor_count", impostor_count);
+
+			// Os OUTROS impostores, mandados só pra quem é impostor - cada um precisa saber quem é do
+			// time dele pra não se denunciar sozinho na reunião. A lista sai montada por destinatário
+			// justamente pra nunca sair daqui pra um tripulante.
+			// Vai peer_id junto com o nome porque o cliente usa os ids pra nunca mirar um parceiro na
+			// hora de matar (ver a tecla de kill em game/game_loop.nvgt).
+			if (p.is_impostor) {
+				json_array@ partners = json_array();
+				for (uint j = 0; j < lobby.players.length(); j++) {
+					game_player@ other = lobby.players[j];
+					if (!other.is_impostor || other.peer_id == p.peer_id) continue;
+					json_object@ entry = json_object();
+					entry.set("peer_id", other.peer_id);
+					entry.set("name", other.public_name());
+					partners.add(entry);
+				}
+				start.set_array("impostor_partners", partners);
+			}
+			start.set_array("players", roster);
+
+			json_array@ tasks_json = json_array();
+			for (uint t = 0; t < p.tasks.length(); t++) {
+				json_object@ tj = json_object();
+				tj.set("object_id", p.tasks[t].object_id);
+				tj.set("task_type", p.tasks[t].task_type);
+				// A fase vai junto porque a partida pode ter recomeçado com a tarefa no meio (reunião,
+				// reconexão): o cliente precisa mirar o ponto certo, não o começo da corrente.
+				tj.set("phase", int(p.tasks[t].phase));
+				tj.set("phase_count", int(p.tasks[t].phase_count));
+				// A corrente sorteada vai junto: sem ela o cliente adivinhava o destino pelo mapa e
+				// mandava todo mundo ao reator (ver player_task.chain_object).
+				if (p.tasks[t].chain.length() > 0) {
+					json_array@ chain_json = json_array();
+					for (uint c = 0; c < p.tasks[t].chain.length(); c++) chain_json.add(p.tasks[t].chain[c]);
+					tj.set("chain", chain_json);
+				}
+				tasks_json.add(tj);
+			}
+			start.set_array("tasks", tasks_json);
+
+			send_to(p.peer_id, start);
+		}
+
+		for (uint i = 0; i < lobby.spectators.length(); i++) send_spectate_start(lobby, lobby.spectators[i]);
+		broadcast_to_lobby(lobby, lobby.build_task_progress_packet()); // placar zerado, pra todo mundo já começar sabendo o total
+	}
+
+	void on_move(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		float x = pkt.get_float("x");
+		float y = pkt.get_float("y");
+		if (!lobby.try_move_player(peer_id, x, y)) return;
+
+		game_player@ p = lobby.find_player(peer_id);
+		// Escondido no duto ou invisível não transmite posição - e é a posição que os outros clientes
+		// transformam em PASSOS. Sem isto, o fantasma seria invisível no radar e continuaria pisando
+		// alto pela nave, que num jogo em que o passo é a pista principal não é invisibilidade
+		// nenhuma.
+		if (@p == null || p.vented || p.invisible()) return;
+
+		net_packet@ moved = net_packet(S_PLAYER_MOVED);
+		moved.set_uint64("peer_id", peer_id);
+		moved.set_float("x", x);
+		moved.set_float("y", y);
+		if (p.alive) broadcast_to_lobby(lobby, moved, peer_id, false);
+		else broadcast_to_dead_players(lobby, moved, peer_id); // fantasma: invisível pra quem tá vivo
+	}
+
+	// A minigame roda no cliente; o servidor só se importa com a task VISÍVEL (o scan): confere que
+	// o jogador tem mesmo essa task pendente e, só então, avisa a partida. É essa conferência que
+	// transforma o som do scanner em prova - o impostor pode abrir o que quiser no cliente dele, mas
+	// o servidor não anuncia um scan de quem não tem scan para fazer.
+	void on_start_task(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		string object_id = pkt.get_string("task_id");
+		if (!lobby.try_start_visible_task(peer_id, object_id)) return;
+		game_player@ p = lobby.find_player(peer_id);
+		broadcast_task_visible(lobby, peer_id, @p != null ? p.display_name() : "", object_id, true);
+	}
+
+	void broadcast_task_visible(game_state@ lobby, uint64 peer_id, const string&in name, const string&in object_id, bool active) {
+		net_packet@ pkt = net_packet(S_TASK_VISIBLE);
+		pkt.set_uint64("peer_id", peer_id);
+		pkt.set_string("name", name);
+		pkt.set_string("object_id", object_id);
+		pkt.set_bool("active", active);
+		// Quem faz a task já ouve o scanner no próprio cliente; para ele o aviso seria eco.
+		broadcast_to_lobby(lobby, pkt, peer_id);
+	}
+
+	// Encerra a task visível (de um jogador, ou de quem estiver nela com peer 0) e avisa a partida.
+	// Chamado de todo lugar que interrompe a task: fim normal, reunião, morte, saída.
+	void end_visible_task(game_state@ lobby, uint64 peer_id = 0) {
+		uint64 quem = lobby.end_visible_task(peer_id);
+		if (quem == 0) return;
+		game_player@ p = lobby.find_player(quem);
+		broadcast_task_visible(lobby, quem, @p != null ? p.display_name() : "", "", false);
+	}
+
+	void on_task_input(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		// Fantasma (morto ou expulso) CONTINUA fazendo task, e isso é essencial: é o que dá aos
+		// tripulantes chance de ganhar pelas tasks depois de perder gente. Ele só não interage com
+		// mais nada (botão, painel, vent - ver game/game_loop.nvgt).
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null) return;
+		// Na barriga do lobo não se faz tarefa: o fantasma continua ajudando o time, o engolido não
+		// está livre pela nave. Uma minigame aberta quando ele foi engolido termina aqui sem contar.
+		if (p.swallowed()) return;
+
+		string task_id = pkt.get_string("task_id");
+		bool success = pkt.get_bool("success");
+		// O resultado (bom ou ruim) é o fim da minigame: a task visível, se era este jogador, acaba
+		// aqui - ANTES dos retornos abaixo, senão um scan cancelado ficaria soando para sempre.
+		end_visible_task(lobby, peer_id);
+		if (!success) return;
+		string next_object_id;
+		uint phase;
+		if (!lobby.advance_task(p, task_id, next_object_id, phase)) return;
+
+		// A estatística conta FASES concluídas: é o que o jogador fez, e é o mesmo passo que move a
+		// barra da equipe.
+		g_user_db.increment_stat(p.username, "tasks_completed", 1);
+
+		net_packet@ result = net_packet(S_TASK_RESULT);
+		result.set_string("task_id", task_id);
+		result.set_bool("ok", true);
+		result.set_int("progress", p.task_progress_percent());
+		// Vazio quando a tarefa acabou; com valor, é o ponto da próxima fase (ver advance_task).
+		result.set_string("next_object_id", next_object_id);
+		result.set_int("phase", int(phase));
+		send_to(peer_id, result);
+
+		// Placar da equipe vai pra TODO mundo, impostor incluído: pro tripulante é saber quanto falta,
+		// pro impostor é o relógio correndo contra ele (ver run_task_list_menu no cliente).
+		broadcast_to_lobby(lobby, lobby.build_task_progress_packet());
+	}
+
+	void on_kill(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		uint64 target_peer = pkt.get_uint64("target_peer");
+
+		// Antes falhava em silêncio (o impostor apertava matar, nada acontecia, e não tinha como
+		// saber se foi cooldown, alcance, ou alvo já morto) - agora pelo menos o caso mais comum
+		// (cooldown) avisa por quê.
+		game_player@ killer = lobby.find_player(peer_id);
+		if (@killer != null && killer.role().can_kill && killer.alive && killer.kill_cooldown_remaining > 0.0) {
+			send_error(peer_id, "game.kill_on_cooldown");
+			return;
+		}
+
+		net_packet@ event;
+		bool misfire = false;
+		if (lobby.try_kill(peer_id, target_peer, event, misfire)) {
+			announce_kill(lobby, event);
+			// Assassinato de quem tem conta. O tiro errado do xerife não conta: quem morreu foi ele.
+			if (!misfire && @killer != null && !killer.is_bot && killer.username != "") g_user_db.increment_stat(killer.username, "kills", 1);
+			// O tiro errado é dito SÓ a quem errou, depois do pacote da morte: para todos os outros
+			// (inclusive para quem ele mirou) aquilo foi um assassinato qualquer, e é isso que
+			// mantém o xerife sendo uma aposta em vez de um detector.
+			if (misfire) send_error(peer_id, "role.sheriff_misfire");
+		}
+	}
+
+	// Tudo o que uma morte por assassinato faz na rede, num lugar só - o jogador que mata (on_kill) e o
+	// bot impostor (tick da sala) passam por aqui. Eram dois caminhos, e o do bot transmitia o pacote
+	// inteiro a todos e pulava o resto: a câmera da vítima, o scanner e o alarme do alarmista.
+	void announce_kill(game_state@ lobby, net_packet@ event) {
+		// QUEM morreu sai do pacote, e não do alvo pedido: no tiro errado do xerife quem cai é o
+		// atirador, e limpar o estado do alvo deixaria o morto de verdade preso na câmera.
+		uint64 victim_peer = event.get_uint64("peer_id");
+		// A vítima larga o posto: fantasma não opera equipamento, e um posto preso a quem morreu
+		// ficaria bloqueado para o resto da partida. Ela também precisa ser AVISADA, ou o cliente
+		// dela continua na câmera, sem andar, agora como fantasma.
+		if (lobby.release_cameras(victim_peer)) {
+			send_camera_state(victim_peer, false, "");
+			broadcast_camera_watching(lobby);
+		}
+		end_visible_task(lobby, victim_peer); // morreu no scanner: o scanner para
+		// A partida recebe o pacote sem nome nenhum; a VÍTIMA recebe uma cópia com o nome
+		// VERDADEIRO de quem a matou. Ela já pagou o preço e não tem como contar a ninguém - e o
+		// elenco dela agora carrega o nome disfarçado (ver S_PLAYER_RENAMED), então sem esta
+		// cópia quem morresse para o metamorfo ouviria a fantasia.
+		//
+		// E QUEM MATOU só viaja para a vítima e para o próprio assassino. O pacote público levava
+		// `killer_peer` e `killer_color` para a partida inteira: o cliente do jogador não os dizia,
+		// mas um cliente modificado (ou quem lesse o tráfego) sabia o impostor de toda morte, na
+		// hora - e, com killer == vítima, que o morto era um xerife que errou. O cliente é a
+		// máquina do jogador; o que vai para lá, quem quiser lê. Os outros recebem só quem morreu
+		// e onde, que é o que o som do assassinato já conta.
+		uint64 killer_id = event.get_uint64("killer_peer");
+		net_packet@ publico = net_packet(S_PLAYER_KILLED);
+		publico.set_uint64("peer_id", victim_peer);
+		publico.set_float("x", event.get_float("x"));
+		publico.set_float("y", event.get_float("y"));
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			uint64 pid = lobby.players[i].peer_id;
+			if (!reaches_client(lobby.players[i]) || pid == victim_peer || pid == killer_id) continue;
+			send_to(pid, publico);
+		}
+		// Quem assiste ouve o assassinato como qualquer um ouviria: onde, e não quem.
+		for (uint i = 0; i < lobby.spectators.length(); i++) send_to(lobby.spectators[i].peer_id, publico);
+		// TESTEMUNHA: quem estava colado na vítima - dentro do alcance do próprio kill - VIU quem matou,
+		// e ouve isso, só ela. Mais longe, é o som que conta (a direção, não o nome); colado, fingir que
+		// a pessoa não viu era só confusão. O limite curto é o que mantém o impostor com espaço: matar
+		// "na frente de alguém" passa a ter o custo óbvio, e matar a dois passos continua anônimo.
+		// Fantasma, quem está no duto e o invisível não veem. O tiro errado do xerife (atirador ==
+		// vítima) fica de fora: diria a quem estava perto que ali havia um xerife que errou.
+		if (killer_id != victim_peer) notify_witnesses(lobby, killer_id, victim_peer, event.get_float("x"), event.get_float("y"), false);
+		// O assassino recebe o completo para rearmar a recarga do kill (ver game_loop).
+		if (killer_id != victim_peer) {
+			game_player@ assassino = lobby.find_player(killer_id);
+			if (@assassino != null && reaches_client(assassino)) send_to(killer_id, event);
+		}
+		game_player@ quem_matou = lobby.find_player(killer_id);
+		// "Verdadeiro" é sem o disfarce - no modo cor, a cor VERDADEIRA de quem matou.
+		if (@quem_matou != null) event.set_string("killer_real_name", quem_matou.public_name());
+		game_player@ victim = lobby.find_player(victim_peer);
+		if (@victim != null && reaches_client(victim)) send_to(victim_peer, event);
+
+		// Papel que anuncia a própria morte (alarmista). DEPOIS do pacote da morte, para o som
+		// do assassinato vir antes do aviso - a ordem inversa contaria o que aconteceu e só
+		// então deixaria ouvir. Sai da capacidade, não do id: um papel futuro pode fazer igual.
+		if (@victim != null && victim.role().announces_own_death) {
+			net_packet@ alarm = net_packet(S_DEATH_ALARM);
+			alarm.set_string("name", victim.public_name());
+			map_zone@ zone = lobby.map.find_zone(lobby.map.room_id_at(victim.x, victim.y));
+			// A SALA, e não a posição: o aviso diz onde procurar, não entrega o ponto exato -
+			// quem quiser mais que isso tem que ir até lá. E nunca diz quem matou.
+			alarm.set_string("room_key", @zone != null ? zone.name_key : "");
+			broadcast_to_lobby(lobby, alarm);
+		}
+	}
+
+	// Quem estava colado no crime - dentro do alcance do próprio kill - VIU quem fez, e ouve isso, só
+	// ela. Serve ao assassinato e ao lobo engolindo alguém (`swallowed`), que para quem está ao lado são
+	// a mesma coisa: um ataque que se viu acontecer.
+	//
+	// Mais longe, é o som que conta (a direção, não o nome); colado, fingir que a pessoa não viu era só
+	// confusão. O limite curto é o que mantém o atacante com espaço: agir "na frente de alguém" passa a
+	// ter o custo óbvio, e a dois passos continua anônimo. Fantasma, engolido, quem está no duto e o
+	// invisível não veem.
+	void notify_witnesses(game_state@ lobby, uint64 killer_id, uint64 victim_peer, float vx, float vy, bool swallowed) {
+		game_player@ matador = lobby.find_player(killer_id);
+		if (@matador == null) return;
+		game_player@ vitima = lobby.find_player(victim_peer);
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ w = lobby.players[i];
+			if (w.peer_id == killer_id || w.peer_id == victim_peer || !w.alive || w.vented || w.invisible()) continue;
+			// No ESCURO (luzes sabotadas) ninguém vê quem matou: ouve-se o assassinato ao lado, e só.
+			// Pela mesma regra de quem as luzes cegam (sabotage_rules/player_abilities) - e é o que dá
+			// ao impostor um motivo a mais para apagar as luzes antes de matar.
+			if (player_abilities(w.role(), w.alive).blinded_by_lights(lobby.active_sabotage)) continue;
+			if (!reaches_client(w) || distance_2d(w.x, w.y, vx, vy) > PLAYER_KILL_RANGE) continue;
+			net_packet@ viu = net_packet(S_KILL_WITNESSED);
+			viu.set_string("killer_name", matador.display_name());
+			viu.set_string("victim_name", @vitima != null ? vitima.public_name() : "");
+			viu.set_bool("swallowed", swallowed);
+			send_to(w.peer_id, viu);
+		}
+	}
+
+	void on_interact(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		string object_id = pkt.get_string("object_id");
+
+		net_packet@ event;
+		int panels_fixed, panels_required;
+		string fail_key;
+		if (lobby.try_fix_sabotage_panel(peer_id, object_id, event, panels_fixed, panels_required, fail_key)) {
+			broadcast_to_lobby(lobby, event);
+		} else if (fail_key != "") {
+			send_error(peer_id, fail_key);
+		} else if (panels_required > 0) {
+			// Painel certo, mas ainda falta consertar outro(s) - sem isso parecia que o painel "não
+			// funcionava" quando na verdade só precisava de mais um conserto em outro lugar.
+			dictionary@ p = dictionary();
+			p.set("fixed", "" + panels_fixed);
+			p.set("required", "" + panels_required);
+			send_error(peer_id, "sabotage.panel_progress", p);
+			// E a partida inteira fica sabendo QUAL painel saiu do caminho: é o que impede outra
+			// pessoa de atravessar a nave para resolver um painel que já está resolvido.
+			broadcast_sabotage_progress(lobby, lobby.active_sabotage, object_id, panels_fixed, panels_required);
+		}
+	}
+}

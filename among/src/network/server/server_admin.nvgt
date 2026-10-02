@@ -1,0 +1,319 @@
+// server_admin.nvgt
+// Recados, respostas, traduções enviadas pelo jogo e os comandos de administração (autorizados pelo token).
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+
+mixin class server_admin_part {
+	void on_feedback_replies_get(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.username == "") return;
+		send_feedback_replies(peer_id, conn.username);
+	}
+
+	void send_feedback_replies(uint64 peer_id, const string&in username) {
+		net_packet@ resposta = net_packet(S_FEEDBACK_REPLIES);
+		resposta.set_array("replies", g_user_db.unread_feedback_replies(username));
+		send_to(peer_id, resposta);
+	}
+
+	void on_feedback_reply_read(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.username == "") return;
+		g_user_db.mark_feedback_reply_read(pkt.get_int("reply_id", 0), conn.username);
+	}
+
+	// Quem faz o jogo responde a um recado, pela ferramenta de administração (infra\admin.ps1 responder).
+	//
+	// A comparação do token é o único portão: não há conta de administrador, porque uma conta seria
+	// mais uma senha para vazar dentro do mesmo banco que ela protege. Token vazio no servidor
+	// desliga a função inteira - melhor nenhuma resposta do que qualquer um respondendo.
+	//
+	// Se o dono do recado estiver conectado, ele recebe a resposta na hora; senão, na próxima vez que
+	// entrar (ver on_feedback_replies_get).
+	// Arquiva recados já tratados. Quem faz a limpeza é o SERVIDOR, e não uma ferramenta mexendo no
+	// arquivo por fora: o banco está aberto por ele o tempo todo, e duas mãos no mesmo SQLite é
+	// pedir corrupção.
+	void on_admin_resolve_feedback(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		string expected = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+		if (expected == "" || pkt.get_string("token", "") != expected) {
+			result.set_bool("ok", false);
+			result.set_string("message", expected == "" ? "server_has_no_token" : "bad_token");
+			send_to(peer_id, result);
+			return;
+		}
+		int feedback_id = pkt.get_int("feedback_id", 0);
+		if (feedback_id <= 0 || @g_user_db == null) {
+			result.set_bool("ok", false);
+			result.set_string("message", "bad_request");
+			send_to(peer_id, result);
+			return;
+		}
+		int quantos = pkt.get_bool("undo")
+			? g_user_db.unresolve_feedback(feedback_id)
+			: g_user_db.resolve_feedback(feedback_id, pkt.get_bool("until"));
+		result.set_bool("ok", true);
+		result.set_int("count", quantos);
+		send_to(peer_id, result);
+	}
+
+	// Põe (ou tira) o recado fixo do saguão. Texto vazio apaga.
+	//
+	// Ele vale para quem já está conectado NA HORA, e não só para quem entrar depois: o retrato do
+	// saguão é reenviado a todos assim que o recado muda. Do contrário, avisar sobre uma manutenção
+	// só alcançaria quem ainda não tinha chegado - exatamente ao contrário do que se quer.
+	void on_admin_set_notice(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		string expected = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+		if (expected == "" || pkt.get_string("token", "") != expected) {
+			result.set_bool("ok", false);
+			result.set_string("message", expected == "" ? "server_has_no_token" : "bad_token");
+			send_to(peer_id, result);
+			return;
+		}
+		string text = pkt.get_string("text", "").trim_whitespace();
+		// SEM teto: só quem tem o token de administração chega até aqui, então um limite não protege de
+		// ninguém - e o de antes (o do chat, contado em bytes) cortava o recado que se queria deixar.
+		server_notice = text;
+		if (@g_user_db != null) g_user_db.set_setting(SETTING_HALL_NOTICE, text);
+		send_hall_state();
+		result.set_bool("ok", true);
+		result.set_string("notice", server_notice);
+		send_to(peer_id, result);
+	}
+
+	void on_admin_reply(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		string expected = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+		if (expected == "" || pkt.get_string("token", "") != expected) {
+			result.set_bool("ok", false);
+			result.set_string("message", expected == "" ? "server_has_no_token" : "bad_token");
+			send_to(peer_id, result);
+			return;
+		}
+		int feedback_id = pkt.get_int("feedback_id", 0);
+		string text = pkt.get_string("text", "").trim_whitespace();
+		text = utf8_truncate(text, MAX_FEEDBACK_TEXT_LENGTH);
+		if (feedback_id <= 0 || text == "") {
+			result.set_bool("ok", false);
+			result.set_string("message", "bad_request");
+			send_to(peer_id, result);
+			return;
+		}
+		string dono = g_user_db.save_feedback_reply(feedback_id, text);
+		if (dono == "") {
+			result.set_bool("ok", false);
+			result.set_string("message", "feedback_not_found");
+			send_to(peer_id, result);
+			return;
+		}
+		result.set_bool("ok", true);
+		result.set_string("message", "delivered_to:" + dono);
+		send_to(peer_id, result);
+
+		for (uint i = 0; i < connections.length(); i++) {
+			if (connections[i].username == dono) send_feedback_replies(connections[i].peer_id, dono);
+		}
+	}
+
+	// O arquivo é validado ANTES de gravar: tamanho, JSON que abre, language.name presente e um código
+	// de idioma que sirva de nome de arquivo. Não é para julgar a tradução - isso é de quem revisa -
+	// mas um arquivo que nem carrega não vale o espaço no banco, e o jogador merece saber na hora
+	// que mandou algo quebrado, em vez de descobrir semanas depois que foi descartado.
+	void on_send_translation(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ ack = net_packet(S_TRANSLATION_ACK);
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.username == "") { ack.set_bool("ok", false); ack.set_string("message_key", "translation.send_failed"); send_to(peer_id, ack); return; }
+
+		string code = pkt.get_string("code", "").trim_whitespace();
+		string content = pkt.get_string("content", "");
+		string fail = "";
+		if (!is_valid_language_code(code)) fail = "translation.bad_code";
+		else if (BUILTIN_LANGUAGES.find(code) != -1) fail = "translation.builtin";
+		else if (content.length() == 0 || content.length() > MAX_TRANSLATION_BYTES) fail = "translation.too_big";
+		else fail = validate_translation_json(content);
+		if (fail == "") {
+			if (!g_user_db.save_translation(conn.username, code, content)) fail = "translation.send_failed";
+		}
+		ack.set_bool("ok", fail == "");
+		ack.set_string("message_key", fail == "" ? "translation.sent" : fail);
+		send_to(peer_id, ack);
+	}
+
+	// "" se o conteúdo é um JSON de tradução aceitável, senão a chave do motivo.
+	//
+	// Dentro de try/catch porque o parse_json do NVGT LANÇA exceção em JSON malformado em vez de
+	// devolver null - e uma exceção não tratada aqui derruba o servidor inteiro. Descoberto no
+	// teste: um envio com "{" solto matou o processo para todos os jogadores conectados. Conteúdo
+	// que vem da rede nunca pode ter o poder de derrubar o servidor.
+	string validate_translation_json(const string&in content) {
+		try {
+			var@ parsed = parse_json(content);
+			json_object@ obj = @parsed != null ? cast<json_object@>(parsed) : null;
+			if (@obj == null) return "translation.bad_json";
+			if (!obj.exists("language.name")) return "translation.no_name";
+			if (string(obj["language.name"]) == "") return "translation.no_name";
+			return "";
+		} catch {
+			return "translation.bad_json";
+		}
+	}
+
+	// Só letras, dígitos e sublinhado, como "es_LATAM": o código vira nome de arquivo do outro lado,
+	// e um "../x" aqui seria um caminho, não um idioma.
+	bool is_valid_language_code(const string&in code) const {
+		if (code.length() < 2 || code.length() > 16) return false;
+		for (uint i = 0; i < code.length(); i++) {
+			string c = code.substr(i, 1);
+			bool ok = (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c == "_";
+			if (!ok) return false;
+		}
+		return true;
+	}
+
+	bool admin_token_ok(uint64 peer_id, net_packet@ pkt) {
+		string expected = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
+		if (expected != "" && pkt.get_string("token", "") == expected) return true;
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		result.set_bool("ok", false);
+		result.set_string("message", expected == "" ? "server_has_no_token" : "bad_token");
+		send_to(peer_id, result);
+		return false;
+	}
+
+	void on_admin_list_translations(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		net_packet@ out_pkt = net_packet(S_ADMIN_TRANSLATIONS);
+		out_pkt.set_array("items", g_user_db.list_translations());
+		send_to(peer_id, out_pkt);
+	}
+
+	void on_admin_delete_translation(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		bool ok = g_user_db.delete_translation(pkt.get_string("username", ""), pkt.get_string("code", ""));
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		result.set_bool("ok", ok);
+		result.set_string("message", ok ? "deleted" : "delete_failed");
+		send_to(peer_id, result);
+	}
+
+	void on_admin_drain(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		drain_seconds = float(pkt.get_int("seconds", 120));
+		@drain_clock = timer();
+		// Todo mundo conectado ouve, esteja onde estiver: menu, sala de espera, partida.
+		dictionary@ p = dictionary();
+		p.set("minutes", "" + ((int(drain_seconds) + 59) / 60));
+		// Pacote próprio (som, histórico) para quem entende; S_ERROR para cliente anterior ao protocolo 6,
+		// que ignoraria o pacote novo em silêncio - e perderia justamente o aviso de que o servidor cai.
+		net_packet@ aviso = build_message(S_SERVER_NOTICE, "server.restart_in", p);
+		net_packet@ aviso_antigo = build_message(S_ERROR, "server.restart_in", p);
+		for (uint i = 0; i < connections.length(); i++)
+			send_to(connections[i].peer_id, connections[i].protocol_version >= 6 ? aviso : aviso_antigo);
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		result.set_bool("ok", true);
+		result.set_string("message", "draining:" + int(drain_seconds));
+		send_to(peer_id, result);
+	}
+
+	// A versão que o cliente diz ter, se tiver cara de versão ("0.43.0"); senão "unknown". Vem da
+	// máquina do jogador e vira linha no banco.
+	string safe_client_version(const string&in v) {
+		if (v == "" || v.length() > 16) return "unknown";
+		for (uint i = 0; i < v.length(); i++) {
+			string c = v.substr(i, 1);
+			if (c != "." && (c < "0" || c > "9")) return "unknown";
+		}
+		return v;
+	}
+
+	void on_admin_platforms(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		int days = pkt.get_int("days", 30);
+		if (days < 1) days = 1;
+		if (days > 3650) days = 3650;
+		net_packet@ r = net_packet(S_ADMIN_PLATFORMS);
+		r.set_int("days", days);
+		array<string> colunas = {"platform", "version"};
+		array<string> campos = {"platforms", "versions"};
+		for (uint c = 0; c < colunas.length(); c++) {
+			array<int> contagens;
+			array<string>@ nomes = g_user_db.count_client_logins(colunas[c], days, contagens);
+			json_array@ lista = json_array();
+			for (uint i = 0; i < nomes.length(); i++) {
+				json_object@ o = json_object();
+				o.set("name", nomes[i]);
+				o.set("players", contagens[i]);
+				lista.add(o);
+			}
+			r.set_array(campos[c], lista);
+		}
+		send_to(peer_id, r);
+	}
+
+	void on_admin_status(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		net_packet@ st = net_packet(S_ADMIN_STATUS);
+		st.set_int("connections", int(connections.length()));
+		st.set_int("lobbies", int(lobbies.length()));
+		st.set_int("in_progress", int(matches_in_progress()));
+		st.set_int("draining_seconds", draining_seconds_left());
+		// Quem está conectado AGORA, por plataforma (só quem já entrou na conta).
+		for (uint p = 0; p < CLIENT_PLATFORMS.length(); p++) st.set_int("online_" + CLIENT_PLATFORMS[p], 0);
+		st.set_int("online_unknown", 0);
+		for (uint i = 0; i < connections.length(); i++) {
+			if (!connections[i].authenticated) continue;
+			string campo = "online_" + connections[i].client_platform;
+			st.set_int(campo, st.get_int(campo) + 1);
+		}
+		send_to(peer_id, st);
+	}
+
+	// Recado de um jogador para quem faz o jogo. Grava no banco e confirma.
+	//
+	// Exige estar autenticado: sem isso qualquer um que abrisse um socket na porta poderia encher a
+	// tabela, e o recado perderia justamente o que o torna útil - saber de quem veio para poder
+	// perguntar mais.
+	void on_send_feedback(uint64 peer_id, net_packet@ pkt) {
+		net_packet@ ack = net_packet(S_FEEDBACK_ACK);
+
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || conn.username == "") {
+			ack.set_bool("ok", false);
+			send_to(peer_id, ack);
+			return;
+		}
+
+		string text = pkt.get_string("text");
+		if (text == "") {
+			ack.set_bool("ok", false);
+			send_to(peer_id, ack);
+			return;
+		}
+
+		// Corte de tamanho no SERVIDOR, e não só na tela: o cliente é a máquina do jogador, e o que
+		// chega pela rede pode não ter passado pela tela nenhuma. O crash.log tem folga maior porque
+		// é ele que carrega o rastro do erro - cortar curto demais jogaria fora justamente o fim do
+		// arquivo, que é onde está o crash mais recente.
+		text = utf8_truncate(text, MAX_FEEDBACK_TEXT_LENGTH);
+		string crash_log = pkt.get_string("crash_log");
+		if (crash_log.length() > MAX_FEEDBACK_CRASH_LOG_LENGTH) {
+			// Fica com o FINAL: num log que acumula (ver core/crash_log.nvgt), o que interessa é o
+			// último crash, não o primeiro.
+			crash_log = crash_log.substr(crash_log.length() - MAX_FEEDBACK_CRASH_LOG_LENGTH);
+		}
+
+		bool ok = @g_user_db != null && g_user_db.save_feedback(conn.username, text,
+			pkt.get_string("version"), pkt.get_string("language"), pkt.get_bool("in_match"),
+			pkt.get_string("role"), pkt.get_string("room"), crash_log);
+
+		// Também vai para o log do servidor: `kubectl logs` é o jeito mais rápido de ver um recado
+		// chegando ao vivo, sem abrir o banco.
+		if (ok) println("[feedback] " + conn.username + ": " + text);
+
+		ack.set_bool("ok", ok);
+		send_to(peer_id, ack);
+	}
+}
