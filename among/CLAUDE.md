@@ -373,6 +373,14 @@ vai na parte do assunto dele; campo novo, no arquivo principal. Funções soltas
 para outro arquivo incluído - mantendo a ORDEM das globais (ver a armadilha das globais, acima): as
 telas de sala estão em `src/ui/lobby/`, incluídas pelo `lobby_screens.nvgt` nessa ordem.
 
+**O laço da partida do cliente é a classe `match_session`** (`src/game/game_loop.nvgt`): o estado da
+partida são os campos (o porquê de cada um, no construtor), `frame()` é um quadro - uma sequência de
+chamadas, na ordem em que as coisas têm que acontecer - e cada mensagem do servidor tem o seu
+`on_<mensagem>` em `src/game/match/match_net_*.nvgt`, chamado por `handle_packet`. Mensagem nova: um
+`on_` no arquivo do assunto e uma linha no `handle_packet`. Tecla nova: no trecho de teclas certo de
+`match_frame_keys.nvgt`. E a sonda `probe_match_packets.nvgt` entrega mensagens a uma partida de
+mentira, sem servidor nem teclado, e confere o estado - o caso novo entra lá.
+
 **Mudança que só move código se prova por comparação:** `tools\run_probes.ps1 -Saida antes.txt` antes,
 de novo depois, e as duas listas têm que bater (`-Raiz` roda numa cópia - um `git worktree` - para não
 travar a pasta de trabalho durante os ~40 minutos da rodada).

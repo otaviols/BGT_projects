@@ -1,0 +1,362 @@
+// match_frame_keys.nvgt
+// As teclas da partida, na ordem em que o quadro as lê (ver "leia cada tecla UMA vez" no CLAUDE.md).
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: cada método é um trecho do
+// frame(), chamado por ele nesta ordem. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_frame_keys_part {
+	// `!cameras.active`: no posto de câmeras a mesma tecla responde sobre a sala OBSERVADA, e quem
+	// faz isso é o bloco do posto, mais abaixo. Sem esta condição o radar normal também disparava:
+	// no modo jogadores ele PERGUNTA ao servidor (send_radar_scan), o servidor responde pela
+	// posição real de quem perguntou - parado na segurança - e essa resposta chegava depois,
+	// falando por cima. Era esse o "radar continua sendo o do jogador".
+	// Q trava/solta o radar no último alvo; enquanto travado, o radar pergunta e bipa sozinho.
+	// O engolido também usa o radar: ele varre a sala do lobo (ver follow_wolves no servidor).
+	void radar_and_talk_keys() {
+		if (!movement_frozen && !cameras.active) {
+			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_continuous();
+			radar.tick(map, my_x, my_y);
+		}
+		// A tecla de falar e seus modificadores, lidos num lugar só (duas leituras de key_pressed no
+		// mesmo quadro podem dar respostas diferentes): Ctrl abre a lista de silenciar, Shift diz quem
+		// está falando agora, e sozinha - só no modo automático, onde ela não teria função - liga e
+		// desliga o microfone. No modo de segurar, ela é a própria fala e não faz nada aqui.
+		if (action_pressed(ACTION_TALK)) {
+			if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) g_voice.run_mute_menu();
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(who_is_speaking_text());
+			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
+		}
+
+		if (!movement_frozen && !cameras.active && action_pressed(ACTION_RADAR)) {
+			// Fantasma continua enxergando os vivos no radar (só não aparece pra eles, ver on_move) -
+			// igual o Among Us original, onde mortos continuam observando a partida.
+			// Ctrl+Tab troca o modo do radar (jogadores <-> objetos da sala).
+			// Comunicações sabotadas derrubam os DOIS modos: o de jogadores o servidor já recusa, e o
+			// de objetos é resolvido aqui no cliente, então tem que ser barrado aqui. O impostor é
+			// imune à própria sabotagem e continua com o radar inteiro (ver on_radar_scan no servidor).
+			// Quem NÃO faz tarefa de verdade (o time impostor) vê no radar de objetos TODOS os pontos de
+			// tarefa da sala - é o que deixa fingir que está fazendo uma no lugar certo. O tripulante
+			// continua vendo só as SUAS pendentes (ver interactables_in_room). Só o radar: os marcadores
+			// sonoros das tarefas continuam sendo de quem as tem.
+			array<string>@ tarefas_no_radar = my_role.tasks_count_for_crew ? @my_task_object_ids : @all_task_spot_ids;
+			if (comms_down_for(active_sabotage_id, my_role, alive)) speak(tr("sabotage.comms.radar_down"));
+			else if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) radar.toggle_mode();
+			else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) radar.scan_previous(map, my_x, my_y, tarefas_no_radar, active_sabotage_id);
+			else radar.scan_next(map, my_x, my_y, tarefas_no_radar, active_sabotage_id);
+		}
+	}
+
+	// Fantasma (morto ou expulso) entra aqui junto com os vivos porque ele PRECISA conseguir
+	// terminar as tasks dele - é o que mantém viva a chance de vitória dos tripulantes depois de
+	// perder gente. Tudo que não é task fica só pros vivos (ver os testes de "alive" abaixo).
+	// Na barriga do lobo nada disto existe: as teclas respondem com onde ele está, em vez de silêncio.
+	void belly_keys() {
+		if (swallowed && !movement_frozen) {
+			// Onde estou: a sala do lobo, que é onde ele está.
+			if (action_pressed(ACTION_ROOM_INFO)) {
+				map_zone@ zona = map.zone_at(my_x, my_y);
+				dictionary@ lp = dictionary();
+				lp.set("room", @zona != null ? tr(zona.name_key) : tr("game.nothing_nearby"));
+				speak(tr("role.swallowed_where", lp));
+			} else if (action_pressed(ACTION_INTERACT) || action_pressed(ACTION_ABILITY) || action_pressed(ACTION_REPORT)) {
+				speak(tr("role.swallowed_cannot_act"));
+			}
+		}
+	}
+
+	void action_keys() {
+		if (!movement_frozen && !is_vented && !swallowed) {
+			if (action_pressed(ACTION_INTERACT)) {
+				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(room_allows_vents), active_sabotage_id, alive);
+				// Duas recusas que poupam trabalho jogado fora: o scanner é de um de cada vez (o
+				// servidor recusa o segundo, e o scan dele não valeria de prova para ninguém), e um
+				// painel já resolvido não tem mais o que resolver.
+				if (@obj != null && obj.obj_type == OBJ_TASK_SPOT && obj.task_type == "submit_scan" && scanner_busy) {
+					speak(tr("task.scanner_busy"));
+				} else if (@obj != null && obj.obj_type == OBJ_SABOTAGE_PANEL && fixed_sabotage_panels.find(obj.id) != -1) {
+					speak(tr("sabotage.panel_already_fixed"));
+				} else if (@obj != null) {
+					speak(object_name(obj));
+					if (obj.obj_type == OBJ_TASK_SPOT) {
+						// Avisa que abriu: para o scan, é isto que faz o servidor contar a quem está
+						// perto - depois de conferir que a task é mesmo deste jogador.
+						client.send_start_task(obj.id);
+						// A fase decide QUAL etapa da tarefa roda (pegar o galão ou abastecer).
+						uint task_phase = 0;
+						uint task_phases = 1;
+						string chained_next = "";
+						for (uint ti = 0; ti < my_tasks.length(); ti++) {
+							if (my_tasks[ti].object_id != obj.id) continue;
+							task_phase = my_tasks[ti].phase;
+							task_phases = my_tasks[ti].phase_count;
+							chained_next = my_tasks[ti].chain_object(task_phase + 1);
+							break;
+						}
+						bool success = run_task_minigame(client, obj.task_type, task_phase);
+						if (success) {
+							// Tarefa de várias fases: avança para o ponto seguinte em vez de terminar, e
+							// diz para onde ir. O marcador muda de lugar junto. O destino é o da corrente
+							// que o servidor sorteou para ESTE jogador; o mapa só responde por servidor
+							// antigo, que não manda a corrente.
+							string next_object_id = "";
+							if (task_phase + 1 < task_phases)
+								next_object_id = chained_next != "" ? chained_next : map.chain_object_at(obj.task_type, task_phase + 1);
+							if (next_object_id != "") {
+								advance_task_locally(map, audio, my_tasks, my_task_object_ids, obj.id,
+									next_object_id, active_sabotage_id, my_role, alive);
+								string proxima = next_phase_text(map, next_object_id);
+								if (proxima != "") {
+									speak(proxima);
+									events_log.add("", proxima);
+								}
+							} else {
+								// Marca como feita já aqui, sem esperar o servidor confirmar - senão, se o
+								// jogador apertar Enter de novo rápido, a task ainda apareceria "aberta"
+								// (find_interactable só ignora task já com completed=true) até o round-trip
+								// da rede voltar, dando pra abrir ela de novo por engano.
+								mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id, my_role, alive);
+								if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
+							}
+						}
+						client.send_task_input(obj.id, success);
+					} else if (obj.obj_type == OBJ_VENT) {
+						audio.play_object_interact(obj);
+						imp.use_vent(obj.id);
+						current_vent_id = obj.id;
+					} else if (obj.obj_type == OBJ_SABOTAGE_PANEL) {
+						// O conserto é uma minigame (ver sabotage_panels.nvgt); só o resultado vai ao
+						// servidor, que continua decidindo se o painel conta.
+						audio.play_object_interact(obj);
+						if (run_sabotage_panel(client, active_sabotage_id, oxygen_code, obj.id)) imp.fix_sabotage_panel(obj.id);
+					} else if (obj.obj_type == OBJ_SECURITY_CAMERAS) {
+						// Só pede; quem decide é o servidor (o posto é de um de cada vez).
+						client.send_camera_enter();
+					} else if (obj.obj_type == OBJ_EMERGENCY_BUTTON) {
+						crew.call_emergency_meeting();
+					}
+				} else {
+					speak(tr("game.nothing_nearby"));
+				}
+			}
+
+			if (action_pressed(ACTION_REPORT)) {
+				// Capacidade, e não "está vivo?": um papel futuro pode não poder reportar mesmo vivo.
+				if (player_abilities(my_role, alive).can_report_bodies()) crew.report_body();
+				else speak(tr("game.ghost_cannot_interact")); // fantasma não reporta corpo, só faz task
+			}
+
+			if (action_pressed(ACTION_ROOM_INFO)) {
+				map_zone@ zone = map.zone_at(my_x, my_y);
+				dictionary@ p = dictionary();
+				p.set("room", @zone != null ? tr(zone.name_key) : tr("game.nothing_nearby"));
+				p.set("x", "" + int(my_x));
+				p.set("y", "" + int(my_y));
+				speak(tr("game.location_info", p));
+			}
+
+			// G para quem NÃO sabota: o estado da sabotagem (recado #98). O anúncio dela é um só, na
+			// hora em que começa, e quem estava numa task ou chegou no meio da conversa não tem como
+			// perguntar de novo - "está escuro, mas por quê?" é a pergunta que isto responde. A mesma
+			// tecla do menu de sabotagem, de propósito: G é "sabotagem" para todo mundo, e o que ela faz
+			// depende de quem aperta. Os painéis já consertados saem da dica, porque o cliente sabe quais.
+			// Habilidade do papel. Quem não tem ouve isso na hora, em vez de silêncio: uma tecla que
+			// não faz nada parece tecla quebrada. O servidor confere tudo de novo (ver on_use_ability);
+			// a recarga local só poupa a viagem de rede quando a resposta é óbvia.
+			if (action_pressed(ACTION_ABILITY)) {
+				player_abilities me_now(my_role, alive);
+				if (my_role.ability_id == "") speak(tr("role.no_ability"));
+				// O anjo da guarda VIVO cai aqui: o papel dele só age depois de morrer, e dizer
+				// "fantasma não interage" seria exatamente o contrário do que acontece.
+				else if (!me_now.has_ability()) speak(tr(alive ? "role.ability_only_dead" : "game.ghost_cannot_interact"));
+				else if (my_ability_cooldown_remaining > 0.0) {
+					dictionary@ cd = dictionary();
+					cd.set("seconds", "" + int(my_ability_cooldown_remaining + 0.5));
+					speak(tr("role.ability_cooldown", cd));
+				} else if (my_role.ability_id == ABILITY_VANISH && my_invisible_remaining > 0.0) {
+					// Já invisível: diz quanto falta em vez de gastar a recarga de novo.
+					dictionary@ vp = dictionary();
+					vp.set("seconds", "" + int(my_invisible_remaining + 0.5));
+					speak(tr("role.vanish_active", vp));
+				} else if (my_role.ability_id == ABILITY_SHAPESHIFT) {
+					// Já disfarçado, a tecla não abre o menu de novo: ela diz quanto tempo falta.
+					// Sem isto, apertar por engano gastaria a recarga inteira para trocar de cara.
+					if (my_disguise_remaining > 0.0) {
+						dictionary@ dp = dictionary();
+						dp.set("seconds", "" + int(my_disguise_remaining + 0.5));
+						speak(tr("role.shift_active", dp));
+					} else run_shapeshift_menu(client, roster);
+				} else if (my_role.ability_id == ABILITY_ALARM) {
+					// O alarme É o botão de emergência, de qualquer lugar: o mesmo pedido, e o servidor
+					// aplica a mesma contagem, recarga e bloqueios (ver role_noisemaker).
+					crew.call_emergency_meeting();
+				} else if (my_role.ability_id == ABILITY_EAT) {
+					// Mirada como o kill: o mais perto ao alcance. Quem engolir sai do elenco na
+					// confirmação (ver S_ABILITY_RESULT).
+					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE);
+					if (@alvo == null) speak(tr("role.eat_no_target"));
+					else {
+						pending_eat_peer = alvo.peer_id;
+						client.send_use_ability(my_role.ability_id, alvo.peer_id);
+					}
+				} else if (my_role.ability_id == ABILITY_SHIELD) {
+					// Habilidade MIRADA: o alvo é quem estiver mais perto, pela mesma função da
+					// tecla de matar - o anjo tem que ir até a pessoa, como o impostor teria.
+					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, GUARDIAN_SHIELD_RANGE);
+					if (@alvo == null) speak(tr("role.shield_no_target")); // sem viagem de rede à toa
+					else client.send_use_ability(my_role.ability_id, alvo.peer_id);
+				} else {
+					client.send_use_ability(my_role.ability_id);
+				}
+			}
+
+			if (!player_abilities(my_role, alive).can_sabotage() && action_pressed(ACTION_SABOTAGE)) {
+				if (active_sabotage_id == "") speak(tr("sabotage.none_active"));
+				else {
+					string status = tr("sabotage." + active_sabotage_id + ".name") + ".";
+					string hint = sabotage_fix_hint_text(map, active_sabotage_id, fixed_sabotage_panels);
+					if (hint != "") status += " " + hint;
+					speak(status);
+				}
+			}
+
+			player_abilities me(my_role, alive);
+			if (me.can_kill() || me.can_sabotage() || me.can_close_doors()) {
+				if (me.can_kill() && action_pressed(ACTION_KILL)) {
+					// Antes só avisava do cooldown quando já tinha um alvo no alcance - agora sempre diz
+					// o que está impedindo o kill (cooldown, ou ninguém por perto).
+					if (my_kill_cooldown_remaining > 0.0) {
+						dictionary@ cd = dictionary();
+						cd.set("seconds", "" + int(my_kill_cooldown_remaining + 0.5));
+						speak(tr("game.kill_cooldown_remaining", cd));
+					} else {
+						// Parceiro de impostor nunca é alvo: o servidor recusaria (ver try_kill), e além
+						// disso, ignorando ele aqui, estar colado no parceiro não impede mais de matar o
+						// tripulante que está logo atrás dele.
+						roster_entry@ target = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE,
+							impostor_partner_peers);
+						if (@target != null) imp.kill(target.peer_id);
+						else speak(tr("game.kill_no_target_nearby"));
+					}
+				}
+				if (me.can_close_doors() && action_pressed(ACTION_DOORS)) run_doors_menu(imp, map);
+
+				if (me.can_sabotage() && action_pressed(ACTION_SABOTAGE)) {
+					if (active_sabotage_id != "") {
+						// Diz QUAL: o impostor morto que voltou de uma task também perde o anúncio.
+						speak(tr("game.sabotage_already_active") + " " + tr("sabotage." + active_sabotage_id + ".name") + ".");
+					} else if (my_sabotage_cooldown_remaining > 0.0) {
+						dictionary@ cd = dictionary();
+						cd.set("seconds", "" + int(my_sabotage_cooldown_remaining + 0.5));
+						speak(tr("game.sabotage_cooldown_remaining", cd));
+					} else {
+						run_sabotage_menu(imp);
+					}
+				}
+			}
+		}
+	}
+
+	// Ações de dentro do vent (sair ou viajar) - só fazem sentido enquanto vented, por isso ficam
+	// FORA do bloco acima (que exige !is_vented).
+	void vent_keys() {
+		if (player_abilities(my_role, alive).can_vent(room_allows_vents) && !movement_frozen && is_vented && action_pressed(ACTION_VENT)) {
+			run_vent_menu(imp, map, audio, current_vent_id);
+		}
+	}
+
+	// Controles do posto de câmeras. Ficam ANTES do resto e devolvem cedo: enquanto se observa, o
+	// jogador não anda nem interage com o que está à volta dele - é justamente o que torna o posto
+	// arriscado, e misturar as duas coisas deixaria alguém andando "às cegas" pela nave.
+	void camera_keys() {
+		if (cameras.active) {
+			// Os dois lados são lidos UMA vez cada e guardados. Antes a esquerda era consultada de novo
+			// dentro da linha ("key_pressed(KEY_LEFT) ? -1 : 1"), e a segunda leitura não devolve o
+			// mesmo que a primeira - o resultado é que apertar ESQUERDA andava para a direita, e nunca
+			// se voltava à sala anterior. Ler uma vez e guardar não depende dessa sutileza.
+			// As QUATRO setas, em grade: cada uma leva à sala vizinha naquele lado do mapa (ver
+			// camera_view.room_in_direction). Norte é y negativo, como no movimento.
+			bool para_oeste = key_pressed(KEY_LEFT);
+			bool para_leste = key_pressed(KEY_RIGHT);
+			bool para_norte = key_pressed(KEY_UP);
+			bool para_sul = key_pressed(KEY_DOWN);
+			if (para_oeste || para_leste || para_norte || para_sul) {
+				float gx = para_oeste ? -1.0 : (para_leste ? 1.0 : 0.0);
+				float gy = gx != 0.0 ? 0.0 : (para_norte ? -1.0 : 1.0);
+				string destino = cameras.room_in_direction(gx, gy);
+				if (destino != "") {
+					client.send_camera_switch(destino);
+					task_sound_simple(SND_CAMERA_SWITCH);
+				} else {
+					// Borda do mapa naquele lado: dizer, em vez de silêncio, que é o que parece tecla quebrada.
+					speak(tr("camera.no_room_that_way"));
+				}
+			}
+			// Nomes custam uma ação a mais, de propósito: varrer salas é barato, saber QUEM está numa
+			// delas exige parar e pedir.
+			// A pergunta vai ao servidor: quem está dentro de um duto não pode ser contado, e só ele
+			// sabe quem está. A resposta chega em S_CAMERA_PLAYERS, tratada junto dos outros pacotes.
+			if (action_pressed(ACTION_RADAR)) client.send_camera_scan();
+			if (key_pressed(KEY_ESCAPE) || action_pressed(ACTION_INTERACT)) client.send_camera_leave();
+
+			// O ouvinte fica na sala observada: é isso que faz o jogador ouvir os passos e o ambiente
+			// de lá, e deixar de ouvir o próprio entorno.
+			map_zone@ watched = cameras.current_zone();
+			if (@watched != null) audio.update_listener(watched.center_x, watched.center_y);
+		}
+	}
+
+	// Lista de tarefas / tempo da reunião.
+	//
+	// Fica FORA do bloco de ações acima de propósito: aquele bloco exige !movement_frozen, e
+	// durante a reunião é exatamente quando movement_frozen é true - lá dentro, a tecla nunca
+	// chegava a ser lida na reunião, que é justamente onde ela precisa responder.
+	//
+	// Durante a reunião ela diz quanto tempo falta: ninguém decide o que fazer com a lista de
+	// tarefas no meio de uma discussão, mas todo mundo precisa saber se dá tempo de argumentar ou
+	// se é hora de votar. Fora da reunião abre a lista, como sempre - menos dentro do vent, onde
+	// o bloco antigo também não abria.
+	void meeting_and_menu_keys() {
+		if (action_pressed(ACTION_TASK_LIST)) {
+			if (movement_frozen) mui.announce_time_remaining();
+			// Comunicações sabotadas escondem a lista de tarefas também - é o que a sabotagem faz no
+			// original ("esconder as tasks"). Pelo mesmo critério do radar e dos marcadores: impostor
+			// e fantasma continuam vendo a lista.
+			else if (comms_down_for(active_sabotage_id, my_role, alive)) speak(tr("sabotage.comms.tasks_hidden"));
+			else if (!is_vented) run_task_list_menu(client, map, my_tasks, team_task_percent);
+		}
+
+		// O palpite do sniper, a única ação que existe DURANTE a reunião.
+		//
+		// Fica aqui fora pelo mesmo motivo que a lista de tarefas: o bloco de ações exige
+		// !movement_frozen, e a reunião é exatamente quando ele é true. E a tecla é a MESMA da
+		// habilidade (a de sempre), porque para quem joga é a mesma coisa - "usar o que meu papel
+		// tem" -, só que a mesa é o lugar onde este papel age.
+		if (movement_frozen && my_role.ability_id == ABILITY_GUESS && action_pressed(ACTION_ABILITY)) {
+			if (!alive) speak(tr("game.ghost_cannot_interact"));
+			else if (guesses_left_this_meeting == 0) speak(tr("role.guess_none_left"));
+			else run_guess_menu(client, roster, configured_role_ids);
+		}
+
+		if (action_pressed(ACTION_PING) && !ping_pending) {
+			ping_pending = true;
+			ping_clock.restart();
+			client.send_ping();
+		}
+
+		if (action_pressed(ACTION_CHAT)) {
+			// Chat agora só existe em reunião (movement_frozen == true é exatamente o período de
+			// reunião/votação) - ver network/server.on_chat_message pro porquê. Morto só lê.
+			// O servidor também recusa os dois casos; isto aqui só evita a viagem de rede à toa e
+			// responde na hora.
+			if (!movement_frozen) speak(tr("chat.only_in_meeting"));
+			else if (!alive) speak(tr("chat.dead_cannot_send"));
+			else run_chat_compose(client, messages_log);
+		}
+
+		if (alive && action_pressed(ACTION_VOTE)) mui.open_vote_menu_if_active();
+
+		// Leitura do histórico (vírgula, ponto, PageUp/PageDown): uma função só, a mesma que os menus
+		// chamam - ver chat_review em core/chat_log.nvgt.
+		chat_review_keys();
+	}
+}

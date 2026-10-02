@@ -1,0 +1,323 @@
+// match_menus.nvgt
+// Os menus que se abrem no meio da partida (portas, metamorfo, palpite, sabotagem, duto, tarefas) e a tela de resultado.
+//
+// Funções da partida que não dependem do estado dela (recebem o que usam). Incluído pelo
+// src/game/game_loop.nvgt, que declara os #include de todas as partes.
+
+// Menu de fechar portas: lista as SALAS (corredor não entra - a porta é justamente o corredor que
+// dá pra sala escolhida). Fechar prende quem está dentro e barra quem está fora, por alguns segundos.
+// O menu de ações do toque (três dedos na partida): toda ação do jogo numa lista, para o que não
+// cabe num gesto próprio. Escolher uma APERTA a tecla dela, e o laço da partida a trata no quadro
+// seguinte pelo caminho de sempre - o menu não sabe o que cada ação faz, e nem precisa.
+void run_touch_action_menu(game_client@ client) {
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("touch.action_menu");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@m.background_callback = @pump_client_during_game_menu;
+	// Andar fica de fora (é o manche), e falar também: é SEGURAR a tecla, e um menu só aperta.
+	array<int> acoes = {ACTION_INTERACT, ACTION_REPORT, ACTION_ABILITY, ACTION_KILL, ACTION_VOTE,
+		ACTION_TASK_LIST, ACTION_ROOM_INFO, ACTION_RADAR, ACTION_RADAR_LOCK, ACTION_VENT, ACTION_SABOTAGE,
+		ACTION_DOORS, ACTION_CHAT, ACTION_CHAT_PREV, ACTION_CHAT_NEXT, ACTION_CHAT_SWITCH, ACTION_PING};
+	for (uint i = 0; i < acoes.length(); i++) m.add_item(tr(g_keys.bindings[acoes[i]].name_key), "" + acoes[i]);
+	m.run();
+	string escolhido = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (escolhido != "") touch_press(g_keys.key(parse_int(escolhido)));
+}
+
+void run_doors_menu(impostor_controller@ imp, game_map@ map) {
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("game.doors_menu_hint");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = imp.client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	array<map_zone@>@ rooms = map.room_zones();
+	for (uint i = 0; i < rooms.length(); i++) m.add_item(tr(rooms[i].name_key), rooms[i].id);
+
+	m.run();
+	string room_id = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (room_id != "") imp.close_doors(room_id);
+}
+
+// De quem copiar o nome. Lista os VIVOS menos ele mesmo - é a única ação do jogo que alcança
+// alguém do outro lado do mapa, e é de propósito: imitar quem está longe é justamente a jogada,
+// porque a pessoa imitada não está por perto para desmentir.
+//
+// Os parceiros de impostor ficam na lista: virar o parceiro é uma jogada legítima (e arriscada,
+// porque ele também pode estar sendo visto).
+void run_shapeshift_menu(game_client@ client, client_roster@ roster) {
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("role.shift_menu_hint");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	for (uint i = 0; i < roster.entries.length(); i++) {
+		roster_entry@ e = roster.entries[i];
+		if (!e.alive || e.peer_id == client.my_peer_id) continue;
+		m.add_item(e.name, "" + e.peer_id);
+	}
+
+	m.run();
+	string escolhido = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (escolhido != "") client.send_use_ability(ABILITY_SHAPESHIFT, uint64(parse_int(escolhido)));
+}
+
+// O palpite do sniper: em QUEM, e depois QUAL papel.
+//
+// Dois menus em vez de um só com todas as combinações - com 5 vivos e 4 papéis ligados, um menu
+// único teria 20 linhas para percorrer de ouvido, no meio de uma reunião com tempo correndo.
+//
+// A lista de papéis é a que a SALA ligou, e nunca inclui "tripulante" (ver role_is_guessable): com
+// tripulante ali, bastaria apontar qualquer um. Sair no meio (ESC) não gasta o palpite, e é por isso
+// que a confirmação só vai à rede depois do segundo menu.
+void run_guess_menu(game_client@ client, client_roster@ roster, const array<string>&in papeis) {
+	if (papeis.length() == 0) { speak(tr("role.guess_no_roles")); return; }
+
+	ui_sound(SND_DIALOG_OPEN);
+	menu alvos;
+	alvos.intro_text = tr("role.guess_target_hint");
+	alvos.click_sound = "ui/menu_click.ogg";
+	alvos.select_sound = "ui/menu_confirm.ogg";
+	alvos.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@alvos.background_callback = @pump_client_during_game_menu;
+	for (uint i = 0; i < roster.entries.length(); i++) {
+		roster_entry@ e = roster.entries[i];
+		if (!e.alive || e.peer_id == client.my_peer_id) continue;
+		alvos.add_item(e.name, "" + e.peer_id);
+	}
+	alvos.run();
+	string alvo = alvos.selected_item_id;
+	if (alvo == "") { ui_sound(SND_DIALOG_CLOSE); return; }
+
+	menu quais;
+	quais.intro_text = tr("role.guess_role_hint");
+	quais.click_sound = "ui/menu_click.ogg";
+	quais.select_sound = "ui/menu_confirm.ogg";
+	quais.sounds_prefix = "sounds/";
+	@quais.background_callback = @pump_client_during_game_menu;
+	for (uint i = 0; i < papeis.length(); i++) quais.add_item(tr("role." + papeis[i]), papeis[i]);
+	quais.run();
+	string papel = quais.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (papel == "") return;
+
+	client.send_use_ability(ABILITY_GUESS, uint64(parse_int(alvo)), "", papel);
+}
+
+void run_sabotage_menu(impostor_controller@ imp) {
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("game.sabotage_menu_hint");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = imp.client;
+	@m.background_callback = @pump_client_during_game_menu;
+	m.add_item(tr("sabotage.lights.name"), "lights");
+	m.add_item(tr("sabotage.oxygen.name"), "oxygen");
+	m.add_item(tr("sabotage.comms.name"), "comms");
+	m.run();
+	string id = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	if (id != "") imp.trigger_sabotage(id);
+}
+
+// Menu de "dentro do vent": sair aqui, ou viajar (escondido) pra outro vent da mesma rede - a rede
+// inteira conta como "dentro do vent", então não é achado por proximidade que nem outros objetos.
+void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio, string&inout current_vent_id) {
+	map_object@ current_vent = map.find_object(current_vent_id);
+	if (@current_vent == null) return;
+
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("game.vent_menu_hint");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = imp.client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	m.add_item(tr("game.vent_exit"), "__exit__");
+	array<string>@ connections = map.vent_connections(current_vent);
+	for (uint i = 0; i < connections.length(); i++) {
+		map_object@ dest = map.find_object(connections[i]);
+		if (@dest == null) continue;
+		map_zone@ zone = map.find_zone(dest.room_id);
+		dictionary@ p = dictionary();
+		p.set("room", @zone != null ? tr(zone.name_key) : tr(dest.name_key));
+		m.add_item(tr("game.vent_destination", p), dest.id);
+	}
+
+	m.run();
+	string selected_id = m.selected_item_id;
+	ui_sound(SND_DIALOG_CLOSE);
+	// ESC/nada selecionado (id == "") não faz nada - só "Sair" (__exit__) ou um vent de verdade agem.
+	if (selected_id == "__exit__") {
+		// Sair faz o mesmo barulho de porta de vent que entrar - antes só entrar tocava, e sair era
+		// completamente silencioso (nem pra quem sai, nem pra quem está do lado).
+		audio.play_object_interact(current_vent);
+		imp.vent_travel("");
+		current_vent_id = "";
+	} else if (selected_id != "") {
+		// O passo da viagem NÃO é tocado aqui: neste instante o jogador ainda está no vent de origem,
+		// e o som sairia lá no destino, longe demais pra ser ouvido (as bocas ficam em cantos opostos
+		// do mapa). Quem toca é o S_VENT_STATE, depois que a posição do ouvinte muda - ver run_game.
+		imp.vent_travel(selected_id);
+		current_vent_id = selected_id;
+	}
+}
+
+// Menu navegável (setas + Enter/ESC pra fechar) com a lista de tasks do jogador - nome, sala e se já
+// foi feita. Não faz nada ao selecionar um item, é só pra dar pra navegar/ouvir a lista com calma.
+// team_percent é o andamento das tasks de TODA a tripulação (vem do servidor via S_TASK_PROGRESS).
+// Aparece no fim da lista pro tripulante saber quanto falta pra vitória por tasks - e é a única
+// coisa que o impostor vê aqui, porque pra ele isso é o relógio correndo contra: quando chegar em
+// 100% a partida acabou e ele perdeu.
+void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ my_tasks, int team_percent) {
+	dictionary@ team_params = dictionary();
+	team_params.set("percent", "" + team_percent);
+	string team_line = tr("task.team_progress", team_params);
+
+	// Task já feita sai da lista: ela é uma lista de PENDÊNCIAS, e manter as concluídas nela obrigava
+	// o jogador a percorrer tudo de novo pra achar o que ainda falta - justo no fim da partida, que é
+	// quando ele mais consulta. O quanto já foi feito continua sendo dito pela porcentagem abaixo.
+	uint done = 0;
+	array<player_task> pending;
+	for (uint i = 0; i < my_tasks.length(); i++) {
+		if (my_tasks[i].completed) done++;
+		else pending.insert_last(my_tasks[i]);
+	}
+
+	if (my_tasks.length() == 0) {
+		speak(tr("task.list_empty") + " " + team_line); // impostor cai sempre aqui: ele não tem tasks
+		return;
+	}
+	if (pending.length() == 0) {
+		speak(tr("task.all_completed") + " " + team_line);
+		return;
+	}
+
+	ui_sound(SND_DIALOG_OPEN);
+	menu m;
+	m.intro_text = tr("game.tasks_menu_hint");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	for (uint i = 0; i < pending.length(); i++) {
+		map_object@ obj = map.find_object(pending[i].object_id);
+		map_zone@ zone = @obj != null ? map.find_zone(obj.room_id) : null;
+		dictionary@ item = dictionary();
+		item.set("name", @obj != null ? tr(obj.name_key) : tr(pending[i].task_type + ".name"));
+		item.set("room", @zone != null ? tr(zone.name_key) : "");
+		// A categoria entra no item: quem planeja a rota quer saber de antemão se aquela tarefa vai
+		// custar uma travessia da nave ou se resolve ali mesmo.
+		item.set("category", tr(task_category_key(pending[i].task_type)));
+		// Numa tarefa de várias fases, o nome e a sala são os da fase ATUAL (o object_id acompanha a
+		// fase) - dizer em qual delas está é o que impede o jogador de voltar ao ponto já resolvido.
+		if (pending[i].phase_count > 1) {
+			item.set("phase", "" + (pending[i].phase + 1));
+			item.set("phases", "" + pending[i].phase_count);
+			m.add_item(tr("task.list_item_phased", item), pending[i].object_id);
+		} else {
+			m.add_item(tr("task.list_item", item), pending[i].object_id);
+		}
+	}
+
+	dictionary@ p = dictionary();
+	p.set("percent", "" + (done * 100 / my_tasks.length()));
+	m.add_item(tr("task.progress", p), "__progress__");
+	m.add_item(team_line, "__team_progress__");
+	m.add_item(tr("menu.back"), "__back__");
+
+	m.run();
+	ui_sound(SND_DIALOG_CLOSE);
+}
+
+string game_over_reason_text(const string&in reason) {
+	if (reason == "tasks_completed") return tr("game.reason_tasks_completed");
+	if (reason == "impostors_ejected") return tr("game.reason_impostors_ejected");
+	if (reason == "majority") return tr("game.reason_majority");
+	if (reason == "oxygen_depleted") return tr("game.reason_oxygen_depleted");
+	if (reason == "jester_ejected") return tr("game.reason_jester_ejected");
+	if (reason == "wolf_survived") return tr("game.reason_wolf_survived");
+	if (reason == "last_wolf") return tr("game.reason_last_wolf");
+	if (reason == "all_caught") return tr("game.reason_all_caught");
+	return "";
+}
+
+// Tela de fim de partida: lista navegável (setas pra percorrer, Enter/ESC pra fechar) com o
+// resultado, o motivo e o placar - não é uma escolha, é só pra dar pra reler com calma. Sem isso o
+// jogo voltava direto pro navegador de lobbies assim que S_GAME_OVER chegava, cortando o som de
+// vitória/derrota e o anúncio no meio (o run_game() encerra e destrói o audio_manager local quase
+// na hora, então o som mal começava a tocar antes de sumir).
+void run_game_over_screen(game_client@ client, net_packet@ pkt) {
+	string vencedor = game_winner_text(pkt); // tripulação, impostores ou o neutro que venceu sozinho
+
+	menu m;
+	m.intro_text = vencedor;
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	@g_game_menu_pump_client = client;
+	@m.background_callback = @pump_client_during_game_menu;
+
+	m.add_item(vencedor, "winner");
+	string reason_text = game_over_reason_text(pkt.get_string("reason"));
+	if (reason_text != "") m.add_item(reason_text, "reason");
+
+	dictionary@ p = dictionary();
+	p.set("c_alive", "" + pkt.get_int("crewmates_alive"));
+	p.set("c_total", "" + pkt.get_int("crewmates_total"));
+	m.add_item(tr("game.crewmates_survived", p), "crew");
+
+	dictionary@ ip = dictionary();
+	ip.set("i_alive", "" + pkt.get_int("impostors_alive"));
+	ip.set("i_total", "" + pkt.get_int("impostors_total"));
+	m.add_item(tr("game.impostors_survived", ip), "imp");
+
+	// Quem eram os impostores. É o fechamento da partida: sem isso, quem passou a rodada inteira
+	// desconfiando da pessoa errada nunca fica sabendo que estava errado.
+	json_array@ impostors_json = pkt.get_array("impostors");
+	if (@impostors_json != null && impostors_json.length() > 0) {
+		string names = string(impostors_json[0]);
+		for (uint i = 1; i < impostors_json.length(); i++) names += ", " + string(impostors_json[i]);
+		dictionary@ names_params = dictionary();
+		names_params.set("names", names);
+		m.add_item(tr(impostors_json.length() == 1 ? "game.impostor_was" : "game.impostors_were", names_params), "impostor_names");
+	}
+	// E quem era neutro, com o papel - o mesmo fechamento.
+	string neutros = game_neutrals_text(pkt);
+	if (neutros != "") m.add_item(neutros, "neutral_names");
+
+	// Copiar é item de AÇÃO: copia e a tela continua aberta - a pessoa pode querer ouvir de novo
+	// depois de copiar, e fechar sozinho seria surpresa. Vai o resultado inteiro, para colar num
+	// grupo de conversa ou num recado sem ter de ditar o placar.
+	m.add_item(tr("game.copy_result"), "__copy__");
+
+	run_menu_until_next_match(m, client, @copy_game_over_action);
+}
+
+bool copy_game_over_action(menu@ m, const string&in item_id) {
+	if (item_id != "__copy__") return false;
+	array<string> pular = {"__copy__"};
+	speak(tr(copy_to_clipboard(menu_items_as_text(m, pular)) ? "game.result_copied" : "clipboard.failed"));
+	return true;
+}

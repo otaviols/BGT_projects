@@ -1,0 +1,125 @@
+// Sonda do laço da partida do CLIENTE, mensagem por mensagem e sem servidor: monta uma match_session
+// com um início de mentira e entrega a ela o que o servidor mandaria, conferindo o estado depois de
+// cada uma.
+//   nvgt tools/probes/probe_match_packets.nvgt
+//
+// É o que a divisão do laço em classe tornou possível: antes, o tratamento de cada mensagem morava no
+// meio de uma função de 1350 linhas e só rodava com teclado e janela. Mensagem nova ou papel novo que
+// mude o estado da partida: ponha o caso aqui. Muda (sem fala nem som).
+#include "../../src/core/crash_log.nvgt"
+#include "../../src/game/game_loop.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+string calado(const string&in text) { return ""; }
+
+json_object@ jogador(uint64 peer, const string&in nome, float x, float y) {
+	json_object@ o = json_object();
+	o.set("peer_id", peer); o.set("name", nome); o.set("color", int(peer)); o.set("x", x); o.set("y", y);
+	return o;
+}
+
+match_session@ nova_partida(const string&in papel) {
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	c.my_peer_id = 1;
+	net_packet@ inicio = net_packet(S_GAME_START);
+	inicio.set_uint64("your_peer_id", 1);
+	inicio.set_string("your_role", papel);
+	inicio.set_float("your_x", 0.0);
+	inicio.set_float("your_y", 0.0);
+	inicio.set_float("kill_cooldown_seconds", 25.0);
+	inicio.set_float("sabotage_cooldown_seconds", 10.0);
+	json_array@ ps = json_array();
+	ps.add(jogador(1, "eu", 0.0, 0.0));
+	ps.add(jogador(2, "ana", 1.0, 0.0));
+	ps.add(jogador(3, "bia", 2.0, 0.0));
+	inicio.set_array("players", ps);
+	return match_session(c, inicio);
+}
+
+void main() {
+	show_window("sonda: mensagens da partida");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+	@tts_default_text_processing_callback = calado;
+	sound_master_volume = -100;
+	string crash_antes = file_get_contents(crash_log_path());
+
+	println("== tripulante ==");
+	match_session@ p = nova_partida(ROLE_CREWMATE);
+	confere("comeca vivo, andando, sem sabotagem", p.alive && !p.movement_frozen && p.active_sabotage_id == "");
+
+	net_packet@ m = net_packet(S_PLAYER_MOVED);
+	m.set_uint64("peer_id", 2); m.set_float("x", 4.0); m.set_float("y", 1.5);
+	p.handle_packet(m);
+	roster_entry@ ana = p.roster.find(2);
+	confere("movimento de outro jogador atualiza o elenco", @ana != null && ana.x == 4.0 && ana.y == 1.5);
+
+	net_packet@ k = net_packet(S_PLAYER_KILLED);
+	k.set_uint64("peer_id", 3); k.set_uint64("killer_peer", 2); k.set_float("x", 2.0); k.set_float("y", 0.0);
+	p.handle_packet(k);
+	confere("morte de outro: continuo vivo, o corpo passa a ser conhecido", p.alive && p.known_body_peers.length() == 1);
+
+	net_packet@ s = net_packet(S_SABOTAGE_STARTED);
+	s.set_string("sabotage_id", "lights");
+	p.handle_packet(s);
+	confere("sabotagem comeca", p.active_sabotage_id == "lights");
+
+	net_packet@ r = net_packet(S_MEETING_STARTED);
+	r.set_float("gather_x", 7.0); r.set_float("gather_y", 3.0);
+	p.handle_packet(r);
+	confere("reuniao: parado, levado a mesa, corpos somem",
+		p.movement_frozen && p.my_x == 7.0 && p.my_y == 3.0 && p.known_body_peers.length() == 0);
+
+	net_packet@ v = net_packet(S_VOTE_RESULT);
+	v.set_uint64("ejected_peer", 0);
+	p.handle_packet(v);
+	confere("fim da votacao: anda de novo, a sabotagem continua", !p.movement_frozen && p.active_sabotage_id == "lights");
+
+	net_packet@ f = net_packet(S_SABOTAGE_FIXED);
+	f.set_string("sabotage_id", "lights");
+	p.handle_packet(f);
+	confere("sabotagem consertada", p.active_sabotage_id == "");
+
+	net_packet@ eu = net_packet(S_PLAYER_KILLED);
+	eu.set_uint64("peer_id", 1); eu.set_uint64("killer_peer", 2); eu.set_float("x", 0.0); eu.set_float("y", 0.0);
+	p.handle_packet(eu);
+	confere("a propria morte: vira fantasma", !p.alive && !p.mui.alive);
+
+	println("== impostor ==");
+	match_session@ imp = nova_partida(ROLE_IMPOSTOR);
+	imp.my_kill_cooldown_remaining = 0.0;
+	net_packet@ meu = net_packet(S_PLAYER_KILLED);
+	meu.set_uint64("peer_id", 2); meu.set_uint64("killer_peer", 1); meu.set_float("x", 1.0); meu.set_float("y", 0.0);
+	imp.handle_packet(meu);
+	confere("o proprio kill rearma a recarga", imp.my_kill_cooldown_remaining == 25.0);
+	imp.my_kill_cooldown_remaining = 3.0;
+	net_packet@ fim = net_packet(S_VOTE_RESULT);
+	fim.set_uint64("ejected_peer", 0);
+	imp.handle_packet(fim);
+	confere("fim da votacao rearma a recarga de kill", imp.my_kill_cooldown_remaining == 25.0);
+
+	println("== barriga do lobo ==");
+	match_session@ b = nova_partida(ROLE_CREWMATE);
+	net_packet@ engole = net_packet(S_SWALLOWED);
+	engole.set_uint64("wolf_peer", 2);
+	b.handle_packet(engole);
+	confere("engolido: fora da partida, dentro do lobo", b.swallowed && b.wolf_peer == 2 && !b.alive);
+	net_packet@ solta = net_packet(S_BELLY_RELEASED);
+	solta.set_float("x", 5.0); solta.set_float("y", 2.0);
+	json_array@ voltaram = json_array();
+	voltaram.add(1);
+	solta.set_array("peers", voltaram);
+	b.handle_packet(solta);
+	confere("solto: de volta, vivo, onde o lobo estava", !b.swallowed && b.wolf_peer == 0 && b.alive);
+
+	confere("nenhuma excecao (crash.log intocado)", file_get_contents(crash_log_path()) == crash_antes);
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

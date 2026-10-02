@@ -1,0 +1,231 @@
+// match_frame_update.nvgt
+// O que muda sozinho a cada quadro: seguir o lobo, relógios e recargas, o bip de alvo, andar.
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`: cada método é um trecho do
+// frame(), chamado por ele nesta ordem. Enxerga todos os campos da partida; não compila sozinho.
+
+mixin class match_frame_update_part {
+	// Na barriga, o ouvinte vai aonde o lobo vai: é o único jeito de "estar dentro de alguém" soar
+	// como um lugar - os passos dele, a sala por onde ele passa, a mesa quando ele vai à reunião.
+	void follow_wolf() {
+		if (swallowed) {
+			roster_entry@ lobo = roster.find(wolf_peer);
+			if (@lobo != null && (lobo.x != my_x || lobo.y != my_y)) {
+				my_x = lobo.x;
+				my_y = lobo.y;
+				audio.update_listener(my_x, my_y);
+				// A sala por onde o lobo passa, dita como a gente ouve a própria (recado #160): lá dentro
+				// é a única noção de onde se está. Na reunião o lobo é levado à mesa, e isso não é andar.
+				map_zone@ zona_lobo = map.zone_at(my_x, my_y);
+				string id_lobo = @zona_lobo != null ? zona_lobo.id : "";
+				if (id_lobo != last_zone_id) {
+					last_zone_id = id_lobo;
+					if (@zona_lobo != null && !movement_frozen) speak(tr(zona_lobo.name_key));
+				}
+			}
+		}
+	}
+
+	void tick_timers(float delta) {
+		mui.tick_vote_timer();
+		// A voz só é posicionada para quem está VIVO e andando pela nave. Decidido a cada quadro, e
+		// não em cada transição, porque são três transições (morrer, começar reunião, acabar
+		// votação) e esquecer uma deixa o jogador num estado que nada mais corrige: na reunião todos
+		// estão na mesma mesa, e o fantasma fica onde morreu - com posição, ele ouvia a discussão (e
+		// os outros fantasmas, espalhados pelo mapa) de longe, quase inaudível. Morto não tem lugar.
+		g_voice.spatial = alive && !movement_frozen;
+		// E se o microfone pode abrir. Por quadro pelo mesmo motivo: começar e acabar uma reunião
+		// também muda isto, e decidir só nas transições de sabotagem deixava o microfone fechado a
+		// reunião inteira quando as comunicações caíam antes dela.
+		bool radio_down = voice_down_for(active_sabotage_id, alive, movement_frozen, voice_comms_affects_meeting);
+		// Disfarçado fica MUDO. Aqui, e não só na hora de se transformar: isto é recalculado por
+		// quadro e desfaria qualquer decisão tomada numa transição - a mesma armadilha que já
+		// deixou o microfone fechado a reunião inteira. O servidor descarta a voz de quem está
+		// disfarçado de qualquer jeito (ver on_voice_frame); aqui é para não capturar à toa e para
+		// o jogador não achar que está falando.
+		g_voice.allowed = voice_room_allows && !radio_down
+			&& my_disguise_remaining <= 0.0 && my_invisible_remaining <= 0.0;
+
+		if (my_role.can_kill && my_kill_cooldown_remaining > 0.0) {
+			my_kill_cooldown_remaining -= delta;
+			if (my_kill_cooldown_remaining < 0.0) my_kill_cooldown_remaining = 0.0;
+		}
+		if (my_role.can_sabotage && my_sabotage_cooldown_remaining > 0.0) {
+			my_sabotage_cooldown_remaining -= delta;
+			if (my_sabotage_cooldown_remaining < 0.0) my_sabotage_cooldown_remaining = 0.0;
+		}
+		// Parada durante a reunião, como no servidor (ver player.tick_cooldowns).
+		if (my_ability_cooldown_remaining > 0.0 && !movement_frozen) {
+			my_ability_cooldown_remaining -= delta;
+			if (my_ability_cooldown_remaining < 0.0) my_ability_cooldown_remaining = 0.0;
+		}
+		if (my_disguise_remaining > 0.0) {
+			my_disguise_remaining -= delta;
+			if (my_disguise_remaining < 0.0) my_disguise_remaining = 0.0;
+		}
+		// Pega-pega: a contagem do pegador parado. Um número por segundo, com o tique da votação, e o
+		// "valendo" no fim. Dita a TODOS - quem foge precisa dela tanto quanto quem pega.
+		if (head_start > 0.0) {
+			head_start -= delta;
+			int falta = int(head_start + 0.999);
+			if (falta < head_start_said && falta > 0 && (falta <= 5 || falta == 10)) {
+				head_start_said = falta;
+				ui_sound(SND_VOTE_TIMER);
+				dictionary@ hp = dictionary();
+				hp.set("seconds", "" + falta);
+				speak(tr(falta == 10 ? "tag.head_start" : "tag.countdown", hp), false);
+			}
+			if (head_start <= 0.0) {
+				head_start = 0.0;
+				string vale = tr("tag.go");
+				speak(vale);
+				events_log.add("", vale);
+			}
+		}
+		if (my_invisible_remaining > 0.0) {
+			my_invisible_remaining -= delta;
+			if (my_invisible_remaining < 0.0) my_invisible_remaining = 0.0;
+		}
+	}
+
+	// Bip de alvo ao alcance: SÓ para quem pode agir sobre alguém (matar, atirar, proteger), e só
+	// na TRANSIÇÃO de "ninguém por perto" para "alguém ao alcance". É o equivalente sonoro do
+	// botão de matar acendendo no jogo original.
+	//
+	// Não cria informação nova - a posição de todos já chega ao cliente, e isto é só
+	// apresentação -, por isso pode ser preferência pessoal e não regra da sala. E é SEMPRE só
+	// de quem age: tocar no alvo avisaria a vítima de que o impostor está do lado dela.
+	//
+	// Na transição, e não contínuo, pelo mesmo motivo de todo o resto: num jogo em que se está
+	// tentando ouvir passos, um bip repetido por cima é ruído, não ajuda.
+	void target_in_range_beep() {
+		if (g_settings.target_range_beep && !movement_frozen && !is_vented && !swallowed) {
+			player_abilities agora(my_role, alive);
+			float alcance = 0.0;
+			if (agora.can_kill()) alcance = PLAYER_KILL_RANGE;
+			else if (agora.has_ability() && my_role.ability_id == ABILITY_SHIELD) alcance = GUARDIAN_SHIELD_RANGE;
+			else if (agora.has_ability() && my_role.ability_id == ABILITY_EAT) alcance = PLAYER_KILL_RANGE;
+			bool tem_alvo = false;
+			if (alcance > 0.0) {
+				// A mesma função (e as mesmas exclusões) da tecla que vai agir: assim o bip nunca
+				// promete um alvo que a tecla depois recusa.
+				// Os parceiros de impostor entram na exclusão sempre: para quem não é impostor a lista
+				// está vazia, e passá-la de qualquer jeito evita um ternário entre tipos diferentes.
+				@target_in_range_entry = roster.nearest_alive(my_x, my_y, client.my_peer_id, alcance,
+					impostor_partner_peers);
+				tem_alvo = @target_in_range_entry != null;
+			}
+			if (tem_alvo && !target_was_in_range) ui_sound(SND_TARGET_IN_RANGE);
+			target_was_in_range = tem_alvo;
+		}
+	}
+
+	// O pegador não sai do lugar durante a contagem (o servidor recusa o passo de qualquer jeito).
+	void move(float delta) {
+		bool parado_na_largada = head_start > 0.0 && my_role.team == TEAM_IMPOSTOR;
+		if (!movement_frozen && !is_vented && !swallowed && !parado_na_largada) {
+			// Jogador morto (morto ou expulso) ainda se move como fantasma, igual o Among Us original -
+			// só que em silêncio (sem passos/esbarrão) e invisível pra quem tá vivo (o servidor só
+			// retransmite a posição dele pra outros fantasmas, ver network/server.nvgt on_move).
+			// Escondido no vent também não anda por fora - só sai ou viaja pela rede (tecla V).
+			float dx = 0.0, dy = 0.0;
+			if (action_down(ACTION_MOVE_NORTH)) dy -= 1.0;
+			if (action_down(ACTION_MOVE_SOUTH)) dy += 1.0;
+			if (action_down(ACTION_MOVE_WEST)) dx -= 1.0;
+			if (action_down(ACTION_MOVE_EAST)) dx += 1.0;
+
+			if (dx != 0.0 || dy != 0.0) {
+				float len = sqrt(dx * dx + dy * dy);
+				dx /= len;
+				dy /= len;
+				float new_x = my_x + dx * move_speed * delta;
+				float new_y = my_y + dy * move_speed * delta;
+
+				if (map.can_move(my_x, my_y, new_x, new_y, alive)) {
+					my_x = new_x;
+					my_y = new_y;
+					client.send_move(my_x, my_y);
+					// O servidor não devolve a MINHA posição pra mim, então sem isto a minha entrada no
+					// elenco local fica congelada no ponto onde nasci - e o aviso de "jogador por perto"
+					// (nearest_alive) passava a me anunciar a mim mesmo toda vez que eu voltava pra lá.
+					roster.update_position(client.my_peer_id, my_x, my_y);
+					audio.update_listener(my_x, my_y);
+
+					map_zone@ zone = map.zone_at(my_x, my_y);
+
+					// Anúncio automático: sala mudou (ex.: saiu da cafeteria pro corredor) ou entrou/saiu
+					// do alcance de um objeto interativo (botão, painel, vent, task). Só fala na
+					// TRANSIÇÃO, não fica repetindo enquanto parado ou andando dentro da mesma área.
+					string zone_id = @zone != null ? zone.id : "";
+					if (zone_id != last_zone_id) {
+						last_zone_id = zone_id;
+						if (@zone != null) speak(tr(zone.name_key));
+					}
+					map_object@ nearby = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(room_allows_vents), active_sabotage_id, alive);
+					string nearby_id = @nearby != null ? nearby.id : "";
+					if (nearby_id != last_interactable_id) {
+						last_interactable_id = nearby_id;
+						if (@nearby != null) speak(object_name(nearby));
+					}
+
+					// Anúncio de jogador por perto - hoje só o impostor interage com outro jogador (kill),
+					// mas isso pode mudar, e é bom saber que chegou perto de alguém de qualquer forma.
+					roster_entry@ nearby_player = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_INTERACT_RANGE);
+					uint64 nearby_player_id = @nearby_player != null ? nearby_player.peer_id : 0;
+					if (nearby_player_id != last_nearby_player_id) {
+						last_nearby_player_id = nearby_player_id;
+						if (@nearby_player != null) speak(nearby_player.name);
+					}
+
+					// Anúncio de corpo por perto (diz de quem é - reportar continua sendo a tecla R,
+					// separado do simples aviso de proximidade).
+					// Com as comunicações sabotadas esse aviso some junto com o radar e os beacons de task:
+					// é o mesmo tipo de informação (quem é a vítima, sem precisar procurar). O som do
+					// corpo no chão continua tocando, então dar de cara com ele e reportar continua
+					// funcionando - o que a sabotagem tira é saber DE QUEM é o corpo de longe.
+					bool comms_down = comms_down_for(active_sabotage_id, my_role, alive);
+					bool near_body_now = false;
+					for (uint b = 0; b < known_body_positions.length(); b++) {
+						if (distance_2d(my_x, my_y, known_body_positions[b].x, known_body_positions[b].y) <= PLAYER_REPORT_RANGE) {
+							near_body_now = true;
+							if (!near_body_last_frame && !comms_down) {
+								roster_entry@ victim = roster.find(known_body_peers[b]);
+								dictionary@ bp = dictionary();
+								bp.set("name", @victim != null ? victim.name : "");
+								speak(tr("game.body_nearby", bp));
+							}
+							break;
+						}
+					}
+					// Fica em false enquanto as comunicações estão fora: assim, no instante em que o painel
+					// for consertado, quem estiver parado do lado do corpo ouve o aviso na hora.
+					near_body_last_frame = near_body_now && !comms_down;
+
+					// Morto, só se o jogador pediu (ver game_settings.ghost_own_footsteps).
+					if ((alive || g_settings.ghost_own_footsteps) && float(footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
+						footstep_clock.restart();
+						string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
+						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
+					}
+				// Sem exigir estar vivo: o fantasma TAMBÉM é barrado por parede (can_move só o deixa
+				// atravessar PORTA fechada, ver game/map.nvgt), e sem este som ele empurrava contra a
+				// parede sem nenhum retorno - do lado de cá parecia que o jogo tinha travado, porque
+				// nada acontecia e nada era dito. Quem morreu continua tendo tarefas a fazer, então
+				// continua precisando se localizar.
+				} else if (float(wall_bump_clock.elapsed) / 1000.0 >= WALL_BUMP_INTERVAL_SECONDS) {
+					wall_bump_clock.restart();
+					// Barrado por uma PORTA é diferente de barrado por parede: a porta abre sozinha daqui a
+					// pouco, e saber disso muda o que o jogador faz (esperar em vez de procurar outro
+					// caminho). Por isso a porta tem som próprio e ainda fala.
+					map_zone@ blocked_zone = map.zone_at(new_x, new_y);
+					if (@blocked_zone != null && map.is_door_closed(blocked_zone.id)) {
+						speak(tr("game.door_closed"));
+						audio.play_door_bump(my_x, my_y);
+					} else {
+						audio.play_wall_bump(my_x, my_y);
+					}
+				}
+			}
+		}
+	}
+}

@@ -1,0 +1,190 @@
+// match_helpers.nvgt
+// Ajudantes da partida: o que está ao alcance, efeitos de sabotagem, marcadores sonoros, textos.
+//
+// Funções da partida que não dependem do estado dela (recebem o que usam). Incluído pelo
+// src/game/game_loop.nvgt, que declara os #include de todas as partes.
+
+// Retorna o objeto interativo mais próximo dentro do alcance com o qual o jogador pode agir
+// agora (task pendente própria, vent se impostor, painel da sabotagem ATIVA, botão de emergência).
+// active_sabotage_id == "" significa "nenhuma sabotagem rolando" - aí nenhum painel é interativo.
+// `can_use_vents` em vez de `is_impostor`: o que decide se o duto entra na busca é a capacidade de
+// usá-lo, não quem é o jogador - ver game/roles/role_traits.nvgt.
+map_object@ find_interactable(game_map@ map, float x, float y, array<player_task>@ my_tasks, bool can_use_vents,
+		const string&in active_sabotage_id, bool alive = true) {
+	map_object@ best = null;
+	float best_dist = PLAYER_INTERACT_RANGE;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type == OBJ_DECORATION) continue;
+		// Fantasma só interage com as próprias tasks - deixar botão/painel/vent na busca fazia o
+		// objeto mais perto "roubar" a vez da task que ele veio terminar.
+		if (!alive && o.obj_type != OBJ_TASK_SPOT) continue;
+		if (o.obj_type == OBJ_TASK_SPOT) {
+			bool mine = false;
+			for (uint t = 0; t < my_tasks.length(); t++) {
+				if (my_tasks[t].object_id == o.id && !my_tasks[t].completed) { mine = true; break; }
+			}
+			if (!mine) continue;
+		}
+		if (o.obj_type == OBJ_VENT && !can_use_vents) continue;
+		// Painel de sabotagem sem sabotagem ativa (ou de OUTRA sabotagem) não faz nada no servidor -
+		// deixá-lo "interativo" só servia pra ele roubar o Enter de uma task/vent que estivesse no
+		// mesmo alcance e pra ser anunciado como se desse pra usar.
+		if (o.obj_type == OBJ_SABOTAGE_PANEL && o.task_type != active_sabotage_id) continue;
+		// Fantasma não conserta painel - o servidor recusa (ver try_fix_sabotage_panel). Oferecer a
+		// ele era deixá-lo resolver a minigame inteira para ouvir que não valeu, e ainda roubava o
+		// Enter de uma task que estivesse no mesmo alcance.
+		if (o.obj_type == OBJ_SABOTAGE_PANEL && !alive) continue;
+		// Com as luzes apagadas o botão de emergência simplesmente não existe: não é anunciado, não
+		// responde ao Enter e não aparece no radar de objetos (o servidor recusa de qualquer jeito,
+		// ver emergency_button_block_reason).
+		if (o.obj_type == OBJ_EMERGENCY_BUTTON && active_sabotage_id == "lights") continue;
+		float dist = distance_2d(x, y, o.x, o.y);
+		if (dist <= best_dist) {
+			best_dist = dist;
+			@best = o;
+		}
+	}
+	return best;
+}
+
+// footstep_variant_count() e footstep_variant_extension() moraram aqui e agora vivem em
+// audio/sound_catalog.nvgt, junto do resto do que sabe quais arquivos de som existem: o menu de
+// aprender os sons precisa das mesmas contagens, e duas listas separadas acabariam discordando.
+
+// menu.run() bloqueia sem chamar client.update() - mesmo problema já resolvido no navegador de
+// lobbies (ver ui/lobby_screens.nvgt) e no menu de votação (ver ui/meeting_ui.nvgt). Nome próprio
+// aqui só pra não colidir com os globais dos outros arquivos.
+game_client@ g_game_menu_pump_client;
+void pump_client_during_game_menu(menu@ m, string data) {
+	if (@g_game_menu_pump_client != null) g_game_menu_pump_client.update();
+	chat_review_keys(); // reler chat e eventos sem fechar o menu (ver chat_review)
+}
+
+// Liga/desliga o som dos corpos no chão conforme a sabotagem de LUZES. São dois canais diferentes
+// de "achar um corpo", e cada sabotagem derruba um: as luzes tiram o som contínuo do corpo (você
+// não vê o corpo no escuro, então também não o ouve de longe), e as comunicações tiram o aviso
+// falado de quem é a vítima quando você chega perto (é informação, igual ao radar). Uma sabotagem
+// nunca derruba as duas: sempre sobra um jeito de descobrir o corpo.
+// Aplica os efeitos da sabotagem ativa para o estado ATUAL deste jogador.
+//
+// Tem que ser reavaliado quando o jogador MORRE, e não só quando a sabotagem começa e termina.
+// Sabotagem não atinge fantasma (ver core/sabotage_rules.nvgt), mas os efeitos eram ligados no
+// instante em que a sabotagem começava e só desligados quando alguém consertava o painel: quem
+// morria no meio de um apagão ficava com o alcance de audição cortado e sem o som dos corpos pelo
+// resto da sabotagem - cego justamente quem já não tinha mais nada a perder.
+void apply_sabotage_effects(audio_manager@ audio, meeting_ui@ mui, game_map@ map,
+		array<string>@ my_task_object_ids, const string&in active_sabotage_id, role_traits@ role,
+		bool alive, array<uint64>@ known_body_peers, array<vector>@ known_body_positions) {
+	bool lights_out = lights_out_for(active_sabotage_id, role, alive);
+	// O alarme toca para quem PODE fazer algo a respeito. O fantasma não conserta painel, então ele
+	// é só barulho por cima do resto da partida - e era ligado em três lugares diferentes, o que
+	// fazia cada caminho esquecer um deles: quem morria no meio da sabotagem continuava ouvindo, e
+	// a volta da reunião religava o alarme para todo mundo, vivo ou não (recado #96).
+	if (active_sabotage_id != "" && alive) audio.start_sabotage_alarm();
+	else audio.stop_sabotage_alarm();
+	mui.body_sounds_enabled = !lights_out;
+	audio.apply_lights_out(lights_out, NORMAL_AUDIO_MAX_DISTANCE);
+	refresh_body_beacons(audio, known_body_peers, known_body_positions, lights_out);
+	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, role, alive);
+}
+
+// O rádio acabou de cair para este jogador? Serve só para avisá-lo uma vez; quem liga e desliga a
+// captura é o laço principal, a cada quadro (ver g_voice.allowed lá).
+bool voice_just_went_down(bool room_allows, const string&in active_sabotage, bool alive) {
+	return room_allows && g_voice.allowed && voice_down_for(active_sabotage, alive);
+}
+
+// Espera o retrato da sala reaberta que o servidor manda logo depois do fim da partida. Devolve
+// null se ele não vier (servidor mais antigo, ou a sala fechou por não ter sobrado ninguém), e
+// nesse caso o jogador volta ao navegador de partidas como antes.
+//
+// A fila NÃO é esvaziada antes: o retrato costuma chegar enquanto a tela de resultado ainda está
+// aberta (ela bombeia client.update()), então ele já está esperando aqui.
+net_packet@ wait_for_reopened_lobby(game_client@ client) {
+	timer t;
+	while (t.elapsed < 4000) {
+		client.update();
+		if (!client.connected) return null;
+		// Tira da fila SÓ o retrato, deixando o resto intacto. Com poll_message isto engolia tudo o
+		// que viesse junto - e o que vem junto pode ser o S_GAME_START da rodada seguinte, se o
+		// anfitrião já a iniciou. Perdido ele, o jogador voltava para a sala de espera ouvindo o chat
+		// de uma partida que já estava rolando sem ele: o limbo em que ele não conseguia jogar.
+		for (uint i = 0; i < client.incoming.length(); i++) {
+			if (client.incoming[i].type != S_LOBBY_STATE) continue;
+			net_packet@ retrato = client.incoming[i];
+			client.incoming.remove_at(i);
+			return retrato;
+		}
+		wait(10);
+	}
+	return null;
+}
+
+// Quem está falando agora, pronto para falar ao jogador.
+string who_is_speaking_text() {
+	array<string>@ names = g_voice.speaking_names();
+	if (names.length() == 0) return tr("voice.nobody_speaking");
+	dictionary@ p = dictionary();
+	p.set("names", join(names, ", "));
+	return tr("voice.speaking_now", p);
+}
+
+void refresh_body_beacons(audio_manager@ audio, array<uint64>@ body_peers, array<vector>@ body_positions,
+		bool lights_out) {
+	audio.stop_all_body_beacons();
+	if (lights_out) return;
+	for (uint i = 0; i < body_peers.length() && i < body_positions.length(); i++) {
+		audio.start_body_beacon(body_peers[i], body_positions[i].x, body_positions[i].y);
+	}
+}
+
+// Religa os beacons do mapa respeitando a sabotagem em curso: com "comunicações" sabotadas o
+// jogador perde os beacons das PRÓPRIAS tasks (além do radar, que o servidor recusa) - é o
+// equivalente daqui ao "esconder as tasks" do jogo original.
+// Fantasma mantém os marcadores mesmo com as comunicações fora: ele continua fazendo tarefas pelo
+// time e não tem como consertar painel nenhum - ver core/sabotage_rules.nvgt.
+void refresh_landmark_beacons(audio_manager@ audio, game_map@ map, array<string>@ my_task_object_ids,
+		const string&in active_sabotage_id, role_traits@ role, bool alive) {
+	bool comms_down = player_abilities(role, alive).blinded_by_comms(active_sabotage_id);
+	array<string>@ task_ids = comms_down ? null : my_task_object_ids;
+	audio.start_landmark_beacons(map, task_ids, active_sabotage_id);
+}
+
+// "Vá até: Elétrica, Reator." - em que sala(s) fica o painel certo desta sabotagem. Sem isso o
+// anúncio só diz QUAL sabotagem, não para ONDE ir consertar. Painéis já consertados ficam de fora:
+// mandar alguém atravessar a nave para um painel que já saiu do caminho é o que o
+// S_SABOTAGE_PROGRESS existe para evitar. Devolve "" se não há painel a listar.
+string sabotage_fix_hint_text(game_map@ map, const string&in sabotage_id, array<string>@ fixed_panel_ids) {
+	array<string> fix_room_names;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type != OBJ_SABOTAGE_PANEL || o.task_type != sabotage_id) continue;
+		if (@fixed_panel_ids != null && fixed_panel_ids.find(o.id) != -1) continue;
+		map_zone@ z = map.find_zone(o.room_id);
+		string room_name = @z != null ? tr(z.name_key) : "";
+		if (room_name != "" && fix_room_names.find(room_name) == -1) fix_room_names.insert_last(room_name);
+	}
+	if (fix_room_names.length() == 0) return "";
+	dictionary@ hint_params = dictionary();
+	hint_params.set("rooms", join(fix_room_names, ", "));
+	return tr("sabotage.fix_hint", hint_params);
+}
+
+// Som simples de interface do posto de câmeras (sem posição: quem ouve é quem está operando).
+void task_sound_simple(const string&in path) {
+	sound_play(path, vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX), g_settings.volume_db(SOUND_FAMILY_TASKS), 0.0);
+}
+
+// Liga/desliga o zumbido que avisa "esta sala está sendo observada".
+//
+// Ele toca no CENTRO da sala e é ouvido por quem estiver lá - inclusive por quem entrar depois, que
+// é justamente o caso que um aviso pontual não cobriria. Quem está operando a câmera também ouve,
+// porque o ouvinte dele está naquela sala: é o preço de estar olhando, e deixa claro que o outro
+// lado também sabe.
+void refresh_camera_watching_beacon(audio_manager@ audio, game_map@ map, const string&in room_id) {
+	audio.stop_camera_watching();
+	if (room_id == "") return;
+	map_zone@ z = map.find_zone(room_id);
+	if (@z != null) audio.start_camera_watching(z.center_x, z.center_y);
+}
