@@ -543,249 +543,325 @@ bool copy_game_over_action(menu@ m, const string&in item_id) {
 // (S_GAME_OVER) ou até o jogador escolher sair (ESC + confirmação).
 // Devolve o S_LOBBY_STATE da sala REABERTA quando a partida acabou e o grupo continua junto, ou
 // null quando não há para onde voltar (conexão perdida, ou o servidor fechou a sala).
-net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
-	// Uma pausa longa da rede daqui até o laço começar é anotada como carga da partida (ver o
-	// diagnóstico em client.update) - é a suspeita do celular que cai quando a partida começa.
-	g_net_stall_context = "carregando a partida";
-	game_map@ map = build_the_hub_map();
-	audio_manager@ audio = audio_manager();
-	client_roster@ roster = client_roster();
-	radar_ui@ radar = radar_ui(client, audio);
-	crewmate_controller@ crew = crewmate_controller(client);
-	impostor_controller@ imp = impostor_controller(client);
-
-	// Redundante com o que o login já guardou, mas barato: se por algum motivo esse valor estiver
-	// zerado aqui, TODA comparação de peer_id da partida (voto, chat, kill, nome de quem está perto)
-	// aponta pra pessoa errada.
-	uint64 my_peer_id = start_pkt.get_uint64("your_peer_id", client.my_peer_id);
-	if (my_peer_id != 0) client.my_peer_id = my_peer_id;
-
-	// O papel diz o que este jogador PODE; o resto do laço pergunta por capacidade ("posso
-	// ventilar?"), não por identidade ("sou impostor?"). É o que permite acrescentar um papel novo
-	// sem revisitar cada condição do jogo - ver game/roles/role_traits.nvgt.
-	role_traits@ my_role = role_for(start_pkt.get_string("your_role"));
-	// "Time impostor", derivado do papel: é o que a reunião e as regras de sabotagem ainda perguntam.
-	bool is_impostor = my_role.team == TEAM_IMPOSTOR;
-	// Recarga da habilidade do papel, acompanhada localmente como a do kill: o servidor é quem
-	// decide, isto é só para responder na hora sem viagem de rede.
-	// O lobo começa recarregando (ability_starts_on_cooldown); servidor antigo não manda, e aí é zero.
-	float my_ability_cooldown_remaining = start_pkt.get_float("ability_initial_cooldown", 0.0);
-	float ability_cooldown_config = start_pkt.get_float("ability_cooldown_seconds");
-	// Sniper: quantos palpites por reunião a sala deu a ele, e quantos restam nesta mesa.
-	uint my_guess_count = uint(start_pkt.get_int("ability_guesses"));
-	uint guesses_left_this_meeting = 0;
-	// Os papéis que a sala LIGOU - a lista do que o sniper pode chutar. Sai do mesmo `role_counts`
-	// que o pacote já trazia, e na ordem de CONFIGURABLE_ROLE_IDS, que é a ordem que o jogador
-	// aprendeu nas regras da sala.
+// A partida, do ponto de vista deste jogador: tudo que o laço precisa lembrar de um quadro para o outro.
+// Era uma função só (run_game) com dezenas de variáveis locais; virou classe para poder ser dividida
+// por assunto e exercitada por sonda sem teclado nem janela. O porquê de cada campo está onde ele é
+// inicializado, no construtor - que é o antigo começo da função, na mesma ordem.
+class match_session {
+	game_client@ client;
+	net_packet@ start_pkt;
+	game_map@ map;
+	audio_manager@ audio;
+	client_roster@ roster;
+	radar_ui@ radar;
+	crewmate_controller@ crew;
+	impostor_controller@ imp;
+	uint64 my_peer_id;
+	role_traits@ my_role;
+	bool is_impostor;
+	float my_ability_cooldown_remaining;
+	float ability_cooldown_config;
+	uint my_guess_count;
+	uint guesses_left_this_meeting;
 	array<string> configured_role_ids;
-	json_object@ cfg_roles = start_pkt.get_object("role_counts");
-	if (@cfg_roles != null) {
-		for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
-			string rid = CONFIGURABLE_ROLE_IDS[i];
-			if (cfg_roles.exists(rid) && int(cfg_roles[rid]) > 0) configured_role_ids.insert_last(rid);
-		}
-	}
-	// Quanto falta da fantasia do shapeshifter. Só para ele responder à tecla sem ir à rede; quem
-	// desfaz de verdade é o servidor, que avisa por S_SHIFT_ENDED.
-	float my_disguise_remaining = 0.0;
-	// Idem para a invisibilidade do fantasma: o servidor é quem manda, isto é só para a tecla
-	// responder na hora e para o microfone não abrir à toa.
-	float my_invisible_remaining = 0.0;
-	// Bip de alvo ao alcance: guarda se havia alguém no quadro anterior, para o bip tocar na
-	// TRANSIÇÃO e não a cada quadro.
-	bool target_was_in_range = false;
-	roster_entry@ target_in_range_entry = null;
-	// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
-	// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
-	bool alive = true;
-	// Na barriga do Lobo Mau: `alive` é false (sai da votação e do radar de todos), mas não é fantasma -
-	// não anda, não faz tarefa, não usa radar. Vai aonde o lobo for: o ouvinte acompanha a posição dele
-	// (ver o fim do quadro), e é isso que faz a barriga soar como um lugar.
-	bool swallowed = false;
-	uint64 wolf_peer = 0;
-	// Quem o LOBO pediu para engolir: sai do elenco dele quando o servidor confirma, senão o bip de alvo
-	// e a tecla continuariam apontando para quem já está na barriga.
-	uint64 pending_eat_peer = 0;
-	float my_x = start_pkt.get_float("your_x");
-	float my_y = start_pkt.get_float("your_y");
-	roster.load_from_start_packet(start_pkt);
-	// Quem está numa tela bloqueante precisa do elenco para dizer QUEM matou (ver event_speech).
-	@g_match_roster = roster;
-	// As vozes passam a tocar no ponto de cada pessoa (o elenco guarda a posição de todos, inclusive
-	// a minha - ver roster.update_position no movimento). Servidor antigo não manda voice_chat.
-	// A regra da sala vale para a partida inteira; o que muda no meio é a sabotagem de comunicações,
-	// que derruba o rádio enquanto durar (ver voice_down_for).
-	bool voice_room_allows = start_pkt.get_bool("voice_chat", false);
-	// Servidor antigo não manda: nele a reunião nunca era atingida, que era o comportamento de lá.
-	bool voice_comms_affects_meeting = start_pkt.get_bool("comms_affects_meeting", false);
-	g_voice.begin_match(roster, client.my_peer_id, voice_room_allows);
-	// Regras da sala que o cliente aplica sozinho (ver server.on_start_game). Servidor antigo não
-	// manda: nele a velocidade era a fixa de antes e os dutos estavam sempre liberados.
-	float move_speed = start_pkt.get_float("move_speed", 2.2);
-	float footstep_interval = footstep_interval_for(move_speed);
-	bool room_allows_vents = start_pkt.get_bool("vents_enabled", true);
-	// Modo de jogo (pega-pega, todos lobos). No pega-pega, quanto o pegador fica parado no começo: a
-	// contagem é feita aqui, e dita a todos - como o relógio da reunião.
-	string game_mode = start_pkt.get_string("game_mode", GAME_MODE_CLASSIC);
-	float head_start = start_pkt.get_float("head_start", 0.0);
-	int head_start_said = int(head_start) + 1; // o último número dito da contagem
-
-	// Cooldown de kill acompanhado localmente (só é preciso de verdade pro impostor) - o servidor
-	// continua sendo quem decide de fato se o kill vale (ver network/server.on_kill), isso aqui é só
-	// pra dar feedback na hora sem precisar de um round-trip toda vez que aperta a tecla.
-	float kill_cooldown_config = start_pkt.get_float("kill_cooldown_seconds");
-	float my_kill_cooldown_remaining = kill_cooldown_config;
-
-	// Cooldown de sabotagem acompanhado do mesmo jeito. A partida já começa com ele contando (ver
-	// SABOTAGE_INITIAL_COOLDOWN_SECONDS) - quem manda o valor é o servidor, que é quem de fato
-	// recusa a sabotagem cedo demais.
-	float my_sabotage_cooldown_remaining = start_pkt.get_float("sabotage_cooldown_seconds");
-	string active_sabotage_id = "";
-	// Painéis desta sabotagem que já foram resolvidos por alguém (o oxigênio pede dois), e se o
-	// scanner da enfermaria está ocupado. Os dois existem para o jogador não gastar uma travessia da
-	// nave - ou dez segundos parado - por algo que já está resolvido ou não vai valer.
+	json_object@ cfg_roles;
+	float my_disguise_remaining;
+	float my_invisible_remaining;
+	bool target_was_in_range;
+	roster_entry@ target_in_range_entry;
+	bool alive;
+	bool swallowed;
+	uint64 wolf_peer;
+	uint64 pending_eat_peer;
+	float my_x;
+	float my_y;
+	bool voice_room_allows;
+	bool voice_comms_affects_meeting;
+	float move_speed;
+	float footstep_interval;
+	bool room_allows_vents;
+	string game_mode;
+	float head_start;
+	int head_start_said;
+	float kill_cooldown_config;
+	float my_kill_cooldown_remaining;
+	float my_sabotage_cooldown_remaining;
+	string active_sabotage_id;
 	array<string> fixed_sabotage_panels;
-	bool scanner_busy = false;
-	string oxygen_code = ""; // código desta sabotagem de oxigênio, dito ao abrir o painel // "" = nenhuma sabotagem em andamento
-	int team_task_percent = 0; // andamento das tasks da equipe inteira, atualizado por S_TASK_PROGRESS
-	bool is_vented = false;
-	string current_vent_id = "";
-
-	// Corpos conhecidos (pra anunciar "corpo aqui" ao chegar perto) - somem da lista quando alguém
-	// reporta (ver S_BODY_REPORTED abaixo). Arrays paralelos: known_body_peers[i] é a vítima do
-	// corpo em known_body_positions[i].
+	bool scanner_busy;
+	string oxygen_code;
+	int team_task_percent;
+	bool is_vented;
+	string current_vent_id;
 	array<uint64> known_body_peers;
 	array<vector> known_body_positions;
-	bool near_body_last_frame = false;
-
-	chat_log@ messages_log = chat_log();
-	chat_log@ events_log = chat_log();
-	// As teclas de leitura e o registro do que chega com um menu aberto passam a valer para ESTES
-	// históricos, aqui e dentro de qualquer menu da partida (ver chat_review).
-	begin_chat_review(messages_log, events_log);
-
-	meeting_ui@ mui = meeting_ui(client, audio, roster, events_log, is_impostor);
-
+	bool near_body_last_frame;
+	chat_log@ messages_log;
+	chat_log@ events_log;
+	meeting_ui@ mui;
 	array<player_task> my_tasks;
 	array<string> my_task_object_ids;
-	// Todos os pontos de tarefa do mapa: o radar de objetos do impostor (ver a tecla do radar).
 	array<string> all_task_spot_ids;
-	for (uint i = 0; i < map.objects.length(); i++) {
-		if (map.objects[i].obj_type == OBJ_TASK_SPOT) all_task_spot_ids.insert_last(map.objects[i].id);
-	}
-	json_array@ tasks_json = start_pkt.get_array("tasks");
-	if (@tasks_json != null) {
-		for (uint i = 0; i < tasks_json.length(); i++) {
-			json_object@ tj = tasks_json.get_object(i);
-			if (@tj == null) continue; // task malformada não pode derrubar a entrada na partida
-			player_task pt;
-			pt.object_id = string(tj["object_id"]);
-			pt.task_type = string(tj["task_type"]);
-			// Servidor antigo não manda fase: uma fase só, como sempre foi.
-			if (tj.exists("phase")) pt.phase = uint(int(tj["phase"]));
-			if (tj.exists("phase_count")) pt.phase_count = uint(int(tj["phase_count"]));
-			json_array@ chain_json = tj.get_array("chain");
-			if (@chain_json != null) for (uint c = 0; c < chain_json.length(); c++) pt.chain.insert_last(string(chain_json[c]));
-			my_tasks.insert_last(pt);
-			my_task_object_ids.insert_last(pt.object_id);
-		}
-	}
-
-	audio.play_start_game();
-	audio.start_ship_ambience();
-	audio.start_room_ambience(map);
-	refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
-	// Papel + (pro impostor) quem mais é impostor, numa fala só: speak() interrompe a fala anterior
-	// por padrão, então dois speak() seguidos aqui comeriam o anúncio do papel.
-	// A lista de parceiros só existe no pacote de quem é impostor (ver network/server.on_start_game) -
-	// sem ela, dois impostores passavam a partida inteira sem saber que estavam no mesmo time.
-	// A ORDEM do anúncio: cor (no modo cor), depois quantos impostores há / quem são os parceiros, e
-	// só então a descrição do papel. Era a descrição primeiro, e o recado #124 pediu o contrário - com
-	// razão: a descrição é longa, e o que se precisa guardar da abertura é contra quem se está jogando.
-	string role_desc = tr(my_role.assignment_key());
-	string role_text = "";
-	// Modo cor: a cor é a identidade do jogador nesta partida - é por ela que os outros vão chamá-lo.
-	// Vem ANTES do papel, porque é o que ele precisa guardar primeiro.
-	if (start_pkt.get_bool("color_mode", false)) {
-		dictionary@ cp = dictionary();
-		cp.set("color", color_mark(start_pkt.get_int("your_color")));
-		role_text = tr("color_mode.you_are", cp) + " " + role_text;
-	}
-	// Peers dos parceiros de impostor: usados pra nunca mirar um deles ao matar (ver KEY_KILL).
+	json_array@ tasks_json;
+	string role_desc;
+	string role_text;
 	array<uint64> impostor_partner_peers;
-	if (my_role.knows_teammates) {
-		array<string> partner_names;
-		json_array@ partners_json = start_pkt.get_array("impostor_partners");
-		if (@partners_json != null) {
-			for (uint i = 0; i < partners_json.length(); i++) {
-				json_object@ partner = partners_json.get_object(i);
-				if (@partner == null) continue;
-				string partner_name = string(partner["name"]);
-				if (partner_name != "") partner_names.insert_last(partner_name);
-				impostor_partner_peers.insert_last(uint64(partner["peer_id"]));
+	map_zone@ start_zone;
+	string last_zone_id;
+	string last_interactable_id;
+	uint64 last_nearby_player_id;
+	net_packet@ back_to_lobby;
+	frame_timer frame_clock;
+	timer@ footstep_clock;
+	timer@ wall_bump_clock;
+	timer@ ping_clock;
+	bool ping_pending;
+	bool game_over;
+	bool movement_frozen;
+	camera_view cameras;
+	exit_alignment exits;
+	string watched_room_id;
+	// Saiu da partida sem sala para voltar (abandonou, ou a conexão caiu): run_game devolve null.
+	bool abandoned = false;
+
+	match_session(game_client@ client, net_packet@ start_pkt) {
+		@this.client = client;
+		@this.start_pkt = start_pkt;
+		// Uma pausa longa da rede daqui até o laço começar é anotada como carga da partida (ver o
+		// diagnóstico em client.update) - é a suspeita do celular que cai quando a partida começa.
+		g_net_stall_context = "carregando a partida";
+		@map = build_the_hub_map();
+		@audio = audio_manager();
+		@roster = client_roster();
+		@radar = radar_ui(client, audio);
+		@crew = crewmate_controller(client);
+		@imp = impostor_controller(client);
+
+		// Redundante com o que o login já guardou, mas barato: se por algum motivo esse valor estiver
+		// zerado aqui, TODA comparação de peer_id da partida (voto, chat, kill, nome de quem está perto)
+		// aponta pra pessoa errada.
+		my_peer_id = start_pkt.get_uint64("your_peer_id", client.my_peer_id);
+		if (my_peer_id != 0) client.my_peer_id = my_peer_id;
+
+		// O papel diz o que este jogador PODE; o resto do laço pergunta por capacidade ("posso
+		// ventilar?"), não por identidade ("sou impostor?"). É o que permite acrescentar um papel novo
+		// sem revisitar cada condição do jogo - ver game/roles/role_traits.nvgt.
+		@my_role = role_for(start_pkt.get_string("your_role"));
+		// "Time impostor", derivado do papel: é o que a reunião e as regras de sabotagem ainda perguntam.
+		is_impostor = my_role.team == TEAM_IMPOSTOR;
+		// Recarga da habilidade do papel, acompanhada localmente como a do kill: o servidor é quem
+		// decide, isto é só para responder na hora sem viagem de rede.
+		// O lobo começa recarregando (ability_starts_on_cooldown); servidor antigo não manda, e aí é zero.
+		my_ability_cooldown_remaining = start_pkt.get_float("ability_initial_cooldown", 0.0);
+		ability_cooldown_config = start_pkt.get_float("ability_cooldown_seconds");
+		// Sniper: quantos palpites por reunião a sala deu a ele, e quantos restam nesta mesa.
+		my_guess_count = uint(start_pkt.get_int("ability_guesses"));
+		guesses_left_this_meeting = 0;
+		// Os papéis que a sala LIGOU - a lista do que o sniper pode chutar. Sai do mesmo `role_counts`
+		// que o pacote já trazia, e na ordem de CONFIGURABLE_ROLE_IDS, que é a ordem que o jogador
+		// aprendeu nas regras da sala.
+		@cfg_roles = start_pkt.get_object("role_counts");
+		if (@cfg_roles != null) {
+			for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
+				string rid = CONFIGURABLE_ROLE_IDS[i];
+				if (cfg_roles.exists(rid) && int(cfg_roles[rid]) > 0) configured_role_ids.insert_last(rid);
 			}
 		}
-		if (partner_names.length() == 0) {
-			role_text += " " + tr("role.impostor_alone");
-		} else {
-			string joined_partners = partner_names[0];
-			for (uint i = 1; i < partner_names.length(); i++) joined_partners += ", " + partner_names[i];
-			dictionary@ partner_params = dictionary();
-			partner_params.set("names", joined_partners);
-			role_text += " " + tr("role.impostor_partners", partner_params);
+		// Quanto falta da fantasia do shapeshifter. Só para ele responder à tecla sem ir à rede; quem
+		// desfaz de verdade é o servidor, que avisa por S_SHIFT_ENDED.
+		my_disguise_remaining = 0.0;
+		// Idem para a invisibilidade do fantasma: o servidor é quem manda, isto é só para a tecla
+		// responder na hora e para o microfone não abrir à toa.
+		my_invisible_remaining = 0.0;
+		// Bip de alvo ao alcance: guarda se havia alguém no quadro anterior, para o bip tocar na
+		// TRANSIÇÃO e não a cada quadro.
+		target_was_in_range = false;
+		@target_in_range_entry = null;
+		// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
+		// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
+		alive = true;
+		// Na barriga do Lobo Mau: `alive` é false (sai da votação e do radar de todos), mas não é fantasma -
+		// não anda, não faz tarefa, não usa radar. Vai aonde o lobo for: o ouvinte acompanha a posição dele
+		// (ver o fim do quadro), e é isso que faz a barriga soar como um lugar.
+		swallowed = false;
+		wolf_peer = 0;
+		// Quem o LOBO pediu para engolir: sai do elenco dele quando o servidor confirma, senão o bip de alvo
+		// e a tecla continuariam apontando para quem já está na barriga.
+		pending_eat_peer = 0;
+		my_x = start_pkt.get_float("your_x");
+		my_y = start_pkt.get_float("your_y");
+		roster.load_from_start_packet(start_pkt);
+		// Quem está numa tela bloqueante precisa do elenco para dizer QUEM matou (ver event_speech).
+		@g_match_roster = roster;
+		// As vozes passam a tocar no ponto de cada pessoa (o elenco guarda a posição de todos, inclusive
+		// a minha - ver roster.update_position no movimento). Servidor antigo não manda voice_chat.
+		// A regra da sala vale para a partida inteira; o que muda no meio é a sabotagem de comunicações,
+		// que derruba o rádio enquanto durar (ver voice_down_for).
+		voice_room_allows = start_pkt.get_bool("voice_chat", false);
+		// Servidor antigo não manda: nele a reunião nunca era atingida, que era o comportamento de lá.
+		voice_comms_affects_meeting = start_pkt.get_bool("comms_affects_meeting", false);
+		g_voice.begin_match(roster, client.my_peer_id, voice_room_allows);
+		// Regras da sala que o cliente aplica sozinho (ver server.on_start_game). Servidor antigo não
+		// manda: nele a velocidade era a fixa de antes e os dutos estavam sempre liberados.
+		move_speed = start_pkt.get_float("move_speed", 2.2);
+		footstep_interval = footstep_interval_for(move_speed);
+		room_allows_vents = start_pkt.get_bool("vents_enabled", true);
+		// Modo de jogo (pega-pega, todos lobos). No pega-pega, quanto o pegador fica parado no começo: a
+		// contagem é feita aqui, e dita a todos - como o relógio da reunião.
+		game_mode = start_pkt.get_string("game_mode", GAME_MODE_CLASSIC);
+		head_start = start_pkt.get_float("head_start", 0.0);
+		head_start_said = int(head_start) + 1; // o último número dito da contagem
+
+		// Cooldown de kill acompanhado localmente (só é preciso de verdade pro impostor) - o servidor
+		// continua sendo quem decide de fato se o kill vale (ver network/server.on_kill), isso aqui é só
+		// pra dar feedback na hora sem precisar de um round-trip toda vez que aperta a tecla.
+		kill_cooldown_config = start_pkt.get_float("kill_cooldown_seconds");
+		my_kill_cooldown_remaining = kill_cooldown_config;
+
+		// Cooldown de sabotagem acompanhado do mesmo jeito. A partida já começa com ele contando (ver
+		// SABOTAGE_INITIAL_COOLDOWN_SECONDS) - quem manda o valor é o servidor, que é quem de fato
+		// recusa a sabotagem cedo demais.
+		my_sabotage_cooldown_remaining = start_pkt.get_float("sabotage_cooldown_seconds");
+		active_sabotage_id = "";
+		// Painéis desta sabotagem que já foram resolvidos por alguém (o oxigênio pede dois), e se o
+		// scanner da enfermaria está ocupado. Os dois existem para o jogador não gastar uma travessia da
+		// nave - ou dez segundos parado - por algo que já está resolvido ou não vai valer.
+		scanner_busy = false;
+		oxygen_code = ""; // código desta sabotagem de oxigênio, dito ao abrir o painel // "" = nenhuma sabotagem em andamento
+		team_task_percent = 0; // andamento das tasks da equipe inteira, atualizado por S_TASK_PROGRESS
+		is_vented = false;
+		current_vent_id = "";
+
+		// Corpos conhecidos (pra anunciar "corpo aqui" ao chegar perto) - somem da lista quando alguém
+		// reporta (ver S_BODY_REPORTED abaixo). Arrays paralelos: known_body_peers[i] é a vítima do
+		// corpo em known_body_positions[i].
+		near_body_last_frame = false;
+
+		@messages_log = chat_log();
+		@events_log = chat_log();
+		// As teclas de leitura e o registro do que chega com um menu aberto passam a valer para ESTES
+		// históricos, aqui e dentro de qualquer menu da partida (ver chat_review).
+		begin_chat_review(messages_log, events_log);
+
+		@mui = meeting_ui(client, audio, roster, events_log, is_impostor);
+
+		// Todos os pontos de tarefa do mapa: o radar de objetos do impostor (ver a tecla do radar).
+		for (uint i = 0; i < map.objects.length(); i++) {
+			if (map.objects[i].obj_type == OBJ_TASK_SPOT) all_task_spot_ids.insert_last(map.objects[i].id);
 		}
-	} else {
-		// Quantos impostores estão a bordo. O tripulante não sabe QUEM são, mas saber se procura um
-		// ou três muda toda a leitura de uma reunião - sem isso a discussão começa no chute.
-		int impostor_count = start_pkt.get_int("impostor_count", 1);
-		dictionary@ count_params = dictionary();
-		count_params.set("count", "" + impostor_count);
-		role_text += " " + tr(impostor_count == 1 ? "role.impostor_count_one" : "role.impostor_count_many", count_params);
+		@tasks_json = start_pkt.get_array("tasks");
+		if (@tasks_json != null) {
+			for (uint i = 0; i < tasks_json.length(); i++) {
+				json_object@ tj = tasks_json.get_object(i);
+				if (@tj == null) continue; // task malformada não pode derrubar a entrada na partida
+				player_task pt;
+				pt.object_id = string(tj["object_id"]);
+				pt.task_type = string(tj["task_type"]);
+				// Servidor antigo não manda fase: uma fase só, como sempre foi.
+				if (tj.exists("phase")) pt.phase = uint(int(tj["phase"]));
+				if (tj.exists("phase_count")) pt.phase_count = uint(int(tj["phase_count"]));
+				json_array@ chain_json = tj.get_array("chain");
+				if (@chain_json != null) for (uint c = 0; c < chain_json.length(); c++) pt.chain.insert_last(string(chain_json[c]));
+				my_tasks.insert_last(pt);
+				my_task_object_ids.insert_last(pt.object_id);
+			}
+		}
+
+		audio.play_start_game();
+		audio.start_ship_ambience();
+		audio.start_room_ambience(map);
+		refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
+		// Papel + (pro impostor) quem mais é impostor, numa fala só: speak() interrompe a fala anterior
+		// por padrão, então dois speak() seguidos aqui comeriam o anúncio do papel.
+		// A lista de parceiros só existe no pacote de quem é impostor (ver network/server.on_start_game) -
+		// sem ela, dois impostores passavam a partida inteira sem saber que estavam no mesmo time.
+		// A ORDEM do anúncio: cor (no modo cor), depois quantos impostores há / quem são os parceiros, e
+		// só então a descrição do papel. Era a descrição primeiro, e o recado #124 pediu o contrário - com
+		// razão: a descrição é longa, e o que se precisa guardar da abertura é contra quem se está jogando.
+		role_desc = tr(my_role.assignment_key());
+		role_text = "";
+		// Modo cor: a cor é a identidade do jogador nesta partida - é por ela que os outros vão chamá-lo.
+		// Vem ANTES do papel, porque é o que ele precisa guardar primeiro.
+		if (start_pkt.get_bool("color_mode", false)) {
+			dictionary@ cp = dictionary();
+			cp.set("color", color_mark(start_pkt.get_int("your_color")));
+			role_text = tr("color_mode.you_are", cp) + " " + role_text;
+		}
+		// Peers dos parceiros de impostor: usados pra nunca mirar um deles ao matar (ver KEY_KILL).
+		if (my_role.knows_teammates) {
+			array<string> partner_names;
+			json_array@ partners_json = start_pkt.get_array("impostor_partners");
+			if (@partners_json != null) {
+				for (uint i = 0; i < partners_json.length(); i++) {
+					json_object@ partner = partners_json.get_object(i);
+					if (@partner == null) continue;
+					string partner_name = string(partner["name"]);
+					if (partner_name != "") partner_names.insert_last(partner_name);
+					impostor_partner_peers.insert_last(uint64(partner["peer_id"]));
+				}
+			}
+			if (partner_names.length() == 0) {
+				role_text += " " + tr("role.impostor_alone");
+			} else {
+				string joined_partners = partner_names[0];
+				for (uint i = 1; i < partner_names.length(); i++) joined_partners += ", " + partner_names[i];
+				dictionary@ partner_params = dictionary();
+				partner_params.set("names", joined_partners);
+				role_text += " " + tr("role.impostor_partners", partner_params);
+			}
+		} else {
+			// Quantos impostores estão a bordo. O tripulante não sabe QUEM são, mas saber se procura um
+			// ou três muda toda a leitura de uma reunião - sem isso a discussão começa no chute.
+			int impostor_count = start_pkt.get_int("impostor_count", 1);
+			dictionary@ count_params = dictionary();
+			count_params.set("count", "" + impostor_count);
+			role_text += " " + tr(impostor_count == 1 ? "role.impostor_count_one" : "role.impostor_count_many", count_params);
+		}
+		// Os papéis em jogo NÃO são anunciados aqui, e isso é decisão.
+		//
+		// Eles já estão nas regras da sala (tecla C na sala de espera), que qualquer um lê antes de
+		// começar: repetir na abertura era uma parede de texto por cima do anúncio do papel, que é a
+		// única coisa que o jogador precisa ouvir naquele instante.
+		//
+		// O `role_counts`/`role_chances` continua chegando no pacote porque o cliente não tem outro
+		// acesso à configuração da sala depois que a partida começa - quem um dia quiser uma tecla que
+		// responda "o que está em jogo aqui?" já tem o dado à mão (ver roles_in_play_text).
+		role_text += " " + role_desc;
+		// O modo vem por último: ele muda a regra de tudo o que veio antes ("aqui não há reunião").
+		if (game_mode == GAME_MODE_TAG) role_text += " " + tr("mode.tag_intro");
+		else if (game_mode == GAME_MODE_WOLVES) role_text += " " + tr("mode.wolves_intro");
+		while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
+		speak(role_text);
+		events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
+		audio.update_listener(my_x, my_y);
+
+		// Anúncio automático de sala/objeto - guarda o que foi anunciado por último pra só falar de novo
+		// quando muda (entrar/sair de uma sala, entrar/sair do alcance de um objeto interativo).
+		@start_zone = map.zone_at(my_x, my_y);
+		last_zone_id = @start_zone != null ? start_zone.id : "";
+		last_interactable_id = "";
+		last_nearby_player_id = 0;
+
+		// Retrato da sala reaberta no fim da partida (ver o tratamento de S_GAME_OVER).
+		@back_to_lobby = null;
+
+		@footstep_clock = timer();
+		@wall_bump_clock = timer();
+		@ping_clock = timer();
+		ping_pending = false;
+		game_over = false;
+		movement_frozen = false; // true durante reunião/votação - todo mundo parado na cafeteria
+		// Posto de câmeras (ver ui/camera_screen.nvgt). `watched_room_id` é a sala que a partida INTEIRA
+		// sabe estar sob observação - é o que faz o zumbido tocar para quem está lá dentro, mesmo que
+		// quem observa seja outra pessoa.
+		cameras.build_room_list(map);
+		// o aviso de alinhado com uma saída da sala (campo: exits)
+		watched_room_id = "";
+
 	}
-	// Os papéis em jogo NÃO são anunciados aqui, e isso é decisão.
-	//
-	// Eles já estão nas regras da sala (tecla C na sala de espera), que qualquer um lê antes de
-	// começar: repetir na abertura era uma parede de texto por cima do anúncio do papel, que é a
-	// única coisa que o jogador precisa ouvir naquele instante.
-	//
-	// O `role_counts`/`role_chances` continua chegando no pacote porque o cliente não tem outro
-	// acesso à configuração da sala depois que a partida começa - quem um dia quiser uma tecla que
-	// responda "o que está em jogo aqui?" já tem o dado à mão (ver roles_in_play_text).
-	role_text += " " + role_desc;
-	// O modo vem por último: ele muda a regra de tudo o que veio antes ("aqui não há reunião").
-	if (game_mode == GAME_MODE_TAG) role_text += " " + tr("mode.tag_intro");
-	else if (game_mode == GAME_MODE_WOLVES) role_text += " " + tr("mode.wolves_intro");
-	while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
-	speak(role_text);
-	events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
-	audio.update_listener(my_x, my_y);
 
-	// Anúncio automático de sala/objeto - guarda o que foi anunciado por último pra só falar de novo
-	// quando muda (entrar/sair de uma sala, entrar/sair do alcance de um objeto interativo).
-	map_zone@ start_zone = map.zone_at(my_x, my_y);
-	string last_zone_id = @start_zone != null ? start_zone.id : "";
-	string last_interactable_id = "";
-	uint64 last_nearby_player_id = 0;
-
-	// Retrato da sala reaberta no fim da partida (ver o tratamento de S_GAME_OVER).
-	net_packet@ back_to_lobby = null;
-
-	frame_timer frame_clock;
-	timer@ footstep_clock = timer();
-	timer@ wall_bump_clock = timer();
-	timer@ ping_clock = timer();
-	bool ping_pending = false;
-	bool game_over = false;
-	bool movement_frozen = false; // true durante reunião/votação - todo mundo parado na cafeteria
-	// Posto de câmeras (ver ui/camera_screen.nvgt). `watched_room_id` é a sala que a partida INTEIRA
-	// sabe estar sob observação - é o que faz o zumbido tocar para quem está lá dentro, mesmo que
-	// quem observa seja outra pessoa.
-	camera_view cameras;
-	cameras.build_room_list(map);
-	exit_alignment exits; // o aviso de alinhado com uma saída da sala
-	string watched_room_id = "";
-
-	while (!game_over) {
+	// Um quadro da partida. Devolve false quando o laço deve parar (a partida acabou, ou o jogador saiu).
+	bool frame() {
 		wait(5);
 		client.update();
 		// Gestos: enquanto este laço roda, a tela de toque está no modo PARTIDA (manche e gestos de
@@ -1296,14 +1372,15 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 			@pkt = client.poll_message();
 		}
 		@g_logging_packet = null;
-		if (game_over) break;
+		if (game_over) return false;
 		// Conexão caiu (o servidor reiniciou, a internet foi embora): sem isto o laço continuava
 		// rodando para sempre - o jogador andava por uma nave onde ninguém mais ouvia ninguém, sem
 		// nenhum aviso. Quem chama (run_session) vê connected == false e volta ao menu inicial.
 		if (!client.connected) {
 			speak(tr("net.connection_lost"));
 			end_chat_review();
-			return null;
+			abandoned = true;
+			return false;
 		}
 
 		float delta = frame_clock.tick(); // sem perder frações - ver core/frame_timer.nvgt
@@ -1883,16 +1960,29 @@ net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 				audio.stop_landmark_beacons();
 				@g_match_roster = null;
 				end_chat_review();
-				return null; // abandonou a partida: não há sala para voltar
+				abandoned = true; // abandonou a partida: não há sala para voltar
+				return false;
 			}
 		}
+		return !game_over;
 	}
-	audio.stop_ship_ambience();
-	audio.stop_room_ambience();
-	audio.stop_landmark_beacons();
-	@g_match_roster = null; // o elenco morre com a partida
-	end_chat_review();
-	return back_to_lobby;
+
+	// O fim da partida: devolve o retrato da sala reaberta, ou null se o jogador saiu sem sala.
+	net_packet@ finish() {
+		if (abandoned) return null;
+		audio.stop_ship_ambience();
+		audio.stop_room_ambience();
+		audio.stop_landmark_beacons();
+		@g_match_roster = null; // o elenco morre com a partida
+		end_chat_review();
+		return back_to_lobby;
+	}
+}
+
+net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
+	match_session partida(client, start_pkt);
+	while (partida.frame()) {}
+	return partida.finish();
 }
 
 bool my_tasks_all_completed(array<player_task>@ tasks) {

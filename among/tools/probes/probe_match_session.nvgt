@@ -1,0 +1,76 @@
+// Sonda do laço da partida do CLIENTE (match_session, em src/game/game_loop.nvgt), sem teclado:
+// entra numa partida de verdade com bots e roda os quadros dela, tratando o que o servidor manda.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_match_session.nvgt
+//
+// Existe porque o laço da partida era a única parte grande do jogo que nenhuma sonda alcançava: só
+// rodava com teclado e janela. Cobre o tratamento de pacotes (movimento dos bots, mortes, reunião,
+// sabotagem) - uma exceção dentro dele vai para o crash.log, e é isso que a sonda confere. Muda: sem
+// fala nem som, para não falar por cima do leitor de tela de quem roda.
+#include "../../src/core/crash_log.nvgt"
+#include "../../src/game/game_loop.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+string calado(const string&in text) { return ""; }
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	show_window("sonda: laço da partida");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+	@tts_default_text_processing_callback = calado;
+	sound_master_volume = -100;
+
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	string nome = "laco" + random(1000, 9999);
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+	c.my_peer_id = lr.get_uint64("peer_id");
+
+	lobby_overrides ov;
+	c.send_create_lobby("laco" + random(1000, 9999), "quick", ov);
+	if (@wf(c, S_LOBBY_STATE, 5000) == null) { println("FALHA: sala nao criada"); return; }
+	for (int i = 0; i < 5; i++) { c.send_add_bot(); wf(c, S_LOBBY_STATE, 3000); }
+	c.clear_incoming();
+	c.send_start_game();
+	net_packet@ inicio = wf(c, S_GAME_START, 8000);
+	confere("a partida comecou", @inicio != null);
+	if (@inicio == null) return;
+
+	string antes = file_get_contents(crash_log_path());
+	match_session partida(c, inicio);
+	timer relogio;
+	uint quadros = 0;
+	bool continua = true;
+	// 40 s: o bastante para os bots andarem, alguém morrer e, com sorte, uma reunião.
+	while (relogio.elapsed < 40000 && continua) {
+		continua = partida.frame();
+		quadros++;
+	}
+	println("quadros: " + quadros + ", vivo: " + partida.alive + ", corpos conhecidos: " + partida.known_body_peers.length()
+		+ ", posicao: " + partida.my_x + "," + partida.my_y + ", fim: " + partida.game_over);
+	confere("rodou quadros sem travar (" + quadros + ")", quadros > 1000);
+	confere("nenhuma excecao no tratamento de pacotes (crash.log intocado)", file_get_contents(crash_log_path()) == antes);
+	confere("o elenco foi carregado do inicio", partida.roster.entries.length() >= 5);
+	partida.abandoned = true;
+	confere("abandonar devolve null", @partida.finish() == null);
+	c.send_leave_lobby();
+	c.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
