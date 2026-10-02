@@ -384,6 +384,11 @@ mixin class server_match_part {
 		if (!lobby.try_move_player(peer_id, x, y)) return;
 
 		game_player@ p = lobby.find_player(peer_id);
+		// O arrasto do carregador soa no ritmo de um passo enquanto ele anda (ver role_carrier).
+		if (@p != null && lobby.is_carrying(peer_id) && lobby.elapsed_time >= p.next_drag_sound) {
+			p.next_drag_sound = lobby.elapsed_time + BODY_DRAG_SOUND_INTERVAL;
+			broadcast_body_sound(lobby, "drag", x, y);
+		}
 		// Escondido no duto ou invisível não transmite posição - e é a posição que os outros clientes
 		// transformam em PASSOS. Sem isto, o fantasma seria invisível no radar e continuaria pisando
 		// alto pela nave, que num jogo em que o passo é a pista principal não é invisibilidade
@@ -474,6 +479,9 @@ mixin class server_match_part {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
 		uint64 target_peer = pkt.get_uint64("target_peer");
+		// As mãos do carregador estão ocupadas: carregando, não mata. Antes da recarga, porque é o motivo
+		// que diz o que fazer (largar o corpo) - "recarregando" logo depois de um kill esconderia isso.
+		if (lobby.is_carrying(peer_id)) { send_error(peer_id, "role.carrying_cannot_kill"); return; }
 
 		// Antes falhava em silêncio (o impostor apertava matar, nada acontecia, e não tinha como
 		// saber se foi cooldown, alcance, ou alvo já morto) - agora pelo menos o caso mais comum

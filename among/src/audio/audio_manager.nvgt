@@ -290,6 +290,11 @@ class audio_manager {
 		spatial.play_once(SND_SHAPE_SHIFT, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
+	// Limpar ("clean") ou arrastar ("drag") um corpo, no ponto onde acontece.
+	void play_body_sound(const string&in kind, float x, float y) {
+		spatial.play_once(kind == "clean" ? SND_BODY_CLEAN : SND_BODY_DRAG, x, y, family_db(SOUND_FAMILY_EVENTS));
+	}
+
 	// Posicionado: para o lobo e o engolido o ponto é onde eles mesmos estão, então soa "em cima".
 	void play_wolf_swallow(float x, float y) {
 		spatial.play_once(SND_WOLF_SWALLOW, x, y, family_db(SOUND_FAMILY_EVENTS));

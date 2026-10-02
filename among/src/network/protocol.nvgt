@@ -188,6 +188,14 @@ const string S_SWALLOWED = "s_swallowed";                // {wolf_peer, wolf_nam
 // Para a partida inteira, menos o lobo e o engolido: o SOM de engolir no ponto onde aconteceu, e nada
 // mais - nem quem engoliu, nem quem foi engolido.
 const string S_SWALLOW_SOUND = "s_swallow_sound";        // {x, y}
+// Um corpo saiu do mapa: o lixeiro o limpou, ou o carregador o pegou. Para todos - todo cliente
+// guarda os corpos para o som e para o reporte, e um corpo que só sumisse no servidor continuaria
+// tocando no cliente. Não diz quem nem por quê.
+const string S_BODY_REMOVED = "s_body_removed";          // {peer_id (o morto)}
+// O carregador largou o corpo: ele volta a existir, no lugar novo.
+const string S_BODY_PLACED = "s_body_placed";            // {peer_id (o morto), x, y}
+// O som de limpar ou de arrastar um corpo, posicionado e sem nome.
+const string S_BODY_SOUND = "s_body_sound";              // {kind: "clean"|"drag", x, y}
 // O lobo saiu do jogo (morto, expulso, saiu): quem estava na barriga volta vivo em (x, y). Para todos.
 const string S_BELLY_RELEASED = "s_belly_released";      // {peers: [peer_id...], x, y}
 const string S_BODY_REPORTED = "s_body_reported";         // {reporter_peer, body_peer, room_key} - room_key = chave i18n da sala onde o corpo estava

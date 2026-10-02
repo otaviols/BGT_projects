@@ -66,6 +66,19 @@ void main() {
 	p.handle_packet(k);
 	confere("morte de outro: continuo vivo, o corpo passa a ser conhecido", p.alive && p.known_body_peers.length() == 1);
 
+	// Lixeiro e carregador: o corpo some, e o largado reaparece no lugar novo.
+	net_packet@ sumiu = net_packet(S_BODY_REMOVED);
+	sumiu.set_uint64("peer_id", 3);
+	p.handle_packet(sumiu);
+	confere("corpo removido sai da lista de corpos", p.known_body_peers.length() == 0);
+	net_packet@ largado = net_packet(S_BODY_PLACED);
+	largado.set_uint64("peer_id", 3); largado.set_float("x", 9.0); largado.set_float("y", 4.0);
+	p.handle_packet(largado);
+	confere("corpo largado volta, no lugar novo", p.known_body_peers.length() == 1 && p.known_body_positions[0].x == 9.0);
+	net_packet@ som = net_packet(S_BODY_SOUND);
+	som.set_string("kind", "drag"); som.set_float("x", 9.0); som.set_float("y", 4.0);
+	p.handle_packet(som);
+
 	net_packet@ s = net_packet(S_SABOTAGE_STARTED);
 	s.set_string("sabotage_id", "lights");
 	p.handle_packet(s);
@@ -74,11 +87,12 @@ void main() {
 	net_packet@ r = net_packet(S_MEETING_STARTED);
 	r.set_float("gather_x", 7.0); r.set_float("gather_y", 3.0);
 	p.handle_packet(r);
-	confere("reuniao: parado, levado a mesa, corpos somem",
+	confere("reuniao: parado, levado a mesa, corpos somem (inclusive o largado)",
 		p.movement_frozen && p.my_x == 7.0 && p.my_y == 3.0 && p.known_body_peers.length() == 0);
 
 	net_packet@ v = net_packet(S_VOTE_RESULT);
 	v.set_uint64("ejected_peer", 0);
+	v.set_string("swapped_a", "ana"); v.set_string("swapped_b", "bia"); // a troca do trocador, anunciada
 	p.handle_packet(v);
 	confere("fim da votacao: anda de novo, a sabotagem continua", !p.movement_frozen && p.active_sabotage_id == "lights");
 

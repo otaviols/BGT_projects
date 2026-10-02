@@ -305,6 +305,9 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		// public_name: quem sai NO MEIO de uma partida em modo cor é anunciado pela cor - o nome
 		// diria de quem era aquela cor. Fora de partida é o nome, como sempre.
 		if (@p != null) left_name = p.public_name();
+		// Quem sai carregando um corpo o larga ali, senão o corpo sairia da partida junto com ele.
+		net_packet@ largado = lobby.drop_carried_body(p);
+		if (@largado != null) broadcast_to_lobby(lobby, largado, peer_id);
 
 		// Durante uma partida em andamento, remover o jogador do array quebraria a contagem de
 		// vivos (alive_crewmate_count()/alive_impostor_count()) usada pra decidir quem venceu -

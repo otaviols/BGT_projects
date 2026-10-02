@@ -337,6 +337,12 @@ mixin class match_frame_keys_part {
 			else run_guess_menu(client, roster, configured_role_ids);
 		}
 
+		// A troca do trocador, também só na mesa e pela mesma tecla.
+		if (movement_frozen && my_role.ability_id == ABILITY_SWAP && action_pressed(ACTION_ABILITY)) {
+			if (!alive) speak(tr("game.ghost_cannot_interact"));
+			else run_swap_menu(client, roster);
+		}
+
 		if (action_pressed(ACTION_PING) && !ping_pending) {
 			ping_pending = true;
 			ping_clock.restart();

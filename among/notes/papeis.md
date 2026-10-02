@@ -328,6 +328,27 @@ custaram uma execução: o botão de emergência tem recarga de 15 s **e** cada 
 reunião por partida - a segunda reunião precisa de outra pessoa chamando, e de insistência em vez de
 um instante chutado.
 
+**Prefeito, Trocador, Lixeiro e Carregador (0.47.0, protocolo 10).** Decisões do usuário e o porquê:
+- **Prefeito: o peso mora no papel (`vote_weight`) e só a APURAÇÃO o lê** (`tally_votes`). A lista de
+  quem votou em quem o mostra uma vez - anunciar o prefeito o faria primeiro alvo e dono da mesa.
+- **Trocador: a troca é anunciada no resultado (`swapped_a/b` no `S_VOTE_RESULT`), sem dizer quem
+  trocou.** Sem o aviso, uma expulsão com os votos de outra pessoa não faz sentido para ninguém. Uma
+  por reunião, a primeira (`swap_a/b` no game_state, zerados no `start_meeting`); os dois têm que
+  estar vivos na apuração - quem morreu pelo palpite do sniper no meio desfaz a troca.
+- **Lixeiro e Carregador tiram o corpo de `bodies`** e avisam TODOS (`S_BODY_REMOVED`): todo cliente
+  guarda os corpos para o som e o reporte, e um corpo que só sumisse no servidor continuaria tocando.
+  O carregado fica em `carrier_peers`/`carried_bodies` até ser largado (`S_BODY_PLACED`), e
+  `drop_carried_body` roda em TODA saída do carregador (largar, morrer em `try_kill`, ser engolido em
+  `try_eat`, sair da sala) - senão o corpo sairia da partida junto com ele. A reunião apaga o
+  carregado junto com os outros.
+- **O preço dos dois é o SOM** (`S_BODY_SOUND`, posicionado e sem nome): limpar ou arrastar em silêncio
+  tornaria o kill sem risco. O arrasto soa no ritmo de um passo (`BODY_DRAG_SOUND_INTERVAL`, em
+  `on_move`). Carregando não se mata nem se ventila, e a recusa do kill vem ANTES da da recarga: logo
+  depois de matar, "recarregando" esconderia o motivo que diz o que fazer (largar).
+Sondas: `probe_body_roles.nvgt` (sem rede, cada caso com controle) e `probe_body_roles_net.nvgt` -
+com QUATRO jogadores: com três, o kill dá um contra um e a partida acaba ali, e a sonda passa a falar
+com uma sala reaberta onde todos voltaram a tripulante (custou uma rodada achar isso).
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

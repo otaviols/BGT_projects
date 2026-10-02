@@ -89,6 +89,45 @@ mixin class server_abilities_part {
 			message_key = acertou ? "role.guess_right" : "role.guess_wrong";
 			return true;
 		}
+		if (ability == ABILITY_SWAP) {
+			string a_nome, b_nome;
+			if (!lobby.try_swap(p.peer_id, pkt.get_uint64("target_a"), pkt.get_uint64("target_b"), a_nome, b_nome, message_key)) return false;
+			// Nada é transmitido agora: a mesa só fica sabendo no resultado (ver tally_votes).
+			message_params.set("a", a_nome);
+			message_params.set("b", b_nome);
+			message_key = "role.swap_done";
+			return true;
+		}
+		if (ability == ABILITY_CLEAN) {
+			float bx = 0.0, by = 0.0;
+			uint64 morto = 0;
+			if (!lobby.try_clean_body(p.peer_id, bx, by, morto, message_key)) return false;
+			net_packet@ sumiu = net_packet(S_BODY_REMOVED);
+			sumiu.set_uint64("peer_id", morto);
+			broadcast_to_lobby(lobby, sumiu);
+			broadcast_body_sound(lobby, "clean", bx, by);
+			message_key = "role.clean_done";
+			return true;
+		}
+		if (ability == ABILITY_DRAG) {
+			// A mesma tecla pega e larga: carregando, é largar.
+			if (lobby.is_carrying(p.peer_id)) {
+				net_packet@ largado = lobby.drop_carried_body(p);
+				if (@largado != null) broadcast_to_lobby(lobby, largado);
+				message_key = "role.drag_dropped";
+				return true;
+			}
+			uint64 morto = 0;
+			if (!lobby.try_pick_body(p.peer_id, morto, message_key)) return false;
+			net_packet@ sumiu = net_packet(S_BODY_REMOVED);
+			sumiu.set_uint64("peer_id", morto);
+			broadcast_to_lobby(lobby, sumiu);
+			broadcast_body_sound(lobby, "drag", p.x, p.y);
+			game_player@ vitima = lobby.find_player(morto);
+			message_params.set("name", @vitima != null ? vitima.public_name() : "");
+			message_key = "role.drag_picked";
+			return true;
+		}
 		if (ability == ABILITY_SHAPESHIFT) {
 			string copiado;
 			if (!lobby.try_shapeshift(p.peer_id, pkt.get_uint64("target_peer_id"), copiado, message_key)) return false;
@@ -241,5 +280,15 @@ mixin class server_abilities_part {
 		r.set_float("cooldown_seconds", cooldown_seconds);
 		r.set_float("duration_seconds", duration_seconds);
 		send_to(peer_id, r);
+	}
+
+	// O som de limpar ou de arrastar um corpo, para a partida inteira: é posicionado, e quem estiver
+	// longe simplesmente não ouve. Sem nome nenhum - quem ouve sabe que algo acontece ali, não quem.
+	void broadcast_body_sound(game_state@ lobby, const string&in kind, float x, float y) {
+		net_packet@ som = net_packet(S_BODY_SOUND);
+		som.set_string("kind", kind);
+		som.set_float("x", x);
+		som.set_float("y", y);
+		broadcast_to_lobby(lobby, som);
 	}
 }

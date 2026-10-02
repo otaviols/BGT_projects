@@ -43,4 +43,30 @@ mixin class match_net_death_part {
 		if (!pkt.announced) speak(visto, false);
 		events_log.add("", visto);
 	}
+
+	// Um corpo saiu do mapa (o lixeiro limpou, o carregador pegou): para de soar e não se reporta mais.
+	void on_body_removed(net_packet@ pkt) {
+		int i = known_body_peers.find(pkt.get_uint64("peer_id"));
+		if (i < 0) return;
+		known_body_peers.remove_at(i);
+		known_body_positions.remove_at(i);
+		near_body_last_frame = false;
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+	}
+
+	// O carregador largou o corpo: ele volta a soar, no lugar novo.
+	void on_body_placed(net_packet@ pkt) {
+		uint64 morto = pkt.get_uint64("peer_id");
+		vector onde(pkt.get_float("x"), pkt.get_float("y"), 0.0);
+		int i = known_body_peers.find(morto);
+		if (i >= 0) known_body_positions[i] = onde;
+		else { known_body_peers.insert_last(morto); known_body_positions.insert_last(onde); }
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+	}
+
+	void on_body_sound(net_packet@ pkt) {
+		audio.play_body_sound(pkt.get_string("kind"), pkt.get_float("x"), pkt.get_float("y"));
+	}
 }

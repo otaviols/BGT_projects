@@ -1,0 +1,111 @@
+// Sonda da primeira leva de papéis novos, direto no estado da partida (sem rede): o voto do Prefeito,
+// a troca do Trocador, o corpo limpo pelo Lixeiro e o corpo levado pelo Carregador.
+//   nvgt tools/probes/probe_body_roles.nvgt
+//
+// Cada caso tem o seu CONTROLE, a mesma mesa sem o papel - senão "o prefeito expulsou" passaria com
+// uma apuração que expulsa em empate.
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Quatro jogadores no mesmo ponto: 1 com o papel pedido, 2 e 3 tripulantes, 4 impostor. Cada um com
+// uma tarefa pendente, para a partida não acabar por tarefas no meio da sonda.
+game_state@ mesa(const string&in papel_do_1, const string&in papel_do_4 = ROLE_IMPOSTOR) {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	lobby.sabotage_cooldown_remaining = 999.0;
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	array<string> papeis = {papel_do_1, ROLE_CREWMATE, ROLE_CREWMATE, papel_do_4};
+	for (uint i = 0; i < papeis.length(); i++) {
+		game_player@ p = game_player(i + 1, "j" + (i + 1));
+		p.set_role(papeis[i]);
+		p.x = 10.0; p.y = 10.0;
+		player_task tk; tk.object_id = spots[0].id; tk.task_type = spots[0].task_type; p.tasks.insert_last(tk);
+		lobby.players.insert_last(p);
+	}
+	return lobby;
+}
+
+net_packet@ vota(game_state@ lobby, array<int64>@ votos) {
+	net_packet@ ev;
+	lobby.start_meeting(2, "button", ev);
+	for (uint i = 0; i < votos.length(); i++) if (votos[i] != 0) lobby.cast_vote(i + 1, votos[i]);
+	return lobby.tally_votes();
+}
+
+void main() {
+	println("== prefeito ==");
+	// 1 vota no 4, 2 vota no 3, os outros não votam: 1 a 1 é empate... a menos que o 1 valha dois.
+	array<int64> votos = {4, 3, 0, 0};
+	net_packet@ controle = vota(mesa(ROLE_CREWMATE), votos);
+	confere("controle: tripulante comum, 1 a 1, ninguem sai", controle.get_uint64("ejected_peer") == 0);
+	net_packet@ prefeito = vota(mesa(ROLE_MAYOR), votos);
+	confere("com o prefeito, 2 a 1: sai o 4", prefeito.get_uint64("ejected_peer") == 4);
+
+	println("== trocador ==");
+	// 2 e 3 votam no 4. Sem troca sai o 4; com a troca 4<->3, os dois votos vão para o 3.
+	array<int64> contra4 = {0, 4, 4, 0};
+	net_packet@ sem_troca = vota(mesa(ROLE_SWAPPER), contra4);
+	confere("controle: sem troca, sai o 4", sem_troca.get_uint64("ejected_peer") == 4 && sem_troca.get_string("swapped_a") == "");
+	game_state@ t = mesa(ROLE_SWAPPER);
+	net_packet@ ev;
+	t.start_meeting(2, "button", ev);
+	t.cast_vote(2, 4); t.cast_vote(3, 4);
+	string an, bn, falha;
+	confere("a troca e aceita na reuniao", t.try_swap(1, 4, 3, an, bn, falha));
+	confere("e uma por reuniao", !t.try_swap(1, 2, 3, an, bn, falha) && falha == "role.swap_already");
+	net_packet@ trocado = t.tally_votes();
+	confere("com a troca, sai o 3 (" + trocado.get_uint64("ejected_peer") + ")", trocado.get_uint64("ejected_peer") == 3);
+	confere("e o resultado diz quem teve os votos trocados", trocado.get_string("swapped_a") == "j4" && trocado.get_string("swapped_b") == "j3");
+	game_state@ fora = mesa(ROLE_SWAPPER);
+	confere("fora da reuniao a troca e recusada", !fora.try_swap(1, 2, 3, an, bn, falha) && falha == "role.swap_not_in_meeting");
+
+	println("== lixeiro ==");
+	game_state@ l = mesa(ROLE_CREWMATE, ROLE_JANITOR);
+	l.find_player(4).kill_cooldown_remaining = 0.0;
+	confere("o lixeiro mata o 2", l.try_kill(4, 2, ev));
+	confere("ha um corpo", l.bodies.length() == 1);
+	float bx, by; uint64 morto;
+	confere("limpa o corpo ao alcance", l.try_clean_body(4, bx, by, morto, falha) && morto == 2);
+	confere("o corpo sumiu: nada para reportar", l.bodies.length() == 0 && @l.find_body_near(10.0, 10.0, PLAYER_REPORT_RANGE) == null);
+	confere("sem corpo perto, a limpeza e recusada", !l.try_clean_body(4, bx, by, morto, falha) && falha == "role.no_body_near");
+
+	println("== carregador ==");
+	game_state@ c = mesa(ROLE_CREWMATE, ROLE_CARRIER);
+	game_player@ carregador = c.find_player(4);
+	carregador.kill_cooldown_remaining = 0.0;
+	c.try_kill(4, 2, ev);
+	confere("pega o corpo", c.try_pick_body(4, morto, falha) && morto == 2 && c.is_carrying(4));
+	confere("carregado, o corpo nao esta no chao", c.bodies.length() == 0);
+	carregador.x = 30.0; carregador.y = 12.0;
+	net_packet@ largado = c.drop_carried_body(carregador);
+	confere("larga onde esta", @largado != null && largado.get_float("x") == 30.0 && c.bodies.length() == 1 && c.bodies[0].x == 30.0);
+	confere("e nao carrega mais", !c.is_carrying(4));
+	confere("pega de novo (o corpo esta ao alcance no lugar novo)", c.try_pick_body(4, morto, falha));
+	c.pending_events.resize(0);
+	c.start_meeting(3, "button", ev);
+	confere("a reuniao apaga o corpo carregado junto com os outros", !c.is_carrying(4) && c.bodies.length() == 0);
+
+	game_state@ m = mesa(ROLE_SHERIFF, ROLE_CARRIER);
+	m.find_player(4).kill_cooldown_remaining = 0.0;
+	m.try_kill(4, 2, ev);
+	m.try_pick_body(4, morto, falha);
+	m.find_player(4).x = 25.0;
+	m.find_player(1).x = 25.0;
+	m.find_player(1).kill_cooldown_remaining = 0.0;
+	m.pending_events.resize(0);
+	confere("o xerife mata o carregador", m.try_kill(1, 4, ev));
+	bool avisou = false;
+	for (uint i = 0; i < m.pending_events.length(); i++) if (m.pending_events[i].type == S_BODY_PLACED) avisou = true;
+	confere("morto, o carregador larga o corpo ali (e a partida fica sabendo)", avisou && m.bodies.length() == 2 && !m.is_carrying(4));
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

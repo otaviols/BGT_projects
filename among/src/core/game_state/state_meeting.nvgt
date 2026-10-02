@@ -35,6 +35,12 @@ mixin class state_meeting_part {
 		// de vivos na votação diz), então um corpo esquecido no chão depois disso só serve pra ser
 		// "reportado" de novo e gerar uma reunião repetida pela mesma morte.
 		bodies.resize(0);
+		// Inclusive o que estava nas mãos de um carregador: ele não sai da reunião com um corpo que
+		// ninguém mais ouve, nem o larga depois como se fosse uma morte nova.
+		carrier_peers.resize(0);
+		carried_bodies.resize(0);
+		swap_a = 0;
+		swap_b = 0;
 
 		// A reunião desfaz toda fantasia. Na reunião se vota POR NOME, e dois nomes iguais na lista
 		// de votação não são um blefe: são uma tela quebrada, em que o voto pode cair na pessoa
@@ -159,13 +165,15 @@ mixin class state_meeting_part {
 			// dictionary.get() com chave AUSENTE não zera o &out: ele sai com LIXO (é assim que o
 			// AngelScript trata &out não escrito). Sempre exists() antes.
 			string key = "" + t;
+			game_player@ voter = find_player(votes[i].voter_peer_id);
+			// O prefeito vale por dois aqui, e só aqui: na lista de quem votou em quem ele aparece uma vez.
+			int64 peso = @voter != null ? voter.role().vote_weight : 1;
 			int64 c = 0;
 			if (counts.exists(key)) counts.get(key, c);
-			c++;
+			c += peso;
 			counts.set(key, c);
 			if (targets.find(t) == -1) targets.insert_last(t);
 
-			game_player@ voter = find_player(votes[i].voter_peer_id);
 			json_object@ entry = json_object();
 			entry.set("voter_name", @voter != null ? voter.public_name() : "");
 			if (t == -1) {
@@ -177,6 +185,23 @@ mixin class state_meeting_part {
 				entry.set("target_name", @target != null ? target.public_name() : "");
 			}
 			breakdown.add(entry);
+		}
+
+		// A troca do trocador: os votos de um vão para o outro, ANTES de decidir quem sai. Só vale com
+		// os dois ainda na mesa - alguém que morreu pelo palpite do sniper no meio não troca nada.
+		bool trocou = false;
+		game_player@ troca_a = swap_a != 0 ? find_player(swap_a) : null;
+		game_player@ troca_b = swap_b != 0 ? find_player(swap_b) : null;
+		if (@troca_a != null && @troca_b != null && troca_a.alive && troca_b.alive) {
+			string ka = "" + swap_a, kb = "" + swap_b;
+			int64 va = 0, vb = 0;
+			if (counts.exists(ka)) counts.get(ka, va);
+			if (counts.exists(kb)) counts.get(kb, vb);
+			counts.set(ka, vb);
+			counts.set(kb, va);
+			if (targets.find(int64(swap_a)) == -1) targets.insert_last(int64(swap_a));
+			if (targets.find(int64(swap_b)) == -1) targets.insert_last(int64(swap_b));
+			trocou = true;
 		}
 
 		// "Pular" CONTA na apuração, como candidato a "ninguém". É a regra do jogo original, e é o
@@ -206,6 +231,11 @@ mixin class state_meeting_part {
 		}
 
 		net_packet@ result = net_packet(S_VOTE_RESULT);
+		// Anunciada sem dizer quem trocou (ver role_swapper).
+		if (trocou) {
+			result.set_string("swapped_a", troca_a.public_name());
+			result.set_string("swapped_b", troca_b.public_name());
+		}
 		// A lista de quem votou em quem só existe com os votos abertos - e nesse caso ela já foi dita
 		// voto a voto durante a reunião, então o cliente não a repete no fim (ver on_vote_result).
 		if (config.show_votes) result.set_array("vote_breakdown", breakdown);

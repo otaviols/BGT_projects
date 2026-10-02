@@ -488,6 +488,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_NEARBY_PLAYERS) on_nearby_players(pkt);
 		else if (t == S_SWALLOWED) on_swallowed(pkt);
 		else if (t == S_SWALLOW_SOUND) on_swallow_sound(pkt);
+		else if (t == S_BODY_REMOVED) on_body_removed(pkt);
+		else if (t == S_BODY_PLACED) on_body_placed(pkt);
+		else if (t == S_BODY_SOUND) on_body_sound(pkt);
 		else if (t == S_BELLY_RELEASED) on_belly_released(pkt);
 		else if (t == S_ABILITY_RESULT) on_ability_result(pkt);
 		else if (t == S_CAMERA_PLAYERS) on_camera_players(pkt);

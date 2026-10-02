@@ -119,6 +119,34 @@ void run_guess_menu(game_client@ client, client_roster@ roster, const array<stri
 	client.send_use_ability(ABILITY_GUESS, uint64(parse_int(alvo)), "", papel);
 }
 
+// O trocador escolhe as duas pessoas cujos votos vão trocar de dono. Ele próprio pode estar entre elas.
+void run_swap_menu(game_client@ client, client_roster@ roster) {
+	ui_sound(SND_DIALOG_OPEN);
+	uint64 primeiro = 0;
+	for (int passo = 0; passo < 2; passo++) {
+		menu m;
+		m.intro_text = tr(passo == 0 ? "role.swap_pick_first" : "role.swap_pick_second");
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		@g_game_menu_pump_client = client;
+		@m.background_callback = @pump_client_during_game_menu;
+		for (uint i = 0; i < roster.entries.length(); i++) {
+			roster_entry@ e = roster.entries[i];
+			if (!e.alive || e.peer_id == primeiro) continue;
+			m.add_item(e.name, "" + e.peer_id);
+		}
+		m.run();
+		string escolha = m.selected_item_id;
+		if (escolha == "") { ui_sound(SND_DIALOG_CLOSE); return; }
+		if (passo == 0) primeiro = uint64(parse_int(escolha));
+		else {
+			ui_sound(SND_DIALOG_CLOSE);
+			client.send_swap(primeiro, uint64(parse_int(escolha)));
+		}
+	}
+}
+
 void run_sabotage_menu(impostor_controller@ imp) {
 	ui_sound(SND_DIALOG_OPEN);
 	menu m;

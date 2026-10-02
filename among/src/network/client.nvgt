@@ -264,6 +264,15 @@ class game_client {
 		send(p);
 	}
 
+	// A troca do trocador: dois alvos, e não um - por isso fora do send_use_ability.
+	void send_swap(uint64 a, uint64 b) {
+		net_packet@ p = net_packet(C_USE_ABILITY);
+		p.set_string("ability", ABILITY_SWAP);
+		p.set_uint64("target_a", a);
+		p.set_uint64("target_b", b);
+		send(p);
+	}
+
 	// --- Câmeras de segurança ---
 	void send_camera_enter() { send(net_packet(C_CAMERA_ENTER)); }
 	void send_camera_leave() { send(net_packet(C_CAMERA_LEAVE)); }

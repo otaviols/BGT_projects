@@ -13,6 +13,7 @@ mixin class server_ship_part {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
 		game_player@ p = lobby.find_player(peer_id);
+		if (lobby.is_carrying(peer_id)) { send_error(peer_id, "role.carrying_cannot_vent"); return; }
 		// Capacidade, e não identidade: o engenheiro também usa os dutos (ver role_traits). Perguntar
 		// "é impostor?" aqui era o que obrigaria cada papel novo a revisitar este ponto.
 		if (@p == null || p.vented || !player_abilities(p.role(), p.alive).can_vent(lobby.config.vents_enabled)) return;

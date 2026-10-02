@@ -181,6 +181,16 @@ class meeting_ui {
 		timer suspense;
 		while (suspense.elapsed < 1500) { wait(10); client.update(); }
 
+		// A troca do trocador vem ANTES do resultado: sem ela, a expulsão com os votos de outra pessoa
+		// não faria sentido para ninguém. Quem trocou não é dito.
+		string trocado_a = pkt.get_string("swapped_a", "");
+		if (trocado_a != "") {
+			dictionary@ tp = dictionary();
+			tp.set("a", trocado_a);
+			tp.set("b", pkt.get_string("swapped_b", ""));
+			announce(tr("game.votes_swapped", tp));
+		}
+
 		uint64 ejected_peer = pkt.get_uint64("ejected_peer");
 		if (ejected_peer == 0) {
 			announce(tr(pkt.get_bool("tie") ? "game.vote_result_tie" : "game.no_one_ejected"));

@@ -430,6 +430,10 @@ que o binário sobe.
   de recados copiada aqui envelhece e passa a ser lida como pendência depois de atendida (foi o que
   aconteceu: ela listava como abertos pedidos já resolvidos). Aqui só entra o que foi DECIDIDO e
   ainda não foi feito.
+- **Dois sons chegando do usuário:** `sounds/events/body_clean.ogg` (o Lixeiro limpando) e
+  `sounds/events/body_drag.ogg` (o Carregador arrastando). Já estão no catálogo e tocam mudos até os
+  arquivos chegarem; o `check_sounds` os lista como faltando. Ao chegarem: pôr na pasta, rodar o
+  `build_pack` e ouvir no jogo.
 - **Sons sem uso, de propósito** (o `check_sounds` os lista a cada execução; não são lixo):
   `steps/CarpetTile*` e `steps/SnowTile*` são pisos que o mapa ainda não tem - quando houver uma
   sala de carpete ou de neve, eles entram em `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes

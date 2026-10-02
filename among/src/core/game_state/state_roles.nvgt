@@ -28,6 +28,9 @@ mixin class state_roles_part {
 
 		alvo.alive = false;
 		alvo.swallowed_by = lobo.peer_id;
+		// Carregador engolido larga o corpo onde estava (ver drop_carried_body).
+		net_packet@ largado = drop_carried_body(alvo);
+		if (@largado != null) pending_events.insert_last(largado);
 		// A barriga desfaz o que o alvo estava usando para não ser percebido. O disfarce cai (o servidor
 		// transmite o nome de volta - ver ABILITY_EAT em run_ability): lá dentro ele é quem é, e a
 		// lista da reunião precisa ter o nome certo quando ele voltar.
@@ -185,5 +188,80 @@ mixin class state_roles_part {
 		target.shield_remaining = config.role_value(ROLE_GUARDIAN_ANGEL, TUNABLE_DURATION);
 		target_name = target.public_name();
 		return true;
+	}
+
+	// --- Trocador ---
+
+	// A troca desta reunião. Na mesa, os dois vivos e diferentes, e uma por reunião (a primeira).
+	bool try_swap(uint64 swapper_peer, uint64 a, uint64 b, string&out a_name, string&out b_name, string&out fail_key) {
+		if (state != "voting") { fail_key = "role.swap_not_in_meeting"; return false; }
+		if (swap_a != 0) { fail_key = "role.swap_already"; return false; }
+		game_player@ pa = find_player(a);
+		game_player@ pb = find_player(b);
+		if (a == b || @pa == null || @pb == null || !pa.alive || !pb.alive) { fail_key = "role.swap_invalid"; return false; }
+		swap_a = a;
+		swap_b = b;
+		a_name = pa.public_name();
+		b_name = pb.public_name();
+		return true;
+	}
+
+	// --- Lixeiro e carregador ---
+
+	// O corpo ao alcance de alguém, pelo índice em `bodies` (-1 = nenhum). O mesmo alcance do reporte:
+	// é a distância em que o corpo "está ali" para qualquer um.
+	int body_index_near(float x, float y) {
+		for (uint i = 0; i < bodies.length(); i++)
+			if (distance_2d(x, y, bodies[i].x, bodies[i].y) <= PLAYER_REPORT_RANGE) return int(i);
+		return -1;
+	}
+
+	bool try_clean_body(uint64 peer, float&out x, float&out y, uint64&out victim, string&out fail_key) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		int i = body_index_near(p.x, p.y);
+		if (i < 0) { fail_key = "role.no_body_near"; return false; }
+		x = bodies[i].x;
+		y = bodies[i].y;
+		victim = bodies[i].victim_peer_id;
+		bodies.remove_at(i);
+		return true;
+	}
+
+	bool is_carrying(uint64 peer) const { return carrier_peers.find(peer) != -1; }
+
+	bool try_pick_body(uint64 peer, uint64&out victim, string&out fail_key) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (is_carrying(peer)) { fail_key = "role.drag_already"; return false; }
+		int i = body_index_near(p.x, p.y);
+		if (i < 0) { fail_key = "role.no_body_near"; return false; }
+		body_info@ b = bodies[i];
+		victim = b.victim_peer_id;
+		carrier_peers.insert_last(peer);
+		carried_bodies.insert_last(b);
+		bodies.remove_at(i);
+		return true;
+	}
+
+	// Larga o corpo onde o carregador está. Devolve o aviso para a partida (S_BODY_PLACED), ou null se
+	// ele não carregava nada. Chamada ao largar de propósito E em toda saída dele: morrer, ser engolido,
+	// sair da sala - senão o corpo sumiria da partida junto com ele.
+	net_packet@ drop_carried_body(game_player@ p) {
+		if (@p == null) return null;
+		int i = carrier_peers.find(p.peer_id);
+		if (i < 0) return null;
+		body_info@ b = carried_bodies[i];
+		carrier_peers.remove_at(i);
+		carried_bodies.remove_at(i);
+		b.x = p.x;
+		b.y = p.y;
+		b.room_id = map.room_id_at(p.x, p.y);
+		bodies.insert_last(b);
+		net_packet@ aviso = net_packet(S_BODY_PLACED);
+		aviso.set_uint64("peer_id", b.victim_peer_id);
+		aviso.set_float("x", b.x);
+		aviso.set_float("y", b.y);
+		return aviso;
 	}
 }

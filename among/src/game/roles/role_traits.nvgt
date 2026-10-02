@@ -36,6 +36,10 @@ const string ROLE_PHANTOM = "phantom";
 const string ROLE_SNIPER = "sniper";
 const string ROLE_JESTER = "jester";
 const string ROLE_WOLF = "wolf";
+const string ROLE_MAYOR = "mayor";
+const string ROLE_SWAPPER = "swapper";
+const string ROLE_JANITOR = "janitor";
+const string ROLE_CARRIER = "carrier";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -45,6 +49,9 @@ const string ABILITY_SHAPESHIFT = "shapeshift";
 const string ABILITY_VANISH = "vanish";
 const string ABILITY_GUESS = "guess";
 const string ABILITY_EAT = "eat";
+const string ABILITY_SWAP = "swap";   // trocador: os votos de dois jogadores trocam de dono na apuração
+const string ABILITY_CLEAN = "clean"; // lixeiro: some com o corpo ao alcance
+const string ABILITY_DRAG = "drag";   // carregador: pega o corpo ao alcance, e larga onde estiver
 // O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
 // mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
 const string ABILITY_ALARM = "alarm";
@@ -66,7 +73,8 @@ const string SOLO_WIN_LAST_STANDING = "last_standing";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
-	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JESTER, ROLE_WOLF};
+	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JESTER, ROLE_WOLF,
+	ROLE_MAYOR, ROLE_SWAPPER, ROLE_JANITOR, ROLE_CARRIER};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
 //
@@ -94,6 +102,10 @@ const int NEUTRAL_MIN_PROTOCOL = 7;
 // O Lobo Mau trouxe pacotes que só ele usa (engolir, a barriga, a volta de quem foi engolido). Um
 // cliente anterior engolido ficaria andando pela nave como fantasma sem saber onde está.
 const int WOLF_MIN_PROTOCOL = 8;
+// Prefeito, trocador, lixeiro e carregador: corpo que some (S_BODY_REMOVED), que muda de lugar
+// (S_BODY_PLACED), o som dos dois (S_BODY_SOUND) e a troca anunciada no resultado da votação. Um
+// cliente anterior continuaria ouvindo um corpo que não está mais ali.
+const int BODY_ROLES_PROTOCOL = 10;
 
 // Um número do papel que a SALA pode ajustar (recarga, duração, janela de gravação).
 //
@@ -202,6 +214,10 @@ class role_traits {
 	// graça em lugar nenhum: normalmente o corpo precisa ser encontrado, e quem está longe não sabe
 	// de nada. Ver role_noisemaker.
 	bool announces_own_death = false;
+
+	// Quanto o voto dele vale na apuração. 2 = o prefeito, em segredo: ele vota como todo mundo, a
+	// lista de quem votou em quem o mostra uma vez só, e só a contagem sabe.
+	int vote_weight = 1;
 
 	// --- Time ---
 	bool wins_with_crew = true;
@@ -516,7 +532,59 @@ role_traits@ role_wolf() {
 	return t;
 }
 
+// Prefeito: tripulante cujo voto vale por dois. Em segredo - anunciar o prefeito o transformaria no
+// primeiro alvo do impostor e no dono de toda reunião. A força dele é invisível: um empate que não
+// acontece, uma expulsão com um voto a mais do que mãos levantadas.
+role_traits@ role_mayor() {
+	role_traits t;
+	t.id = ROLE_MAYOR;
+	t.vote_weight = 2;
+	t.min_protocol = BODY_ROLES_PROTOCOL;
+	return t;
+}
+
+// Trocador: na reunião, escolhe dois jogadores e os votos dados a um vão para o outro. A troca é
+// ANUNCIADA no resultado, sem dizer quem trocou (decisão do usuário): sem o aviso, uma expulsão com os
+// votos de outra pessoa não faria sentido para ninguém na mesa. Uma troca por reunião, a primeira que
+// chegar - dois trocadores desfazendo um ao outro seria só ruído.
+role_traits@ role_swapper() {
+	role_traits t;
+	t.id = ROLE_SWAPPER;
+	t.ability_id = ABILITY_SWAP;
+	t.ability_usable_in_meeting = true;
+	t.min_protocol = BODY_ROLES_PROTOCOL;
+	return t;
+}
+
+// Lixeiro: impostor que some com o corpo. O que ele apaga é a REUNIÃO que o corpo traria - por isso o
+// preço é o som: quem estiver perto ouve a limpeza, posicionada e sem nome. Um corpo que some em
+// silêncio tornaria o kill sem risco nenhum.
+role_traits@ role_janitor() {
+	role_traits@ t = role_impostor();
+	t.id = ROLE_JANITOR;
+	t.ability_id = ABILITY_CLEAN;
+	t.ability_cooldown_seconds = JANITOR_CLEAN_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, JANITOR_CLEAN_COOLDOWN_SECONDS, 10.0, 300.0));
+	t.min_protocol = BODY_ROLES_PROTOCOL;
+	return t;
+}
+
+// Carregador: impostor que leva o corpo e larga onde quiser. Carregando, o corpo não existe no mapa
+// (não se reporta, não faz som), e ele não mata nem entra em duto - as mãos estão ocupadas. O risco é
+// o arrasto: quem estiver perto ouve, no ritmo dos passos dele, posicionado e sem nome.
+role_traits@ role_carrier() {
+	role_traits@ t = role_impostor();
+	t.id = ROLE_CARRIER;
+	t.ability_id = ABILITY_DRAG;
+	t.min_protocol = BODY_ROLES_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_MAYOR) return role_mayor();
+	if (role_id == ROLE_SWAPPER) return role_swapper();
+	if (role_id == ROLE_JANITOR) return role_janitor();
+	if (role_id == ROLE_CARRIER) return role_carrier();
 	if (role_id == ROLE_SNIPER) return role_sniper();
 	if (role_id == ROLE_JESTER) return role_jester();
 	if (role_id == ROLE_WOLF) return role_wolf();

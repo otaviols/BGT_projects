@@ -84,6 +84,13 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	// influenciar nada por acidente. O que ele recebe é escolhido no servidor, caso a caso.
 	array<game_player@> spectators;
 	array<body_info> bodies;
+	// Corpos nas mãos de um carregador: fora de `bodies` (não se reporta, não se examina, não faz
+	// som) até ele largar. Duas listas paralelas: quem carrega e o quê.
+	array<uint64> carrier_peers;
+	array<body_info@> carried_bodies;
+	// A troca do trocador nesta reunião (0 = nenhuma). Uma por reunião; zerada ao começar a próxima.
+	uint64 swap_a = 0;
+	uint64 swap_b = 0;
 	array<vote_entry> votes;
 
 	string state = "waiting"; // waiting | in_progress | meeting | voting | ended
@@ -371,6 +378,10 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		reset_players_after_match();
 		state = "waiting";
 		bodies.resize(0);
+		carrier_peers.resize(0);
+		carried_bodies.resize(0);
+		swap_a = 0;
+		swap_b = 0;
 		votes.resize(0);
 		meeting_timer = 0.0;
 		voting_timer = 0.0;

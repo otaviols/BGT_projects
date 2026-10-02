@@ -562,6 +562,22 @@ especiais, ele não tem o que apontar.
 
 Na mesa ninguém está protegido: o escudo do anjo cai quando a reunião começa.
 
+**Prefeito** (tripulação). Na reunião, o voto dele **vale por dois**, e em segredo: ele vota como
+todo mundo, e quando a sala mostra os votos ele aparece uma vez só. Só a contagem sabe.
+
+**Trocador** (tripulação). Na reunião, a tecla H escolhe **duas pessoas**, e os votos dados a uma vão
+para a outra na contagem. Uma troca por reunião. No resultado a mesa ouve que os votos daquelas duas
+foram trocados, mas nunca quem trocou.
+
+**Lixeiro** (impostor). Perto de um corpo, a tecla H o faz **sumir**: ninguém mais o encontra nem o
+reporta, e o som do corpo para. Quem estiver perto ouve a limpeza, no lugar onde ela acontece. A
+recarga padrão é de 30 segundos.
+
+**Carregador** (impostor). Perto de um corpo, a tecla H o **pega**, e apertando de novo ele o **larga**
+onde estiver. Enquanto carrega, o corpo não existe no mapa (não se reporta, não faz som), e ele não
+mata nem entra em duto. Quem estiver perto ouve o **arrasto**, no ritmo dos passos dele. Se ele
+morrer carregando, o corpo fica ali.
+
 ### Papéis neutros
 
 Um papel **neutro** não é da tripulação nem dos impostores: ele tem uma vitória **só dele**. Quando

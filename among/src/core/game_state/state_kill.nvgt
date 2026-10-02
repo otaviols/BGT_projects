@@ -98,6 +98,9 @@ mixin class state_kill_part {
 		body.killer_peer_id = killer.peer_id;
 		body.trail_until = elapsed_time + config.role_value(ROLE_DETECTIVE, TUNABLE_TRAIL);
 		bodies.insert_last(body);
+		// O carregador morto larga o que carregava ali mesmo.
+		net_packet@ largado = drop_carried_body(victim);
+		if (@largado != null) pending_events.insert_last(largado);
 
 		@out_event = net_packet(S_PLAYER_KILLED);
 		out_event.set_uint64("peer_id", victim.peer_id);

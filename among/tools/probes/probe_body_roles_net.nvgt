@@ -1,0 +1,121 @@
+// Sonda de rede do Lixeiro e do Carregador: o corpo some para TODOS (S_BODY_REMOVED), o som sai sem
+// nome, o corpo largado reaparece no lugar novo (S_BODY_PLACED), e carregando não se mata nem se ventila.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_body_roles_net.nvgt
+//
+// Quatro jogadores, um impostor - que É o papel testado, porque a sala liga uma vaga dele a 100%. Quatro,
+// e não três: com três, o kill deixa um contra um e a partida ACABA ali (o impostor vence), e o resto
+// da sonda falaria com uma sala reaberta, todos tripulantes de novo.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+void bombeia(array<game_client@>@ todos, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
+}
+const float PASSO_MS = 100.0;
+const float PASSO_DIST = PLAYER_MOVE_SPEED * (PASSO_MS / 1000.0) * 0.8;
+void anda_ate(array<game_client@>@ todos, game_client@ c, float de_x, float de_y, float ate_x, float ate_y) {
+	float dist = distance_2d(de_x, de_y, ate_x, ate_y);
+	int passos = int(dist / PASSO_DIST) + 1;
+	for (int i = 1; i <= passos; i++) {
+		float t = float(i) / float(passos);
+		c.send_move(de_x + (ate_x - de_x) * t, de_y + (ate_y - de_y) * t);
+		bombeia(todos, int(PASSO_MS));
+	}
+}
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void rodar(const string&in papel) {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (int i = 0; i < 4; i++) {
+		game_client c;
+		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+		string nome = "br" + i + sfx;
+		c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(nome, "probe123");
+		net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		c.my_peer_id = lr.get_uint64("peer_id");
+		todos.insert_last(c);
+	}
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.kill_cooldown_seconds = 5.0;
+	ov.role_counts.set(papel, 1);
+	todos[0].send_create_lobby("corpo" + sfx, "classic", ov);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(st.get_string("lobby_id")); wf(todos[i], S_JOIN_RESULT, 5000); }
+	bombeia(todos, 300);
+	todos[0].send_start_game();
+
+	int imp = -1;
+	array<float> xs(4), ys(4);
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ s = wf(todos[i], S_GAME_START, 8000);
+		if (@s == null) { println("sem S_GAME_START"); return; }
+		xs[i] = s.get_float("your_x"); ys[i] = s.get_float("your_y");
+		if (s.get_string("your_role") == papel) imp = int(i);
+	}
+	confere("o impostor saiu " + papel, imp >= 0);
+	if (imp < 0) return;
+	int vitima = (imp + 1) % 4, outro = (imp + 2) % 4, longe = (imp + 3) % 4;
+	anda_ate(todos, todos[vitima], xs[vitima], ys[vitima], 0.0, 0.0);
+	anda_ate(todos, todos[imp], xs[imp], ys[imp], 0.0, 0.0);
+	anda_ate(todos, todos[outro], xs[outro], ys[outro], 3.0, 0.0);
+	anda_ate(todos, todos[longe], xs[longe], ys[longe], -3.0, 0.0);
+	bombeia(todos, 6000); // recarga de 5 s do kill
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[imp].send_kill(todos[vitima].my_peer_id);
+	confere("o kill aconteceu", @wf(todos[outro], S_PLAYER_KILLED, 4000) != null);
+	bombeia(todos, 300);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+
+	todos[imp].send_use_ability(papel == ROLE_JANITOR ? ABILITY_CLEAN : ABILITY_DRAG);
+	net_packet@ sumiu = wf(todos[outro], S_BODY_REMOVED, 4000);
+	confere("o corpo sumiu para os outros", @sumiu != null && sumiu.get_uint64("peer_id") == todos[vitima].my_peer_id);
+	net_packet@ som = wf(todos[outro], S_BODY_SOUND, 2000);
+	confere("e eles ouvem o som, sem nome nenhum", @som != null && som.get_string("kind") == (papel == ROLE_JANITOR ? "clean" : "drag")
+		&& !som.exists("peer_id") && !som.exists("name"));
+	net_packet@ resp = wf(todos[imp], S_ABILITY_RESULT, 2000);
+	if (@resp != null && !resp.get_bool("ok")) println("    (recusa: " + resp.get_string(MSG_KEY_FIELD) + " / " + resp.get_string("message_key") + ")");
+	if (@resp == null) println("    (nenhuma resposta da habilidade)");
+	confere("o " + papel + " ouve que deu", @resp != null && resp.get_bool("ok"));
+
+	if (papel == ROLE_CARRIER) {
+		for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+		todos[imp].send_kill(todos[outro].my_peer_id);
+		net_packet@ recusa = wf(todos[imp], S_ERROR, 3000);
+		confere("carregando, o kill e recusado", @recusa != null && recusa.get_string(MSG_KEY_FIELD) == "role.carrying_cannot_kill");
+		anda_ate(todos, todos[imp], 0.0, 0.0, 2.0, 0.0);
+		for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+		todos[imp].send_use_ability(ABILITY_DRAG);
+		net_packet@ voltou = wf(todos[outro], S_BODY_PLACED, 4000);
+		confere("largado, o corpo reaparece no lugar novo", @voltou != null && voltou.get_float("x") == 2.0);
+	}
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+}
+
+void main() {
+	println("== lixeiro ==");
+	rodar(ROLE_JANITOR);
+	println("== carregador ==");
+	rodar(ROLE_CARRIER);
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

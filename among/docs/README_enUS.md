@@ -566,6 +566,22 @@ have nothing to point at.
 
 Nobody is protected at the table: the guardian's shield falls when the meeting begins.
 
+**Mayor** (crew). In a meeting their vote **counts as two**, secretly: they vote like everyone else,
+and when the room shows the votes they appear only once. Only the count knows.
+
+**Swapper** (crew). In a meeting, the H key picks **two people**, and the votes cast on one go to the
+other at the count. One swap per meeting. At the result the table hears that the votes of those two
+were swapped, but never who did it.
+
+**Janitor** (impostor). Near a body, the H key makes it **disappear**: nobody finds or reports it
+anymore, and the body sound stops. Whoever is nearby hears the cleaning, where it happens. The default
+cooldown is 30 seconds.
+
+**Carrier** (impostor). Near a body, the H key **picks it up**, and pressing again **drops** it wherever
+they are. While carried, the body does not exist on the map (it cannot be reported and makes no
+sound), and the Carrier cannot kill or vent. Whoever is nearby hears the **dragging**, at the pace of
+their steps. If the Carrier dies while carrying, the body stays there.
+
 ### Neutral roles
 
 A **neutral** role is neither crew nor impostor: it has a win **of its own**. When that happens, the
