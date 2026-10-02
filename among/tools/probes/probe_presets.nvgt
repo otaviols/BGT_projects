@@ -86,6 +86,16 @@ void main() {
 	check("lista vazia em vez de exceção", lobby_preset_names().length() == 0, "0");
 	check("leitura devolve false", !lobby_preset_load("teste", lido), "false");
 
+	println("--- preset salvo antes da 0.47 (dois tempos de reuniao) ---");
+	// A reunião passou a ter um tempo só; o que foi salvo com discussão e votação separadas tem que
+	// voltar como a soma, que é o que a reunião durava com eles.
+	net_packet@ antigo = net_packet("x");
+	antigo.set_float("discussion_time_seconds", 45.0);
+	antigo.set_float("voting_time_seconds", 30.0);
+	lobby_overrides lido_antigo;
+	lido_antigo.read_from_packet(antigo);
+	check("os dois tempos viram a soma", lido_antigo.meeting_time_seconds == 75.0, "75");
+
 	g_settings.lobby_presets = guardado;
 	g_settings.save();
 	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));

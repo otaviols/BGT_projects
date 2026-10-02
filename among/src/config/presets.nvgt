@@ -10,8 +10,7 @@ lobby_config@ preset_classic() {
 	cfg.impostor_count = -1; // automático
 	cfg.task_count_per_crewmate = 5;
 	cfg.kill_cooldown_seconds = 25.0;
-	cfg.discussion_time_seconds = 45.0;
-	cfg.voting_time_seconds = 30.0;
+	cfg.meeting_time_seconds = 75.0;
 	cfg.sabotages_enabled = true;
 	return cfg;
 }
@@ -23,8 +22,7 @@ lobby_config@ preset_quick() {
 	cfg.impostor_count = 1;
 	cfg.task_count_per_crewmate = 3;
 	cfg.kill_cooldown_seconds = 15.0;
-	cfg.discussion_time_seconds = 25.0;
-	cfg.voting_time_seconds = 20.0;
+	cfg.meeting_time_seconds = 45.0;
 	cfg.sabotages_enabled = false;
 	return cfg;
 }
@@ -36,8 +34,7 @@ lobby_config@ preset_chaos() {
 	cfg.impostor_count = 3;
 	cfg.task_count_per_crewmate = 4;
 	cfg.kill_cooldown_seconds = 12.0;
-	cfg.discussion_time_seconds = 30.0;
-	cfg.voting_time_seconds = 20.0;
+	cfg.meeting_time_seconds = 50.0;
 	cfg.sabotages_enabled = true;
 	return cfg;
 }

@@ -173,13 +173,9 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 	kp.set("seconds", seconds_text(float(cfg["kill_cooldown_seconds"])));
 	partes.insert_last(tr("lobby.info.kill_cooldown", kp));
 
-	dictionary@ dp = dictionary();
-	dp.set("seconds", seconds_text(float(cfg["discussion_time_seconds"])));
-	partes.insert_last(tr("lobby.info.discussion", dp));
-
-	dictionary@ vp = dictionary();
-	vp.set("seconds", seconds_text(float(cfg["voting_time_seconds"])));
-	partes.insert_last(tr("lobby.info.voting", vp));
+	dictionary@ reuniao_p = dictionary();
+	reuniao_p.set("seconds", seconds_text(float(cfg["meeting_time_seconds"])));
+	partes.insert_last(tr("lobby.info.meeting_time", reuniao_p));
 
 	dictionary@ ep = dictionary();
 	ep.set("count", "" + int(cfg["emergency_meetings_per_player"]));

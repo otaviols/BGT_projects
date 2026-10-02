@@ -434,8 +434,8 @@ Two room rules change the meeting (in room creation and under the O key): whethe
 who each player voted for**, as the vote is cast (classic) or only that they voted; and whether the
 game **says if the ejected player was an impostor**.
 
-**During a meeting, T tells you how much time is left** — and which phase it is: still discussion,
-or voting already running. Outside a meeting, T is your task list as always.
+**During a meeting, T tells you how much time is left.** You can vote from the start, and the
+meeting ends early if everyone has voted. Outside a meeting, T is your task list as always.
 
 Chat only exists in the waiting room and during meetings. There is no chat during the match — not
 even between impostors.
@@ -683,8 +683,8 @@ meetings, reported bodies, vents, sabotage or roles:
 The presets below are the starting point; a match tops out at **15 players**.
 
 **You can adjust the preset when creating the lobby.** Besides the preset, the creation screen has
-fields for maximum players, number of impostors, tasks per crewmate, kill cooldown, discussion time,
-voting time, emergency meetings per player, whether sabotage is in play, whether **vents** can be
+fields for maximum players, number of impostors, tasks per crewmate, kill cooldown, meeting time (discussion and voting together),
+emergency meetings per player, whether sabotage is in play, whether **vents** can be
 used (when off, neither the impostor nor the engineer can vent), and **player speed**, as a
 percentage of normal (50% to 200%).
 

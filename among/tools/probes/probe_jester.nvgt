@@ -48,7 +48,7 @@ void main() {
 	}
 	lobby_overrides ov;
 	ov.impostor_count = 1;
-	ov.voting_time_seconds = 30.0;
+	ov.meeting_time_seconds = 30.0;
 	ov.role_counts.set(ROLE_JESTER, 1);
 	todos[0].send_create_lobby("bobo", "classic", ov);
 	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);

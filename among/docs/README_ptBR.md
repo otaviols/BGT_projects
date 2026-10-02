@@ -431,8 +431,8 @@ outro. Se a maioria pula, ninguém sai — um voto sozinho não expulsa ninguém
 Duas regras da sala mudam a reunião (na criação e na tecla O): se o jogo **diz em quem cada um
 votou**, na hora do voto (clássico) ou só que votou; e se o jogo **diz se o expulso era impostor**.
 
-**Durante a reunião, T diz quanto tempo falta** — e diz de qual fase: se ainda é discussão ou se a
-votação já está correndo. Fora da reunião, T continua sendo a sua lista de tarefas.
+**Durante a reunião, T diz quanto tempo falta.** Dá para votar desde o começo, e a reunião acaba
+antes se todos votarem. Fora da reunião, T continua sendo a sua lista de tarefas.
 
 O chat só existe na sala de espera e durante as reuniões. Não há chat durante a partida — nem entre
 impostores.
@@ -677,7 +677,7 @@ Os presets abaixo são o ponto de partida; o teto de uma partida é **15 jogador
 
 **Dá para ajustar o preset na hora de criar a sala.** Além do preset, a tela de criação tem campos
 para máximo de jogadores, número de impostores, tarefas por tripulante, recarga do kill, tempo de
-discussão, tempo de votação, reuniões de emergência por jogador, se a sabotagem entra, se os
+reunião (discussão e votação juntas), reuniões de emergência por jogador, se a sabotagem entra, se os
 **dutos** podem ser usados (desligados, nem o impostor nem o engenheiro ventilam) e a **velocidade
 dos jogadores**, em por cento do normal (de 50% a 200%).
 

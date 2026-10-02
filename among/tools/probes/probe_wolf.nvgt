@@ -126,7 +126,7 @@ net_packet@ engole(array<game_client@>@ todos, uint lobo, uint alvo, int prazo_m
 bool comeca(array<game_client@>@ todos, uint n, const string&in nome_sala, array<string>@ papeis, array<float>@ xs, array<float>@ ys) {
 	lobby_overrides ov;
 	ov.impostor_count = 1;
-	ov.voting_time_seconds = 30.0;
+	ov.meeting_time_seconds = 30.0;
 	ov.voice_chat = "on";
 	ov.role_counts.set(ROLE_WOLF, 1);
 	ov.role_values.set(ROLE_WOLF + "." + TUNABLE_COOLDOWN, 15.0);

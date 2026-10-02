@@ -99,7 +99,7 @@ mixin class state_meeting_part {
 		}
 
 		state = "voting";
-		voting_timer = config.discussion_time_seconds + config.voting_time_seconds;
+		voting_timer = config.meeting_time_seconds;
 		meeting_caller = caller_peer;
 		meeting_reason = reason;
 		votes.resize(0);
@@ -113,7 +113,7 @@ mixin class state_meeting_part {
 		// nada ao servidor (ver announce_time_remaining em ui/meeting_ui.nvgt). O protocolo já
 		// previa este campo desde o começo; ele simplesmente nunca chegou a ser preenchido, e o
 		// cliente lia zero.
-		out_event.set_float("discussion_time", config.discussion_time_seconds);
+		out_event.set_float("discussion_time", config.meeting_time_seconds);
 		// Quem está na barriga do lobo sai da lista de votação de todos - e é SÓ isso que a mesa fica
 		// sabendo (decisão do jogo: nenhum anúncio de "fulano foi engolido"). A ausência é a pista.
 		json_array@ ausentes = json_array();

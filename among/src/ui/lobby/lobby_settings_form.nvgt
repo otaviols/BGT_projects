@@ -162,8 +162,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	}
 	int f_tasks = f.create_input_box(tr("lobby.task_count_override"), current_int_text(current, "task_count_per_crewmate"));
 	int f_long_tasks = f.create_input_box(tr("lobby.long_task_count_override"), current_int_text(current, "long_task_count"));
-	int f_discussion = f.create_input_box(tr("lobby.discussion_time_override"), current_float_text(current, "discussion_time_seconds"));
-	int f_voting = f.create_input_box(tr("lobby.voting_time_override"), current_float_text(current, "voting_time_seconds"));
+	int f_meeting_time = f.create_input_box(tr("lobby.meeting_time_override"), current_float_text(current, "meeting_time_seconds"));
 	int f_meetings = f.create_input_box(tr("lobby.emergency_meetings_override"), current_int_text(current, "emergency_meetings_per_player"));
 	int f_sabotages = f.create_list(tr("lobby.sabotages_override"));
 	f.add_list_item(f_sabotages, tr("lobby.override.preset_default"), "");
@@ -216,12 +215,12 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 
 	// O que cada modo mostra. Só do clássico: tudo que é reunião, papel, sabotagem e duto. Fora do todos
 	// lobos: recarga de kill (lá quem engole tem a recarga do lobo) e tarefas (lá vence o último de pé).
-	array<int> so_classico = {f_preset, f_impostors, f_discussion, f_voting, f_meetings, f_sabotages, f_vents,
+	array<int> so_classico = {f_preset, f_impostors, f_meeting_time, f_meetings, f_sabotages, f_vents,
 		f_reveal, f_votes, f_emergency_cd, f_comms_meeting};
 	for (uint i = 0; i < f_roles.length(); i++) { so_classico.insert_last(f_roles[i]); so_classico.insert_last(f_role_chances[i]); }
 	array<int> fora_dos_lobos = {f_kill_cooldown, f_tasks, f_long_tasks};
 	// O que volta ao padrão quando o modo muda: o valor de hoje era do modo de antes.
-	array<int> textos = {f_kill_cooldown, f_max_players, f_impostors, f_tasks, f_long_tasks, f_discussion, f_voting,
+	array<int> textos = {f_kill_cooldown, f_max_players, f_impostors, f_tasks, f_long_tasks, f_meeting_time,
 		f_meetings, f_emergency_cd, f_speed};
 	for (uint i = 0; i < f_roles.length(); i++) { textos.insert_last(f_roles[i]); textos.insert_last(f_role_chances[i]); }
 	array<int> listas = {f_sabotages, f_vents, f_colors, f_color_mode, f_reveal, f_votes, f_comms_meeting, f_voice};
@@ -283,8 +282,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			}
 			r.ov.task_count_per_crewmate = text_to_int_or_default(visible_text(f, f_tasks));
 			r.ov.long_task_count = text_to_int_or_default(visible_text(f, f_long_tasks));
-			r.ov.discussion_time_seconds = text_to_float_or_default(visible_text(f, f_discussion));
-			r.ov.voting_time_seconds = text_to_float_or_default(visible_text(f, f_voting));
+			r.ov.meeting_time_seconds = text_to_float_or_default(visible_text(f, f_meeting_time));
 			r.ov.emergency_meetings_per_player = text_to_int_or_default(visible_text(f, f_meetings));
 			int sab_index = f.get_list_position(f_sabotages);
 			r.ov.sabotages = sab_index >= 0 ? f.get_list_item_id(f_sabotages, sab_index) : "";

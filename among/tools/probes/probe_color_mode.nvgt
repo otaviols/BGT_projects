@@ -91,8 +91,7 @@ void main() {
 	ov.impostor_count = 1;
 	ov.colors = "choice";
 	ov.color_mode = "on";
-	ov.discussion_time_seconds = 5.0;
-	ov.voting_time_seconds = 15.0;
+	ov.meeting_time_seconds = 20.0;
 	todos[0].send_create_lobby("cores", "classic", ov);
 	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
 	if (@st == null) { println("sem sala"); return; }

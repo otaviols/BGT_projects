@@ -106,8 +106,7 @@ void main() {
 	ov.role_counts.set(ROLE_SHAPESHIFTER, 1);    // o único impostor é o metamorfo
 	ov.role_counts.set(ROLE_GUARDIAN_ANGEL, 1);
 	ov.kill_cooldown_seconds = 5.0;
-	ov.discussion_time_seconds = DISCUSSAO;
-	ov.voting_time_seconds = 30.0;
+	ov.meeting_time_seconds = DISCUSSAO + 30.0;
 	ov.role_values.set(ROLE_GUARDIAN_ANGEL + "." + TUNABLE_DURATION, ESCUDO_DURACAO);
 	ov.role_values.set(ROLE_GUARDIAN_ANGEL + "." + TUNABLE_COOLDOWN, ANJO_RECARGA);
 	ov.role_values.set(ROLE_SHAPESHIFTER + "." + TUNABLE_COOLDOWN, MORFO_RECARGA);

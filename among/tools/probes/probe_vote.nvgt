@@ -44,7 +44,7 @@ void main() {
 		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
 		p.id = lr.get_uint64("peer_id"); p.c.my_peer_id = p.id;
 	}
-	lobby_overrides ov; ov.max_players = 10; ov.impostor_count = 1; ov.discussion_time_seconds = 5; ov.voting_time_seconds = 30;
+	lobby_overrides ov; ov.max_players = 10; ov.impostor_count = 1; ov.meeting_time_seconds = 35.0;
 	all[0].c.send_create_lobby("voto", "classic", ov);
 	net_packet@ st = wait_for(all[0].c, S_LOBBY_STATE, 5000);
 	string lobby_id = st.get_string("lobby_id");

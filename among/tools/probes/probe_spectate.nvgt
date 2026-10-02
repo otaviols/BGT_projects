@@ -88,7 +88,7 @@ void main() {
 	lobby_overrides ov;
 	ov.impostor_count = 1;
 	ov.voice_chat = "on";
-	ov.voting_time_seconds = 20.0;
+	ov.meeting_time_seconds = 20.0;
 	todos[0].send_create_lobby("assistir", "classic", ov, codigo);
 	if (@espera(0, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
 	for (uint i = 1; i <= S; i++) { todos[i].send_join_by_code(codigo); espera(i, S_JOIN_RESULT, 5000); }
