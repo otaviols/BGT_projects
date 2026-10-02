@@ -524,6 +524,12 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 				}
 				broadcast_to_lobby(lobby, events[e], 0, reliable);
 			}
+			// O carrasco que perdeu o alvo neste tick vira Bobo, e só ele fica sabendo.
+			array<uint64>@ viraram_bobo = lobby.convert_lost_executioners();
+			for (uint c = 0; c < viraram_bobo.length(); c++) {
+				game_player@ quem = lobby.find_player(viraram_bobo[c]);
+				if (@quem != null && reaches_client(quem)) send_role_changed(lobby, quem, "executioner_target_lost");
+			}
 			// O que os bots PEDIRAM neste tick, executado pelos MESMOS tratadores dos jogadores (ver
 			// bot_request em game_state). Um pacote igual ao que o cliente mandaria, e nenhum atalho.
 			for (uint r = 0; r < lobby.bot_requests.length(); r++) {

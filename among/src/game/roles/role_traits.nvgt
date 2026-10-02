@@ -40,6 +40,9 @@ const string ROLE_MAYOR = "mayor";
 const string ROLE_SWAPPER = "swapper";
 const string ROLE_JANITOR = "janitor";
 const string ROLE_CARRIER = "carrier";
+const string ROLE_EXECUTIONER = "executioner";
+const string ROLE_ARSONIST = "arsonist";
+const string ROLE_AMNESIAC = "amnesiac";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -52,6 +55,8 @@ const string ABILITY_EAT = "eat";
 const string ABILITY_SWAP = "swap";   // trocador: os votos de dois jogadores trocam de dono na apuração
 const string ABILITY_CLEAN = "clean"; // lixeiro: some com o corpo ao alcance
 const string ABILITY_DRAG = "drag";   // carregador: pega o corpo ao alcance, e larga onde estiver
+const string ABILITY_DOUSE = "douse"; // incendiário: encharca quem está colado; com todos encharcados, põe fogo
+const string ABILITY_REMEMBER = "remember"; // amnésico: herda o papel do morto ao alcance
 // O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
 // mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
 const string ABILITY_ALARM = "alarm";
@@ -70,11 +75,15 @@ const string TEAM_NEUTRAL = "neutral";
 const string SOLO_WIN_EJECTED = "ejected"; // ser expulso na votação (o Bobo)
 // Estar vivo quando a nave se reduzir a ele e no máximo mais um (o Lobo Mau). Ver o tick do game_state.
 const string SOLO_WIN_LAST_STANDING = "last_standing";
+// O alvo do Carrasco ser expulso na votação.
+const string SOLO_WIN_TARGET_EJECTED = "target_ejected";
+// Pôr fogo na nave com todos os vivos encharcados (o Incendiário).
+const string SOLO_WIN_IGNITE = "ignite";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
 const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
 	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JESTER, ROLE_WOLF,
-	ROLE_MAYOR, ROLE_SWAPPER, ROLE_JANITOR, ROLE_CARRIER};
+	ROLE_MAYOR, ROLE_SWAPPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
 //
@@ -580,7 +589,58 @@ role_traits@ role_carrier() {
 	return t;
 }
 
+// Carrasco: neutro com um alvo sorteado no começo - um tripulante, nunca impostor nem neutro. Vence
+// sozinho se o alvo for EXPULSO. Se o alvo morrer de outro jeito, ele vira Bobo (como no original): a
+// vontade de ser expulso continua, só que agora é a dele mesmo.
+role_traits@ role_executioner() {
+	role_traits t;
+	t.id = ROLE_EXECUTIONER;
+	t.team = TEAM_NEUTRAL;
+	t.tasks_count_for_crew = false;
+	t.wins_with_crew = false;
+	t.solo_win = SOLO_WIN_TARGET_EJECTED;
+	t.min_protocol = BODY_ROLES_PROTOCOL;
+	return t;
+}
+
+// Incendiário: neutro que encharca quem está colado (H, com recarga) e, com TODOS os vivos
+// encharcados, põe fogo - todos morrem e ele vence sozinho. Sem som nenhum (decisão do usuário): o
+// encharcado não sabe, e quem está perto não ouve. A pista é ele estar sempre colado em alguém. É uma
+// ameaça à tripulação (hostile_to_crew): tirar os impostores com ele vivo não é vitória, e o xerife o
+// derruba sem errar o tiro.
+role_traits@ role_arsonist() {
+	role_traits t;
+	t.id = ROLE_ARSONIST;
+	t.team = TEAM_NEUTRAL;
+	t.tasks_count_for_crew = false;
+	t.wins_with_crew = false;
+	t.hostile_to_crew = true;
+	t.solo_win = SOLO_WIN_IGNITE;
+	t.ability_id = ABILITY_DOUSE;
+	t.ability_cooldown_seconds = ARSONIST_DOUSE_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, ARSONIST_DOUSE_COOLDOWN_SECONDS, 5.0, 120.0));
+	t.min_protocol = BODY_ROLES_PROTOCOL;
+	return t;
+}
+
+// Amnésico: começa sem papel nem vitória. Perto de um corpo, H o faz herdar o papel do morto - QUALQUER
+// um, inclusive de impostor (decisão do usuário). Ninguém mais fica sabendo, exceto os impostores
+// quando ele vira um deles: sem isso eles se matariam e não saberiam com quem contar.
+role_traits@ role_amnesiac() {
+	role_traits t;
+	t.id = ROLE_AMNESIAC;
+	t.team = TEAM_NEUTRAL;
+	t.tasks_count_for_crew = false;
+	t.wins_with_crew = false;
+	t.ability_id = ABILITY_REMEMBER;
+	t.min_protocol = BODY_ROLES_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_EXECUTIONER) return role_executioner();
+	if (role_id == ROLE_ARSONIST) return role_arsonist();
+	if (role_id == ROLE_AMNESIAC) return role_amnesiac();
 	if (role_id == ROLE_MAYOR) return role_mayor();
 	if (role_id == ROLE_SWAPPER) return role_swapper();
 	if (role_id == ROLE_JANITOR) return role_janitor();

@@ -339,6 +339,13 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// acesso à configuração da sala depois que a partida começa - quem um dia quiser uma tecla que
 		// responda "o que está em jogo aqui?" já tem o dado à mão (ver roles_in_play_text).
 		role_text += " " + role_desc;
+		// O Carrasco ouve o alvo junto com o papel - é a única coisa que ele precisa saber para jogar.
+		string alvo_carrasco = start_pkt.get_string("execution_target_name", "");
+		if (alvo_carrasco != "") {
+			dictionary@ ap = dictionary();
+			ap.set("name", alvo_carrasco);
+			role_text += " " + tr("role.executioner_target", ap);
+		}
 		// O modo vem por último: ele muda a regra de tudo o que veio antes ("aqui não há reunião").
 		if (game_mode == GAME_MODE_TAG) role_text += " " + tr("mode.tag_intro");
 		else if (game_mode == GAME_MODE_WOLVES) role_text += " " + tr("mode.wolves_intro");
@@ -491,6 +498,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_BODY_REMOVED) on_body_removed(pkt);
 		else if (t == S_BODY_PLACED) on_body_placed(pkt);
 		else if (t == S_BODY_SOUND) on_body_sound(pkt);
+		else if (t == S_ROLE_CHANGED) on_role_changed(pkt);
 		else if (t == S_BELLY_RELEASED) on_belly_released(pkt);
 		else if (t == S_ABILITY_RESULT) on_ability_result(pkt);
 		else if (t == S_CAMERA_PLAYERS) on_camera_players(pkt);

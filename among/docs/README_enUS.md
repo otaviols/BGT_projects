@@ -606,6 +606,20 @@ ship down to them and at most one other person. While the wolf lives, ejecting t
 enough for the crew to win. The sheriff can shoot the wolf without misfiring. Swallowing has a
 recharge, already running when the match starts.
 
+**Executioner** (neutral). Starts with a **target**, a drawn crewmate, told along with the role. Wins
+alone if the target is **voted out**. If the target dies any other way, they become the **Jester** and
+are told right away. A target swallowed by the wolf does not count: they may come back.
+
+**Arsonist** (neutral). The H key **douses** whoever is right next to them, with no sound and without
+the person noticing. Each time they hear how many living players are left. With **every living player
+doused**, the same key **sets the fire**: everyone dies and they win alone. While they are alive,
+removing the impostors is not enough for the crew to win, and the sheriff can shoot them without
+missing.
+
+**Amnesiac** (neutral). Starts without a role and without a win. Near a body, the H key makes them
+**take the dead player's role** — any role, including impostor. Nobody else is told, except the
+impostors when they become one of them. The inherited role's ability starts on cooldown.
+
 ## Sabotage (impostor)
 
 Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one

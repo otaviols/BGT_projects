@@ -264,4 +264,100 @@ mixin class state_roles_part {
 		aviso.set_float("y", b.y);
 		return aviso;
 	}
+
+	// --- Carrasco ---
+
+	// Sorteia o alvo de cada Carrasco: um tripulante (time da tripulação, bot incluído), nunca ele
+	// mesmo. Sem ninguém para ser alvo, ele vira Bobo já no começo - devolvido na lista.
+	array<uint64>@ assign_execution_targets() {
+		array<uint64> virou_bobo;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ c = players[i];
+			if (c.role().solo_win != SOLO_WIN_TARGET_EJECTED) continue;
+			array<uint64> candidatos;
+			for (uint j = 0; j < players.length(); j++)
+				if (players[j].peer_id != c.peer_id && players[j].role().team == TEAM_CREW) candidatos.insert_last(players[j].peer_id);
+			if (candidatos.length() == 0) { c.set_role(ROLE_JESTER); virou_bobo.insert_last(c.peer_id); continue; }
+			c.execution_target = candidatos[random(0, candidatos.length() - 1)];
+		}
+		return virou_bobo;
+	}
+
+	// O Carrasco cujo alvo morreu de outro jeito (assassinado, palpite, fogo) ou saiu: vira Bobo. Engolido
+	// NÃO conta - quem está na barriga pode voltar. Só com a partida correndo e sem vencedor: o alvo
+	// expulso já deu a vitória a ele na apuração, antes daqui.
+	array<uint64>@ convert_lost_executioners() {
+		array<uint64> convertidos;
+		if (winner != "" || (state != "in_progress" && state != "voting")) return convertidos;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ c = players[i];
+			if (c.role().solo_win != SOLO_WIN_TARGET_EJECTED || c.execution_target == 0) continue;
+			game_player@ alvo = find_player(c.execution_target);
+			bool perdido = @alvo == null || alvo.left_match || (!alvo.alive && !alvo.swallowed());
+			if (!perdido) continue;
+			c.execution_target = 0;
+			c.set_role(ROLE_JESTER);
+			convertidos.insert_last(c.peer_id);
+		}
+		return convertidos;
+	}
+
+	// --- Incendiário ---
+
+	// Os vivos que ainda faltam encharcar (o próprio incendiário não conta; engolido não está na nave).
+	uint not_doused_count(game_player@ a) const {
+		uint n = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.peer_id == a.peer_id || !p.alive || p.left_match) continue;
+			if (a.doused.find(p.peer_id) == -1) n++;
+		}
+		return n;
+	}
+
+	bool try_douse(uint64 arsonist_peer, uint64 target_peer, uint&out remaining, string&out fail_key) {
+		game_player@ a = find_player(arsonist_peer);
+		game_player@ t = find_player(target_peer);
+		if (@a == null || !a.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (@t == null || !t.alive || t.peer_id == a.peer_id || distance_2d(a.x, a.y, t.x, t.y) > PLAYER_KILL_RANGE) { fail_key = "role.douse_no_target"; return false; }
+		if (a.doused.find(target_peer) != -1) { fail_key = "role.douse_already"; return false; }
+		a.doused.insert_last(target_peer);
+		remaining = not_doused_count(a);
+		return true;
+	}
+
+	// Com todos os vivos encharcados: fogo. Todos morrem, sem corpo (não há reunião depois disso), e ele
+	// vence sozinho.
+	bool try_ignite(uint64 arsonist_peer, string&out fail_key) {
+		game_player@ a = find_player(arsonist_peer);
+		if (@a == null || !a.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (not_doused_count(a) > 0) { fail_key = "role.ignite_not_ready"; return false; }
+		for (uint i = 0; i < players.length(); i++)
+			if (players[i].peer_id != a.peer_id && players[i].alive) players[i].alive = false;
+		winner = WINNER_NEUTRAL;
+		win_reason = "arsonist_ignited";
+		neutral_winner_peer = a.peer_id;
+		return true;
+	}
+
+	// --- Amnésico ---
+
+	// Herda o papel do morto ao alcance - qualquer um. O corpo continua lá: ninguém precisa saber.
+	bool try_remember(uint64 peer, string&out new_role, string&out fail_key) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		int i = body_index_near(p.x, p.y);
+		if (i < 0) { fail_key = "role.no_body_near"; return false; }
+		game_player@ morto = find_player(bodies[i].victim_peer_id);
+		if (@morto == null) { fail_key = "role.no_body_near"; return false; }
+		new_role = morto.role_id;
+		p.set_role(new_role);
+		// O kill recarregando (ninguém herda uma faca pronta no meio de todo mundo) e o alvo do carrasco.
+		// A habilidade do papel novo também começa recarregando: on_use_ability arma a recarga depois
+		// daqui, já com o papel novo - herdar não dá uma habilidade pronta de graça.
+		p.kill_cooldown_remaining = config.kill_cooldown_seconds;
+		p.guesses_left = 0;
+		p.execution_target = morto.execution_target;
+		return true;
+	}
 }

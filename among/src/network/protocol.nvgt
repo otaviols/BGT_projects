@@ -300,6 +300,10 @@ const string S_CAMERA_WATCHING = "s_camera_watching";       // {room_id}
 const string S_CAMERA_PLAYERS = "s_camera_players";         // {names: [...]}
 // Resposta PRIVADA a C_USE_ABILITY: deu ou não, e o porquê como chave. O que a habilidade faz no
 // mundo (som, estado) viaja pelos pacotes que já existem para aquilo - isto aqui é só o retorno.
+// O papel DESTE jogador mudou no meio da partida (o Carrasco que perdeu o alvo vira Bobo; o Amnésico
+// que herdou um papel). Privado. Leva o que o cliente precisa para jogar o papel novo, que ele só
+// recebia no começo: recargas, palpites, companheiros de impostor.
+const string S_ROLE_CHANGED = "s_role_changed";           // {role_id, reason, kill_cooldown_seconds, ability_cooldown_seconds, ability_guesses, impostor_partners: [{peer_id, name}], execution_target_name?}
 const string S_ABILITY_RESULT = "s_ability_result";         // {ability, ok, message_key, message_params?, cooldown_seconds}
 
 // --- Mensagens traduzíveis vindas do servidor -------------------------------

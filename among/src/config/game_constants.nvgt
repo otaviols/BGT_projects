@@ -174,6 +174,8 @@ const float MEETING_TIME_SECONDS = 75.0;
 const float JANITOR_CLEAN_COOLDOWN_SECONDS = 30.0;
 // De quanto em quanto o arrasto do carregador soa enquanto ele anda - o ritmo de um passo.
 const float BODY_DRAG_SOUND_INTERVAL = 0.45;
+// Recarga do incendiário entre um encharcar e outro.
+const float ARSONIST_DOUSE_COOLDOWN_SECONDS = 20.0;
 // Ponto onde todo mundo (vivo) é teleportado quando uma reunião começa - centro da cafeteria.
 const float MEETING_GATHER_X = 0.0;
 const float MEETING_GATHER_Y = 0.0;

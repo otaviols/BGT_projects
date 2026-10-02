@@ -600,6 +600,19 @@ barriga voltam, vivos, onde ele caiu. Ele vence se sobrar vivo com a nave reduzi
 mais uma pessoa. Enquanto ele estiver vivo, expulsar os impostores não basta para a tripulação vencer.
 O xerife pode atirar nele sem errar. Engolir tem recarga, e ela começa correndo no início da partida.
 
+**Carrasco** (neutro). Começa com um **alvo**, um tripulante sorteado, dito junto com o papel. Vence
+sozinho se o alvo for **expulso na votação**. Se o alvo morrer de outro jeito, ele vira **Bobo** e
+fica sabendo na hora. O alvo engolido pelo lobo não conta: ele pode voltar.
+
+**Incendiário** (neutro). A tecla H **encharca** quem estiver colado nele, sem som e sem a pessoa
+perceber. Cada vez ele ouve quantos vivos faltam. Com **todos os vivos encharcados**, a mesma tecla
+**põe fogo**: todos morrem e ele vence sozinho. Enquanto ele estiver vivo, expulsar os impostores não
+basta para a tripulação vencer, e o xerife pode atirar nele sem errar.
+
+**Amnésico** (neutro). Começa sem papel e sem vitória. Perto de um corpo, a tecla H faz ele **herdar o
+papel do morto** — qualquer um, inclusive de impostor. Ninguém mais fica sabendo, exceto os impostores
+quando ele vira um deles. A habilidade do papel herdado começa recarregando.
+
 ## Sabotagem (impostor)
 
 Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para

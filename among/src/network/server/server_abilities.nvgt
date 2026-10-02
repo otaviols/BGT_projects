@@ -128,6 +128,28 @@ mixin class server_abilities_part {
 			message_key = "role.drag_picked";
 			return true;
 		}
+		if (ability == ABILITY_DOUSE) {
+			// A mesma tecla encharca e põe fogo: com todos encharcados, é o fogo.
+			if (lobby.not_doused_count(p) == 0) {
+				if (!lobby.try_ignite(p.peer_id, message_key)) return false;
+				message_key = "role.ignite_done";
+				return true;
+			}
+			uint faltam = 0;
+			if (!lobby.try_douse(p.peer_id, pkt.get_uint64("target_peer_id"), faltam, message_key)) return false;
+			game_player@ alvo = lobby.find_player(pkt.get_uint64("target_peer_id"));
+			message_params.set("name", @alvo != null ? alvo.public_name() : "");
+			message_params.set("count", "" + faltam);
+			message_key = faltam == 0 ? "role.douse_all_ready" : "role.douse_done";
+			return true;
+		}
+		if (ability == ABILITY_REMEMBER) {
+			string papel;
+			if (!lobby.try_remember(p.peer_id, papel, message_key)) return false;
+			send_role_changed(lobby, p, "remembered");
+			message_key = "";
+			return true;
+		}
 		if (ability == ABILITY_SHAPESHIFT) {
 			string copiado;
 			if (!lobby.try_shapeshift(p.peer_id, pkt.get_uint64("target_peer_id"), copiado, message_key)) return false;
@@ -290,5 +312,36 @@ mixin class server_abilities_part {
 		som.set_float("x", x);
 		som.set_float("y", y);
 		broadcast_to_lobby(lobby, som);
+	}
+
+	// Conta ao jogador que o papel dele mudou, com tudo que o cliente só recebia no começo. Se o papel
+	// novo é de impostor, os companheiros ficam sabendo também - senão um mataria o outro.
+	void send_role_changed(game_state@ lobby, game_player@ p, const string&in reason) {
+		net_packet@ r = net_packet(S_ROLE_CHANGED);
+		r.set_string("role_id", p.role_id);
+		r.set_string("reason", reason);
+		r.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
+		r.set_float("ability_cooldown_seconds", lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN));
+		r.set_int("ability_guesses", int(lobby.config.role_value(p.role_id, TUNABLE_GUESSES)));
+		if (p.execution_target != 0) {
+			game_player@ alvo = lobby.find_player(p.execution_target);
+			if (@alvo != null) r.set_string("execution_target_name", alvo.public_name());
+		}
+		json_array@ parceiros = json_array();
+		if (p.role().knows_teammates) {
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				game_player@ o = lobby.players[i];
+				if (o.peer_id == p.peer_id || !o.is_impostor) continue;
+				json_object@ j = json_object();
+				j.set("peer_id", o.peer_id);
+				j.set("name", o.public_name());
+				parceiros.add(j);
+				dictionary@ np = dictionary();
+				np.set("name", p.public_name());
+				if (reaches_client(o)) send_error(o.peer_id, "role.teammate_joined", np);
+			}
+		}
+		r.set_array("impostor_partners", parceiros);
+		send_to(p.peer_id, r);
 	}
 }

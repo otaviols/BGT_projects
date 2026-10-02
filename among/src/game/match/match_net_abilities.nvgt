@@ -136,4 +136,44 @@ mixin class match_net_abilities_part {
 	void on_radar_result(net_packet@ pkt) {
 		radar.handle_result(pkt);
 	}
+
+	// O papel mudou no meio da partida (Carrasco que perdeu o alvo, Amnésico que herdou). Tudo que o
+	// começo da partida dava ao papel é refeito aqui: o que as teclas podem, recargas, companheiros.
+	void on_role_changed(net_packet@ pkt) {
+		@my_role = role_for(pkt.get_string("role_id"));
+		is_impostor = my_role.team == TEAM_IMPOSTOR;
+		mui.is_impostor = is_impostor;
+		kill_cooldown_config = pkt.get_float("kill_cooldown_seconds", kill_cooldown_config);
+		my_kill_cooldown_remaining = kill_cooldown_config;
+		ability_cooldown_config = pkt.get_float("ability_cooldown_seconds", 0.0);
+		my_ability_cooldown_remaining = 0.0;
+		my_guess_count = uint(pkt.get_int("ability_guesses", 0));
+		json_array@ parceiros = pkt.get_array("impostor_partners");
+		impostor_partner_peers.resize(0);
+		array<string> nomes;
+		if (@parceiros != null) for (uint i = 0; i < parceiros.length(); i++) {
+			json_object@ o = parceiros.get_object(i);
+			if (@o == null) continue;
+			impostor_partner_peers.insert_last(uint64(o["peer_id"]));
+			nomes.insert_last(spoken_name(string(o["name"])));
+		}
+		// Marcadores e sabotagem dependem do papel (o impostor não ouve as próprias tarefas como tripulante).
+		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
+			my_role, alive, known_body_peers, known_body_positions);
+		string texto = tr(pkt.get_string("reason") == "executioner_target_lost" ? "role.executioner_lost_target" : "role.remembered");
+		texto += " " + tr(my_role.assignment_key());
+		if (nomes.length() > 0) {
+			dictionary@ np = dictionary();
+			np.set("names", join(nomes, ", "));
+			texto += " " + tr("role.your_partners_now", np);
+		}
+		string alvo = pkt.get_string("execution_target_name", "");
+		if (alvo != "") {
+			dictionary@ ap = dictionary();
+			ap.set("name", alvo);
+			texto += " " + tr("role.executioner_target", ap);
+		}
+		speak(texto);
+		events_log.add("", texto);
+	}
 }

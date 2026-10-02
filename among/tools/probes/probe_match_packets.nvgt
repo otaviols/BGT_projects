@@ -133,6 +133,20 @@ void main() {
 	b.handle_packet(solta);
 	confere("solto: de volta, vivo, onde o lobo estava", !b.swallowed && b.wolf_peer == 0 && b.alive);
 
+	println("== amnesico que vira impostor ==");
+	match_session@ am = nova_partida(ROLE_AMNESIAC);
+	net_packet@ muda = net_packet(S_ROLE_CHANGED);
+	muda.set_string("role_id", ROLE_IMPOSTOR);
+	muda.set_string("reason", "remembered");
+	muda.set_float("kill_cooldown_seconds", 25.0);
+	json_array@ parceiros = json_array();
+	json_object@ par = json_object(); par.set("peer_id", 3); par.set("name", "bia"); parceiros.add(par);
+	muda.set_array("impostor_partners", parceiros);
+	am.handle_packet(muda);
+	confere("passa a jogar como impostor, com recarga de kill e o companheiro conhecido",
+		am.my_role.id == ROLE_IMPOSTOR && am.is_impostor && am.mui.is_impostor && am.my_kill_cooldown_remaining == 25.0
+		&& am.impostor_partner_peers.length() == 1 && am.impostor_partner_peers[0] == 3);
+
 	confere("nenhuma excecao (crash.log intocado)", file_get_contents(crash_log_path()) == crash_antes);
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

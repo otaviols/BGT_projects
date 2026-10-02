@@ -100,6 +100,9 @@ class game_player {
 	uint guesses_left = 0;
 	// Quando o arrasto do carregador pode soar de novo, no relógio da partida (ver on_move).
 	float next_drag_sound = 0.0;
+	// O alvo do Carrasco (0 = nenhum) e quem o Incendiário já encharcou.
+	uint64 execution_target = 0;
+	array<uint64> doused;
 	int radar_index = -1;
 	float last_move_time = 0.0;
 	array<player_task> tasks;
@@ -289,6 +292,8 @@ class game_player {
 		meetings_called = 0;
 		guesses_left = 0;
 		next_drag_sound = 0.0;
+		execution_target = 0;
+		doused.resize(0);
 		radar_index = -1;
 		last_move_time = 0.0;
 		bot_has_target = false;

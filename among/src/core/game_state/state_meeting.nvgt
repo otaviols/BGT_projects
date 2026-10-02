@@ -258,6 +258,13 @@ mixin class state_meeting_part {
 					win_reason = "jester_ejected";
 					neutral_winner_peer = ejected.peer_id;
 				}
+				// O alvo do Carrasco foi expulso: ele vence, vivo ou morto - o trabalho dele era a mesa.
+				for (uint i = 0; i < players.length() && winner == ""; i++) {
+					if (players[i].role().solo_win != SOLO_WIN_TARGET_EJECTED || players[i].execution_target != ejected.peer_id) continue;
+					winner = WINNER_NEUTRAL;
+					win_reason = "executioner_won";
+					neutral_winner_peer = players[i].peer_id;
+				}
 			}
 		} else {
 			result.set_uint64("ejected_peer", 0);

@@ -270,6 +270,9 @@ mixin class server_match_part {
 		// Zerar isto era esquecido: o valor sobrava da partida ANTERIOR nessa mesma lobby.
 		lobby.sabotage_cooldown_remaining = SABOTAGE_INITIAL_COOLDOWN_SECONDS;
 		lobby.state = "in_progress";
+		// O alvo de cada carrasco, depois dos papéis (precisa saber quem é da tripulação). Quem fica sem
+		// alvo vira Bobo já aqui, e o início dele sai com o papel novo.
+		lobby.assign_execution_targets();
 
 		json_array@ roster = json_array();
 		for (uint i = 0; i < lobby.players.length(); i++) {
@@ -288,6 +291,10 @@ mixin class server_match_part {
 			net_packet@ start = net_packet(S_GAME_START);
 			start.set_string("map_name", lobby.map.name);
 			start.set_string("your_role", p.role_id);
+			if (p.execution_target != 0) {
+				game_player@ alvo = lobby.find_player(p.execution_target);
+				if (@alvo != null) start.set_string("execution_target_name", alvo.public_name());
+			}
 			// O que a SALA configurou (id -> quantos, e a chance de cada um), para todo mundo: assim
 			// como o número de impostores, saber que "pode haver um xerife" muda a leitura de tudo o
 			// que acontece. É a configuração, e nunca o resultado do sorteio: dizer o que realmente

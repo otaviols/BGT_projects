@@ -198,6 +198,11 @@ mixin class match_frame_keys_part {
 						pending_eat_peer = alvo.peer_id;
 						client.send_use_ability(my_role.ability_id, alvo.peer_id);
 					}
+				} else if (my_role.ability_id == ABILITY_DOUSE) {
+					// Mirado como o kill: o mais perto ao alcance. Sem ninguém perto o pedido vai assim
+					// mesmo - com todos encharcados, a mesma tecla é o fogo, e quem sabe é o servidor.
+					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE);
+					client.send_use_ability(my_role.ability_id, @alvo != null ? alvo.peer_id : 0);
 				} else if (my_role.ability_id == ABILITY_SHIELD) {
 					// Habilidade MIRADA: o alvo é quem estiver mais perto, pela mesma função da
 					// tecla de matar - o anjo tem que ir até a pessoa, como o impostor teria.

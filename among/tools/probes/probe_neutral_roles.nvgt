@@ -1,0 +1,103 @@
+// Sonda da segunda leva de papéis novos, os neutros, direto no estado da partida (sem rede): Carrasco,
+// Incendiário e Amnésico.
+//   nvgt tools/probes/probe_neutral_roles.nvgt
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Cinco no mesmo ponto: 1 com o papel pedido, 2 com `papel_2`, 3 e 5 tripulantes, 4 impostor. Tarefa
+// pendente para todos, para a partida não acabar por tarefas.
+game_state@ mesa(const string&in papel_1, const string&in papel_2 = ROLE_CREWMATE) {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	lobby.sabotage_cooldown_remaining = 999.0;
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	array<string> papeis = {papel_1, papel_2, ROLE_CREWMATE, ROLE_IMPOSTOR, ROLE_CREWMATE};
+	for (uint i = 0; i < papeis.length(); i++) {
+		game_player@ p = game_player(i + 1, "j" + (i + 1));
+		p.set_role(papeis[i]);
+		p.x = 10.0; p.y = 10.0;
+		player_task tk; tk.object_id = spots[0].id; tk.task_type = spots[0].task_type; p.tasks.insert_last(tk);
+		lobby.players.insert_last(p);
+	}
+	return lobby;
+}
+
+net_packet@ expulsa(game_state@ lobby, int64 alvo) {
+	net_packet@ ev;
+	lobby.start_meeting(3, "button", ev);
+	for (uint i = 0; i < lobby.players.length(); i++) if (lobby.players[i].alive) lobby.cast_vote(lobby.players[i].peer_id, alvo);
+	return lobby.tally_votes();
+}
+
+void main() {
+	println("== carrasco ==");
+	bool so_tripulantes = true;
+	for (int r = 0; r < 200; r++) {
+		game_state@ l = mesa(ROLE_EXECUTIONER);
+		l.assign_execution_targets();
+		uint64 alvo = l.find_player(1).execution_target;
+		if (alvo != 2 && alvo != 3 && alvo != 5) so_tripulantes = false;
+	}
+	confere("o alvo e sempre um tripulante (nunca ele mesmo nem o impostor), em 200 sorteios", so_tripulantes);
+
+	game_state@ c = mesa(ROLE_EXECUTIONER);
+	c.find_player(1).execution_target = 3;
+	expulsa(c, 5);
+	confere("controle: expulsar outro tripulante nao da vitoria a ninguem", c.winner == "");
+	game_state@ v = mesa(ROLE_EXECUTIONER);
+	v.find_player(1).execution_target = 3;
+	expulsa(v, 3);
+	confere("o alvo expulso da a vitoria ao carrasco (" + v.win_reason + ")", v.winner == WINNER_NEUTRAL && v.neutral_winner_peer == 1 && v.win_reason == "executioner_won");
+
+	game_state@ k = mesa(ROLE_EXECUTIONER);
+	k.find_player(1).execution_target = 3;
+	k.find_player(3).alive = false; k.find_player(3).swallowed_by = 4;
+	confere("alvo engolido NAO conta como perdido (pode voltar)", k.convert_lost_executioners().length() == 0 && k.find_player(1).role_id == ROLE_EXECUTIONER);
+	k.find_player(3).swallowed_by = 0;
+	array<uint64>@ viraram = k.convert_lost_executioners();
+	confere("alvo morto de outro jeito: o carrasco vira Bobo", viraram.length() == 1 && k.find_player(1).role_id == ROLE_JESTER);
+
+	println("== incendiario ==");
+	game_state@ a = mesa(ROLE_ARSONIST);
+	string falha; uint faltam;
+	confere("antes de encharcar todos, o fogo e recusado", !a.try_ignite(1, falha) && falha == "role.ignite_not_ready");
+	a.try_douse(1, 2, faltam, falha);
+	a.try_douse(1, 3, faltam, falha);
+	confere("encharcar duas vezes a mesma pessoa e recusado", !a.try_douse(1, 3, faltam, falha) && falha == "role.douse_already");
+	a.try_douse(1, 4, faltam, falha);
+	confere("falta um", faltam == 1);
+	a.try_douse(1, 5, faltam, falha);
+	confere("todos encharcados", faltam == 0 && a.not_doused_count(a.find_player(1)) == 0);
+	confere("o fogo pega", a.try_ignite(1, falha));
+	bool todos_mortos = true;
+	for (uint i = 1; i < a.players.length(); i++) if (a.players[i].alive) todos_mortos = false;
+	confere("todos os outros morrem, e ele vence sozinho", todos_mortos && a.find_player(1).alive && a.winner == WINNER_NEUTRAL && a.neutral_winner_peer == 1);
+	game_state@ longe = mesa(ROLE_ARSONIST);
+	longe.find_player(2).x = 40.0;
+	confere("so encharca quem esta colado", !longe.try_douse(1, 2, faltam, falha) && falha == "role.douse_no_target");
+
+	println("== amnesico ==");
+	game_state@ m = mesa(ROLE_AMNESIAC, ROLE_SHERIFF);
+	net_packet@ ev;
+	m.find_player(4).kill_cooldown_remaining = 0.0;
+	m.try_kill(4, 2, ev); // o impostor mata o xerife
+	string novo;
+	confere("perto do corpo do xerife, o amnesico vira xerife", m.try_remember(1, novo, falha) && novo == ROLE_SHERIFF && m.find_player(1).role_id == ROLE_SHERIFF);
+	game_state@ i = mesa(ROLE_AMNESIAC, ROLE_SHERIFF);
+	i.find_player(2).kill_cooldown_remaining = 0.0;
+	i.try_kill(2, 4, ev); // o xerife mata o impostor
+	confere("perto do corpo do impostor, o amnesico vira impostor", i.try_remember(1, novo, falha) && novo == ROLE_IMPOSTOR && i.find_player(1).is_impostor);
+	game_state@ sem = mesa(ROLE_AMNESIAC);
+	confere("sem corpo perto, nada", !sem.try_remember(1, novo, falha) && falha == "role.no_body_near");
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -349,6 +349,23 @@ Sondas: `probe_body_roles.nvgt` (sem rede, cada caso com controle) e `probe_body
 com QUATRO jogadores: com três, o kill dá um contra um e a partida acaba ali, e a sonda passa a falar
 com uma sala reaberta onde todos voltaram a tripulante (custou uma rodada achar isso).
 
+**Carrasco, Incendiário e Amnésico (0.47.0, também protocolo 10).** Decisões do usuário e o porquê:
+- **O papel pode MUDAR no meio da partida** (Carrasco sem alvo vira Bobo; Amnésico herda). Tudo que o
+  cliente só recebia no `S_GAME_START` - recargas, palpites, companheiros de impostor, alvo - vai de
+  novo no `S_ROLE_CHANGED` (privado, `send_role_changed`), e `on_role_changed` refaz o que o começo
+  da partida montava. Papel novo que precise de algo do início: ponha nos DOIS lugares.
+- **Carrasco:** o alvo é sorteado em `assign_execution_targets`, depois dos papéis (só time da
+  tripulação, bot incluído; sem candidato, vira Bobo já no início). A vitória mora na apuração, ao
+  lado da do Bobo; a conversão em `convert_lost_executioners`, chamada pelo servidor a cada tick - e
+  engolido NÃO é alvo perdido, porque pode voltar.
+- **Incendiário: sem som nenhum** (decisão do usuário). A mesma tecla encharca e põe fogo; quem
+  decide qual é o servidor (`not_doused_count`). O fogo mata sem corpo e encerra a partida na hora.
+  `hostile_to_crew`, como o lobo.
+- **Amnésico: herda QUALQUER papel, impostor inclusive** (decisão do usuário). O corpo fica onde está;
+  só os impostores são avisados quando ele vira um deles (`role.teammate_joined`). O kill herdado
+  começa recarregando, e a habilidade também (on_use_ability arma a recarga já com o papel novo).
+Sondas: `probe_neutral_roles.nvgt` (sem rede) e o caso do `S_ROLE_CHANGED` no `probe_match_packets`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a
