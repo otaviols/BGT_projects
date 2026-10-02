@@ -6,6 +6,37 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.0
+
+**Pre-release of 1.0.** This version brings a lot of new things at once, so it may have more bugs than
+usual. Found something odd? Send it through feedback: that is what will make 1.0 solid.
+
+**Twelve new roles and modifiers**, all turned on by the room, with how many and the chance of each:
+
+- Crew: **Doctor** (revives whoever just died, and whoever comes back knows who killed them), **Mayor**
+  (their vote counts as two, secretly) and **Swapper** (in a meeting, swaps the votes of two people).
+- Impostors: **Janitor** (makes the body disappear) and **Carrier** (moves the body somewhere else).
+- Neutrals: **Executioner** (wins if their target is voted out), **Arsonist** (douses everyone and sets
+  the fire) and **Amnesiac** (takes the role of a dead player, any role).
+- Modifiers, on top of the role: **Flash** and **Giant** (50% faster or slower - footsteps tell who it is
+  by their pace) and the **lovers** (they die together and win together).
+
+The manual explains each one.
+
+**Game mode with the room open.** The mode became its own field when creating the room, and the host
+can change it later. The screen shows only the rules that apply to the chosen mode.
+
+**Meeting time.** Discussion and voting became a single time, which is how the game always worked: you
+can vote from the start.
+
+**All wolves:** whoever leaves the belly comes back with swallowing on cooldown, so no more chain eating.
+
+**While watching, the radar works**, from the point of the player you follow.
+
+**Control, Shift and the talk key mute every voice** at once; again, they come back.
+
+**The match list says who is in each match**, so you can find your friends.
+
 ## 0.46.0
 
 **On Android, the phone's keyboard opens by itself** when you reach a text field: login, password,

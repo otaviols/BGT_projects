@@ -6,6 +6,37 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.0
+
+**Pré-lançamento da 1.0.** Esta versão traz muita coisa nova de uma vez, e por isso pode ter mais
+defeitos que o normal. Achou algo estranho? Mande pelo recado: é o que vai deixar a 1.0 redonda.
+
+**Doze papéis e modificadores novos**, todos ligados pela sala, com quantos e a chance de cada um:
+
+- Tripulação: **Médico** (revive quem acabou de morrer, e quem volta sabe quem o matou), **Prefeito**
+  (o voto vale por dois, em segredo) e **Trocador** (na reunião, troca os votos de duas pessoas).
+- Impostores: **Lixeiro** (some com o corpo) e **Carregador** (leva o corpo para outro lugar).
+- Neutros: **Carrasco** (vence se o alvo dele for expulso), **Incendiário** (encharca todo mundo e põe
+  fogo) e **Amnésico** (herda o papel de um morto, qualquer um).
+- Modificadores, por cima do papel: **Flash** e **Gigante** (50% mais rápido ou mais devagar - os
+  passos dizem quem é pelo ritmo) e o **casal de apaixonados** (morrem juntos e vencem juntos).
+
+O manual explica cada um.
+
+**Modo de jogo com a sala aberta.** O modo virou um campo próprio ao criar a sala, e o anfitrião pode
+trocá-lo depois. A tela mostra só as regras que valem para o modo escolhido.
+
+**Tempo de reunião.** Discussão e votação viraram um tempo só, que é como o jogo sempre funcionou: dá
+para votar desde o começo.
+
+**Todos lobos:** quem sai da barriga volta com o engolir recarregando, e acabou a devoração em cadeia.
+
+**Assistindo, o radar funciona**, do ponto de quem você acompanha.
+
+**Ctrl, Shift e a tecla de falar silenciam todas as vozes** de uma vez; de novo, elas voltam.
+
+**A lista de partidas diz quem está em cada uma**, para você achar os conhecidos.
+
 ## 0.46.0
 
 **No Android, o teclado do celular se abre sozinho** quando você chega num campo de texto: login,
