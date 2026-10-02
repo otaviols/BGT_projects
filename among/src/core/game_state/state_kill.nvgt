@@ -1,0 +1,232 @@
+// state_kill.nvgt
+// Matar e o que vem dele: recarga, o kill em si, o palpite do sniper, corpos e o rastro que o detetive examina.
+//
+// Parte do game_state (src/core/game_state.nvgt), como `mixin class`: o AngelScript não tem classe parcial, e o mixin
+// é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam os campos e os
+// métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o game_state.nvgt.
+
+mixin class state_kill_part {
+	// A recarga do tiro DESTE jogador. O xerife pode ter a dele, separada da do impostor (ver o
+	// tunable do papel); zero ali significa "a mesma da sala", que é o campo vazio do formulário.
+	float kill_cooldown_for(game_player@ p) const {
+		if (@p == null) return config.kill_cooldown_seconds;
+		float propria = config.role_value(p.role_id, TUNABLE_KILL_COOLDOWN);
+		return propria > 0.0 ? propria : config.kill_cooldown_seconds;
+	}
+
+	// --- Kill ---
+	//
+	// Nem todo tiro mata quem foi mirado: o xerife que atira em quem NÃO é impostor morre no lugar
+	// dele (ver role_sheriff). Por isso quem morre é decidido aqui, e não presumido - e o resto do
+	// jogo continua recebendo um S_PLAYER_KILLED só, com a vítima que de fato caiu.
+	bool try_kill(uint64 killer_peer, uint64 target_peer, net_packet@&out out_event) {
+		bool ignorado = false;
+		return try_kill(killer_peer, target_peer, out_event, ignorado);
+	}
+
+	bool try_kill(uint64 killer_peer, uint64 target_peer, net_packet@&out out_event, bool&out misfire) {
+		misfire = false;
+		game_player@ killer = find_player(killer_peer);
+		game_player@ target = find_player(target_peer);
+		if (@killer == null || @target == null) return false;
+		if (!killer.can_kill()) return false;
+		if (!target.alive || target.peer_id == killer.peer_id) return false;
+		if (distance_2d(killer.x, killer.y, target.x, target.y) > PLAYER_KILL_RANGE) return false;
+
+		// DUTO: ninguém mata de dentro dele, e ninguém morre dentro dele. As duas pontas, pela mesma
+		// razão - a posição de quem está num duto PAROU de ser transmitida (ver on_move), então o
+		// atacante mira o último lugar conhecido e não onde a pessoa está.
+		//
+		// Do lado do atacante foi um recado de jogador: escondido do radar e da câmera, ele alcançava
+		// quem passasse ao lado da tampa, e não havia como saber que ele estava ali.
+		//
+		// Do lado do alvo era pior e ninguém tinha relatado: o morto continuava com `vented` ligado, e
+		// fantasma ventilado não anda (try_move_player recusa) nem sai (o menu do duto exige estar
+		// vivo) - travava no lugar pelo resto da partida, sem mensagem nenhuma. É a mesma armadilha
+		// que a reunião já teve, entrando por outra porta.
+		//
+		// Invisibilidade NÃO entra aqui, em ponta nenhuma: o fantasma mata e fica visível (ver logo
+		// abaixo), e do lado do alvo isto seria uma mudança de equilíbrio que ninguém pediu.
+		if (killer.vented) return false;
+		if (target.vented) return false;
+
+		// Escudo do anjo da guarda: o ataque simplesmente NÃO acontece.
+		//
+		// Aqui em cima de propósito, antes de qualquer outra coisa. Antes da recarga porque gastá-la
+		// seria um aviso indireto - "apertei, não saiu som de kill e meu cooldown zerou" só pode
+		// significar escudo. E antes do cálculo do tiro errado porque o escudo vale contra QUALQUER
+		// ataque: o xerife que mira num inocente protegido também não morre. Uma regra só, sem
+		// exceção para explicar no manual.
+		if (target.shield_remaining > 0.0) return false;
+
+		bool killer_is_impostor = killer.role().team == TEAM_IMPOSTOR;
+		// Impostor não mata impostor. Além de não fazer sentido (são do mesmo time e se conhecem
+		// desde o começo da partida), um mata-mata entre parceiros por engano entregava a rodada
+		// inteira: some um impostor e a tripulação ganha de graça.
+		if (killer_is_impostor && target.is_impostor) return false;
+
+		// Quem atira pela TRIPULAÇÃO e erra o alvo morre no lugar dele. É o que faz o xerife ser uma
+		// aposta e não uma arma: matar o inocente custa a própria vida, e a tripulação perde duas
+		// pessoas de uma vez. O alvo não fica sabendo de nada - ele só ouve um assassinato do lado,
+		// como qualquer vizinho, e essa ambiguidade é o ponto.
+		// O lobo (hostile_to_crew) é alvo LEGÍTIMO do xerife: ele come a tripulação, e errar nele
+		// mataria o xerife por acertar a ameaça certa.
+		misfire = !killer_is_impostor && !target.is_impostor && !target.role().hostile_to_crew;
+		game_player@ victim = misfire ? killer : target;
+
+		victim.alive = false;
+		// Se era o lobo, quem estava na barriga volta - no lugar onde ele caiu.
+		release_belly(victim, victim.x, victim.y);
+		killer.kill_cooldown_remaining = kill_cooldown_for(killer);
+		// Matar REVELA o fantasma. É o preço inteiro do papel: ele atravessa a nave sem ser
+		// percebido, mas o instante do crime o devolve ao mundo - com som, no lugar onde está, para
+		// quem estiver por perto. Sem isto ele mataria e sumiria de novo, e não haveria jogo do
+		// outro lado. Quem avisa é o servidor, pelo mesmo caminho da invisibilidade que expira.
+		if (killer.invisible()) killer.invisible_remaining = 0.0;
+
+		body_info body;
+		body.id = "body_" + victim.peer_id;
+		body.victim_peer_id = victim.peer_id;
+		body.x = victim.x;
+		body.y = victim.y;
+		body.room_id = map.room_id_at(victim.x, victim.y);
+		// Para o detetive. Quem matou fica guardado só para gravar por onde ele anda daqui a pouco -
+		// o nome dele NUNCA sai deste objeto. No tiro errado do xerife, quem "matou" é o próprio
+		// morto, então o rastro nasce vazio e o exame não aponta ninguém: correto, porque não houve
+		// assassino para rastrear.
+		body.death_time = elapsed_time;
+		body.killer_peer_id = killer.peer_id;
+		body.trail_until = elapsed_time + config.role_value(ROLE_DETECTIVE, TUNABLE_TRAIL);
+		bodies.insert_last(body);
+
+		@out_event = net_packet(S_PLAYER_KILLED);
+		out_event.set_uint64("peer_id", victim.peer_id);
+		out_event.set_uint64("killer_peer", killer.peer_id);
+		// O nome de quem matou NÃO viaja aqui, e isso é decisão, não esquecimento.
+		//
+		// A vítima resolve o nome pelo elenco dela, que não conhece disfarce nenhum - ou seja, quem
+		// morre para o metamorfo descobre quem ele é DE VERDADE. É de propósito: quem morreu já
+		// pagou o preço e não tem como contar a ninguém (não vota, não fala com vivo, e fantasma só
+		// é ouvido por fantasma), então mentir para ele não compra nada ao impostor e só piora o
+		// jogo de quem já perdeu. No caso normal a vítima também sabe quem a matou; fazer o
+		// contrário aqui tornaria morrer para o metamorfo pior do que morrer para um impostor comum.
+		//
+		// E o nome verdadeiro não pode entrar NESTE pacote de jeito nenhum: ele é transmitido à
+		// partida inteira. Seria o mesmo erro do `misfire` do xerife.
+		out_event.set_int("killer_color", killer.color);
+		out_event.set_float("x", victim.x);
+		out_event.set_float("y", victim.y);
+		// O tiro errado NÃO entra neste pacote: ele é transmitido à partida inteira, e qualquer um
+		// leria "aquele que morreu era um xerife que errou" - de graça, sem ter visto nada. Quem
+		// precisa saber é só quem morreu, e quem avisa é o servidor, em particular (ver on_kill).
+		// Para todos os outros isto é um assassinato como qualquer outro, e é essa ambiguidade que
+		// faz o xerife valer a pena.
+		return true;
+	}
+
+	// O sniper aponta alguém na mesa e diz qual é o papel dele. Acertou, o alvo morre; errou, morre
+	// ele. Devolve false (com `fail_key`) só quando o palpite nem chega a acontecer.
+	//
+	// NÃO passa por try_kill de propósito, embora as duas coisas matem. try_kill é o assassinato no
+	// mapa: ele deixa CORPO, consome a recarga do tiro, revela o fantasma e grava o rastro do
+	// detetive - tudo coisa que depende de haver um lugar onde aconteceu. Aqui todo mundo está na
+	// mesa, e um corpo na cafeteria seria reportado no segundo seguinte pela própria reunião que está
+	// em curso. Quem morre na mesa morre sem corpo: a reunião inteira viu.
+	//
+	// O ESCUDO do anjo não protege aqui, e isso não é esquecimento: a reunião já apaga o escudo ao
+	// começar (ver start_meeting), decisão antiga e com motivo próprio. Na mesa ninguém está
+	// protegido, e é uma regra a menos para explicar.
+	bool try_guess(uint64 sniper_peer, uint64 target_peer, const string&in guessed_role,
+			uint64&out victim_peer, bool&out correct, string&out fail_key) {
+		fail_key = "";
+		victim_peer = 0;
+		correct = false;
+		if (state != "voting") { fail_key = "role.guess_not_in_meeting"; return false; }
+		game_player@ sniper = find_player(sniper_peer);
+		if (@sniper == null || !sniper.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (sniper.guesses_left == 0) { fail_key = "role.guess_none_left"; return false; }
+		// Só os papéis especiais que ESTA sala ligou. A lista que o cliente mostra já sai do
+		// S_GAME_START, mas ela vem da máquina do jogador: sem esta conferência, um cliente alterado
+		// chutaria "tripulante" e mataria qualquer um.
+		if (!role_is_guessable(guessed_role) || config.role_count(guessed_role) == 0) {
+			fail_key = "role.guess_bad_role";
+			return false;
+		}
+		game_player@ target = find_player(target_peer);
+		if (@target == null || !target.alive) { fail_key = "role.guess_bad_target"; return false; }
+		if (target.peer_id == sniper.peer_id) { fail_key = "role.guess_bad_target"; return false; }
+
+		sniper.guesses_left--;
+		correct = target.role_id == guessed_role;
+		game_player@ victim = correct ? target : sniper;
+		victim.alive = false;
+		victim_peer = victim.peer_id;
+		release_belly(victim, victim.x, victim.y); // na mesa: voltam para a mesa
+		// Sem corpo, sem rastro e sem recarga: ver o comentário do topo. E sem mexer na
+		// invisibilidade - ninguém está invisível numa reunião, que já a desfaz ao começar.
+		return true;
+	}
+
+	body_info@ find_body_near(float x, float y, float max_range) {
+		for (uint i = 0; i < bodies.length(); i++) {
+			if (distance_2d(x, y, bodies[i].x, bodies[i].y) <= max_range) return bodies[i];
+		}
+		return null;
+	}
+
+	// Grava por onde o assassino anda nos primeiros segundos depois de cada morte recente.
+	//
+	// Roda por quadro e custa quase nada: no máximo um corpo ou dois estão gravando ao mesmo tempo,
+	// e cada um só olha o jogador que o matou.
+	//
+	// DENTRO DO DUTO nada é gravado - nem a sala onde ele entrou de novo, nem para onde saiu.
+	// Estado de duto é privado (é a mesma regra que impede o radar e a câmera de contarem quem está
+	// escondido), e sem isso o rastro denunciaria uma viagem de duto a quem não estava lá para ouvir
+	// a tampa. Na prática, ventilar vira a contra-jogada natural contra o detetive: some do rastro,
+	// ao custo do barulho para quem estiver por perto.
+	private void tick_killer_trails() {
+		for (uint i = 0; i < bodies.length(); i++) {
+			body_info@ b = bodies[i];
+			if (b.trail_until <= 0.0 || elapsed_time > b.trail_until) continue;
+			if (b.killer_trail.length() >= KILLER_TRAIL_MAX_ROOMS) continue;
+			game_player@ k = find_player(b.killer_peer_id);
+			if (@k == null || k.vented) continue;
+			// Corredor não entra: o rastro é para ser DITO, e "corredor da navegação para armas" no
+			// meio da frase a torna impossível de acompanhar de ouvido. As salas bastam para o rumo -
+			// e `room_id_at` devolve corredor também, então o filtro é explícito.
+			map_zone@ z = map.zone_at(k.x, k.y);
+			if (@z == null || z.is_corridor) continue;
+			string room = z.id;
+			if (room == b.room_id) continue; // a sala do corpo é o ponto de partida, não o rastro
+			if (b.killer_trail.length() > 0 && b.killer_trail[b.killer_trail.length() - 1] == room) continue;
+			b.killer_trail.insert_last(room);
+		}
+	}
+
+	// O detetive examina o corpo mais próximo: há quanto tempo a pessoa morreu e por onde o
+	// assassino passou depois (ver tick_killer_trails).
+	//
+	// UM exame por corpo, e é o `examined` do próprio corpo que garante isso: cada corpo vira uma
+	// pista única, e não uma fonte que se consulta de novo a cada dúvida. Quem chega num corpo já
+	// examinado ouve isso, em vez de um silêncio que pareceria bug.
+	//
+	// O rastro NÃO diz quem matou, e nem poderia: ele é uma lista de salas, e quem estava nelas por
+	// acaso entra na conta junto com o culpado. É essa ambiguidade que faz a pista valer uma
+	// discussão em vez de encerrar a partida.
+	bool try_examine_body(uint64 peer_id, int&out seconds_ago, array<string>&out trail, string&out fail_key) {
+		fail_key = "";
+		seconds_ago = 0;
+		trail.resize(0);
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+
+		body_info@ body = find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
+		if (@body == null) { fail_key = "role.examine_no_body"; return false; }
+		if (body.examined) { fail_key = "role.examine_already_done"; return false; }
+
+		body.examined = true;
+		seconds_ago = int(elapsed_time - body.death_time + 0.5);
+		trail = body.killer_trail;
+		return true;
+	}
+}

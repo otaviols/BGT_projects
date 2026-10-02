@@ -1,0 +1,201 @@
+// state_ship.nvgt
+// A nave: portas, sabotagens e seus painéis, câmeras.
+//
+// Parte do game_state (src/core/game_state.nvgt), como `mixin class`: o AngelScript não tem classe parcial, e o mixin
+// é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam os campos e os
+// métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o game_state.nvgt.
+
+mixin class state_ship_part {
+	// --- Portas ---
+	// Fecha TODOS os corredores que dão pra uma sala, prendendo quem está lá dentro (e quem está
+	// fora, do lado de fora). Não tem conserto: reabrem sozinhas quando o tempo acaba. É de
+	// propósito que isso não passe pelo sistema de sabotagem - poder fechar a porta da elétrica E
+	// apagar a luz ao mesmo tempo é justamente o que torna a jogada interessante.
+	bool close_doors_of_room(uint64 impostor_peer, const string&in room_id, array<string>@&out closed_zones) {
+		@closed_zones = array<string>();
+		if (state != "in_progress") return false;
+		game_player@ impostor = find_player(impostor_peer);
+		if (@impostor == null || !impostor.is_impostor || !impostor.alive) return false;
+		if (config.game_mode != GAME_MODE_CLASSIC) return false; // os modos não têm sabotagem, e trancar porta é uma delas
+		if (doors_cooldown_remaining > 0.0) return false;
+
+		map_zone@ room = map.find_zone(room_id);
+		if (@room == null || room.is_corridor) return false;
+
+		array<string>@ neighbors = map.zone_neighbors(room_id); // pra uma sala, vizinhos = os corredores dela
+		if (neighbors.length() == 0) return false;
+
+		map.close_doors(neighbors, DOORS_CLOSED_SECONDS);
+		doors_cooldown_remaining = DOORS_COOLDOWN_SECONDS;
+		@closed_zones = neighbors;
+		return true;
+	}
+
+	net_packet@ build_doors_packet(array<string>@ zones, bool closed) const {
+		json_array@ list = json_array();
+		for (uint i = 0; i < zones.length(); i++) list.add(zones[i]);
+		net_packet@ pkt = net_packet(S_DOORS_STATE);
+		pkt.set_bool("closed", closed);
+		pkt.set_array("zones", list);
+		return pkt;
+	}
+
+	// --- Sabotagem ---
+	// Sabotagem crítica = tem relógio e é derrota dos tripulantes se o tempo acabar. As outras duram
+	// até alguém consertar o painel.
+	bool is_critical_sabotage(const string&in sabotage_id) const {
+		return sabotage_id == "oxygen";
+	}
+
+	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event, string&out fail_key) {
+		fail_key = "game.sabotage_unavailable";
+		game_player@ impostor = find_player(impostor_peer);
+		// Não exige estar VIVO: o impostor morto continua sabotando, como no jogo original. É o que
+		// lhe resta - matar, ventilar e fechar portas acabam com ele -, e sem isso morrer cedo como
+		// impostor era virar espectador. Ver can_sabotage em game/roles/role_traits.nvgt.
+		if (@impostor == null || !impostor.is_impostor) return false;
+		// Morto sabota; engolido não - está preso, não livre pela nave (ver player_abilities).
+		if (impostor.swallowed()) return false;
+		if (!config.sabotages_enabled) return false; // preset "rápido" desliga sabotagem (ver config/presets.nvgt)
+		if (sabotage_id != "lights" && sabotage_id != "oxygen" && sabotage_id != "comms") return false;
+		if (state != "in_progress") return false;
+		if (active_sabotage != "") return false;
+		if (sabotage_cooldown_remaining > 0.0) return false;
+		// Sem isto o impostor martelava a MESMA sabotagem a partida inteira, que é o jeito mais
+		// chato de jogar: a tripulação decora o caminho de um painel só e nada mais acontece.
+		if (sabotage_id == last_sabotage_id) { fail_key = "game.sabotage_repeat"; return false; }
+
+		active_sabotage = sabotage_id;
+		last_sabotage_id = sabotage_id;
+		sabotage_fixed_panels.resize(0);
+		sabotage_timer = is_critical_sabotage(sabotage_id) ? SABOTAGE_OXYGEN_TIMER_SECONDS : 0.0;
+		// Começa marcando o próprio total como "já anunciado", por dois motivos: a segunda sabotagem
+		// crítica da partida não herda o número da primeira (o que faria ela pular avisos até passar
+		// por baixo dele), e o total não é repetido logo de cara - o aviso de sabotagem iniciada já
+		// diz "você tem 90 segundos", e o lembrete viria em cima, dizendo a mesma coisa duas vezes.
+		last_sabotage_countdown = int(sabotage_timer);
+
+		oxygen_code = "";
+		if (sabotage_id == "oxygen") {
+			for (uint i = 0; i < 5; i++) oxygen_code += "" + random(0, 9);
+		}
+
+		fail_key = "";
+		@out_event = net_packet(S_SABOTAGE_STARTED);
+		out_event.set_string("sabotage_id", sabotage_id);
+		out_event.set_float("timer", sabotage_timer);
+		out_event.set_bool("critical", is_critical_sabotage(sabotage_id));
+		// O código vai para todos: ele não é segredo, é trabalho. O que custa é chegar ao painel e
+		// digitar - e os dois painéis ficam em salas opostas.
+		out_event.set_string("oxygen_code", oxygen_code);
+		return true;
+	}
+
+	// Tenta ocupar o posto de câmeras. Devolve "" se conseguiu, ou a chave do motivo da recusa.
+	//
+	// As comunicações sabotadas derrubam as câmeras: é a mesma sabotagem que já tira radar,
+	// marcadores e aviso de corpo, e sem isso o posto seria o único ponto do jogo que o impostor não
+	// tem como cegar antes de agir.
+	string try_enter_cameras(uint64 peer_id) {
+		if (state != "in_progress") return "camera.unavailable";
+		if (active_sabotage == "comms") return "camera.comms_down";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) return "camera.unavailable"; // fantasma não opera equipamento
+		if (camera_user_peer != 0 && camera_user_peer != peer_id) return "camera.busy";
+		camera_user_peer = peer_id;
+		if (camera_room_id == "") camera_room_id = "cafeteria"; // uma sala qualquer para começar
+		return "";
+	}
+
+	// Libera o posto se for este jogador que o ocupa. Chamado de MUITOS lugares - sair, morrer,
+	// desconectar, reunião começar, comunicações caírem - porque um posto que fica preso a alguém
+	// que já saiu bloquearia as câmeras para o resto da partida.
+	bool release_cameras(uint64 peer_id) {
+		if (camera_user_peer == 0 || camera_user_peer != peer_id) return false;
+		camera_user_peer = 0;
+		camera_room_id = "";
+		return true;
+	}
+
+	// Libera seja quem for e devolve QUEM foi liberado (0 = não havia ninguém). Usado quando a
+	// partida muda de fase ou a sabotagem derruba tudo.
+	//
+	// Devolve o peer, e não um sim/não, porque quem estava observando precisa ser avisado: o posto
+	// fechar só no servidor deixava o cliente dele achando que ainda está na câmera - parado, surdo
+	// para o próprio entorno e sem conseguir andar. Um estado que só existe de um lado é um jogador
+	// travado.
+	uint64 release_cameras_any() {
+		if (camera_user_peer == 0) return 0;
+		uint64 quem = camera_user_peer;
+		camera_user_peer = 0;
+		camera_room_id = "";
+		return quem;
+	}
+
+	int required_panels_for(const string&in sabotage_id) const {
+		return sabotage_id == "oxygen" ? 2 : 1;
+	}
+
+	// panels_fixed/panels_required saem preenchidos mesmo quando ainda falta painel (pra dar feedback
+	// de progresso pra quem consertou parcialmente - ver network/server.on_interact) - só quando o
+	// ÚLTIMO painel necessário é consertado é que out_event vem preenchido e o retorno é true.
+	bool try_fix_sabotage_panel(uint64 peer_id, const string&in object_id, net_packet@&out out_event, int&out panels_fixed, int&out panels_required, string&out fail_key) {
+		panels_fixed = 0;
+		panels_required = 0;
+		fail_key = "";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) return false;
+
+		map_object@ obj = map.find_object(object_id);
+		if (@obj == null || obj.obj_type != OBJ_SABOTAGE_PANEL) return false; // nem é painel: nada a explicar
+		// Daqui pra baixo o jogador REALMENTE tentou consertar um painel, então toda saída sai com um
+		// motivo - antes qualquer um desses casos falhava calado e o painel parecia simplesmente
+		// quebrado (o cliente até tocava o som de abrir o painel e nada acontecia).
+		if (active_sabotage == "") { fail_key = "sabotage.no_active"; return false; }
+		if (obj.task_type != active_sabotage) { fail_key = "sabotage.wrong_panel"; return false; }
+		// A posição que o servidor tem vem do canal não confiável e vive um pouco atrasada, então
+		// aqui a distância é conferida com folga - conferir com o valor exato fazia o conserto falhar
+		// de forma aleatória mesmo com o jogador colado no painel (mesmo motivo do botão de reunião).
+		if (distance_2d(p.x, p.y, obj.x, obj.y) > PLAYER_INTERACT_RANGE * 2.0) { fail_key = "sabotage.too_far"; return false; }
+
+		// Este painel já foi consertado por alguém (o oxigênio pede dois, e nada impedia de voltar ao
+		// mesmo): dizer isso é o que evita a pessoa digitar o código de novo achando que está ajudando.
+		if (sabotage_fixed_panels.find(object_id) != -1) { fail_key = "sabotage.panel_already_fixed"; return false; }
+		sabotage_fixed_panels.insert_last(object_id);
+		panels_fixed = int(sabotage_fixed_panels.length());
+		panels_required = required_panels_for(active_sabotage);
+		if (panels_fixed < panels_required) return false;
+
+		@out_event = net_packet(S_SABOTAGE_FIXED);
+		out_event.set_string("sabotage_id", active_sabotage);
+		active_sabotage = "";
+		sabotage_fixed_panels.resize(0);
+		sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
+		return true;
+	}
+
+	// Conserto REMOTO da sabotagem inteira, de onde quer que o jogador esteja (habilidade do
+	// engenheiro). Resolve TODOS os painéis que faltavam de uma vez - resolver um só deixaria o
+	// engenheiro atravessando a nave para o outro, que é exatamente o que a habilidade evita.
+	//
+	// Não é try_fix_sabotage_panel com a distância relaxada: aquele é o conserto NORMAL, que exige
+	// estar no painel, e as duas coisas têm regras diferentes de propósito. O que elas compartilham
+	// é o efeito, e por isso o pacote de fim de sabotagem é o MESMO (S_SABOTAGE_FIXED): o resto do
+	// jogo não precisa saber por que a sabotagem acabou.
+	//
+	// Quem conserta daqui precisa estar VIVO: a habilidade não está na lista das que sobrevivem à
+	// morte, e o fantasma não opera equipamento (mesma regra do scanner e da câmera).
+	bool try_remote_fix_sabotage(uint64 peer_id, net_packet@&out out_event, string&out fail_key) {
+		fail_key = "";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (active_sabotage == "") { fail_key = "sabotage.no_active"; return false; }
+
+		@out_event = net_packet(S_SABOTAGE_FIXED);
+		out_event.set_string("sabotage_id", active_sabotage);
+		active_sabotage = "";
+		sabotage_fixed_panels.resize(0);
+		sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
+		return true;
+	}
+}

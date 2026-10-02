@@ -1,0 +1,360 @@
+// state_bots.nvgt
+// Os bots: para onde vão, a quem caçam, o que fazem como tripulante e como impostor.
+//
+// Parte do game_state (src/core/game_state.nvgt), como `mixin class`: o AngelScript não tem classe parcial, e o mixin
+// é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam os campos e os
+// métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o game_state.nvgt.
+
+mixin class state_bots_part {
+	// --- IA dos bots ---
+	// Bot vivo faz três coisas: anda até a próxima task dele, "faz" a task parado por alguns
+	// segundos, e quando não tem mais task passeia entre as salas. Em reunião ele vota pular depois
+	// de um tempinho. Nada disso é esperto de propósito: o objetivo é dar movimento (som de passos,
+	// gente aparecendo no radar) e completar tasks pra encher a partida, não jogar bem.
+	private void pick_bot_destination(game_player@ b) {
+		b.bot_target_object_id = "";
+		b.bot_has_target = false;
+		b.bot_fixing = false; // destino novo é tarefa ou passeio; o painel, se ainda faltar, volta pelo bot_crew_react
+
+		// 1) Primeira task pendente dele.
+		for (uint i = 0; i < b.tasks.length(); i++) {
+			if (b.tasks[i].completed) continue;
+			map_object@ spot = map.find_object(b.tasks[i].object_id);
+			if (@spot == null) continue;
+			b.bot_target_object_id = spot.id;
+			b.bot_target_x = spot.x;
+			b.bot_target_y = spot.y;
+			b.bot_has_target = true;
+			break;
+		}
+
+		// 2) Sem task pendente (ou é impostor, que não tem task nenhuma): passeia até uma sala
+		// sorteada, senão o bot fica plantado no mesmo canto o resto da partida.
+		if (!b.bot_has_target) {
+			array<map_zone@>@ rooms = map.room_zones();
+			if (rooms.length() == 0) return;
+			map_zone@ destination = rooms[random(0, int(rooms.length()) - 1)];
+			b.bot_target_x = destination.center_x;
+			b.bot_target_y = destination.center_y;
+			b.bot_has_target = true;
+		}
+
+		set_bot_path_to(b, b.bot_target_x, b.bot_target_y);
+	}
+
+	// Traça a rota até (x, y) e deixa o bot pronto pra andar.
+	private void set_bot_path_to(game_player@ b, float x, float y) {
+		string current_zone = map.room_id_at(b.x, b.y);
+		b.bot_path = map.zone_path(current_zone, map.room_id_at(x, y));
+		// O primeiro waypoint é o centro da PRÓPRIA zona onde o bot está. Sem isso ele saía de onde
+		// estivesse (um canto da sala, por exemplo) reto na diagonal até o centro do corredor
+		// seguinte, e essa diagonal atravessa a parede: o bot encostava na quina e ficava travado
+		// lá pra sempre. Sala e corredor são retângulos, então centro-a-centro (e "qualquer ponto
+		// da sala até o centro dela") nunca sai de dentro.
+		if (b.bot_path.length() > 0 && current_zone != "") b.bot_path.insert_at(0, current_zone);
+	}
+
+	// --- Bot impostor ---
+	// Na maior parte do tempo ele FINGE: anda de um ponto de tarefa a outro e fica parado neles, como a
+	// tripulação. Só larga o fingimento quando aparece alguém ISOLADO por perto - aí caça e mata, sem
+	// testemunha. Também solta uma sabotagem de vez em quando. Não usa vent nem reporta corpo, e não
+	// vira "melhor que gente" de propósito: a graça é ser descobrível numa reunião.
+	//
+	// Era o contrário até a 0.42.0: caçava o tripulante mais próximo desde o primeiro segundo. Ficava
+	// na cafeteria atrás de quem estivesse ali e matava na frente de todos (recado #155); e com dois
+	// bots impostores, os dois perseguiam o MESMO alvo, andavam grudados, e um contava como testemunha
+	// do outro - nenhum matava nunca (recados #155 e #162).
+	//
+	// A presa mais próxima de `hunter` a até `max_dist`: tripulante vivo, fora de duto, que nenhum
+	// OUTRO bot impostor já esteja caçando (é o que os separa). Com `isolated_only`, só quem não tem
+	// ninguém por perto para ver.
+	private game_player@ prey_for(game_player@ hunter, float max_dist, bool isolated_only) const {
+		game_player@ best = null;
+		float best_dist = max_dist;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.is_impostor || !p.alive || p.vented || p.peer_id == hunter.peer_id) continue;
+			if (prey_taken_by_other(hunter, p.peer_id)) continue;
+			float dist = distance_2d(hunter.x, hunter.y, p.x, p.y);
+			if (dist > best_dist) continue;
+			if (isolated_only && kill_has_witness(hunter, p)) continue;
+			best_dist = dist;
+			@best = p;
+		}
+		return best;
+	}
+
+	private bool prey_taken_by_other(game_player@ hunter, uint64 prey_peer) const {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ o = players[i];
+			if (o.peer_id == hunter.peer_id || !o.is_bot || !o.is_impostor || !o.bot_hunting) continue;
+			if (o.bot_prey_peer == prey_peer) return true;
+		}
+		return false;
+	}
+
+	// Alguém vivo, perto da VÍTIMA, que veria o crime. Os impostores não contam: são do mesmo time, e
+	// contá-los fazia dois bots impostores juntos nunca matarem ninguém.
+	private bool kill_has_witness(game_player@ killer, game_player@ victim) const {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (!p.alive || p.is_impostor || p.peer_id == killer.peer_id || p.peer_id == victim.peer_id) continue;
+			if (distance_2d(victim.x, victim.y, p.x, p.y) <= BOT_KILL_WITNESS_RANGE) return true;
+		}
+		return false;
+	}
+
+	// Um ponto de tarefa qualquer como destino: o fingimento do bot impostor.
+	private void pick_fake_task(game_player@ b) {
+		b.bot_hunting = false;
+		b.bot_prey_peer = 0;
+		b.bot_target_object_id = ""; // nunca conclui nada: só vai até lá e fica parado
+		array<map_object@>@ pontos = map.objects_by_type(OBJ_TASK_SPOT);
+		if (pontos.length() == 0) { b.bot_has_target = false; return; }
+		map_object@ ponto = pontos[random(0, int(pontos.length()) - 1)];
+		b.bot_target_x = ponto.x;
+		b.bot_target_y = ponto.y;
+		b.bot_has_target = true;
+		set_bot_path_to(b, ponto.x, ponto.y);
+	}
+
+	// Devolve false quando o bot fica parado neste tick.
+	private bool update_bot_impostor(game_player@ b, float delta_seconds, array<net_packet@>@ events) {
+		if (b.can_kill()) {
+			// 1. Oportunidade: alguém ao alcance e sem testemunha.
+			// No pega-pega não há testemunha a temer: não há reunião para contar a ninguém.
+			game_player@ ao_lado = prey_for(b, PLAYER_KILL_RANGE, config.game_mode != GAME_MODE_TAG);
+			if (@ao_lado != null) {
+				net_packet@ kill_event;
+				if (try_kill(b.peer_id, ao_lado.peer_id, kill_event)) {
+					events.insert_last(kill_event);
+					b.bot_has_target = false;
+					b.bot_hunting = false;
+					b.bot_prey_peer = 0;
+					b.bot_action_timer = random_range(BOT_POST_KILL_MIN_SECONDS, BOT_POST_KILL_MAX_SECONDS); // se afasta do corpo
+					return false;
+				}
+			}
+		}
+
+		if (config.sabotages_enabled && active_sabotage == "" && sabotage_cooldown_remaining <= 0.0 &&
+				random_range(0.0, 1.0) < BOT_SABOTAGE_CHANCE_PER_SECOND * delta_seconds) {
+			// Nunca a mesma da vez passada (trigger_sabotage recusaria de qualquer jeito).
+			string sabotage_id = last_sabotage_id == "lights" ? "comms" : "lights";
+			net_packet@ sabotage_event;
+			string fail_key;
+			if (trigger_sabotage(b.peer_id, sabotage_id, sabotage_event, fail_key)) events.insert_last(sabotage_event);
+		}
+
+		// 2. Alguém isolado por perto: larga a tarefa falsa e vai atrás. Sem recarga pronta, não caça -
+		// segue fingindo, que é o que um impostor de verdade faz enquanto espera.
+		game_player@ prey = b.can_kill() ? prey_for(b, config.game_mode == GAME_MODE_TAG ? 999.0 : BOT_HUNT_RANGE,
+			config.game_mode != GAME_MODE_TAG) : null;
+		if (@prey == null) {
+			// 3. Ninguém: finge tarefa. Largou uma caça no meio? Escolhe um ponto novo.
+			if (b.bot_hunting || !b.bot_has_target) pick_fake_task(b);
+			return b.bot_has_target;
+		}
+		if (!b.bot_hunting || b.bot_prey_peer != prey.peer_id) b.bot_has_target = false; // presa nova: rota nova
+		b.bot_hunting = true;
+		b.bot_prey_peer = prey.peer_id;
+
+		// A presa anda, então o ponto final é atualizado sempre - mas a ROTA só é refeita quando a
+		// presa muda de sala. Refazer a rota a cada instante travava o bot: toda rota nova começa
+		// pelo centro da zona onde ele está (ver set_bot_path_to), então ele dava dois passos rumo à
+		// saída, recalculava, voltava pro centro, e ficava balançando ali pra sempre sem sair da sala.
+		b.bot_repath_timer -= delta_seconds;
+		string prey_zone = map.room_id_at(prey.x, prey.y);
+		b.bot_target_object_id = "";
+		b.bot_target_x = prey.x;
+		b.bot_target_y = prey.y;
+		if (!b.bot_has_target || (b.bot_repath_timer <= 0.0 && prey_zone != b.bot_target_zone)) {
+			b.bot_repath_timer = BOT_REPATH_INTERVAL_SECONDS;
+			b.bot_target_zone = prey_zone;
+			b.bot_has_target = true;
+			set_bot_path_to(b, prey.x, prey.y);
+		}
+		return true;
+	}
+
+	// Um passo de movimento. Devolve true se a posição mudou.
+	private bool step_bot_towards(game_player@ b, float target_x, float target_y, float delta_seconds) {
+		float dx = target_x - b.x;
+		float dy = target_y - b.y;
+		float dist = sqrt(dx * dx + dy * dy);
+		if (dist <= 0.001) return false;
+		float step = config.move_speed() * BOT_SPEED_FACTOR * delta_seconds;
+		if (step > dist) step = dist;
+		float new_x = b.x + dx / dist * step;
+		float new_y = b.y + dy / dist * step;
+		// Bot fora de qualquer sala/corredor seria exatamente o que o servidor rejeita num jogador
+		// de verdade (ver try_move_player). Se acontecer - inclusive por uma porta fechada na cara
+		// dele -, o destino é recalculado do zero em vez de empurrar o bot pra dentro da parede.
+		if (!map.can_move(b.x, b.y, new_x, new_y, b.alive)) {
+			b.bot_has_target = false;
+			b.bot_path.resize(0);
+			b.bot_action_timer = 1.0;
+			return false;
+		}
+		b.x = new_x;
+		b.y = new_y;
+		return true;
+	}
+
+	// O painel da sabotagem ativa que ainda falta, mais perto do bot (null = nenhum).
+	private map_object@ nearest_unfixed_panel(game_player@ b) {
+		map_object@ melhor = null;
+		float melhor_dist = 0.0;
+		array<map_object@>@ paineis = map.objects_by_type(OBJ_SABOTAGE_PANEL);
+		for (uint i = 0; i < paineis.length(); i++) {
+			map_object@ o = paineis[i];
+			if (o.task_type != active_sabotage || sabotage_fixed_panels.find(o.id) != -1) continue;
+			float d = distance_2d(b.x, b.y, o.x, o.y);
+			if (@melhor == null || d < melhor_dist) { @melhor = o; melhor_dist = d; }
+		}
+		return melhor;
+	}
+
+	// O tripulante VIVO percebe o que acontece em volta: um corpo perto (reporta) e uma sabotagem
+	// (larga o que faz e vai ao painel). Os dois esperam uma reação curta - ver BOT_*_REACTION.
+	private void bot_crew_react(game_player@ b, float delta_seconds) {
+		body_info@ corpo = find_body_near(b.x, b.y, PLAYER_REPORT_RANGE);
+		if (@corpo != null && !meetings_blocked_by_sabotage()) {
+			if (b.bot_report_reaction < 0.0) {
+				b.bot_report_reaction = random_range(BOT_REPORT_REACTION_MIN, BOT_REPORT_REACTION_MAX);
+				// PARA ao perceber: andando, ele passa pelo corpo em um ou dois segundos e sairia do
+				// alcance antes de a reação acabar - e nunca reportaria nada.
+				if (b.bot_action_timer < b.bot_report_reaction + 0.1) b.bot_action_timer = b.bot_report_reaction + 0.1;
+			} else {
+				b.bot_report_reaction -= delta_seconds;
+				if (b.bot_report_reaction <= 0.0) {
+					bot_requests.insert_last(bot_request(BOT_REQUEST_REPORT, b.peer_id));
+					b.bot_report_reaction = -1.0;
+				}
+			}
+		} else b.bot_report_reaction = -1.0;
+
+		if (active_sabotage == "") {
+			if (b.bot_fixing) { b.bot_fixing = false; b.bot_has_target = false; }
+			b.bot_sabotage_reaction = -1.0;
+			return;
+		}
+		// Perdeu o caminho até o painel (a reunião teleporta todo mundo, uma porta fecha): refaz.
+		if (b.bot_fixing && !b.bot_has_target) b.bot_fixing = false;
+		if (b.bot_fixing) return;
+		if (b.bot_sabotage_reaction < 0.0) { b.bot_sabotage_reaction = random_range(BOT_SABOTAGE_REACTION_MIN, BOT_SABOTAGE_REACTION_MAX); return; }
+		b.bot_sabotage_reaction -= delta_seconds;
+		if (b.bot_sabotage_reaction > 0.0) return;
+		map_object@ painel = nearest_unfixed_panel(b);
+		if (@painel == null) return; // todos os painéis já têm alguém resolvendo, ou esta sabotagem não tem painel
+		b.bot_fixing = true;
+		b.bot_action_timer = 0.0; // larga a tarefa que estava fazendo
+		b.bot_target_object_id = painel.id;
+		b.bot_target_x = painel.x;
+		b.bot_target_y = painel.y;
+		b.bot_has_target = true;
+		set_bot_path_to(b, painel.x, painel.y);
+	}
+
+	private void tick_bots(float delta_seconds, array<net_packet@>@ events) {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ b = players[i];
+			if (!b.is_bot) continue;
+			if (b.swallowed()) continue; // na barriga: nem anda, nem faz tarefa, nem vota
+			if (b.is_impostor && in_tag_head_start()) continue; // o pegador ainda está parado
+			// Bot MORTO: o tripulante continua fazendo tarefas, como o fantasma de qualquer jogador -
+			// era um fantasma parado, e com vários bots mortos a vitória por tarefas ficava inalcançável.
+			// Ele não vota, não reporta e não conserta (fantasma não opera nada); o impostor morto para.
+			// Os passos dele só chegam a outros mortos (ver tick_lobbies no servidor).
+			if (!b.alive && (b.is_impostor || state != "in_progress")) continue;
+			if (b.alive && !b.is_impostor && state == "in_progress" && config.meetings_allowed()) bot_crew_react(b, delta_seconds);
+
+			if (state == "voting") {
+				if (b.bot_voted) continue;
+				b.bot_action_timer -= delta_seconds;
+				if (b.bot_action_timer > 0.0) continue;
+				if (!cast_vote(b.peer_id, -1)) { b.bot_voted = true; continue; }
+				b.bot_voted = true;
+				net_packet@ cast_pkt = net_packet(S_VOTE_CAST);
+				cast_pkt.set_uint64("voter_peer", b.peer_id);
+				cast_pkt.set_string("voter_name", b.public_name());
+				events.insert_last(cast_pkt);
+				continue;
+			}
+			if (state != "in_progress") continue;
+
+			if (b.bot_action_timer > 0.0) { // parado fazendo alguma coisa
+				b.bot_action_timer -= delta_seconds;
+				continue;
+			}
+			if (b.is_impostor) {
+				if (!update_bot_impostor(b, delta_seconds, events)) continue;
+			} else if (!b.bot_has_target) {
+				pick_bot_destination(b);
+				if (!b.bot_has_target) continue;
+			}
+
+			// Chegou no destino final: se era uma task, conclui (conta pra vitória dos tripulantes
+			// igual a de qualquer jogador) e descansa antes de escolher o próximo destino.
+			if (b.bot_path.length() == 0 && distance_2d(b.x, b.y, b.bot_target_x, b.bot_target_y) <= PLAYER_INTERACT_RANGE) {
+				if (b.bot_fixing) {
+					// No painel: pede o conserto pelo mesmo caminho do jogador. Se a sabotagem pedir
+					// outro painel, bot_crew_react o manda ao próximo no tick seguinte.
+					bot_requests.insert_last(bot_request(BOT_REQUEST_FIX_PANEL, b.peer_id, b.bot_target_object_id));
+					b.bot_fixing = false;
+					b.bot_action_timer = random_range(1.0, 2.5);
+				} else if (b.bot_target_object_id != "") {
+					// Pelo mesmo caminho dos jogadores de verdade: uma tarefa de várias fases faz o bot
+					// AVANÇAR de fase e caminhar até o ponto seguinte, em vez de concluir tudo de uma
+					// vez parado no primeiro ponto.
+					string next_object_id;
+					uint phase;
+					if (advance_task(b, b.bot_target_object_id, next_object_id, phase)) {
+						events.insert_last(build_task_progress_packet());
+						// O destino do bot passa a ser a fase nova; sem isto ele ficaria parado achando
+						// que já terminou, e a tarefa nunca sairia do lugar.
+						if (next_object_id != "") b.bot_target_object_id = next_object_id;
+					}
+					b.bot_action_timer = random_range(BOT_TASK_MIN_SECONDS, BOT_TASK_MAX_SECONDS);
+				} else if (b.is_impostor && b.bot_hunting) {
+					b.bot_repath_timer = 0.0; // chegou onde a presa estava: recalcula na hora, sem pausa
+				} else if (b.is_impostor) {
+					// Chegou ao ponto da tarefa falsa: fica parado o tempo de uma tarefa, como a tripulação.
+					b.bot_action_timer = random_range(BOT_TASK_MIN_SECONDS, BOT_TASK_MAX_SECONDS);
+				} else {
+					b.bot_action_timer = random_range(BOT_IDLE_MIN_SECONDS, BOT_IDLE_MAX_SECONDS);
+				}
+				b.bot_has_target = false;
+				b.bot_target_object_id = "";
+				continue;
+			}
+
+			// Próximo waypoint: o centro da próxima zona do caminho, ou o destino em si quando já
+			// está na zona certa.
+			float waypoint_x = b.bot_target_x;
+			float waypoint_y = b.bot_target_y;
+			if (b.bot_path.length() > 0) {
+				map_zone@ next_zone = map.find_zone(b.bot_path[0]);
+				// Só conta como waypoint alcançado quando o bot chega no CENTRO da zona - entrar nela
+				// não basta (ver a nota sobre a diagonal em pick_bot_destination).
+				if (@next_zone == null || distance_2d(b.x, b.y, next_zone.center_x, next_zone.center_y) <= BOT_WAYPOINT_REACHED_DISTANCE) {
+					b.bot_path.remove_at(0);
+					continue;
+				}
+				waypoint_x = next_zone.center_x;
+				waypoint_y = next_zone.center_y;
+			}
+
+			if (!step_bot_towards(b, waypoint_x, waypoint_y, delta_seconds)) continue;
+
+			b.bot_broadcast_timer -= delta_seconds;
+			if (b.bot_broadcast_timer > 0.0) continue;
+			b.bot_broadcast_timer = BOT_MOVE_BROADCAST_INTERVAL;
+			net_packet@ moved = net_packet(S_PLAYER_MOVED);
+			moved.set_uint64("peer_id", b.peer_id);
+			moved.set_float("x", b.x);
+			moved.set_float("y", b.y);
+			events.insert_last(moved);
+		}
+	}
+}

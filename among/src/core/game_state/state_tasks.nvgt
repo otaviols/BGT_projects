@@ -1,0 +1,120 @@
+// state_tasks.nvgt
+// Tarefas: o que conta para a vitória da tripulação, o avanço por fases e a tarefa visível.
+//
+// Parte do game_state (src/core/game_state.nvgt), como `mixin class`: o AngelScript não tem classe parcial, e o mixin
+// é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam os campos e os
+// métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o game_state.nvgt.
+
+mixin class state_tasks_part {
+	// Um jogador conta pra vitória por tasks? Impostor não tem task, e quem caiu da partida não vai
+	// terminar as dele nunca - deixar os dois de fora é o que faz a conta fechar.
+	// Pela regra do PAPEL (tasks_count_for_crew), e não por "não é impostor": um neutro não é impostor
+	// e também não faz tarefa que conte - pela regra antiga ele entraria na conta.
+	bool counts_for_task_win(game_player@ p) const {
+		return p.role().tasks_count_for_crew && !p.left_match;
+	}
+
+	// Progresso de tasks da EQUIPE (todos os tripulantes, vivos e fantasmas - fantasma continua
+	// fazendo task, ver network/server.on_task_input). É o mesmo número que decide a vitória por
+	// tasks lá embaixo no tick, e por isso usa exatamente o mesmo critério de quem entra na conta.
+	uint crew_task_total() const {
+		uint total = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (counts_for_task_win(players[i])) total += players[i].task_count();
+		}
+		return total;
+	}
+
+	uint crew_task_completed() const {
+		uint done = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (counts_for_task_win(players[i])) done += players[i].completed_task_count();
+		}
+		return done;
+	}
+
+	net_packet@ build_task_progress_packet() const {
+		uint total = crew_task_total();
+		uint done = crew_task_completed();
+		net_packet@ pkt = net_packet(S_TASK_PROGRESS);
+		pkt.set_int("completed", int(done));
+		pkt.set_int("total", int(total));
+		pkt.set_int("percent", total == 0 ? 100 : int((done * 100) / total));
+		return pkt;
+	}
+
+	// Todas as tarefas que contam estão feitas (a vitória por tarefas da tripulação).
+	bool crew_tasks_done() const {
+		for (uint i = 0; i < players.length(); i++) {
+			if (!counts_for_task_win(players[i])) continue;
+			if (!players[i].all_tasks_completed()) return false;
+		}
+		return players.length() > 0;
+	}
+
+	// Avança a tarefa deste jogador que está no ponto `object_id`.
+	//
+	// Tarefa de uma fase só é marcada concluída, como sempre. De várias fases, anda UMA fase e o
+	// ponto seguinte volta em `next_object_id` - é ele que o cliente passa a mirar (marcador, lista
+	// de tarefas). A fase fica guardada aqui, no servidor: quem for interrompido por uma reunião no
+	// meio da travessia volta com o galão na mão, e não do começo - punir quem reporta um corpo
+	// seria punir exatamente o comportamento que o jogo quer.
+	//
+	// Devolve false se a pessoa não tem essa tarefa pendente nesse ponto.
+	bool advance_task(game_player@ p, const string&in object_id, string&out next_object_id, uint&out phase) {
+		next_object_id = "";
+		phase = 0;
+		if (@p == null) return false;
+		for (uint i = 0; i < p.tasks.length(); i++) {
+			player_task@ t = p.tasks[i];
+			if (t.object_id != object_id || t.completed) continue;
+			if (t.phase + 1 < t.phase_count) {
+				t.phase++;
+				// A corrente DESTE jogador, não a do mapa: o mesmo tipo pode ter destinos diferentes
+				// (ver player_task.chain). O mapa fica de reserva para tarefa antiga sem corrente
+				// própria - nunca acontece hoje, mas devolver "" aqui pararia a tarefa em silêncio.
+				t.object_id = t.chain_object(t.phase);
+				if (t.object_id == "") t.object_id = map.chain_object_at(t.task_type, t.phase);
+				next_object_id = t.object_id;
+				phase = t.phase;
+				return true;
+			}
+			t.completed = true;
+			phase = t.phase;
+			return true;
+		}
+		return false;
+	}
+
+	// Começa uma task visível para `peer`, se ele tiver essa task pendente e estiver vivo. Devolve
+	// false quando não tem - que é exatamente o caso do impostor fingindo, e do fantasma (o scan de
+	// quem já morreu não serve de álibi a ninguém).
+	bool try_start_visible_task(uint64 peer, const string&in object_id) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive) return false;
+		// O scanner é de um de cada vez. Sem isto, três pessoas entrando juntas se sobrescreviam aqui:
+		// o servidor passava a acompanhar só a última, o fim do scan das outras não avisava ninguém, e
+		// o som do scanner ficava tocando (ou parava cedo) sem relação com quem estava nele.
+		if (visible_task_peer != 0 && visible_task_peer != peer) return false;
+		map_object@ spot = map.find_object(object_id);
+		if (@spot == null || spot.obj_type != OBJ_TASK_SPOT || !task_is_visible(spot.task_type)) return false;
+		bool pending = false;
+		for (uint i = 0; i < p.tasks.length(); i++) {
+			if (p.tasks[i].object_id == object_id && !p.tasks[i].completed) { pending = true; break; }
+		}
+		if (!pending) return false;
+		visible_task_peer = peer;
+		visible_task_object_id = object_id;
+		return true;
+	}
+
+	// Encerra a task visível se for deste jogador (ou de qualquer um, com peer 0). Devolve quem
+	// estava nela, para o servidor avisar a partida - o mesmo motivo do release_cameras_any.
+	uint64 end_visible_task(uint64 peer = 0) {
+		if (visible_task_peer == 0 || (peer != 0 && visible_task_peer != peer)) return 0;
+		uint64 quem = visible_task_peer;
+		visible_task_peer = 0;
+		visible_task_object_id = "";
+		return quem;
+	}
+}

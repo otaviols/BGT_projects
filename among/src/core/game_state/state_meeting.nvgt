@@ -1,0 +1,281 @@
+// state_meeting.nvgt
+// Reunião: quando o botão pode ser usado, começar, votar e apurar.
+//
+// Parte do game_state (src/core/game_state.nvgt), como `mixin class`: o AngelScript não tem classe parcial, e o mixin
+// é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam os campos e os
+// métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o game_state.nvgt.
+
+mixin class state_meeting_part {
+	// --- Reunião / votação ---
+	// Vai direto pra votação (sem uma fase de "discussão" separada travando o menu) - todo mundo
+	// vivo é teleportado pra cafeteria, o movimento trava (ver try_move_player), e o chat abre geral
+	// pra todos (ver server.on_chat_message) durante o tempo combinado de discussão+votação.
+	// Motivo pelo qual o botão de emergência não pode ser apertado agora ("" = pode). Reportar corpo
+	// não passa por aqui: quem achou um corpo sempre pode reportar, como no jogo original.
+	string emergency_button_cooldown_reason() const {
+		if (meeting_cooldown_remaining > 0.0) return "game.meeting_cooldown_remaining";
+		return "";
+	}
+
+	bool start_meeting(uint64 caller_peer, const string&in reason, net_packet@&out out_event) {
+		if (state != "in_progress") return false;
+		if (!config.meetings_allowed()) return false; // pega-pega e todos-lobos não têm reunião
+		game_player@ caller = find_player(caller_peer);
+		if (@caller == null || !caller.alive) return false;
+		if (reason == "button" && caller.meetings_called >= config.emergency_meetings_per_player) return false;
+		if (reason == "button" && meeting_cooldown_remaining > 0.0) return false;
+
+		if (reason == "button") caller.meetings_called++;
+
+		// Reunião abre tudo: todo mundo é teleportado pra cafeteria de qualquer jeito, e voltar da
+		// votação preso atrás de uma porta que fechou antes da reunião não faria sentido nenhum.
+		meeting_doors_opened = map.open_all_doors();
+
+		// TODOS os corpos somem, não só o que foi reportado. A reunião já revela quem morreu (a lista
+		// de vivos na votação diz), então um corpo esquecido no chão depois disso só serve pra ser
+		// "reportado" de novo e gerar uma reunião repetida pela mesma morte.
+		bodies.resize(0);
+
+		// A reunião desfaz toda fantasia. Na reunião se vota POR NOME, e dois nomes iguais na lista
+		// de votação não são um blefe: são uma tela quebrada, em que o voto pode cair na pessoa
+		// errada. Na mesa todo mundo é quem é - o disfarce serve para o que acontece na nave.
+		// A lista sai daqui para quem desfez ser avisado (ver broadcast_meeting_and_voting).
+		meeting_unshifted_peers.resize(0);
+		for (uint i = 0; i < players.length(); i++) {
+			if (!players[i].disguised()) continue;
+			players[i].set_disguise("", 0.0);
+			meeting_unshifted_peers.insert_last(players[i].peer_id);
+		}
+
+		// E a invisibilidade cai junto, pelo mesmo motivo e por mais um: invisível não é ouvido, e
+		// ficar mudo na reunião sem explicação seria um sinal luminoso de quem é o fantasma - o
+		// oposto do que a habilidade existe para fazer. Quem volta é avisado pelo caminho de sempre
+		// (was_invisible + expire_invisibility no tick), então o som da volta toca aqui também.
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].invisible()) players[i].invisible_remaining = 0.0;
+		}
+
+		// E o escudo do anjo, pela regra geral: o que a reunião não desfaz, ela recarrega de graça.
+		// Ninguém mata durante a votação, então um escudo mantido só queima o relógio dele na mesa e
+		// chega do outro lado com um resto imprevisível - quanto sobra dependia do tamanho da
+		// discussão, que não é decisão de ninguém. Cortado, a proteção vale para a fase em que foi
+		// lançada, e o anjo sai da votação podendo lançar outra (ver ability_cooldown_resets_on_meeting).
+		// Como ninguém é avisado do escudo, ninguém é avisado de perdê-lo: não há pacote aqui.
+		for (uint i = 0; i < players.length(); i++) {
+			players[i].shield_remaining = 0.0;
+		}
+
+		meeting_unvented_peers.resize(0);
+		for (uint i = 0; i < players.length(); i++) {
+			if (!players[i].alive) continue;
+			players[i].x = MEETING_GATHER_X;
+			players[i].y = MEETING_GATHER_Y;
+			// Reunião TIRA do vent quem estava escondido: o jogador é teleportado pra cafeteria de
+			// qualquer jeito, e deixar a flag ligada era uma armadilha sem saída. Quem continuasse
+			// "vented" não conseguia mais andar (try_move_player recusa quem está no vent) e só sairia
+			// pelo menu do vent, que exige estar vivo - ou seja, quem fosse EXPULSO nessa reunião
+			// ficava travado no lugar pelo resto da partida, sem andar e sem conseguir sair do vent.
+			if (!players[i].vented) continue;
+			players[i].vented = false;
+			players[i].current_vent_id = "";
+			meeting_unvented_peers.insert_last(players[i].peer_id);
+		}
+
+		// Cada bot já sai da reunião com a hora dele de votar marcada - sem isso a votação sempre
+		// esperaria o timer inteiro numa partida com bot (ninguém vota por eles).
+		for (uint i = 0; i < players.length(); i++) {
+			if (!players[i].is_bot) continue;
+			players[i].bot_voted = false;
+			players[i].bot_action_timer = random_range(BOT_VOTE_MIN_SECONDS, BOT_VOTE_MAX_SECONDS);
+		}
+
+		// Os palpites do sniper são POR REUNIÃO: cada mesa nova devolve a ele a chance de apontar
+		// alguém. Recarregado aqui, junto do resto do que a reunião reinicia, e não no fim da votação,
+		// para uma reunião interrompida não deixar ninguém com palpite pendurado na fase de andar.
+		for (uint i = 0; i < players.length(); i++) {
+			players[i].guesses_left = players[i].role().ability_id == ABILITY_GUESS
+				? uint(config.role_value(players[i].role_id, TUNABLE_GUESSES))
+				: 0;
+		}
+
+		state = "voting";
+		voting_timer = config.discussion_time_seconds + config.voting_time_seconds;
+		meeting_caller = caller_peer;
+		meeting_reason = reason;
+		votes.resize(0);
+
+		@out_event = net_packet(S_MEETING_STARTED);
+		out_event.set_uint64("caller_peer", caller_peer);
+		out_event.set_string("reason", reason);
+		out_event.set_float("gather_x", MEETING_GATHER_X);
+		out_event.set_float("gather_y", MEETING_GATHER_Y);
+		// A duração da discussão vai junto para o cliente conseguir dizer quanto falta sem perguntar
+		// nada ao servidor (ver announce_time_remaining em ui/meeting_ui.nvgt). O protocolo já
+		// previa este campo desde o começo; ele simplesmente nunca chegou a ser preenchido, e o
+		// cliente lia zero.
+		out_event.set_float("discussion_time", config.discussion_time_seconds);
+		// Quem está na barriga do lobo sai da lista de votação de todos - e é SÓ isso que a mesa fica
+		// sabendo (decisão do jogo: nenhum anúncio de "fulano foi engolido"). A ausência é a pista.
+		json_array@ ausentes = json_array();
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].swallowed()) ausentes.add(players[i].peer_id);
+		}
+		out_event.set_array("absent", ausentes);
+		return true;
+	}
+
+	bool cast_vote(uint64 voter_peer, int64 target_peer) {
+		if (state != "voting") return false;
+		game_player@ voter = find_player(voter_peer);
+		if (@voter == null || !voter.alive) return false;
+		for (uint i = 0; i < votes.length(); i++) {
+			if (votes[i].voter_peer_id == voter_peer) return false; // já votou
+		}
+		// O alvo tem que estar na mesa. A lista do cliente já só mostra os vivos, mas ela vem da
+		// máquina do jogador - e quem está na barriga do lobo não aparece nela justamente para que a
+		// ausência seja a pista. Um voto nele, aceito aqui, "expulsaria" quem nem está na reunião.
+		if (target_peer != -1) {
+			game_player@ alvo = find_player(uint64(target_peer));
+			if (@alvo == null || !alvo.alive) return false;
+		}
+		vote_entry v;
+		v.voter_peer_id = voter_peer;
+		v.target_peer_id = target_peer;
+		votes.insert_last(v);
+		return true;
+	}
+
+	bool all_alive_voted() const {
+		uint alive_count = alive_crewmate_count() + alive_impostor_count();
+		return votes.length() >= alive_count;
+	}
+
+	net_packet@ tally_votes() {
+		dictionary counts;
+		array<int64> targets;
+		json_array@ breakdown = json_array(); // quem votou em quem, pra anunciar no cliente antes do resultado
+		for (uint i = 0; i < votes.length(); i++) {
+			int64 t = votes[i].target_peer_id;
+			// dictionary.get() com chave AUSENTE não zera o &out: ele sai com LIXO (é assim que o
+			// AngelScript trata &out não escrito). Sempre exists() antes.
+			string key = "" + t;
+			int64 c = 0;
+			if (counts.exists(key)) counts.get(key, c);
+			c++;
+			counts.set(key, c);
+			if (targets.find(t) == -1) targets.insert_last(t);
+
+			game_player@ voter = find_player(votes[i].voter_peer_id);
+			json_object@ entry = json_object();
+			entry.set("voter_name", @voter != null ? voter.public_name() : "");
+			if (t == -1) {
+				entry.set("skipped", true);
+				entry.set("target_name", "");
+			} else {
+				game_player@ target = find_player(uint64(t));
+				entry.set("skipped", false);
+				entry.set("target_name", @target != null ? target.public_name() : "");
+			}
+			breakdown.add(entry);
+		}
+
+		// "Pular" CONTA na apuração, como candidato a "ninguém". É a regra do jogo original, e é o
+		// que impede a injustiça de antes: com nove jogadores pulando e um votando, aquele um voto
+		// expulsava alguém - a vontade de nove pessoas valia zero. Agora alguém só é expulso se tiver
+		// MAIS votos do que "pular" e do que qualquer outro; empate com "pular" é ninguém expulso.
+		int64 skip_count = 0;
+		// Sem exists() isto era o bug "todo mundo votou nele e ninguém foi expulso": sem nenhum
+		// "pular" a chave não existia, skip_count saía com lixo e "vencia" a apuração como empate.
+		if (counts.exists("-1")) counts.get("-1", skip_count);
+		int64 best_target = -1;
+		int64 best_count = 0;
+		bool tie = false;
+		for (uint i = 0; i < targets.length(); i++) {
+			int64 t = targets[i];
+			if (t == -1) continue;
+			int64 c = 0;
+			if (counts.exists("" + t)) counts.get("" + t, c);
+			if (c > best_count) { best_count = c; best_target = t; tie = false; }
+			else if (c == best_count && c > 0) tie = true;
+		}
+		if (best_target != -1 && best_count <= skip_count) {
+			// Pular ganhou ou empatou com o mais votado: ninguém sai. Empate com pular é "empate" para
+			// o jogador ouvir que a votação não decidiu nada.
+			tie = best_count == skip_count;
+			best_target = -1;
+		}
+
+		net_packet@ result = net_packet(S_VOTE_RESULT);
+		// A lista de quem votou em quem só existe com os votos abertos - e nesse caso ela já foi dita
+		// voto a voto durante a reunião, então o cliente não a repete no fim (ver on_vote_result).
+		if (config.show_votes) result.set_array("vote_breakdown", breakdown);
+		if (best_target != -1 && !tie && best_count > 0) {
+			game_player@ ejected = find_player(uint64(best_target));
+			if (@ejected != null) {
+				ejected.alive = false;
+				// Expulsar o lobo devolve quem ele engoliu, e eles voltam para a mesa, onde todo mundo está.
+				release_belly(ejected, MEETING_GATHER_X, MEETING_GATHER_Y);
+				result.set_uint64("ejected_peer", ejected.peer_id);
+				result.set_string("ejected_name", ejected.public_name());
+				// Com a revelação desligada o papel NÃO viaja: o cliente é a máquina do jogador, e
+				// mandar "só para ele não falar" seria mandar a resposta para quem quisesse ler.
+				result.set_bool("role_revealed", config.reveal_ejected_role);
+				if (config.reveal_ejected_role) result.set_bool("was_impostor", ejected.is_impostor);
+				result.set_bool("tie", false);
+				// O Bobo expulso VENCE, e a partida acaba aqui (o tick vê o vencedor e fecha).
+				if (ejected.role().solo_win == SOLO_WIN_EJECTED) {
+					winner = WINNER_NEUTRAL;
+					win_reason = "jester_ejected";
+					neutral_winner_peer = ejected.peer_id;
+				}
+			}
+		} else {
+			result.set_uint64("ejected_peer", 0);
+			result.set_string("ejected_name", "");
+			result.set_bool("was_impostor", false);
+			result.set_bool("tie", tie);
+		}
+
+		state = "in_progress";
+		votes.resize(0);
+
+		// A partida recomeça com todo mundo junto na cafeteria. Sem zerar nada disso, a reunião virava
+		// a melhor jogada do impostor: o cooldown de kill corria durante a discussão inteira e ele
+		// saía da votação com a faca pronta, ao lado de todo mundo - bastava apertar matar. E o botão
+		// de emergência podia ser apertado de novo no mesmo instante.
+		// Vale para TODO mundo que pode matar, e não só para o impostor: o xerife sai da votação com
+		// a arma recarregando pelo mesmo motivo, e com a recarga DELE (ver kill_cooldown_for).
+		// A HABILIDADE não segue esta regra desde a 0.37.0: a recarga dela fica pausada durante a
+		// reunião e sai com o que tinha (ver tick_cooldowns e role_traits.ability_cooldown_resets_on_meeting,
+		// hoje desligado em todo papel). O laço abaixo só age para um papel que declare o contrário.
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].role().can_kill) players[i].kill_cooldown_remaining = kill_cooldown_for(players[i]);
+			role_traits@ rt = players[i].role();
+			if (rt.ability_id != "" && rt.ability_cooldown_resets_on_meeting) {
+				players[i].ability_cooldown_remaining = config.role_value(players[i].role_id, TUNABLE_COOLDOWN);
+			}
+		}
+		meeting_cooldown_remaining = config.emergency_cooldown_seconds;
+
+		return result;
+	}
+
+	// Reunião (botão ou reporte de corpo) fica bloqueada enquanto uma sabotagem crítica está de pé -
+	// é assim no Among Us original, e é o que impede o caso em que a reunião come todo o tempo do
+	// oxigênio e a tripulação volta pra partida já sem chance de chegar nos painéis.
+	bool meetings_blocked_by_sabotage() const {
+		return active_sabotage != "" && is_critical_sabotage(active_sabotage);
+	}
+
+	// Motivo pelo qual o botão de emergência não pode ser usado agora ("" = pode).
+	// Além da sabotagem crítica, as LUZES também derrubam o botão: no escuro ninguém acha o botão
+	// pra chamar reunião, e poder chamar uma reunião no apagão anulava a sabotagem inteira (todo
+	// mundo era teleportado pra cafeteria em segurança). Reportar corpo continua valendo no escuro -
+	// quem tropeçou num corpo tropeçou nele de verdade.
+	string emergency_button_block_reason() const {
+		if (active_sabotage == "") return "";
+		if (is_critical_sabotage(active_sabotage)) return "sabotage.blocks_meeting";
+		if (active_sabotage == "lights") return "sabotage.lights.blocks_button";
+		return "";
+	}
+}

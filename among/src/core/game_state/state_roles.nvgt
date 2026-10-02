@@ -1,0 +1,189 @@
+// state_roles.nvgt
+// Habilidades dos papéis que mudam o estado da partida: lobo (barriga), metamorfo, fantasma, anjo.
+//
+// Parte do game_state (src/core/game_state.nvgt), como `mixin class`: o AngelScript não tem classe parcial, e o mixin
+// é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam os campos e os
+// métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o game_state.nvgt.
+
+mixin class state_roles_part {
+	// O lobo engole alguém ao alcance. Devolve false com `fail_key` quando não dá.
+	//
+	// As regras de quem pode ser alvo são as do assassinato (try_kill), pelos mesmos motivos: ninguém
+	// dentro de duto, nem de um lado nem do outro; o escudo do anjo vale contra QUALQUER ataque. O que
+	// muda é o efeito: nada de corpo, e o alvo não morre - vai para a barriga (swallowed_by), com
+	// `alive = false` para sair da contagem, da votação e do radar de todo mundo.
+	bool try_eat(uint64 wolf_peer, uint64 target_peer, string&out fail_key) {
+		fail_key = "";
+		game_player@ lobo = find_player(wolf_peer);
+		game_player@ alvo = find_player(target_peer);
+		if (@lobo == null || !lobo.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (lobo.vented) { fail_key = "role.eat_no_target"; return false; }
+		// Alvo inválido, longe, no duto ou protegido: tudo cai no mesmo "ninguém ao alcance". Uma
+		// recusa própria para o escudo contaria ao lobo que aquela pessoa está blindada.
+		if (@alvo == null || !alvo.alive || alvo.peer_id == lobo.peer_id || alvo.vented || alvo.shield_remaining > 0.0 ||
+				distance_2d(lobo.x, lobo.y, alvo.x, alvo.y) > PLAYER_KILL_RANGE) {
+			fail_key = "role.eat_no_target";
+			return false;
+		}
+
+		alvo.alive = false;
+		alvo.swallowed_by = lobo.peer_id;
+		// A barriga desfaz o que o alvo estava usando para não ser percebido. O disfarce cai (o servidor
+		// transmite o nome de volta - ver ABILITY_EAT em run_ability): lá dentro ele é quem é, e a
+		// lista da reunião precisa ter o nome certo quando ele voltar.
+		if (alvo.invisible()) alvo.invisible_remaining = 0.0;
+		// Quem ele tinha engolido (se o alvo for outro lobo) sai junto, no mesmo ponto: a barriga de um
+		// lobo engolido não passa para o outro.
+		release_belly(alvo, alvo.x, alvo.y);
+		return true;
+	}
+
+	// Quem estava na barriga deste jogador volta, vivo, em (x, y). Chamado em TODA forma de o lobo sair
+	// do jogo - assassinato, palpite do atirador, expulsão, saída da partida -, e é inofensivo para
+	// quem não é lobo (a barriga está vazia). O aviso sai pela fila do tick (pending_events).
+	void release_belly(game_player@ lobo, float x, float y) {
+		if (@lobo == null) return;
+		json_array@ voltaram = json_array();
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.swallowed_by != lobo.peer_id) continue;
+			p.swallowed_by = 0;
+			// Quem saiu da partida lá dentro não volta: o registro dele fica morto (ver remove_from_lobby).
+			if (p.left_match) continue;
+			p.alive = true;
+			p.x = x;
+			p.y = y;
+			// Sem isto, o primeiro passo depois da volta era medido desde o último movimento ANTES de
+			// ser engolido - e a volta seria tratada como um salto qualquer.
+			p.last_move_time = elapsed_time;
+			voltaram.add(p.peer_id);
+		}
+		if (voltaram.length() == 0) return;
+		net_packet@ pkt = net_packet(S_BELLY_RELEASED);
+		pkt.set_array("peers", voltaram);
+		pkt.set_float("x", x);
+		pkt.set_float("y", y);
+		pending_events.insert_last(pkt);
+	}
+
+	// Os dois estão na MESMA barriga - contando o próprio lobo como parte dela.
+	bool in_same_belly(game_player@ a, game_player@ b) const {
+		uint64 barriga_a = a.swallowed() ? a.swallowed_by : a.peer_id;
+		uint64 barriga_b = b.swallowed() ? b.swallowed_by : b.peer_id;
+		if (barriga_a != barriga_b) return false;
+		// O lobo precisa estar vivo para "ser a barriga": morto, ele não carrega ninguém (a soltura já
+		// teria acontecido - isto é só a guarda para um estado que não deveria existir).
+		game_player@ lobo = find_player(barriga_a);
+		return @lobo != null && lobo.alive;
+	}
+
+	// Quem está na barriga fica ONDE O LOBO ESTÁ. É o que faz o radar do engolido varrer a sala do
+	// lobo (recado #160: ele queria saber o que acontece lá fora) sem nenhuma regra nova no radar - a
+	// varredura já parte da posição de quem pergunta. Para os outros nada muda: o engolido está com
+	// alive = false, e ninguém o percebe onde quer que ele esteja.
+	void follow_wolves() {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (!p.swallowed()) continue;
+			game_player@ lobo = find_player(p.swallowed_by);
+			if (@lobo == null || !lobo.alive) continue;
+			p.x = lobo.x;
+			p.y = lobo.y;
+		}
+	}
+
+	// Alguém está na barriga de um lobo agora. (Quem saiu da partida lá dentro não conta: ele não volta.)
+	bool anyone_in_belly() const {
+		for (uint i = 0; i < players.length(); i++) {
+			if (players[i].swallowed() && !players[i].left_match) return true;
+		}
+		return false;
+	}
+
+	// Assume o nome de outro jogador VIVO. Devolve o nome copiado, que é o que o shapeshifter ouve.
+	//
+	// O alvo não precisa estar perto - a jogada é justamente imitar alguém que está longe, para que
+	// a pessoa imitada não esteja por ali para desmentir. O que impede isso de ser grátis é o SOM da
+	// transformação (posicionado, ouvido por quem está do lado dele) e o microfone fechado enquanto
+	// durar (ver on_voice_frame).
+	//
+	// Morto não se transforma: fantasma não aparece no radar de ninguém, então não haveria o que
+	// disfarçar.
+	bool try_shapeshift(uint64 peer_id, uint64 target_peer, string&out copied_name, string&out fail_key) {
+		fail_key = "";
+		copied_name = "";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		game_player@ target = find_player(target_peer);
+		// Alvo morto entra no mesmo "esse não serve" de um alvo que não existe: dizer "essa pessoa
+		// está morta" contaria ao impostor um corpo que ele talvez não tivesse encontrado.
+		if (@target == null || !target.alive || target.peer_id == peer_id) { fail_key = "role.shift_bad_target"; return false; }
+
+		p.set_disguise(target.display_name(), config.role_value(ROLE_SHAPESHIFTER, TUNABLE_DURATION));
+		copied_name = p.disguise_name;
+		return true;
+	}
+
+	// O fantasma some. Devolve false só se ele não puder agora (morto, ou já invisível).
+	bool try_vanish(uint64 peer_id, string&out fail_key) {
+		fail_key = "";
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (p.invisible()) { fail_key = "role.vanish_already"; return false; }
+		p.invisible_remaining = config.role_value(ROLE_PHANTOM, TUNABLE_DURATION);
+		return true;
+	}
+
+	// Desfaz as invisibilidades que venceram, e devolve quem voltou a ser percebido - o servidor
+	// avisa cada um e toca o som onde ele está.
+	array<uint64>@ expire_invisibility() {
+		array<uint64> voltaram;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			// `invisible_remaining == 0` não basta para saber que ele ESTAVA invisível: é preciso um
+			// sinal de que acabou AGORA. O `was_invisible` é escrito no tick, junto do relógio.
+			if (!p.was_invisible || p.invisible()) continue;
+			p.was_invisible = false;
+			voltaram.insert_last(p.peer_id);
+		}
+		return voltaram;
+	}
+
+	// Desfaz as fantasias cujo tempo acabou. Devolve quem voltou ao normal, para o servidor avisar
+	// cada um e tocar o som onde ele está - a volta é tão audível quanto a ida, senão desfazer-se
+	// no meio de uma sala seria grátis.
+	array<uint64>@ expire_disguises() {
+		array<uint64> voltaram;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (!p.disguised() || p.disguise_remaining > 0.0) continue;
+			p.set_disguise("", 0.0);
+			voltaram.insert_last(p.peer_id);
+		}
+		return voltaram;
+	}
+
+	// Escudo do anjo da guarda sobre alguém vivo. Devolve o NOME do protegido, porque é a única
+	// coisa que o anjo ouve de volta - ninguém mais é avisado de nada.
+	//
+	// Exige o anjo MORTO (o papel só age depois de morrer) e o alvo perto: o fantasma tem que
+	// atravessar a nave até quem quer salvar, e é esse custo que o impede de cobrir todo mundo.
+	bool try_shield_player(uint64 angel_peer, uint64 target_peer, string&out target_name, string&out fail_key) {
+		fail_key = "";
+		target_name = "";
+		game_player@ angel = find_player(angel_peer);
+		game_player@ target = find_player(target_peer);
+		if (@angel == null) return false;
+		if (angel.alive) { fail_key = "role.ability_only_dead"; return false; }
+		// Alvo morto ou ele mesmo: some no "ninguém por perto", sem uma recusa própria. Uma mensagem
+		// específica para "esse já está morto" diria ao anjo algo que ele talvez não soubesse.
+		if (@target == null || !target.alive || target.peer_id == angel.peer_id) { fail_key = "role.shield_no_target"; return false; }
+		if (distance_2d(angel.x, angel.y, target.x, target.y) > GUARDIAN_SHIELD_RANGE) { fail_key = "role.shield_no_target"; return false; }
+
+		// Relançar sobre quem já está protegido simplesmente renova - não é erro, e recusar
+		// contaria ao anjo que aquela pessoa já está blindada por outro anjo.
+		target.shield_remaining = config.role_value(ROLE_GUARDIAN_ANGEL, TUNABLE_DURATION);
+		target_name = target.public_name();
+		return true;
+	}
+}
