@@ -8,8 +8,9 @@ Everything that changed in the game, newest first.
 
 ## 0.50.0
 
-**Pre-release of 1.0.** This version brings a lot of new things at once, so it may have more bugs than
-usual. Found something odd? Send it through feedback: that is what will make 1.0 solid.
+**Pre-release of 1.0.** This version brings a lot of new things at once, and **bugs may show up**.
+That is the whole idea: fix the problems before we finally release a stable version of the game. Found
+something odd? Send it through feedback, which is what will make 1.0 solid.
 
 **Twelve new roles and modifiers**, all turned on by the room, with how many and the chance of each:
 
