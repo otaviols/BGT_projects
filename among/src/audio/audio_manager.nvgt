@@ -290,6 +290,15 @@ class audio_manager {
 		spatial.play_once(SND_SHAPE_SHIFT, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
+	void play_revive(float x, float y) {
+		spatial.play_once(SND_DOCTOR_REVIVE, x, y, family_db(SOUND_FAMILY_EVENTS));
+	}
+
+	// O fogo do incendiário. Devolve o slot, para quem chama esperar ele acabar antes da vitória.
+	int play_arsonist_fire() { return spatial.play_ui(SND_ARSONIST_FIRE, false, family_db(SOUND_FAMILY_EVENTS)); }
+
+	bool is_playing(int slot) { return slot >= 0 && spatial.pool.sound_is_playing(slot); }
+
 	// Limpar ("clean") ou arrastar ("drag") um corpo, no ponto onde acontece.
 	void play_body_sound(const string&in kind, float x, float y) {
 		spatial.play_once(kind == "clean" ? SND_BODY_CLEAN : SND_BODY_DRAG, x, y, family_db(SOUND_FAMILY_EVENTS));

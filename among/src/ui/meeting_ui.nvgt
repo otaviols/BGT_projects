@@ -273,6 +273,13 @@ class meeting_ui {
 
 	void on_game_over(net_packet@ pkt) {
 		string winner = pkt.get_string("winner");
+		// O fogo do incendiário vem ANTES do anúncio: é ele que acaba a partida, e a vitória por cima o
+		// apagaria. Espera o som acabar (e não um tempo fixo - ver notes/som.md), atendendo a rede.
+		if (pkt.get_string("reason") == "arsonist_ignited") {
+			int fogo = audio.play_arsonist_fire();
+			timer limite;
+			while (audio.is_playing(fogo) && limite.elapsed < 5000) { wait(10); client.update(); }
+		}
 		announce(game_winner_text(pkt));
 		// Antes tocava win/defeat baseado só em quem venceu, sem checar o papel de quem está ouvindo -
 		// impostores ouviam "vitória" quando os tripulantes ganhavam, e vice-versa.

@@ -98,11 +98,15 @@ const string SND_VANISH = "sounds/events/phantom_vanish.ogg";
 // está por perto, posicionado. Para os vizinhos ele substitui o som do kill: ouvir isto diz que há um
 // lobo a bordo, e não um corpo para achar.
 const string SND_WOLF_SWALLOW = "sounds/events/wolf_swallow.ogg";
-// O lixeiro limpando um corpo e o carregador arrastando um, posicionados e sem nome. Os arquivos vêm do
-// usuário; até chegarem, os dois tocam mudos (o NVGT não reclama de som que não existe) e o
-// check_sounds os lista como faltando.
+// O lixeiro limpando um corpo e o carregador arrastando um, posicionados e sem nome (sons do usuário).
+// O arrasto veio 14 dB abaixo dos outros eventos e foi gravado já com +8 dB: ele é o risco do
+// carregador, e longe quase não se ouvia.
 const string SND_BODY_CLEAN = "sounds/events/body_clean.ogg";
 const string SND_BODY_DRAG = "sounds/events/body_drag.ogg";
+// O médico trazendo alguém de volta: posicionado, no ponto onde a pessoa volta, para todos - voltar já é
+// público (ver S_PLAYER_REVIVED). E o fogo do incendiário, sem posição, que acaba a partida.
+const string SND_DOCTOR_REVIVE = "sounds/events/doctor_revive.ogg";
+const string SND_ARSONIST_FIRE = "sounds/events/arsonist_fire.ogg";
 // O alarme do alarmista, quando ele morre. Vai para a nave INTEIRA e sem posicao: ele nao marca
 // um lugar (a sala vai dita na fala), e' o aviso de que aconteceu.
 const string SND_NOISEMAKER_ALARM = "sounds/events/noisemaker_alarm.ogg";
@@ -495,6 +499,8 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_WOLF_SWALLOW);
 	list.insert_last(SND_BODY_CLEAN);
 	list.insert_last(SND_BODY_DRAG);
+	list.insert_last(SND_DOCTOR_REVIVE);
+	list.insert_last(SND_ARSONIST_FIRE);
 	list.insert_last(SND_NOISEMAKER_ALARM);
 	list.insert_last(SND_VOTE_SELECT);
 	list.insert_last(SND_VOTE_TIMER);
