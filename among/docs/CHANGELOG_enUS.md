@@ -8,7 +8,7 @@ Everything that changed in the game, newest first.
 
 ## 0.50.0
 
-**Pre-release of 1.0.** This version brings a lot of new things at once, and **bugs may show up**.
+**Pre-release of 1.0.** This version brings a lot of new things at once, and bugs may show up.
 That is the whole idea: fix the problems before we finally release a stable version of the game. Found
 something odd? Send it through feedback, which is what will make 1.0 solid.
 

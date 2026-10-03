@@ -8,8 +8,8 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ## 0.50.0
 
-**Pré-lançamento da 1.0.** Esta versão traz muita coisa nova de uma vez, e **podem aparecer
-defeitos**. A ideia é justamente essa: resolver os problemas antes de lançarmos, enfim, uma versão
+**Pré-lançamento da 1.0.** Esta versão traz muita coisa nova de uma vez, e podem aparecer
+defeitos. A ideia é justamente essa: resolver os problemas antes de lançarmos, enfim, uma versão
 estável do jogo. Achou algo estranho? Mande pelo recado, que é o que vai deixar a 1.0 redonda.
 
 **Doze papéis e modificadores novos**, todos ligados pela sala, com quantos e a chance de cada um:

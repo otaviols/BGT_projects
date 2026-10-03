@@ -179,6 +179,11 @@ de código do sistema e toda mensagem com acento sai "versÃ£o", "nÃ£o" - tod
 estavam assim, e ninguém lia as mensagens de erro direito. Todos ganharam o BOM; script novo,
 também (o editor do VS Code: "Save with Encoding" > "UTF-8 with BOM").
 
+**Negrito no MEIO de um parágrafo do changelog vai cru para o aviso de atualização.** O
+`make_version_json.py` só tira o `**` que abre o parágrafo; um `**destaque**` no meio da frase chega ao
+jogador como "asterisco asterisco" lido pelo leitor de tela. No changelog, negrito só no começo do
+parágrafo (é o título dele); depois de gerar, confira que o `version.json` não tem `*`.
+
 **Fora do git:** `terraform.tfvars`, `*.tfstate`, `sounds.dat`, `*.zip`, `*.exe`, `crash.log`,
 `among_users.db`, `server.txt`.
 
