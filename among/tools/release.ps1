@@ -71,7 +71,10 @@ try {
 	$servidor = $true
 	if ($commitNoAr) {
 		$mudou = git diff --name-only $commitNoAr HEAD -- server_main.nvgt src lang |
-			Where-Object { $_ -notmatch '^among/src/(ui|audio)/' -and $_ -notmatch '^src/(ui|audio)/' }
+			# Só do cliente: telas, som, e o laço da partida e de quem assiste (src/game/match/, game_loop,
+			# spectate_loop) - o servidor não inclui nenhum deles. Sem isto, conserto só de cliente
+			# reiniciava o servidor e derrubava quem estava jogando à toa.
+			Where-Object { $_ -notmatch '^(among/)?src/(ui|audio|game/match)/' -and $_ -notmatch '^(among/)?src/game/(game_loop|spectate_loop)\.nvgt$' }
 		$servidor = [bool]$mudou
 		Write-Host ("Servidor no ar: {0}. {1}" -f $commitNoAr, $(if ($servidor) { "Mudou desde então: vai junto." } else { "Nada do servidor mudou: só o cliente." }))
 	} else {
