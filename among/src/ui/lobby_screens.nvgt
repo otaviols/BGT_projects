@@ -3,6 +3,7 @@
 
 #include "menu.nvgt"
 #include "../core/screen_keyboard.nvgt"
+#include "../core/crash_log.nvgt" // log_diagnostic, no formulário que perde controles
 #include "form.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"

@@ -6,6 +6,15 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.1
+
+**Criar sala voltou a funcionar.** Na 0.50.0 o formulário de criação não deixava confirmar: dava para
+mexer nos campos, mas a sala nunca era criada. Os papéis especiais e os modificadores agora ficam em
+telas próprias, abertas pelos botões Papéis especiais e Modificadores do formulário.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.0
 
 **Pré-lançamento da 1.0.** Esta versão traz muita coisa nova de uma vez, e podem aparecer

@@ -6,6 +6,15 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.1
+
+**Creating a room works again.** In 0.50.0 the creation form would not let you confirm: you could move
+through the fields, but the room was never created. Special roles and modifiers now live on screens of
+their own, opened by the Special roles and Modifiers buttons on the form.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.0
 
 **Pre-release of 1.0.** This version brings a lot of new things at once, and bugs may show up.

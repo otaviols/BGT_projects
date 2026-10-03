@@ -1,0 +1,44 @@
+// Sonda da tela de criar sala: Enter no primeiro campo tem que CONFIRMAR e devolver a sala, sem rede.
+//   nvgt tools/probes/probe_lobby_form.nvgt
+//
+// Existe por causa da 0.50.0: com os papéis novos o formulário passou dos 50 controles do audio_form, o
+// botão de confirmar não era criado, e o Enter não fazia nada - "só consigo mexer nos campos, nunca
+// criar a sala". Nenhuma sonda passava por esta tela. A tecla é apertada de DENTRO do laço do formulário,
+// pelo gancho que client.update() chama a cada quadro: simular antes de abrir a tela não funciona. Cuidado:
+// a janela da sonda recebe também o que você digitar enquanto ela roda.
+#include "../../src/game/game_loop.nvgt"
+#include "../../src/ui/lobby_screens.nvgt"
+#include "../../src/core/crash_log.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+string calado(const string&in t) { return ""; }
+int quadro = 0;
+void aperta_enter() {
+	quadro++;
+	if (quadro == 40) simulate_key_down(KEY_RETURN);
+	if (quadro == 43) simulate_key_up(KEY_RETURN);
+	if (quadro > 4000) exit(1); // não confirmou em ~20 s: a tela travou, e é isso que a sonda acusa
+}
+
+void main() {
+	show_window("sonda: criar sala");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+	@tts_default_text_processing_callback = calado;
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = aperta_enter;
+	lobby_form_result r = run_lobby_settings_form(c, null, true);
+	confere("Enter no primeiro campo confirma a criacao", r.ok && r.preset_id == "classic");
+	confere("e nenhum papel vem ligado sem ninguem escolher", r.ov.role_counts.get_keys().length() == 0
+		|| r.ov.role_counts.get_keys().length() == configurable_ids().length());
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -360,6 +360,14 @@ abre o cliente inteiro - foi a 0.45.0 no ar, e quem atualizou ficou sem updater 
 que um construtor de global lê vem ANTES da global. O `build_clients.ps1` agora abre o exe compilado
 e recusa o build se ele fechar sozinho.
 
+**`audio_form` tem teto de 50 controles - e o que passa disso não é criado, em silêncio.** O
+`create_*` devolve -1 e a tela segue sem os campos do fim. Sintoma (0.50.0, com os papéis novos no
+formulário de sala): "só consigo mexer nos campos, nunca criar a sala" - o botão de confirmar era o
+51º, não existia, e o Enter não tinha o que apertar. Papéis e modificadores foram para telas próprias,
+abertas por botão (`run_role_choice_form`), e os formulários de sala registram no `crash.log` se
+ficarem sem o confirmar. Formulário que cresce com uma lista (papéis, idiomas): conte. Sonda:
+`probe_lobby_form.nvgt`, que aperta Enter de dentro do laço da tela.
+
 **Uma compilação do NVGT pode sair defeituosa.** Aconteceu: mesmo código-fonte, um build gerou binário
 com segfault na inicialização e o seguinte saiu bom. Compilar com sucesso **não** é o mesmo que o
 binário funcionar. Por isso o `deploy.ps1` testa a imagem antes de publicar; se algo assim aparecer de

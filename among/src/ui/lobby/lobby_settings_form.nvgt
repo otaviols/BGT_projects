@@ -141,26 +141,15 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	int f_max_players = f.create_input_box(tr("lobby.max_players_override"), current_int_text(current, "max_players"));
 	bool auto_impostors = @current != null && bool(current["impostors_automatic"]);
 	int f_impostors = f.create_input_box(tr("lobby.impostor_count_override"), auto_impostors ? "" : current_int_text(current, "impostor_count"));
-	// Um campo por papel especial, logo depois dos impostores (é a mesma pergunta: quem joga contra
-	// quem). Vazio = zero, e zero é o jogo de sempre. A lista vem de CONFIGURABLE_ROLE_IDS, então um
-	// papel novo aparece aqui sozinho.
-	// Cada papel são DOIS campos: quantas vagas e a chance de cada uma sair. A chance é o que
-	// impede a tripulação de assumir que o papel existe; vazia (ou 100) é "sempre", que é o
-	// comportamento óbvio para quem só quer ligar o papel e jogar.
-	json_object@ current_roles = @current != null ? current.get_object("role_counts") : null;
-	json_object@ current_chances = @current != null ? current.get_object("role_chances") : null;
-	array<int> f_roles;
-	array<int> f_role_chances;
-	array<string>@ ids_da_sala = configurable_ids(); // papéis e modificadores
-	for (uint i = 0; i < ids_da_sala.length(); i++) {
-		string id = ids_da_sala[i];
-		string atual = "";
-		if (@current_roles != null && current_roles.exists(id) && int(current_roles[id]) > 0) atual = "" + int(current_roles[id]);
-		f_roles.insert_last(f.create_input_box(tr("lobby.role_count." + id), atual));
-		string chance = "";
-		if (@current_chances != null && current_chances.exists(id) && int(current_chances[id]) < 100) chance = "" + int(current_chances[id]);
-		f_role_chances.insert_last(f.create_input_box(tr("lobby.role_chance." + id), chance));
-	}
+	// Papéis especiais e modificadores numa tela À PARTE cada um, aberta por um botão logo depois dos
+	// impostores (é a mesma pergunta: quem joga contra quem). Eram dois campos por papel aqui mesmo, e com
+	// a leva de papéis da 0.50.0 o formulário passou dos 50 controles que o audio_form aceita: os campos
+	// do fim - e o botão de confirmar - simplesmente não eram criados, e a sala nunca saía (ver
+	// "audio_form tem teto de 50" no CLAUDE.md). Separados, também ficam mais curtos de percorrer.
+	role_choice escolha;
+	escolha.load(current);
+	int f_roles_btn = f.create_button(role_choice_caption("lobby.roles_button", escolha, CONFIGURABLE_ROLE_IDS));
+	int f_mods_btn = f.create_button(role_choice_caption("lobby.modifiers_button", escolha, CONFIGURABLE_MODIFIER_IDS));
 	int f_tasks = f.create_input_box(tr("lobby.task_count_override"), current_int_text(current, "task_count_per_crewmate"));
 	int f_long_tasks = f.create_input_box(tr("lobby.long_task_count_override"), current_int_text(current, "long_task_count"));
 	int f_meeting_time = f.create_input_box(tr("lobby.meeting_time_override"), current_float_text(current, "meeting_time_seconds"));
@@ -216,16 +205,18 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 
 	// O que cada modo mostra. Só do clássico: tudo que é reunião, papel, sabotagem e duto. Fora do todos
 	// lobos: recarga de kill (lá quem engole tem a recarga do lobo) e tarefas (lá vence o último de pé).
-	array<int> so_classico = {f_preset, f_impostors, f_meeting_time, f_meetings, f_sabotages, f_vents,
+	array<int> so_classico = {f_preset, f_impostors, f_roles_btn, f_mods_btn, f_meeting_time, f_meetings, f_sabotages, f_vents,
 		f_reveal, f_votes, f_emergency_cd, f_comms_meeting};
-	for (uint i = 0; i < f_roles.length(); i++) { so_classico.insert_last(f_roles[i]); so_classico.insert_last(f_role_chances[i]); }
 	array<int> fora_dos_lobos = {f_kill_cooldown, f_tasks, f_long_tasks};
 	// O que volta ao padrão quando o modo muda: o valor de hoje era do modo de antes.
 	array<int> textos = {f_kill_cooldown, f_max_players, f_impostors, f_tasks, f_long_tasks, f_meeting_time,
 		f_meetings, f_emergency_cd, f_speed};
-	for (uint i = 0; i < f_roles.length(); i++) { textos.insert_last(f_roles[i]); textos.insert_last(f_role_chances[i]); }
 	array<int> listas = {f_sabotages, f_vents, f_colors, f_color_mode, f_reveal, f_votes, f_comms_meeting, f_voice};
 	lobby_form_show_for_mode(f, modo, so_classico, fora_dos_lobos);
+
+	// Sem o botão de confirmar o formulário não tem saída - e o audio_form não avisa quando recusa um
+	// controle. Fica registrado, em vez de uma tela muda em que o Enter não faz nada.
+	if (f_ok < 0) log_diagnostic("formulario de sala sem o botao de confirmar: controles demais");
 
 	// Um audio_form nasce sem foco: sem isto o primeiro campo não recebia o que era digitado até o
 	// jogador apertar Tab.
@@ -244,9 +235,21 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			modo = modo_agora;
 			for (uint i = 0; i < textos.length(); i++) f.set_text(textos[i], "");
 			for (uint i = 0; i < listas.length(); i++) f.set_list_position(listas[i], 0);
+			escolha.clear();
+			f.set_caption(f_roles_btn, role_choice_caption("lobby.roles_button", escolha, CONFIGURABLE_ROLE_IDS));
+			f.set_caption(f_mods_btn, role_choice_caption("lobby.modifiers_button", escolha, CONFIGURABLE_MODIFIER_IDS));
 			lobby_form_show_for_mode(f, modo, so_classico, fora_dos_lobos);
 			// Dito com o foco ainda na lista: quem trocou precisa saber que o resto da tela mudou junto.
 			speak(tr("lobby.mode_form_reset"), false);
+		}
+		if (f.is_pressed(f_roles_btn) || f.is_pressed(f_mods_btn)) {
+			bool papeis = f.is_pressed(f_roles_btn);
+			int botao = papeis ? f_roles_btn : f_mods_btn;
+			run_role_choice_form(client, escolha, papeis ? CONFIGURABLE_ROLE_IDS : CONFIGURABLE_MODIFIER_IDS,
+				papeis ? "lobby.roles_title" : "lobby.modifiers_title");
+			f.set_caption(botao, role_choice_caption(papeis ? "lobby.roles_button" : "lobby.modifiers_button", escolha,
+				papeis ? CONFIGURABLE_ROLE_IDS : CONFIGURABLE_MODIFIER_IDS));
+			f.focus(botao); // de volta ao botão, que já diz quantos ficaram ligados
 		}
 		if (f.is_pressed(f_cancel)) { g_voice.typing = false; return r; }
 		if (f.is_pressed(f_ok)) {
@@ -273,13 +276,12 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			// sempre, com 0 quando vazio.
 			// Fora do clássico não há papel nenhum: o dicionário vai vazio, que é "não mexi" (e o servidor
 			// limpa os papéis de qualquer jeito ao validar o modo).
-			if (modo == GAME_MODE_CLASSIC) for (uint i = 0; i < f_roles.length(); i++) {
-				int n = text_to_int_or_default(f.get_text(f_roles[i]));
-				r.ov.role_counts.set(ids_da_sala[i], n < 0 ? 0 : n);
-				// Chance vazia = 100 ("sempre"), que é o que quem só ligou o papel espera. O servidor
-				// ainda recorta para 0..100 e descarta chance de papel sem vaga.
-				int c = text_to_int_or_default(f.get_text(f_role_chances[i]));
-				r.ov.role_chances.set(ids_da_sala[i], c < 0 ? 100 : c);
+			if (modo == GAME_MODE_CLASSIC) {
+				array<string>@ ids_da_sala = configurable_ids();
+				for (uint i = 0; i < ids_da_sala.length(); i++) {
+					r.ov.role_counts.set(ids_da_sala[i], escolha.count(ids_da_sala[i]));
+					r.ov.role_chances.set(ids_da_sala[i], escolha.chance(ids_da_sala[i]));
+				}
 			}
 			r.ov.task_count_per_crewmate = text_to_int_or_default(visible_text(f, f_tasks));
 			r.ov.long_task_count = text_to_int_or_default(visible_text(f, f_long_tasks));
@@ -311,6 +313,72 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 		}
 	}
 	return r; // inalcançável - o laço só termina via return acima
+}
+
+// Os papéis e modificadores escolhidos para a sala, editados na tela própria (run_role_choice_form) e
+// mandados junto do formulário principal. Começa com o que a sala já usa (edição ou configuração salva).
+class role_choice {
+	dictionary counts;  // id -> quantos (ausente = 0)
+	dictionary chances; // id -> por cento (ausente = 100, "sempre")
+
+	void load(json_object@ current) {
+		clear();
+		if (@current == null) return;
+		json_object@ c = current.get_object("role_counts");
+		json_object@ ch = current.get_object("role_chances");
+		array<string>@ ids = configurable_ids();
+		for (uint i = 0; i < ids.length(); i++) {
+			if (@c != null && c.exists(ids[i]) && int(c[ids[i]]) > 0) counts.set(ids[i], int(c[ids[i]]));
+			if (@ch != null && ch.exists(ids[i]) && int(ch[ids[i]]) < 100) chances.set(ids[i], int(ch[ids[i]]));
+		}
+	}
+	void clear() { counts.delete_all(); chances.delete_all(); }
+	int count(const string&in id) { int n = 0; if (counts.exists(id)) counts.get(id, n); return n; }
+	int chance(const string&in id) { int c = 100; if (chances.exists(id)) chances.get(id, c); return c; }
+	uint on_count(const array<string>@ ids) { uint n = 0; for (uint i = 0; i < ids.length(); i++) if (count(ids[i]) > 0) n++; return n; }
+}
+
+string role_choice_caption(const string&in key, role_choice@ escolha, const array<string>@ ids) {
+	dictionary@ p = dictionary();
+	p.set("count", "" + escolha.on_count(ids));
+	return tr(key, p);
+}
+
+// A tela de papéis (ou de modificadores): dois campos por id, quantos e a chance de cada vaga. Vazio =
+// zero, e zero é o jogo de sempre; chance vazia (ou 100) é "sempre", o óbvio para quem só quer ligar e
+// jogar. A chance é o que impede a tripulação de assumir que o papel existe. Confirmar grava em
+// `escolha`; cancelar deixa como estava.
+void run_role_choice_form(game_client@ client, role_choice@ escolha, const array<string>@ ids, const string&in title_key) {
+	audio_form f;
+	screen_keyboard_follower teclado_tela;
+	f.create_window(tr(title_key), false);
+	array<int> f_counts, f_chances;
+	for (uint i = 0; i < ids.length(); i++) {
+		int n = escolha.count(ids[i]);
+		f_counts.insert_last(f.create_input_box(tr("lobby.role_count." + ids[i]), n > 0 ? "" + n : ""));
+		int c = escolha.chance(ids[i]);
+		f_chances.insert_last(f.create_input_box(tr("lobby.role_chance." + ids[i]), c < 100 ? "" + c : ""));
+	}
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	if (f_ok < 0) log_diagnostic("tela de papeis sem o botao de confirmar: controles demais");
+	f.focus(f_counts.length() > 0 ? f_counts[0] : f_ok);
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		teclado_tela.follow(f);
+		if (f.is_pressed(f_cancel)) return;
+		if (f.is_pressed(f_ok)) {
+			for (uint i = 0; i < ids.length(); i++) {
+				int n = text_to_int_or_default(f.get_text(f_counts[i]));
+				if (n > 0) escolha.counts.set(ids[i], n); else escolha.counts.delete(ids[i]);
+				int c = text_to_int_or_default(f.get_text(f_chances[i]));
+				if (c >= 0 && c < 100) escolha.chances.set(ids[i], c); else escolha.chances.delete(ids[i]);
+			}
+			return;
+		}
+	}
 }
 
 // Mostra no formulário só o que vale para o modo (ver o comentário da lista de modos acima). Campos -1
