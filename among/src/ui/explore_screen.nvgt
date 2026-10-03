@@ -98,7 +98,7 @@ void run_explore_map_screen() {
 				if (float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
 					footstep_clock.restart();
 					string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
-					audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
+					audio.play_own_footstep(prefix, footstep_variant_count(prefix));
 				}
 			} else if (float(wall_bump_clock.elapsed) / 1000.0 >= WALL_BUMP_INTERVAL_SECONDS) {
 				wall_bump_clock.restart();

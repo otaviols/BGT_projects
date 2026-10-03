@@ -96,7 +96,7 @@ mixin class match_net_ship_part {
 			// o som saía no destino enquanto os ouvidos ainda estavam na origem, e ficava mudo.
 			// O piso é o do DUTO, não o da sala onde o vent desemboca - quem viaja está lá dentro.
 			if (was_vented) {
-				audio.play_footstep("VentTile", footstep_variant_count("VentTile"), my_x, my_y);
+				audio.play_own_footstep("VentTile", footstep_variant_count("VentTile"));
 			}
 			speak(tr(was_vented ? "game.vent_traveled" : "game.vent_entered"));
 		} else {

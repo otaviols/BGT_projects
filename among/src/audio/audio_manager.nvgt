@@ -53,6 +53,19 @@ class audio_manager {
 			family_db(SOUND_FAMILY_STEPS) + footstep_volume_db(floor_prefix));
 	}
 
+	// O PRÓPRIO passo, sem posição. Tocado posicionado, ele caía exatamente em cima do ouvinte - distância
+	// zero, direção indefinida para o áudio 3D - e de vez em quando saía mudo: "do nada é como se você
+	// não ouvisse um passo" (relato do usuário, 0.50). Os passos dos outros nunca estão a distância
+	// zero e continuam posicionados. O próprio passo é sempre ouvido no centro de qualquer jeito.
+	void play_own_footstep(const string&in floor_prefix, int variant_count) {
+		if (variant_count <= 0) return;
+		own_footstep_seed = (own_footstep_seed + 1) % uint(variant_count);
+		spatial.play_ui(footstep_sound_path(floor_prefix, int(own_footstep_seed) + 1), false,
+			family_db(SOUND_FAMILY_STEPS) + footstep_volume_db(floor_prefix));
+	}
+	// Separado do dos outros: dividindo o mesmo, cada passo alheio pulava uma variante do meu.
+	uint own_footstep_seed = 0;
+
 	// Toca quando o jogador tenta andar pra fora de qualquer sala/corredor (ver game_map.is_walkable).
 	void play_wall_bump(float x, float y) {
 		spatial.play_once(SND_WALL_BUMP, x, y, family_db(SOUND_FAMILY_STEPS));
