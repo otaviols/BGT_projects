@@ -75,6 +75,15 @@ try {
 			# spectate_loop) - o servidor não inclui nenhum deles. Sem isto, conserto só de cliente
 			# reiniciava o servidor e derrubava quem estava jogando à toa.
 			Where-Object { $_ -notmatch '^(among/)?src/(ui|audio|game/match)/' -and $_ -notmatch '^(among/)?src/game/(game_loop|spectate_loop)\.nvgt$' }
+		# O GAME_VERSION muda em TODA versão, e sozinho não é motivo para reiniciar o servidor: se é a
+		# única linha mexida no game_constants, ele sai da conta.
+		$constantes = @($mudou | Where-Object { $_ -match 'src/config/game_constants\.nvgt$' })
+		if ($constantes.Count -gt 0) {
+			$linhas = git diff -U0 $commitNoAr HEAD -- $constantes[0] | Where-Object { $_ -match '^[+-][^+-]' }
+			if (-not ($linhas | Where-Object { $_ -notmatch 'GAME_VERSION' })) {
+				$mudou = @($mudou | Where-Object { $_ -notmatch 'src/config/game_constants\.nvgt$' })
+			}
+		}
 		$servidor = [bool]$mudou
 		Write-Host ("Servidor no ar: {0}. {1}" -f $commitNoAr, $(if ($servidor) { "Mudou desde então: vai junto." } else { "Nada do servidor mudou: só o cliente." }))
 	} else {
