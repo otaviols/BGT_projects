@@ -1,8 +1,8 @@
 {
-	"version": "0.50.1",
+	"version": "0.50.2",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "Criar sala voltou a funcionar. Na 0.50.0 o formulário de criação não deixava confirmar: dava para mexer nos campos, mas a sala nunca era criada. Os papéis especiais e os modificadores agora ficam em telas próprias, abertas pelos botões Papéis especiais e Modificadores do formulário. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
-		"en_US": "Creating a room works again. In 0.50.0 the creation form would not let you confirm: you could move through the fields, but the room was never created. Special roles and modifiers now live on screens of their own, opened by the Special roles and Modifiers buttons on the form. We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable version. Found something? Send it through feedback."
+		"pt_BR": "Dá para ligar os papéis especiais. O botão Papéis especiais do formulário de sala abria a tela de modificadores. Agora cada botão abre a sua. Os passos dos outros jogadores não falham mais no meio da caminhada. Às vezes um passo sumia e ficava um silêncio entre os outros. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
+		"en_US": "Special roles can be turned on. The Special roles button on the room form opened the modifiers screen. Now each button opens its own. Other players' footsteps no longer skip mid-walk. Sometimes a step went missing and left a silence between the others. We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable version. Found something? Send it through feedback."
 	}
 }

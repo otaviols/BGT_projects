@@ -6,6 +6,17 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.2
+
+**Dá para ligar os papéis especiais.** O botão Papéis especiais do formulário de sala abria a tela de
+modificadores. Agora cada botão abre a sua.
+
+**Os passos dos outros jogadores não falham mais no meio da caminhada.** Às vezes um passo sumia e
+ficava um silêncio entre os outros.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.1
 
 **Criar sala voltou a funcionar.** Na 0.50.0 o formulário de criação não deixava confirmar: dava para

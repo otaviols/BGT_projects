@@ -6,6 +6,17 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.2
+
+**Special roles can be turned on.** The Special roles button on the room form opened the modifiers
+screen. Now each button opens its own.
+
+**Other players' footsteps no longer skip mid-walk.** Sometimes a step went missing and left a silence
+between the others.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.1
 
 **Creating a room works again.** In 0.50.0 the creation form would not let you confirm: you could move
