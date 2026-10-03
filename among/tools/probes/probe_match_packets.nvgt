@@ -61,6 +61,19 @@ void main() {
 	roster_entry@ ana = p.roster.find(2);
 	confere("movimento de outro jogador atualiza o elenco", @ana != null && ana.x == 4.0 && ana.y == 1.5);
 
+	// Passos por distância: um pacote perdido faz o seguinte trazer dois passos. Antes isso tocava um e
+	// zerava, e ficava um vácuo na caminhada; agora o que sobra vai para o próximo.
+	roster_entry@ bia = p.roster.find(3);
+	bia.step_distance = 0.0;
+	net_packet@ dois = net_packet(S_PLAYER_MOVED);
+	dois.set_uint64("peer_id", 3); dois.set_float("x", bia.x + p.step_length * 2.0); dois.set_float("y", bia.y);
+	p.handle_packet(dois);
+	confere("dois passos num pacote so: um toca e o outro fica guardado", abs(bia.step_distance - p.step_length) < 0.001);
+	net_packet@ pouco = net_packet(S_PLAYER_MOVED);
+	pouco.set_uint64("peer_id", 3); pouco.set_float("x", bia.x + p.step_length * 0.1); pouco.set_float("y", bia.y);
+	p.handle_packet(pouco);
+	confere("e o guardado sai no pacote seguinte", bia.step_distance < p.step_length * 0.5);
+
 	net_packet@ k = net_packet(S_PLAYER_KILLED);
 	k.set_uint64("peer_id", 3); k.set_uint64("killer_peer", 2); k.set_float("x", 2.0); k.set_float("y", 0.0);
 	p.handle_packet(k);

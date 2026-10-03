@@ -1,11 +1,13 @@
-// Sonda da tela de criar sala: Enter no primeiro campo tem que CONFIRMAR e devolver a sala, sem rede.
+// Sonda da tela de criar sala, sem rede: Enter confirma e devolve a sala; o botão "Papéis especiais" abre
+// a tela de PAPÉIS (e não a de modificadores).
 //   nvgt tools/probes/probe_lobby_form.nvgt
 //
-// Existe por causa da 0.50.0: com os papéis novos o formulário passou dos 50 controles do audio_form, o
-// botão de confirmar não era criado, e o Enter não fazia nada - "só consigo mexer nos campos, nunca
-// criar a sala". Nenhuma sonda passava por esta tela. A tecla é apertada de DENTRO do laço do formulário,
-// pelo gancho que client.update() chama a cada quadro: simular antes de abrir a tela não funciona. Cuidado:
-// a janela da sonda recebe também o que você digitar enquanto ela roda.
+// Existe por causa da 0.50.0 e da 0.50.1. Na primeira, o formulário passou dos 50 controles do
+// audio_form, o botão de confirmar não era criado e o Enter não fazia nada. Na segunda, o botão de
+// papéis abria a tela de modificadores (is_pressed lido duas vezes). Nenhuma sonda passava por esta
+// tela. As teclas são apertadas de DENTRO do laço da tela, pelo gancho que client.update() chama a cada
+// quadro: simular antes de abrir a tela não funciona. Cuidado: a janela da sonda recebe também o que
+// você digitar enquanto ela roda.
 #include "../../src/game/game_loop.nvgt"
 #include "../../src/ui/lobby_screens.nvgt"
 #include "../../src/core/crash_log.nvgt"
@@ -15,13 +17,37 @@ void confere(const string&in o_que, bool ok) {
 	println((ok ? "  ok     " : "  FALHA  ") + o_que);
 	if (!ok) falhas++;
 }
-string calado(const string&in t) { return ""; }
+array<string> falado;
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+bool falou(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return true;
+	return false;
+}
+
+// Um roteiro de teclas, uma a cada 15 quadros, apertada e solta dentro do laço da tela.
 int quadro = 0;
-void aperta_enter() {
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
 	quadro++;
-	if (quadro == 40) simulate_key_down(KEY_RETURN);
-	if (quadro == 43) simulate_key_up(KEY_RETURN);
-	if (quadro > 4000) exit(1); // não confirmou em ~20 s: a tela travou, e é isso que a sonda acusa
+	if (quadro > 6000) exit(1); // a tela não devolveu em ~30 s: travou, e é isso que a sonda acusa
+	if (passo >= roteiro.length()) return;
+	if (quadro < 40) return; // a tela termina de se apresentar antes da primeira tecla
+	if (quadro % 15 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 15 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+void roda(array<int>@ teclas) {
+	roteiro = teclas;
+	passo = 0;
+	quadro = 0;
+	falado.resize(0);
+}
+
+game_client@ cliente_offline() {
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	return c;
 }
 
 void main() {
@@ -29,16 +55,25 @@ void main() {
 	if (!directory_exists("lang")) chdir("..");
 	if (!directory_exists("lang")) chdir("..");
 	g_i18n.load_language(DEFAULT_LANGUAGE);
-	@tts_default_text_processing_callback = calado;
+	@tts_default_text_processing_callback = grava;
 	sound_master_volume = -100;
-	game_client@ c = game_client();
-	@c.net = network();
-	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
-	@g_client_frame_hook = aperta_enter;
+	game_client@ c = cliente_offline();
+	@g_client_frame_hook = dirige;
+
+	println("== confirmar ==");
+	array<int> so_enter = {KEY_RETURN};
+	roda(so_enter);
 	lobby_form_result r = run_lobby_settings_form(c, null, true);
 	confere("Enter no primeiro campo confirma a criacao", r.ok && r.preset_id == "classic");
-	confere("e nenhum papel vem ligado sem ninguem escolher", r.ov.role_counts.get_keys().length() == 0
-		|| r.ov.role_counts.get_keys().length() == configurable_ids().length());
+
+	println("== botao de papeis ==");
+	// nome, código, modo, predefinição, kill, jogadores, impostores -> o 8º é o botão de papéis.
+	array<int> ate_papeis = {KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_RETURN, KEY_ESCAPE, KEY_ESCAPE};
+	roda(ate_papeis);
+	run_lobby_settings_form(c, null, true);
+	confere("o botao de papeis abre a tela de PAPEIS", falou(tr("lobby.roles_title") + " Dialog"));
+	confere("e nao a de modificadores", !falou(tr("lobby.modifiers_title") + " Dialog"));
+
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

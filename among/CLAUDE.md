@@ -336,6 +336,11 @@ as setas da câmera andavam as duas para o mesmo lado — a condição perguntav
 e o corpo perguntava de novo para escolher a direção. Guardar em `bool` antes de decidir vale
 independentemente da semântica exata.
 
+**`audio_form.is_pressed()` CONSOME o aperto, como o `key_pressed`.** Perguntado duas vezes no mesmo
+quadro, o segundo dá false. Sintoma (0.50.1): o botão "Papéis especiais" abria a tela de MODIFICADORES -
+um `if (is_pressed(a) || is_pressed(b))` seguido de `bool qual = is_pressed(a)` lia `a` duas vezes. Leia
+cada botão uma vez e guarde.
+
 **Cuidado com dois blocos disputando a mesma tecla.** A tecla do radar era lida pelo bloco normal, que
 roda ANTES do da câmera e pede a varredura ao servidor; a resposta chegava depois e falava por cima da
 que a câmera já tinha dito. Sintoma: a câmera "funciona", mas responde pela sala errada. Quando um

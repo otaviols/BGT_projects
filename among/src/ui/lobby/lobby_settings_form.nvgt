@@ -242,8 +242,13 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			// Dito com o foco ainda na lista: quem trocou precisa saber que o resto da tela mudou junto.
 			speak(tr("lobby.mode_form_reset"), false);
 		}
-		if (f.is_pressed(f_roles_btn) || f.is_pressed(f_mods_btn)) {
-			bool papeis = f.is_pressed(f_roles_btn);
+		// is_pressed CONSOME o aperto: lido duas vezes, o segundo dá false. Era assim que o botão de
+		// papéis abria a tela de modificadores - a decisão de qual abrir lia de novo o que já tinha sido
+		// lido. Cada botão uma vez, guardado (a mesma regra do key_pressed, no CLAUDE.md).
+		bool apertou_papeis = f.is_pressed(f_roles_btn);
+		bool apertou_mods = f.is_pressed(f_mods_btn);
+		if (apertou_papeis || apertou_mods) {
+			bool papeis = apertou_papeis;
 			int botao = papeis ? f_roles_btn : f_mods_btn;
 			run_role_choice_form(client, escolha, papeis ? CONFIGURABLE_ROLE_IDS : CONFIGURABLE_MODIFIER_IDS,
 				papeis ? "lobby.roles_title" : "lobby.modifiers_title");
