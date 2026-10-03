@@ -56,13 +56,23 @@ try {
 	$idiomasIndice = (Get-ChildItem "lang" -Filter *.json | ForEach-Object { $_.BaseName }) | Sort-Object
 	Set-Content -Path "lang\index.list" -Value $idiomasIndice -Encoding UTF8
 
-	nvgt -c -pandroid `
-		-s "build.product_identifier=$APP_ID" `
-		-s "build.product_name=$APP_NAME" `
-		-s "build.product_version=$versao" `
-		-s "build.android_manifest=tools/android/AndroidManifest.xml" `
-		-s "build.android_install=0" `
-		AmongUs.nvgt
+	# O Java 17.0.8 que vem com o NVGT CAI ao compilar código (JIT) neste Windows (build 26300): o
+	# apksigner morre com EXCEPTION_ACCESS_VIOLATION em jvm.dll, a janela de erro do Windows fica
+	# esperando, e o build "trava" em "signing APK..." para sempre. -Xint (só interpretador) não cai e
+	# assina em ~10 s. JAVA_TOOL_OPTIONS é lido por todo Java, inclusive o que o NVGT chama - e só
+	# durante este build, para não mexer em outro Java da máquina.
+	$javaAntes = $env:JAVA_TOOL_OPTIONS
+	$env:JAVA_TOOL_OPTIONS = "-Xint"
+	try {
+		nvgt -c -pandroid `
+			-s "build.product_identifier=$APP_ID" `
+			-s "build.product_name=$APP_NAME" `
+			-s "build.product_version=$versao" `
+			-s "build.android_manifest=tools/android/AndroidManifest.xml" `
+			-s "build.android_install=0" `
+			AmongUs.nvgt
+	}
+	finally { $env:JAVA_TOOL_OPTIONS = $javaAntes }
 	if ($LASTEXITCODE -ne 0) { throw "Build android falhou." }
 	if (-not (Test-Path "AmongUs.apk")) { throw "O build terminou sem gerar AmongUs.apk." }
 

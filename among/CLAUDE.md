@@ -124,6 +124,13 @@ O APK sai pronto e **assinado**, sem instalar nada: a instalação do NVGT traz 
 `JAVA_HOME` podem estar vazias. Dura cerca de cinco segundos. Fora do `build_clients.ps1` de
 propósito: o site ainda serve Windows, e o updater do jogo não sabe instalar APK.
 
+**O build "trava para sempre" em `signing APK...` = o Java do NVGT CAIU.** O Java 17.0.8 que vem em
+`android-tools/java17` morre ao compilar código (JIT) neste Windows (build 26300): `EXCEPTION_ACCESS_VIOLATION`
+em `jvm.dll`, um `hs_err_pid*.log` na pasta, e a janela de erro do Windows segurando o processo - sem
+nada na saída. O `build_android.ps1` roda o build com `JAVA_TOOL_OPTIONS=-Xint` (só interpretador),
+que assina em ~10 s; `-XX:TieredStopAtLevel=1` NÃO basta. Apareceu na 0.50.0, dois dias depois de a
+0.46.0 compilar normal - foi o Windows que mudou, não o projeto.
+
 **O build "trava por dez minutos" = a pergunta de instalar no aparelho.** `build.android_install`
 vale 1 por padrão, que significa "perguntar", e a pergunta é um diálogo esperando resposta que nada
 anuncia. O script passa `0`.
