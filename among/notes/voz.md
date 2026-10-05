@@ -51,6 +51,17 @@ esperando, o quadro é DESCARTADO (`frames_dropped`); e se o som da pessoa não 
 é refeita do zero (`renew_stream`) em vez de receber dados que ninguém consome. Sonda:
 `probe_voice_no_freeze` (uma rajada de 5 s, e o som parado à força no meio da fala).
 
+**A taxa da captura NÃO é sempre 48 kHz: é a da saída de som de cada computador.** O motor padrão do
+NVGT nasce sem taxa (`new_audio_engine` no `sound.cpp` dele) e adota a nativa do aparelho de saída -
+48 000 aqui, 44 100 em muitos fones e placas -, e o microfone é aberto na taxa do MOTOR. A conversão
+para 16 kHz era "média de 3", certa só a 48 000: a 44 100, quem FALAVA saía 8,8% mais agudo e mais
+rápido para todos (relato do usuário, "algumas vozes um pouco mais finas"; por depender de quem fala,
+não era em todos). Hoje a taxa vem de `sound_default_engine.sample_rate` ao abrir o microfone
+(`mic.sample_rate` responde 0, não sirva-se dele), o pacote tem 20 ms daquela taxa e
+`voice_encode_from` converte por janela fracionária; a 48 000 o caminho é byte a byte o antigo. Sonda:
+`probe_voice_rate.nvgt` (tom de 440 Hz em quatro taxas, sem microfone). Para simular um computador
+desses: `@sound_default_engine = audio_engine(24, 44100)` antes de abrir o microfone.
+
 **A tecla de falar é uma letra: toda caixa de texto liga `g_voice.typing`** (chat, regras da sala)
 enquanto está aberta, senão digitar a letra abre o microfone no meio da mensagem.
 

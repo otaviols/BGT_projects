@@ -1,0 +1,88 @@
+// Sonda da taxa da voz: o tom sai no MESMO tom em qualquer taxa de captura.
+//   nvgt tools/probes/probe_voice_rate.nvgt
+//
+// O microfone chega na taxa do motor de áudio, que é a da saída de som de cada computador (48 000 numa,
+// 44 100 noutra). A conversão para 16 kHz era sempre "média de 3", certa só a 48 000: a 44 100 a voz
+// de quem falava saía 8,8% mais aguda para todos (relato do usuário). Sem microfone e sem som: gera um
+// tom de 440 Hz em cada taxa, comprime em pacotes de 20 ms, descomprime a 16 kHz e mede a frequência
+// pelos cruzamentos de zero.
+//   1. a 48 000 o resultado é BYTE A BYTE o do código antigo (quem já soava certo não muda);
+//   2. a 44 100, 32 000 e 96 000 o tom continua em 440 Hz, e cada pacote tem 320 bytes;
+//   3. controle: a conta antiga, a 44 100, dá o tom errado (~479 Hz) - a sonda enxerga o defeito.
+#include "../../src/audio/voice_chat.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// A conversão como era antes desta correção, para o controle e para a comparação a 48 000.
+string codificador_antigo(array<float>@ mono48) {
+	string saida;
+	for (uint i = 0; i + 2 < mono48.length(); i += 3)
+		saida += ascii_to_character(ulaw_from_sample((mono48[i] + mono48[i + 1] + mono48[i + 2]) / 3.0));
+	return saida;
+}
+
+array<float>@ tom(uint taxa, uint amostras, uint inicio) {
+	array<float> s(amostras);
+	for (uint i = 0; i < amostras; i++) s[i] = 0.5 * sin(2.0 * 3.14159265358979 * 440.0 * double(inicio + i) / double(taxa));
+	return s;
+}
+
+// Frequência de um sinal a 16 kHz, pelos cruzamentos de zero subindo.
+double frequencia(array<float>@ pcm) {
+	int subidas = 0, primeira = -1, ultima = -1;
+	for (uint i = 1; i < pcm.length(); i++) {
+		if (pcm[i - 1] < 0.0 && pcm[i] >= 0.0) {
+			if (primeira < 0) primeira = i;
+			ultima = i;
+			subidas++;
+		}
+	}
+	if (subidas < 2) return 0.0;
+	return double(subidas - 1) * double(VOICE_SAMPLE_RATE) / double(ultima - primeira);
+}
+
+// Um segundo de tom na taxa dada, em pacotes de 20 ms, pelo codificador escolhido. Devolve a frequência
+// medida depois de descomprimir, e o maior/menor tamanho de pacote.
+double mede(uint taxa, bool antigo, uint&out menor, uint&out maior) {
+	uint por_pacote = taxa / 50;
+	array<float> tudo;
+	menor = 99999; maior = 0;
+	for (uint p = 0; p < 50; p++) {
+		array<float>@ quadro = tom(taxa, por_pacote, p * por_pacote);
+		string bytes = antigo ? codificador_antigo(quadro) : voice_encode_from(quadro, taxa);
+		if (bytes.length() < menor) menor = bytes.length();
+		if (bytes.length() > maior) maior = bytes.length();
+		array<float>@ pcm = voice_decode(bytes);
+		for (uint i = 0; i < pcm.length(); i++) tudo.insert_last(pcm[i]);
+	}
+	return frequencia(tudo);
+}
+
+void main() {
+	// 1. A 48 000, nada muda: um sinal qualquer, os mesmos bytes.
+	array<float> ruido(960);
+	for (uint i = 0; i < ruido.length(); i++) ruido[i] = random(-1000, 1000) / 1000.0;
+	confere("a 48 000 os bytes sao os mesmos do codigo antigo", voice_encode_from(ruido, 48000) == codificador_antigo(ruido));
+	confere("e o voice_encode de sempre continua igual", voice_encode(ruido) == codificador_antigo(ruido));
+
+	// 2. O tom certo em cada taxa.
+	array<uint> taxas = {48000, 44100, 32000, 96000};
+	for (uint t = 0; t < taxas.length(); t++) {
+		uint menor, maior;
+		double f = mede(taxas[t], false, menor, maior);
+		confere("a " + taxas[t] + " Hz o tom de 440 Hz sai em " + int(f + 0.5) + " Hz", abs(f - 440.0) < 3.0);
+		confere("   e cada pacote de 20 ms tem 320 bytes (" + menor + " a " + maior + ")", menor == 320 && maior == 320);
+	}
+
+	// 3. Controle: a conta antiga a 44 100 erra o tom - é o defeito que a correção tira.
+	uint m1, m2;
+	double errado = mede(44100, true, m1, m2);
+	confere("controle: a conta antiga a 44 100 sai aguda (" + int(errado + 0.5) + " Hz)", errado > 470.0);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

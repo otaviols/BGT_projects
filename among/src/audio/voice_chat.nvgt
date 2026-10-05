@@ -24,8 +24,9 @@
 #include "../i18n.nvgt"
 
 const uint VOICE_SAMPLE_RATE = 16000;
-// Um quadro de envio: 20 ms a 48 kHz (a taxa do motor). Menor que isto é cabeçalho demais por
-// pacote; maior é latência que se percebe na conversa.
+// Um quadro de envio: 20 ms a 48 kHz. Menor que isto é cabeçalho demais por pacote; maior é latência
+// que se percebe na conversa. Na captura o tamanho sai da taxa REAL (voice_chat.capture_frames): a
+// taxa do motor muda de computador para computador - ver voice_encode_from.
 const uint VOICE_CAPTURE_FRAMES = 960;
 // Depois que a voz cai abaixo da sensibilidade, o microfone ainda fica aberto este tanto: sem
 // isso cada pausa entre palavras cortava o fim da frase.
@@ -66,10 +67,38 @@ float sample_from_ulaw(uint8 u) {
 	return float(sign != 0 ? -s : s) / 32767.0;
 }
 // 48 kHz mono -> 16 kHz mu-law (média de cada três amostras: filtro simples, suficiente para voz).
-string voice_encode(array<float>@ mono48) {
+string voice_encode(array<float>@ mono48) { return voice_encode_from(mono48, 48000); }
+
+// Comprime para 16 kHz a partir da taxa REAL da captura. O microfone do NVGT chega na taxa do motor de
+// áudio, e o motor adota a taxa nativa da saída de som de cada computador (new_audio_engine sem taxa,
+// no sound.cpp do NVGT): 48 000 numa máquina, 44 100 noutra. A conversão era sempre "média de 3",
+// certa só a 48 000 - a 44 100, cada segundo de fala virava 14 700 amostras tocadas como 16 000, e
+// quem ouvia escutava aquela pessoa 8,8% mais aguda e mais rápida (relato do usuário: "algumas vozes
+// um pouco mais finas"). Dependia de quem FALA, por isso não era em todos.
+//
+// A 48 000 o caminho é o de sempre, amostra por amostra - quem já soava certo não muda em nada. Nas
+// outras taxas, a mesma média, sobre uma janela fracionária de taxa/16000 amostras (pesando as pontas
+// pelo quanto cada amostra cai dentro dela). Um pacote de 20 ms dá sempre 320 bytes.
+string voice_encode_from(array<float>@ mono, uint taxa) {
 	string saida;
-	for (uint i = 0; i + 2 < mono48.length(); i += 3) {
-		saida += ascii_to_character(ulaw_from_sample((mono48[i] + mono48[i + 1] + mono48[i + 2]) / 3.0));
+	if (taxa == 48000 || taxa == 0) {
+		for (uint i = 0; i + 2 < mono.length(); i += 3) {
+			saida += ascii_to_character(ulaw_from_sample((mono[i] + mono[i + 1] + mono[i + 2]) / 3.0));
+		}
+		return saida;
+	}
+	double passo = double(taxa) / double(VOICE_SAMPLE_RATE);
+	uint n = uint(double(mono.length()) / passo + 0.5);
+	for (uint k = 0; k < n; k++) {
+		double a = double(k) * passo, b = a + passo;
+		double soma = 0.0, peso = 0.0;
+		for (int i = int(floor(a)); i < int(ceil(b)) && i < int(mono.length()); i++) {
+			double w = (b < i + 1.0 ? b : i + 1.0) - (a > double(i) ? a : double(i));
+			if (w <= 0.0) continue;
+			soma += mono[i] * w;
+			peso += w;
+		}
+		saida += ascii_to_character(ulaw_from_sample(peso > 0.0 ? float(soma / peso) : 0.0));
 	}
 	return saida;
 }
@@ -142,6 +171,9 @@ class voice_chat : voice_receiver {
 	game_client@ client;
 	microphone@ mic = null;
 	uint mic_channels = 1;
+	// A taxa em que o microfone entrega: a do motor de áudio, que o NVGT usa ao abrir a captura. O
+	// microfone em si responde 0 se perguntado; o motor responde certo.
+	uint mic_rate = 48000;
 	int mic_device = -2; // com qual índice o microfone foi aberto (-2 = nenhum aberto)
 	// A sala permite voz e há partida/sala para falar. Sem isto nada é capturado: microfone aberto
 	// à toa é banda e privacidade jogadas fora.
@@ -289,6 +321,8 @@ class voice_chat : voice_receiver {
 			@mic = microphone(device);
 			mic_channels = mic.get_output_channels(0);
 			if (mic_channels == 0) mic_channels = 1;
+			int taxa = sound_default_engine.sample_rate;
+			mic_rate = taxa > 0 ? uint(taxa) : 48000;
 			mic_device = device;
 			return true;
 		} catch {
@@ -300,6 +334,7 @@ class voice_chat : voice_receiver {
 		@mic = null;
 		mic_device = -2;
 		mic_channels = 1;
+		mic_rate = 48000;
 	}
 
 	private void set_transmitting(bool on, bool with_sound) {
@@ -309,6 +344,9 @@ class voice_chat : voice_receiver {
 		// frase seria um metrônomo por cima da conversa.
 		if (with_sound && g_settings.voice_mode == VOICE_MODE_KEY) ui_sound(SND_MENU_CLICK);
 	}
+
+	// 20 ms de captura na taxa real: 960 a 48 kHz, 882 a 44,1 kHz. Viram sempre 320 amostras a 16 kHz.
+	uint capture_frames() const { return mic_rate / 50 > 0 ? mic_rate / 50 : VOICE_CAPTURE_FRAMES; }
 
 	// Chamado por game_client.update(). Lê o microfone, decide se a voz deve sair, e manda.
 	void tick() {
@@ -335,11 +373,12 @@ class voice_chat : voice_receiver {
 		// Um pacote por 20 ms, SEMPRE - mesmo quando uma tela bloqueante (um wait(300) numa task)
 		// deixou acumular meio segundo: mandar tudo num pacote só passava do limite que o servidor
 		// aceita, ele descartava, e a voz sumia por um trecho.
-		while (pending.length() >= VOICE_CAPTURE_FRAMES) {
+		uint por_pacote = capture_frames();
+		while (pending.length() >= por_pacote) {
 			array<float> frame;
-			frame.resize(VOICE_CAPTURE_FRAMES);
-			for (uint i = 0; i < VOICE_CAPTURE_FRAMES; i++) frame[i] = pending[i];
-			pending.remove_range(0, VOICE_CAPTURE_FRAMES);
+			frame.resize(por_pacote);
+			for (uint i = 0; i < por_pacote; i++) frame[i] = pending[i];
+			pending.remove_range(0, por_pacote);
 			bool open;
 			if (mic_muted) {
 				open = false;
@@ -352,7 +391,7 @@ class voice_chat : voice_receiver {
 			}
 			set_transmitting(open, true);
 			if (open) {
-				string bytes = voice_encode(frame);
+				string bytes = voice_encode_from(frame, mic_rate);
 				frames_sent++;
 				if (monitoring) play_monitor(bytes);
 				else client.send_voice(bytes);
