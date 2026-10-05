@@ -300,10 +300,13 @@ class meeting_ui {
 		string winner = pkt.get_string("winner");
 		// O fogo do incendiário vem ANTES do anúncio: é ele que acaba a partida, e a vitória por cima o
 		// apagaria. Espera o som acabar (e não um tempo fixo - ver notes/som.md), atendendo a rede.
+		// O som é a cena do incendiário feita pelo jogador Raciel (recado #205), de 9 s: o teto de 5 s
+		// que valia para o som curto de antes a cortaria no meio. O teto só existe para um som que
+		// nunca termine não prender a tela de resultado.
 		if (pkt.get_string("reason") == "arsonist_ignited") {
 			int fogo = audio.play_arsonist_fire();
 			timer limite;
-			while (audio.is_playing(fogo) && limite.elapsed < 5000) { wait(10); client.update(); }
+			while (audio.is_playing(fogo) && limite.elapsed < 15000) { wait(10); client.update(); }
 		}
 		announce(game_winner_text(pkt));
 		// Antes tocava win/defeat baseado só em quem venceu, sem checar o papel de quem está ouvindo -

@@ -111,6 +111,8 @@ const string SND_BODY_DRAG = "sounds/events/body_drag.ogg";
 // O médico trazendo alguém de volta: posicionado, no ponto onde a pessoa volta, para todos - voltar já é
 // público (ver S_PLAYER_REVIVED). E o fogo do incendiário, sem posição, que acaba a partida.
 const string SND_DOCTOR_REVIVE = "sounds/events/doctor_revive.ogg";
+// O fogo é a cena de 9 s feita pelo jogador Raciel (recado #205), gravada 12 dB abaixo do arquivo dele
+// para ficar no nível da música de vitória (corpo -25 dB): o original vinha a -13, com pico no teto.
 const string SND_ARSONIST_FIRE = "sounds/events/arsonist_fire.ogg";
 // O alarme do alarmista, quando ele morre. Vai para a nave INTEIRA e sem posicao: ele nao marca
 // um lugar (a sala vai dita na fala), e' o aviso de que aconteceu.
