@@ -13,6 +13,7 @@
 // crash_log_path() abaixo.
 
 #include "../i18n.nvgt"
+#include "../config/game_constants.nvgt" // GAME_VERSION, gravada em cada registro
 
 const string CRASH_LOG_FILE = "crash.log";
 
@@ -93,4 +94,39 @@ string read_crash_log() {
 	string path = crash_log_path();
 	if (path == "" || !file_exists(path)) return "";
 	return file_get_contents(path);
+}
+
+// O que o recado leva: só o que entrou no crash.log DEPOIS do último recado confirmado. O arquivo nunca
+// é limpo, e ia inteiro em todo recado - uma pausa da 0.44 seguia em cada recado daquele jogador para
+// sempre, e todo recado chegava "com crash.log" (relato do usuário). O arquivo continua inteiro na
+// máquina; o que muda é o que viaja. A posição já enviada mora num arquivo ao lado (`.enviado`), em
+// bytes, e só avança quando o servidor confirma o recado (mark_crash_log_sent).
+string crash_log_sent_marker_path() {
+	string path = crash_log_path();
+	return path == "" ? "" : path + ".enviado";
+}
+
+// A marca guarda a posição E os últimos bytes já enviados: só a posição não basta, porque um crash.log
+// apagado e recomeçado pode crescer além dela, e a marca cairia no meio do arquivo novo, cortando o
+// começo dele. Se o trecho antes da posição não for mais o mesmo, o arquivo é outro e tudo é novo.
+const uint CRASH_LOG_MARK_TAIL = 48;
+
+string unsent_crash_log(const string&in completo) {
+	string marcador = crash_log_sent_marker_path();
+	if (marcador == "" || !file_exists(marcador)) return completo;
+	string conteudo = file_get_contents(marcador);
+	int quebra = conteudo.find("\n");
+	if (quebra < 0) return completo;
+	uint inicio = uint(parse_int(conteudo.substr(0, quebra)));
+	string cauda = conteudo.substr(quebra + 1);
+	if (inicio > completo.length() || inicio < cauda.length()) return completo;
+	if (completo.substr(inicio - cauda.length(), cauda.length()) != cauda) return completo;
+	return completo.substr(inicio);
+}
+
+void mark_crash_log_sent(const string&in completo) {
+	string marcador = crash_log_sent_marker_path();
+	if (marcador == "") return;
+	uint n = completo.length() < CRASH_LOG_MARK_TAIL ? completo.length() : CRASH_LOG_MARK_TAIL;
+	file_put_contents(marcador, "" + completo.length() + "\n" + completo.substr(completo.length() - n));
 }

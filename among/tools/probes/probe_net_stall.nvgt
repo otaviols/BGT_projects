@@ -36,6 +36,17 @@ void main() {
 	confere("a pausa longa foi anotada, com o contexto", novo.find("sonda pausa longa") >= 0);
 	confere("a pausa curta NAO foi anotada", novo.find("sonda pausa curta") < 0);
 	c.disconnect();
+
+	// Cliente que nunca conecta - o do treino de tarefas (make_offline_client). Parado o mesmo tempo, não
+	// pode anotar nada: era a origem de quase todas as "sem contexto" que chegavam nos recados.
+	game_client@ treino = game_client();
+	@treino.net = network();
+	treino.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	treino.update();
+	g_net_stall_context = "sonda cliente desconectado";
+	wait(4000);
+	treino.update();
+	confere("cliente desconectado (o do treino) NAO anota pausa", read_crash_log().find("sonda cliente desconectado") < 0);
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

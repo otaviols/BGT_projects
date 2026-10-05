@@ -92,8 +92,12 @@ class game_client {
 		// achar que caímos (18 s derrubam), e o jogador só vê "caí do servidor". Registrar ISSO é o
 		// que permite achar a causa sem ter o aparelho (recado #161, o celular que cai quando a
 		// partida começa): a pausa aparece no crash.log que vai junto do recado.
+		// Só com conexão de verdade: o treino de tarefas usa um cliente que nunca conecta
+		// (make_offline_client), e o menu entre uma tarefa e outra não o atende - sem esta condição, cada
+		// volta ao menu do treino virava uma "pausa de rede" no crash.log, sem rede nenhuma (eram quase todas
+		// as "sem contexto" que chegavam nos recados).
 		uint64 agora = ticks();
-		if (last_update_ticks > 0 && agora - last_update_ticks >= NET_STALL_LOG_MS) {
+		if (connected && last_update_ticks > 0 && agora - last_update_ticks >= NET_STALL_LOG_MS) {
 			log_diagnostic("a rede ficou " + ((agora - last_update_ticks) / 1000) + " s sem ser atendida (" +
 				(g_net_stall_context != "" ? g_net_stall_context : "sem contexto") + ")");
 		}

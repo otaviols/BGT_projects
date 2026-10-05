@@ -74,11 +74,16 @@ bool run_feedback_screen(game_client@ client, feedback_context@ context = null) 
 		string role = @context != null ? context.role : "";
 		string room = @context != null ? context.room : "";
 		// O crash.log vai junto sem o jogador precisar saber que ele existe - é a informação mais
-		// valiosa e a que ele nunca saberia anexar.
+		// valiosa e a que ele nunca saberia anexar. Só a parte NOVA desde o último recado confirmado
+		// (ver unsent_crash_log): a marca avança só se o servidor gravou, senão um recado perdido
+		// levaria junto o registro que ninguém leu.
+		string completo = read_crash_log();
 		client.send_feedback(text, GAME_VERSION, g_settings.language, in_match, role, room,
-			read_crash_log());
+			unsent_crash_log(completo));
 		speak(tr("feedback.sending"));
-		return wait_for_feedback_ack(client);
+		bool ok = wait_for_feedback_ack(client);
+		if (ok) mark_crash_log_sent(completo);
+		return ok;
 	}
 	return false; // inalcançável - o laço só termina via return acima
 }

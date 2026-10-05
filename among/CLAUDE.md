@@ -215,7 +215,12 @@ estéreo dos alto-falantes do celular some, recado #165).
 **O jogo anota no `crash.log` quando a rede fica 3 s ou mais sem ser atendida, e quando a conexão
 cai** (`log_diagnostic`, com o contexto em `g_net_stall_context`). O `crash.log` segue junto de todo
 recado enviado pelo jogo, então o próximo "caí do servidor" chega com a causa - é o substituto de ter o
-aparelho. Sonda: `probe_net_stall.nvgt`.
+aparelho. Sonda: `probe_net_stall.nvgt`. Três cuidados que ele já pediu: "a rede ficou N s sem ser
+atendida" é o JOGO parado, não a internet (queda de rede de verdade é "conexão perdida por TEMPO
+esgotado"); só cliente CONECTADO mede pausa (o treino usa um que nunca conecta, e anotava pausa a cada
+volta ao menu); e o recado leva só o trecho NOVO desde o último recado confirmado (`unsent_crash_log`,
+sonda `probe_crash_log_unsent`) - inteiro, uma linha velha ia em todo recado para sempre, e todo recado
+chegava "com crash.log". O contexto na lista de partidas é por passo e por tela (`lobby_browser.nvgt`).
 
 ## Publicar uma versão
 

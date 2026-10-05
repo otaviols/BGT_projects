@@ -1,0 +1,52 @@
+// Sonda do crash.log nos recados: cada recado leva só o que é NOVO desde o último confirmado.
+//   nvgt tools/probes/probe_crash_log_unsent.nvgt
+//
+// O arquivo nunca é limpo e ia inteiro em todo recado: uma pausa da 0.44 seguia em todos os recados
+// daquele jogador para sempre, e todo recado chegava "com crash.log" (relato do usuário). Num arquivo
+// TEMPORÁRIO (o crash.log de verdade desta máquina não é tocado), confere:
+//   1. o primeiro recado leva tudo;
+//   2. confirmado, o seguinte não leva nada - e leva só a linha nova quando ela aparece;
+//   3. sem confirmação (recado perdido), a marca não anda e o próximo leva de novo;
+//   4. arquivo apagado ou menor que a marca: tudo é novo outra vez.
+#include "../../src/core/crash_log.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	string pasta = DIRECTORY_TEMP + "probe_crash_unsent_" + random(1000, 9999);
+	directory_create(pasta);
+	g_crash_log_path = pasta + "/crash.log";
+	g_crash_log_path_resolved = true;
+
+	log_diagnostic("primeira linha");
+	string completo = read_crash_log();
+	confere("o primeiro recado leva tudo", unsent_crash_log(completo) == completo && completo.find("primeira linha") >= 0);
+	mark_crash_log_sent(completo); // o servidor confirmou
+
+	completo = read_crash_log();
+	confere("confirmado, o seguinte nao leva nada", unsent_crash_log(completo) == "");
+	log_diagnostic("segunda linha");
+	completo = read_crash_log();
+	string novo = unsent_crash_log(completo);
+	confere("e leva so a linha nova", novo.find("segunda linha") >= 0 && novo.find("primeira linha") < 0);
+
+	// Recado perdido: nada de mark_crash_log_sent. O próximo leva a mesma coisa de novo.
+	completo = read_crash_log();
+	confere("sem confirmacao, o proximo recado leva de novo", unsent_crash_log(completo).find("segunda linha") >= 0);
+
+	// Arquivo apagado e recomeçado: menor que a marca, tudo é novo.
+	file_delete(g_crash_log_path);
+	log_diagnostic("depois de apagar");
+	completo = read_crash_log();
+	confere("arquivo apagado: tudo e novo outra vez", unsent_crash_log(completo) == completo && completo.find("depois de apagar") >= 0);
+
+	file_delete(g_crash_log_path);
+	file_delete(crash_log_sent_marker_path());
+	directory_delete(pasta);
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

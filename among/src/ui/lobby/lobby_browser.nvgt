@@ -148,6 +148,10 @@ lobby_browser_result run_lobby_browser_inner(game_client@ client) {
 
 	while (true) {
 		if (!client.connected) { speak(tr("net.connection_lost")); result.go_back = true; return result; }
+		// O contexto do diagnóstico de rede por PASSO e por tela: "lista de partidas" sozinho cobria tudo
+		// que se abre daqui, e as pausas do tablet Android do recado #207 (uma a cada 10 s) não diziam
+		// em qual tela aconteciam - é o que falta para achar a causa sem o aparelho.
+		g_net_stall_context = "lista de partidas (pedindo a lista)";
 		client.send_list_lobbies();
 		json_array@ lobbies = wait_for_lobby_list(client);
 		// As respostas aos recados vêm em pedido próprio, depois da lista: a espera pela lista joga
@@ -174,8 +178,10 @@ lobby_browser_result run_lobby_browser_inner(game_client@ client) {
 		g_hall.list_changed = false; // a lista acabou de ser pedida: uma empurrada antiga não vale mais
 		fill_browser_menu(m, lobbies, reply_count);
 
+		g_net_stall_context = "lista de partidas (menu)";
 		if (run_browser_menu(m, reply_count)) continue; // F5: pergunta a lista de partidas de novo
 		string id = m.selected_item_id;
+		g_net_stall_context = "lista de partidas: " + id; // a tela aberta daqui ("__stats__", "__feedback__"...)
 
 		if (id == "__forget__") {
 			// Esquece este computador: o servidor invalida o token e o próximo login pede a senha.

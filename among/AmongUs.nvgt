@@ -160,6 +160,7 @@ void run_session() {
 	// O chat de voz vive dentro do cliente de rede (ver voice_receiver em network/client.nvgt) para
 	// continuar funcionando em qualquer tela. Ligado aqui, uma vez por sessão.
 	g_voice.attach(client);
+	g_net_stall_context = "entrando (conexao e login)"; // antes era "sem contexto" - ver lobby_browser
 	if (!connect_to_server(client)) return;
 
 	login_result login = run_login_screen(client);
