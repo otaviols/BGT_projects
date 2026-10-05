@@ -88,13 +88,15 @@ Regra prática ao acrescentar qualquer timer de partida: decida as DUAS coisas s
 reunião apaga o efeito? a reunião rearma a recarga? - e escreva as duas no mesmo commit. Sonda:
 `tools/probes/probe_meeting_reset.nvgt`.
 
-**A DISCUSSÃO é contada no cliente, não no servidor.** O `S_VOTING_STARTED` sai colado no
-`S_MEETING_STARTED`; o servidor manda `discussion_time` dentro do pacote da reunião e é o cliente que
-segura o voto até o tempo passar (o `voting_timer` do servidor é discussão + votação juntas, só como
-prazo máximo). Consequência para quem escreve sonda: votar assim que a votação abre produz uma
-reunião de UM segundo, e aí "a recarga não andou" e "a recarga foi rearmada" dão exatamente o mesmo
-número - a primeira versão da `probe_meeting_reset` "reprovou" a correção certa por isso. Quem quiser
-medir o efeito de uma reunião precisa esperar a discussão como um jogador esperaria.
+**A reunião é UMA fase só: discussão e votação juntas, num tempo só** (`meeting_time_seconds`, decisão
+do usuário - os dois campos de antes viraram um). O `S_VOTING_STARTED` sai colado no `S_MEETING_STARTED`,
+com o tempo inteiro, e dá para votar desde o primeiro segundo; a conversa acontece nesse mesmo tempo.
+Nada segura o voto, nem no cliente nem no servidor. O ramo de "discussão" que sobrou no cliente
+(`announce_time_remaining`) só vale no instante entre os dois pacotes. Sala salva com os dois campos
+antigos soma os dois ao ser lida (ver `lobby_overrides.read_from_packet`). Para quem escreve sonda:
+votar assim que a votação abre produz uma reunião de UM segundo, e aí "a recarga não andou" e "a
+recarga foi rearmada" dão o mesmo número - quem quiser medir o efeito de uma reunião precisa esperar
+como um jogador esperaria.
 
 **Regra que o cliente também aplica tem que morar numa função só.** O cliente decide se ABRE o
 microfone e o servidor decide QUEM ouve; quando as duas decisões são escritas separadas, elas
