@@ -45,7 +45,8 @@ banco, e **cartão, de qualquer país** abre a página do Ko-fi (ko-fi.com/otavi
 
 **Conhecer o mapa:** o menu inicial tem a opção **Conhecer o mapa**, que deixa você andar pela nave
 sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela, Tab lista o que há na
-sala, Enter diz o que é o objeto mais próximo, e ESC volta ao menu. É o jeito de aprender onde fica
+sala, Enter diz o que é o objeto mais próximo, as teclas de mais e menos mudam a velocidade (de 50 a
+200 por cento, a mesma faixa das salas), e ESC volta ao menu. É o jeito de aprender onde fica
 cada coisa antes de haver um impostor por perto.
 
 **Recado do servidor:** de vez em quando quem cuida do servidor deixa um aviso — uma versão nova no

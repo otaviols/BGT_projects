@@ -47,7 +47,8 @@ for you to paste in your bank app, and **card, from any country** opens the Ko-f
 
 **Explore the map:** the main menu has an **Explore the map** option that lets you walk around the
 ship alone, with no server and no pressure. Each room is named as you enter it, Tab lists what is in
-the room, Enter says what the nearest object is, and ESC returns to the menu. It is the way to learn
+the room, Enter says what the nearest object is, the plus and minus keys change your speed (from 50 to
+200 percent, the same range rooms allow), and ESC returns to the menu. It is the way to learn
 where everything is before there is an impostor nearby.
 
 **Server notice:** now and then whoever runs the server leaves an announcement — a new version on

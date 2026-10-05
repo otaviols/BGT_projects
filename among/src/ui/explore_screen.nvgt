@@ -25,6 +25,23 @@
 #include "../game/exit_alignment.nvgt"
 #include "../core/touch_input.nvgt"
 
+// Velocidade de andar no mapa, em por cento do padrão (recado #204). Mais e menos mudam de 25 em 25, na
+// mesma faixa que uma sala aceita (MOVE_SPEED_MIN/MAX_PERCENT): quem treina para uma sala rápida anda
+// rápido aqui também. Guardada enquanto o jogo está aberto, e não nas preferências: é o momento, não um
+// gosto - e voltar ao mapa sem ter de ajustar de novo é o que se espera de uma tecla.
+int g_explore_speed_percent = 100;
+const int EXPLORE_SPEED_STEP_PERCENT = 25;
+
+void explore_change_speed(int passo) {
+	int nova = g_explore_speed_percent + passo;
+	if (nova < MOVE_SPEED_MIN_PERCENT) nova = MOVE_SPEED_MIN_PERCENT;
+	if (nova > MOVE_SPEED_MAX_PERCENT) nova = MOVE_SPEED_MAX_PERCENT;
+	g_explore_speed_percent = nova;
+	dictionary@ p = dictionary();
+	p.set("percent", "" + nova);
+	speak(tr("explore.speed", p));
+}
+
 void run_explore_map_screen() {
 	game_map@ map = build_the_hub_map();
 	audio_manager@ audio = audio_manager();
@@ -60,6 +77,12 @@ void run_explore_map_screen() {
 
 		if (key_pressed(KEY_ESCAPE)) break;
 		exits.update(map, audio, my_x, my_y);
+		// Cada tecla lida uma vez (ver o CLAUDE.md): o igual é o mais do teclado sem Shift.
+		bool mais = key_pressed(KEY_EQUALS) || key_pressed(KEY_NUMPAD_PLUS);
+		bool menos = key_pressed(KEY_MINUS) || key_pressed(KEY_NUMPAD_MINUS);
+		if (mais) explore_change_speed(EXPLORE_SPEED_STEP_PERCENT);
+		else if (menos) explore_change_speed(-EXPLORE_SPEED_STEP_PERCENT);
+		float velocidade = move_speed_for_percent(g_explore_speed_percent);
 
 		float dx = 0.0, dy = 0.0;
 		if (action_down(ACTION_MOVE_NORTH)) dy -= 1.0;
@@ -71,8 +94,8 @@ void run_explore_map_screen() {
 			float len = sqrt(dx * dx + dy * dy);
 			dx /= len;
 			dy /= len;
-			float new_x = my_x + dx * PLAYER_MOVE_SPEED * delta;
-			float new_y = my_y + dy * PLAYER_MOVE_SPEED * delta;
+			float new_x = my_x + dx * velocidade * delta;
+			float new_y = my_y + dy * velocidade * delta;
 
 			if (map.can_move(my_x, my_y, new_x, new_y, true)) {
 				my_x = new_x;
@@ -95,7 +118,8 @@ void run_explore_map_screen() {
 					if (@nearby != null) speak(object_name(nearby));
 				}
 
-				if (float(footstep_clock.elapsed) / 1000.0 >= FOOTSTEP_INTERVAL_SECONDS) {
+				// O passo acompanha a velocidade, como na partida - correndo, um intervalo fixo soaria lento.
+				if (float(footstep_clock.elapsed) / 1000.0 >= footstep_interval_for(velocidade)) {
 					footstep_clock.restart();
 					string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
 					audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
