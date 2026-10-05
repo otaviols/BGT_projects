@@ -44,6 +44,13 @@ except sqlite3.OperationalError:
 if not rows:
     print('Nenhum recado' + (' depois do #%d.' % depois_de if depois_de else ' pendente.'))
     sys.exit()
+respostas = {}
+try:
+    for fid, quando, resposta, lida in db.execute(
+            'SELECT feedback_id, created_at, text, read_at FROM feedback_replies ORDER BY id'):
+        respostas.setdefault(fid, []).append((quando, resposta, lida))
+except sqlite3.OperationalError:
+    pass  # banco de antes das respostas existirem
 print('%d recado(s), do mais recente (#%d) para o mais antigo (#%d):' % (len(rows), rows[0][0], rows[-1][0]))
 for r in rows:
     rid, user, text, ver, lang, in_match, role, room, crash, when, resolvido = r
@@ -68,3 +75,9 @@ for r in rows:
             print(crash)
         else:
             print('   [tem crash.log anexado - rode com -Crash para ver]')
+    # As respostas já mandadas, embaixo do recado: sem elas, quem responde não sabe o que já foi dito
+    # (nem o tom em que foi dito), e o jogador ouviria duas respostas para a mesma coisa.
+    for quando, resposta, lida in respostas.get(rid, []):
+        print('')
+        print('   >> resposta %s%s' % (quando, '' if lida else '  (ainda não ouvida)'))
+        print('   ' + resposta.replace('\n', '\n   '))
