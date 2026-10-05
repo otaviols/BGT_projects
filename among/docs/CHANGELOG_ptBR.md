@@ -6,6 +6,19 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.5
+
+**Ctrl + H diz qual é o seu papel agora.** Com os parceiros, os modificadores e, para o carrasco, o
+alvo. Vale também depois de o papel mudar no meio da partida.
+
+**Na reunião, o T diz quem ainda falta votar**, além do tempo que resta.
+
+**Os bots votam.** Antes eles sempre pulavam, o que os entregava. Agora votam ao acaso: pulam ou
+escolhem alguém da mesa. Não é palpite, então não confie no voto de um bot.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.4
 
 **A lista de partidas avisa com som.** Um som quando uma sala abre para entrar, e outro quando uma

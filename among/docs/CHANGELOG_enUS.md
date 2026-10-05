@@ -6,6 +6,19 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.5
+
+**Ctrl + H tells you your role right now.** With your partners, your modifiers and, for the
+executioner, the target. It also works after your role changes mid-match.
+
+**In meetings, T tells you who has yet to vote**, besides the time left.
+
+**Bots vote.** They used to always skip, which gave them away. Now they vote at random: they skip or
+pick someone at the table. It is not a guess, so don't trust a bot's vote.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.4
 
 **The lobby list now has sounds.** One sound when a room opens to join, and another when a match
