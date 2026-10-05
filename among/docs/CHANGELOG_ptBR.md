@@ -6,6 +6,17 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.6
+
+**O trocador ficou mais claro.** O aviso agora diz que os votos que cada pessoa recebeu foram para a
+outra. Antes parecia que eram os votos que ela tinha dado.
+
+**Velocidade no Conhecer o mapa.** As teclas de mais e menos mudam a velocidade, de 50 a 200 por
+cento, a mesma faixa das salas.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.5
 
 **Ctrl + H diz qual é o seu papel agora.** Com os parceiros, os modificadores e, para o carrasco, o

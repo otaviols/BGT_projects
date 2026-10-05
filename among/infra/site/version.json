@@ -1,8 +1,8 @@
 {
-	"version": "0.50.5",
+	"version": "0.50.6",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "Ctrl + H diz qual é o seu papel agora. Com os parceiros, os modificadores e, para o carrasco, o alvo. Vale também depois de o papel mudar no meio da partida. Na reunião, o T diz quem ainda falta votar, além do tempo que resta. Os bots votam. Antes eles sempre pulavam, o que os entregava. Agora votam ao acaso: pulam ou escolhem alguém da mesa. Não é palpite, então não confie no voto de um bot. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
-		"en_US": "Ctrl + H tells you your role right now. With your partners, your modifiers and, for the executioner, the target. It also works after your role changes mid-match. In meetings, T tells you who has yet to vote, besides the time left. Bots vote. They used to always skip, which gave them away. Now they vote at random: they skip or pick someone at the table. It is not a guess, so don't trust a bot's vote. We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable version. Found something? Send it through feedback."
+		"pt_BR": "O trocador ficou mais claro. O aviso agora diz que os votos que cada pessoa recebeu foram para a outra. Antes parecia que eram os votos que ela tinha dado. Velocidade no Conhecer o mapa. As teclas de mais e menos mudam a velocidade, de 50 a 200 por cento, a mesma faixa das salas. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
+		"en_US": "The swapper is clearer. The announcement now says that the votes each person received went to the other. It used to sound like the votes they had cast. Speed in Explore the map. The plus and minus keys change your speed, from 50 to 200 percent, the same range rooms allow. We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable version. Found something? Send it through feedback."
 	}
 }

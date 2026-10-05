@@ -6,6 +6,17 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.6
+
+**The swapper is clearer.** The announcement now says that the votes each person received went to the
+other. It used to sound like the votes they had cast.
+
+**Speed in Explore the map.** The plus and minus keys change your speed, from 50 to 200 percent, the
+same range rooms allow.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.5
 
 **Ctrl + H tells you your role right now.** With your partners, your modifiers and, for the
