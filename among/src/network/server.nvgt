@@ -626,7 +626,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		for (uint i = 0; i < lobby.spectators.length(); i++) {
 			game_player@ s = lobby.spectators[i];
 			s.reset_match_state();
-			if (lobby.players.length() >= lobby.config.max_players) s.wants_to_spectate = true;
+			if (lobby.seated_count() >= lobby.config.max_players) s.wants_to_spectate = true;
 			lobby.players.insert_last(s);
 		}
 		lobby.spectators.resize(0);

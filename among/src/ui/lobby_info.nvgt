@@ -237,6 +237,21 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 // contar nomes enquanto o leitor de tela fala.
 // `show_colors`: numa sala que deixa escolher cor, cada nome vem com a cor escolhida - é assim que se
 // sabe quais cores já foram tomadas sem abrir a tela de escolha.
+// Quantos OCUPAM VAGA no retrato da sala: todos menos quem marcou "vou assistir" - a mesma conta do
+// servidor (game_state.seated_count), que é quem decide; aqui ela serve para dizer e para não pedir
+// uma vaga que não existe.
+uint seated_in(json_array@ players) {
+	uint n = 0;
+	if (@players == null) return 0;
+	for (uint i = 0; i < players.length(); i++) {
+		json_object@ pj = players.get_object(i);
+		if (@pj == null) continue;
+		bool bot = pj.exists("is_bot") && bool(pj["is_bot"]);
+		if (bot || !(pj.exists("spectating") && bool(pj["spectating"]))) n++;
+	}
+	return n;
+}
+
 string lobby_players_text(json_array@ players, uint max_players, bool show_colors = false) {
 	if (@players == null || players.length() == 0) return tr("lobby.info.no_players");
 
@@ -255,7 +270,7 @@ string lobby_players_text(json_array@ players, uint max_players, bool show_color
 	}
 
 	dictionary@ p = dictionary();
-	p.set("current", "" + nomes.length());
+	p.set("current", "" + seated_in(players)); // quem assiste não ocupa vaga
 	p.set("max", "" + max_players);
 	return tr("lobby.players", p) + ". " + join(nomes, ", ") + ".";
 }

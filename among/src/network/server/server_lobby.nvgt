@@ -85,7 +85,7 @@ mixin class server_lobby_part {
 			return;
 		}
 		if (@lobby != null && lobby.state != "waiting") { @lobby = null; fail_key = "lobby.in_progress"; }
-		if (@lobby != null && lobby.players.length() >= lobby.config.max_players) { @lobby = null; fail_key = "lobby.full"; }
+		if (@lobby != null && lobby.seated_count() >= lobby.config.max_players) { @lobby = null; fail_key = "lobby.full"; }
 		// Sala com papéis especiais só recebe cliente que sabe o que eles são. Recusar na porta, e
 		// não no início da partida: quem entrasse ficaria esperando uma partida que nunca ia começar
 		// por causa dele, sem saber. (O cliente velho ouve a chave crua, e é o melhor que dá: ele
@@ -188,7 +188,7 @@ mixin class server_lobby_part {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.host_peer_id != peer_id) return;
 		if (lobby.state != "waiting") { send_error(peer_id, "lobby.bot_only_in_waiting"); return; }
-		if (lobby.players.length() >= lobby.config.max_players) { send_error(peer_id, "lobby.bot_lobby_full"); return; }
+		if (lobby.seated_count() >= lobby.config.max_players) { send_error(peer_id, "lobby.bot_lobby_full"); return; }
 
 		game_player@ bot = game_player(++g_bot_peer_counter, "");
 		// Nome de bot NÃO é traduzido, e isso é de propósito: é um nome próprio, como o de qualquer
@@ -238,7 +238,7 @@ mixin class server_lobby_part {
 		pkt.set_string("lobby_name", lobby.lobby_name);
 		pkt.set_int("max_players", int(lobby.config.max_players));
 		pkt.set_uint64("host_peer_id", lobby.host_peer_id);
-		pkt.set_object("config", lobby.config.to_json(lobby.players.length()));
+		pkt.set_object("config", lobby.config.to_json(lobby.seated_count()));
 		// O código vai para quem JÁ está dentro: é como o anfitrião o relembra para ditar aos amigos,
 		// e como quem entrou sabe que está numa sala fechada. Quem está fora nunca vê este pacote.
 		pkt.set_string("join_code", lobby.join_code);
@@ -281,7 +281,14 @@ mixin class server_lobby_part {
 		if (@lobby == null || lobby.state != "waiting") return;
 		game_player@ p = lobby.find_player(peer_id);
 		if (@p == null || p.is_bot) return;
-		p.wants_to_spectate = pkt.get_bool("on");
+		bool quer = pkt.get_bool("on");
+		if (quer == p.wants_to_spectate) return;
+		// Voltar a jogar ocupa uma vaga: com a sala cheia, quem assiste continua assistindo - senão a
+		// sala passaria da lotação. O cliente confere antes de pedir (ver a tecla A na sala de espera);
+		// aqui é a regra de verdade, para o pedido que chegar mesmo assim.
+		if (!quer && lobby.seated_count() >= lobby.config.max_players) { send_error(peer_id, "lobby.full_cannot_play"); return; }
+		if (quer && lobby.marked_spectator_count() >= MAX_SPECTATORS) { send_error(peer_id, "spectate.full"); return; }
+		p.wants_to_spectate = quer;
 		send_lobby_state(lobby, 0); // a lista de quem está na sala diz quem vai assistir
 	}
 

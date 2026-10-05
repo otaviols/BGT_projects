@@ -148,6 +148,18 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	// a entrega é uma só - depois do resultado da votação e antes da conferência de vitória.
 	array<net_packet@> pending_events;
 
+	// Quem OCUPA VAGA na sala: todo mundo menos quem marcou "vou assistir" na sala de espera. É esta
+	// conta, e não players.length(), que a lotação e o teto de bots usam - quem só assiste não tira a
+	// vaga de ninguém (pedido do usuário). Os espectadores têm o teto deles, MAX_SPECTATORS.
+	uint seated_count() const {
+		uint n = 0;
+		for (uint i = 0; i < players.length(); i++) {
+			if (!(players[i].wants_to_spectate && !players[i].is_bot)) n++;
+		}
+		return n;
+	}
+	uint marked_spectator_count() const { return players.length() - seated_count(); }
+
 	uint bot_count() const {
 		uint count = 0;
 		for (uint i = 0; i < players.length(); i++) {

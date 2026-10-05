@@ -292,6 +292,7 @@
   "lobby.needs_update": "Essa sala usa papéis especiais, e a sua versão do jogo ainda não os conhece. Atualize o jogo para entrar.",
   "lobby.roles_need_update": "A partida não pode começar com papéis especiais: {names} precisa atualizar o jogo. Ou desligue os papéis nas regras da sala.",
   "lobby.full": "Essa partida está cheia.",
+  "lobby.full_cannot_play": "A sala está cheia: não dá para voltar a jogar agora. Você continua assistindo.",
   "lobby.info.private_code": "Partida privada. Código: {code}.",
   "lobby.player_joined": "{name} entrou na partida.",
   "lobby.player_left": "{name} saiu da partida.",

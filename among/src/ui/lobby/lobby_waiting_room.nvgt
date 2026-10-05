@@ -393,8 +393,13 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		// sala, que o servidor reenvia a todos na hora - é por ele que a tecla sabe o que alternar.
 		if (key_pressed(KEY_A)) {
 			bool vou_assistir = !snapshot.is_spectating(client.my_peer_id);
-			client.send_set_spectate(vou_assistir);
-			speak(tr(vou_assistir ? "spectate.will_watch" : "spectate.will_play"));
+			// Voltar a jogar ocupa uma vaga: com a sala cheia, nem pede - a fala "você vai jogar" seria
+			// uma promessa que o servidor recusa (ver on_set_spectate, que confere de novo).
+			if (!vou_assistir && seated_in(snapshot.players) >= snapshot.max_players) speak(tr("lobby.full_cannot_play"));
+			else {
+				client.send_set_spectate(vou_assistir);
+				speak(tr(vou_assistir ? "spectate.will_watch" : "spectate.will_play"));
+			}
 		}
 		// E: escolher a cor. Funciona em qualquer sala - a escolha vira a preferência guardada -, mas só
 		// VALE numa sala que deixa escolher, e a tela diz isso quando não deixa.

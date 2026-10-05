@@ -292,6 +292,7 @@
   "lobby.needs_update": "That room uses special roles, and your version of the game doesn't know them yet. Update the game to join.",
   "lobby.roles_need_update": "The match can't start with special roles: {names} needs to update the game. Or turn the roles off in the room rules.",
   "lobby.full": "That match is full.",
+  "lobby.full_cannot_play": "The room is full: you can't go back to playing right now. You keep watching.",
   "lobby.info.private_code": "Private match. Code: {code}.",
   "lobby.player_joined": "{name} joined the lobby.",
   "lobby.player_left": "{name} left the lobby.",

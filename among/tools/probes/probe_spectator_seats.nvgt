@@ -1,0 +1,118 @@
+// Sonda da lotação: quem marcou "vou assistir" não ocupa vaga (pedido do usuário).
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_spectator_seats.nvgt
+//
+// Sala de 3. A (anfitrião) e B entram; B marca para assistir. Aí:
+//   1. C e D ainda entram - com B assistindo, são 3 vagas ocupadas e 4 pessoas na sala;
+//   2. E é recusado (sala cheia), e um bot também;
+//   3. B pede para voltar a jogar e é recusado, continuando marcado - senão a sala passaria de 3;
+//   4. a lista de partidas diz 3, e não 4.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+array<game_client@> todos;
+array<array<net_packet@>@> caixa;
+void drena() {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = todos[i].poll_message(); }
+	}
+}
+void esvazia() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+net_packet@ espera(uint i, const string&in tipo, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		drena();
+		for (uint k = 0; k < caixa[i].length(); k++) if (caixa[i][k].type == tipo) { net_packet@ p = caixa[i][k]; caixa[i].remove_at(k); return p; }
+		wait(5);
+	}
+	return null;
+}
+bool entra(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return false;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	todos.insert_last(c); caixa.insert_last(array<net_packet@>());
+	uint i = todos.length() - 1;
+	c.send_register(nome, "probe123"); espera(i, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = espera(i, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return false;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return true;
+}
+// B está marcado para assistir no último retrato que A recebeu?
+bool marcado(uint quem) {
+	net_packet@ ultimo = null;
+	for (uint k = 0; k < caixa[0].length(); k++) if (caixa[0][k].type == S_LOBBY_STATE) @ultimo = caixa[0][k];
+	if (@ultimo == null) return false;
+	json_array@ l = ultimo.get_array("players");
+	for (uint k = 0; k < l.length(); k++)
+		if (uint64(l.get_object(k)["peer_id"]) == todos[quem].my_peer_id) return bool(l.get_object(k)["spectating"]);
+	return false;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	for (int i = 0; i < 6; i++) if (!entra(addr, "ss" + i + "x" + sfx)) { println("login falhou"); return; }
+	const uint A = 0, B = 1, C = 2, D = 3, E = 4, OBS = 5;
+	string sala = "vagas" + sfx;
+	lobby_overrides ov;
+	ov.max_players = 3;
+	ov.impostor_count = 1;
+	todos[A].send_create_lobby(sala, "classic", ov);
+	net_packet@ st = espera(A, S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	string id = st.get_string("lobby_id");
+
+	todos[B].send_join_lobby(id);
+	espera(B, S_JOIN_RESULT, 5000);
+	todos[B].send_set_spectate(true);
+	timer w; while (w.elapsed < 800) { drena(); wait(10); }
+	confere("B esta marcado para assistir", marcado(B));
+
+	todos[C].send_join_lobby(id);
+	net_packet@ jc = espera(C, S_JOIN_RESULT, 5000);
+	todos[D].send_join_lobby(id);
+	net_packet@ jd = espera(D, S_JOIN_RESULT, 5000);
+	confere("C e D entram: quem assiste nao ocupa vaga", @jc != null && jc.get_bool("ok") && @jd != null && jd.get_bool("ok"));
+
+	todos[E].send_join_lobby(id);
+	net_packet@ je = espera(E, S_JOIN_RESULT, 5000);
+	confere("E e recusado: as 3 vagas estao ocupadas", @je != null && !je.get_bool("ok"));
+	esvazia();
+	todos[A].send_add_bot();
+	net_packet@ eb = espera(A, S_ERROR, 3000);
+	confere("e um bot tambem", @eb != null && eb.get_string(MSG_KEY_FIELD) == "lobby.bot_lobby_full");
+
+	esvazia();
+	todos[B].send_set_spectate(false);
+	net_packet@ eb2 = espera(B, S_ERROR, 3000);
+	confere("B nao volta a jogar com a sala cheia", @eb2 != null && eb2.get_string(MSG_KEY_FIELD) == "lobby.full_cannot_play");
+	todos[A].send_list_lobbies(); // pede um retrato novo de quebra (a lista)
+	net_packet@ lista = espera(A, S_LOBBY_LIST, 5000);
+	int atual = -1;
+	if (@lista != null) {
+		json_array@ l = lista.get_array("lobbies");
+		for (uint k = 0; k < l.length(); k++) if (string(l.get_object(k)["name"]) == sala) atual = int(l.get_object(k)["current"]);
+	}
+	todos[OBS].send_list_lobbies();
+	net_packet@ lista2 = espera(OBS, S_LOBBY_LIST, 5000);
+	if (@lista2 != null) {
+		json_array@ l = lista2.get_array("lobbies");
+		for (uint k = 0; k < l.length(); k++) if (string(l.get_object(k)["name"]) == sala) atual = int(l.get_object(k)["current"]);
+	}
+	confere("a lista de partidas diz 3 vagas ocupadas, e nao 4 (" + atual + ")", atual == 3);
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

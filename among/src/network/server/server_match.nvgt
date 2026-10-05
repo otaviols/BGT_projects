@@ -43,11 +43,7 @@ mixin class server_match_part {
 			return;
 		}
 		// Quem marcou "vou assistir" não conta para o mínimo: a partida tem que ter gente para jogar.
-		uint jogam = 0;
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			if (!(lobby.players[i].wants_to_spectate && !lobby.players[i].is_bot)) jogam++;
-		}
-		if (jogam < MIN_PLAYERS) {
+		if (lobby.seated_count() < MIN_PLAYERS) {
 			dictionary@ p = dictionary();
 			p.set("min", "" + MIN_PLAYERS);
 			send_error(peer_id, "lobby.min_players_warning", p);

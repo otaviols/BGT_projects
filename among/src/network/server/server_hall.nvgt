@@ -76,12 +76,12 @@ mixin class server_hall_part {
 			json_object@ entry = json_object();
 			entry.set("id", lobby.lobby_id);
 			entry.set("name", lobby.lobby_name);
-			entry.set("current", int(lobby.players.length()));
+			entry.set("current", int(lobby.seated_count())); // quem assiste não ocupa vaga
 			entry.set("max", int(lobby.config.max_players));
 			// A configuração vai junto na LISTA, e não só depois de entrar: escolher uma sala sem
 			// saber quantos impostores tem e se a sabotagem está ligada é escolher no escuro, e o
 			// preço de descobrir é entrar, olhar e sair.
-			entry.set("config", lobby.config.to_json(lobby.players.length()));
+			entry.set("config", lobby.config.to_json(lobby.seated_count()));
 			entry.set("in_progress", andamento);
 			game_player@ anfitriao = lobby.find_player(lobby.host_peer_id);
 			entry.set("host", @anfitriao != null ? anfitriao.username : "");

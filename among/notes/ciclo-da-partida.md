@@ -174,7 +174,9 @@ outros espectadores; ouve como quem está ao lado de quem acompanha (`spectator_
 reunião; entra marcando A na sala de espera, ou pelo CÓDIGO de uma sala privada em andamento - a pública
 em andamento só aparece na lista, porque nem sempre quem joga se sente tranquilo sendo assistido, e quem
 tem o código foi convidado. Pelo mesmo motivo quem joga OUVE quando alguém começa ou para de assistir,
-com o nome (`announce_spectator`, recado #185; só a clientes do protocolo 11, que conhecem a fala). Na reabertura da sala os espectadores voltam como membros: quem tinha
+com o nome (`announce_spectator`, recado #185; só a clientes do protocolo 11, que conhecem a fala). E quem marcou para assistir NÃO ocupa vaga: lotação, teto de bots e a contagem da lista usam
+`game_state.seated_count()`, nunca `players.length()` (no cliente, `seated_in`). Voltar a jogar com a
+sala cheia é recusado - senão a sala passaria da lotação. Sonda: `probe_spectator_seats.nvgt`. Na reabertura da sala os espectadores voltam como membros: quem tinha
 marcado A continua marcado, quem entrou pelo código fica para jogar (a não ser que a sala esteja cheia).
 No cliente é uma tela própria (`spectate_loop.nvgt`), e não `run_game` com bandeira, pelo mesmo
 motivo da lista à parte. Sonda: `probe_spectate.nvgt` (inclusive que nenhum pacote com papel ou
