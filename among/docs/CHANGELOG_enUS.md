@@ -6,6 +6,19 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.7
+
+**Voices in voice chat now come through at the right pitch.** On some computers, the voice of whoever
+was speaking reached the others slightly higher and faster than the person actually speaks.
+
+**Plus and minus change your speed in Explore the map on any keyboard.** On Spanish keyboards, and
+others, the keys did nothing.
+
+**Footsteps in the greenhouse and its corridors are louder.**
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.6
 
 **The swapper is clearer.** The announcement now says that the votes each person received went to the

@@ -6,6 +6,19 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.7
+
+**As vozes no chat de voz saem no tom certo.** Em alguns computadores, a voz de quem falava chegava aos
+outros um pouco mais fina e mais rápida do que a pessoa fala.
+
+**Mais e menos mudam a velocidade no Conhecer o mapa em qualquer teclado.** No teclado espanhol, e em
+outros, as teclas não faziam nada.
+
+**Os passos na estufa e nos corredores dela estão mais altos.**
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.6
 
 **O trocador ficou mais claro.** O aviso agora diz que os votos que cada pessoa recebeu foram para a

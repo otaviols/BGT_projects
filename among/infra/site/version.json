@@ -1,8 +1,8 @@
 {
-	"version": "0.50.6",
+	"version": "0.50.7",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "O trocador ficou mais claro. O aviso agora diz que os votos que cada pessoa recebeu foram para a outra. Antes parecia que eram os votos que ela tinha dado. Velocidade no Conhecer o mapa. As teclas de mais e menos mudam a velocidade, de 50 a 200 por cento, a mesma faixa das salas. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
-		"en_US": "The swapper is clearer. The announcement now says that the votes each person received went to the other. It used to sound like the votes they had cast. Speed in Explore the map. The plus and minus keys change your speed, from 50 to 200 percent, the same range rooms allow. We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable version. Found something? Send it through feedback."
+		"pt_BR": "As vozes no chat de voz saem no tom certo. Em alguns computadores, a voz de quem falava chegava aos outros um pouco mais fina e mais rápida do que a pessoa fala. Mais e menos mudam a velocidade no Conhecer o mapa em qualquer teclado. No teclado espanhol, e em outros, as teclas não faziam nada. Os passos na estufa e nos corredores dela estão mais altos. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
+		"en_US": "Voices in voice chat now come through at the right pitch. On some computers, the voice of whoever was speaking reached the others slightly higher and faster than the person actually speaks. Plus and minus change your speed in Explore the map on any keyboard. On Spanish keyboards, and others, the keys did nothing. Footsteps in the greenhouse and its corridors are louder. We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable version. Found something? Send it through feedback."
 	}
 }
