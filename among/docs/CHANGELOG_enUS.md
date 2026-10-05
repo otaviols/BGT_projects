@@ -6,6 +6,28 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.4
+
+**The lobby list now has sounds.** One sound when a room opens to join, and another when a match
+starts. Open rooms now come first in the list, and matches in progress at the end.
+
+**Players know who is watching.** When someone starts or stops watching the match, every player hears
+their name.
+
+**Spectators don't take a seat.** Choosing to watch frees your seat for someone else to play. With the
+room full, whoever is watching keeps watching until a seat opens.
+
+**More bots.** You can now add bots up to the room's player limit, at most 15 participants.
+
+**Each voice's volume and mute stay with that person.** In color mode the setting was tied to the
+color, and in the next match it ended up on someone else. If you adjusted someone during a color mode
+match, adjust them again.
+
+**The body cleaning sound is louder**, so it doesn't go unnoticed.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.3
 
 **Footsteps in the metal floor rooms no longer go missing.** In Navigation, Electrical, Reactor and

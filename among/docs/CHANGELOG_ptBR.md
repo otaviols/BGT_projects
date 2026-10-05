@@ -6,6 +6,28 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.4
+
+**A lista de partidas avisa com som.** Um som quando uma sala abre para entrar, e outro quando uma
+partida começa. As salas abertas agora aparecem primeiro na lista, e as partidas em andamento no fim.
+
+**Quem joga sabe quem assiste.** Quando alguém começa ou para de assistir a partida, todos os jogadores
+ouvem o nome.
+
+**Quem assiste não ocupa vaga.** Marcar para assistir libera a vaga para outra pessoa jogar. Com a sala
+cheia, quem está assistindo continua assistindo até abrir uma vaga.
+
+**Mais bots.** Agora dá para colocar bots até a lotação da sala, no máximo 15 participantes.
+
+**O volume e o silêncio de cada voz ficam com a pessoa.** No modo cor, o ajuste ficava preso à cor e,
+na partida seguinte, ia parar em outra pessoa. Se você ajustou alguém durante uma partida no modo cor,
+ajuste de novo.
+
+**O som de limpar um corpo está mais alto**, para não passar despercebido.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.3
 
 **Os passos nas salas de piso de metal não somem mais.** Na Navegação, na Elétrica, no Reator e na
