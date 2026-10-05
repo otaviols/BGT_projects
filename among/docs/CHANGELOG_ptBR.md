@@ -6,6 +6,18 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.8
+
+**A vitória do incendiário tem uma cena nova, feita pelo jogador Raciel.** Ela toca para todos antes
+de o vencedor ser anunciado. Obrigado, Raciel!
+
+**O menu Aprender os sons do jogo está completo.** Ele ganhou os sons dos papéis novos, das câmeras,
+das portas, do chat e os pisos do oxigênio e do motor, e agora toca o som de navegar como os outros
+menus.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.7
 
 **As vozes no chat de voz saem no tom certo.** Em alguns computadores, a voz de quem falava chegava aos

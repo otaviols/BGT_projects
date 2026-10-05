@@ -6,6 +6,18 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.8
+
+**The arsonist's win has a new scene, made by the player Raciel.** It plays for everyone before the
+winner is announced. Thank you, Raciel!
+
+**The Learn the game sounds menu is complete.** It now has the sounds of the new roles, the cameras,
+the doors, the chat and the oxygen and engine room floors, and it plays the navigation sound like the
+other menus.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.7
 
 **Voices in voice chat now come through at the right pitch.** On some computers, the voice of whoever
