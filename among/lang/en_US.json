@@ -227,7 +227,6 @@
   "lobby.bot_host_only": "Only the host can add or remove bots.",
   "lobby.bot_only_in_waiting": "Bots can only be changed in the waiting room.",
   "lobby.bot_lobby_full": "The lobby is already full.",
-  "lobby.bot_limit_reached": "Bot limit reached.",
   "lobby.bot_none_to_remove": "There are no bots in the lobby.",
   "lobby.preset.classic": "Classic",
   "lobby.preset.quick": "Quick",

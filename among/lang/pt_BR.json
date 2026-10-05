@@ -227,7 +227,6 @@
   "lobby.bot_host_only": "Só o anfitrião pode adicionar ou tirar bots.",
   "lobby.bot_only_in_waiting": "Só dá pra mexer nos bots na sala de espera.",
   "lobby.bot_lobby_full": "A partida já está cheia.",
-  "lobby.bot_limit_reached": "Limite de bots atingido.",
   "lobby.bot_none_to_remove": "Não tem nenhum bot na partida.",
   "lobby.preset.classic": "Clássico",
   "lobby.preset.quick": "Rápido",

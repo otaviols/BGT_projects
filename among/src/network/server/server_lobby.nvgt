@@ -178,7 +178,7 @@ mixin class server_lobby_part {
 				em_uso = lobby.players[i].username.lower() == BOT_NAMES[n].lower();
 			if (!em_uso) livres.insert_last(BOT_NAMES[n]);
 		}
-		if (livres.length() == 0) return "Bot " + (lobby.bot_count() + 1); // mais bots que nomes: não acontece com MAX_BOTS_PER_LOBBY de hoje
+		if (livres.length() == 0) return "Bot " + (lobby.bot_count() + 1); // mais bots que nomes: não acontece, são 20 nomes para no máximo 14 bots
 		return livres[random(0, int(livres.length()) - 1)];
 	}
 
@@ -189,7 +189,6 @@ mixin class server_lobby_part {
 		if (@lobby == null || lobby.host_peer_id != peer_id) return;
 		if (lobby.state != "waiting") { send_error(peer_id, "lobby.bot_only_in_waiting"); return; }
 		if (lobby.players.length() >= lobby.config.max_players) { send_error(peer_id, "lobby.bot_lobby_full"); return; }
-		if (lobby.bot_count() >= MAX_BOTS_PER_LOBBY) { send_error(peer_id, "lobby.bot_limit_reached"); return; }
 
 		game_player@ bot = game_player(++g_bot_peer_counter, "");
 		// Nome de bot NÃO é traduzido, e isso é de propósito: é um nome próprio, como o de qualquer

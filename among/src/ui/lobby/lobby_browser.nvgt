@@ -75,13 +75,19 @@ void fill_browser_menu(menu@ m, json_array@ lobbies, uint reply_count) {
 	// Não é selecionável para nada - escolhê-lo só reabre a lista, e a própria linha já é o texto.
 	if (g_hall.notice != "") m.add_item(tr("hall.notice", notice_params(g_hall.notice)), "__notice__");
 
+	// As abertas primeiro, as em andamento depois (recado #195): quem abre a lista quer achar onde
+	// ENTRAR, e com várias partidas rodando as abertas ficavam no meio delas. Duas passadas, e não um
+	// sort, para manter a ordem do servidor dentro de cada grupo.
 	if (@lobbies != null) {
-		for (uint i = 0; i < lobbies.length(); i++) {
-			json_object@ entry = lobbies.get_object(i);
-			if (@entry == null) continue;
-			// Em andamento: aparece para se saber que existe, mas escolhê-la só explica (ver "__running__").
-			bool rodando = entry.exists("in_progress") && bool(entry["in_progress"]);
-			m.add_item(lobby_summary_text(entry), (rodando ? "__running__" : "") + string(entry["id"]));
+		for (int passada = 0; passada < 2; passada++) {
+			for (uint i = 0; i < lobbies.length(); i++) {
+				json_object@ entry = lobbies.get_object(i);
+				if (@entry == null) continue;
+				// Em andamento: aparece para se saber que existe, mas escolhê-la só explica (ver "__running__").
+				bool rodando = entry.exists("in_progress") && bool(entry["in_progress"]);
+				if (rodando != (passada == 1)) continue;
+				m.add_item(lobby_summary_text(entry), (rodando ? "__running__" : "") + string(entry["id"]));
+			}
 		}
 	}
 	// O saguão vem antes de tudo: é onde se descobre que há mais gente online, e o motivo mais

@@ -276,7 +276,9 @@ const int SPATIAL_PITCH_MAX_PERCENT = 25;
 
 // Bots (jogadores controlados pelo próprio servidor, adicionados pelo anfitrião na sala de espera
 // com B / Shift+B). Não são clientes de verdade: não têm conexão, então nada é ENVIADO pra eles.
-const uint MAX_BOTS_PER_LOBBY = 8;
+// Não há teto próprio de bots: o teto é a LOTAÇÃO da sala (max_players, no máximo MAX_PLAYERS), e é
+// on_add_bot quem a confere. Era 8 fixo (recado #183 pediu mais); um teto de bots solto da lotação
+// deixaria a sala passar de 15.
 // Um tico mais devagar que gente - sobre a velocidade DA SALA, para o bot acompanhar quando ela muda.
 const float BOT_SPEED_FACTOR = 0.85;
 // Posição de bot só vai pra rede nesse intervalo: o laço do servidor roda a cada ~5ms e mandar

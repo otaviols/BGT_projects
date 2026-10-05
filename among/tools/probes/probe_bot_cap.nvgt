@@ -1,0 +1,72 @@
+// Sonda do teto de bots: o teto é a LOTAÇÃO da sala, e não um número fixo (recado #183).
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_bot_cap.nvgt
+//
+// Sala de 15 com um humano: entram 14 bots, o 15º é recusado por sala cheia - nunca passa de 15. E a
+// partida com 15 começa e anda por um tempo sem derrubar o servidor (são 14 bots pensando por tick).
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register("bc" + sfx, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login("bc" + sfx, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+
+	lobby_overrides ov;
+	ov.max_players = 15;
+	ov.impostor_count = 2;
+	c.send_create_lobby("teto" + sfx, "classic", ov);
+	if (@wf(c, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
+
+	int aceitos = 0;
+	string recusa = "";
+	for (int b = 0; b < 15; b++) {
+		c.send_add_bot();
+		timer w;
+		bool respondeu = false;
+		while (w.elapsed < 2000 && !respondeu) {
+			c.update();
+			net_packet@ p = c.poll_message();
+			while (@p != null) {
+				if (p.type == S_PLAYER_JOINED) { aceitos++; respondeu = true; }
+				else if (p.type == S_ERROR) { recusa = p.get_string(MSG_KEY_FIELD); respondeu = true; }
+				@p = c.poll_message();
+			}
+			wait(5);
+		}
+		if (recusa != "") break;
+	}
+	confere("14 bots entram numa sala de 15 com um humano (" + aceitos + ")", aceitos == 14);
+	confere("o 15o e recusado por sala cheia (" + recusa + ")", recusa == "lobby.bot_lobby_full");
+
+	c.send_start_game();
+	net_packet@ inicio = wf(c, S_GAME_START, 8000);
+	confere("a partida de 15 comeca", @inicio != null);
+	if (@inicio != null) confere("com 15 no elenco", inicio.get_array("players").length() == 15);
+	// Anda um tempo: o servidor tem que continuar respondendo, com 14 bots decidindo a cada tick.
+	timer anda;
+	while (anda.elapsed < 8000) { c.update(); c.clear_incoming(); wait(10); }
+	c.send_ping();
+	confere("o servidor continua respondendo depois de 8 s de partida", @wf(c, S_PONG, 5000) != null);
+	c.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
