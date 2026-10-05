@@ -1,0 +1,111 @@
+// Sonda da partida abandonada: saiu o último humano, a sala fecha - não fica só com bots para sempre.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_bots_abandoned.nvgt
+//
+// Recados #182, #190, #198, #200: a lista de partidas cheia de salas "em andamento" com oito bots e
+// ninguém. O servidor só fechava sala sem humanos no FIM da partida - e no modo lobos ou no pega-pega,
+// só com bots, o fim não chega.
+//
+// Com um OBSERVADOR no saguão:
+//   1. controle: com dois humanos e bots, um sair no meio NÃO fecha a sala (ainda há quem jogue);
+//   2. o segundo CAIR (desconectar, o caso do recado #198) fecha a sala: ela some da lista.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+game_client@ entra(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	net_packet@ lp = net_packet(C_LOGIN);
+	lp.set_string("username", nome);
+	lp.set_string("password", "probe123");
+	lp.set_int("protocol", PROTOCOL_VERSION);
+	c.net.send_reliable(c.local_peer_id, lp.to_wire(), CHANNEL_RELIABLE);
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return c;
+}
+
+// O observador pede a lista e responde se a sala está nela.
+bool na_lista(game_client@ obs, array<game_client@>@ outros, const string&in nome) {
+	for (uint i = 0; i < outros.length(); i++) if (@outros[i] != null) { outros[i].update(); outros[i].clear_incoming(); }
+	obs.clear_incoming();
+	obs.send_list_lobbies();
+	net_packet@ lista = wf(obs, S_LOBBY_LIST, 5000);
+	if (@lista == null) return false;
+	json_array@ l = lista.get_array("lobbies");
+	for (uint k = 0; k < l.length(); k++) if (string(l.get_object(k)["name"]) == nome) return true;
+	return false;
+}
+void espera(array<game_client@>@ cs, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		for (uint i = 0; i < cs.length(); i++) if (@cs[i] != null) { cs[i].update(); cs[i].clear_incoming(); }
+		wait(10);
+	}
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	game_client@ obs = entra(addr, "bao" + sfx);
+	game_client@ dono = entra(addr, "bad" + sfx);
+	game_client@ outro = entra(addr, "bat" + sfx);
+	if (@obs == null || @dono == null || @outro == null) { println("login falhou"); return; }
+	array<game_client@> todos = {obs, dono, outro};
+
+	// Os dois humanos têm que ser TRIPULANTES. Com um humano impostor, a saída dele encerra a partida
+	// pelo caminho normal (sem impostor, a tripulação vence) e a sala fecha no fim - a sonda passaria
+	// também sem a correção, que foi exatamente o que a rodada de controle mostrou. Sorteia de novo.
+	string sala;
+	bool sorteio_ok = false;
+	for (int tentativa = 0; tentativa < 12 && !sorteio_ok; tentativa++) {
+		sala = "abandono" + sfx + "_" + tentativa;
+		lobby_overrides ov;
+		ov.impostor_count = 2;
+		ov.max_players = 10;
+		dono.send_create_lobby(sala, "classic", ov);
+		net_packet@ criada = wf(dono, S_LOBBY_STATE, 5000);
+		if (@criada == null) { println("a sala nao foi criada"); return; }
+		outro.send_join_lobby(criada.get_string("lobby_id"));
+		espera(todos, 800);
+		for (int b = 0; b < 6; b++) { dono.send_add_bot(); espera(todos, 200); }
+		dono.send_start_game();
+		net_packet@ ia = wf(dono, S_GAME_START, 8000);
+		net_packet@ ib = wf(outro, S_GAME_START, 8000);
+		if (@ia == null || @ib == null) { println("a partida nao comecou"); return; }
+		sorteio_ok = ia.get_string("your_role") != ROLE_IMPOSTOR && ib.get_string("your_role") != ROLE_IMPOSTOR;
+		if (!sorteio_ok) { dono.send_leave_lobby(); outro.send_leave_lobby(); espera(todos, 1000); }
+	}
+	if (!sorteio_ok) { println("nenhum sorteio com os dois humanos tripulantes"); return; }
+	espera(todos, 1000);
+	confere("a partida comecou e esta na lista", na_lista(obs, todos, sala));
+
+	dono.send_leave_lobby();
+	espera(todos, 1000);
+	confere("controle: saiu um, ainda ha humano - a sala continua", na_lista(obs, todos, sala));
+
+	// Continua atendendo o cliente depois de desconectar: o aviso de saída só sai no update seguinte.
+	// Sem isso o servidor só percebia pela queda por tempo, muito depois da conferência abaixo.
+	outro.disconnect();
+	espera(todos, 1500);
+	@todos[2] = null;
+	confere("caiu o ultimo humano: a sala sai da lista", !na_lista(obs, todos, sala));
+
+	obs.disconnect(); dono.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

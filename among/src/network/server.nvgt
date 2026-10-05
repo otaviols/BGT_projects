@@ -338,6 +338,21 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 				}
 				p.reset_match_state(); // a conexão sai daqui sem nenhuma herança da partida
 			}
+			// Saiu o último humano: a partida continuaria só com bots - e no modo lobos ou no pega-pega
+			// ela pode nunca acabar. A sala ficava na lista como "em andamento" para sempre, com oito
+			// bots andando (recados #182, #190, #198, #200). O fim normal (reopen_lobby) já fechava a
+			// sala sem humanos, mas só quando a partida acabava. Com alguém assistindo, segue: há para
+			// quem mostrar, e é o reopen_lobby que decide no fim.
+			bool sobrou_gente = lobby.spectators.length() > 0;
+			for (uint i = 0; i < lobby.players.length() && !sobrou_gente; i++) {
+				if (reaches_client(lobby.players[i])) sobrou_gente = true;
+			}
+			if (!sobrou_gente) {
+				for (uint i = 0; i < lobbies.length(); i++) {
+					if (lobbies[i] is lobby) { close_lobby(int(i)); break; }
+				}
+				return;
+			}
 		} else {
 			for (uint i = 0; i < lobby.players.length(); i++) {
 				if (lobby.players[i].peer_id == peer_id) { lobby.players.remove_at(i); break; }

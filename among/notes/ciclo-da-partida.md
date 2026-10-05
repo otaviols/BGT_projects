@@ -43,6 +43,15 @@ defeito (estado desfeito só de um lado), depois da reunião e da morte. Sonda:
 `tools/probes/probe_camera_game_over.nvgt`, que acaba a partida por MAIORIA - por reunião o defeito
 não aparece, porque a reunião já fechava as câmeras - e que falha contra o servidor sem a correção.
 
+**Saiu o último humano no meio da partida: a sala FECHA na hora** (`remove_from_lobby`, servidor). Antes
+ela só fechava no fim da partida (`reopen_lobby`) - e só com bots, no modo lobos ou no pega-pega, o fim
+não chega: a lista de partidas enchia de salas "em andamento" com oito bots e ninguém (recados #182,
+#190, #198, #200). Com espectador, segue. Sonda: `probe_bots_abandoned.nvgt`. Duas armadilhas dela,
+descobertas na rodada de controle, que passava sem a correção: com um humano IMPOSTOR, a saída dele já
+encerra a partida pelo caminho normal (a sonda sorteia até os dois humanos serem tripulantes); e depois
+de `disconnect()` o cliente precisa continuar recebendo `update()`, senão o aviso de saída não sai e o
+servidor só percebe a queda por tempo esgotado.
+
 **Bot age PEDINDO, e o servidor executa pelo tratador do jogador** (`bot_request` em game_state,
 consumido em `tick_lobbies`). Consertar painel vira um `C_INTERACT` passado a `on_interact`; reportar
 corpo, um `C_REPORT_BODY` a `on_report_body` - os mesmos de quem joga, com todos os efeitos (aviso de
