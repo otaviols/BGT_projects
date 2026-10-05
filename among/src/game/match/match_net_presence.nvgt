@@ -10,24 +10,10 @@ mixin class match_net_presence_part {
 		float moved_x = pkt.get_float("x");
 		float moved_y = pkt.get_float("y");
 		roster_entry@ moved_entry = roster.find(moved_peer);
-		// O passo soa a cada PASSO ANDADO (step_length), e não a cada tanto tempo: assim o ritmo é o
-		// da pessoa - o Flash soa apressado, o Gigante arrastado - sem som diferente nenhum. Um salto
-		// grande (duto, reunião) vira um passo só, e não uma rajada.
-		if (@moved_entry != null && moved_entry.alive) {
-			float andou = distance_2d(moved_entry.x, moved_entry.y, moved_x, moved_y);
-			// Salto (duto, reunião, a volta da barriga): conta como um passo só, e não uma rajada.
-			if (andou > step_length * 3.0) andou = step_length;
-			moved_entry.step_distance += andou;
-			if (moved_entry.step_distance >= step_length) {
-				// Desconta UM passo, e não zera: a posição chega pelo canal que tolera perda, e um pacote
-				// perdido faz o seguinte trazer dois passos de distância - zerando, um passo sumia e ficava
-				// um vácuo no meio da caminhada (relato do usuário). O que sobrar vai para o próximo.
-				moved_entry.step_distance -= step_length;
-				if (moved_entry.step_distance > step_length) moved_entry.step_distance = step_length;
-				map_zone@ moved_zone = map.zone_at(moved_x, moved_y);
-				string moved_prefix = @moved_zone != null ? moved_zone.floor_sound_prefix : "Tile";
-				audio.play_footstep(moved_prefix, footstep_variant_count(moved_prefix), moved_x, moved_y);
-			}
+		if (@moved_entry != null && moved_entry.alive && moved_entry.walk_to(moved_x, moved_y, step_length)) {
+			map_zone@ moved_zone = map.zone_at(moved_x, moved_y);
+			string moved_prefix = @moved_zone != null ? moved_zone.floor_sound_prefix : "Tile";
+			audio.play_footstep(moved_prefix, footstep_variant_count(moved_prefix), moved_x, moved_y);
 		}
 		roster.update_position(moved_peer, moved_x, moved_y);
 	}

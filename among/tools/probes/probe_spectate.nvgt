@@ -89,6 +89,7 @@ void main() {
 	ov.impostor_count = 1;
 	ov.voice_chat = "on";
 	ov.meeting_time_seconds = 20.0;
+	ov.move_speed_percent = 150; // fora do padrão, para o passo de quem assiste provar que veio da sala
 	todos[0].send_create_lobby("assistir", "classic", ov, codigo);
 	if (@espera(0, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
 	for (uint i = 1; i <= S; i++) { todos[i].send_join_by_code(codigo); espera(i, S_JOIN_RESULT, 5000); }
@@ -108,6 +109,9 @@ void main() {
 	todos[0].send_start_game();
 	net_packet@ ss = espera(S, S_SPECTATE_START, 8000);
 	confere("S recebe S_SPECTATE_START", @ss != null);
+	// Recado #186: sem a velocidade da sala, quem assiste ouvia os passos na fixa (2,2).
+	confere("e o inicio traz a velocidade da sala, para o tamanho do passo",
+		@ss != null && abs(ss.get_float("room_move_speed", 0.0) - move_speed_for_percent(150)) < 0.01);
 	confere("e NAO recebe S_GAME_START", @achado(S, S_GAME_START) == null);
 	if (@ss == null) return;
 	confere("o inicio de S nao tem papel", !ss.exists("your_role") && !ss.exists("impostor_partners"));

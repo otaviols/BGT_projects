@@ -65,7 +65,10 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 	uint64 seguindo = start_pkt.get_uint64("follow", 0);
 	bool reuniao = start_pkt.get_bool("in_meeting", false);
 	string sabotagem = "";
-	float footstep_interval = footstep_interval_for(2.2);
+	// O tamanho do passo da SALA, a mesma conta da partida (step_length em game_loop). Servidor antigo
+	// não manda: a velocidade fixa de antes.
+	float velocidade_da_sala = start_pkt.get_float("room_move_speed", 2.2);
+	float step_length = velocidade_da_sala * footstep_interval_for(velocidade_da_sala);
 
 	audio.start_ship_ambience();
 	audio.start_room_ambience(map);
@@ -90,10 +93,10 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 			if (t == S_PLAYER_MOVED) {
 				uint64 quem = pkt.get_uint64("peer_id");
 				float x = pkt.get_float("x"), y = pkt.get_float("y");
-				roster.update_position(quem, x, y);
 				roster_entry@ e = roster.find(quem);
-				if (@e != null && e.alive && float(e.footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
-					e.footstep_clock.restart();
+				bool passo = @e != null && e.alive && e.walk_to(x, y, step_length);
+				roster.update_position(quem, x, y);
+				if (passo) {
 					map_zone@ z = map.zone_at(x, y);
 					string prefix = @z != null ? z.floor_sound_prefix : "Tile";
 					audio.play_footstep(prefix, footstep_variant_count(prefix), x, y);

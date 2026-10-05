@@ -321,6 +321,9 @@ mixin class server_lobby_part {
 		pkt.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
 		pkt.set_bool("color_mode", lobby.config.color_mode);
 		pkt.set_string("game_mode", lobby.config.game_mode);
+		// O tamanho do passo de quem assiste sai daqui: sem isso ele ouvia na velocidade fixa, e no
+		// pega-pega os passos soavam mais lentos do que as pessoas andavam (recado #186).
+		pkt.set_float("room_move_speed", lobby.config.move_speed());
 		pkt.set_bool("in_meeting", lobby.state == "meeting" || lobby.state == "voting");
 		pkt.set_uint64("follow", primeiro_vivo);
 		send_to(spec.peer_id, pkt);

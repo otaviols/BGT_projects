@@ -15,8 +15,29 @@ class roster_entry {
 	bool alive = true;
 	float x = 0.0;
 	float y = 0.0;
-	timer footstep_clock; // usado pra não tocar passo dele a cada pacote de posição, só de vez em quando
-	float step_distance = 0.0; // quanto andou desde o último passo tocado (ver on_player_moved)
+	float step_distance = 0.0; // quanto andou desde o último passo tocado (ver walk_to)
+
+	// Andou de onde estava até (nx, ny): soma ao passo e diz se completou um. Chame ANTES de gravar a
+	// posição nova. O passo soa a cada PASSO ANDADO, e não a cada tanto tempo: o ritmo é o da pessoa -
+	// o Flash apressado, o Gigante arrastado, o pega-pega na velocidade da sala.
+	//
+	// Uma função só para a partida e para quem assiste: o espectador tinha a conta antiga, por tempo e
+	// numa velocidade fixa, e no pega-pega ouvia os passos mais lentos do que a pessoa andava (recado
+	// #186) - e sem a correção do vácuo abaixo.
+	bool walk_to(float nx, float ny, float step_length) {
+		if (step_length <= 0.0) return false;
+		float andou = distance_2d(x, y, nx, ny);
+		// Salto (duto, reunião, a volta da barriga): conta como um passo só, e não uma rajada.
+		if (andou > step_length * 3.0) andou = step_length;
+		step_distance += andou;
+		if (step_distance < step_length) return false;
+		// Desconta UM passo, e não zera: a posição chega pelo canal que tolera perda, e um pacote
+		// perdido faz o seguinte trazer dois passos de distância - zerando, um passo sumia e ficava um
+		// vácuo no meio da caminhada (relato do usuário). O que sobrar vai para o próximo.
+		step_distance -= step_length;
+		if (step_distance > step_length) step_distance = step_length;
+		return true;
+	}
 }
 
 // O elenco da partida em andamento, para quem precisa de um nome sem ter o objeto à mão - hoje, os
