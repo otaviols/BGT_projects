@@ -171,11 +171,25 @@ class voice_chat : voice_receiver {
 	// Auto-escuta (tela de configurações): o que passa pelo microfone volta para o alto-falante.
 	bool monitoring = false;
 	sound monitor_snd;
-	// Nome de cada peer que pode falar comigo (sala de espera e partida), para silenciar por nome.
+	// Nome de cada peer que pode falar comigo (sala de espera e partida), como ele é DITO agora: na
+	// partida em modo cor é a cor. Serve para mostrar, e não para guardar preferência.
 	dictionary peer_names;
+	// A CONTA de cada peer, aprendida na sala de espera (o S_LOBBY_STATE traz o nome da conta mesmo em
+	// modo cor). Volume e silêncio são guardados por ela: guardados pelo nome da partida, no modo cor
+	// eles ficavam presos à COR, e na partida seguinte, com as cores sorteadas de novo, caíam em outra
+	// pessoa (relato do usuário). Não é esquecida ao começar a partida - é ela que atravessa.
+	dictionary peer_accounts;
 
 	void remember_name(uint64 peer, const string&in name) { if (name != "") peer_names.set("" + peer, name); }
+	void remember_account(uint64 peer, const string&in account) { if (account != "") peer_accounts.set("" + peer, account); }
 	void forget_names() { peer_names.delete_all(); }
+	// A chave das preferências de voz desta pessoa: a conta; sem ela (quem nunca esteve na mesma sala
+	// de espera que eu, como um espectador que entrou pelo código), o nome de agora.
+	string settings_key_of(uint64 peer) const {
+		string account;
+		if (peer_accounts.exists("" + peer)) peer_accounts.get("" + peer, account);
+		return account != "" ? account : name_of(peer);
+	}
 	string name_of(uint64 peer) const {
 		string name;
 		if (peer_names.exists("" + peer)) peer_names.get("" + peer, name);
@@ -209,6 +223,7 @@ class voice_chat : voice_receiver {
 	void leave() {
 		@roster = null;
 		forget_names();
+		peer_accounts.delete_all();
 		spatial = false;
 		allowed = false;
 		stop_all();
@@ -382,7 +397,7 @@ class voice_chat : voice_receiver {
 		uint64 talker;
 		string audio;
 		if (!voice_unwire(wire, talker, audio)) return;
-		if (everyone_muted || g_settings.is_muted(name_of(talker))) return;
+		if (everyone_muted || g_settings.is_muted(settings_key_of(talker))) return;
 		voice_stream@ s = stream_for(talker);
 		// O som desta pessoa PAROU (acabou sozinho, ou algo o parou): escrever mais nele trava o jogo
 		// para sempre - o stream_pcm espera um consumo que não vem (ver VOICE_MAX_BUFFERED_MS). Começa
@@ -424,7 +439,7 @@ class voice_chat : voice_receiver {
 	// lição da sonda. E as pessoas andam enquanto falam.
 	private void place(voice_stream@ s) {
 		// Volume da família de vozes mais o ajuste individual desta pessoa (ver voice_volume_db).
-		s.snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES) + g_settings.voice_volume_db(name_of(s.peer_id));
+		s.snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES) + g_settings.voice_volume_db(settings_key_of(s.peer_id));
 		roster_entry@ me = @roster != null ? roster.find(my_peer_id) : null;
 		roster_entry@ who = @roster != null ? roster.find(s.peer_id) : null;
 		if (!spatial || @me == null || @who == null || inside_me.find(s.peer_id) != -1) {
@@ -458,15 +473,17 @@ class voice_chat : voice_receiver {
 			for (uint i = 0; i < keys.length(); i++) {
 				if (keys[i] == "" + my_peer_id) continue;
 				string name; peer_names.get(keys[i], name);
+				// Mostrado pelo nome de agora (a cor, no modo cor), guardado pela conta.
+				string chave = settings_key_of(parse_int(keys[i]));
 				string label = name;
-				if (g_settings.is_muted(name)) label = tr("voice.muted_item", name_params(name));
-				else if (g_settings.voice_volume_of(name) != 100) {
+				if (g_settings.is_muted(chave)) label = tr("voice.muted_item", name_params(name));
+				else if (g_settings.voice_volume_of(chave) != 100) {
 					dictionary@ vp = dictionary();
 					vp.set("name", name);
-					vp.set("percent", "" + g_settings.voice_volume_of(name));
+					vp.set("percent", "" + g_settings.voice_volume_of(chave));
 					label = tr("voice.volume_item", vp);
 				}
-				m.add_item(label, name);
+				m.add_item(label, keys[i]);
 				listed++;
 			}
 			if (listed == 0) { speak(tr("voice.mute_nobody")); return; }
@@ -474,18 +491,19 @@ class voice_chat : voice_receiver {
 			m.run();
 			string chosen = m.selected_item_id;
 			if (chosen == "" || chosen == "back") return;
-			run_player_voice_form(chosen);
+			uint64 peer = parse_int(chosen);
+			run_player_voice_form(settings_key_of(peer), name_of(peer));
 		}
 	}
 
 	// Silenciar esta pessoa e ajustar o volume dela, na mesma tela: são as duas coisas que se quer
 	// fazer com uma voz alheia, e separá-las em dois lugares faria procurar.
-	private void run_player_voice_form(const string&in name) {
+	private void run_player_voice_form(const string&in chave, const string&in name) {
 		audio_form f;
 		screen_keyboard_follower teclado_tela;
 		f.create_window(name, false);
-		int f_muted = f.create_checkbox(tr("voice.mute_checkbox"), g_settings.is_muted(name));
-		int f_volume = f.create_slider(tr("voice.volume_label"), g_settings.voice_volume_of(name), 0, VOICE_VOLUME_MAX_PERCENT);
+		int f_muted = f.create_checkbox(tr("voice.mute_checkbox"), g_settings.is_muted(chave));
+		int f_volume = f.create_slider(tr("voice.volume_label"), g_settings.voice_volume_of(chave), 0, VOICE_VOLUME_MAX_PERCENT);
 		int f_ok = f.create_button(tr("menu.confirm"), true);
 		int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 		f.focus(f_muted); // audio_form nasce sem foco nenhum
@@ -498,8 +516,8 @@ class voice_chat : voice_receiver {
 			if (f.is_pressed(f_cancel)) return;
 			if (f.is_pressed(f_ok)) {
 				bool quer_mudo = f.is_checked(f_muted);
-				if (quer_mudo != g_settings.is_muted(name)) g_settings.toggle_muted(name);
-				g_settings.set_voice_volume(name, int(f.get_slider(f_volume)));
+				if (quer_mudo != g_settings.is_muted(chave)) g_settings.toggle_muted(chave);
+				g_settings.set_voice_volume(chave, int(f.get_slider(f_volume)));
 				g_settings.save();
 				speak(tr(quer_mudo ? "voice.now_muted" : "voice.now_unmuted", name_params(name)));
 				return;

@@ -31,7 +31,9 @@ class lobby_snapshot {
 		g_voice.forget_names();
 		for (uint i = 0; i < players.length(); i++) {
 			json_object@ pj = players.get_object(i);
-			if (@pj != null) g_voice.remember_name(uint64(pj["peer_id"]), string(pj["name"]));
+			if (@pj == null) continue;
+			g_voice.remember_name(uint64(pj["peer_id"]), string(pj["name"]));
+			g_voice.remember_account(uint64(pj["peer_id"]), string(pj["name"])); // a conta: na sala de espera o nome é sempre o dela
 		}
 	}
 

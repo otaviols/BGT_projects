@@ -119,6 +119,17 @@ void main() {
 	p.handle_packet(eu);
 	confere("a propria morte: vira fantasma", !p.alive && !p.mui.alive);
 
+	println("== voz guardada pela conta ==");
+	// No modo cor o nome da partida é a cor, sorteada de novo a cada partida: volume e silêncio
+	// guardados por ele caíam em outra pessoa na partida seguinte (relato do usuário). A conta vem da
+	// sala de espera e atravessa o começo da partida.
+	g_voice.remember_account(2, "conta_da_ana");
+	match_session@ cor = nova_partida(ROLE_CREWMATE);
+	confere("na partida, a voz mostra o nome de agora", g_voice.name_of(2) == "ana");
+	confere("e guarda as preferencias pela conta", g_voice.settings_key_of(2) == "conta_da_ana");
+	confere("sem conta conhecida, cai no nome de agora", g_voice.settings_key_of(3) == "bia");
+	g_voice.leave();
+
 	println("== impostor ==");
 	match_session@ imp = nova_partida(ROLE_IMPOSTOR);
 	imp.my_kill_cooldown_remaining = 0.0;
