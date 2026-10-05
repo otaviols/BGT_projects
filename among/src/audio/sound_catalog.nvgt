@@ -266,7 +266,7 @@ int footstep_variant_count(const string&in floor_prefix) {
 	if (floor_prefix == "EarthTile") return 7;
 	if (floor_prefix == "VentTile") return 4;
 	if (floor_prefix == "O2Tile") return 8;
-	if (floor_prefix == "GlassTile") return 7;
+	if (floor_prefix == "ConcreteTile") return 6;
 	// O fallback é baixo de propósito: piso sem entrada aqui toca só duas variantes e fica
 	// repetitivo rápido, que é como se percebe o esquecimento. Piso novo entra NAS DUAS listas -
 	// esta e FOOTSTEP_FLOOR_PREFIXES, logo abaixo -, senão os arquivos que sobram nunca são tocados
@@ -283,10 +283,12 @@ const array<string> FOOTSTEP_FLOOR_PREFIXES = {
 	"VentTile",
 	// Piso da sala do oxigênio, só dela.
 	"O2Tile",
-	// Piso da sala de motor leste, só dela. Vidro porque nada mais no jogo é vidro: a ala leste tem
-	// terra (estufa) e metal (navegação), e um terceiro timbre ali dá à sala identidade imediata - num
-	// jogo sem imagem, saber onde se está pelo chão vale mais do que fidelidade temática.
-	"GlassTile"
+	// Piso da sala de motor leste, só dela: a ala leste tem terra (estufa) e metal (navegação), e um
+	// terceiro timbre ali dá à sala identidade imediata - num jogo sem imagem, saber onde se está pelo
+	// chão vale mais do que fidelidade temática. Era VIDRO, e saiu: os arquivos eram baixos demais para
+	// qualquer ganho salvar (o usuário apagou o vidro e o carpete pelo mesmo motivo e não achou vidro
+	// melhor). Concreto no lugar, que nada mais no mapa usa.
+	"ConcreteTile"
 };
 
 // Extensão do arquivo de passo de cada piso. Hoje são todos .ogg, mas a função continua existindo
@@ -307,7 +309,7 @@ string footstep_variant_extension(const string&in floor_prefix) {
 // próxima pessoa que trocar um arquivo de passo vai precisar refazer a conta):
 //
 //   RMS médio das variantes  ->  Tile -46,4  MetalTile -31,3  MetalBeltTile -31,2  WoodTile -41,0
-//                                EarthTile -44,5  VentTile -36,4  CarpetTile -43,3  SnowTile -39,7
+//                                EarthTile -44,5  VentTile -36,4  SnowTile -39,7
 //                                O2Tile -21,7   (dBFS)
 //
 // Nenhuma correção chega perto de estourar: o pico mais alto depois do ajuste fica em torno de -7 dB.
@@ -322,26 +324,17 @@ float footstep_volume_db(const string&in floor_prefix) {
 	if (floor_prefix == "WoodTile") return -4.0;
 	if (floor_prefix == "EarthTile") return 13.0;
 	if (floor_prefix == "VentTile") return 5.0;
-	if (floor_prefix == "CarpetTile") return 12.0;
 	// O piso da sala do oxigênio ABAIXA: as oito variantes dele vêm 9 dB ACIMA da referência (corpo
 	// -21,7 dBFS contra -31,0 do MetalTile), com picos a -1,7 dB em duas delas. Sem a correção, uma
 	// sala de seis por seis passaria a ser a mais barulhenta do mapa - e quem estivesse nela seria
 	// ouvido de longe por um acidente de gravação, não por uma decisão de projeto.
 	if (floor_prefix == "O2Tile") return -9.0;
 	if (floor_prefix == "SnowTile") return 8.5;
-	// Vidro é o piso mais baixo do conjunto: corpo a -48,0 dBFS contra -28,8 do MetalTile, quase 20 dB
-	// de diferença. A conta pede +19,2; vai +17 pelo padrão de sempre (a conta exagera e o ouvido puxa
-	// de volta - foi assim com o Tile, que pedia +17,6 e ficou em +15).
-	//
-	// +17 é seguro e isso foi MEDIDO, não suposto: o ruído de fundo dos arquivos está em -70,5 dBFS,
-	// então com o ganho ele sobe para -53 - praticamente o mesmo -54,8 do próprio MetalTile. Um piso
-	// que precisasse de ganho com ruído pior que isso ficaria chiando, e a resposta seria outro piso.
-	// Ferramenta: tools/measure_footsteps.py.
-	// +19, e não mais +17 (recado #134, "os passos na sala do motor quase não se ouvem"): medido de
-	// novo, o vidro corrigido ficava a -31,9 dB, uns 2 abaixo do metal - e é justamente o piso da sala
-	// com o ambiente mais alto do jogo (ver ambience_correction_db). O ruído de fundo continua seguro:
-	// -70,5 + 19 = -51,5 dBFS.
-	if (floor_prefix == "GlassTile") return 19.0;
+	// Concreto ABAIXA: corpo a -21,8 dBFS contra -28,8 do MetalTile (tools/measure_footsteps.py), e a
+	// conta pede -7. Vai -6, um tico acima da conta, porque é o piso da sala do motor, a de ambiente
+	// mais alto do jogo (ver ambience_correction_db) - foi o ambiente que cobria os passos de vidro
+	// que existiam aqui (recado #134).
+	if (floor_prefix == "ConcreteTile") return -6.0;
 	return 0.0; // MetalTile e MetalBeltTile já são a referência
 }
 

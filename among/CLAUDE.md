@@ -451,8 +451,8 @@ que o binário sobe.
   aconteceu: ela listava como abertos pedidos já resolvidos). Aqui só entra o que foi DECIDIDO e
   ainda não foi feito.
 - **Sons sem uso, de propósito** (o `check_sounds` os lista a cada execução; não são lixo):
-  `steps/CarpetTile*` e `steps/SnowTile*` são pisos que o mapa ainda não tem - quando houver uma
-  sala de carpete ou de neve, eles entram em `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes
+  `steps/SnowTile*` é piso que o mapa ainda não tem - quando houver uma sala de neve, ele entra em
+  `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes
   (ver "piso novo entra em DUAS tabelas"). É a única sobra hoje - o `nearbeep.wav` virou o
   `ui/target_in_range.ogg` e está em uso.
 - **O som por COR nunca vai ser encontrado no jogo compilado.** `color_death_sound_path` e

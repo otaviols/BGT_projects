@@ -500,10 +500,9 @@ game_map@ build_the_hub_map() {
 	// exatamente a armadilha que a sala do oxigênio pagou (bots que simplesmente nunca vão lá, sem
 	// erro nenhum). Assim, `corridor_greenhouse_engine` funciona sozinho.
 	//
-	// Piso de VIDRO: a ala leste já tem terra (estufa) e metal (navegação), e o terceiro timbre dá à
-	// sala identidade imediata. Ele é quase 20 dB mais baixo que a referência e leva correção em
-	// footstep_volume_db - ver a nota lá.
-	m.zones.insert_last(map_zone("engine", "room.engine", 57, 25, 8, 8, "GlassTile"));
+	// Piso de CONCRETO: a ala leste já tem terra (estufa) e metal (navegação), e o terceiro timbre dá
+	// à sala identidade imediata. Era vidro, baixo demais para salvar - ver FOOTSTEP_FLOOR_PREFIXES.
+	m.zones.insert_last(map_zone("engine", "room.engine", 57, 25, 8, 8, "ConcreteTile"));
 
 	// Corredores (ligam as salas acima). Cada um tem NOME PRÓPRIO: o jogo anuncia o nome da zona toda
 	// vez que se entra nela, na tecla C, e no aviso de corpo encontrado - com todos chamados
@@ -541,7 +540,7 @@ game_map@ build_the_hub_map() {
 	// Estufa (x até 43) -> motor (x a partir de 49). O corredor preenche exatamente o vão, sem
 	// sobrepor nenhuma das duas: zonas sobrepostas fazem o jogo anunciar a sala errada conforme qual
 	// for encontrada primeiro, e nada acusa (ver probe_o2room, que confere isso no mapa inteiro).
-	m.zones.insert_last(map_zone("corridor_greenhouse_engine", "corridor.engine", 46, 25, 3, 3, "GlassTile", true));
+	m.zones.insert_last(map_zone("corridor_greenhouse_engine", "corridor.engine", 46, 25, 3, 3, "ConcreteTile", true));
 	m.zones.insert_last(map_zone("corridor_admin_security", "corridor.security", 12.5, -25, 4.5, 3, "Tile", true));
 
 	// Vents: uma rede só, com as três bocas totalmente conectadas entre si (não é uma corrente de um

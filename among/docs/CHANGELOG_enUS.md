@@ -25,6 +25,9 @@ match, adjust them again.
 
 **The body cleaning sound is louder**, so it doesn't go unnoticed.
 
+**The engine room has a new concrete floor.** Footsteps there, which could barely be heard, now sound
+like the ones in the other rooms.
+
 We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
 version. Found something? Send it through feedback.
 

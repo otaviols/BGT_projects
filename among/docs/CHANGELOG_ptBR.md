@@ -25,6 +25,9 @@ ajuste de novo.
 
 **O som de limpar um corpo está mais alto**, para não passar despercebido.
 
+**A sala do motor tem piso novo, de concreto.** Os passos de lá, que quase não se ouviam, agora soam
+como os das outras salas.
+
 Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
 estável. Achou algo? Mande pelo recado.
 

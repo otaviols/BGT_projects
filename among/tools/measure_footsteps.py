@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mede o nivel dos passos de um piso e diz quanto de correcao ele precisa.
 
-    python tools/measure_footsteps.py MetalTile GlassTile
+    python tools/measure_footsteps.py MetalTile ConcreteTile
     python tools/measure_footsteps.py --dir "D:\\documents\\sons among us\\sounds among\\Player\\Footsteps\\Glass" GlassTile
 
 Existe porque a medicao e refeita a mao toda vez que um piso novo entra, e ela tem uma armadilha que
@@ -23,7 +23,21 @@ import subprocess
 import sys
 from pathlib import Path
 
-FFMPEG = r"D:\Program\winvox\ffmpeg.exe"
+def _acha_ffmpeg():
+    """O ffmpeg mora num lugar diferente em cada maquina: a variavel FFMPEG manda; depois os caminhos
+    conhecidos (o winvox de uma maquina, o winget de outra); depois o PATH."""
+    import glob
+    import shutil
+    candidatos = [os.environ.get("FFMPEG", ""), r"D:\Program\winvox\ffmpeg.exe"]
+    candidatos += glob.glob(os.path.expandvars(
+        r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg*\*\bin\ffmpeg.exe"))
+    for c in candidatos:
+        if c and os.path.isfile(c):
+            return c
+    return shutil.which("ffmpeg") or "ffmpeg"
+
+
+FFMPEG = _acha_ffmpeg()
 RAIZ = Path(__file__).resolve().parent.parent
 PADRAO = RAIZ / "sounds" / "steps"
 REFERENCIA = "MetalTile"
