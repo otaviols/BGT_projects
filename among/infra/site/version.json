@@ -1,8 +1,8 @@
 {
-	"version": "0.50.2",
+	"version": "0.50.3",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "Dá para ligar os papéis especiais. O botão Papéis especiais do formulário de sala abria a tela de modificadores. Agora cada botão abre a sua. Os passos dos outros jogadores não falham mais no meio da caminhada. Às vezes um passo sumia e ficava um silêncio entre os outros. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
-		"en_US": "Special roles can be turned on. The Special roles button on the room form opened the modifiers screen. Now each button opens its own. Other players' footsteps no longer skip mid-walk. Sometimes a step went missing and left a silence between the others. We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable version. Found something? Send it through feedback."
+		"pt_BR": "Os passos nas salas de piso de metal não somem mais. Na Navegação, na Elétrica, no Reator e na Segurança, um passo a cada oito ficava mudo, o seu e o dos outros. Obrigado a quem contou os passos e disse em quais salas acontecia. Partidas que ficaram só com bots são encerradas. Quando o último jogador sai ou cai no meio da partida, a sala fecha, em vez de ficar na lista com os bots andando para sempre. Assistindo, os passos acompanham quem anda. No pega-pega, quem assistia ouvia os passos mais lentos do que as pessoas realmente andavam. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
+		"en_US": "Footsteps in the metal floor rooms no longer go missing. In Navigation, Electrical, Reactor and Security, one step in every eight was silent, yours and everyone else's. Thanks to everyone who counted the steps and said which rooms it happened in. Matches left with only bots are closed. When the last player leaves or drops mid-match, the room closes, instead of staying on the list with bots walking forever. While spectating, footsteps keep up with whoever is walking. In tag, spectators heard footsteps slower than people were actually walking. We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable version. Found something? Send it through feedback."
 	}
 }

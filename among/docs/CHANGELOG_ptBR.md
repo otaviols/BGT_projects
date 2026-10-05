@@ -6,6 +6,21 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.50.3
+
+**Os passos nas salas de piso de metal não somem mais.** Na Navegação, na Elétrica, no Reator e na
+Segurança, um passo a cada oito ficava mudo, o seu e o dos outros. Obrigado a quem contou os passos e
+disse em quais salas acontecia.
+
+**Partidas que ficaram só com bots são encerradas.** Quando o último jogador sai ou cai no meio da
+partida, a sala fecha, em vez de ficar na lista com os bots andando para sempre.
+
+**Assistindo, os passos acompanham quem anda.** No pega-pega, quem assistia ouvia os passos mais
+lentos do que as pessoas realmente andavam.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.2
 
 **Dá para ligar os papéis especiais.** O botão Papéis especiais do formulário de sala abria a tela de

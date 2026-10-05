@@ -6,6 +6,21 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.3
+
+**Footsteps in the metal floor rooms no longer go missing.** In Navigation, Electrical, Reactor and
+Security, one step in every eight was silent, yours and everyone else's. Thanks to everyone who counted
+the steps and said which rooms it happened in.
+
+**Matches left with only bots are closed.** When the last player leaves or drops mid-match, the room
+closes, instead of staying on the list with bots walking forever.
+
+**While spectating, footsteps keep up with whoever is walking.** In tag, spectators heard footsteps
+slower than people were actually walking.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.2
 
 **Special roles can be turned on.** The Special roles button on the room form opened the modifiers
