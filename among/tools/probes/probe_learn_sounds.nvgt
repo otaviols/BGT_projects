@@ -1,0 +1,50 @@
+// Sonda do menu "Aprender os sons do jogo": a lista não pode ficar para trás do catálogo.
+//   nvgt tools/probes/probe_learn_sounds.nvgt
+//
+// A lista é escrita à mão e envelheceu calada: na 0.50.7 faltavam 28 sons e dois pisos (relato do
+// usuário: "ele não está sendo atualizado"). Confere:
+//   1. todo som do catálogo (all_sound_paths) está no menu, ou em LEARN_SOUNDS_LEFT_OUT com motivo,
+//      ou é som de DENTRO de minijogo (sounds/tasks/ que nenhum item do menu usa - eles se aprendem
+//      fazendo a tarefa, no treino);
+//   2. todo arquivo que o menu toca existe no disco - um caminho errado fica mudo sem erro (foi a
+//      armadilha do "sounds/" a mais).
+// Cada item novo do catálogo que não for minijogo precisa entrar no menu ou na lista de fora.
+#include "../../src/ui/onboarding_screens.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	if (!directory_exists("sounds")) chdir("..");
+	if (!directory_exists("sounds")) chdir("..");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+
+	name_value_collection@ sfx = learn_sounds_collection();
+	array<string> no_menu;
+	for (uint i = 0; i < sfx.size(); i++) {
+		string[]@ partes = sfx.value_at(i).split(",");
+		for (uint k = 0; k < partes.length(); k++) no_menu.insert_last(partes[k]);
+	}
+
+	array<string> sem_arquivo;
+	for (uint i = 0; i < no_menu.length(); i++) if (!file_exists(no_menu[i])) sem_arquivo.insert_last(no_menu[i]);
+	for (uint i = 0; i < sem_arquivo.length(); i++) println("     o menu toca, mas nao existe: " + sem_arquivo[i]);
+	confere("todo som do menu existe no disco (" + no_menu.length() + " arquivos)", sem_arquivo.length() == 0);
+
+	array<string>@ catalogo = all_sound_paths();
+	array<string> faltam;
+	for (uint i = 0; i < catalogo.length(); i++) {
+		string s = catalogo[i];
+		if (no_menu.find(s) >= 0 || LEARN_SOUNDS_LEFT_OUT.find(s) >= 0) continue;
+		if (s.starts_with("sounds/tasks/")) continue; // de dentro de minijogo: aprende-se no treino
+		faltam.insert_last(s);
+	}
+	for (uint i = 0; i < faltam.length(); i++) println("     falta no menu: " + faltam[i]);
+	confere("todo som do catalogo esta no menu ou fora de proposito (" + catalogo.length() + " no catalogo)", faltam.length() == 0);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

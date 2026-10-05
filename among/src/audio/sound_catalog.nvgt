@@ -24,7 +24,7 @@ const string SND_START_GAME = "sounds/events/start_game.ogg";
 // fim diz quem ganhou, não se VOCÊ ganhou. A derrota é ouvir a música do outro time.
 const string SND_VICTORY_CREW = "sounds/events/victory_crew.ogg";
 const string SND_VICTORY_IMPOSTOR = "sounds/events/victory_impostor.ogg";
-const string SND_VICTORY_DISCONNECT = "sounds/events/victory_disconnect.ogg"; // reservado: vitória por desistência do outro lado
+const string SND_VICTORY_DISCONNECT = "sounds/events/victory_disconnect.ogg"; // a música de quando um NEUTRO vence sozinho (play_victory_neutral); o nome é de quando era reservada à vitória por desistência
 const string SND_MEETING_RESULT = "sounds/events/meeting_result.ogg"; // toca assim que o resultado da votação chega, antes de saber quem foi expulso
 const string SND_EJECTED = "sounds/events/ejected.ogg"; // toca 1x pra nave inteira logo depois, só quando alguém É expulso
 const string SND_MEETING_ALARM = "sounds/events/meeting_alarm.ogg"; // toca (ship-wide) quando o botão de emergência chama a reunião

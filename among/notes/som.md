@@ -164,6 +164,13 @@ dois sentidos e é a única coisa que pega um caminho errado - som que não carr
 Cuidado com as referências CONCATENADAS (`"sounds/events/death" + i + ".ogg"`, o prefixo em
 `sound_variants_list`): elas não aparecem numa busca pelo caminho inteiro.
 
+**Som novo entra também no menu "Aprender os sons do jogo"** (`learn_sounds_collection`, em
+`src/ui/onboarding_screens.nvgt`), com um nome que diga ao jogador o que ele significa. A lista é à mão
+e envelheceu calada: na 0.50.7 faltavam 28 sons e dois pisos, e o menu nem tinha som de navegar (era o
+único sem `click_sound`). A sonda `probe_learn_sounds.nvgt` acusa o som do catálogo que não estiver no
+menu; o que fica de fora de propósito (som de DENTRO de minijogo ou painel de reparo, que se aprende no
+treino; som reservado) vai em `LEARN_SOUNDS_LEFT_OUT`, com o motivo.
+
 **Som novo vai na subpasta certa de `sounds/`** (`steps`, `ambience`, `beacons`, `tasks`, `events`,
 `ui`, `world`) e o caminho no catálogo inclui a pasta. Depois de mexer em som, rode
 `nvgt tools/check_sounds.nvgt`: ele compara o catálogo com o disco **nos dois sentidos** e é a única

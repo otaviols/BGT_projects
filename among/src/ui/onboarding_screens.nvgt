@@ -71,8 +71,37 @@ void run_touch_help_screen() {
 
 // Monta o catálogo de sons pra aprender (audio/sound_catalog.nvgt) e mostra o menu de preview
 // pronto do NVGT (menu.nvgt: learn_game_sounds_menu) - setas navegam, Enter toca o som selecionado.
+//
+// A lista é escrita à mão (cada som precisa de um nome que diga ao jogador o que ele significa) e por
+// isso envelhecia: na 0.50.7 faltavam 28 sons do catálogo e dois pisos - todos os papéis novos, as
+// câmeras, o oxigênio. A sonda probe_learn_sounds compara esta lista com o catálogo inteiro e acusa o
+// que faltar; o que fica de fora DE PROPÓSITO mora em LEARN_SOUNDS_LEFT_OUT, com o motivo.
+//
+// Fora de propósito: os sons de DENTRO dos minijogos (eles se aprendem fazendo a tarefa, no treino -
+// isolados, "o tique do distribuidor" não diz nada), e o que está reservado e nunca toca.
+const array<string> LEARN_SOUNDS_LEFT_OUT = {
+	SND_DOOR_SWITCH, // reservado para um mapa futuro: nunca toca
+	// De dentro dos PAINÉIS DE REPARO (o teclado do código do oxigênio, o dial das comunicações): como
+	// os de minijogo de tarefa, aprendem-se consertando, no treino. Caminhos sem a pasta, como o
+	// catálogo os lista (ver all_sound_paths).
+	"sounds/" + SND_CODE_KEY, "sounds/" + SND_CODE_GOOD, "sounds/" + SND_CODE_BAD,
+	"sounds/" + SND_COMMS_PANEL_OPEN, "sounds/" + SND_COMMS_PANEL_CLOSE,
+	"sounds/" + SND_COMMS_DIAL_STEP, "sounds/" + SND_COMMS_RADIO_VOICE
+};
+
 void run_learn_sounds_screen() {
-	name_value_collection sfx;
+	menu m;
+	m.intro_text = tr("learn.menu_hint");
+	m.sounds_prefix = "sounds/";
+	// Os sons de navegar e confirmar, como todo menu do jogo. Sem eles esta era a única lista muda ao
+	// andar (relato do usuário: "o som de interface não está funcionando lá").
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	learn_game_sounds_menu(learn_sounds_collection(), "", @m, tr("menu.back"));
+}
+
+name_value_collection@ learn_sounds_collection() {
+	name_value_collection@ sfx = name_value_collection();
 
 	// Um piso por som: reconhecer o chão é como se sabe em que sala se está sem perguntar nada.
 	//
@@ -86,6 +115,8 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.footstep_wood"), footstep_variants_list("WoodTile"));
 	sfx.add(tr("learn.footstep_belt"), footstep_variants_list("MetalBeltTile"));
 	sfx.add(tr("learn.footstep_vent"), footstep_variants_list("VentTile"));
+	sfx.add(tr("learn.footstep_o2"), footstep_variants_list("O2Tile"));
+	sfx.add(tr("learn.footstep_concrete"), footstep_variants_list("ConcreteTile"));
 
 	sfx.add(tr("learn.ambient_prefix") + tr("room.cafeteria"), SND_AMBIENT_CAFETERIA);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.weapons"), SND_AMBIENT_WEAPONS);
@@ -99,6 +130,7 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.ambient_prefix") + tr("room.games"), SND_AMBIENT_GAMES);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.greenhouse"), SND_AMBIENT_GREENHOUSE);
 	sfx.add(tr("learn.ambient_prefix") + tr("room.security"), SND_AMBIENT_SECURITY);
+	sfx.add(tr("learn.ambient_prefix") + tr("room.oxygen"), SND_AMBIENT_OXYGEN);
 	sfx.add(tr("learn.passage"), SND_PASSAGE);
 
 	sfx.add(tr("learn.button_beacon"), SND_BUTTON_BEACON);
@@ -106,6 +138,8 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.panel_oxygen_beacon"), SND_PANEL_BEACON_OXYGEN);
 	sfx.add(tr("learn.panel_comms_beacon"), SND_PANEL_BEACON_COMMS);
 	sfx.add(tr("learn.vent_beacon"), SND_VENT_BEACON);
+	sfx.add(tr("learn.camera_beacon"), SND_CAMERA_BEACON);
+	sfx.add(tr("learn.task_beacon_grab_fuel"), SND_TASK_BEACON_GRAB_FUEL);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.fix_wiring.name"), SND_TASK_BEACON_FIX_WIRING);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.download_data.name"), SND_TASK_BEACON_DOWNLOAD_DATA);
 	sfx.add(tr("learn.task_beacon_prefix") + tr("task.empty_garbage.name"), SND_TASK_BEACON_EMPTY_GARBAGE);
@@ -130,17 +164,44 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.kill"), SND_KILL);
 	sfx.add(tr("learn.wall_bump"), SND_WALL_BUMP);
 	sfx.add(tr("learn.door_bump"), SND_DOOR_BUMP);
+	sfx.add(tr("learn.door_close"), SND_DOOR_CLOSE);
+	sfx.add(tr("learn.door_open"), SND_DOOR_OPEN);
+	sfx.add(tr("learn.vent_door"), SND_VENT_DOOR_1 + "," + SND_VENT_DOOR_2);
+	sfx.add(tr("learn.panel_open"), SND_OPEN_PANEL);
+	sfx.add(tr("learn.panel_close"), SND_PANEL_CLOSE);
+	sfx.add(tr("learn.meeting_alarm"), SND_MEETING_ALARM);
+	sfx.add(tr("learn.target_in_range"), SND_TARGET_IN_RANGE);
+
+	// Câmeras de segurança.
+	sfx.add(tr("learn.camera_on"), SND_CAMERA_ON);
+	sfx.add(tr("learn.camera_switch"), SND_CAMERA_SWITCH);
+	sfx.add(tr("learn.camera_off"), SND_CAMERA_OFF);
+	sfx.add(tr("learn.camera_watching"), SND_CAMERA_WATCHING);
+
+	// Papéis e o que eles fazem soar.
+	sfx.add(tr("learn.shield_cast"), SND_SHIELD_CAST);
+	sfx.add(tr("learn.shape_shift"), SND_SHAPE_SHIFT);
+	sfx.add(tr("learn.vanish"), SND_VANISH);
+	sfx.add(tr("learn.wolf_swallow"), SND_WOLF_SWALLOW);
+	sfx.add(tr("learn.body_clean"), SND_BODY_CLEAN);
+	sfx.add(tr("learn.body_drag"), SND_BODY_DRAG);
+	sfx.add(tr("learn.doctor_revive"), SND_DOCTOR_REVIVE);
+	sfx.add(tr("learn.noisemaker_alarm"), SND_NOISEMAKER_ALARM);
+	sfx.add(tr("learn.arsonist_fire"), SND_ARSONIST_FIRE);
 
 	sfx.add(tr("learn.ship_ambience"), SND_SHIP_AMBIENCE);
 	sfx.add(tr("learn.start_game"), SND_START_GAME);
 	sfx.add(tr("learn.victory_crew"), SND_VICTORY_CREW);
 	sfx.add(tr("learn.victory_impostor"), SND_VICTORY_IMPOSTOR);
+	sfx.add(tr("learn.victory_neutral"), SND_VICTORY_DISCONNECT);
 	sfx.add(tr("learn.player_enter"), SND_PLAYER_ENTER);
 	sfx.add(tr("learn.player_leave"), SND_PLAYER_LEAVE);
 	sfx.add(tr("learn.hall_room_open"), SND_HALL_ROOM_OPEN);
 	sfx.add(tr("learn.hall_match_started"), SND_HALL_MATCH_STARTED);
 	sfx.add(tr("learn.menu_click"), SND_MENU_CLICK);
 	sfx.add(tr("learn.menu_confirm"), SND_MENU_CONFIRM);
+	sfx.add(tr("learn.message_sent"), SND_MESSAGE_SENT);
+	sfx.add(tr("learn.message_received"), SND_MESSAGE_RECEIVED);
 	sfx.add(tr("learn.dialog_open"), SND_DIALOG_OPEN);
 	sfx.add(tr("learn.dialog_close"), SND_DIALOG_CLOSE);
 	sfx.add(tr("learn.radar_beep"), SND_RADAR_BEEP);
@@ -154,11 +215,7 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.comms_static"), "sounds/" + SND_COMMS_STATIC);
 	sfx.add(tr("learn.meeting_result"), SND_MEETING_RESULT);
 	sfx.add(tr("learn.intro"), SND_INTRO);
-
-	menu m;
-	m.intro_text = tr("learn.menu_hint");
-	m.sounds_prefix = "sounds/";
-	learn_game_sounds_menu(sfx, "", @m, tr("menu.back"));
+	return sfx;
 }
 
 // Conecta ao servidor e retorna true se a conexão foi estabelecida.
