@@ -172,7 +172,9 @@ nome do assassino, a barriga) nunca passa por ela. Laços que mandam pacote púb
 acrescentar um laço assim, lembre. Decisões do usuário: não vê papel até o fim; a voz dele chega só a
 outros espectadores; ouve como quem está ao lado de quem acompanha (`spectator_hears`), e a mesa na
 reunião; entra marcando A na sala de espera, ou pelo CÓDIGO de uma sala privada em andamento - a pública
-em andamento só aparece na lista. Na reabertura da sala os espectadores voltam como membros: quem tinha
+em andamento só aparece na lista, porque nem sempre quem joga se sente tranquilo sendo assistido, e quem
+tem o código foi convidado. Pelo mesmo motivo quem joga OUVE quando alguém começa ou para de assistir,
+com o nome (`announce_spectator`, recado #185; só a clientes do protocolo 11, que conhecem a fala). Na reabertura da sala os espectadores voltam como membros: quem tinha
 marcado A continua marcado, quem entrou pelo código fica para jogar (a não ser que a sala esteja cheia).
 No cliente é uma tela própria (`spectate_loop.nvgt`), e não `run_game` com bandeira, pelo mesmo
 motivo da lista à parte. Sonda: `probe_spectate.nvgt` (inclusive que nenhum pacote com papel ou

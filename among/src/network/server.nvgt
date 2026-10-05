@@ -288,13 +288,15 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 	}
 
 	void remove_from_lobby(game_state@ lobby, uint64 peer_id) {
-		// Espectador saindo: some da lista dele e pronto. Não há registro a deixar (ele não conta para
-		// nada) nem aviso à partida - ninguém lá dentro sabia quem assistia.
+		// Espectador saindo: some da lista dele, e quem joga ouve que ele parou de assistir. Não há
+		// registro a deixar: ele não conta para nada na partida.
 		for (uint i = 0; i < lobby.spectators.length(); i++) {
 			if (lobby.spectators[i].peer_id != peer_id) continue;
-			lobby.spectators[i].wants_to_spectate = false;
-			lobby.spectators[i].follow_peer = 0;
+			game_player@ saiu = lobby.spectators[i];
+			saiu.wants_to_spectate = false;
+			saiu.follow_peer = 0;
 			lobby.spectators.remove_at(i);
+			announce_spectator(lobby, saiu, false);
 			return;
 		}
 		// Quem sai (ou cai) larga o posto - senão ele fica preso a alguém que não está mais aqui.
@@ -487,6 +489,21 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 	}
 
 	// --- Espectador ---
+
+	// Diz a quem JOGA que alguém começou ou parou de assistir (recado #185). Quem joga sabe quem o
+	// ouve: é o mesmo motivo de partida pública não poder ser assistida, a tranquilidade de quem está
+	// jogando. Pelo nome da conta - quem assiste não tem cor na partida, então o nome não entrega a
+	// cor de ninguém no modo cor.
+	void announce_spectator(game_state@ lobby, game_player@ spec, bool started) {
+		dictionary@ params = dictionary();
+		params.set("name", spec.username);
+		net_packet@ aviso = build_message(S_ERROR, started ? "spectate.notice_started" : "spectate.notice_stopped", params);
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (!reaches_client(p) || p.protocol_version < SPECTATOR_NOTICE_PROTOCOL) continue;
+			send_to(p.peer_id, aviso);
+		}
+	}
 
 	// --- Início de partida ---
 

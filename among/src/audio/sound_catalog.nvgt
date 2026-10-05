@@ -14,6 +14,11 @@ const string SND_MENU_CONFIRM = "sounds/ui/menu_confirm.ogg";
 const string SND_INTRO = "sounds/ui/intro.ogg";
 const string SND_PLAYER_ENTER = "sounds/ui/player_enter.ogg";
 const string SND_PLAYER_LEAVE = "sounds/ui/player_leave.ogg";
+// Avisos do saguão (recado #193): a fala é dita sem interromper e pode ficar na fila atrás de outra, então
+// um som curto diz na hora que há sala nova. "Aberta" vale para criada E reaberta - nos dois casos há uma
+// sala onde entrar; "começou" é a que deixou de estar disponível.
+const string SND_HALL_ROOM_OPEN = "sounds/ui/hall_room_open.ogg";
+const string SND_HALL_MATCH_STARTED = "sounds/ui/hall_match_started.ogg";
 const string SND_START_GAME = "sounds/events/start_game.ogg";
 // Fim de partida: um jingle por TIME vencedor, para todo mundo - como no original, onde a música do
 // fim diz quem ganhou, não se VOCÊ ganhou. A derrota é ouvir a música do outro time.
@@ -399,6 +404,8 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_MENU_CONFIRM);
 	list.insert_last(SND_INTRO);
 	list.insert_last(SND_PLAYER_ENTER);
+	list.insert_last(SND_HALL_ROOM_OPEN);
+	list.insert_last(SND_HALL_MATCH_STARTED);
 	list.insert_last(SND_PLAYER_LEAVE);
 	list.insert_last(SND_START_GAME);
 	list.insert_last(SND_VICTORY_CREW);

@@ -78,6 +78,7 @@ void drain_hall_packets(game_client@ client) {
 			// Dito sem interromper, como o chat do saguão: quem está lendo a lista não pode ser cortado.
 			string aviso = hall_event_text(p);
 			if (aviso != "") {
+				ui_sound(p.get_string("kind") == "started" ? SND_HALL_MATCH_STARTED : SND_HALL_ROOM_OPEN);
 				g_hall.events.add("", aviso);
 				speak(aviso, false);
 			}

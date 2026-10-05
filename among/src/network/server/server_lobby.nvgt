@@ -81,6 +81,7 @@ mixin class server_lobby_part {
 			send_hall_state();
 			send_lobby_state(lobby, peer_id);
 			send_spectate_start(lobby, conn);
+			announce_spectator(lobby, conn, true);
 			return;
 		}
 		if (@lobby != null && lobby.state != "waiting") { @lobby = null; fail_key = "lobby.in_progress"; }

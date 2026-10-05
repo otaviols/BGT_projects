@@ -274,6 +274,9 @@ const string C_SPECTATE_FOLLOW = "c_spectate_follow";       // {peer_id}
 // papel, de ninguém (decisão do usuário: o espectador só descobre no fim, como todo mundo).
 const string S_SPECTATE_START = "s_spectate_start";         // {players: [{peer_id, name, color, x, y, alive}], voice_chat, comms_affects_meeting, color_mode, in_meeting, follow}
 const int SPECTATE_PROTOCOL = 9;
+// A partida avisa quem está jogando quando alguém começa ou para de assistir (recado #185). Chave nova
+// de fala: um cliente anterior não a conhece e falaria a chave crua, então só vai a partir daqui.
+const int SPECTATOR_NOTICE_PROTOCOL = 11;
 // Quantos podem assistir a mesma partida. Cada um recebe o tráfego público da partida inteira.
 const uint MAX_SPECTATORS = 10;
 // A lista de partidas, mandada SOZINHA a quem está no saguão sempre que ela muda - o cliente refaz o

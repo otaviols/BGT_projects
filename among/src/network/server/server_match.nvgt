@@ -387,7 +387,10 @@ mixin class server_match_part {
 			send_to(p.peer_id, start);
 		}
 
-		for (uint i = 0; i < lobby.spectators.length(); i++) send_spectate_start(lobby, lobby.spectators[i]);
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			send_spectate_start(lobby, lobby.spectators[i]);
+			announce_spectator(lobby, lobby.spectators[i], true); // depois do S_GAME_START: quem joga já está na partida
+		}
 		broadcast_to_lobby(lobby, lobby.build_task_progress_packet()); // placar zerado, pra todo mundo já começar sabendo o total
 	}
 

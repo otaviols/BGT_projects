@@ -137,6 +137,8 @@ void run_learn_sounds_screen() {
 	sfx.add(tr("learn.victory_impostor"), SND_VICTORY_IMPOSTOR);
 	sfx.add(tr("learn.player_enter"), SND_PLAYER_ENTER);
 	sfx.add(tr("learn.player_leave"), SND_PLAYER_LEAVE);
+	sfx.add(tr("learn.hall_room_open"), SND_HALL_ROOM_OPEN);
+	sfx.add(tr("learn.hall_match_started"), SND_HALL_MATCH_STARTED);
 	sfx.add(tr("learn.menu_click"), SND_MENU_CLICK);
 	sfx.add(tr("learn.menu_confirm"), SND_MENU_CONFIRM);
 	sfx.add(tr("learn.dialog_open"), SND_DIALOG_OPEN);

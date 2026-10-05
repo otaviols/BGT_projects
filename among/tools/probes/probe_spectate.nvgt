@@ -75,15 +75,31 @@ void fala(uint quem) {
 	for (int f = 0; f < 10; f++) { todos[quem].send_voice(audio); bombeia(20); }
 	bombeia(300);
 }
+// Algum jogador (0..2) recebeu o aviso falado de que `nome` começou/parou de assistir?
+bool avisado(uint jogador, const string&in chave, const string&in nome, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		drena();
+		for (uint k = 0; k < caixa[jogador].length(); k++) {
+			net_packet@ p = caixa[jogador][k];
+			if (p.type != S_ERROR || p.get_string(MSG_KEY_FIELD) != chave) continue;
+			dictionary@ d = p.get_params(MSG_PARAMS_FIELD);
+			string n;
+			if (@d != null && d.get("name", n) && n == nome) return true;
+		}
+		wait(5);
+	}
+	return false;
+}
 void zera() { for (uint i = 0; i < sinks.length(); i++) sinks[i].talkers.resize(0); }
 bool ouviu(uint ouvinte, uint falante) { return sinks[ouvinte].talkers.find(todos[falante].my_peer_id) != -1; }
 
 void main() {
 	server_address addr = resolve_server_address();
 	string sfx = "" + random(1000, 9999);
-	// 0..2 jogam, 3 = S (assiste desde o começo), 4 = L (entra pelo código no meio)
-	for (int i = 0; i < 5; i++) if (@entra(addr, "sp" + i + "x" + sfx) == null) { println("login falhou"); return; }
-	const uint S = 3, L = 4;
+	// 0..2 jogam, 3 = S (assiste desde o começo), 4 = L (entra pelo código no meio), 5 = M (entra e sai)
+	for (int i = 0; i < 6; i++) if (@entra(addr, "sp" + i + "x" + sfx) == null) { println("login falhou"); return; }
+	const uint S = 3, L = 4, M = 5;
 	string codigo = "SP" + sfx;
 	lobby_overrides ov;
 	ov.impostor_count = 1;
@@ -126,6 +142,8 @@ void main() {
 		if (i == 0) confere("o elenco dos jogadores tem 3 e nao inclui S (" + el.length() + ")", el.length() == 3);
 	}
 	if (impostor < 0) { println("sem impostor humano"); return; }
+	// Recado #185: quem joga sabe quem o assiste.
+	confere("quem joga ouve que S comecou a assistir", avisado(1, "spectate.notice_started", "sp3x" + sfx, 3000));
 
 	// L entra pelo código, com a partida andando.
 	esvazia();
@@ -133,6 +151,13 @@ void main() {
 	net_packet@ jr = espera(L, S_JOIN_RESULT, 5000);
 	confere("L entra pelo codigo com a partida andando, como espectador", @jr != null && jr.get_bool("ok") && jr.get_bool("spectating", false));
 	confere("e recebe o inicio de espectador", @espera(L, S_SPECTATE_START, 3000) != null);
+	confere("quem joga ouve que L comecou a assistir", avisado(2, "spectate.notice_started", "sp4x" + sfx, 3000));
+
+	// M entra pelo código e sai: quem joga ouve as duas coisas.
+	todos[M].send_join_by_code(codigo);
+	espera(M, S_SPECTATE_START, 5000);
+	todos[M].send_leave_lobby();
+	confere("quem joga ouve que M parou de assistir", avisado(0, "spectate.notice_stopped", "sp5x" + sfx, 3000));
 
 	// Voz: S acompanha j1.
 	uint seguido = impostor == 1 ? 2 : 1;
