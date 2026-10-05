@@ -68,6 +68,7 @@ void run_explore_map_screen() {
 	timer footstep_clock;
 	timer wall_bump_clock;
 	exit_alignment exits; // o mesmo aviso de saída da partida: é aqui que se aprende onde ficam as portas
+	get_characters(); // o que foi digitado ANTES (num formulário) não pode mudar a velocidade na entrada
 
 	while (true) {
 		wait(5);
@@ -77,9 +78,18 @@ void run_explore_map_screen() {
 
 		if (key_pressed(KEY_ESCAPE)) break;
 		exits.update(map, audio, my_x, my_y);
-		// Cada tecla lida uma vez (ver o CLAUDE.md): o igual é o mais do teclado sem Shift.
-		bool mais = key_pressed(KEY_EQUALS) || key_pressed(KEY_NUMPAD_PLUS);
-		bool menos = key_pressed(KEY_MINUS) || key_pressed(KEY_NUMPAD_MINUS);
+		// Pelo CARACTERE digitado, e não pela tecla: KEY_EQUALS/KEY_MINUS são POSIÇÕES do teclado
+		// americano, e no espanhol o "+" e o "-" ficam em outras teclas - a 0.50.6 não mudava a velocidade
+		// para quem joga em espanhol (recado #209). O caractere é o mesmo em qualquer disposição, com ou
+		// sem Shift. O numérico também gera o caractere; a tecla dele fica só de reserva, para quando nada
+		// for digitado (sem NumLock) - lida sempre, para não sobrar aperto, e usada só nesse caso, senão um
+		// aperto valeria dois passos. Mais e menos do numérico são de leitor de tela no NVDA e no JAWS.
+		string digitado = get_characters();
+		bool mais = digitado.find("+") >= 0 || digitado.find("=") >= 0;
+		bool menos = digitado.find("-") >= 0;
+		bool numerico_mais = key_pressed(KEY_NUMPAD_PLUS);
+		bool numerico_menos = key_pressed(KEY_NUMPAD_MINUS);
+		if (!mais && !menos) { mais = numerico_mais; menos = numerico_menos; }
 		if (mais) explore_change_speed(EXPLORE_SPEED_STEP_PERCENT);
 		else if (menos) explore_change_speed(-EXPLORE_SPEED_STEP_PERCENT);
 		float velocidade = move_speed_for_percent(g_explore_speed_percent);

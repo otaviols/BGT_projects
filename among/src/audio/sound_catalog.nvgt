@@ -322,7 +322,11 @@ float footstep_volume_db(const string&in floor_prefix) {
 	// do conjunto (corpo -26,9 dB, contra -31,0 do MetalTile). O +13 que existiu aqui era para os
 	// arquivos anteriores, que eram fracos - o número segue o arquivo, não o piso.
 	if (floor_prefix == "WoodTile") return -4.0;
-	if (floor_prefix == "EarthTile") return 13.0;
+	// +15, e não mais +13 (recado #208: "na estufa e nos corredores dela os passos mal dão para ouvir"):
+	// a medição pede +11,6, mas é o piso da estufa, de ambiente alto (corpo -27,0 dB), e foi o mesmo
+	// caso do motor (#134). O ruído de fundo dos arquivos continua seguro: -68,1 + 15 = -53 dBFS, o
+	// nível do próprio metal.
+	if (floor_prefix == "EarthTile") return 15.0;
 	if (floor_prefix == "VentTile") return 5.0;
 	// O piso da sala do oxigênio ABAIXA: as oito variantes dele vêm 9 dB ACIMA da referência (corpo
 	// -21,7 dBFS contra -31,0 do MetalTile), com picos a -1,7 dB em duas delas. Sem a correção, uma

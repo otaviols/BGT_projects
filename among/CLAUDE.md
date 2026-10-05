@@ -346,6 +346,14 @@ roda ANTES do da câmera e pede a varredura ao servidor; a resposta chegava depo
 que a câmera já tinha dito. Sintoma: a câmera "funciona", mas responde pela sala errada. Quando um
 modo novo reaproveita uma tecla, o bloco antigo precisa ser desligado explicitamente nele.
 
+**`KEY_*` é a POSIÇÃO da tecla no teclado americano, não o símbolo impresso nela.** Atalho que depende
+do símbolo (`+`, `-`, `=`, pontuação) some em outra disposição: no teclado espanhol o "+" e o "-" ficam
+em outras teclas. Sintoma (0.50.6, recado #209): "mais e menos não fazem nada" no Conhecer o mapa - só
+para quem joga com teclado de outro idioma, e por isso passou no teste daqui. Para símbolo, leia o
+caractere com `get_characters()` (o texto digitado desde a última chamada; ela o zera); letras e teclas
+como Tab e setas continuam por `KEY_*`. O mais e o menos do numérico são comandos do NVDA e do JAWS e
+muitas vezes nem chegam ao jogo.
+
 **`string.length()` conta BYTES, não letras, e `substr` corta no meio de uma letra.** O texto é UTF-8:
 "ação é" tem 6 letras e length 9 (acento vale 2, emoji 4). Um teto escrito com `length()` é, em
 português, bem menor do que diz - o chat "de 300" cortava frases de 150 letras -, e o corte deixava um
