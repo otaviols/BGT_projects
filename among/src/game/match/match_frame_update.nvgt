@@ -205,7 +205,7 @@ mixin class match_frame_update_part {
 					if ((alive || g_settings.ghost_own_footsteps) && float(footstep_clock.elapsed) / 1000.0 >= footstep_interval) {
 						footstep_clock.restart();
 						string prefix = @zone != null ? zone.floor_sound_prefix : "Tile";
-						audio.play_own_footstep(prefix, footstep_variant_count(prefix));
+						audio.play_footstep(prefix, footstep_variant_count(prefix), my_x, my_y);
 					}
 				// Sem exigir estar vivo: o fantasma TAMBÉM é barrado por parede (can_move só o deixa
 				// atravessar PORTA fechada, ver game/map.nvgt), e sem este som ele empurrava contra a
