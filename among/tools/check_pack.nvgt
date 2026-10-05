@@ -1,0 +1,20 @@
+// tools/check_pack.nvgt
+// Confere o sounds.dat contra a pasta sounds/ (ver tools/pack_check.nvgt). Sai com código 1 se algum
+// som do pacote não bate com o do disco - aí é regerar com `nvgt tools/build_pack.nvgt`.
+//   nvgt tools/check_pack.nvgt
+#pragma console
+#include "../src/audio/sound_catalog.nvgt"
+#include "pack_check.nvgt"
+
+int main() {
+	if (!directory_exists("sounds")) chdir("..");
+	if (!directory_exists("sounds")) { println("ERRO: nao achei a pasta sounds/."); return 1; }
+	array<string>@ files = all_sound_files_on_disk("sounds");
+	int ruins = check_sound_pack("sounds.dat", files);
+	if (ruins > 0) {
+		println(ruins + " som(ns) estragado(s) no sounds.dat. Regere: nvgt tools/build_pack.nvgt");
+		return 1;
+	}
+	println("sounds.dat confere com sounds/ (" + files.length() + " arquivos).");
+	return 0;
+}

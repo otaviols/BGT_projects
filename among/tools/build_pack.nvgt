@@ -4,9 +4,9 @@
 //
 // Rode com `nvgt tools/build_pack.nvgt` SEMPRE que adicionar, trocar ou renomear um som, e antes de
 // compilar o jogo - a compilação exige que o sounds.dat exista, e um pacote velho significa jogo
-// compilado com sons velhos. A pasta sounds/ continua sendo a fonte da verdade: rodando do fonte
-// (`nvgt AmongUs.nvgt`) o jogo lê os arquivos soltos e ignora o pacote, então dá pra trocar um som
-// e ouvir o resultado na hora, sem passar por aqui.
+// compilado com sons velhos. A pasta sounds/ continua sendo a fonte da verdade, MAS rodando do fonte
+// (`nvgt AmongUs.nvgt`) o jogo também lê o pacote se houver um sounds.dat na pasta (load_sound_pack
+// abre o que achar): trocou um som, regere aqui antes de ouvir, senão se ouve o som velho.
 //
 // O nome de cada arquivo DENTRO do pacote é o mesmo caminho que o código usa pra carregar
 // ("sounds/tasks/beep.wav"), então nada no jogo precisa saber se o som veio do pacote ou do disco - quem
@@ -14,6 +14,7 @@
 
 #pragma console
 #include "../src/audio/sound_catalog.nvgt"
+#include "pack_check.nvgt"
 
 const string PACK_PATH = "sounds.dat";
 const string SOUNDS_DIR = "sounds";
@@ -64,6 +65,16 @@ int main() {
 
 	int64 file_count = pack.file_count;
 	pack.close();
+
+	// Relê o que acabou de gravar: um byte trocado na gravação já deixou um passo mudo em três versões
+	// publicadas (ver tools/pack_check.nvgt). Pacote que não confere não fica - melhor nenhum do que um
+	// que toca quase tudo.
+	int ruins = check_sound_pack(PACK_PATH, files);
+	if (ruins > 0) {
+		file_delete(PACK_PATH);
+		println("ERRO: " + ruins + " som(ns) sairam diferentes no pacote - apagado. Rode de novo.");
+		return 1;
+	}
 
 	println("Pacote gerado: " + PACK_PATH + " (" + added + " arquivos, " + file_count + " no indice).");
 	if (missing.length() == 0) {

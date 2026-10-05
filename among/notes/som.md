@@ -7,6 +7,15 @@ dele — aprendeu algo que teria economizado tempo, escreva aqui, na mesma sess�
 
 ## Som: o que toca, quando e para quem
 
+**Um som que falha num ritmo fixo (1 a cada N vezes) é UMA variante muda - confira o `sounds.dat`.**
+Sintoma: "um passo some a cada oito" nas salas de piso de metal (recados #181, #182, #184; o usuário
+contou). O MetalTile tem 8 variantes, tocadas em ciclo: era o MetalTile4, que DENTRO do pacote carregava
+com 0 ms - um byte trocado na gravação (0x5A virou 0x0A), e o OGG descarta o bloco cuja soma não confere.
+No disco o arquivo era perfeito, e rodar do fonte não ajudou, porque o jogo do fonte TAMBÉM lê o
+`sounds.dat` se ele estiver na pasta. O pacote publicado da 0.50.0 à 0.50.2 era esse. Hoje o
+`build_pack` relê o pacote que gerou e o `release.ps1` roda o `tools/check_pack.nvgt` em toda
+publicação (ver `tools/pack_check.nvgt`). Antes de suspeitar do código de passo, rode o `check_pack`.
+
 **Caminho de arquivo montado à mão é bomba-relógio.** Depois que os sons foram para subpastas, a task
 de rever a gravação continuou pedindo `sounds/Tile3.wav` - arquivo que não existe mais - e rodava
 MUDA: o NVGT não reclama de som que não existe, e o `check_sounds` não pega, porque só compara o

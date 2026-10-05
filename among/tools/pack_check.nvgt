@@ -1,0 +1,45 @@
+// tools/pack_check.nvgt
+// Confere um sounds.dat contra a pasta sounds/: cada som carregado DE DENTRO do pacote tem que ter a
+// mesma duração que o arquivo solto. Usado pelo build_pack (logo depois de gerar) e pelo check_pack
+// (que o release.ps1 roda em TODA publicação, e não só quando um som mudou).
+//
+// Por que existe: o sounds.dat publicado da 0.50.0 à 0.50.2 tinha UM byte trocado (0x5A virou 0x0A)
+// no meio de steps/MetalTile4.ogg. Regerado do mesmo disco, saiu certo - foi erro de gravação, não de
+// código. O OGG confere a soma de cada bloco e descarta o bloco errado, então o som carregava com 0 ms
+// e não tocava, sem erro nenhum: um passo mudo a cada oito nas salas de piso de metal (recados #181,
+// #182, #184, e o usuário contou os passos). E como o release só regerava o pacote quando um som
+// mudava, o pacote estragado ia junto em toda versão.
+//
+// Duração, e não bytes: é o que o jogo de fato usa, e para OGG um byte trocado em qualquer lugar já
+// derruba o bloco inteiro - a duração muda.
+
+// Devolve quantos sons divergem (0 = pacote bom). Imprime cada um.
+int check_sound_pack(const string&in pack_path, array<string>@ files) {
+	array<double> no_disco;
+	@sound_default_pack = null;
+	for (uint i = 0; i < files.length(); i++) {
+		sound s;
+		no_disco.insert_last(s.load(files[i]) ? s.length : -1.0);
+		s.close();
+	}
+	pack_file pack;
+	if (!pack.open(pack_path)) {
+		println("ERRO: nao consegui abrir " + pack_path + " para conferir.");
+		return 1;
+	}
+	@sound_default_pack = pack;
+	int ruins = 0;
+	for (uint i = 0; i < files.length(); i++) {
+		if (no_disco[i] < 0.0) continue; // não é som (ou nem do disco carrega: o check_sounds avisa disso)
+		sound s;
+		double no_pacote = s.load(files[i]) ? s.length : -1.0;
+		s.close();
+		if (abs(no_pacote - no_disco[i]) > 1.0) {
+			println("ERRO: " + files[i] + " no pacote carrega com " + no_pacote + " ms, no disco com " + no_disco[i] + " ms.");
+			ruins++;
+		}
+	}
+	@sound_default_pack = null;
+	pack.close();
+	return ruins;
+}

@@ -94,6 +94,12 @@ try {
 	$pacote = Get-Item sounds.dat -ErrorAction SilentlyContinue
 	$somNovo = Get-ChildItem sounds -Recurse -File | Where-Object { -not $pacote -or $_.LastWriteTime -gt $pacote.LastWriteTime } | Select-Object -First 1
 	if ($somNovo) { Write-Host "Som mais novo que o sounds.dat ($($somNovo.Name)): o pacote será regerado." }
+	else {
+		# Sem som novo o pacote não é regerado - e um pacote estragado ia junto em toda versão: o da 0.50.0
+		# à 0.50.2 tinha um byte trocado que deixava um passo mudo (ver tools/pack_check.nvgt). Confere sempre.
+		nvgt tools/check_pack.nvgt
+		if ($LASTEXITCODE -ne 0) { throw "O sounds.dat não confere com sounds/ (veja acima). Regere com: nvgt tools/build_pack.nvgt" }
+	}
 
 	if ($Conferir) { Write-Host ""; Write-Host "Conferências ok. Nada compilado nem publicado (-Conferir)."; return }
 
