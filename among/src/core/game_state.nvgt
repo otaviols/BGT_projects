@@ -51,10 +51,12 @@ class vote_entry {
 // que aconteceu com a morte por bot, que pulava câmera, scanner e o alarme do alarmista.
 const string BOT_REQUEST_FIX_PANEL = "fix_panel";
 const string BOT_REQUEST_REPORT = "report";
+const string BOT_REQUEST_VOTE = "vote";
 class bot_request {
 	string kind;
 	uint64 peer_id;
 	string object_id;
+	int64 target = -1; // BOT_REQUEST_VOTE: em quem (-1 = pular)
 	bot_request() {}
 	bot_request(const string&in kind, uint64 peer_id, const string&in object_id = "") {
 		this.kind = kind;

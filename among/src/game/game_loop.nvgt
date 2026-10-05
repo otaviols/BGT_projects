@@ -121,6 +121,12 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	string role_desc;
 	string role_text;
 	array<uint64> impostor_partner_peers;
+	// As partes do anúncio do papel que Ctrl + habilidade repete (ver current_role_text): os parceiros
+	// pelo nome, os modificadores (veloz, gigante, apaixonado) e o alvo do carrasco. Guardadas aqui
+	// porque a abertura as fala uma vez só, e o papel pode mudar no meio (amnésico, carrasco sem alvo).
+	array<string> impostor_partner_names;
+	string role_modifiers_text;
+	string executioner_target_name;
 	map_zone@ start_zone;
 	string last_zone_id;
 	string last_interactable_id;
@@ -313,7 +319,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 					json_object@ partner = partners_json.get_object(i);
 					if (@partner == null) continue;
 					string partner_name = string(partner["name"]);
-					if (partner_name != "") partner_names.insert_last(partner_name);
+					if (partner_name != "") { partner_names.insert_last(partner_name); impostor_partner_names.insert_last(partner_name); }
 					impostor_partner_peers.insert_last(uint64(partner["peer_id"]));
 				}
 			}
@@ -347,14 +353,17 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// O Carrasco ouve o alvo junto com o papel - é a única coisa que ele precisa saber para jogar.
 		// Os modificadores, depois do papel: o veloz e o gigante sabem do próprio passo, e o apaixonado de quem.
 		string mod_velocidade = start_pkt.get_string("speed_modifier", "");
-		if (mod_velocidade != "") role_text += " " + tr("modifier.assigned_" + mod_velocidade);
+		role_modifiers_text = "";
+		if (mod_velocidade != "") role_modifiers_text += " " + tr("modifier.assigned_" + mod_velocidade);
 		string amor = start_pkt.get_string("lover_name", "");
 		if (amor != "") {
 			dictionary@ lp = dictionary();
 			lp.set("name", spoken_name(amor));
-			role_text += " " + tr("modifier.assigned_lovers", lp);
+			role_modifiers_text += " " + tr("modifier.assigned_lovers", lp);
 		}
+		role_text += role_modifiers_text;
 		string alvo_carrasco = start_pkt.get_string("execution_target_name", "");
+		executioner_target_name = alvo_carrasco;
 		if (alvo_carrasco != "") {
 			dictionary@ ap = dictionary();
 			ap.set("name", alvo_carrasco);

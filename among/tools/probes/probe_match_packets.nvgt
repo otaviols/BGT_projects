@@ -196,6 +196,32 @@ void main() {
 		am.my_role.id == ROLE_IMPOSTOR && am.is_impostor && am.mui.is_impostor && am.my_kill_cooldown_remaining == 25.0
 		&& am.impostor_partner_peers.length() == 1 && am.impostor_partner_peers[0] == 3);
 
+	// Ctrl + habilidade: o papel de AGORA, já com o companheiro novo (pedido do usuário).
+	string papel_agora = am.current_role_text();
+	confere("Ctrl + habilidade diz o papel atual, com o companheiro", papel_agora.find("bia") >= 0 && papel_agora == papel_agora.trim_whitespace());
+
+	println("== quem falta votar ==");
+	match_session@ vt = nova_partida(ROLE_CREWMATE);
+	net_packet@ reuniao = net_packet(S_MEETING_STARTED);
+	reuniao.set_float("gather_x", 7.0); reuniao.set_float("gather_y", 3.0);
+	vt.handle_packet(reuniao);
+	net_packet@ votacao = net_packet(S_VOTING_STARTED);
+	votacao.set_float("voting_time", 30.0);
+	vt.handle_packet(votacao);
+	net_packet@ votou = net_packet(S_VOTE_CAST);
+	votou.set_uint64("voter_peer", 2); votou.set_string("voter_name", "ana");
+	vt.handle_packet(votou);
+	string faltam = vt.mui.missing_voters_text();
+	confere("a tecla de tempo diz quem falta: eu e a bia, nao a ana (" + faltam + ")",
+		faltam.find("bia") >= 0 && faltam.find("ana") < 0 && faltam.find(tr("game.vote_missing_you")) >= 0);
+	net_packet@ eu_votei = net_packet(S_VOTE_CAST);
+	eu_votei.set_uint64("voter_peer", 1); eu_votei.set_string("voter_name", "eu");
+	vt.handle_packet(eu_votei);
+	net_packet@ bia_votou = net_packet(S_VOTE_CAST);
+	bia_votou.set_uint64("voter_peer", 3); bia_votou.set_string("voter_name", "bia");
+	vt.handle_packet(bia_votou);
+	confere("e quando todos votaram, diz isso", vt.mui.missing_voters_text() == tr("game.vote_missing_none"));
+
 	confere("nenhuma excecao (crash.log intocado)", file_get_contents(crash_log_path()) == crash_antes);
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

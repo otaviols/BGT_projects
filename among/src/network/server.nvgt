@@ -583,8 +583,15 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			// O que os bots PEDIRAM neste tick, executado pelos MESMOS tratadores dos jogadores (ver
 			// bot_request em game_state). Um pacote igual ao que o cliente mandaria, e nenhum atalho.
 			for (uint r = 0; r < lobby.bot_requests.length(); r++) {
-				if (lobby.state != "in_progress") break; // o primeiro reporte já abriu a reunião
 				bot_request@ pedido = lobby.bot_requests[r];
+				if (pedido.kind == BOT_REQUEST_VOTE) {
+					if (lobby.state != "voting") continue;
+					net_packet@ voto = net_packet(C_CAST_VOTE);
+					voto.set_int64("target_peer", pedido.target);
+					on_cast_vote(pedido.peer_id, voto);
+					continue;
+				}
+				if (lobby.state != "in_progress") continue; // o primeiro reporte já abriu a reunião
 				net_packet@ como_cliente = net_packet(pedido.kind == BOT_REQUEST_FIX_PANEL ? C_INTERACT : C_REPORT_BODY);
 				como_cliente.set_string("object_id", pedido.object_id);
 				if (pedido.kind == BOT_REQUEST_FIX_PANEL) on_interact(pedido.peer_id, como_cliente);

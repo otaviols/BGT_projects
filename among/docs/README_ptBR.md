@@ -279,6 +279,7 @@ jogar a próxima.
 | R | reportar um corpo (precisa estar perto dele) |
 | G | dizer qual sabotagem está em andamento e onde consertar |
 | H | usar a habilidade do seu papel (se o seu papel tiver uma) |
+| Ctrl + H | dizer qual é o seu papel agora, com parceiros e modificadores |
 | Enter no botão | chamar reunião de emergência (uma por jogador) |
 
 **Impostor**
@@ -296,7 +297,7 @@ jogar a próxima.
 | Tecla | Ação |
 |---|---|
 | B | abrir o menu de votação |
-| T | quanto tempo falta nesta fase |
+| T | quanto tempo falta nesta fase; na votação, também quem ainda falta votar |
 | Y | escrever no chat (só funciona durante reuniões) |
 | Vírgula / Ponto | mensagem anterior / próxima |
 | Shift + Vírgula | primeira mensagem |
@@ -700,7 +701,9 @@ ou para treinar sozinho.
 Os bots da tripulação também **reportam corpos** que encontram (param, "percebem" por um instante e
 reportam), **consertam sabotagens** (depois de alguns segundos, para dar a chance de alguém chegar
 antes) e, **depois de mortos, continuam fazendo tarefas** como fantasmas — os passos deles só são
-ouvidos por outros mortos. Eles sempre pulam o voto: um bot não decide quem sai da nave.
+ouvidos por outros mortos. Na votação eles votam **ao acaso**: pulam ou escolhem alguém da mesa (nunca
+a si mesmos, e o bot impostor nunca vota no companheiro). Não é um palpite, então não confie no voto
+de um bot.
 
 Cada bot recebe o sobrenome de um astronauta de verdade — Gagarin, Tereshkova, Pontes, Neri,
 Jemison, entre outros —, sem repetir ninguém da sala. A lista de quem está na sala (tecla **P**)

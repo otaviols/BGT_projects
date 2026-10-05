@@ -51,6 +51,9 @@ class meeting_ui {
 	bool body_sounds_enabled = true;
 	bool voting_active = false;
 	bool has_voted = false; // reseta a cada reunião nova (ver on_voting_started)
+	// Quem já votou nesta votação, pelo S_VOTE_CAST (que diz QUEM votou mesmo com os votos fechados).
+	// É o que a tecla de tempo usa para dizer quem ainda falta (pedido do usuário).
+	array<uint64> voted_peers;
 
 	// Quanto tempo a fase atual (discussão ou votação) tinha, e desde quando ela começou. O servidor
 	// manda a duração junto com o evento de início; o relógio corre aqui no cliente.
@@ -86,7 +89,27 @@ class meeting_ui {
 		if (left < 0.0) return;
 		dictionary@ p = dictionary();
 		p.set("seconds", "" + int(left + 0.5)); // arredonda: "faltam 19,4 segundos" não ajuda ninguém
-		speak(tr(voting_active ? "game.meeting_time_voting" : "game.meeting_time_discussion", p));
+		string texto = tr(voting_active ? "game.meeting_time_voting" : "game.meeting_time_discussion", p);
+		if (voting_active) texto += " " + missing_voters_text();
+		speak(texto);
+	}
+
+	// Quem ainda não votou: os vivos fora de voted_peers. "Você" no lugar do próprio nome - ouvir o
+	// próprio nome na lista soa como outra pessoa. Quem morreu não vota e não entra.
+	string missing_voters_text() {
+		array<string> faltam;
+		bool eu_falto = false;
+		array<roster_entry@>@ vivos = roster.alive_entries();
+		for (uint i = 0; i < vivos.length(); i++) {
+			if (voted_peers.find(vivos[i].peer_id) != -1) continue;
+			if (vivos[i].peer_id == client.my_peer_id) { eu_falto = true; continue; }
+			faltam.insert_last(vivos[i].name);
+		}
+		if (eu_falto) faltam.insert_at(0, tr("game.vote_missing_you"));
+		if (faltam.length() == 0) return tr("game.vote_missing_none");
+		dictionary@ d = dictionary();
+		d.set("names", join(faltam, ", "));
+		return tr("game.vote_missing", d);
 	}
 
 	meeting_ui(game_client@ client, audio_manager@ audio, client_roster@ roster, chat_log@ events_log, bool is_impostor) {
@@ -139,6 +162,7 @@ class meeting_ui {
 	void on_voting_started(net_packet@ pkt) {
 		voting_active = true;
 		has_voted = false;
+		voted_peers.resize(0);
 		start_phase_clock(pkt.get_float("voting_time"));
 		// Não abre o menu de votação sozinho - isso travava o jogador lá dentro sem conseguir usar
 		// o chat pra discutir antes de votar. Agora é só um aviso; o jogador abre o menu quando
@@ -151,6 +175,7 @@ class meeting_ui {
 	void on_vote_cast(net_packet@ pkt) {
 		uint64 voter_peer = pkt.get_uint64("voter_peer");
 		if (voter_peer == client.my_peer_id) has_voted = true;
+		if (voted_peers.find(voter_peer) == -1) voted_peers.insert_last(voter_peer);
 		dictionary@ params = dictionary();
 		params.set("voter", pkt.get_string("voter_name"));
 		// Votos abertos (regra da sala): o alvo vem junto e é dito na hora - é o que muda a discussão

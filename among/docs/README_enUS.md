@@ -284,6 +284,7 @@ in with the code stays to play the next one.
 | R | report a body (you must be near it) |
 | G | say which sabotage is in progress and where to fix it |
 | H | use your role's ability (if your role has one) |
+| Ctrl + H | say what your role is right now, with partners and modifiers |
 | Enter at the button | call an emergency meeting (one per player) |
 
 **Impostor**
@@ -301,7 +302,7 @@ in with the code stays to play the next one.
 | Key | Action |
 |---|---|
 | B | open the voting menu |
-| T | how much time is left in this phase |
+| T | how much time is left in this phase; while voting, also who has yet to vote |
 | Y | write in chat (meetings only) |
 | Comma / Period | previous / next message |
 | Shift + Comma | first message |
@@ -709,8 +710,9 @@ hunt, kill when nobody is around, and sabotage. Useful to fill out a match or to
 
 Crew bots also **report bodies** they come across (they stop, "notice" for a moment, and report),
 **fix sabotages** (after a few seconds, so someone gets the chance to arrive first), and **keep doing
-tasks after dying**, as ghosts — their footsteps are heard only by other dead players. They always
-skip the vote: a bot does not decide who leaves the ship.
+tasks after dying**, as ghosts — their footsteps are heard only by other dead players. When voting
+they vote **at random**: they skip or pick someone at the table (never themselves, and an impostor bot
+never votes for its partner). It is not a guess, so don't trust a bot's vote.
 
 Each bot gets the surname of a real astronaut — Gagarin, Tereshkova, Pontes, Neri, Jemison, among
 others — never repeating anyone in the lobby. The lobby player list (**P** key) still says which

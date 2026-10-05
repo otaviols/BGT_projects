@@ -256,6 +256,20 @@ mixin class state_bots_part {
 		set_bot_path_to(b, painel.x, painel.y);
 	}
 
+	// Em quem o bot vota: ao acaso entre pular e cada vivo na mesa, menos ele mesmo (pedido do usuário;
+	// antes o bot sempre pulava, e pular sempre o entregava como bot). O bot impostor não vota num
+	// companheiro de time - entregaria o parceiro de graça, o que nenhum impostor faria.
+	int64 bot_vote_target(game_player@ b) {
+		array<int64> opcoes = {-1};
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p is b || !p.alive) continue;
+			if (b.is_impostor && p.is_impostor) continue;
+			opcoes.insert_last(int64(p.peer_id));
+		}
+		return opcoes[random(0, int(opcoes.length()) - 1)];
+	}
+
 	private void tick_bots(float delta_seconds, array<net_packet@>@ events) {
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ b = players[i];
@@ -273,12 +287,12 @@ mixin class state_bots_part {
 				if (b.bot_voted) continue;
 				b.bot_action_timer -= delta_seconds;
 				if (b.bot_action_timer > 0.0) continue;
-				if (!cast_vote(b.peer_id, -1)) { b.bot_voted = true; continue; }
+				// Pelo tratador do jogador (C_CAST_VOTE), como todo pedido de bot: o aviso de voto sai
+				// igual ao de gente, com o alvo quando os votos são abertos.
 				b.bot_voted = true;
-				net_packet@ cast_pkt = net_packet(S_VOTE_CAST);
-				cast_pkt.set_uint64("voter_peer", b.peer_id);
-				cast_pkt.set_string("voter_name", b.public_name());
-				events.insert_last(cast_pkt);
+				bot_request@ voto = bot_request(BOT_REQUEST_VOTE, b.peer_id);
+				voto.target = bot_vote_target(b);
+				bot_requests.insert_last(voto);
 				continue;
 			}
 			if (state != "in_progress") continue;

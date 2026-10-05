@@ -288,7 +288,7 @@ const float BOT_TASK_MIN_SECONDS = 4.0;  // tempo "fazendo" uma task, parado no 
 const float BOT_TASK_MAX_SECONDS = 9.0;
 const float BOT_IDLE_MIN_SECONDS = 2.0;  // pausa entre um destino e outro
 const float BOT_IDLE_MAX_SECONDS = 6.0;
-const float BOT_VOTE_MIN_SECONDS = 5.0;  // demora até o bot votar (sempre "pular")
+const float BOT_VOTE_MIN_SECONDS = 5.0;  // demora até o bot votar (ao acaso, ver bot_vote_target)
 const float BOT_VOTE_MAX_SECONDS = 15.0;
 const float BOT_WAYPOINT_REACHED_DISTANCE = 0.6;
 // Reação do bot tripulante a uma sabotagem: quanto demora para largar o que faz e ir ao painel. Longa

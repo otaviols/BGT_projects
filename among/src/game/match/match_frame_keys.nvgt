@@ -5,6 +5,30 @@
 // frame(), chamado por ele nesta ordem. Enxerga todos os campos da partida; não compila sozinho.
 
 mixin class match_frame_keys_part {
+	// O papel de agora, como Ctrl + habilidade o diz: a descrição do papel ATUAL, quem são os parceiros
+	// (se o papel conhece o time), os modificadores e o alvo do carrasco. Sem a contagem de impostores
+	// nem a cor da abertura: quem aperta quer saber o que É, e o resto está na tecla de regras.
+	string current_role_text() {
+		string texto = tr(my_role.assignment_key());
+		if (my_role.knows_teammates) {
+			if (impostor_partner_names.length() == 0) texto += " " + tr("role.impostor_alone");
+			else {
+				array<string> nomes;
+				for (uint i = 0; i < impostor_partner_names.length(); i++) nomes.insert_last(spoken_name(impostor_partner_names[i]));
+				dictionary@ np = dictionary();
+				np.set("names", join(nomes, ", "));
+				texto += " " + tr("role.impostor_partners", np);
+			}
+		}
+		texto += role_modifiers_text;
+		if (executioner_target_name != "") {
+			dictionary@ ap = dictionary();
+			ap.set("name", executioner_target_name);
+			texto += " " + tr("role.executioner_target", ap);
+		}
+		return texto;
+	}
+
 	// `!cameras.active`: no posto de câmeras a mesma tecla responde sobre a sala OBSERVADA, e quem
 	// faz isso é o bloco do posto, mais abaixo. Sem esta condição o radar normal também disparava:
 	// no modo jogadores ele PERGUNTA ao servidor (send_radar_scan), o servidor responde pela
@@ -13,6 +37,11 @@ mixin class match_frame_keys_part {
 	// Q trava/solta o radar no último alvo; enquanto travado, o radar pergunta e bipa sozinho.
 	// O engolido também usa o radar: ele varre a sala do lobo (ver follow_wolves no servidor).
 	void radar_and_talk_keys() {
+		// Ctrl + habilidade: qual é o meu papel AGORA (pedido do usuário) - a abertura fala uma vez só, e
+		// o papel pode ter mudado. Lido ANTES de todo outro uso da tecla de habilidade, e só com Ctrl
+		// apertado: o action_pressed consome o aperto, então com Ctrl ele some para os blocos de baixo
+		// (a habilidade não dispara junto), e sem Ctrl esta linha nem pergunta pela tecla.
+		if ((key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) && action_pressed(ACTION_ABILITY)) speak(current_role_text());
 		if (!movement_frozen && !cameras.active) {
 			if (action_pressed(ACTION_RADAR_LOCK)) radar.toggle_continuous();
 			radar.tick(map, my_x, my_y);

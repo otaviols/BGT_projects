@@ -54,7 +54,8 @@ servidor só percebe a queda por tempo esgotado.
 
 **Bot age PEDINDO, e o servidor executa pelo tratador do jogador** (`bot_request` em game_state,
 consumido em `tick_lobbies`). Consertar painel vira um `C_INTERACT` passado a `on_interact`; reportar
-corpo, um `C_REPORT_BODY` a `on_report_body` - os mesmos de quem joga, com todos os efeitos (aviso de
+corpo, um `C_REPORT_BODY` a `on_report_body`; votar, um `C_CAST_VOTE` a `on_cast_vote` (ao acaso, ver
+`bot_vote_target`; o pedido vale na VOTAÇÃO, e os outros só com a partida andando) - os mesmos de quem joga, com todos os efeitos (aviso de
 painel, reunião, câmeras, scanner, portas). Duas peças deixam isso funcionar e falham caladas se
 sumirem: `find_lobby_of_peer` acha a sala de um BOT (ele não é conexão; sem isso o tratador volta na
 primeira linha e nada acontece), e `send_to` ignora ids de bot (`BOT_PEER_ID_BASE`), para onde os

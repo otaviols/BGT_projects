@@ -1,0 +1,86 @@
+// Sonda do voto dos bots: ao acaso, e pelo mesmo caminho do voto de gente (pedido do usuário).
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_bot_votes.nvgt
+//
+// Um humano e seis bots, votos ABERTOS. O humano chama a reunião e pula; confere que:
+//   1. cada bot vota uma vez, e o aviso traz o alvo (votos abertos - o caminho é o do jogador);
+//   2. nenhum bot vota em si mesmo;
+//   3. nem todos pulam (antes eles SEMPRE pulavam). Seis pulos ao acaso têm chance de 1 em 7^6.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register("bv" + sfx, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login("bv" + sfx, "probe123");
+	net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+	c.my_peer_id = lr.get_uint64("peer_id");
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.show_votes = "on";
+	ov.meeting_time_seconds = 40.0;
+	ov.emergency_cooldown_seconds = 0.0;
+	c.send_create_lobby("votobot" + sfx, "classic", ov);
+	if (@wf(c, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
+	for (int b = 0; b < 6; b++) { c.send_add_bot(); wf(c, S_PLAYER_JOINED, 2000); }
+	c.send_start_game();
+	net_packet@ inicio = wf(c, S_GAME_START, 8000);
+	if (@inicio == null) { println("a partida nao comecou"); return; }
+	if (inicio.get_string("your_role") == ROLE_IMPOSTOR) println("(o humano saiu impostor; segue igual)");
+
+	c.send_call_meeting();
+	if (@wf(c, S_VOTING_STARTED, 60000) == null) { println("a votacao nao comecou"); return; }
+	c.send_cast_vote(-1);
+
+	dictionary votos; // eleitor -> alvo ("" = pulou)
+	bool alvo_sempre_dito = true, votou_em_si = false, repetiu = false;
+	timer v;
+	while (v.elapsed < 25000 && votos.get_size() < 6) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) {
+			if (p.type == S_VOTE_CAST && p.get_uint64("voter_peer") != c.my_peer_id) {
+				string eleitor = p.get_string("voter_name");
+				if (votos.exists(eleitor)) repetiu = true;
+				if (!p.get_bool("target_revealed", false)) alvo_sempre_dito = false;
+				string alvo = p.get_bool("skipped", false) ? "" : p.get_string("target_name");
+				if (alvo == eleitor) votou_em_si = true;
+				votos.set(eleitor, alvo);
+			}
+			@p = c.poll_message();
+		}
+		wait(5);
+	}
+	array<string>@ eleitores = votos.get_keys();
+	int pularam = 0;
+	for (uint i = 0; i < eleitores.length(); i++) {
+		string alvo; votos.get(eleitores[i], alvo);
+		println("     " + eleitores[i] + " -> " + (alvo == "" ? "(pulou)" : alvo));
+		if (alvo == "") pularam++;
+	}
+	confere("os seis bots votaram (" + eleitores.length() + "), cada um uma vez", eleitores.length() == 6 && !repetiu);
+	confere("o aviso de cada voto de bot traz o alvo (votos abertos)", alvo_sempre_dito);
+	confere("nenhum bot votou em si mesmo", !votou_em_si);
+	confere("nem todos pularam (" + pularam + " de 6)", eleitores.length() == 6 && pularam < 6);
+	c.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
