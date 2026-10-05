@@ -2,9 +2,10 @@
 // Ponto de entrada do servidor dedicado. Compile e execute este arquivo para hospedar uma
 // partida (ex: `nvgt server_main.nvgt` ou compile para um executável com `nvgt -c`).
 
-// Sem isso a pasta lang/ não vai pro pacote compilado - o servidor usa tr() pra montar mensagens
-// que manda aos clientes (ex.: aviso de reunião falhou, mínimo de jogadores), e sem o .json ele
-// cairia no fallback de mandar a própria chave crua em vez do texto.
+// A pasta lang/ vai no pacote do servidor, mas hoje ele NÃO traduz nada: toda mensagem sai como chave
+// (build_message) e quem traduz é o cliente, no idioma de cada jogador. O servidor só carrega o idioma
+// padrão ao abrir (server.nvgt). Por isso o release não reinicia o servidor quando só lang/ muda. Se
+// algum dia o servidor voltar a montar texto com tr(), tire lang/ do filtro do tools/release.ps1 de novo.
 // A pasta inteira, e não os .json um a um: lang/ guarda só dados de tradução (o código do i18n mora
 // em src/), então não há risco de mandar fonte junto do produto. As aspas são obrigatórias, senão o
 // pré-processador quebra o nome no ponto.

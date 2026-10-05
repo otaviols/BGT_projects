@@ -70,7 +70,9 @@ try {
 	$commitNoAr = if ($imagem -match ':([0-9a-f]{7,})$') { $Matches[1] } else { "" }
 	$servidor = $true
 	if ($commitNoAr) {
-		$mudou = git diff --name-only $commitNoAr HEAD -- server_main.nvgt src lang |
+		# lang/ fica de fora: o servidor manda CHAVES e quem traduz é o cliente (ver server_main.nvgt), e
+		# só texto de idioma mudando reiniciava o servidor à toa - foi o que a 0.50.6 fez.
+		$mudou = git diff --name-only $commitNoAr HEAD -- server_main.nvgt src |
 			# Só do cliente: telas, som, e o laço da partida e de quem assiste (src/game/match/, game_loop,
 			# spectate_loop) - o servidor não inclui nenhum deles. Sem isto, conserto só de cliente
 			# reiniciava o servidor e derrubava quem estava jogando à toa.
