@@ -24,6 +24,23 @@ isso transforma o progresso que o `docker build` escreve na saída de erro em re
 `$ErrorActionPreference = "Stop"` do script o trata como falha. Rode `infra\deploy.ps1` sem
 redirecionar nada. Nada é publicado nesse caso - ele morre antes do push.
 
+**Terceiro jeito do mesmo "docker build falhou": `unable to resolve docker endpoint: context
+"desktop-linux": open ...\.docker\contexts\meta\...\meta.json: The process cannot access the file`.**
+Um arquivo de configuração do Docker travado por outro processo, passageiro (0.50.7). Confira `docker
+version` e rode o `tools\release.ps1` de novo: ele refaz as conferências e as compilações, e o push, que
+já tinha saído, não tem o que mandar. Nesse caso o GitHub fica à frente do que está no ar por alguns
+minutos, o que não afeta jogador nenhum.
+
+**O que o `tools\release.ps1` decide sozinho, e por quê** (cada um já custou uma publicação):
+- **servidor só quando o código dele muda** desde o commit no ar. Ficam de fora: `src/ui`, `src/audio`,
+  `src/game/match`, `game_loop`/`spectate_loop`, `lang/` (o servidor manda CHAVES; quem traduz é o
+  cliente - incluí-lo reiniciou o servidor à toa na 0.50.6) e um `game_constants` que só mudou o
+  `GAME_VERSION`. Se o servidor voltar a montar texto com `tr()`, `lang/` volta para o filtro;
+- **o `sounds.dat` é conferido em TODA publicação** (`tools/check_pack.nvgt`), e não só regerado quando
+  um som muda: o publicado da 0.50.0 à 0.50.2 tinha um byte trocado que deixava um passo mudo (ver
+  notes/som.md);
+- **as traduções enviadas pelo jogo param a publicação** logo nas conferências (ver notes/traducoes.md).
+
 **"O servidor NÃO fica de pé nesta imagem" com o log `exec /usr/local/bin/docker-entrypoint.sh: no
 such file or directory` = o script shell saiu com CRLF.** O arquivo está lá; quem não existe é o
 `/bin/sh\r` do shebang. Acontece em máquina com `core.autocrlf=true` (padrão do Git para Windows) — foi
