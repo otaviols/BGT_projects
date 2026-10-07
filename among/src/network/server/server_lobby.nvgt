@@ -129,6 +129,21 @@ mixin class server_lobby_part {
 		if (@lobby == null || lobby.host_peer_id != peer_id) { send_error(peer_id, "lobby.edit_host_only"); return; }
 		if (lobby.state != "waiting") { send_error(peer_id, "lobby.edit_only_in_waiting"); return; }
 
+		// Pública ou privada também se troca aqui (recado #211), sem recriar a sala. Só quando o campo
+		// VEM: o cliente de antes desta troca não o manda, e ler a falta como "" tornaria pública a sala
+		// privada de quem só mexeu numa regra. Conferido ANTES de aplicar qualquer coisa: um código de
+		// outra sala recusa a edição inteira, em vez de aplicar metade.
+		bool troca_codigo = false;
+		string codigo = lobby.join_code;
+		if (pkt.exists("join_code")) {
+			codigo = normalize_join_code(pkt.get_string("join_code", ""));
+			troca_codigo = codigo != lobby.join_code;
+			game_state@ dona = find_lobby_by_code(codigo);
+			// Duas salas com o mesmo código: quem o digitasse cairia sempre na primeira.
+			if (troca_codigo && @dona != null && dona !is lobby) { send_error(peer_id, "lobby.code_in_use"); return; }
+		}
+		string regras_antes = lobby.config.to_json(lobby.seated_count()).stringify();
+
 		lobby_overrides overrides;
 		overrides.read_from_packet(pkt);
 		// Trocar de modo troca a BASE das regras, e não só o campo: um pega-pega começa com o pegar a
@@ -141,6 +156,7 @@ mixin class server_lobby_part {
 		if (troca_modo) @lobby.config = get_preset(overrides.game_mode);
 		overrides.apply_to(lobby.config);
 		lobby.config.validate();
+		lobby.join_code = codigo;
 
 		// Todo mundo recebe o retrato novo E um aviso falado: quem já ouviu as regras uma vez não
 		// vai apertar C de novo por conta própria, e uma partida com regras que mudaram em silêncio é
@@ -148,8 +164,18 @@ mixin class server_lobby_part {
 		send_lobby_state(lobby, 0);
 		// O modo mudar é maior que "as regras mudaram": é outro jogo. Por isso tem aviso próprio, com o
 		// nome do modo - uma chave por modo, porque o nome tem que chegar no idioma de quem ouve.
+		// "As regras mudaram" só quando mudaram: trocar só a privacidade com o aviso de regras junto
+		// mandaria todo mundo apertar C à toa.
 		if (troca_modo) broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.mode_changed." + lobby.config.game_mode));
-		else broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.config_changed"));
+		else if (lobby.config.to_json(lobby.seated_count()).stringify() != regras_antes)
+			broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.config_changed"));
+		if (troca_codigo) {
+			// O código vai junto para quem está DENTRO, como no retrato: é quem vai ditá-lo aos amigos.
+			dictionary@ p = dictionary();
+			p.set("code", codigo);
+			broadcast_to_lobby(lobby, build_message(S_ERROR, codigo == "" ? "lobby.now_public" : "lobby.now_private", p));
+			send_hall_state(); // a sala entra na lista ou sai dela
+		}
 	}
 
 	void on_leave_lobby(uint64 peer_id, net_packet@ pkt) {

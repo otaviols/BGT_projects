@@ -364,8 +364,8 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		if (key_pressed(KEY_O)) {
 			if (!is_host) speak(tr("lobby.edit_host_only"));
 			else {
-				lobby_form_result r = run_lobby_settings_form(client, snapshot.config);
-				if (r.ok) client.send_update_lobby_config(r.ov);
+				lobby_form_result r = run_lobby_settings_form(client, snapshot.config, false, "classic", snapshot.join_code);
+				if (r.ok) client.send_update_lobby_config(r.ov, r.join_code);
 			}
 		}
 

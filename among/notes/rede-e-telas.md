@@ -190,6 +190,15 @@ assunto sozinha. A busca por primeira letra fica desligada ali, para o P (quem e
 pular para um item. Sonda: `probe_hall_live.nvgt` (a privada nunca é mencionada; o controle é a
 pública chegar pelo mesmo caminho).
 
+**Privacidade se troca com a sala aberta** (recado #211), pela edição de regras (tecla O): o
+formulário mostra o código nos dois modos, e o `C_UPDATE_LOBBY_CONFIG` leva `join_code`. É a
+PRESENÇA do campo que vale - cliente antigo não o manda, e ler a falta como "" tornaria pública a
+sala de quem só mexeu numa regra; por isso `send_update_lobby_config` tem as duas formas (as sondas
+antigas usam a sem código). Código de outra sala recusa a edição inteira (`lobby.code_in_use`),
+conferido antes de aplicar qualquer coisa. "As regras mudaram" só sai se o retrato das regras mudou -
+trocar só a privacidade com aquele aviso mandaria todo mundo apertar C à toa. A entrada e saída da
+lista vem do `send_hall_state()` de sempre. Sonda: `probe_lobby_privacy.nvgt` (servidor local).
+
 **A sala SOBREVIVE à partida - o que morre é o estado dela.** No fim do jogo a lobby volta a
 "waiting" com a mesma gente dentro (`reopen_lobby` no servidor, `reopen_for_next_match` no
 game_state), em vez de fechar e jogar todo mundo no navegador de partidas. Duas coisas têm que

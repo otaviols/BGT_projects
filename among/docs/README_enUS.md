@@ -26,7 +26,8 @@ every object and every body is from sound alone.
 the match does not show up in the list, and the only way in is choosing **Join a private match
 with a code** and typing the same code. Case does not matter, so you can say it out loud. Inside
 the room, the **C** key opens the rules, and the first item is the code: Enter on it copies the
-code so you can pass it on.
+code so you can pass it on. The host can make the room private or public at any time in the waiting
+room, without recreating it: on the **O** key (change the rules), fill in or erase the code.
 
 **Saving the rules you like:** the create-match screen has a lot of fields, and nobody wants to walk
 through all of them every time. At the end of it there is **"Save these rules under the name"** —
@@ -34,8 +35,9 @@ fill it in and that configuration is kept on this machine. Next time you create 
 asks **which configuration to start from**: one of yours, **the last one you used** (kept
 automatically, without you asking), or the default rules. The same menu deletes a saved one.
 
-The match name and the access code are **not** saved: you will want to vary the name, and a saved
-code would be a code that never changes.
+The access code is **not** saved with the rules: a saved code would be a code that never changes.
+The name of the last room you created, though, comes back filled in for the next one; to use
+another, erase it and type.
 
 **Practice:** the main menu has **Practice tasks and repairs**: any task or sabotage repair, alone,
 with no match — to learn each one calmly before it counts.

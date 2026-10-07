@@ -420,6 +420,14 @@ class game_client {
 
 	// O anfitrião muda as regras da sala já aberta. Só os ajustes viajam: o que ficou em branco
 	// (-1/"") mantém o valor atual - ver on_update_lobby_config no servidor.
+	// Com o código (vazio = pública), a privacidade também muda: é a PRESENÇA do campo que diz ao
+	// servidor que ela foi escolhida - ver on_update_lobby_config. Sem ele, fica como está.
+	void send_update_lobby_config(const lobby_overrides&in overrides, const string&in join_code) {
+		net_packet@ p = net_packet(C_UPDATE_LOBBY_CONFIG);
+		overrides.write_to_packet(p);
+		p.set_string("join_code", join_code);
+		send(p);
+	}
 	void send_update_lobby_config(const lobby_overrides&in overrides) {
 		net_packet@ p = net_packet(C_UPDATE_LOBBY_CONFIG);
 		overrides.write_to_packet(p);

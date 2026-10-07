@@ -25,7 +25,8 @@ pessoa, cada objeto e cada corpo só pelo som.
 partida não aparece na lista, e só entra quem escolher **Entrar em partida privada com código** e
 digitar o mesmo código. Maiúsculas e minúsculas não fazem diferença, então pode ditar de viva voz.
 Dentro da sala, a tecla **C** abre as regras, e o primeiro item é o código: Enter nele copia o código
-para você passar adiante.
+para você passar adiante. O anfitrião pode tornar a sala privada ou pública a qualquer momento na
+sala de espera, sem recriá-la: na tecla **O** (mudar as regras), preencha ou apague o código.
 
 **Guardar as regras que você gosta:** a tela de criar partida tem muitos campos, e ninguém quer
 percorrer todos toda vez. No fim dela há **"Salvar estas regras com o nome"** — preencha e aquela
@@ -33,8 +34,9 @@ configuração fica guardada nesta máquina. Da próxima vez que criar uma parti
 qual configuração partir**: uma das suas, **a última que você usou** (guardada sozinha, sem você
 pedir), ou as regras padrão. O mesmo menu apaga uma configuração salva.
 
-O nome da sala e o código de acesso **não** são salvos: o nome você vai querer variar, e um código
-guardado seria um código que nunca muda.
+O código de acesso **não** é salvo junto com as regras: um código guardado seria um código que nunca
+muda. Já o nome da última sala que você criou volta preenchido na próxima; para usar outro, apague e
+escreva.
 
 **Praticar:** o menu inicial tem **Praticar tarefas e reparos**: qualquer tarefa ou reparo de
 sabotagem, sozinho, sem partida — para aprender cada uma com calma antes de valer.

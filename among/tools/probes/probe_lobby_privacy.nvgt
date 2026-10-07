@@ -1,0 +1,128 @@
+// Sonda da troca de privacidade com a sala aberta (recado #211): o anfitrião torna a sala privada e
+// pública de novo pela edição de regras, sem recriar a sala.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_lobby_privacy.nvgt
+//
+// Confere: a sala some da lista e volta; quem está fora entra pelo código; o aviso certo é dito, e o
+// "as regras mudaram" NÃO (só a privacidade mudou); um código de outra sala é recusado sem mexer em
+// nada; e o pedido de um cliente antigo (sem o campo do código) não torna a sala pública.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Tudo que chega a um cliente em `ms`, sem jogar nada fora (ver notes/sondas.md: caixa por cliente).
+array<net_packet@>@ coleta(game_client@ c, int ms) {
+	array<net_packet@> caixa;
+	timer x;
+	while (x.elapsed < ms) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) { caixa.insert_last(p); @p = c.poll_message(); }
+		wait(5);
+	}
+	return caixa;
+}
+net_packet@ achar(array<net_packet@>@ caixa, const string&in tipo) {
+	for (uint i = 0; i < caixa.length(); i++) if (caixa[i].type == tipo) return caixa[i];
+	return null;
+}
+bool disse(array<net_packet@>@ caixa, const string&in chave) {
+	for (uint i = 0; i < caixa.length(); i++)
+		if (caixa[i].type == S_ERROR && caixa[i].get_string(MSG_KEY_FIELD) == chave) return true;
+	return false;
+}
+
+game_client@ entra(const string&in nome) {
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); exit(1); }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); coleta(c, 800);
+	c.send_login(nome, "probe123");
+	if (@achar(coleta(c, 1500), S_LOGIN_RESULT) == null) { println("login falhou: " + nome); exit(1); }
+	return c;
+}
+
+// A sala aparece na lista pública?
+bool na_lista(game_client@ c, const string&in lobby_id) {
+	c.send_list_lobbies();
+	net_packet@ l = achar(coleta(c, 1000), S_LOBBY_LIST);
+	if (@l == null) return false;
+	json_array@ salas = l.get_array("lobbies");
+	for (uint i = 0; @salas != null && i < salas.length(); i++) {
+		json_object@ e = salas.get_object(i);
+		if (@e != null && string(e["id"]) == lobby_id) return true;
+	}
+	return false;
+}
+
+void main() {
+	int n = random(1000, 9999);
+	game_client@ anfitriao = entra("priv" + n);
+	game_client@ outro = entra("fora" + n);
+	game_client@ dono2 = entra("dono" + n);
+
+	lobby_overrides nada; // nenhuma regra mexida
+	anfitriao.send_create_lobby("sala da sonda", "classic", nada);
+	net_packet@ st = achar(coleta(anfitriao, 1000), S_LOBBY_STATE);
+	if (@st == null) { println("sem retrato da sala"); exit(1); }
+	string id = st.get_string("lobby_id");
+	string codigo = "amigos" + n;
+
+	println("== publica -> privada ==");
+	confere("a sala nasce publica e aparece na lista", na_lista(outro, id));
+	anfitriao.send_update_lobby_config(nada, codigo);
+	array<net_packet@>@ cx = coleta(anfitriao, 1000);
+	confere("o anfitriao ouve que a sala ficou privada", disse(cx, "lobby.now_private"));
+	confere("e NAO ouve que as regras mudaram", !disse(cx, "lobby.config_changed"));
+	net_packet@ st2 = achar(cx, S_LOBBY_STATE);
+	confere("o retrato traz o codigo novo", @st2 != null && st2.get_string("join_code") == codigo);
+	confere("a sala saiu da lista", !na_lista(outro, id));
+
+	println("== cliente antigo (sem o campo do codigo) ==");
+	anfitriao.send_update_lobby_config(nada);
+	cx = coleta(anfitriao, 1000);
+	net_packet@ st3 = achar(cx, S_LOBBY_STATE);
+	confere("continua privada", @st3 != null && st3.get_string("join_code") == codigo);
+	confere("e nenhum aviso de privacidade", !disse(cx, "lobby.now_public") && !disse(cx, "lobby.now_private"));
+
+	println("== codigo de outra sala ==");
+	string codigo2 = "outra" + n;
+	dono2.send_create_lobby("outra sala", "classic", nada, codigo2);
+	coleta(dono2, 800);
+	anfitriao.send_update_lobby_config(nada, codigo2);
+	cx = coleta(anfitriao, 1000);
+	confere("recusado: o codigo e de outra sala", disse(cx, "lobby.code_in_use"));
+	confere("e nada mudou (sem retrato novo)", @achar(cx, S_LOBBY_STATE) == null);
+
+	println("== entrar pelo codigo ==");
+	outro.send_join_by_code(codigo.upper()); // ditado de viva voz: maiúscula não importa
+	net_packet@ j = achar(coleta(outro, 1000), S_JOIN_RESULT);
+	confere("quem esta fora entra pelo codigo", @j != null && j.get_bool("ok"));
+	outro.send_leave_lobby();
+	coleta(outro, 500);
+
+	println("== privada -> publica ==");
+	anfitriao.send_update_lobby_config(nada, "");
+	cx = coleta(anfitriao, 1000);
+	confere("o anfitriao ouve que a sala ficou publica", disse(cx, "lobby.now_public"));
+	confere("a sala voltou para a lista", na_lista(outro, id));
+
+	println("== regra mexida junto ==");
+	lobby_overrides ov;
+	ov.emergency_cooldown_seconds = 42.0;
+	anfitriao.send_update_lobby_config(ov, "");
+	cx = coleta(anfitriao, 1000);
+	confere("regra mudou: o aviso de regras volta", disse(cx, "lobby.config_changed"));
+	confere("privacidade igual: sem aviso dela", !disse(cx, "lobby.now_public"));
+
+	anfitriao.disconnect(); outro.disconnect(); dono2.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

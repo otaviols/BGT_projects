@@ -93,8 +93,11 @@ class lobby_form_result {
 // os campos vêm PREENCHIDOS com o que vale hoje, e o que o anfitrião apagar volta a ser "não mexi".
 // Impostores no modo automático ficam em branco - preencher com o número resolvido de hoje o
 // congelaria sem ninguém pedir.
+//
+// O código de acesso aparece nos DOIS (`current_code` traz o de hoje): trocar entre pública e privada
+// com a sala aberta era recriar a sala e chamar todo mundo de novo (recado #211).
 lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ current, bool creating = false,
-		const string&in preset_base = "classic") {
+		const string&in preset_base = "classic", const string&in current_code = "") {
 	lobby_form_result r;
 	// `creating` e `current` deixaram de ser a mesma pergunta: criar uma sala A PARTIR de uma
 	// configuracao salva tem os dois (os campos vem preenchidos E o nome/codigo/preset aparecem).
@@ -106,10 +109,10 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	int f_name = -1, f_code = -1, f_preset = -1;
 	if (creating) {
 		f_name = f.create_input_box(tr("lobby.name"), g_settings.last_lobby_name != "" ? g_settings.last_lobby_name : tr("app.title"));
-		// Vazio = pública. Com código, a partida some da lista e só entra quem o digitar. Fica logo
-		// depois do nome porque "é só para os amigos?" é a primeira decisão de quem cria uma sala.
-		f_code = f.create_input_box(tr("lobby.join_code"), "");
 	}
+	// Vazio = pública. Com código, a partida some da lista e só entra quem o digitar. Fica no alto
+	// porque "é só para os amigos?" é a primeira decisão de quem cria uma sala.
+	f_code = f.create_input_box(tr("lobby.join_code"), current_code);
 	// O modo de jogo, separado das predefinições: o modo muda QUAIS regras existem (pega-pega não tem
 	// reunião nem papel), e a predefinição só muda os números do clássico. Misturados numa lista só, o
 	// anfitrião não tinha como trocar de modo com a sala aberta, e o formulário mostrava papéis no
@@ -260,9 +263,9 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 		if (f.is_pressed(f_ok)) {
 			g_voice.typing = false;
 			r.ok = true;
+			r.join_code = f.get_text(f_code);
 			if (creating) {
 				r.lobby_name = f.get_text(f_name);
-				r.join_code = f.get_text(f_code);
 				r.save_as = f.get_text(f_save_as);
 				int preset_index = f.get_list_position(f_preset);
 				r.preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";

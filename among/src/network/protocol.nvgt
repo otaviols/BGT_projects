@@ -70,7 +70,7 @@ const string C_JOIN_LOBBY = "c_join_lobby";       // {lobby_id} ou {join_code}
 const string C_LEAVE_LOBBY = "c_leave_lobby";     // {}
 // O anfitrião muda as regras com a sala aberta. Só na espera, só o anfitrião; o que vem em branco
 // (-1/"") mantém o valor atual. A resposta é um S_LOBBY_STATE novo para toda a sala.
-const string C_UPDATE_LOBBY_CONFIG = "c_update_lobby_config"; // {...overrides}
+const string C_UPDATE_LOBBY_CONFIG = "c_update_lobby_config"; // {...overrides, join_code} (sem join_code = cliente antigo, privacidade fica)
 const string C_START_GAME = "c_start_game";       // {} (só host)
 const string C_ADD_BOT = "c_add_bot";             // {} (só host, só na sala de espera)
 const string C_REMOVE_BOT = "c_remove_bot";       // {} (só host, tira o último bot adicionado)
