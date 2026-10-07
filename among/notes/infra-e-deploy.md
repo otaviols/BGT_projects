@@ -237,6 +237,13 @@ infra\admin.ps1 traducoes                # traduções enviadas pelo jogo -> tra
 infra\admin.ps1 status | drenar <s> | plataformas <dias>
 ```
 
+**`kubectl`: "lookup ...azmk8s.io: no such host" NÃO é a internet daqui - é o cluster PARADO.** O
+endereço do AKS deixa de existir quando ele é desalocado. Em 2026-10-07 foi a assinatura do Visual
+Studio inteira desativada pela Microsoft ("Disable subscription", caller "Microsoft operator", no
+`az monitor activity-log list`): o crédito do mês acabou. Cai TUDO junto - servidor e site (o
+`version.json` dá 404). Confira com `az account list --all` (estado `Disabled`) e `az aks list`
+(`Deallocated`); o `az account show` comum ainda mostra `Enabled` do cache.
+
 **"Caí do servidor": cruze o crash.log do recado com as linhas `[queda]` do log** (`kubectl logs -n
 amongus deploy/amongus-server --timestamps | Select-String queda`, desde a 0.50.9). O jogador só sabe
 dizer "o servidor encerrou a conexão"; o servidor diz se foi tempo esgotado, o cliente desligando ou
