@@ -66,6 +66,19 @@ void main() {
 	lobby_form_result r = run_lobby_settings_form(c, null, true);
 	confere("Enter no primeiro campo confirma a criacao", r.ok && r.preset_id == "classic");
 
+	println("== nome lembrado (recado #218) ==");
+	// Só o campo: quem grava o nome é a tela de criar, que a sonda não chama - nada vai para o disco.
+	string nome_antes = g_settings.last_lobby_name;
+	g_settings.last_lobby_name = "";
+	roda(so_enter);
+	r = run_lobby_settings_form(c, null, true);
+	confere("sem nome lembrado, o campo traz o padrao (" + r.lobby_name + ")", r.lobby_name == tr("app.title"));
+	g_settings.last_lobby_name = "Nave de Sirius";
+	roda(so_enter);
+	r = run_lobby_settings_form(c, null, true);
+	confere("com nome lembrado, o campo traz ele (" + r.lobby_name + ")", r.lobby_name == "Nave de Sirius");
+	g_settings.last_lobby_name = nome_antes;
+
 	println("== botao de papeis ==");
 	// nome, código, modo, predefinição, kill, jogadores, impostores -> o 8º é o botão de papéis.
 	array<int> ate_papeis = {KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_RETURN, KEY_ESCAPE, KEY_ESCAPE};

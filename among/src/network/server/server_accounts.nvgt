@@ -85,7 +85,7 @@ mixin class server_accounts_part {
 			// A limpeza é feita AQUI, e não deixada para o evento de desconexão: o peer já saiu do
 			// mapa da rede, e sem isto a sessão velha continuaria pendurada na sala (contando como
 			// jogador, recebendo pacotes que ninguém lê) até o ENet avisar.
-			on_disconnect(other.peer_id);
+			on_disconnect(other.peer_id, "sessao substituida (a conta entrou em outro lugar)");
 		}
 	}
 

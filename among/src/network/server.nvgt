@@ -269,7 +269,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			game_player@ conn = game_player(ev.peer_id, "");
 			connections.insert_last(conn);
 		} else if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) {
-			on_disconnect(ev.peer_id);
+			on_disconnect(ev.peer_id, ev.type == event_disconnect_timeout ? "tempo esgotado" : "o cliente desligou");
 		} else if (ev.type == event_receive) {
 			if (ev.channel == CHANNEL_VOICE) { on_voice_frame(ev.peer_id, ev.message); return; }
 			net_packet@ pkt = packet_from_wire(ev.message);
@@ -277,8 +277,17 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		}
 	}
 
-	void on_disconnect(uint64 peer_id) {
+	// `motivo` vai para o log do servidor: o crash.log do jogador só sabe dizer "o servidor encerrou
+	// a conexão", e sem o lado de cá não havia como separar sessão substituída, tempo esgotado e
+	// queda do próprio jogo (recados #216, #219, #220). Quem nunca entrou na conta não é registrado -
+	// sondas e varreduras da internet só fariam barulho.
+	void on_disconnect(uint64 peer_id, const string&in motivo) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
+		game_player@ conn = find_connection(peer_id);
+		if (@conn != null && conn.authenticated) {
+			println("[queda] " + conn.username + ": " + motivo
+				+ (@lobby != null ? " (sala \"" + lobby.lobby_name + "\", " + lobby.state + ")" : " (fora de sala)"));
+		}
 		if (@lobby != null) remove_from_lobby(lobby, peer_id);
 
 		for (uint i = 0; i < connections.length(); i++) {

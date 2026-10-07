@@ -237,4 +237,11 @@ infra\admin.ps1 traducoes                # traduções enviadas pelo jogo -> tra
 infra\admin.ps1 status | drenar <s> | plataformas <dias>
 ```
 
+**"Caí do servidor": cruze o crash.log do recado com as linhas `[queda]` do log** (`kubectl logs -n
+amongus deploy/amongus-server --timestamps | Select-String queda`, desde a 0.50.9). O jogador só sabe
+dizer "o servidor encerrou a conexão"; o servidor diz se foi tempo esgotado, o cliente desligando ou
+sessão substituída (a mesma conta entrando em outro aparelho - o único lugar em que o servidor
+derruba alguém de propósito). O horário do crash.log é o relógio do JOGADOR, no fuso dele, e o do
+`--timestamps` é UTC. O log só guarda desde o último pod: um deploy apaga o histórico.
+
 

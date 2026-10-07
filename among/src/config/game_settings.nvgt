@@ -111,6 +111,9 @@ class game_settings {
 	int voice_mic_volume = 100;
 	string voice_input_device = "";
 	string audio_output_device = "";
+	// O nome da última sala criada, que volta preenchido na próxima (recado #218): quem tem "a nave
+	// do fulano" digitava o mesmo nome toda vez. Vazio = nunca criou, e o campo traz o padrão.
+	string last_lobby_name = "";
 	// Jogadores silenciados no chat de voz, pelo NOME de usuário: sobrevive à partida e à sessão,
 	// porque quem incomoda hoje vai incomodar amanhã, e ninguém quer silenciar de novo a cada sala.
 	array<string> muted_players;
@@ -271,6 +274,7 @@ class game_settings {
 		if (voice_mic_volume > VOICE_VOLUME_MAX_PERCENT) voice_mic_volume = VOICE_VOLUME_MAX_PERCENT;
 		voice_input_device = store.read_string("voice_input_device", "");
 		audio_output_device = store.read_string("audio_output_device", "");
+		last_lobby_name = store.read_string("last_lobby_name", "");
 		muted_players.resize(0);
 		string muted = store.read_string("muted_players", "");
 		if (muted != "") muted_players = muted.split("|");
@@ -349,6 +353,7 @@ class game_settings {
 		store.write_number("voice_mic_volume", voice_mic_volume);
 		store.write_string("voice_input_device", voice_input_device);
 		store.write_string("audio_output_device", audio_output_device);
+		store.write_string("last_lobby_name", last_lobby_name);
 		store.write_string("muted_players", join(muted_players, "|"));
 		array<string> volumes;
 		for (uint i = 0; i < voice_volume_names.length(); i++) volumes.insert_last(voice_volume_names[i] + "=" + voice_volume_values[i]);

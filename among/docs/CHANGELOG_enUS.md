@@ -6,6 +6,22 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.50.9
+
+**Doors lock the room, not the corridor anymore.** Whoever is inside cannot get out, whoever is
+outside cannot get in, and the corridors stay open. Before, someone in the corridor could walk into
+the locked room, and locking one room sometimes closed the way to another: oxygen got shut along with
+storage and electrical. The door sound now plays at each entrance of the room.
+
+**A dead impostor can also lock doors**, like in the original game, just as they could already
+sabotage.
+
+**The game remembers the name of the last room you created** and fills it in for the next one. To
+use another, just erase it and type.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.8
 
 **The arsonist's win has a new scene, made by the player Raciel.** It plays for everyone before the

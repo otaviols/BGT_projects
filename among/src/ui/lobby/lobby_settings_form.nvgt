@@ -105,7 +105,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.create_window(tr(creating ? "menu.create_lobby" : "lobby.edit_settings"), false); // não sobrescreve o título da janela
 	int f_name = -1, f_code = -1, f_preset = -1;
 	if (creating) {
-		f_name = f.create_input_box(tr("lobby.name"), tr("app.title"));
+		f_name = f.create_input_box(tr("lobby.name"), g_settings.last_lobby_name != "" ? g_settings.last_lobby_name : tr("app.title"));
 		// Vazio = pública. Com código, a partida some da lista e só entra quem o digitar. Fica logo
 		// depois do nome porque "é só para os amigos?" é a primeira decisão de quem cria uma sala.
 		f_code = f.create_input_box(tr("lobby.join_code"), "");
@@ -442,6 +442,12 @@ net_packet@ run_create_lobby_screen(game_client@ client) {
 	// A última usada é guardada SEMPRE, sem o jogador pedir: é o caso comum ("quero a de ontem") e
 	// não custa uma decisão a ele. O nome só é gravado se ele digitou um.
 	lobby_preset_save(LOBBY_PRESET_LAST_USED, r.preset_id, r.ov);
+	// O nome também, pelo mesmo motivo. Vazio não apaga o lembrado: quem apagou o campo para usar o
+	// padrão do servidor ("Partida de fulano") só desta vez não perde o nome de sempre.
+	if (r.lobby_name != "") {
+		g_settings.last_lobby_name = r.lobby_name;
+		g_settings.save();
+	}
 	if (r.save_as != "") {
 		lobby_preset_save(r.save_as, r.preset_id, r.ov);
 		dictionary@ p = dictionary();
