@@ -17,6 +17,7 @@
 #   infra\admin.ps1 status                     # conexões, salas, partidas, quem está online por plataforma
 #   infra\admin.ps1 drenar 120                 # avisa todo mundo e trava partidas novas por 2 minutos
 #   infra\admin.ps1 plataformas 30             # jogadores distintos por plataforma e versão nos últimos 30 dias
+#   infra\admin.ps1 backup                     # copia o banco de contas para %USERPROFILE%\amongus_backups
 #
 # -Local em qualquer comando que passa pelo servidor: fala com o servidor desta máquina, usando o
 # AMONGUS_ADMIN_TOKEN do ambiente (o mesmo com que ele subiu).
@@ -56,7 +57,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $origem = Get-Location # caminhos relativos (-Saida, -Pasta) são relativos a de onde se chamou
 
 function Uso {
-	Get-Content $PSCommandPath | Select-Object -Skip 3 -First 17 | ForEach-Object { $_ -replace '^# ?', '' }
+	Get-Content $PSCommandPath | Select-Object -Skip 3 -First 18 | ForEach-Object { $_ -replace '^# ?', '' }
 }
 
 # Acentos: Python e NVGT imprimem UTF-8, e o console do Windows mostra "vers�o" se não for avisado.
@@ -129,6 +130,37 @@ function Recados {
 	}
 }
 
+# Backup do banco de contas: contas, estatísticas, recados. Até 2026-10-07 não havia nenhum, e a
+# assinatura do Azure desativada mostrou o tamanho do risco - o banco só sairia do disco do cluster com
+# ela ativa. Fica FORA do repositório (tem hash de senha), e guarda os 30 mais recentes. O release.ps1
+# chama a cada publicação.
+function Backup {
+	$pod = kubectl get pods -n $Namespace -l app=amongus-server -o jsonpath="{.items[0].metadata.name}"
+	if ([string]::IsNullOrWhiteSpace($pod)) { throw "Não achei o pod do servidor no namespace $Namespace." }
+	$pasta = Join-Path $env:USERPROFILE "amongus_backups"
+	New-Item -ItemType Directory -Force $pasta | Out-Null
+	$nome = "among_users_" + (Get-Date -Format "yyyy-MM-dd_HHmmss") + ".db"
+	Push-Location $pasta
+	try {
+		# Caminho RELATIVO e ErrorAction em Continue, pelos mesmos motivos de Recados, acima.
+		$ErrorActionPreference = "Continue"
+		kubectl cp -n $Namespace "${pod}:/data/among_users.db" $nome 2>&1 | Out-Null
+		$ErrorActionPreference = "Stop"
+		# Um arquivo que chegou não prova um banco: confere o cabeçalho do SQLite.
+		$ok = $false
+		if (Test-Path $nome) {
+			$cabeca = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes((Join-Path $pasta $nome))[0..14])
+			$ok = $cabeca -eq "SQLite format 3"
+		}
+		if (-not $ok) { Remove-Item $nome -ErrorAction SilentlyContinue; throw "O backup do banco não chegou inteiro." }
+		Get-ChildItem -Filter "among_users_*.db" | Sort-Object Name -Descending | Select-Object -Skip 30 | Remove-Item
+		Write-Host ("Backup: {0} ({1:N0} KB)" -f (Join-Path $pasta $nome), ((Get-Item $nome).Length / 1KB))
+	}
+	finally {
+		Pop-Location
+	}
+}
+
 function Numero([string]$nome) {
 	if ($Resto.Count -lt 1 -or -not ($Resto[0] -match '^\d+$')) { throw "Falta o número do recado: infra\admin.ps1 $nome <id>" }
 	return $Resto[0]
@@ -162,6 +194,7 @@ switch ($Comando) {
 		Servidor $args2
 	}
 	"status" { Servidor @("status") }
+	"backup" { Backup }
 	"drenar" {
 		$s = if ($Resto.Count -gt 0) { $Resto[0] } else { "120" }
 		Servidor @("drain", $s)

@@ -250,9 +250,11 @@ que religa é `az aks update -g rg-fallenrealms-alpha -n aks-fallenrealms-alpha 
 ele para numa pergunta e, sem terminal, morre com `EOFError`). ~5 min, e o pod sobe sozinho com o
 mesmo IP e o volume intacto. O site volta sozinho com a assinatura.
 
-**Backup do banco: `%USERPROFILE%\amongus_backups\`**, fora do repositório (tem hash de senha). Até
-2026-10-07 não havia NENHUM - a assinatura desativada mostrou que o banco só sairia do disco do
-cluster com ela ativa. Copiar com `kubectl cp` (caminho relativo, ver o `admin.ps1`).
+**Backup do banco: `infra\admin.ps1 backup`, para `%USERPROFILE%\amongus_backups\`**, fora do
+repositório (tem hash de senha), guardando os 30 mais recentes; o `release.ps1` faz um a cada
+publicação, antes do push. Até 2026-10-07 não havia NENHUM - a assinatura desativada mostrou que o
+banco só sairia do disco do cluster com ela ativa. A pasta é local: uma cópia fora desta máquina é
+com o usuário.
 
 **"Caí do servidor": cruze o crash.log do recado com as linhas `[queda]` do log** (`kubectl logs -n
 amongus deploy/amongus-server --timestamps | Select-String queda`, desde a 0.50.9). O jogador só sabe

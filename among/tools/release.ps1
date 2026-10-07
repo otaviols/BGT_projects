@@ -121,6 +121,12 @@ try {
 		if ($LASTEXITCODE -ne 0) { throw "Build do servidor falhou." }
 	}
 
+	# Backup do banco ANTES de tocar no servidor: é o único dado que não se recria, e a publicação é
+	# o momento em que algo pode dar errado com ele. Também vale como lembrete regular - sem isto, o
+	# primeiro backup só existiu depois de a assinatura do Azure cair (2026-10-07).
+	Passo "backup do banco"
+	& infra\admin.ps1 backup
+
 	Passo "push"
 	git push
 	if ($LASTEXITCODE -ne 0) { throw "git push falhou." }
