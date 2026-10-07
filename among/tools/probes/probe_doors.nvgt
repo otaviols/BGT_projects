@@ -1,0 +1,80 @@
+// Sonda das portas: trancar uma sala barra a BORDA dela (recado #220), e não o corredor.
+// Até a 0.50.8 a porta era o corredor inteiro: quem estava nele entrava na sala trancada, e o oxigênio,
+// pendurado no corredor entre a carga e a elétrica, ficava fechado junto com a carga.
+// Testada direto no mapa e no estado da partida, sem servidor: as passagens saem de openings_of, e
+// não de coordenadas escritas aqui - um mapa redesenhado não faz a sonda passar pelo motivo errado.
+//   nvgt tools/probes/probe_doors.nvgt
+#include "../../src/core/game_state.nvgt"
+
+int falhas = 0;
+
+void caso(const string&in o_que, bool obtido, bool esperado) {
+	if (obtido != esperado) falhas++;
+	println((obtido == esperado ? "ok   " : "FALHA ") + o_que + ": " + obtido + " (esperado " + esperado + ")");
+}
+
+// Um passo que atravessa a passagem de `sala` para a zona vizinha `para`: de um pouco antes da borda
+// (dentro da sala) a um pouco depois (fora). `ida` false faz o caminho contrário.
+bool atravessa(game_map@ m, const string&in sala, const string&in para, bool ida, bool vivo) {
+	array<zone_opening@>@ saidas = m.openings_of(sala);
+	for (uint i = 0; i < saidas.length(); i++) {
+		zone_opening@ e = saidas[i];
+		if (e.to_zone != para) continue;
+		float meio = (e.span_min + e.span_max) / 2.0;
+		float sinal = (e.side == "east" || e.side == "south") ? 1.0 : -1.0;
+		bool vertical = e.side == "east" || e.side == "west";
+		float dentro = e.edge - sinal * 0.2, fora = e.edge + sinal * 0.2;
+		float ax = vertical ? dentro : meio, ay = vertical ? meio : dentro;
+		float bx = vertical ? fora : meio, by = vertical ? meio : fora;
+		if (m.room_id_at(ax, ay) != sala || m.room_id_at(bx, by) != para) {
+			println("   (passagem " + sala + " -> " + para + " não caiu nas zonas certas)");
+			falhas++;
+			return false;
+		}
+		return ida ? m.can_move(ax, ay, bx, by, vivo) : m.can_move(bx, by, ax, ay, vivo);
+	}
+	println("   (sem passagem " + sala + " -> " + para + ")");
+	falhas++;
+	return false;
+}
+
+// Um passo curto dentro da própria zona, a partir do centro dela.
+bool anda_dentro(game_map@ m, const string&in zona) {
+	map_zone@ z = m.find_zone(zona);
+	if (@z == null) { println("   (sem zona " + zona + ")"); falhas++; return false; }
+	return m.can_move(z.center_x, z.center_y, z.center_x + 0.1, z.center_y, true);
+}
+
+void main() {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	game_map@ m = lobby.map;
+
+	game_player@ imp = game_player(1, "impostor");
+	imp.set_role(ROLE_IMPOSTOR);
+	imp.alive = true;
+	lobby.players.insert_last(imp);
+
+	array<string>@ fechadas;
+	caso("tranca a carga", lobby.close_doors_of_room(1, "storage", fechadas), true);
+	caso("o pacote leva a SALA, e só ela", fechadas.length() == 1 && fechadas[0] == "storage", true);
+
+	println("--- a borda da sala trancada ---");
+	caso("vivo sai da carga para o corredor", atravessa(m, "storage", "corridor_storage_electrical", true, true), false);
+	caso("vivo entra na carga vindo do corredor", atravessa(m, "storage", "corridor_storage_electrical", false, true), false);
+	caso("fantasma entra na carga", atravessa(m, "storage", "corridor_storage_electrical", false, false), true);
+	caso("vivo anda dentro da carga", anda_dentro(m, "storage"), true);
+
+	println("--- o resto da nave segue aberto ---");
+	caso("vivo anda no corredor da carga", anda_dentro(m, "corridor_storage_electrical"), true);
+	caso("vivo entra no oxigênio pelo corredor da carga", atravessa(m, "oxygen", "corridor_storage_electrical", false, true), true);
+	caso("vivo sai do corredor para a elétrica", atravessa(m, "electrical", "corridor_storage_electrical", false, true), true);
+
+	println("--- e reabre ---");
+	m.open_doors(fechadas);
+	caso("vivo entra na carga com a porta aberta", atravessa(m, "storage", "corridor_storage_electrical", false, true), true);
+
+	println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHA(S)");
+}

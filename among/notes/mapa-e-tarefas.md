@@ -59,6 +59,15 @@ tolerância de 0,01); zona com uma folga entre as paredes fica sem saída e sem 
 `tools/probes/probe_exit_alignment.nvgt`, que lista as saídas de toda sala (para ler) e simula alguém
 andando. O som é provisório (`SND_EXIT_ALIGNED`, o clique de menu).
 
+**A porta trancada é a BORDA da sala, não o corredor** (0.50.9, recado #220). `map.closed_door_zones`
+guarda ids de SALA, e `game_map.door_blocks` - a regra inteira, usada pelo `can_move` e pelo aviso de
+"porta trancada" - recusa o passo que troca de zona quando uma das duas está trancada. Até a 0.50.8 a
+porta era o corredor inteiro, e isso dava dois defeitos: quem estava no corredor entrava na sala
+trancada (para não congelá-lo, a regra deixava sair por qualquer ponta), e o corredor da carga para a
+elétrica, onde o oxigênio está pendurado, trancava o oxigênio junto com a carga ou a elétrica. O som
+da porta toca em cada passagem (`openings_of`), não no meio do corredor. Sonda:
+`tools/probes/probe_doors.nvgt`, que acha as passagens pela geometria em vez de coordenadas fixas.
+
 **Um tipo pode ter VÁRIAS correntes, e a escolhida mora no JOGADOR.** O destino saía de
 `map.chain_object_at(tipo, fase)`, que é global: todo mundo com "abastecer os motores" ia ao mesmo
 lugar, e rota única é informação de graça para quem deduz - sabia-se de antemão por onde quem estava

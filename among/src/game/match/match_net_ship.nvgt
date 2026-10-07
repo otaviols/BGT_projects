@@ -122,9 +122,16 @@ mixin class match_net_ship_part {
 		}
 		if (closing) map.close_doors(door_zones, 0.0);
 		else map.open_doors(door_zones);
+		// Uma porta em cada ENTRADA da sala, no meio da passagem: é ali que ela barra (ver
+		// game_map.door_blocks), e quem está no corredor ouve a porta que tem na frente.
 		for (uint i = 0; i < door_zones.length(); i++) {
-			map_zone@ door_zone = map.find_zone(door_zones[i]);
-			if (@door_zone != null) audio.play_door(door_zone.center_x, door_zone.center_y, closing);
+			array<zone_opening@>@ entradas = map.openings_of(door_zones[i]);
+			for (uint j = 0; j < entradas.length(); j++) {
+				zone_opening@ e = entradas[j];
+				float meio = (e.span_min + e.span_max) / 2.0;
+				bool vertical = e.side == "east" || e.side == "west";
+				audio.play_door(vertical ? e.edge : meio, vertical ? meio : e.edge, closing);
+			}
 		}
 		if (closing) {
 			string doors_text = tr("game.doors_closed");

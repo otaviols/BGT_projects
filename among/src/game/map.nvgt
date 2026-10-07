@@ -196,17 +196,30 @@ class game_map {
 	array<map_object@> objects;
 
 	// --- Portas ---
-	// Uma "porta" é um CORREDOR fechado: enquanto está fechado, ninguém vivo atravessa aquele
-	// corredor (é a única passagem entre duas salas). Os ids ficam aqui, junto do mapa, porque
-	// servidor e cliente têm cada um a sua instância e os dois precisam da mesma resposta em
-	// is_walkable. Quem manda no tempo é sempre o servidor: no cliente os timers ficam zerados e as
-	// portas só abrem quando chega o pacote dizendo que abriram (assim os dois lados nunca discordam
-	// sobre uma porta estar aberta ou não).
-	array<string> closed_door_zones;
+	// Fechar as portas tranca uma SALA: ninguém vivo cruza a borda entre ela e as vizinhas, nem para
+	// entrar nem para sair, e dentro dela e nos corredores se anda normalmente. Até a 0.50.8 a porta
+	// era o CORREDOR inteiro, e isso tinha dois defeitos (recado #220): quem estava dentro dele entrava
+	// na sala trancada, e um corredor que serve a outra sala - o do oxigênio, pendurado no corredor
+	// entre a carga e a elétrica - fechava aquela sala junto. Os ids ficam aqui, junto do mapa, porque
+	// servidor e cliente têm cada um a sua instância e os dois precisam da mesma resposta em can_move.
+	// Quem manda no tempo é sempre o servidor: no cliente os timers ficam zerados e as portas só abrem
+	// quando chega o pacote dizendo que abriram (assim os dois lados nunca discordam).
+	array<string> closed_door_zones; // ids de SALA
 	array<float> closed_door_timers;
 
 	bool is_door_closed(const string&in zone_id) const {
 		return closed_door_zones.find(zone_id) != -1;
+	}
+
+	// O passo de (from) para (to) atravessa uma porta trancada? É a regra das portas inteira, numa
+	// função só: can_move a usa para barrar, e o cliente para dizer "porta trancada" em vez de tocar
+	// o som de parede.
+	bool door_blocks(float from_x, float from_y, float to_x, float to_y) const {
+		if (closed_door_zones.length() == 0) return false;
+		map_zone@ origin = zone_at(from_x, from_y);
+		map_zone@ destination = zone_at(to_x, to_y);
+		if (@origin == null || @destination == null || origin.id == destination.id) return false;
+		return is_door_closed(origin.id) || is_door_closed(destination.id);
 	}
 
 	void close_doors(array<string>@ zone_ids, float seconds) {
@@ -302,29 +315,23 @@ class game_map {
 	// Uma posição só é válida se cair dentro de alguma sala ou corredor - o resto do "mundo" é
 	// parede/vazio. Usado tanto pelo cliente (som de bater na parede) quanto pelo servidor
 	// (anti-cheat: rejeita posições fora de qualquer sala/corredor).
+	// A porta não entra aqui: dentro de uma sala trancada se anda normalmente (ver door_blocks).
 	bool is_walkable(float x, float y) const {
-		map_zone@ zone = zone_at(x, y);
-		return @zone != null && !is_door_closed(zone.id);
+		return @zone_at(x, y) != null;
 	}
 
 	// Um passo de (from) para (to) é permitido?
 	//
-	// Parede é parede para todo mundo. Porta fechada barra só quem está FORA dela: quem já estava
-	// dentro do corredor na hora em que a porta fechou continua andando normalmente e consegue sair
-	// pelo outro lado. Sem essa distinção, o jogador pego dentro do corredor ficava congelado no
-	// lugar até a porta reabrir - qualquer passo que ele tentasse caía dentro do mesmo corredor
-	// fechado e era recusado, como se ele estivesse entalado na porta.
+	// Parede é parede para todo mundo. A porta trancada barra a BORDA da sala: quem estava dentro
+	// fica preso lá, como no original, e quem estava no corredor continua andando por ele - só não
+	// entra. Barrar o passo pela zona de destino (a regra antiga) congelava quem fosse pego dentro da
+	// zona fechada; barrar a travessia não tem esse problema.
 	//
 	// Fantasma atravessa porta fechada de qualquer jeito, igual ao jogo original, onde morto passa
 	// por tudo - é também o que garante que ele nunca fica preso longe das tasks dele.
 	bool can_move(float from_x, float from_y, float to_x, float to_y, bool alive) const {
-		map_zone@ destination = zone_at(to_x, to_y);
-		if (@destination == null) return false; // fora de qualquer sala ou corredor
-		if (!is_door_closed(destination.id)) return true;
-		if (!alive) return true;
-
-		map_zone@ origin = zone_at(from_x, from_y);
-		return @origin != null && origin.id == destination.id;
+		if (@zone_at(to_x, to_y) == null) return false; // fora de qualquer sala ou corredor
+		return !alive || !door_blocks(from_x, from_y, to_x, to_y);
 	}
 
 	map_object@ find_object(const string&in id) const {

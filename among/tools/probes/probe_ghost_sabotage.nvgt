@@ -17,7 +17,9 @@ void main() {
 	caso("impostor vivo ventila", player_abilities(role_impostor(), true).can_vent(true), true);
 	caso("impostor vivo ventila com dutos desligados", player_abilities(role_impostor(), true).can_vent(false), false);
 	caso("engenheiro vivo ventila com dutos desligados", player_abilities(role_engineer(), true).can_vent(false), false);
-	caso("impostor morto fecha portas", player_abilities(role_impostor(), false).can_close_doors(), false);
+	caso("impostor morto fecha portas", player_abilities(role_impostor(), false).can_close_doors(), true);
+	caso("impostor engolido fecha portas", player_abilities(role_impostor(), true, true).can_close_doors(), false);
+	caso("tripulante morto fecha portas", player_abilities(role_crewmate(), false).can_close_doors(), false);
 	caso("tripulante morto sabota", player_abilities(role_crewmate(), false).can_sabotage(), false);
 
 	println("--- e o que o SERVIDOR decide (game_state.trigger_sabotage) ---");
@@ -44,11 +46,14 @@ void main() {
 	lobby.last_sabotage_id = "";
 	caso("tripulante morto consegue sabotar", lobby.trigger_sabotage(2, "lights", ev, motivo), false);
 
-	// Fechar portas continua exigindo estar vivo - a trava foi mexida por engano uma vez (uma linha
-	// idêntica na função vizinha), e é o tipo de coisa que passa despercebida.
+	// Fechar portas: o impostor morto fecha (como no original, desde a 0.50.9), o tripulante morto não.
+	// O servidor pergunta à mesma player_abilities que oferece a tecla - antes tinha uma trava própria
+	// de "vivo", e as duas já divergiram uma vez.
 	array<string>@ fechadas;
 	lobby.doors_cooldown_remaining = 0.0;
-	caso("impostor MORTO fecha portas", lobby.close_doors_of_room(1, "cafeteria", fechadas), false);
+	caso("tripulante morto fecha portas", lobby.close_doors_of_room(2, "cafeteria", fechadas), false);
+	caso("impostor MORTO fecha portas", lobby.close_doors_of_room(1, "cafeteria", fechadas), true);
+	lobby.doors_cooldown_remaining = 0.0;
 	game_player@ vivo = game_player(3, "impostor vivo");
 	vivo.set_role(ROLE_IMPOSTOR);
 	vivo.alive = true;

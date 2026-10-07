@@ -661,9 +661,11 @@ repetir a mesma duas vezes seguidas.
   setas até a voz ficar sem estática e segure ali um instante. É o único conserto que se faz de
   ouvido — ninguém consegue ditar a resposta de longe.
 
-**Portas (tecla F)** — tranca todos os corredores de uma sala por 12 segundos, com recarga de 25
-segundos. Não tem conserto: as portas reabrem sozinhas. Não é sabotagem, então dá para trancar uma
-sala **e** sabotar ao mesmo tempo. Fantasmas atravessam portas trancadas.
+**Portas (tecla F)** — tranca as portas de uma sala por 12 segundos, com recarga de 25 segundos:
+quem está dentro não sai, e quem está fora não entra; os corredores continuam livres. Não tem
+conserto: as portas reabrem sozinhas. Não é sabotagem, então dá para trancar uma sala **e** sabotar
+ao mesmo tempo. Fantasmas atravessam portas trancadas. Morto, o impostor continua fechando portas,
+como continua sabotando.
 
 **Dutos** — só o impostor usa. Para **entrar**, chegue perto de um duto e aperte **Enter**, como em
 qualquer outro objeto. Já **dentro** dele, o **V** abre as opções: sair ali mesmo ou viajar até outro

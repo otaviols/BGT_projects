@@ -255,7 +255,7 @@ mixin class match_frame_keys_part {
 				}
 			}
 
-			player_abilities me(my_role, alive);
+			player_abilities me(my_role, alive, swallowed);
 			if (me.can_kill() || me.can_sabotage() || me.can_close_doors()) {
 				if (me.can_kill() && action_pressed(ACTION_KILL)) {
 					// Antes só avisava do cooldown quando já tinha um alvo no alcance - agora sempre diz

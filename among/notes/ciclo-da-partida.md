@@ -150,12 +150,13 @@ painel aberto fecha sozinho quando alguém resolve antes (`sabotage_ended` no ga
 chegada como o `interrupt_pending`, porque varrer a fila por quadro já travou o jogo uma vez).
 Sonda: `tools/probes/probe_reparo.nvgt`.
 
-**Sabotar é a única capacidade que sobrevive à morte.** O impostor morto continua sabotando (como
-no original) - matar, ventilar e fechar portas acabam com ele. A regra está em dois lugares que
-precisam concordar: `player_abilities.can_sabotage()` (que oferece a tecla) e
-`game_state.trigger_sabotage` (que decide). Cuidado ao editar: `close_doors_of_room` tem uma linha
-de guarda IDÊNTICA à da sabotagem, e uma substituição descuidada troca a função errada sem que nada
-acuse - a sonda `tools/probes/probe_ghost_sabotage.nvgt` cobre as duas justamente por isso.
+**Sabotar e fechar portas sobrevivem à morte.** O impostor morto continua sabotando e fechando
+portas (como no original; as portas desde a 0.50.9, decisão do usuário) - matar e ventilar acabam
+com ele; engolido, não faz nenhum dos dois. Fechar portas pergunta no servidor à MESMA
+`player_abilities.can_close_doors()` que oferece a tecla - antes tinha uma trava própria de "vivo".
+A sabotagem ainda tem a regra em dois lugares que precisam concordar:
+`player_abilities.can_sabotage()` (a tecla) e `game_state.trigger_sabotage` (que decide). A sonda
+`tools/probes/probe_ghost_sabotage.nvgt` cobre as duas.
 
 **Voz posicionada é só para quem está VIVO e andando.** `g_voice.spatial = alive && !movement_frozen`
 é decidido a cada quadro, e não em cada transição: são três (morrer, começar a reunião, acabar a

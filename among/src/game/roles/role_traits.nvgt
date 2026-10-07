@@ -805,11 +805,11 @@ class player_abilities {
 	// ponto que esquecesse os dutos desligados não compila, em vez de oferecer um duto que o servidor
 	// recusa calado.
 	bool can_vent(bool room_allows_vents) const { return room_allows_vents && alive && role.can_vent; }
-	// A ÚNICA capacidade que sobrevive à morte, como no jogo original: o impostor morto continua
-	// sabotando. É o que ele ainda tem a oferecer ao time - matar, ventilar e fechar portas acabam
+	// As capacidades que sobrevivem à morte, como no jogo original: o impostor morto continua
+	// sabotando e fechando portas. É o que ele ainda tem a oferecer ao time - matar e ventilar acabam
 	// com ele, e sem isto morrer cedo como impostor era virar espectador puro.
 	bool can_sabotage() const { return role.can_sabotage && !swallowed; }
-	bool can_close_doors() const { return alive && role.can_close_doors; }
+	bool can_close_doors() const { return role.can_close_doors && !swallowed; }
 	bool can_report_bodies() const { return alive && role.can_report_bodies; }
 	bool can_call_meeting() const { return alive && role.can_call_meeting; }
 	// Votar é o único direito que a morte tira sem exceção, e por isso não olha o papel.

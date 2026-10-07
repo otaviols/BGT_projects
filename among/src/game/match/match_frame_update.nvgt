@@ -217,8 +217,7 @@ mixin class match_frame_update_part {
 					// Barrado por uma PORTA é diferente de barrado por parede: a porta abre sozinha daqui a
 					// pouco, e saber disso muda o que o jogador faz (esperar em vez de procurar outro
 					// caminho). Por isso a porta tem som próprio e ainda fala.
-					map_zone@ blocked_zone = map.zone_at(new_x, new_y);
-					if (@blocked_zone != null && map.is_door_closed(blocked_zone.id)) {
+					if (map.door_blocks(my_x, my_y, new_x, new_y)) {
 						speak(tr("game.door_closed"));
 						audio.play_door_bump(my_x, my_y);
 					} else {

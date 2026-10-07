@@ -7,27 +7,27 @@
 
 mixin class state_ship_part {
 	// --- Portas ---
-	// Fecha TODOS os corredores que dão pra uma sala, prendendo quem está lá dentro (e quem está
-	// fora, do lado de fora). Não tem conserto: reabrem sozinhas quando o tempo acaba. É de
+	// Tranca as portas de uma sala, prendendo quem está lá dentro e deixando de fora quem está fora (ver
+	// game_map.door_blocks). Não tem conserto: reabrem sozinhas quando o tempo acaba. É de
 	// propósito que isso não passe pelo sistema de sabotagem - poder fechar a porta da elétrica E
 	// apagar a luz ao mesmo tempo é justamente o que torna a jogada interessante.
+	//
+	// Quem pode é a MESMA pergunta que oferece a tecla (player_abilities.can_close_doors): o impostor
+	// morto também fecha, como no original - escrita aqui à parte, a trava de "vivo" já divergiu.
 	bool close_doors_of_room(uint64 impostor_peer, const string&in room_id, array<string>@&out closed_zones) {
 		@closed_zones = array<string>();
 		if (state != "in_progress") return false;
 		game_player@ impostor = find_player(impostor_peer);
-		if (@impostor == null || !impostor.is_impostor || !impostor.alive) return false;
+		if (@impostor == null || !player_abilities(impostor.role(), impostor.alive, impostor.swallowed()).can_close_doors()) return false;
 		if (config.game_mode != GAME_MODE_CLASSIC) return false; // os modos não têm sabotagem, e trancar porta é uma delas
 		if (doors_cooldown_remaining > 0.0) return false;
 
 		map_zone@ room = map.find_zone(room_id);
 		if (@room == null || room.is_corridor) return false;
 
-		array<string>@ neighbors = map.zone_neighbors(room_id); // pra uma sala, vizinhos = os corredores dela
-		if (neighbors.length() == 0) return false;
-
-		map.close_doors(neighbors, DOORS_CLOSED_SECONDS);
+		closed_zones.insert_last(room_id);
+		map.close_doors(closed_zones, DOORS_CLOSED_SECONDS);
 		doors_cooldown_remaining = DOORS_COOLDOWN_SECONDS;
-		@closed_zones = neighbors;
 		return true;
 	}
 

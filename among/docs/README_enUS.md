@@ -670,9 +670,11 @@ cannot be repeated twice in a row.
   arrows until the voice is free of static and hold it there for a moment. It is the only repair done
   by ear — nobody can dictate the answer from afar.
 
-**Doors (F)** — locks all of a room's corridors for 12 seconds, with a 25-second cooldown. There is
-no fixing them: the doors reopen on their own. It is not a sabotage, so you can lock a room **and**
-sabotage at the same time. Ghosts walk through locked doors.
+**Doors (F)** — locks a room's doors for 12 seconds, with a 25-second cooldown: whoever is inside
+cannot get out, and whoever is outside cannot get in; the corridors stay open. There is no fixing
+them: the doors reopen on their own. It is not a sabotage, so you can lock a room **and** sabotage
+at the same time. Ghosts walk through locked doors. A dead impostor can still lock doors, just as
+they can still sabotage.
 
 **Vents** — impostor only. To **get in**, stand next to a vent and press **Enter**, like any other
 object. Once **inside**, **V** opens the options: step out where you are, or travel to another vent

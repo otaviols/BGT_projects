@@ -91,7 +91,7 @@ const string C_RADAR_SCAN = "c_radar_scan";       // {direction} (1 = próximo, 
 // cima do duto onde alguém acabou de sumir.
 const string C_RADAR_TRACK = "c_radar_track";     // {peer_id}
 const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("lights" | "oxygen" | "comms"), só impostor
-const string C_CLOSE_DOORS = "c_close_doors";     // {room_id} - fecha os corredores daquela sala, só impostor
+const string C_CLOSE_DOORS = "c_close_doors";     // {room_id} - tranca aquela sala, só impostor (vivo ou morto)
 const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
 const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
 // O jogador avisa se quer RECEBER voz. Sem isto o servidor mandaria 128 kbps de áudio para quem
@@ -342,4 +342,4 @@ string tr_server_message(net_packet@ pkt) {
 }
 const string S_VENT_STATE = "s_vent_state";                 // {vented, x, y} - resposta privada (só pra quem usou o vent)
 const string S_VENT_SOUND = "s_vent_sound";                 // {vent_id} - tampa do vent abrindo, ouvida por QUEM ESTÁ PERTO (não vai pra quem usou)
-const string S_DOORS_STATE = "s_doors_state";               // {closed, zones: [ids de corredor]} - portas fechando ou abrindo
+const string S_DOORS_STATE = "s_doors_state";               // {closed, zones: [ids de sala]} - portas fechando ou abrindo
