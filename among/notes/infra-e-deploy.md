@@ -244,6 +244,16 @@ Studio inteira desativada pela Microsoft ("Disable subscription", caller "Micros
 `version.json` dá 404). Confira com `az account list --all` (estado `Disabled`) e `az aks list`
 (`Deallocated`); o `az account show` comum ainda mostra `Enabled` do cache.
 
+**Reativar a assinatura NÃO religa o cluster** - e ele fica em `Deallocated` + `Failed`. O `az aks
+start` termina calado sem fazer nada (e, de novo, recusa: "only allowed on a stopped cluster"); o
+que religa é `az aks update -g rg-fallenrealms-alpha -n aks-fallenrealms-alpha --yes` (sem o `--yes`
+ele para numa pergunta e, sem terminal, morre com `EOFError`). ~5 min, e o pod sobe sozinho com o
+mesmo IP e o volume intacto. O site volta sozinho com a assinatura.
+
+**Backup do banco: `%USERPROFILE%\amongus_backups\`**, fora do repositório (tem hash de senha). Até
+2026-10-07 não havia NENHUM - a assinatura desativada mostrou que o banco só sairia do disco do
+cluster com ela ativa. Copiar com `kubectl cp` (caminho relativo, ver o `admin.ps1`).
+
 **"Caí do servidor": cruze o crash.log do recado com as linhas `[queda]` do log** (`kubectl logs -n
 amongus deploy/amongus-server --timestamps | Select-String queda`, desde a 0.50.9). O jogador só sabe
 dizer "o servidor encerrou a conexão"; o servidor diz se foi tempo esgotado, o cliente desligando ou
