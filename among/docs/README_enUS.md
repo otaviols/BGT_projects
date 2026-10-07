@@ -49,9 +49,12 @@ for you to paste in your bank app, and **card, from any country** opens the Ko-f
 
 **Explore the map:** the main menu has an **Explore the map** option that lets you walk around the
 ship alone, with no server and no pressure. Each room is named as you enter it, Tab lists what is in
-the room, Enter says what the nearest object is, the plus and minus keys change your speed (from 50 to
-200 percent, the same range rooms allow), and ESC returns to the menu. It is the way to learn
-where everything is before there is an impostor nearby.
+the room, the plus and minus keys change your speed (from 50 to 200 percent, the same range rooms
+allow), and ESC returns to the menu. **Enter on a task spot opens the task**, the same one as in a
+match, to practice it where it actually is; on other objects, Enter says what they are. A task with
+several steps, like fueling the engines, practices each step at its own spot: take the fuel at the
+storage and walk to the engine. It is the way to learn where everything is before there is an
+impostor nearby.
 
 **Server notice:** now and then whoever runs the server leaves an announcement — a new version on
 the site, maintenance. It is spoken when it arrives and stays pinned at the top of the game list, so

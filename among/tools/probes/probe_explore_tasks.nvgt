@@ -1,0 +1,47 @@
+// Sonda das tarefas no Conhecer o mapa (recado #217): todo ponto de tarefa do mapa abre uma tarefa que
+// o treino conhece, na fase que aquele ponto representa.
+//   nvgt tools/probes/probe_explore_tasks.nvgt
+//
+// Não abre minigame (isso é a tela de treino, que já roda o mesmo run_task_minigame): confere o que a
+// tela do mapa decide sozinha - o tipo e a fase de cada ponto. Um ponto com tipo que o treino não
+// conhece abriria uma tarefa que devolve "não concluída" na hora, sem dizer por quê.
+#include "../../src/ui/explore_screen.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	game_map@ map = build_the_hub_map();
+	uint pontos = 0;
+	array<string> desconhecidos;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type != OBJ_TASK_SPOT) continue;
+		pontos++;
+		if (PRACTICE_TASKS.find(o.task_type) < 0) desconhecidos.insert_last(o.id + " (" + o.task_type + ")");
+		uint fase = explore_phase_of(map, o);
+		if (fase >= map.phase_count_of(o.task_type)) desconhecidos.insert_last(o.id + ": fase " + fase + " fora da tarefa");
+	}
+	println("pontos de tarefa no mapa: " + pontos);
+	confere("todo ponto abre uma tarefa que o treino conhece" + (desconhecidos.length() > 0 ? ": " + join(desconhecidos, ", ") : ""),
+		desconhecidos.length() == 0 && pontos > 0);
+
+	// As correntes: cada ponto de cada corrente é a fase da sua posição.
+	uint conferidos = 0;
+	bool certo = true;
+	for (uint c = 0; c < map.chains.length(); c++) {
+		for (uint f = 0; f < map.chains[c].object_ids.length(); f++) {
+			map_object@ o = map.find_object(map.chains[c].object_ids[f]);
+			if (@o == null) { println("   ponto sumido: " + map.chains[c].object_ids[f]); certo = false; continue; }
+			conferidos++;
+			if (explore_phase_of(map, o) != f) { println("   " + o.id + " deu fase " + explore_phase_of(map, o) + ", esperado " + f); certo = false; }
+		}
+	}
+	confere("cada ponto de corrente abre a SUA fase (" + conferidos + " pontos)", certo && conferidos > 0);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

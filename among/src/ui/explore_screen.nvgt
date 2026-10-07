@@ -12,8 +12,9 @@
 // estar logado.
 //
 // O que existe aqui é deliberadamente pouco: andar, ouvir, o radar de objetos, a tecla de "onde
-// estou". Tasks não abrem e nada acontece ao interagir. Colocar mais viraria um modo de treino, que
-// é outra conversa - este é um mapa que se anda.
+// estou" - e as TAREFAS, que abrem com Enter no próprio ponto (recado #217, decisão do usuário: todas
+// as do mapa). O menu de treino ensina a tarefa; aqui se treina ela onde ela fica, com o caminho até
+// ela, que é o que a partida cobra. O resto dos objetos (painéis, dutos, câmeras) só diz o que é.
 
 #include "speech.nvgt"
 #include "../audio/audio_manager.nvgt"
@@ -24,6 +25,18 @@
 #include "../core/frame_timer.nvgt"
 #include "../game/exit_alignment.nvgt"
 #include "../core/touch_input.nvgt"
+#include "practice_screen.nvgt"
+
+// A fase que um ponto de tarefa representa: o depósito é a fase 0 de abastecer os motores, o motor é a
+// 1. Cada ponto treina a SUA etapa - o caminho entre uma e outra é o jogador que faz, como na partida.
+uint explore_phase_of(game_map@ map, map_object@ obj) {
+	for (uint i = 0; i < map.chains.length(); i++) {
+		if (map.chains[i].task_type != obj.task_type) continue;
+		int fase = map.chains[i].object_ids.find(obj.id);
+		if (fase >= 0) return uint(fase);
+	}
+	return 0;
+}
 
 // Velocidade de andar no mapa, em por cento do padrão (recado #204). Mais e menos mudam de 25 em 25, na
 // mesma faixa que uma sala aceita (MOVE_SPEED_MIN/MAX_PERCENT): quem treina para uma sala rápida anda
@@ -68,6 +81,7 @@ void run_explore_map_screen() {
 	timer footstep_clock;
 	timer wall_bump_clock;
 	exit_alignment exits; // o mesmo aviso de saída da partida: é aqui que se aprende onde ficam as portas
+	game_client@ offline = make_offline_client(); // a minigame pede um cliente; este não fala com ninguém
 	get_characters(); // o que foi digitado ANTES (num formulário) não pode mudar a velocidade na entrada
 
 	while (true) {
@@ -167,11 +181,18 @@ void run_explore_map_screen() {
 			speak(tr("game.location_info", p));
 		}
 
-		// Enter num objeto diz o que ele é e o que faria - e só. É o lugar de aprender "isto é o
-		// painel de oxigênio" sem o relógio correndo.
+		// Enter num ponto de tarefa abre a tarefa, a mesma minigame da partida. Nos outros objetos, diz o
+		// que ele é e o que faria - é o lugar de aprender "isto é o painel de oxigênio" sem o relógio
+		// correndo.
 		if (action_pressed(ACTION_INTERACT)) {
 			map_object@ obj = nearest_object(map, my_x, my_y);
-			speak(@obj != null ? object_name(obj) + ". " + tr("explore.object_hint") : tr("game.nothing_nearby"));
+			if (@obj != null && obj.obj_type == OBJ_TASK_SPOT && obj.task_type != "") {
+				bool ok = run_task_minigame(offline, obj.task_type, explore_phase_of(map, obj));
+				speak(tr(ok ? "practice.done" : "practice.not_done"));
+				frame_clock.tick(); // o tempo da minigame não vira um passo
+			} else {
+				speak(@obj != null ? object_name(obj) + ". " + tr("explore.object_hint") : tr("game.nothing_nearby"));
+			}
 		}
 	}
 

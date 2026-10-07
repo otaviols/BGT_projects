@@ -47,9 +47,11 @@ banco, e **cartão, de qualquer país** abre a página do Ko-fi (ko-fi.com/otavi
 
 **Conhecer o mapa:** o menu inicial tem a opção **Conhecer o mapa**, que deixa você andar pela nave
 sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela, Tab lista o que há na
-sala, Enter diz o que é o objeto mais próximo, as teclas de mais e menos mudam a velocidade (de 50 a
-200 por cento, a mesma faixa das salas), e ESC volta ao menu. É o jeito de aprender onde fica
-cada coisa antes de haver um impostor por perto.
+sala, as teclas de mais e menos mudam a velocidade (de 50 a 200 por cento, a mesma faixa das salas),
+e ESC volta ao menu. **Enter num ponto de tarefa abre a tarefa**, a mesma da partida, para treinar
+no lugar onde ela fica; nos outros objetos, Enter diz o que eles são. Uma tarefa de várias etapas,
+como abastecer os motores, treina cada etapa no seu ponto: pegue o combustível no depósito e ande até
+o motor. É o jeito de aprender onde fica cada coisa antes de haver um impostor por perto.
 
 **Recado do servidor:** de vez em quando quem cuida do servidor deixa um aviso — uma versão nova no
 site, uma manutenção. Ele é falado quando chega e fica fixo no topo da lista de partidas, para você

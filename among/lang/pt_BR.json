@@ -34,7 +34,7 @@
   "volume.voices": "Vozes dos outros jogadores",
   "volume.alarm": "Alarme de sabotagem (o que fica tocando)",
   "menu.explore_map": "Conhecer o mapa",
-  "explore.intro": "Você está na cafeteria, sozinho na nave. Ande com as teclas de movimento; o nome de cada sala é dito ao entrar nela. Tab lista o que há na sala, Enter diz o que é o objeto mais próximo. Mais e menos mudam a velocidade, e ESC volta ao menu.",
+  "explore.intro": "Você está na cafeteria, sozinho na nave. Ande com as teclas de movimento; o nome de cada sala é dito ao entrar nela. Tab lista o que há na sala. Enter num ponto de tarefa abre a tarefa, para treinar; nos outros objetos, diz o que é. Mais e menos mudam a velocidade, e ESC volta ao menu.",
   "explore.speed": "Velocidade: {percent} por cento.",
   "explore.object_hint": "Numa partida, Enter aqui abriria isto.",
   "menu.back": "Voltar",

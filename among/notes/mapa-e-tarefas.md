@@ -59,6 +59,14 @@ tolerância de 0,01); zona com uma folga entre as paredes fica sem saída e sem 
 `tools/probes/probe_exit_alignment.nvgt`, que lista as saídas de toda sala (para ler) e simula alguém
 andando. O som é provisório (`SND_EXIT_ALIGNED`, o clique de menu).
 
+**No Conhecer o mapa, Enter num ponto de tarefa abre a tarefa** (recado #217; decisão do usuário:
+TODAS as do mapa). Usa o mesmo `run_task_minigame` e o cliente desconectado do treino
+(`make_offline_client`, por isso o `explore_screen` inclui o `practice_screen`). Cada ponto abre a
+SUA fase (`explore_phase_of`): o depósito é pegar o combustível, o motor é despejar - o caminho entre
+os dois é o jogador que faz, como na partida, e é justamente o que o menu de treino não ensina.
+Ponto e tipo novos entram sozinhos (é o `task_manager` que abre); a sonda
+`probe_explore_tasks.nvgt` confere que todo ponto é de um tipo que também está em `PRACTICE_TASKS`.
+
 **A porta trancada é a BORDA da sala, não o corredor** (0.50.9, recado #220). `map.closed_door_zones`
 guarda ids de SALA, e `game_map.door_blocks` - a regra inteira, usada pelo `can_move` e pelo aviso de
 "porta trancada" - recusa o passo que troca de zona quando uma das duas está trancada. Até a 0.50.8 a
@@ -137,7 +145,8 @@ jogador só com as tarefas longas, sem erro nenhum. Sonda: `tools/probes/probe_t
 **Tarefa NOVA entra em OITO lugares, e a maioria falha em silêncio.** Na ordem em que se esquece:
 o minigame (`game/tasks/<tipo>.nvgt`), o `#include` **e** o `else if` do `task_manager` (só o
 include compila e a task nunca abre), o ponto no `map.nvgt` com beacon, `PRACTICE_TASKS` em
-`ui/practice_screen.nvgt` (sem isso não dá para testá-la sem montar partida), o beacon em
+`ui/practice_screen.nvgt` (sem isso não dá para testá-la sem montar partida, e a
+`probe_explore_tasks` acusa), o beacon em
 `ui/onboarding_screens.nvgt` ("Conhecer o mapa"), as constantes **e a lista do build_pack** em
 `audio/sound_catalog.nvgt` (sem a lista, o som não entra no `sounds.dat` e a task fica muda só no
 jogo compilado), as chaves nos DOIS idiomas, e a seção de tarefas dos dois `docs/README_*`. Decida

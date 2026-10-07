@@ -35,7 +35,7 @@
   "volume.voices": "Diğer oyuncuların sesleri",
   "volume.alarm": "Sabotaj alarmı (sürekli çalan)",
   "menu.explore_map": "Haritayı keşfet",
-  "explore.intro": "Kafeteryadasınız, gemide yalnızsınız. Hareket tuşlarıyla yürüyün; girdiğiniz her odanın adı söylenir. Tab odadakileri listeler, Enter en yakındaki nesneyi söyler, artı ve eksi hızınızı değiştirir ve ESC menüye döndürür.",
+  "explore.intro": "Kafeteryadasınız, gemide yalnızsınız. Hareket tuşlarıyla yürüyün; girdiğiniz her odanın adı söylenir. Tab odadakileri listeler, Enter bir görev noktasında görevi alıştırma için açar, diğer nesnelerde ne olduklarını söyler; artı ve eksi hızınızı değiştirir ve ESC menüye döndürür.",
   "explore.object_hint": "Bir maçta buradaki Enter bunu açardı.",
   "menu.back": "Geri",
   "menu.confirm": "Onayla",

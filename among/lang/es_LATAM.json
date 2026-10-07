@@ -35,7 +35,7 @@
   "volume.voices": "Voces de otros jugadores",
   "volume.alarm": "Alarma de sabotaje (la que sigue sonando)",
   "menu.explore_map": "Explorar el mapa",
-  "explore.intro": "Estás en la cafetería, solo en la nave. Camina con las teclas de movimiento; el nombre de cada sala se dirá al entrar en ella. Tab muestra lo que hay en la sala, Enter dice qué es el objeto más cercano, más y menos cambian la velocidad, y ESC vuelve al menú.",
+  "explore.intro": "Estás en la cafetería, solo en la nave. Camina con las teclas de movimiento; el nombre de cada sala se dirá al entrar en ella. Tab muestra lo que hay en la sala, Enter en un punto de tarea abre la tarea, para practicar; en los demás objetos, dice qué son. Más y menos cambian la velocidad, y ESC vuelve al menú.",
   "explore.object_hint": "En una partida real, presionar Enter aquí abriría esto.",
   "menu.back": "Volver",
   "menu.confirm": "Confirmar",
