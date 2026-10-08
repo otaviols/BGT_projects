@@ -18,7 +18,8 @@ perder é não ser lida.
 |---|---|
 | som novo, volume, arquivo de áudio, bip | [notes/som.md](notes/som.md) |
 | papel/profissão, habilidade | [notes/papeis.md](notes/papeis.md) |
-| mapa, sala, duto, tarefa, minijogo | [notes/mapa-e-tarefas.md](notes/mapa-e-tarefas.md) |
+| mapa, sala, duto, sorteio de tarefas | [notes/mapa-e-tarefas.md](notes/mapa-e-tarefas.md) |
+| **inventar ou escrever um minijogo** | [notes/tarefas-novas.md](notes/tarefas-novas.md) |
 | começo/fim de partida, reunião, sabotagem, morte | [notes/ciclo-da-partida.md](notes/ciclo-da-partida.md) |
 | protocolo, login, sessão, tela, menu, fila de pacotes, saguão | [notes/rede-e-telas.md](notes/rede-e-telas.md) |
 | chat de voz | [notes/voz.md](notes/voz.md) |

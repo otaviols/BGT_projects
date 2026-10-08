@@ -142,89 +142,10 @@ array, e comparar com `destino.length()` cru fazia a segunda achar a cota cumpri
 jogador só com as tarefas longas, sem erro nenhum. Sonda: `tools/probes/probe_task_limits.nvgt`
 (`probe_task_mix` não pegou porque só IMPRIME o que saiu, sem cobrar o total).
 
-**Tarefa NOVA entra em OITO lugares, e a maioria falha em silêncio.** Na ordem em que se esquece:
-o minigame (`game/tasks/<tipo>.nvgt`), o `#include` **e** o `else if` do `task_manager` (só o
-include compila e a task nunca abre), o ponto no `map.nvgt` com beacon, `PRACTICE_TASKS` em
-`ui/practice_screen.nvgt` (sem isso não dá para testá-la sem montar partida, e a
-`probe_explore_tasks` acusa), o beacon em
-`ui/onboarding_screens.nvgt` ("Conhecer o mapa"), as constantes **e a lista do build_pack** em
-`audio/sound_catalog.nvgt` (sem a lista, o som não entra no `sounds.dat` e a task fica muda só no
-jogo compilado), as chaves nos DOIS idiomas, e a seção de tarefas dos dois `docs/README_*`. Decida
-também se ela é longa (`LONG_TASK_TYPES`) - o padrão é curta.
-
-**O jeito que funciona de inventar tarefa: pegar a ORIGINAL e traduzi-la para o ouvido.** Foi a
-correção do usuário depois de eu propor três levas ruins (tarefas de mundo, mais painéis, e a
-mistura revertida). A pergunta certa não é "que mecânica de ouvido falta?" - é **"o que o jogador
-faz com as mãos no original, e como isso vira um gesto de ouvido?"**. A fiação já era isso e é a
-melhor tarefa do jogo. A biblioteca de sons do usuário (fora do repositório,
-`D:\documents\sons among us\sounds among`) tem o conjunto COMPLETO de várias originais que ainda não
-existem aqui: calibrar o distribuidor, inserir as chaves, rodar diagnóstico, traçar a rota, ativar
-escudos, desviar energia, nó do clima, separar amostras.
-
-`clean_o2_filter` é a primeira feita assim. No original as folhas estão à vista e você arrasta cada
-uma até a abertura; aqui elas estão escondidas em seis posições, o aspirador anda entre elas com as
-setas, e o som responde: **tique seco = vazio, tique + farfalho = folha**. A versão anterior da
-maquete tocava tudo sozinha e o veredito foi "ficou automático" - **o jogador tem que decidir, não
-assistir**, e é o mesmo erro que a primeira versão do `water_plants` teve. Três decisões que a
-seguram: seis posições para três folhas (com uma em cada, bastava apertar Enter seis vezes sem ouvir
-nada); as folhas **se mexem** a cada aspirada, senão dava para mapear a câmara numa varredura e o
-resto virava digitação; e o beacon é o MESMO arquivo do ar que toca dentro da task, então de longe se
-ouve o filtro puxando e de perto aquele puxar vira o norte fixo.
-
-`calibrate_distributor` é a segunda, e o critério de escolha foi outro: das doze minigames, **nenhuma
-pedia acerto de TEMPO** - todas eram "ache e escolha". Foi a mecânica que faltava, e o original já era
-ela. É também a tradução mais fácil para o ouvido que existe, porque julgar QUANDO dois sons
-coincidem é algo que o ouvido faz muito melhor do que julgar ONDE um som está.
-
-Quatro decisões dela, e o que cada uma evita:
-
-- **Duas pistas para a mesma posição**: o clique caminha no estéreo E sobe de tom. Redundância de
-  propósito - quem se guia mal pela panorâmica usa o tom, e vice-versa. Aqui **tom significa
-  posição**, o que localmente contraria "um sinal sonoro, um significado": passa porque a referência
-  é ENSINADA no começo de cada mostrador (o alvo toca duas vezes, no lugar e no tom dele) e porque
-  numa tela fechada não há passo nem marcador disputando aquele canal.
-- **O ponteiro é CLIQUE, não zumbido.** O som do distribuidor girando existe e é usado - mas só como
-  beacon. Dentro da task ele seria um contínuo por baixo de oito transientes, que é a parede que a
-  `stabilize_lines` ensinou a evitar.
-- **O passo não desce abaixo de ~200 ms**, que é a reação humana a um som esperado. O mostrador mais
-  rápido tem 175 ms e é o limite; quem quiser mais rápido tem que reduzir as POSIÇÕES, não o passo,
-  senão acertar deixa de ser ouvir e passa a ser adivinhar. A sonda cobra esse número.
-- **O Enter é julgado contra a posição do ÚLTIMO CLIQUE que soou**, e não contra onde o ponteiro
-  "estaria" naquele instante. O jogador aperta porque ouviu, e o som já aconteceu quando o dedo
-  desce: cobrar o instante puniria a reação em vez da escuta. Apertar tarde cai no clique seguinte -
-  erro dele, não do jogo.
-
-Errar não reinicia nada e o ponteiro não para: a punição é o tempo da volta. Sonda:
-`tools/probes/probe_distributor.nvgt`, que confere também as CONTAS (as duas pistas variando sempre
-no mesmo sentido, e vizinhas suficientemente separadas) - uma tabela de posições errada compila,
-roda, e só produz uma tarefa impossível de acertar sem sorte.
-
-**MAQUETE ANTES DE CÓDIGO.** Monte a ideia com `ffmpeg` (um `.wav` com os sons nas posições e nos
-tempos certos) e OUÇA antes de escrever a task. Custa dez minutos; a task revertida custou uma
-sessão. Duas armadilhas da maquete em si: `adelay=0|0` é recusado (o evento em zero não leva o
-filtro), e **make-up gain demais + `alimiter` achatam tudo no mesmo nível** - foi assim que o "tique
-vazio" e o "tique com folha" saíram idênticos numa medição, que é justamente a informação que a task
-existe para carregar. Meça janelas do arquivo com `volumedetect` em vez de confiar no ouvido para o
-balanço: no filtro, o farfalho ficou ~9 dB acima do tique, e esses números viraram as constantes em
-dB no topo da task.
-
-**SOM CONTÍNUO NÃO SE LOCALIZA, e vários ao mesmo tempo viram parede.** Isto custou uma tarefa
-inteira, escrita e revertida (`stabilize_lines`, commit 53341d0 e a reversão logo atrás - dá para
-recuperar o código de lá se um dia servir). A ideia era "ouvir para dentro de uma mistura": quatro
-linhas zumbindo juntas, cada uma numa posição, e o jogador diria qual estava oscilando. O veredito
-de quem ouviu foi "uma miscelânea de sons todos juntos, não está localizado, ficou horrível" - e
-estava certo.
-
-O erro é de acústica, não de ajuste: **o ouvido localiza por ATAQUE**. Um zumbido constante quase
-não tem transiente, então mesmo panoramizado ele vira um borrão largo em vez de um ponto; quatro
-deles se mascaram e o resultado é ruído. Mistura de verdade - um passo por cima da ambiência da sala,
-que é o que o jogo faz o tempo todo - funciona porque há **um fundo estável e UMA coisa intermitente
-dentro dele**. Quatro primeiros planos não são uma mistura, são uma parede.
-
-Regra que sai daí, para qualquer tarefa futura: som que precisa ser localizado tem que ter ataque, e
-no máximo um elemento contínuo por vez. Antes de escrever a task, monte a ideia com `ffmpeg` e ouça
-- misturar quatro arquivos e escutar custa um minuto, escrever a task custou uma sessão.
-
+**Inventar e montar uma tarefa nova tem arquivo próprio: [tarefas-novas.md](tarefas-novas.md).** A
+receita (original -> tradução para o ouvido -> maquete em ffmpeg -> ouvir -> código), os oito lugares
+onde uma tarefa nova se registra, os dois casos que produziram a receita, a lição do som contínuo e a
+fila de ideias estão lá. Aqui fica o que o mapa e o sorteio fazem com a tarefa depois de ela existir.
 **Tarefa longa vale mais aqui do que no jogo original.** `LONG_TASK_TYPES` (em
 `config/game_constants.nvgt`) marca as tarefas que fazem atravessar a nave ou ficar parado um bom
 tempo; o que não é comum nem longo é CURTO, sem terceira lista para sair de sincronia. O motivo não
