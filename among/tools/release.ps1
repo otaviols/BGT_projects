@@ -139,9 +139,13 @@ try {
 	}
 
 	Passo "conferindo no ar"
-	$publicada = (Invoke-RestMethod "https://amongusaudiogame.z15.web.core.windows.net/version.json").version
-	if ($publicada -ne $versao) { throw "O site anuncia $publicada, e não $versao." }
-	Write-Host "Site: $publicada"
+	# Os DOIS sites: o novo, que a 0.51.1 em diante consulta, e o do Azure, que as versões até a 0.51.0
+	# consultam - se um ficar para trás, parte dos jogadores não é avisada da atualização.
+	foreach ($site in @("https://amongus.blindtabern.com/", "https://amongusaudiogame.z15.web.core.windows.net/")) {
+		$publicada = (Invoke-RestMethod ($site + "version.json") -Headers @{ "Cache-Control" = "no-cache" }).version
+		if ($publicada -ne $versao) { throw "O site $site anuncia $publicada, e não $versao." }
+		Write-Host "Site $site : $publicada"
+	}
 	if ($servidor) {
 		$head = (git rev-parse --short HEAD).Trim()
 		$imagem = kubectl -n $Namespace get deploy amongus-server -o jsonpath='{..image}'

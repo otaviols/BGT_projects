@@ -6,6 +6,20 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.1
+
+**Atualize, por favor: esta versão é necessária para continuar jogando.** Amanhã o servidor do jogo
+muda de lugar, para uma hospedagem nova e mais barata de manter. A partir desta versão, o jogo encontra
+o servidor sozinho, onde quer que ele esteja. As versões anteriores não vão conseguir se conectar
+depois da mudança.
+
+**O jogo agora tem um endereço próprio: amongus.blindtabern.com.** É lá que ficam o download, para
+Windows, Android, Linux e Mac, e as novidades, no lugar daquele endereço comprido de antes. Pode
+passar esse endereço para quem quiser jogar.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.0
 
 **Treine as tarefas no Conhecer o mapa.** Enter num ponto de tarefa abre a tarefa, a mesma da

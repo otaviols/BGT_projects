@@ -241,6 +241,16 @@ do Azure. O que custou descobrir:
   `docker run -d --name amongus-server --restart unless-stopped -p 8934:8934/udp -v
   /opt/amongus/data:/data --env-file /opt/amongus/admin.env <imagem>`. Testar com
   `AMONGUS_SERVER_HOST=179.199.151.166` antes do `admin.ps1 status` e das sondas.
+- **O site `amongus.blindtabern.com` mora na VPS** (desde a 0.51.1, que consulta o `version.json`
+  lá): registro A na Hostinger, `/etc/nginx/conf.d/amongus.blindtabern.com.conf` servindo
+  `/var/www/amongus`, certificado do Let's Encrypt pelo `certbot --nginx` (a renovação é o
+  `certbot.timer` que o painel já tinha). O `deploy.ps1` publica nos DOIS sites - o do Azure segue
+  para as versões até a 0.51.0 - e o `release.ps1` confere os dois no fim. Na VPS cada arquivo sobe
+  como `.nome.novo` e é renomeado no fim, com o `version.json` por último.
+- **Texto mandado pelo PowerShell por pipe chega com BOM e `\r`.** Sintoma: `nginx -t` recusa com
+  `unknown directive "﻿#"` na linha 1 de um arquivo que parece certo. Tire com
+  `sed -i '1s/^\xEF\xBB\xBF//; s/\r$//'`. O nginx recusar um `reload` NÃO o derruba - a configuração
+  antiga continua rodando (o painel nem piscou).
 
 **O segredo `ghcr-pull` tem prazo de validade.** O pacote da imagem é privado, então o cluster precisa
 de credencial. Quando o token do GitHub expirar, o servidor para de subir com um `ImagePullBackOff`

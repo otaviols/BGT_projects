@@ -23,7 +23,10 @@ param(
 	[int]$DrainSeconds = 300,
 	# Pula a conferência de traduções. Só para emergência (um conserto de servidor que não pode
 	# esperar tradutor) - em release normal, não use.
-	[switch]$SkipTranslations
+	[switch]$SkipTranslations,
+	# O site novo, na VPS da Hostinger (ver notes/infra-e-deploy.md). A chave é só desta VPS e sem senha.
+	[string]$SiteHost = "amongus.blindtabern.com",
+	[string]$VpsKey = (Join-Path $env:USERPROFILE ".ssh\amongus_vps")
 )
 
 $ErrorActionPreference = "Stop"
@@ -220,4 +223,27 @@ if (-not $SkipSite) {
 
 	$url = az storage account show --name $StorageAccount --query "primaryEndpoints.web" -o tsv
 	Write-Host "Site publicado: $url"
+
+	# E o site novo, na VPS. O do Azure continua de pé por quem está numa versão que procura a
+	# atualização lá (até a 0.51.0); a 0.51.1 em diante procura aqui. Cada arquivo sobe com nome
+	# temporário e é renomeado no fim - nunca se baixa um pacote pela metade - e o version.json é o
+	# ÚLTIMO a trocar, como no Azure: quem o lê já acha os pacotes que ele anuncia.
+	$ssh = @("-i", $VpsKey, "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes")
+	$arquivos = @($clientZip)
+	foreach ($extra in @("AmongUs-linux.tar.gz", "AmongUs-linux.zip", "AmongUs-mac.iso", "AmongUs-android.apk")) {
+		$path = Join-Path $root $extra
+		if (Test-Path $path) { $arquivos += $path }
+	}
+	$arquivos += Get-ChildItem (Join-Path $PSScriptRoot "site") -File | Where-Object { $_.Name -ne "version.json" } | ForEach-Object { $_.FullName }
+	$arquivos += Join-Path $PSScriptRoot "site\version.json"
+	$renomes = @()
+	foreach ($f in $arquivos) {
+		$nome = Split-Path $f -Leaf
+		scp -q @ssh $f "root@${SiteHost}:/var/www/amongus/.$nome.novo"
+		if ($LASTEXITCODE -ne 0) { throw "Falhou o envio de $nome para $SiteHost." }
+		$renomes += "mv -f /var/www/amongus/.$nome.novo /var/www/amongus/$nome"
+	}
+	ssh @ssh "root@$SiteHost" ($renomes -join " && ")
+	if ($LASTEXITCODE -ne 0) { throw "Falhou a troca dos arquivos em $SiteHost." }
+	Write-Host "Site publicado: https://$SiteHost/"
 }

@@ -6,6 +6,19 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.1
+
+**Please update: this version is required to keep playing.** Tomorrow the game server moves to a
+new, cheaper home. From this version on, the game finds the server by itself, wherever it is.
+Earlier versions will not be able to connect after the move.
+
+**The game now has its own address: amongus.blindtabern.com.** That is where the downloads for
+Windows, Android, Linux and Mac live, along with the news, instead of the long address from before.
+Feel free to share it with anyone who wants to play.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.51.0
 
 **Practice the tasks in Explore the map.** Enter on a task spot opens the task, the same one as in a

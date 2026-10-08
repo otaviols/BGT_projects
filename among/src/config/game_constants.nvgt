@@ -9,7 +9,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.51.0";
+const string GAME_VERSION = "0.51.1";
 
 // Versão do PROTOCOLO de rede, separada da versão do jogo de propósito: a maioria das versões não
 // muda o que viaja pela rede, e as que mudam de um jeito incompatível são raras e precisam de um
@@ -35,9 +35,11 @@ const string GAME_VERSION = "0.51.0";
 const int PROTOCOL_VERSION = 11; // 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
 const int MIN_PROTOCOL_VERSION = 2;
 
-// Site de download, criado pela infra (o Storage Account com site estático - ver infra/main.tf).
-// O updater lê o version.json daqui e, havendo novidade, manda o jogador para a página.
-const string DOWNLOAD_PAGE_URL = "https://amongusaudiogame.z15.web.core.windows.net/";
+// Site de download. O updater lê o version.json daqui e, havendo novidade, manda o jogador para a
+// página. Desde a 0.51.1 é um nome no domínio do usuário, na VPS da Hostinger (ver
+// notes/infra-e-deploy.md): até a 0.51.0 era o endereço do Azure, que o deploy continua mantendo para
+// quem ainda está numa daquelas versões.
+const string DOWNLOAD_PAGE_URL = "https://amongus.blindtabern.com/";
 const string UPDATE_CHECK_URL = DOWNLOAD_PAGE_URL + "version.json";
 
 // Doações (menu "Apoiar o jogo"). Duas portas porque o público é dos dois lados: o Pix só serve a
