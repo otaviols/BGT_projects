@@ -222,8 +222,25 @@ mantenha-o respondendo até quase todos atualizarem. O redirecionamento de domí
 serve para o site: é do domínio inteiro, para um endereço fixo, sem manter o caminho.
 
 **VPS na Hostinger (2026-10-08):** id 2045786, plano "Game Panel 2" (2 CPU, 8 GB, 100 GB), Campinas,
-IP `179.199.151.166`. A chave SSH desta máquina (`~/.ssh/id_ed25519`) está cadastrada na conta como
-`otavio-pc-deploy`. É o destino planejado do servidor e do site, para sair do Azure.
+IP `179.199.151.166`, 6 ms daqui (o mesmo que o Azure). É o destino do servidor e do site, para sair
+do Azure. O que custou descobrir:
+- **O plano "Game Panel" NÃO deixa trocar o sistema** (no hPanel nem pela API): vem "Debian 13 with
+  Game Panel" (o AMP, da CubeCoders). Serve igual - o Docker 29 já vem instalado - e o painel fica
+  (decisão do usuário). Ele ocupa 2223/TCP, 12820/UDP, 8080 (só local) e um nginx em 80/443; a 8934
+  está livre, e o site do jogo entra nesse mesmo nginx com um `server_name` próprio. Firewall: política
+  de ENTRADA aceita tudo, e não há grupo de firewall da Hostinger na VM.
+- **Chave SSH: `~/.ssh/amongus_vps`, sem senha, só para esta VPS** (`ssh -i ... -o IdentitiesOnly=yes
+  root@179.199.151.166`). A `id_ed25519` desta máquina tem senha que ninguém lembra e o `ssh-agent`
+  está desligado - o sintoma foi "Server accepts key" seguido de "Permission denied", que parece chave
+  errada e não é. Chave cadastrada pela API (`vps_public-keys_attach`) com a VM já criada NÃO chegou
+  ao `authorized_keys`; a que o usuário pôs pelo painel chegou.
+- **Montagem:** `/opt/amongus/data` (dono 10001, o usuário da imagem) com o `among_users.db`,
+  `/opt/amongus/admin.env` (modo 600, `AMONGUS_ADMIN_TOKEN=...`, o mesmo token do segredo do
+  cluster - mandado pelo PowerShell ganha um `\r` no fim; o `sed` tira). A imagem vai sem registro:
+  `docker save -o` aqui, `scp`, `docker load` lá (55 MB comprimida). Contêiner:
+  `docker run -d --name amongus-server --restart unless-stopped -p 8934:8934/udp -v
+  /opt/amongus/data:/data --env-file /opt/amongus/admin.env <imagem>`. Testar com
+  `AMONGUS_SERVER_HOST=179.199.151.166` antes do `admin.ps1 status` e das sondas.
 
 **O segredo `ghcr-pull` tem prazo de validade.** O pacote da imagem é privado, então o cluster precisa
 de credencial. Quando o token do GitHub expirar, o servidor para de subir com um `ImagePullBackOff`
