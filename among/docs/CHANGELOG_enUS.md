@@ -6,6 +6,24 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.3
+
+**New, and EXPERIMENTAL: an on-screen map, for sighted players.** It is meant for sighted friends
+who want to play along without getting lost on the ship. Turn it on in Settings, under "On-screen
+map, for sighted players". In a match and in Explore the map, the game window draws the rooms and
+corridors, you in the center, your task spots, bodies and the other players, using simple shapes.
+The screen only shows what the sound lets you perceive: a player shows up when you hear their
+footsteps, or when they are right next to you. With the lights out the screen gets darker and shows
+less, and with communications sabotaged your tasks disappear.
+
+It really is experimental: drawing on screen is a new feature of NVGT, the tool the game is made
+with, and it has had little testing so far, especially on Android. It may fail or draw something
+wrong. If that happens, turn the option off and send a message telling us. For anyone who plays by
+sound alone, nothing changes: the option comes turned off.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.51.2
 
 **Your messages and the replies are kept.** In the match list, the "My messages and the replies"

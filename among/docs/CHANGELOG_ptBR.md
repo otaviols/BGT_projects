@@ -6,6 +6,24 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.3
+
+**Novo, e EXPERIMENTAL: mapa na tela, para quem enxerga.** É para amigos que enxergam e querem
+jogar junto sem se perder na nave. Ligue em Configurações, na opção "Mapa na tela, para quem
+enxerga". Na partida e no Conhecer o mapa, a janela do jogo desenha as salas e os corredores, você
+no centro, os seus pontos de tarefa, os corpos e os outros jogadores, com formas simples. A tela só
+mostra o que o som deixa perceber: um jogador aparece quando você ouve os passos dele, ou quando está
+colado em você. Com as luzes apagadas a tela escurece e enxerga menos, e com as comunicações
+sabotadas as suas tarefas somem.
+
+Ele é experimental de verdade: o desenho na tela é um recurso novo do NVGT, a ferramenta com que o
+jogo é feito, e ainda foi pouco testado, principalmente no Android. Pode falhar ou desenhar algo
+errado. Se acontecer, desligue a opção e mande um recado contando. Para quem joga só pelo som, nada
+muda: a opção vem desligada.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.2
 
 **Seus recados e as respostas ficam guardados.** Na lista de partidas, a opção "Meus recados e as
