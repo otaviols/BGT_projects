@@ -436,6 +436,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		else if (t == C_SEND_FEEDBACK) on_send_feedback(peer_id, pkt);
 		else if (t == C_FEEDBACK_REPLIES_GET) on_feedback_replies_get(peer_id, pkt);
 		else if (t == C_FEEDBACK_REPLY_READ) on_feedback_reply_read(peer_id, pkt);
+		else if (t == C_FEEDBACK_HISTORY_GET) on_feedback_history_get(peer_id, pkt);
 		else if (t == C_ADMIN_REPLY) on_admin_reply(peer_id, pkt);
 		else if (t == C_SEND_TRANSLATION) on_send_translation(peer_id, pkt);
 		else if (t == C_ADMIN_LIST_TRANSLATIONS) on_admin_list_translations(peer_id, pkt);

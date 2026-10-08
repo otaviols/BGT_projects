@@ -386,6 +386,7 @@ class game_client {
 	}
 
 	void send_feedback_replies_get() { send(net_packet(C_FEEDBACK_REPLIES_GET)); }
+	void send_feedback_history_get() { send(net_packet(C_FEEDBACK_HISTORY_GET)); }
 	void send_feedback_reply_read(int reply_id) {
 		net_packet@ p = net_packet(C_FEEDBACK_REPLY_READ);
 		p.set_int("reply_id", reply_id);

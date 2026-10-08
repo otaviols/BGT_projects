@@ -127,6 +127,7 @@ const string C_SEND_FEEDBACK = "c_send_feedback";
 // na próxima vez que abrir o jogo, sem precisar de email nem de nada fora dele.
 const string C_FEEDBACK_REPLIES_GET = "c_feedback_replies_get";   // {}
 const string C_FEEDBACK_REPLY_READ = "c_feedback_reply_read";     // {reply_id}
+const string C_FEEDBACK_HISTORY_GET = "c_feedback_history_get";   // {} - os recados deste jogador e as respostas
 // Administração: quem faz o jogo responde a um recado. Protegido por um token que mora no servidor
 // (variável de ambiente, vinda de um segredo do cluster) e NUNCA dentro do jogo distribuído - o
 // cliente do jogador não conhece este pacote nem tem como montá-lo com um token válido.
@@ -291,6 +292,7 @@ const string S_HALL_EVENT = "s_hall_event";                 // {kind: created|st
 const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}
 const string S_DELETE_ACCOUNT_RESULT = "s_delete_account_result"; // {ok, message}
 const string S_FEEDBACK_REPLIES = "s_feedback_replies";     // {replies: [{reply_id, feedback_id, feedback_text, reply_text, created_at}]}
+const string S_FEEDBACK_HISTORY = "s_feedback_history";     // {messages: [{feedback_id, text, created_at, replies: [{reply_id, text, created_at, read}]}]}, do mais novo
 const string S_ADMIN_RESULT = "s_admin_result";             // {ok, message} - só para a ferramenta de administração
 const string S_TRANSLATION_ACK = "s_translation_ack";       // {ok, message_key}
 const string S_ADMIN_TRANSLATIONS = "s_admin_translations"; // {items: [{username, code, content, created_at}]}

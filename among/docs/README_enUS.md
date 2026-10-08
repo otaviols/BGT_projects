@@ -129,9 +129,11 @@ While the game is in beta this is the most useful channel: one report with conte
 than ten "it didn't work".
 
 **Replies come through the game.** When the people who make the game answer your message, you hear
-it on reaching the match list: "you have a reply to one of your messages". The **Replies to your
-messages** option reads your message and the reply side by side. No email, nothing outside the game
-— and to keep the conversation going, just send another message.
+it on reaching the match list: "you have a reply to one of your messages". The **My messages and
+the replies** option keeps all your messages, newest first, and says which ones have a new reply.
+Enter opens a message: it and each reply are a line you can read again with the arrows as many times
+as you like, and Enter on a line copies it. Nothing disappears after you read it. No email, nothing
+outside the game — and to keep the conversation going, just send another message.
 
 **My stats.** The match list has a **My stats** option showing matches played, wins (as crewmate,
 impostor and neutral role), task steps completed and kills.

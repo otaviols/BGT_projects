@@ -125,9 +125,11 @@ Como está em beta, esse é o canal mais útil: um relato com contexto vale mais
 funcionou".
 
 **As respostas chegam pelo jogo.** Quando quem faz o jogo responder ao seu recado, você ouve ao
-chegar na lista de partidas: "você tem uma resposta a um recado seu". A opção **Respostas aos seus
-recados** lê o seu recado e a resposta lado a lado. Não precisa de email nem de nada fora do jogo —
-e se quiser continuar a conversa, é só mandar outro recado.
+chegar na lista de partidas: "você tem uma resposta a um recado seu". A opção **Meus recados e as
+respostas** guarda todos os seus recados, do mais novo ao mais antigo, e diz quais têm resposta
+nova. Enter abre um recado: ele e cada resposta são uma linha, que você relê com as setas quantas
+vezes quiser, e Enter numa linha a copia. Nada some depois de lido. Não precisa de email nem de nada
+fora do jogo — e se quiser continuar a conversa, é só mandar outro recado.
 
 **Minhas estatísticas.** Na lista de partidas, a opção **Minhas estatísticas** mostra partidas jogadas,
 vitórias (como tripulante, impostor e papel neutro), etapas de tarefa concluídas e assassinatos.

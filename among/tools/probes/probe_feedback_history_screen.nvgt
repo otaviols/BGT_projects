@@ -1,0 +1,86 @@
+// Sonda da TELA do histórico de recados: abre a lista, entra num recado, relê a resposta com as setas
+// e copia com Enter - e confere que uma tecla qualquer não apaga nada (o defeito dos recados #226/#227).
+//   (servidor local com AMONGUS_ADMIN_TOKEN=sonda-historico)
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_feedback_history_screen.nvgt
+// As teclas são apertadas de DENTRO do laço da tela, pelo gancho que client.update() chama a cada
+// quadro (ver probe_lobby_form). A janela da sonda recebe também o que você digitar enquanto ela roda.
+#include "../../src/game/game_loop.nvgt"
+#include "../../src/ui/lobby_screens.nvgt"
+#include "../../src/core/crash_log.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+const string TOKEN = "sonda-historico";
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+array<string> falado;
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+bool falou(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return true;
+	return false;
+}
+
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 8000) exit(1); // a tela não devolveu: travou, e é isso que a sonda acusa
+	if (passo >= roteiro.length()) return;
+	if (quadro < 60) return;
+	if (quadro % 20 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 20 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+
+void espera(game_client@ c, int ms) { timer t; while (t.elapsed < ms) { c.update(); c.poll_message(); wait(5); } }
+
+void main() {
+	show_window("sonda: historico de recados");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	@tts_default_text_processing_callback = grava;
+	sound_master_volume = -100;
+
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	c.connect_to(addr.host, addr.port);
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	string nome = "tela" + random(1000, 9999);
+	c.send_register(nome, "probe123"); espera(c, 800);
+	c.send_login(nome, "probe123"); espera(c, 1500);
+	c.send_feedback("o recado da sonda de tela", GAME_VERSION, "pt_BR", false, "", "", ""); espera(c, 800);
+	json_array@ h = fetch_feedback_history(c);
+	if (@h == null || h.length() != 1) { println("sem o recado no historico"); exit(1); }
+	c.send_admin_reply(TOKEN, int(h.get_object(0)["feedback_id"]), "a resposta longa que nao pode sumir"); espera(c, 800);
+
+	@g_client_frame_hook = dirige;
+	// Lista: desce ao recado e abre. Recado (abre JÁ no primeiro item, a mensagem): desce à resposta,
+	// uma tecla qualquer no meio (o F, que antes apagava tudo), sobe à mensagem e desce de novo,
+	// copia a resposta com Enter, e sai com dois ESC.
+	roteiro = {KEY_DOWN, KEY_RETURN, KEY_DOWN, KEY_F, KEY_UP, KEY_DOWN, KEY_RETURN, KEY_ESCAPE, KEY_ESCAPE};
+	run_feedback_history_screen(c);
+	@g_client_frame_hook = null;
+
+	confere("a lista mostra o recado como resposta nova", falou("o recado da sonda de tela") && falou(tr("feedback.status_new")));
+	confere("dentro, o recado e a resposta sao lidos", falou("Seu recado") && falou("a resposta longa que nao pode sumir"));
+	int vezes = 0;
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find("a resposta longa") >= 0) vezes++;
+	confere("e a resposta se rele depois de uma tecla qualquer (" + vezes + " vezes)", vezes >= 2);
+	bool copiou = falou(tr("feedback.line_copied")) && clipboard_get_text().find("a resposta longa") >= 0;
+	confere("Enter copia a linha", copiou);
+	if (!copiou) {
+		println("     area de transferencia: " + clipboard_get_text());
+		for (uint i = falado.length() > 8 ? falado.length() - 8 : 0; i < falado.length(); i++) println("     falou: " + falado[i]);
+	}
+
+	json_array@ depois = fetch_feedback_history(c);
+	confere("aberta, a resposta fica marcada como lida e continua no historico", @depois != null
+		&& depois.get_object(0).get_array("replies").length() == 1
+		&& bool(depois.get_object(0).get_array("replies").get_object(0)["read"]));
+	c.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

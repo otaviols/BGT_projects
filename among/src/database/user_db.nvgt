@@ -8,6 +8,8 @@
 #include "models.nvgt"
 
 const uint PASSWORD_HASH_ITERATIONS = 20000;
+// Quantos recados o histórico devolve: os mais recentes. Um pacote só, e ninguém relê o centésimo.
+const int FEEDBACK_HISTORY_LIMIT = 50;
 const uint MIN_USERNAME_LENGTH = 3;
 const uint MAX_USERNAME_LENGTH = 20;
 const uint MIN_PASSWORD_LENGTH = 6;
@@ -411,6 +413,44 @@ class user_database {
 			o.set("reply_text", st.column_text(3));
 			o.set("created_at", st.column_text(4));
 			list.add(o);
+		}
+		return list;
+	}
+
+	// O histórico: os últimos recados deste usuário, do mais novo ao mais antigo, cada um com TODAS as
+	// respostas, lidas ou não (recado #226). As não lidas sozinhas (unread_feedback_replies) faziam a
+	// resposta sumir depois da primeira leitura - e uma tecla apertada sem querer cortava essa leitura
+	// no meio. Arquivado ou não: arquivar é organização de quem responde, não do jogador.
+	json_array@ feedback_history(const string&in username, int limit = FEEDBACK_HISTORY_LIMIT) {
+		json_array@ list = json_array();
+		if (@db == null) return list;
+		sqlite3statement@ st = db.prepare("SELECT id, text, created_at FROM feedback WHERE username = ? ORDER BY id DESC LIMIT ?");
+		if (@st == null) return list;
+		st.bind_text(1, username, false);
+		st.bind_int(2, limit);
+		while (st.step() == SQLITE_ROW) {
+			int id = st.column_int(0);
+			// As respostas montadas ANTES de entrar no recado: guardar a lista e acrescentar nela depois
+			// depende de o json guardar referência e não cópia, e isso não está garantido.
+			json_array@ respostas = json_array();
+			sqlite3statement@ rs = db.prepare("SELECT id, text, created_at, read_at FROM feedback_replies WHERE feedback_id = ? ORDER BY id");
+			if (@rs != null) {
+				rs.bind_int(1, id);
+				while (rs.step() == SQLITE_ROW) {
+					json_object@ r = json_object();
+					r.set("reply_id", rs.column_int(0));
+					r.set("text", rs.column_text(1));
+					r.set("created_at", rs.column_text(2));
+					r.set("read", rs.column_text(3) != "");
+					respostas.add(r);
+				}
+			}
+			json_object@ recado = json_object();
+			recado.set("feedback_id", id);
+			recado.set("text", st.column_text(1));
+			recado.set("created_at", st.column_text(2));
+			recado.set("replies", respostas);
+			list.add(recado);
 		}
 		return list;
 	}

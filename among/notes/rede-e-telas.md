@@ -199,6 +199,18 @@ conferido antes de aplicar qualquer coisa. "As regras mudaram" só sai se o retr
 trocar só a privacidade com aquele aviso mandaria todo mundo apertar C à toa. A entrada e saída da
 lista vem do `send_hall_state()` de sempre. Sonda: `probe_lobby_privacy.nvgt` (servidor local).
 
+**Resposta a recado é HISTÓRICO, não leitura única** (recados #221, #226, #227). Até a 0.51.1 a tela
+lia a resposta numa fala só, marcava como lida na hora e voltava ao menu na primeira tecla - que falava
+por cima: uma tecla sem querer ou uma resposta longa, e ela sumia para sempre (o jogador pedia por
+recado que mandassem de novo). Hoje `C_FEEDBACK_HISTORY_GET` devolve os últimos 50 recados do jogador
+com TODAS as respostas e um `read` em cada (`user_db.feedback_history`, montando a lista de respostas
+ANTES de guardá-la no recado - não confie que o json guarda referência), e cada linha é um item de
+menu (`run_feedback_thread_screen`): as setas releem, Enter copia. Abrir o recado marca as respostas
+como lidas, e a lista é PEDIDA DE NOVO ao voltar, em vez de corrigida localmente. O item fica sempre
+no menu ("Meus recados e as respostas", com "(N novas)" quando há). Sondas: `probe_feedback_history`
+(servidor) e `probe_feedback_history_screen` (a tela, com teclas), as duas contra um servidor local
+com `AMONGUS_ADMIN_TOKEN=sonda-historico`.
+
 **A sala SOBREVIVE à partida - o que morre é o estado dela.** No fim do jogo a lobby volta a
 "waiting" com a mesma gente dentro (`reopen_lobby` no servidor, `reopen_for_next_match` no
 game_state), em vez de fechar e jogar todo mundo no navegador de partidas. Duas coisas têm que

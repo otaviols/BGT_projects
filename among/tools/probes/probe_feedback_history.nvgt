@@ -1,0 +1,100 @@
+// Sonda do histórico de recados (recado #226): os recados de um jogador voltam com TODAS as respostas,
+// lidas ou não, do mais novo ao mais antigo, e só os dele.
+//   (servidor local com AMONGUS_ADMIN_TOKEN=sonda-historico)
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_feedback_history.nvgt
+//
+// Até a 0.51.1 a resposta lida sumia: o servidor só sabia devolver as não lidas. O controle é a
+// lista de NÃO lidas, que tem que esvaziar com a leitura enquanto o histórico continua com a resposta.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+const string TOKEN = "sonda-historico";
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Uma caixa por cliente, sem jogar nada fora (ver notes/sondas.md).
+array<net_packet@>@ coleta(game_client@ c, int ms) {
+	array<net_packet@> caixa;
+	timer x;
+	while (x.elapsed < ms) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) { caixa.insert_last(p); @p = c.poll_message(); }
+		wait(5);
+	}
+	return caixa;
+}
+net_packet@ achar(array<net_packet@>@ caixa, const string&in tipo) {
+	for (uint i = 0; i < caixa.length(); i++) if (caixa[i].type == tipo) return caixa[i];
+	return null;
+}
+
+game_client@ entra(const string&in nome) {
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); exit(1); }
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); coleta(c, 800);
+	c.send_login(nome, "probe123");
+	if (@achar(coleta(c, 1500), S_LOGIN_RESULT) == null) { println("login falhou: " + nome); exit(1); }
+	return c;
+}
+
+json_array@ historico(game_client@ c) {
+	c.send_feedback_history_get();
+	net_packet@ h = achar(coleta(c, 1500), S_FEEDBACK_HISTORY);
+	return @h != null ? h.get_array("messages") : null;
+}
+
+void main() {
+	int n = random(1000, 9999);
+	game_client@ ana = entra("hist" + n);
+	game_client@ bia = entra("outra" + n);
+
+	confere("sem recado, o historico vem vazio (e nao nulo)", @historico(ana) != null && historico(ana).length() == 0);
+
+	ana.send_feedback("primeiro recado da ana", GAME_VERSION, "pt_BR", false, "", "", "");
+	coleta(ana, 800);
+	ana.send_feedback("segundo recado da ana", GAME_VERSION, "pt_BR", false, "", "", "");
+	coleta(ana, 800);
+	bia.send_feedback("recado da bia", GAME_VERSION, "pt_BR", false, "", "", "");
+	coleta(bia, 800);
+
+	json_array@ h = historico(ana);
+	confere("a ana ve os DOIS recados dela, e so os dela", @h != null && h.length() == 2);
+	if (@h == null || h.length() < 2) { println("RESULTADO: FALHA"); exit(1); }
+	confere("do mais novo ao mais antigo", string(h.get_object(0)["text"]) == "segundo recado da ana");
+	int primeiro = int(h.get_object(1)["feedback_id"]);
+
+	// Responder pelo mesmo caminho do admin.ps1: o token, num cliente qualquer.
+	bia.send_admin_reply(TOKEN, primeiro, "resposta ao primeiro");
+	coleta(bia, 800);
+	coleta(ana, 500);
+
+	@h = historico(ana);
+	json_array@ respostas = h.get_object(1).get_array("replies");
+	confere("a resposta aparece no recado certo", @respostas != null && respostas.length() == 1
+		&& string(respostas.get_object(0)["text"]) == "resposta ao primeiro");
+	confere("e vem como NAO lida", !bool(respostas.get_object(0)["read"]));
+	confere("o outro recado segue sem resposta", h.get_object(0).get_array("replies").length() == 0);
+
+	ana.send_feedback_reply_read(int(respostas.get_object(0)["reply_id"]));
+	coleta(ana, 500);
+	ana.send_feedback_replies_get();
+	net_packet@ nao_lidas = achar(coleta(ana, 1500), S_FEEDBACK_REPLIES);
+	confere("controle: lida, ela sai das nao lidas", @nao_lidas != null && nao_lidas.get_array("replies").length() == 0);
+	@h = historico(ana);
+	respostas = h.get_object(1).get_array("replies");
+	confere("e CONTINUA no historico, agora como lida", respostas.length() == 1 && bool(respostas.get_object(0)["read"]));
+
+	json_array@ hb = historico(bia);
+	confere("a bia ve so o dela", @hb != null && hb.length() == 1 && string(hb.get_object(0)["text"]) == "recado da bia");
+
+	ana.disconnect(); bia.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

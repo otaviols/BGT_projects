@@ -18,6 +18,16 @@ mixin class server_admin_part {
 		send_to(peer_id, resposta);
 	}
 
+	// O histórico de recados do próprio jogador (recado #226). Só os DELE: o dono sai da conexão
+	// autenticada, nunca de um campo do pacote.
+	void on_feedback_history_get(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated || conn.username == "") return;
+		net_packet@ resposta = net_packet(S_FEEDBACK_HISTORY);
+		resposta.set_array("messages", g_user_db.feedback_history(conn.username));
+		send_to(peer_id, resposta);
+	}
+
 	void on_feedback_reply_read(uint64 peer_id, net_packet@ pkt) {
 		game_player@ conn = find_connection(peer_id);
 		if (@conn == null || conn.username == "") return;

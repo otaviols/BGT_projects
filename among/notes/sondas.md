@@ -74,6 +74,14 @@ tamanho do elenco: uma sonda que mata duas pessoas numa partida de quatro ACABA 
 dela (um impostor contra um tripulante é vitória do impostor), e o kill seguinte é recusado sem
 dizer por quê.
 
+**Sonda que dirige um MENU por teclas precisa saber onde o foco nasce.** Com `focus_first_item = true`
+o menu abre JÁ no primeiro item; sem, nasce fora da lista e a primeira seta só entra nela. Um roteiro
+contado do jeito errado cai uma posição adiante - na `probe_feedback_history_screen`, o Enter que devia
+copiar a resposta apertou "Voltar", e a sonda acusou "não copia" numa tela certa. Quando o roteiro
+falhar, imprima o que foi FALADO (o gancho de `tts_default_text_processing_callback` já guarda): a
+sequência de itens mostra na hora onde o foco estava. E uma sonda que copia mexe na área de
+transferência de quem está na máquina.
+
 Para coisas que só falham no build compilado (o menu de sons, a atualização, caminhos), compile uma
 sonda com `nvgt -c`, rode o `.exe` e grave o resultado num arquivo — o app compilado não tem console.
 

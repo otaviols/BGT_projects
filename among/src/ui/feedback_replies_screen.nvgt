@@ -1,13 +1,20 @@
 // feedback_replies_screen.nvgt
-// As respostas de quem faz o jogo aos recados deste jogador.
+// Os recados deste jogador e as respostas de quem faz o jogo: o histórico.
 //
 // É a outra metade do recado: sem ela, mandar feedback é falar num vácuo que às vezes responde por
 // email - e quem está jogando não quer sair do jogo para saber se alguém leu. Aqui a resposta chega
 // onde o recado foi escrito, e o jogador ouve o recado dele e a resposta lado a lado, porque uma
 // resposta solta ("sim, vai entrar!") sem o recado original não diz nada dias depois.
+//
+// Até a 0.51.1 a resposta era LIDA UMA VEZ e sumia: uma fala só, marcada como ouvida, e a primeira
+// tecla apertada (ou 20 s) voltava ao menu, que falava por cima. Uma tecla sem querer ou uma resposta
+// longa e ela estava perdida - o jogador tinha que pedir por recado que a mandassem de novo (recados
+// #221, #226, #227). Hoje é um histórico: cada linha é um item de menu, relido com as setas quantas
+// vezes for preciso, e nada some.
 
 #include "menu.nvgt"
 #include "speech.nvgt"
+#include "clipboard.nvgt"
 #include "../network/client.nvgt"
 #include "../core/utf8.nvgt"
 #include "../network/protocol.nvgt"
@@ -20,24 +27,37 @@ void pump_client_during_replies_menu(menu@ m, string data) {
 	if (@g_replies_pump_client != null) g_replies_pump_client.update();
 }
 
-// Pede ao servidor as respostas ainda não ouvidas e espera a lista. Devolve null se não veio nada
-// em tempo - o navegador segue sem o item, e tenta de novo na próxima atualização da lista.
-json_array@ fetch_unread_feedback_replies(game_client@ client) {
-	client.send_feedback_replies_get();
+// Espera um pacote de um tipo, por até 3 s, atendendo a conexão. null se não veio.
+net_packet@ wait_feedback_packet(game_client@ client, const string&in tipo) {
 	timer@ wait_clock = timer();
 	while (float(wait_clock.elapsed) / 1000.0 < 3.0) {
 		wait(20);
 		client.update();
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
-			if (pkt.type == S_FEEDBACK_REPLIES) return pkt.get_array("replies");
+			if (pkt.type == tipo) return pkt;
 			@pkt = client.poll_message();
 		}
 	}
 	return null;
 }
 
-// Um trecho do recado para identificar a resposta no menu: o começo dele já lembra o assunto.
+// Pede ao servidor as respostas ainda não ouvidas e espera a lista. Só serve para CONTAR (o aviso de
+// "você tem respostas" e o número no item do menu); quem mostra é o histórico. Devolve null se não
+// veio nada em tempo - o navegador segue sem o item, e tenta de novo na próxima atualização da lista.
+json_array@ fetch_unread_feedback_replies(game_client@ client) {
+	client.send_feedback_replies_get();
+	net_packet@ pkt = wait_feedback_packet(client, S_FEEDBACK_REPLIES);
+	return @pkt != null ? pkt.get_array("replies") : null;
+}
+
+json_array@ fetch_feedback_history(game_client@ client) {
+	client.send_feedback_history_get();
+	net_packet@ pkt = wait_feedback_packet(client, S_FEEDBACK_HISTORY);
+	return @pkt != null ? pkt.get_array("messages") : null;
+}
+
+// Um trecho do recado para identificá-lo na lista: o começo dele já lembra o assunto.
 string feedback_excerpt(const string&in text) {
 	const uint MAX = 60;
 	string t = text.replace("\n", " ", true).replace("\r", "", true);
@@ -45,52 +65,108 @@ string feedback_excerpt(const string&in text) {
 	return utf8_truncate(t, MAX) + "..."; // em letras: substr cortava no meio de um acento
 }
 
-// Lista as respostas; Enter numa delas lê o recado e a resposta e a marca como ouvida. A marcação
-// só vai depois de LER: quem apertou Enter por engano e saiu no meio ainda vai encontrá-la da
-// próxima vez.
-void run_feedback_replies_screen(game_client@ client, json_array@ replies) {
-	while (@replies != null && replies.length() > 0) {
+// "2026-10-08 21:05:01" (UTC, como o SQLite grava) -> o dia e o mês, na ordem do idioma.
+string feedback_date(const string&in created_at) {
+	if (created_at.length() < 10) return "";
+	dictionary@ p = dictionary();
+	p.set("day", created_at.substr(8, 2));
+	p.set("month", created_at.substr(5, 2));
+	return tr("feedback.date_format", p);
+}
+
+// "sem resposta", "1 resposta", "3 respostas" - ou "resposta nova", que é o que importa saber primeiro.
+string feedback_status(json_array@ replies) {
+	uint total = @replies != null ? replies.length() : 0;
+	for (uint i = 0; i < total; i++) {
+		json_object@ r = replies.get_object(i);
+		if (@r != null && !bool(r["read"])) return tr("feedback.status_new");
+	}
+	if (total == 0) return tr("feedback.status_none");
+	if (total == 1) return tr("feedback.status_one");
+	dictionary@ p = dictionary();
+	p.set("count", "" + total);
+	return tr("feedback.status_many", p);
+}
+
+// A lista dos recados, do mais novo ao mais antigo. Enter abre um recado com as respostas dele.
+void run_feedback_history_screen(game_client@ client) {
+	json_array@ messages = fetch_feedback_history(client);
+	if (@messages == null) { speak(tr("feedback.history_failed")); return; }
+	if (messages.length() == 0) { speak(tr("feedback.history_empty")); return; }
+	int foco = 0;
+	while (true) {
 		menu m;
-		m.intro_text = tr("feedback.replies_hint");
+		m.intro_text = tr("feedback.history_hint");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
 		@g_replies_pump_client = client;
 		@m.background_callback = @pump_client_during_replies_menu;
-		for (uint i = 0; i < replies.length(); i++) {
-			json_object@ r = replies.get_object(i);
-			if (@r == null) continue;
-			m.add_item(feedback_excerpt(string(r["feedback_text"])), "" + i);
+		for (uint i = 0; i < messages.length(); i++) {
+			json_object@ msg = messages.get_object(i);
+			if (@msg == null) continue;
+			dictionary@ p = dictionary();
+			p.set("date", feedback_date(string(msg["created_at"])));
+			p.set("excerpt", feedback_excerpt(string(msg["text"])));
+			p.set("status", feedback_status(msg.get_array("replies")));
+			m.add_item(tr("feedback.history_item", p), "" + i);
 		}
 		m.add_item(tr("menu.back"), "__back__");
+		// De volta de um recado, o cursor volta a ele - e não ao topo, que faria reler a lista toda.
+		if (foco > 0) m.set_focused_item(foco, false);
 		m.run();
 		string id = m.selected_item_id;
 		if (id == "" || id == "__back__") return;
-
-		uint index = uint(parse_int(id));
-		json_object@ r = replies.get_object(index);
-		if (@r == null) return;
-		dictionary@ p = dictionary();
-		p.set("feedback", string(r["feedback_text"]));
-		p.set("reply", string(r["reply_text"]));
-		speak(tr("feedback.reply_read", p));
-		client.send_feedback_reply_read(int(r["reply_id"]));
-		// Espera o jogador terminar de ouvir antes de voltar ao menu: o menu fala o primeiro item
-		// ao abrir e cortaria a resposta no meio.
-		wait_for_key_or_timeout(client, 20000);
-
-		json_array@ remaining = json_array();
-		for (uint i = 0; i < replies.length(); i++) if (i != index) remaining.add(replies.get_object(i));
-		@replies = remaining;
+		foco = parse_int(id);
+		json_object@ msg = messages.get_object(uint(foco));
+		if (@msg == null) continue;
+		run_feedback_thread_screen(client, msg);
+		// Pedida de novo, e não corrigida aqui: o "resposta nova" que acabou de ser lido sai da lista
+		// pelo que o SERVIDOR registrou, e a marcação viaja antes deste pedido (o canal é ordenado).
+		json_array@ atual = fetch_feedback_history(client);
+		if (@atual != null) @messages = atual;
 	}
 }
 
-// Deixa a fala correr até o jogador apertar algo (ou o tempo acabar), sem deixar a conexão cair.
-void wait_for_key_or_timeout(game_client@ client, int max_ms) {
-	timer t;
-	while (t.elapsed < max_ms) {
-		wait(20);
-		client.update();
-		if (keys_pressed().length() > 0) return;
+// Um recado e as respostas, uma linha por item: as setas releem, e Enter copia a linha (para guardar
+// ou responder citando). Só Voltar, ESC ou o fim saem - uma tecla qualquer não apaga nada.
+void run_feedback_thread_screen(game_client@ client, json_object@ msg) {
+	array<string> linhas;
+	dictionary@ mp = dictionary();
+	mp.set("date", feedback_date(string(msg["created_at"])));
+	mp.set("text", string(msg["text"]));
+	linhas.insert_last(tr("feedback.thread_message", mp));
+	json_array@ replies = msg.get_array("replies");
+	for (uint i = 0; @replies != null && i < replies.length(); i++) {
+		json_object@ r = replies.get_object(i);
+		if (@r == null) continue;
+		dictionary@ rp = dictionary();
+		rp.set("date", feedback_date(string(r["created_at"])));
+		rp.set("text", string(r["text"]));
+		linhas.insert_last(tr("feedback.thread_reply", rp));
+		// Aberto, está ouvido: a resposta não some mais, então marcar na abertura não perde nada - e
+		// é o que tira o "resposta nova" da lista e o aviso da próxima entrada.
+		if (!bool(r["read"])) client.send_feedback_reply_read(int(r["reply_id"]));
+	}
+	if (@replies == null || replies.length() == 0) linhas.insert_last(tr("feedback.thread_no_reply"));
+
+	int foco = 0;
+	while (true) {
+		menu m;
+		m.intro_text = tr("feedback.thread_hint");
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		m.focus_first_item = true;
+		@g_replies_pump_client = client;
+		@m.background_callback = @pump_client_during_replies_menu;
+		for (uint i = 0; i < linhas.length(); i++) m.add_item(linhas[i], "" + i);
+		m.add_item(tr("menu.back"), "__back__");
+		if (foco > 0) m.set_focused_item(foco, false);
+		m.run();
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		foco = parse_int(id);
+		speak(tr(copy_to_clipboard(linhas[foco]) ? "feedback.line_copied" : "clipboard.failed"));
 	}
 }

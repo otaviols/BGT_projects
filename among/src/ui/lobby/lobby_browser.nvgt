@@ -102,12 +102,12 @@ void fill_browser_menu(menu@ m, json_array@ lobbies, uint reply_count) {
 	// o jogador já entrou, e este é o lugar onde ele volta entre uma partida e outra - que é
 	// exatamente quando alguém lembra de contar o que achou estranho.
 	m.add_item(tr("feedback.menu_item"), "__feedback__");
+	// O histórico fica SEMPRE, logo abaixo do recado (recado #226): era um item que só existia com
+	// resposta nova, e a resposta lida não tinha mais onde ser relida. Com resposta nova, ele diz quantas.
+	dictionary@ rp = dictionary();
+	rp.set("count", "" + reply_count);
+	m.add_item(tr(reply_count > 0 ? "feedback.history_menu_item_new" : "feedback.history_menu_item", rp), "__replies__");
 	m.add_item(tr("translation.menu_item"), "__translation__");
-	if (reply_count > 0) {
-		dictionary@ rp = dictionary();
-		rp.set("count", "" + reply_count);
-		m.add_item(tr("feedback.replies_menu_item", rp), "__replies__");
-	}
 	if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
 	m.add_item(tr("stats.menu_item"), "__stats__");
 	m.add_item(tr("account.delete_menu_item"), "__delete_account__");
@@ -222,7 +222,7 @@ lobby_browser_result run_lobby_browser_inner(game_client@ client) {
 			continue;
 		}
 		if (id == "__replies__") {
-			run_feedback_replies_screen(client, replies);
+			run_feedback_history_screen(client);
 			continue;
 		}
 		if (id == "__join_code__") {
