@@ -203,6 +203,9 @@ class game_settings {
 	// fantasma - e isto não cria informação nenhuma para os outros: só toca no cliente de quem morreu, e
 	// os vivos continuam sem receber a posição dele (ver on_move no servidor).
 	bool ghost_own_footsteps = false;
+	// O mapa desenhado na janela, para quem enxerga (ui/visual_map.nvgt). Desligado: para quem joga por
+	// som ele não muda nada, e desenhar a cada quadro é trabalho à toa.
+	bool visual_map = false;
 	// Quem lê a CONVERSA (chat da partida, da sala de espera e do saguão): "igual ao jogo", o leitor de
 	// tela ou a voz do jogo. Pedido do recado #89 e decisão do usuário: duas categorias só - o que as
 	// pessoas escrevem e o que o jogo narra -, para quem quer separar as duas coisas pelo timbre. O
@@ -250,6 +253,7 @@ class game_settings {
 		background_audio = store.read_string("background_audio", BACKGROUND_AUDIO_NORMAL);
 		exit_alignment_beep = store.read_number("exit_alignment_beep", 1) != 0;
 		ghost_own_footsteps = store.read_number("ghost_own_footsteps", 0) != 0;
+		visual_map = store.read_number("visual_map", 0) != 0;
 		chat_voice = store.read_string("chat_voice", CHAT_VOICE_SAME);
 		if (chat_voice != CHAT_VOICE_SR && chat_voice != CHAT_VOICE_TTS) chat_voice = CHAT_VOICE_SAME;
 		if (background_audio != BACKGROUND_AUDIO_QUIET && background_audio != BACKGROUND_AUDIO_MUTE) background_audio = BACKGROUND_AUDIO_NORMAL;
@@ -340,6 +344,7 @@ class game_settings {
 		store.write_string("background_audio", background_audio);
 		store.write_number("exit_alignment_beep", exit_alignment_beep ? 1 : 0);
 		store.write_number("ghost_own_footsteps", ghost_own_footsteps ? 1 : 0);
+		store.write_number("visual_map", visual_map ? 1 : 0);
 		store.write_string("chat_voice", chat_voice);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));

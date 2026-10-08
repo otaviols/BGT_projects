@@ -16,6 +16,7 @@
 #include "../ui/camera_screen.nvgt"
 #include "../ui/match_aware_menu.nvgt"
 #include "../ui/clipboard.nvgt"
+#include "../ui/visual_map.nvgt"
 #include "../core/chat_log.nvgt"
 #include "../audio/voice_chat.nvgt"
 #include "../core/player.nvgt"
@@ -499,6 +500,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// Só quando se está andando de verdade - na reunião, na câmera e no duto ninguém procura porta.
 		if (!movement_frozen && !cameras.active && !is_vented && !swallowed) exits.update(map, audio, my_x, my_y);
 
+		draw_visual_map();
+
 		meeting_and_menu_keys();
 
 		if (key_pressed(KEY_ESCAPE)) {
@@ -581,5 +584,6 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	match_session partida(client, start_pkt);
 	while (partida.frame()) {}
+	g_visual_map.clear_if_needed(); // fim da partida, por qualquer saída: a janela não fica com a nave parada
 	return partida.finish();
 }

@@ -26,6 +26,7 @@
 #include "../game/exit_alignment.nvgt"
 #include "../core/touch_input.nvgt"
 #include "practice_screen.nvgt"
+#include "visual_map.nvgt"
 
 // A fase que um ponto de tarefa representa: o depósito é a fase 0 de abastecer os motores, o motor é a
 // 1. Cada ponto treina a SUA etapa - o caminho entre uma e outra é o jogador que faz, como na partida.
@@ -194,9 +195,13 @@ void run_explore_map_screen() {
 				speak(@obj != null ? object_name(obj) + ". " + tr("explore.object_hint") : tr("game.nothing_nearby"));
 			}
 		}
-	}
 
-	audio.stop_ship_ambience();
+		// O mapa na tela, para quem enxerga: aqui não há outros jogadores, e todo ponto de tarefa é seu,
+		// como nos marcadores sonoros desta tela.
+		if (g_settings.visual_map) g_visual_map.draw(map, my_x, my_y, COLOR_RED, true, false, null, null, all_task_ids);
+		else g_visual_map.clear_if_needed();
+	}
+	g_visual_map.clear_if_needed(); // de volta ao menu: a janela não fica com a nave parada
 	audio.stop_room_ambience();
 	audio.stop_landmark_beacons();
 }

@@ -14,6 +14,7 @@ mixin class match_net_presence_part {
 			map_zone@ moved_zone = map.zone_at(moved_x, moved_y);
 			string moved_prefix = @moved_zone != null ? moved_zone.floor_sound_prefix : "Tile";
 			audio.play_footstep(moved_prefix, footstep_variant_count(moved_prefix), moved_x, moved_y);
+			moved_entry.heard_at = ticks(); // o mapa na tela mostra quem o som acabou de deixar ouvir
 		}
 		roster.update_position(moved_peer, moved_x, moved_y);
 	}

@@ -16,6 +16,7 @@ class roster_entry {
 	float x = 0.0;
 	float y = 0.0;
 	float step_distance = 0.0; // quanto andou desde o último passo tocado (ver walk_to)
+	uint64 heard_at = 0;       // ticks() do último passo dele que TOCOU para mim (o mapa na tela - ver ui/visual_map.nvgt)
 
 	// Andou de onde estava até (nx, ny): soma ao passo e diz se completou um. Chame ANTES de gravar a
 	// posição nova. O passo soa a cada PASSO ANDADO, e não a cada tanto tempo: o ritmo é o da pessoa -

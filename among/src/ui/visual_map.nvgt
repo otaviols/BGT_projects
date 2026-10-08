@@ -1,0 +1,170 @@
+// visual_map.nvgt
+// O mapa na tela, para quem enxerga: formas simples, nada além do que o SOM já conta.
+//
+// Pedido do usuário: amigos que enxergam se perdiam na nave, e um rascunho visual também serve de
+// bancada para ideias de outros jogos. É opcional e nasce desligado (`g_settings.visual_map`): para
+// quem joga por som ele não muda nada.
+//
+// A regra que manda em tudo aqui: a tela mostra só o que o áudio deixa perceber, e nunca mais. O jogo é
+// justo porque todo mundo sabe as mesmas coisas pelo som; uma tela que mostrasse todos os jogadores
+// daria a quem enxerga o impostor do outro lado da nave. Por isso:
+//   - outro jogador aparece quando um PASSO dele acabou de tocar dentro do alcance do som (40, ou 16 com
+//     as luzes apagadas - o mesmo LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER), ou quando está colado em você e
+//     é anunciado pelo nome. Parado e longe, ele é silencioso no som e invisível aqui. Quem está no
+//     duto ou invisível nem manda posição, então some sozinho;
+//   - corpo aparece enquanto o marcador dele toca (as luzes apagadas o calam - aqui também);
+//   - os seus pontos de tarefa somem com as comunicações sabotadas, como os marcadores sonoros.
+// A decisão de cada caso sai de `visual_player_visible` e dos mesmos lights_out/comms_down da
+// partida: regra repetida aqui à parte divergiria da do som na primeira mudança.
+//
+// O desenho vai no RENDERIZADOR DA JANELA (`window.renderer`). O `graphics_renderer()` solto só nasce na
+// janela que tem o foco do teclado - aberto sem foco, ele vem inválido e nada aparece, sem erro.
+
+#include "../game/map.nvgt"
+#include "../core/client_state.nvgt"
+#include "../config/colors.nvgt"
+#include "../config/game_constants.nvgt"
+#include "../i18n.nvgt"
+
+// Um passo ouvido mantém o jogador na tela por este tempo: o bastante para não piscar entre um passo e
+// outro (um passo a cada ~0,35 s), curto o bastante para quem parou sumir como some no som.
+const uint64 VISUAL_HEARD_MS = 900;
+const float VISUAL_PIXELS_PER_UNIT = 18.0;
+
+// A cor de cada jogador na tela, na ordem do enum player_color (config/colors.nvgt).
+const array<uint> VISUAL_COLOR_RGB = {
+	0xD62828, 0x1D4ED8, 0x15803D, 0xF472B6, 0xF97316, 0xFACC15, 0x3F3F46, 0xF5F5F5,
+	0x7E22CE, 0x7C4A1E, 0x22D3EE, 0xFB7185, 0x14B8A6, 0xA8A29E, 0xD4A017
+};
+
+// O outro jogador aparece? É a regra do som, escrita UMA vez (ver o comentário do topo).
+bool visual_player_visible(roster_entry@ e, float my_x, float my_y, bool lights_out, const client_roster@ roster) {
+	if (@e == null || !e.alive) return false;
+	float d = distance_2d(my_x, my_y, e.x, e.y);
+	float alcance = NORMAL_AUDIO_MAX_DISTANCE * (lights_out ? LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER : 1.0);
+	if (e.heard_at > 0 && ticks() - e.heard_at <= VISUAL_HEARD_MS && d <= alcance) return true;
+	// Colado e anunciado pelo nome (o mesmo nearest_alive da partida, que respeita a lista do servidor).
+	if (d > PLAYER_INTERACT_RANGE) return false;
+	return !roster.perceptible_known || roster.perceptible.find(e.peer_id) >= 0;
+}
+
+class visual_map {
+	graphics_renderer@ r;
+	bool tried = false;
+	bool drew_last = false;
+	// O nome de cada sala vira textura UMA vez: renderizar texto a cada quadro pesa à toa.
+	dictionary name_textures;
+	text_font@ font;
+
+	bool ready() {
+		if (tried) return @r != null && r.is_valid;
+		tried = true;
+		game_window@ w = window;
+		if (@w != null) @r = w.renderer;
+		@font = get_font("Arial", 13);
+		return @r != null && r.is_valid;
+	}
+
+	// Desligado no meio da partida: apaga uma vez, senão a janela fica com o último quadro parado.
+	void clear_if_needed() {
+		if (!drew_last || !ready()) return;
+		r.set_draw_color(0, 0, 0, 255);
+		r.clear();
+		r.present();
+		drew_last = false;
+	}
+
+	private void color(uint rgb, uint a = 255) { r.set_draw_color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, a); }
+
+	private void circle(float cx, float cy, float raio) {
+		for (int dy = -int(raio); dy <= int(raio); dy++) {
+			float meia = sqrt(raio * raio - float(dy * dy));
+			r.fill_rect(cx - meia, cy + dy, meia * 2.0, 1.0);
+		}
+	}
+
+	private graphics_texture@ name_texture(map_zone@ z) {
+		graphics_texture@ t;
+		if (name_textures.get(z.id, @t)) return t;
+		if (@font != null) {
+			graphic@ g = font.render_text_blended(tr(z.name_key), 235, 235, 235);
+			if (@g != null) @t = r.create_texture(g);
+		}
+		name_textures.set(z.id, @t);
+		return t;
+	}
+
+	// Um quadro. `others` e `bodies` já vêm filtrados pela regra do som; `task_ids` vem null quando as
+	// comunicações caíram.
+	void draw(game_map@ map, float my_x, float my_y, int my_color, bool me_alive, bool lights_out,
+			array<roster_entry@>@ others, array<vector>@ bodies, array<string>@ task_ids) {
+		if (!ready()) return;
+		int w = 0, h = 0;
+		r.get_output_size(w, h);
+		float cx = float(w) / 2.0, cy = float(h) / 2.0;
+		float s = VISUAL_PIXELS_PER_UNIT;
+
+		color(lights_out ? 0x050508 : 0x0F0F28);
+		r.clear();
+
+		// Salas e corredores. Com as luzes apagadas tudo escurece - o som também encolhe.
+		for (uint i = 0; i < map.zones.length(); i++) {
+			map_zone@ z = map.zones[i];
+			float x0 = cx + (z.center_x - z.half_w - my_x) * s, y0 = cy + (z.center_y - z.half_h - my_y) * s;
+			float zw = z.half_w * 2.0 * s, zh = z.half_h * 2.0 * s;
+			if (x0 > w || y0 > h || x0 + zw < 0 || y0 + zh < 0) continue;
+			bool fechada = map.is_door_closed(z.id);
+			if (z.is_corridor) color(lights_out ? 0x1A1A24 : 0x34344E);
+			else color(lights_out ? 0x22222E : 0x46466E);
+			r.fill_rect(x0, y0, zw, zh);
+			color(fechada ? 0xE11D48 : (lights_out ? 0x3A3A48 : 0x8C8CB4));
+			r.draw_rect(x0, y0, zw, zh);
+			if (!z.is_corridor && !lights_out) {
+				graphics_texture@ t = name_texture(z);
+				if (@t != null) r.render_texture(t, x0 + 6, y0 + 4);
+			}
+		}
+
+		// Os seus pontos de tarefa.
+		if (@task_ids != null) {
+			color(0xFACC15);
+			for (uint i = 0; i < task_ids.length(); i++) {
+				map_object@ o = map.find_object(task_ids[i]);
+				if (@o == null) continue;
+				r.fill_rect(cx + (o.x - my_x) * s - 4, cy + (o.y - my_y) * s - 4, 8, 8);
+			}
+		}
+
+		// Corpos: um X vermelho, com três linhas de espessura (uma só some contra o chão da sala).
+		if (@bodies != null) {
+			color(0xEF4444);
+			for (uint i = 0; i < bodies.length(); i++) {
+				float bx = cx + (bodies[i].x - my_x) * s, by = cy + (bodies[i].y - my_y) * s;
+				for (int k = -1; k <= 1; k++) {
+					r.draw_line(bx - 7 + k, by - 7, bx + 7 + k, by + 7);
+					r.draw_line(bx - 7 + k, by + 7, bx + 7 + k, by - 7);
+				}
+			}
+		}
+
+		// Os outros jogadores que o som deixa perceber.
+		if (@others != null) {
+			for (uint i = 0; i < others.length(); i++) {
+				roster_entry@ e = others[i];
+				color(e.color >= 0 && e.color < int(VISUAL_COLOR_RGB.length()) ? VISUAL_COLOR_RGB[e.color] : 0xCCCCCC);
+				circle(cx + (e.x - my_x) * s, cy + (e.y - my_y) * s, 7.0);
+			}
+		}
+
+		// Você: sempre no centro, com um anel branco em volta para se achar. Fantasma, meio apagado.
+		color(0xFFFFFF, me_alive ? 255 : 120);
+		circle(cx, cy, 10.0);
+		color(my_color >= 0 && my_color < int(VISUAL_COLOR_RGB.length()) ? VISUAL_COLOR_RGB[my_color] : 0xCCCCCC, me_alive ? 255 : 120);
+		circle(cx, cy, 8.0);
+
+		r.present();
+		drew_last = true;
+	}
+}
+
+visual_map g_visual_map;

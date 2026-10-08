@@ -19,6 +19,27 @@ mixin class match_frame_update_part {
 		}
 	}
 
+	// O mapa na tela, para quem enxerga (ui/visual_map.nvgt): o que este quadro deixa perceber pelo som,
+	// com as mesmas regras de sabotagem do resto da partida.
+	void draw_visual_map() {
+		if (!g_settings.visual_map) { g_visual_map.clear_if_needed(); return; }
+		bool luz_apagada = lights_out_for(active_sabotage_id, my_role, alive);
+		bool comms = comms_down_for(active_sabotage_id, my_role, alive);
+		array<roster_entry@> outros;
+		for (uint i = 0; i < roster.entries.length(); i++) {
+			roster_entry@ e = roster.entries[i];
+			if (e.peer_id == client.my_peer_id) continue;
+			if (visual_player_visible(e, my_x, my_y, luz_apagada, roster)) outros.insert_last(e);
+		}
+		roster_entry@ eu = roster.find(client.my_peer_id);
+		// Corpos: só enquanto o marcador deles toca, e as luzes apagadas os calam (refresh_body_beacons).
+		array<vector>@ corpos = null;
+		if (!luz_apagada) @corpos = known_body_positions;
+		array<string>@ tarefas = null;
+		if (!comms) @tarefas = my_task_object_ids;
+		g_visual_map.draw(map, my_x, my_y, @eu != null ? eu.color : -1, alive, luz_apagada, outros, corpos, tarefas);
+	}
+
 	void say_opening_modifiers() {
 		speak(opening_modifiers_text, false);
 		events_log.add("", opening_modifiers_text); // entrada PRÓPRIA no histórico, fácil de achar

@@ -387,6 +387,14 @@ abertas por botão (`run_role_choice_form`), e os formulários de sala registram
 ficarem sem o confirmar. Formulário que cresce com uma lista (papéis, idiomas): conte. Sonda:
 `probe_lobby_form.nvgt`, que aperta Enter de dentro do laço da tela.
 
+**Desenhar na janela: use `window.renderer`, nunca o `graphics_renderer()` solto.** O NVGT tem gráficos
+(SDL3: imagens, fontes, retângulos, linhas, texturas - `src/graphics.cpp` do NVGT, quase sem
+documentação), e o construtor solto só se prende à janela que tem o FOCO do teclado. Sintoma: o
+renderizador vem inválido e nada aparece, sem erro - sempre que o jogo abre sem foco (aberto por outro
+programa, ou o Windows segurando o foco). A janela devolvida por `show_window` tem o dela, sempre válido.
+Para conferir um desenho sem ver, capture a janela (PowerShell + `CopyFromScreen`) e leia a imagem. É o
+que faz o mapa na tela (`src/ui/visual_map.nvgt`).
+
 **Uma compilação do NVGT pode sair defeituosa.** Aconteceu: mesmo código-fonte, um build gerou binário
 com segfault na inicialização e o seguinte saiu bom. Compilar com sucesso **não** é o mesmo que o
 binário funcionar. Por isso o `deploy.ps1` testa a imagem antes de publicar; se algo assim aparecer de

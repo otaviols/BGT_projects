@@ -1,0 +1,60 @@
+// Sonda do mapa na tela (ui/visual_map.nvgt): a tela mostra só o que o SOM deixa perceber.
+//   nvgt tools/probes/probe_visual_map.nvgt            (regra + desenho por alguns segundos)
+// Confere a regra caso a caso, cada um com o controle que o separa do vizinho, e depois desenha uma
+// cena para ser vista (ou capturada) - o renderizador da janela tem que nascer válido.
+#include "../../src/ui/visual_map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+roster_entry@ alguem(client_roster@ r, uint64 id, float x, float y, uint64 ouvido_ha_ms) {
+	r.add(id, "j" + id, int(id) % 15, x, y);
+	roster_entry@ e = r.find(id);
+	e.heard_at = ouvido_ha_ms == 0 ? 0 : ticks() - ouvido_ha_ms;
+	return e;
+}
+
+void main() {
+	show_window("sonda: mapa na tela");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR"); // sem idioma, os nomes das salas saem como chave crua
+	wait(200); // ticks() precisa ter andado para os "ouvido há N ms" fazerem sentido
+	client_roster r;
+	r.perceptible_known = true;
+	println("== quem aparece ==");
+	confere("passo acabou de tocar, a 20 unidades: aparece", visual_player_visible(alguem(r, 1, 20, 0, 100), 0, 0, false, r));
+	confere("o mesmo passo com as luzes apagadas (alcance 16): nao aparece", !visual_player_visible(r.find(1), 0, 0, true, r));
+	confere("controle: com luz apagada, a 10 unidades, aparece", visual_player_visible(alguem(r, 2, 10, 0, 100), 0, 0, true, r));
+	confere("parado ha 2 s, a 5 unidades: nao aparece (parado e silencioso)", !visual_player_visible(alguem(r, 3, 5, 0, 2000), 0, 0, false, r));
+	confere("nunca ouvido, longe: nao aparece", !visual_player_visible(alguem(r, 4, 8, 0, 0), 0, 0, false, r));
+	roster_entry@ colado = alguem(r, 5, 1.0, 0, 0);
+	confere("colado (1 unidade) mas fora da lista do servidor (duto, invisivel): nao aparece", !visual_player_visible(colado, 0, 0, false, r));
+	r.perceptible.insert_last(5);
+	confere("colado e na lista: aparece, como o anuncio pelo nome", visual_player_visible(colado, 0, 0, false, r));
+	roster_entry@ morto = alguem(r, 6, 3, 0, 100);
+	morto.alive = false;
+	confere("morto (fantasma) nunca aparece para o vivo", !visual_player_visible(morto, 0, 0, false, r));
+
+	println("== desenho ==");
+	game_map@ map = build_the_hub_map();
+	array<roster_entry@> outros = {r.find(1), r.find(2), colado};
+	array<vector> corpos = {vector(3.0, 2.0, 0.0)};
+	array<string> tarefas;
+	for (uint i = 0; i < map.objects.length() && tarefas.length() < 6; i++) if (map.objects[i].obj_type == OBJ_TASK_SPOT) tarefas.insert_last(map.objects[i].id);
+	visual_map v;
+	timer t;
+	while (t.elapsed < 4000) {
+		v.draw(map, 0.0, 0.0, COLOR_CYAN, true, false, outros, corpos, tarefas);
+		wait(16);
+	}
+	confere("o renderizador da janela nasceu valido e desenhou", v.ready() && v.drew_last);
+	v.clear_if_needed();
+	confere("e limpa a janela ao desligar", !v.drew_last);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

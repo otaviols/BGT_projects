@@ -199,6 +199,19 @@ conferido antes de aplicar qualquer coisa. "As regras mudaram" só sai se o retr
 trocar só a privacidade com aquele aviso mandaria todo mundo apertar C à toa. A entrada e saída da
 lista vem do `send_hall_state()` de sempre. Sonda: `probe_lobby_privacy.nvgt` (servidor local).
 
+**O mapa na tela mostra só o que o SOM deixa perceber** (`src/ui/visual_map.nvgt`, opção desligada
+por padrão em Configurações; pedido do usuário, para amigos que enxergam). Decisão do usuário: a vista
+acompanha o jogador, jogadores são círculos, e a visão é restrita como o áudio. Outro jogador aparece
+quando um PASSO dele acabou de tocar (`roster_entry.heard_at`, marcado em `on_player_moved` junto do
+`play_footstep`) dentro do alcance do som (`NORMAL_AUDIO_MAX_DISTANCE`, encolhido pelo
+`LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER` com as luzes apagadas), ou quando está colado e na lista do servidor
+(o mesmo critério do anúncio pelo nome). Parado e longe é silencioso no som, então some na tela; duto e
+invisibilidade nem mandam posição. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
+somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da partida. A regra mora em
+`visual_player_visible`; uma regra paralela divergiria da do som na primeira mudança. A janela é limpa
+ao desligar, no fim da partida e ao sair do Conhecer o mapa - senão fica a nave parada nos menus. Sonda:
+`probe_visual_map.nvgt` (a regra, caso a caso com controles, e o desenho - capture a janela para ver).
+
 **Resposta a recado é HISTÓRICO, não leitura única** (recados #221, #226, #227). Até a 0.51.1 a tela
 lia a resposta numa fala só, marcava como lida na hora e voltava ao menu na primeira tecla - que falava
 por cima: uma tecla sem querer ou uma resposta longa, e ela sumia para sempre (o jogador pedia por
