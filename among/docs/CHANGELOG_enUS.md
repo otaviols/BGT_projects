@@ -6,6 +6,30 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.0
+
+**Practice the tasks in Explore the map.** Enter on a task spot opens the task, the same one as in a
+match, right where it is. Tasks with several steps practice each step at its own spot: take the
+fuel at the storage and walk to the engine.
+
+**Make the room private or public without recreating it.** In the waiting room, the host presses O
+and fills in or erases the access code. Everyone in the room hears the change.
+
+**The start of the match is shorter.** First you hear your role, and then, separately, your
+modifiers. If you are in love, you hear a heartbeat before them. Ctrl plus the ability key now says
+only the names: your role, your partners and your modifiers, without repeating the explanation.
+
+**In tag, everyone knows who the tagger is**, and the head start countdown is said on time. Before,
+it arrived late, and the tagger seemed to leave before it ended.
+
+**Enter skips the arsonist's victory scene.**
+
+**A wolf in love who dies along with their love now frees whoever they had swallowed.** Before,
+whoever was in the belly stayed stuck until the end of the match.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.50.9
 
 **Doors lock the room, not the corridor anymore.** Whoever is inside cannot get out, whoever is

@@ -6,6 +6,30 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.0
+
+**Treine as tarefas no Conhecer o mapa.** Enter num ponto de tarefa abre a tarefa, a mesma da
+partida, no lugar onde ela fica. As de várias etapas treinam cada etapa no seu ponto: pegue o
+combustível no depósito e ande até o motor.
+
+**Torne a sala privada ou pública sem recriá-la.** Na sala de espera, o anfitrião aperta O e
+preenche ou apaga o código de acesso. Todos na sala ouvem a mudança.
+
+**O começo da partida ficou mais curto.** Primeiro você ouve o seu papel, e depois, separado, os
+modificadores. Quem está apaixonado ouve uma batida de coração antes. Ctrl mais a tecla de
+habilidade agora diz só os nomes: o papel, os parceiros e os modificadores, sem repetir a explicação.
+
+**No pega-pega, todos sabem quem é o pegador**, e a contagem da largada é dita na hora certa. Antes
+ela chegava atrasada, e o pegador parecia sair antes do fim.
+
+**Enter pula a cena da vitória do incendiário.**
+
+**O lobo apaixonado que morre junto com o seu amor agora solta quem ele tinha engolido.** Antes,
+quem estava na barriga ficava preso até o fim da partida.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.50.9
 
 **As portas trancam a sala, e não mais o corredor.** Quem está dentro não sai, quem está fora não
