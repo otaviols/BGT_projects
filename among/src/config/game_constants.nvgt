@@ -50,10 +50,14 @@ const string DONATION_KOFI_URL = "https://ko-fi.com/otaviols";
 // Servidor oficial. O jogo conecta direto aqui, sem perguntar nada ao jogador - quem precisa de
 // outro endereço (testar contra um server_main local, por exemplo) cria um server.txt, ver
 // config/server_address.nvgt.
-// É o IP estático do balanceador do servidor no Azure (infra/main.tf o mantém fora do cluster
-// justamente pra ele nunca mudar). Se um dia ele mudar mesmo assim, o server.txt resolve pra quem
-// testa, mas os jogadores só voltam a conectar com um build novo.
-const string DEFAULT_SERVER_HOST = "20.206.112.223";
+// É um NOME, no domínio do usuário (registro A no DNS da Hostinger), e não mais o IP: com o IP
+// compilado, trocar de hospedagem obrigava todo jogador a baixar o jogo de novo. Com o nome, mudar o
+// servidor de lugar é trocar o registro - quem está nesta versão em diante segue sozinho.
+const string DEFAULT_SERVER_HOST = "amongus-server.blindtabern.com";
+// Reserva para quando o NOME não resolve (DNS fora, rede do jogador que bloqueia o domínio): um
+// problema de DNS não pode impedir ninguém de jogar. É o IP para onde o nome aponta hoje - ao mudar o
+// servidor de lugar, troque os DOIS (o registro e este número) na mesma versão.
+const string FALLBACK_SERVER_IP = "20.206.112.223";
 const uint16 DEFAULT_SERVER_PORT = 8934;
 const uint MAX_PACKET_CHANNELS = 4;
 const uint NETWORK_TICKS_PER_SECOND = 20;

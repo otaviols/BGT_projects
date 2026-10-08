@@ -83,8 +83,9 @@ minúsculas e números.
 
 ## Publicar uma versão
 
-Da raiz do projeto (`among`), com o IP do servidor já dentro de `DEFAULT_SERVER_HOST` em
-`src/config/game_constants.nvgt`:
+Da raiz do projeto (`among`). O cliente conecta pelo NOME `amongus-server.blindtabern.com`
+(`DEFAULT_SERVER_HOST` em `src/config/game_constants.nvgt`), com o IP em `FALLBACK_SERVER_IP` só
+como reserva - ver "O endereço do servidor é um nome", abaixo:
 
 ```
 nvgt tools/build_pack.nvgt          # regera o sounds.dat
@@ -184,8 +185,14 @@ Cada envio bem-sucedido também sai no log como `[feedback] usuario: texto`.
 **A porta do jogo é UDP.** O ENet não usa TCP. Expor só TCP é o erro clássico: qualquer teste de
 porta diz que está tudo certo e mesmo assim ninguém conecta.
 
-**O IP é estático e mora FORA do cluster.** Ele vai compilado dentro do cliente de todo jogador; se
-mudar, todo mundo precisa de um build novo. Por isso ele é um recurso do Terraform, e não um IP
+**O endereço do servidor é um nome: `amongus-server.blindtabern.com`** (desde a 0.51.1), registro A
+no DNS do domínio do usuário, na Hostinger. Mudar o servidor de lugar é trocar esse registro - e o
+`FALLBACK_SERVER_IP` do cliente na mesma versão. Até a 0.51.0 o IP ia compilado no cliente, e quem
+estiver numa dessas versões só chega ao servidor novo atualizando: mantenha o IP antigo respondendo
+até quase todos atualizarem.
+
+**O IP é estático e mora FORA do cluster.** Até a 0.51.0 ele ia compilado dentro do cliente de todo
+jogador; se mudasse, todo mundo precisava de um build novo. Por isso ele é um recurso do Terraform, e não um IP
 sorteado pelo balanceador: assim ele sobrevive a apagar o Service, recriar o balanceador ou até
 trocar de cluster. Quem testa contra outro servidor não precisa recompilar nada — basta um
 `server.txt` ao lado do jogo (ver `src/config/server_address.nvgt`).

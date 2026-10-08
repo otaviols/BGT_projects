@@ -226,7 +226,14 @@ bool connect_to_server(game_client@ client) {
 	server_address address = resolve_server_address();
 	speak(tr("menu.connecting")); // sem isto ficam alguns segundos de silêncio total até dar certo ou falhar
 
-	if (!client.connect_to(address.host, address.port)) {
+	// O nome que não resolve faz o connect_to falhar na hora; aí vale a reserva (o IP de hoje). Só para
+	// o servidor oficial: quem apontou outro no server.txt quer exatamente aquele.
+	bool conectando = client.connect_to(address.host, address.port);
+	if (!conectando && !address.from_override && address.host != FALLBACK_SERVER_IP) {
+		log_diagnostic("o nome " + address.host + " nao resolveu; tentando o IP de reserva");
+		conectando = client.connect_to(FALLBACK_SERVER_IP, address.port);
+	}
+	if (!conectando) {
 		speak(tr("menu.connect_failed"));
 		return false;
 	}

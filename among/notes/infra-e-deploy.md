@@ -212,8 +212,18 @@ parágrafo (é o título dele); depois de gerar, confira que o `version.json` n�
 aparece em `az vm list-skus` e fazia o `terraform apply` falhar sempre no mesmo ponto. O servidor roda
 no cluster AKS `aks-fallenrealms-alpha`, compartilhado com outro jogo, a custo marginal ~zero.
 
-**O IP `20.206.112.223` é estático e mora fora do cluster**, porque vai compilado dentro do cliente
-(`DEFAULT_SERVER_HOST`). Se mudar, todo mundo precisa de build novo.
+**O cliente conecta pelo nome `amongus-server.blindtabern.com`** (desde a 0.51.1; `DEFAULT_SERVER_HOST`),
+com o IP em `FALLBACK_SERVER_IP` só se o nome não resolver - o `connect_to` falha NA HORA com nome
+inválido, então a reserva não custa espera. O domínio é do usuário, com o DNS na Hostinger, e o MCP
+`hostinger` (escopo local do projeto) edita a zona: `dns_records_list` / `dns_records_update` com
+`overwrite: false` para acrescentar. Mudar o servidor de lugar = trocar o registro A E o
+`FALLBACK_SERVER_IP` na mesma versão. Até a 0.51.0 o IP `20.206.112.223` ia compilado no cliente:
+mantenha-o respondendo até quase todos atualizarem. O redirecionamento de domínio da Hostinger NÃO
+serve para o site: é do domínio inteiro, para um endereço fixo, sem manter o caminho.
+
+**VPS na Hostinger (2026-10-08):** id 2045786, plano "Game Panel 2" (2 CPU, 8 GB, 100 GB), Campinas,
+IP `179.199.151.166`. A chave SSH desta máquina (`~/.ssh/id_ed25519`) está cadastrada na conta como
+`otavio-pc-deploy`. É o destino planejado do servidor e do site, para sair do Azure.
 
 **O segredo `ghcr-pull` tem prazo de validade.** O pacote da imagem é privado, então o cluster precisa
 de credencial. Quando o token do GitHub expirar, o servidor para de subir com um `ImagePullBackOff`
