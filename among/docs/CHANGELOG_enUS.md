@@ -6,6 +6,20 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.2
+
+**Your messages and the replies are kept.** In the match list, the "My messages and the replies"
+option shows every message you sent, newest first, and says which ones have a new reply. Inside a
+message, it and each reply are a line you can read again with the arrows as many times as you like,
+and Enter copies the line. Before, a reply was read only once, and a key pressed by accident made it
+disappear. The replies you had already received are there too.
+
+Reminder: the game server will move to a new home soon, and only 0.51.1 or newer can connect to it
+after the move. Keep the game updated.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.51.1
 
 **Please update: this version is required to keep playing.** Tomorrow the game server moves to a

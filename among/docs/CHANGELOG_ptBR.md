@@ -6,6 +6,20 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.2
+
+**Seus recados e as respostas ficam guardados.** Na lista de partidas, a opção "Meus recados e as
+respostas" mostra todos os recados que você mandou, do mais novo ao mais antigo, e diz quais têm
+resposta nova. Dentro de um recado, ele e cada resposta são uma linha que você relê com as setas
+quantas vezes quiser, e Enter copia a linha. Antes a resposta era lida uma vez só, e uma tecla
+apertada sem querer fazia ela sumir. As respostas que você já tinha recebido também estão lá.
+
+Lembrete: o servidor do jogo vai mudar de lugar em breve, e só a 0.51.1 em diante consegue se
+conectar a ele depois da mudança. Mantenha o jogo atualizado.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.1
 
 **Atualize, por favor: esta versão é necessária para continuar jogando.** Amanhã o servidor do jogo
