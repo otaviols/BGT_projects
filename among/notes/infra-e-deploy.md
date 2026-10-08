@@ -247,6 +247,14 @@ do Azure. O que custou descobrir:
   `certbot.timer` que o painel já tinha). O `deploy.ps1` publica nos DOIS sites - o do Azure segue
   para as versões até a 0.51.0 - e o `release.ps1` confere os dois no fim. Na VPS cada arquivo sobe
   como `.nome.novo` e é renomeado no fim, com o `version.json` por último.
+- **"scp: Connection closed" no envio para a VPS = o NOME não está no `known_hosts`.** A chave da
+  máquina foi aceita para o IP (primeiro SSH), e o deploy usa o nome `amongus.blindtabern.com`; com
+  `BatchMode` o ssh recusa calado (pelo ssh direto aparece "Host key verification failed"). O
+  `ssh-keyscan` deste Windows não devolve nada; a entrada do nome foi feita copiando a linha
+  ed25519 do IP, depois de conferir que o nome resolve para ele. Ao trocar de VPS, isto volta.
+  A 0.51.1 parou aqui: o site do Azure já tinha ido, o da VPS não, e o `release.ps1` não roda de
+  novo com a versão já anunciada - o que falta sai com `infra\deploy.ps1 -StorageAccount
+  amongusaudiogame -SkipServer`.
 - **Texto mandado pelo PowerShell por pipe chega com BOM e `\r`.** Sintoma: `nginx -t` recusa com
   `unknown directive "﻿#"` na linha 1 de um arquivo que parece certo. Tire com
   `sed -i '1s/^\xEF\xBB\xBF//; s/\r$//'`. O nginx recusar um `reload` NÃO o derruba - a configuração
