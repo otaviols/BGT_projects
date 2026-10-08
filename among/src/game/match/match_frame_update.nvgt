@@ -5,6 +5,24 @@
 // frame(), chamado por ele nesta ordem. Enxerga todos os campos da partida; não compila sozinho.
 
 mixin class match_frame_update_part {
+	// A segunda etapa da abertura, para quem está apaixonado: espera o som de início acabar, toca a
+	// batida de coração, espera ELA acabar e só então diz os modificadores. Espera o som, e não um tempo
+	// fixo (ver notes/som.md): som de início e batida tocados juntos viravam um só. A fala dos
+	// modificadores vai na fila, sem interromper: se o papel ainda estiver sendo lido, ela espera.
+	void opening_tick() {
+		if (opening_stage == 1 && !audio.is_playing(opening_sound_slot)) {
+			opening_sound_slot = audio.play_heartbeat();
+			opening_stage = 2;
+		} else if (opening_stage == 2 && !audio.is_playing(opening_sound_slot)) {
+			opening_stage = 0;
+			if (opening_modifiers_text != "") say_opening_modifiers();
+		}
+	}
+
+	void say_opening_modifiers() {
+		speak(opening_modifiers_text, false);
+		events_log.add("", opening_modifiers_text); // entrada PRÓPRIA no histórico, fácil de achar
+	}
 	// Na barriga, o ouvinte vai aonde o lobo vai: é o único jeito de "estar dentro de alguém" soar
 	// como um lugar - os passos dele, a sala por onde ele passa, a mesa quando ele vai à reunião.
 	void follow_wolf() {

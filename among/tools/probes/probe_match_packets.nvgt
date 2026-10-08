@@ -22,7 +22,7 @@ json_object@ jogador(uint64 peer, const string&in nome, float x, float y) {
 	return o;
 }
 
-match_session@ nova_partida(const string&in papel) {
+match_session@ nova_partida(const string&in papel, const string&in par = "", const string&in velocidade = "") {
 	game_client@ c = game_client();
 	@c.net = network();
 	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
@@ -39,6 +39,8 @@ match_session@ nova_partida(const string&in papel) {
 	ps.add(jogador(2, "ana", 1.0, 0.0));
 	ps.add(jogador(3, "bia", 2.0, 0.0));
 	inicio.set_array("players", ps);
+	if (par != "") inicio.set_string("lover_name", par);
+	if (velocidade != "") inicio.set_string("speed_modifier", velocidade);
 	return match_session(c, inicio);
 }
 
@@ -199,6 +201,24 @@ void main() {
 	// Ctrl + habilidade: o papel de AGORA, já com o companheiro novo (pedido do usuário).
 	string papel_agora = am.current_role_text();
 	confere("Ctrl + habilidade diz o papel atual, com o companheiro", papel_agora.find("bia") >= 0 && papel_agora == papel_agora.trim_whitespace());
+
+	println("== abertura em duas etapas ==");
+	// O papel sozinho na abertura; os modificadores numa entrada PRÓPRIA do histórico, e, para o
+	// apaixonado, só depois do som de início E da batida de coração (pedido do usuário).
+	match_session@ ab = nova_partida(ROLE_CREWMATE, "ana", MOD_FLASH);
+	confere("a abertura diz o papel sem os modificadores", ab.events_log.lines.length() == 1
+		&& ab.events_log.lines[0].text.find(tr("role.flash")) < 0);
+	confere("e os modificadores ainda esperam (som de inicio, batida)", ab.opening_stage == 1);
+	timer espera;
+	while (ab.opening_stage != 0 && espera.elapsed < 15000) { ab.opening_tick(); wait(10); }
+	println("     (som de inicio + batida: " + espera.elapsed + " ms)");
+	confere("depois das duas, os modificadores chegam numa entrada propria",
+		ab.events_log.lines.length() == 2 && ab.events_log.lines[1].text.find("ana") >= 0);
+	match_session@ sem_par = nova_partida(ROLE_CREWMATE, "", MOD_GIANT);
+	confere("sem par, os modificadores vem logo, sem batida", sem_par.opening_stage == 0 && sem_par.events_log.lines.length() == 2);
+	string ctrl_h = ab.current_role_text();
+	confere("Ctrl + habilidade: so os nomes (" + ctrl_h + ")", ctrl_h.find(tr("role.crewmate")) == 0
+		&& ctrl_h.find(tr("role.flash")) >= 0 && ctrl_h.find("ana") >= 0 && ctrl_h.find(tr(ab.my_role.assignment_key())) < 0);
 
 	println("== quem falta votar ==");
 	match_session@ vt = nova_partida(ROLE_CREWMATE);

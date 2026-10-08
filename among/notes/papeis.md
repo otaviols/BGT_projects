@@ -388,6 +388,14 @@ papéis e dos alvos, só entre humanos.
   distância de um passo na velocidade da SALA), e não por tempo: por tempo, todo mundo soava no mesmo
   ritmo, e a cadência era justamente o que o usuário quis que dissesse quem é veloz ou gigante. Na
   velocidade normal dá o mesmo ritmo de antes.
+- **A abertura é em DUAS etapas: o papel, depois os modificadores** (pedido do usuário). Numa fala só
+  ela ficava longa, e no histórico os modificadores se perdiam no fim do parágrafo. Sem par, os
+  modificadores entram na fila da fala logo atrás do papel, com entrada própria no histórico; com par,
+  `opening_tick` espera o som de início acabar, toca a batida de coração (`SND_HEARTBEAT`, o sinal do
+  casal) e espera ELA acabar - sempre pelo som, não por tempo. Não dá para esperar a FALA do papel
+  acabar: `screen_reader_is_speaking` é sempre false fora do Windows e o NVDA não responde; por isso
+  a fala dos modificadores vai na fila (sem interromper). O Ctrl + habilidade diz só NOMES (papel,
+  parceiros, modificadores, alvo) - a explicação é da abertura, e repeti-la era ouvir o tutorial.
 - **Apaixonados:** morrer de amor sai de `take_heartbreaks`, chamada pelo servidor a cada tick - vira
   corpo onde o par estiver (a partida ouve uma morte sem assassino; ele, `S_HEARTBREAK`). Só com a
   partida andando: morto na mesa, o par cai quando a reunião acaba (um corpo na mesa seria reportado

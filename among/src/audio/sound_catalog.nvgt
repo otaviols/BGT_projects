@@ -117,6 +117,10 @@ const string SND_ARSONIST_FIRE = "sounds/events/arsonist_fire.ogg";
 // O alarme do alarmista, quando ele morre. Vai para a nave INTEIRA e sem posicao: ele nao marca
 // um lugar (a sala vai dita na fala), e' o aviso de que aconteceu.
 const string SND_NOISEMAKER_ALARM = "sounds/events/noisemaker_alarm.ogg";
+// Duas batidas de coração, só para quem está apaixonado, na abertura da partida: separam o anúncio do
+// papel do dos modificadores (ver match_session.opening_tick). Cortadas de um arquivo de 2min30s que
+// o usuário trouxe; o corpo fica no nível do som de início (-18,7 dB), que toca logo antes.
+const string SND_HEARTBEAT = "sounds/events/heartbeat.ogg";
 
 // --- Painéis de reparo (o que toca DENTRO do conserto - ver game/sabotage_panels.nvgt) ---
 const string SND_BREAKER_SWITCH = "world/breaker_switch.ogg";     // luzes: estalo de um disjuntor
@@ -508,6 +512,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_DOCTOR_REVIVE);
 	list.insert_last(SND_ARSONIST_FIRE);
 	list.insert_last(SND_NOISEMAKER_ALARM);
+	list.insert_last(SND_HEARTBEAT);
 	list.insert_last(SND_VOTE_SELECT);
 	list.insert_last(SND_VOTE_TIMER);
 	list.insert_last(SND_VICTORY_DISCONNECT);

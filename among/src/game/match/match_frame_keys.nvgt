@@ -5,11 +5,12 @@
 // frame(), chamado por ele nesta ordem. Enxerga todos os campos da partida; não compila sozinho.
 
 mixin class match_frame_keys_part {
-	// O papel de agora, como Ctrl + habilidade o diz: a descrição do papel ATUAL, quem são os parceiros
-	// (se o papel conhece o time), os modificadores e o alvo do carrasco. Sem a contagem de impostores
-	// nem a cor da abertura: quem aperta quer saber o que É, e o resto está na tecla de regras.
+	// O papel de agora, como Ctrl + habilidade o diz: o NOME do papel ATUAL, quem são os parceiros (se
+	// o papel conhece o time), o nome dos modificadores e o alvo do carrasco. Só nomes, sem a explicação
+	// de cada um: ela é a da abertura, e repeti-la a cada consulta era ouvir o tutorial de novo (pedido
+	// do usuário). Sem a contagem de impostores nem a cor: quem aperta quer saber o que É.
 	string current_role_text() {
-		string texto = tr(my_role.assignment_key());
+		string texto = tr(my_role.name_key()) + ".";
 		if (my_role.knows_teammates) {
 			if (impostor_partner_names.length() == 0) texto += " " + tr("role.impostor_alone");
 			else {
@@ -20,7 +21,12 @@ mixin class match_frame_keys_part {
 				texto += " " + tr("role.impostor_partners", np);
 			}
 		}
-		texto += role_modifiers_text;
+		if (speed_modifier_id != "") texto += " " + tr("role." + speed_modifier_id) + ".";
+		if (lover_name_spoken != "") {
+			dictionary@ lp = dictionary();
+			lp.set("name", lover_name_spoken);
+			texto += " " + tr("modifier.lover_short", lp);
+		}
 		if (executioner_target_name != "") {
 			dictionary@ ap = dictionary();
 			ap.set("name", executioner_target_name);

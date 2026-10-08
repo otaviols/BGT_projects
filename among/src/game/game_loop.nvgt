@@ -125,7 +125,14 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	// pelo nome, os modificadores (veloz, gigante, apaixonado) e o alvo do carrasco. Guardadas aqui
 	// porque a abertura as fala uma vez só, e o papel pode mudar no meio (amnésico, carrasco sem alvo).
 	array<string> impostor_partner_names;
-	string role_modifiers_text;
+	string speed_modifier_id;  // "" | MOD_FLASH | MOD_GIANT
+	string lover_name_spoken;  // "" = sem par
+	// A abertura em duas etapas (ver opening_tick): o papel na hora, os modificadores depois. Os
+	// modificadores esperam o som de início acabar e, para quem está apaixonado, a batida de coração.
+	string opening_modifiers_text;
+	int opening_stage;       // 0 = nada pendente, 1 = esperando o som de início, 2 = esperando a batida
+	int opening_sound_slot;
+	bool opening_lover;
 	string executioner_target_name;
 	map_zone@ start_zone;
 	string last_zone_id;
@@ -290,7 +297,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 			}
 		}
 
-		audio.play_start_game();
+		opening_sound_slot = audio.play_start_game();
 		audio.start_ship_ambience();
 		audio.start_room_ambience(map);
 		refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
@@ -357,17 +364,23 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// responda "o que está em jogo aqui?" já tem o dado à mão (ver roles_in_play_text).
 		role_text += " " + role_desc;
 		// O Carrasco ouve o alvo junto com o papel - é a única coisa que ele precisa saber para jogar.
-		// Os modificadores, depois do papel: o veloz e o gigante sabem do próprio passo, e o apaixonado de quem.
+		// Os modificadores ficam FORA deste texto: numa fala só com o papel, a abertura ficava longa
+		// demais, e no histórico (PageUp) eles se perdiam no fim de um parágrafo. Vão numa segunda etapa
+		// (opening_tick), com entrada própria no histórico. Aqui só a explicação de cada um, uma vez.
 		string mod_velocidade = start_pkt.get_string("speed_modifier", "");
-		role_modifiers_text = "";
-		if (mod_velocidade != "") role_modifiers_text += " " + tr("modifier.assigned_" + mod_velocidade);
 		string amor = start_pkt.get_string("lover_name", "");
+		opening_modifiers_text = "";
+		if (mod_velocidade != "") opening_modifiers_text += " " + tr("modifier.assigned_" + mod_velocidade);
 		if (amor != "") {
 			dictionary@ lp = dictionary();
 			lp.set("name", spoken_name(amor));
-			role_modifiers_text += " " + tr("modifier.assigned_lovers", lp);
+			opening_modifiers_text += " " + tr("modifier.assigned_lovers", lp);
 		}
-		role_text += role_modifiers_text;
+		while (opening_modifiers_text.substr(0, 1) == " ") opening_modifiers_text = opening_modifiers_text.substr(1);
+		// O que o Ctrl + habilidade repete: só os NOMES (ver current_role_text).
+		lover_name_spoken = amor != "" ? spoken_name(amor) : "";
+		speed_modifier_id = mod_velocidade;
+		opening_lover = amor != "";
 		string alvo_carrasco = start_pkt.get_string("execution_target_name", "");
 		executioner_target_name = alvo_carrasco;
 		if (alvo_carrasco != "") {
@@ -381,6 +394,10 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
 		speak(role_text);
 		events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
+		// Segunda etapa: sem par, os modificadores entram na fila da fala logo atrás do papel. Com par,
+		// esperam o som de início e a batida de coração (opening_tick) - a batida é o sinal do casal.
+		opening_stage = opening_lover ? 1 : 0;
+		if (!opening_lover && opening_modifiers_text != "") say_opening_modifiers();
 		audio.update_listener(my_x, my_y);
 
 		// Anúncio automático de sala/objeto - guarda o que foi anunciado por último pra só falar de novo
@@ -463,6 +480,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// de passo (só esbarrão, ou nada).
 		if (delta > 0.1) delta = 0.1;
 		tick_timers(delta);
+		opening_tick();
 
 		target_in_range_beep();
 
