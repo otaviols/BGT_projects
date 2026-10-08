@@ -477,6 +477,12 @@ mixin class state_roles_part {
 			body.killer_peer_id = p.peer_id; // sem assassino: o rastro do detetive nasce vazio
 			bodies.insert_last(body);
 			mortos.insert_last(p.peer_id);
+			// Morrer de amor é mais uma saída do jogo, e toda saída abre a barriga e larga o corpo
+			// carregado. Esta tinha ficado de fora: o lobo apaixonado morria e quem ele tinha engolido
+			// ficava preso numa barriga que não existia mais, até o fim da partida.
+			release_belly(p, p.x, p.y);
+			net_packet@ largado = drop_carried_body(p);
+			if (@largado != null) pending_events.insert_last(largado);
 		}
 		return mortos;
 	}

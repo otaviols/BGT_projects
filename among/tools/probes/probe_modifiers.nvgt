@@ -94,6 +94,21 @@ void main() {
 	mes.state = "in_progress";
 	confere("e cai quando ela acaba", mes.take_heartbreaks().length() == 1);
 
+	// O lobo apaixonado que morre de amor abre a barriga, como em toda outra saída dele. Antes, quem
+	// estava lá dentro ficava preso numa barriga que não existia mais até o fim da partida.
+	game_state@ lb = mesa();
+	lb.find_player(2).set_role(ROLE_WOLF);
+	lb.find_player(1).lover = 2; lb.find_player(2).lover = 1;
+	lb.find_player(2).x = 3.0;
+	lb.find_player(3).alive = false; lb.find_player(3).swallowed_by = 2; // na barriga do lobo
+	lb.find_player(4).kill_cooldown_remaining = 0.0;
+	lb.try_kill(4, 1, ev);
+	confere("controle: com o lobo vivo, a barriga segue fechada", lb.find_player(3).swallowed());
+	lb.take_heartbreaks();
+	game_player@ solto = lb.find_player(3);
+	confere("o lobo morre de amor e quem estava na barriga volta, vivo, onde ele caiu",
+		!lb.find_player(2).alive && solto.alive && !solto.swallowed() && solto.x == 3.0);
+
 	println("== vitoria do casal ==");
 	game_state@ w = mesa();
 	w.find_player(1).lover = 2; w.find_player(2).lover = 1;

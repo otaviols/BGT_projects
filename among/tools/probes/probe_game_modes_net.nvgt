@@ -55,6 +55,12 @@ void main() {
 	int pegadores = 0;
 	for (uint i = 0; i < t.length(); i++) if (@t[i] != null && t[i].get_string("your_role") == ROLE_IMPOSTOR) pegadores++;
 	confere("um pegador so (" + pegadores + ")", pegadores == 1);
+	// Quem é o pegador vai para todos, e é o nome de quem recebeu o papel.
+	string nome_pegador = "";
+	for (uint i = 0; i < t.length(); i++) if (@t[i] != null && t[i].get_string("your_role") == ROLE_IMPOSTOR) nome_pegador = "gm" + i + "x" + sfx;
+	bool todos_sabem = nome_pegador != "";
+	for (uint i = 0; i < t.length(); i++) if (@t[i] == null || t[i].get_string("tagger_name") != nome_pegador) todos_sabem = false;
+	confere("todos ouvem quem e o pegador (" + nome_pegador + ")", todos_sabem);
 	uint crew = t[0].get_string("your_role") == ROLE_IMPOSTOR ? 1 : 0;
 	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
 	todos[crew].send_call_meeting();

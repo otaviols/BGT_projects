@@ -274,7 +274,7 @@
   "mode.tag_intro": "Modo pega-pega: não há reunião. O pegador fica parado 10 segundos; a tripulação vence completando as tarefas, e o pegador, pegando todo mundo.",
   "mode.wolves_intro": "Modo todos lobos: todo mundo é lobo. Engula os outros e não seja engolido: vence o último de pé. Não há reunião.",
   "mode.no_meetings": "Neste modo não há reunião.",
-  "tag.head_start": "O pegador sai em {seconds} segundos!",
+  "tag.tagger_is": "O pegador é {name}.",
   "tag.countdown": "{seconds}",
   "tag.go": "Valendo! O pegador saiu.",
   "game.reason_last_wolf": "Foi o último lobo de pé.",

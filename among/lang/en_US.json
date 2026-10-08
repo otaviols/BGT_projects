@@ -274,7 +274,7 @@
   "mode.tag_intro": "Tag mode: there are no meetings. The tagger stands still for 10 seconds; the crew wins by finishing the tasks, and the tagger by catching everyone.",
   "mode.wolves_intro": "All wolves mode: everyone is a wolf. Swallow the others and do not get swallowed: the last one standing wins. There are no meetings.",
   "mode.no_meetings": "There are no meetings in this mode.",
-  "tag.head_start": "The tagger starts in {seconds} seconds!",
+  "tag.tagger_is": "The tagger is {name}.",
   "tag.countdown": "{seconds}",
   "tag.go": "Go! The tagger is out.",
   "game.reason_last_wolf": "They were the last wolf standing.",

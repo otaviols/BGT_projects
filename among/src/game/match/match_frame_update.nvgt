@@ -63,22 +63,27 @@ mixin class match_frame_update_part {
 			my_disguise_remaining -= delta;
 			if (my_disguise_remaining < 0.0) my_disguise_remaining = 0.0;
 		}
-		// Pega-pega: a contagem do pegador parado. Um número por segundo, com o tique da votação, e o
-		// "valendo" no fim. Dita a TODOS - quem foge precisa dela tanto quanto quem pega.
+		// Pega-pega: a contagem do pegador parado. Os cinco últimos segundos, com o tique da votação, e
+		// o "valendo" no fim. Dita a TODOS - quem foge precisa dela tanto quanto quem pega.
+		//
+		// Os números INTERROMPEM a fala, e o "sai em 10 segundos" do começo saiu: na fila, atrás do texto
+		// longo da abertura (papel e regras do modo), a contagem chegava segundos atrasada - o pegador,
+		// que o servidor solta no tempo certo, saía com o jogador ainda ouvindo "3". A abertura já diz
+		// que são 10 segundos, e fica no histórico para reler.
 		if (head_start > 0.0) {
 			head_start -= delta;
 			int falta = int(head_start + 0.999);
-			if (falta < head_start_said && falta > 0 && (falta <= 5 || falta == 10)) {
+			if (falta < head_start_said && falta > 0 && falta <= 5) {
 				head_start_said = falta;
 				ui_sound(SND_VOTE_TIMER);
 				dictionary@ hp = dictionary();
 				hp.set("seconds", "" + falta);
-				speak(tr(falta == 10 ? "tag.head_start" : "tag.countdown", hp), false);
+				speak(tr("tag.countdown", hp), true);
 			}
 			if (head_start <= 0.0) {
 				head_start = 0.0;
 				string vale = tr("tag.go");
-				speak(vale);
+				speak(vale, true);
 				events_log.add("", vale);
 			}
 		}

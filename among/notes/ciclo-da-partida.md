@@ -195,5 +195,9 @@ ramo próprio do tick, ANTES da conferência clássica: todos lobos vence o últ
 mais um" do lobo clássico); pega-pega vence o pegador só com TODOS pegos (um contra um ainda é pega, ao
 contrário da maioria), e a tripulação pelas tarefas, com os fantasmas ajudando. A largada do pegador
 (`TAG_HEAD_START_SECONDS`) é recusada no servidor (`try_move_player`, kill recarregando 10 s, o bot
-parado) e contada no cliente para todos. Decisões do usuário; sonda: `probe_game_modes.nvgt` (sem rede,
+parado) e contada no cliente para todos. **A contagem INTERROMPE a fala** (só 5 a 1 e o "valendo"): na
+fila, atrás do texto longo da abertura, ela chegava segundos atrasada, e o pegador - que o servidor
+solta na hora certa - saía com o jogador ainda ouvindo "3"; o sintoma relatado foi "o bot sai antes
+de terminar a contagem". **O pegador é revelado a todos** (`tagger_name` no `S_GAME_START`, dito na
+abertura no lugar da contagem de impostores; decisão do usuário, como no original). Decisões do usuário; sonda: `probe_game_modes.nvgt` (sem rede,
 com os controles de cada regra) e `probe_game_modes_net.nvgt`.

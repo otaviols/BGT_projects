@@ -332,6 +332,12 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 				partner_params.set("names", joined_partners);
 				role_text += " " + tr("role.impostor_partners", partner_params);
 			}
+		} else if (game_mode == GAME_MODE_TAG && start_pkt.get_string("tagger_name", "") != "") {
+			// Pega-pega: quem foge sabe de quem foge. No lugar da contagem de impostores, que aqui não
+			// diz nada (é sempre um, e ele não se esconde).
+			dictionary@ tp = dictionary();
+			tp.set("name", spoken_name(start_pkt.get_string("tagger_name", "")));
+			role_text += " " + tr("tag.tagger_is", tp);
 		} else {
 			// Quantos impostores estão a bordo. O tripulante não sabe QUEM são, mas saber se procura um
 			// ou três muda toda a leitura de uma reunião - sem isso a discussão começa no chute.

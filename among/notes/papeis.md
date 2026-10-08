@@ -127,7 +127,8 @@ votando ou sendo morto. Com `alive = false` tudo isso já o exclui de graça; o 
 regra dos fantasmas - senão os mortos ouviriam os engolidos). Um lugar novo que dê algo ao fantasma
 precisa perguntar `swallowed()` também, ou o engolido ganha junto.
 - A volta (`release_belly`) é chamada em TODA saída do lobo: `try_kill`, `try_guess`, `tally_votes`,
-  `remove_from_lobby` e o próprio `try_eat` (lobo engolindo lobo). O aviso sai por `pending_events`,
+  `remove_from_lobby`, `take_heartbreaks` (morrer de amor - esquecida até a 0.50.9) e o próprio
+  `try_eat` (lobo engolindo lobo). O aviso sai por `pending_events`,
   que o tick entrega depois da apuração e antes da conferência de vitória - o cliente ouve a expulsão
   e SÓ ENTÃO a volta, e a vitória já conta com quem voltou.
 - Com gente na barriga, os impostores NÃO vencem por maioria (`anyone_in_belly`, recado #162): o lobo
@@ -360,6 +361,8 @@ com uma sala reaberta onde todos voltaram a tripulante (custou uma rodada achar 
   engolido NÃO é alvo perdido, porque pode voltar.
 - **Incendiário: sem som nenhum** (decisão do usuário). A mesma tecla encharca e põe fogo; quem
   decide qual é o servidor (`not_doused_count`). O fogo mata sem corpo e encerra a partida na hora.
+  A cena da vitória (do jogador Raciel) segura o fim da partida até o som acabar, e **Enter a pula**
+  (`on_game_over` em `meeting_ui`): inteira, ela pesava toda partida.
   `hostile_to_crew`, como o lobo.
 - **Amnésico: herda QUALQUER papel, impostor inclusive** (decisão do usuário). O corpo fica onde está;
   só os impostores são avisados quando ele vira um deles (`role.teammate_joined`). O kill herdado
@@ -388,7 +391,9 @@ papéis e dos alvos, só entre humanos.
 - **Apaixonados:** morrer de amor sai de `take_heartbreaks`, chamada pelo servidor a cada tick - vira
   corpo onde o par estiver (a partida ouve uma morte sem assassino; ele, `S_HEARTBREAK`). Só com a
   partida andando: morto na mesa, o par cai quando a reunião acaba (um corpo na mesa seria reportado
-  pela reunião seguinte inteira). Engolido não é morto. A vitória (`WINNER_LOVERS`, o casal e no
+  pela reunião seguinte inteira). Engolido não é morto. Morrer de amor é mais uma SAÍDA do jogo: chama
+  `release_belly` e `drop_carried_body` como as outras (até a 0.50.9 não chamava, e o lobo apaixonado
+  morria com gente presa numa barriga que não existia mais). A vitória (`WINNER_LOVERS`, o casal e no
   máximo mais um) vem ANTES da maioria do impostor. E o médico que revive um apaixonado traz o par
   junto - sem isso o revivido morria de amor de novo no tick seguinte.
 Sonda: `probe_modifiers.nvgt`, com controle em cada caso.

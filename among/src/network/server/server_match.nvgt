@@ -340,6 +340,13 @@ mixin class server_match_part {
 			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
 			// um ou três, senão a discussão da reunião é chute puro.
 			start.set_int("impostor_count", impostor_count);
+			// Pega-pega: quem é o pegador vai para TODOS, como no original - no modo não há dedução, e
+			// fugir sem saber de quem é jogar no escuro (pedido do usuário).
+			if (lobby.config.game_mode == GAME_MODE_TAG) {
+				for (uint j = 0; j < lobby.players.length(); j++) {
+					if (lobby.players[j].is_impostor) { start.set_string("tagger_name", lobby.players[j].public_name()); break; }
+				}
+			}
 
 			// Os OUTROS impostores, mandados só pra quem é impostor - cada um precisa saber quem é do
 			// time dele pra não se denunciar sozinho na reunião. A lista sai montada por destinatário
