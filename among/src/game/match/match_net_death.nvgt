@@ -7,6 +7,11 @@
 mixin class match_net_death_part {
 	void on_player_killed(net_packet@ pkt) {
 		mui.on_player_killed(pkt);
+		// O corpo entra na lista ANTES de apply_sabotage_effects, logo abaixo: ele refaz os marcadores a
+		// partir dela, e com o corpo ainda de fora quem morria parava de ouvir o próprio corpo até a lista
+		// ser refeita por outro motivo.
+		known_body_peers.insert_last(pkt.get_uint64("peer_id"));
+		known_body_positions.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0.0));
 		if (pkt.get_uint64("peer_id") == client.my_peer_id) {
 			alive = false;
 			mui.alive = false;
@@ -21,8 +26,6 @@ mixin class match_net_death_part {
 			events_log.add("", killed_text);
 		}
 		if (pkt.get_uint64("killer_peer") == client.my_peer_id) my_kill_cooldown_remaining = kill_cooldown_config;
-		known_body_peers.insert_last(pkt.get_uint64("peer_id"));
-		known_body_positions.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0.0));
 	}
 
 	// O alarme toca SEM posição, para a nave inteira: ele não marca um lugar - a sala vai

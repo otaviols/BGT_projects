@@ -186,6 +186,13 @@ No cliente é uma tela própria (`spectate_loop.nvgt`), e não `run_game` com ba
 motivo da lista à parte. Sonda: `probe_spectate.nvgt` (inclusive que nenhum pacote com papel ou
 assassino chega a quem assiste).
 
+**O preço da tela própria: mensagem nova da partida tem que entrar nos DOIS laços.** O servidor manda
+tudo o que é público também a quem assiste (`broadcast_to_lobby`), mas a tela do espectador só reage ao
+que ela trata - o resto cai calado. Sintoma (recado #230, 0.51.4): o lixeiro limpava o corpo e quem
+assistia continuava ouvindo e vendo o corpo; `S_BODY_REMOVED`, `S_BODY_PLACED` e a volta do revivido
+(parar o marcador dele) nunca tinham entrado ali, só em `handle_packet`. Mensagem nova em
+`handle_packet`: pergunte se quem assiste precisa dela.
+
 **MODOS (`lobby_config.game_mode`): pega-pega e todos lobos.** O modo vem da PREDEFINIÇÃO e não é um
 campo solto, porque cada modo é um pacote de regras que só faz sentido junto - e `validate()` o AMARRA
 (sem duto, sem sabotagem, sem papel especial; pega-pega com 1 pegador), para o formulário do anfitrião

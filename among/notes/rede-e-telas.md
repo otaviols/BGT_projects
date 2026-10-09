@@ -209,7 +209,10 @@ tela e o radar nunca discordam. **Antes valia o passo ouvido** (`roster_entry.he
 há menos de 0,9 s no alcance do som): fiel ao som, mas quem parava para fazer tarefa sumia da tela, e o
 usuário relatou como defeito. Uma tentativa intermediária (mostrar todos no alcance do som, alargando a
 lista de perto para 40) foi descartada na mesma hora pela regra do radar. Com servidor antigo, sem o
-campo, ainda vale o passo ouvido. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
+campo, ainda vale o passo ouvido. **No começo da partida, um cartão com o papel** (`draw_role_card`,
+recado #229: só dava para ver o papel de engenheiro - o anúncio ia para as legendas, que o resto da
+abertura empurrava): o nome do papel grande, na cor do time, e o texto que a abertura fala, por
+`VISUAL_ROLE_CARD_MS` ou até a pessoa sair do lugar. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
 somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da partida. A regra mora em
 `visual_player_visible`; uma regra paralela divergiria da do som na primeira mudança. A janela é limpa
 ao desligar, no fim da partida e ao sair do Conhecer o mapa - senão fica a nave parada nos menus. Sonda:

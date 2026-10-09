@@ -108,10 +108,18 @@ void main() {
 	}
 	println("cena: reuniao"); t.restart();
 	while (t.elapsed < 3000) { v.draw_meeting(lugares, true, 23.4); wait(16); }
+	// O cartão do papel no começo da partida (recado #229), com o texto que a abertura fala.
+	println("cena: papel"); t.restart();
+	while (t.elapsed < 3000) {
+		v.draw_role_card("Impostor", visual_team_rgb(TEAM_IMPOSTOR), COLOR_CYAN,
+			"Seu parceiro é Ana. Mate os tripulantes sem ser descoberto, sabote a nave e use os dutos para fugir.",
+			"Você é veloz: anda mais rápido que os outros.");
+		wait(16);
+	}
 	v.add_caption("Recado enviado. Obrigado!");
 	println("cena: legendas"); t.restart();
 	while (t.elapsed < 3000) { v.draw_captions_screen(); wait(16); }
-	confere("menu, reuniao e legendas desenharam", v.drew_last && v.captions.length() == 3);
+	confere("menu, reuniao, papel e legendas desenharam", v.drew_last && v.captions.length() == 3);
 
 	v.clear_if_needed();
 	confere("e limpa a janela ao desligar", !v.drew_last);

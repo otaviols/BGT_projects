@@ -134,6 +134,10 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	int opening_stage;       // 0 = nada pendente, 1 = esperando o som de início, 2 = esperando a batida
 	int opening_sound_slot;
 	bool opening_lover;
+	// O cartão do papel na tela para quem enxerga (draw_role_card): fica até este ticks(), ou até a pessoa
+	// sair do lugar onde nasceu - quem já está andando quer ver o mapa.
+	uint64 role_card_until;
+	float role_card_x, role_card_y;
 	string executioner_target_name;
 	map_zone@ start_zone;
 	string last_zone_id;
@@ -399,6 +403,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// esperam o som de início e a batida de coração (opening_tick) - a batida é o sinal do casal.
 		opening_stage = opening_lover ? 1 : 0;
 		if (!opening_lover && opening_modifiers_text != "") say_opening_modifiers();
+		role_card_until = ticks() + VISUAL_ROLE_CARD_MS;
+		role_card_x = my_x;
+		role_card_y = my_y;
 		audio.update_listener(my_x, my_y);
 
 		// Anúncio automático de sala/objeto - guarda o que foi anunciado por último pra só falar de novo

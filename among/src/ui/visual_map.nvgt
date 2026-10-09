@@ -31,6 +31,7 @@
 #include "menu.nvgt"
 #include "speech.nvgt"
 #include "../game/map.nvgt"
+#include "../game/roles/role_traits.nvgt"
 #include "../core/client_state.nvgt"
 #include "../config/colors.nvgt"
 #include "../config/game_constants.nvgt"
@@ -40,6 +41,8 @@
 // Um passo ouvido mantém o jogador na tela por este tempo: o bastante para não piscar entre um passo e
 // outro (um passo a cada ~0,35 s), curto o bastante para quem parou sumir como some no som.
 const uint64 VISUAL_HEARD_MS = 900;
+// Quanto tempo o cartão do papel fica na tela no começo da partida (some antes se a pessoa andar).
+const uint64 VISUAL_ROLE_CARD_MS = 8000;
 const float VISUAL_PIXELS_PER_UNIT = 18.0;
 // A altura da tela LÓGICA em que tudo é desenhado (ver visual_map.k). É a altura da janela padrão do
 // jogo: em janela a escala fica perto de 1, e em tela cheia tudo cresce junto, na mesma proporção.
@@ -76,6 +79,13 @@ const uint VC_VOTED = 0x4ADE80;
 const uint VC_VENT = 0x94A3B8;
 const uint VC_PANEL_ALERT = 0xF97316;
 
+// A cor do time no cartão do papel: vermelho para impostor, azul para tripulante, roxo para neutro.
+uint visual_team_rgb(const string&in team) {
+	if (team == TEAM_IMPOSTOR) return VC_BODY;
+	if (team == TEAM_NEUTRAL) return 0xC084FC;
+	return VC_ACCENT;
+}
+
 uint visual_player_rgb(int color) {
 	return color >= 0 && color < int(VISUAL_COLOR_RGB.length()) ? VISUAL_COLOR_RGB[color] : 0xCCCCCC;
 }
@@ -111,6 +121,7 @@ class visual_map {
 	bool tried = false;
 	bool drew_last = false;
 	uint64 last_draw = 0;
+	text_font@ font_big; // o nome do papel no cartão do começo da partida
 	text_font@ font_title;
 	text_font@ font_body;
 	text_font@ font_small;
@@ -175,11 +186,13 @@ class visual_map {
 		if (alvo == fonts_k && @font_body != null) return;
 		fonts_k = alvo;
 		// Tamanho inteiro: fração de ponto deixava o espaçamento entre letras irregular.
+		@font_big = get_font("Arial", float(int(52 * alvo + 0.5)), FONT_STYLE_BOLD);
 		@font_title = get_font("Arial", float(int(22 * alvo + 0.5)), FONT_STYLE_BOLD);
 		@font_body = get_font("Arial", float(int(17 * alvo + 0.5)));
 		@font_small = get_font("Arial", float(int(13 * alvo + 0.5)));
 		// Sem o ajuste de pares de letras: com ele o "e" encostava sob o "T" e o resto da palavra não
 		// acompanhava - "Teclas" saía "Te clas" (desenho de texto do NVGT de 15/09/2026).
+		if (@font_big != null) font_big.kerning = false;
 		if (@font_title != null) font_title.kerning = false;
 		if (@font_body != null) font_body.kerning = false;
 		if (@font_small != null) font_small.kerning = false;
@@ -460,6 +473,36 @@ class visual_map {
 			}
 		}
 		caption_panel(w, h);
+		finish();
+	}
+
+	// --- O papel, no começo da partida ---
+
+	// Um cartão grande com o papel, no lugar do mapa, nos primeiros segundos (recado #229: no começo só
+	// dava para ver o papel de engenheiro - o anúncio falado passava pelas legendas, quatro linhas
+	// pequenas que o resto da abertura empurrava para fora). Mostra o que a abertura já FALA a esta
+	// pessoa, e nada mais: o papel é dela, não há o que vazar.
+	void draw_role_card(const string&in role_name, uint team_rgb, int my_color, const string&in details,
+			const string&in modifiers) {
+		if (!ready()) return;
+		int w = 0, h = 0;
+		begin(VC_BG, w, h);
+		float cx = float(w) / 2.0;
+		float y = float(h) * 0.16;
+		color(visual_player_rgb(my_color));
+		circle(cx, y + 34, 30);
+		y += 84;
+		string rotulo = tr("visual.your_role");
+		put_text(rotulo, font_body, VC_TEXT_DIM, cx - text_width(rotulo, font_body, VC_TEXT_DIM) / 2.0, y);
+		y += 30;
+		y += put_text(role_name, font_big, team_rgb, cx - text_width(role_name, font_big, team_rgb) / 2.0, y) + 18;
+		color(team_rgb);
+		r.fill_rect(cx - 120, y, 240, 3);
+		y += 22;
+		float largura = float(w) * 0.7;
+		if (largura > 760) largura = 760;
+		y += put_text(details, font_body, VC_TEXT, cx - largura / 2.0, y, int(largura)) + 14;
+		if (modifiers != "") put_text(modifiers, font_body, VC_ACCENT, cx - largura / 2.0, y, int(largura));
 		finish();
 	}
 

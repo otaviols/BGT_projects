@@ -107,9 +107,16 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 				radar.handle_result(pkt);
 			} else if (t == S_BODY_SOUND) {
 				audio.play_body_sound(pkt.get_string("kind"), pkt.get_float("x"), pkt.get_float("y"));
+			} else if (t == S_BODY_REMOVED) {
+				// O lixeiro limpou, o carregador pegou: o marcador para. Esta tela não tratava, e quem assistia
+				// continuava ouvindo um corpo que não existia mais (recado #230).
+				audio.stop_body_beacon(pkt.get_uint64("peer_id"));
+			} else if (t == S_BODY_PLACED) {
+				audio.start_body_beacon(pkt.get_uint64("peer_id"), pkt.get_float("x"), pkt.get_float("y"));
 			} else if (t == S_PLAYER_REVIVED) {
 				roster_entry@ voltou = roster.find(pkt.get_uint64("peer_id"));
 				if (@voltou != null) { voltou.alive = true; voltou.x = pkt.get_float("x"); voltou.y = pkt.get_float("y"); }
+				audio.stop_body_beacon(pkt.get_uint64("peer_id")); // quem voltou não é mais corpo
 				audio.play_revive(pkt.get_float("x"), pkt.get_float("y"));
 			} else if (t == S_SWALLOW_SOUND) {
 				audio.play_wolf_swallow(pkt.get_float("x"), pkt.get_float("y"));

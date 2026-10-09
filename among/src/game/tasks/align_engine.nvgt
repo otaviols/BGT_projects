@@ -13,7 +13,10 @@ bool run_align_engine_task(game_client@ client) {
 
 	speak(tr("task.align_engine.instructions"));
 
-	float position = float(random(-40, 40));
+	// Sempre LONGE do centro, de um lado ou do outro. Sorteado entre -40 e 40, cerca de 1 vez em 6 o
+	// som já começava dentro da tolerância, e um Enter dado logo ao abrir completava a tarefa sem mexer
+	// em nada (recado #230: "dois Enter e ela se faz sozinha").
+	float position = float(random(int(SUCCESS_TOLERANCE) * 3, 40)) * (random(0, 1) == 0 ? -1.0 : 1.0);
 
 	// beep.wav é ESTÉREO de verdade (2 canais, conferido no cabeçalho do arquivo), então o modo
 	// padrão AUDIO_PAN_MODE_BALANCE (atenua o canal oposto ao valor de pan) é o certo aqui. O bug de
