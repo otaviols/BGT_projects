@@ -1,5 +1,5 @@
 ﻿# deploy.ps1
-# Publica uma versão: manda o servidor pro cluster e o cliente pro site de download.
+# Publica uma versão: manda o servidor para a VPS e o cliente para os sites de download.
 #
 # Rode da raiz do projeto (a pasta among), depois de ter gerado os pacotes:
 #   nvgt tools/build_pack.nvgt
@@ -7,14 +7,14 @@
 #   nvgt -c AmongUs.nvgt
 #   infra\deploy.ps1 -StorageAccount <nome>
 #
-# O nome do storage sai do `terraform output`. O servidor não precisa mais de -ServerIp: ele deixou
-# de ser uma VM alcançada por SSH e virou um contêiner no cluster, então quem sabe onde ele fica é o
-# kubectl.
+# O nome do storage sai do `terraform output` (é o site antigo, no Azure, que as versões até a 0.51.0
+# consultam). O servidor e o site novo moram na VPS da Hostinger desde 2026-10-09 - antes o servidor era
+# um contêiner no cluster AKS do Azure. O acesso à VPS está em infra/vps.ps1.
 
 param(
 	[Parameter(Mandatory = $true)][string]$StorageAccount,
-	# Onde a imagem do servidor é publicada. O padrão é o mesmo registro que o outro jogo já usa.
-	[string]$Image = "ghcr.io/otaviols/amongus-server",
+	# O nome da imagem do servidor; a etiqueta é o commit.
+	[string]$Image = "amongus-server",
 	# Pular uma das partes é útil quando só o cliente mudou (ou só o servidor).
 	[switch]$SkipServer,
 	[switch]$SkipSite,
@@ -24,13 +24,13 @@ param(
 	# Pula a conferência de traduções. Só para emergência (um conserto de servidor que não pode
 	# esperar tradutor) - em release normal, não use.
 	[switch]$SkipTranslations,
-	# O site novo, na VPS da Hostinger (ver notes/infra-e-deploy.md). A chave é só desta VPS e sem senha.
-	[string]$SiteHost = "amongus.blindtabern.com",
-	[string]$VpsKey = (Join-Path $env:USERPROFILE ".ssh\amongus_vps")
+	# O site novo, na VPS da Hostinger (ver notes/infra-e-deploy.md e infra/vps.ps1).
+	[string]$SiteHost = "amongus.blindtabern.com"
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "vps.ps1")
 
 # --- Traduções, ANTES de tudo ---
 #
@@ -56,7 +56,7 @@ if (-not $SkipTranslations) {
 
 if (-not $SkipServer) {
 	# A imagem é etiquetada com o commit atual, e a etiqueta só diz a verdade se o que está sendo
-	# compilado É o commit. Com mudanças por commitar, o pod diria "6b40082" rodando código que o
+	# compilado É o commit. Com mudanças por commitar, o servidor diria "6b40082" rodando código que o
 	# 6b40082 não tem - e quem fosse investigar um problema no servidor olharia o código errado.
 	# Já aconteceu. Commite antes de publicar o servidor.
 	$dirty = git -C $root status --porcelain --untracked-files=no
@@ -80,9 +80,8 @@ if (-not $SkipServer) {
 	if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $pkgDir "server_main"))) { throw "Não consegui extrair $serverPkg." }
 	Write-Host "Servidor: $(Split-Path $serverPkg -Leaf)"
 
-	# A tag é o commit atual, e não `latest`, por dois motivos: dá para saber exatamente qual código
-	# está no ar olhando o pod, e o Kubernetes só reinicia o servidor quando a tag MUDA - com
-	# `latest` fixo, `kubectl apply` não veria diferença nenhuma e o deploy não faria nada.
+	# A etiqueta é o commit atual, e não `latest`: dá para saber exatamente qual código está no ar
+	# olhando o contêiner (`docker inspect amongus-server`), e voltar atrás é subir a etiqueta anterior.
 	$tag = (git -C $root rev-parse --short HEAD).Trim()
 	if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($tag)) {
 		throw "Não consegui descobrir o commit atual para etiquetar a imagem."
@@ -120,81 +119,77 @@ if (-not $SkipServer) {
 	}
 	Write-Host "Servidor sobe normalmente."
 
-	Write-Host "Enviando a imagem..."
-	docker push $fullImage
-	if ($LASTEXITCODE -ne 0) {
-		throw "docker push falhou. Se for erro de autenticação: docker login ghcr.io -u <usuario>"
+	# A imagem vai direto para a VPS, sem registro: `docker save` aqui, `scp`, `docker load` lá (~55 MB
+	# comprimida). Era o ghcr.io, para o cluster baixar - e o segredo de leitura dele vencia.
+	$tar = Join-Path $env:TEMP "amongus-server-$tag.tar"
+	Write-Host "Enviando a imagem para a VPS..."
+	docker save -o $tar $fullImage
+	if ($LASTEXITCODE -ne 0) { throw "docker save falhou." }
+	try {
+		$a = Vps-SshArgs
+		scp -q @a $tar "root@${VpsHost}:/opt/amongus/imagem.tar"
+		if ($LASTEXITCODE -ne 0) { throw "Falhou o envio da imagem para a VPS." }
 	}
+	finally { Remove-Item $tar -ErrorAction SilentlyContinue }
+	Vps-Run "docker load -i /opt/amongus/imagem.tar && rm -f /opt/amongus/imagem.tar" | Out-Null
 
-	# O servidor guarda as partidas na memória: trocar o pod no meio de uma derruba todo mundo que
+	# O servidor guarda as partidas na memória: trocar o contêiner no meio de uma derruba todo mundo que
 	# está jogando, sem aviso - aconteceu, e foi assim que se descobriu. Então, com a imagem nova já
 	# pronta e conferida, o servidor ATUAL é avisado: todo jogador conectado ouve "o servidor vai
 	# reiniciar em N minutos", nenhuma partida nova pode começar, e o deploy espera as que estão
 	# rolando acabarem - ou o prazo. Quem está na sala de espera cai e volta; quem está no meio de
 	# uma partida teve N minutos para terminá-la.
 	#
-	# Se o servidor atual não conhece o aviso (versão anterior a esta) ou o token não bater, o
-	# deploy segue sem esperar - e diz isso.
+	# Se o servidor atual não aceitar o aviso, o deploy segue sem esperar - e diz isso.
 	if ($DrainSeconds -gt 0) {
-		$encoded = kubectl get secret amongus-admin -n amongus -o jsonpath="{.data.token}" 2>$null
-		if ([string]::IsNullOrWhiteSpace($encoded)) {
-			Write-Warning "Sem o segredo amongus-admin: não dá para avisar os jogadores; trocando o servidor direto."
-		} else {
-			$env:AMONGUS_ADMIN_TOKEN = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
-			Push-Location $root
-			try {
-				$drain = nvgt tools/server_admin.nvgt drain $DrainSeconds 2>&1
-				if ("$drain" -notmatch "^ok=") {
-					Write-Warning "O servidor atual não aceitou o aviso de reinício ($drain); trocando direto."
-				} else {
-					Write-Host "Jogadores avisados: reinício em $DrainSeconds s. Esperando as partidas em andamento acabarem..."
-					$deadline = (Get-Date).AddSeconds($DrainSeconds)
-					while ((Get-Date) -lt $deadline) {
-						$st = nvgt tools/server_admin.nvgt status 2>&1
-						$emAndamento = ($st | Select-String -Pattern "^in_progress=(\d+)").Matches
-						# Leitura que falhou NÃO é "nenhuma partida": continua esperando até o prazo, que os
-						# jogadores já ouviram. Antes isto saía do laço e trocava na hora - na 0.46.0 uma única
-						# leitura perdida derrubou partidas que tinham 5 minutos prometidos para acabar.
-						if ($emAndamento.Count -eq 0) {
-							Write-Warning "Não consegui ler o estado do servidor ($("$st".Trim())); esperando mesmo assim."
-							Start-Sleep -Seconds 15
-							continue
-						}
-						$n = [int]$emAndamento[0].Groups[1].Value
-						if ($n -eq 0) { Write-Host "Nenhuma partida em andamento. Trocando o servidor."; break }
-						Write-Host ("  {0} partida(s) em andamento; faltam {1:N0} s do prazo." -f $n, ($deadline - (Get-Date)).TotalSeconds)
+		$env:AMONGUS_ADMIN_TOKEN = Vps-AdminToken
+		Push-Location $root
+		try {
+			$drain = nvgt tools/server_admin.nvgt drain $DrainSeconds 2>&1
+			if ("$drain" -notmatch "^ok=") {
+				Write-Warning "O servidor atual não aceitou o aviso de reinício ($drain); trocando direto."
+			} else {
+				Write-Host "Jogadores avisados: reinício em $DrainSeconds s. Esperando as partidas em andamento acabarem..."
+				$deadline = (Get-Date).AddSeconds($DrainSeconds)
+				while ((Get-Date) -lt $deadline) {
+					$st = nvgt tools/server_admin.nvgt status 2>&1
+					$emAndamento = ($st | Select-String -Pattern "^in_progress=(\d+)").Matches
+					# Leitura que falhou NÃO é "nenhuma partida": continua esperando até o prazo, que os
+					# jogadores já ouviram. Antes isto saía do laço e trocava na hora - na 0.46.0 uma única
+					# leitura perdida derrubou partidas que tinham 5 minutos prometidos para acabar.
+					if ($emAndamento.Count -eq 0) {
+						Write-Warning "Não consegui ler o estado do servidor ($("$st".Trim())); esperando mesmo assim."
 						Start-Sleep -Seconds 15
+						continue
 					}
+					$n = [int]$emAndamento[0].Groups[1].Value
+					if ($n -eq 0) { Write-Host "Nenhuma partida em andamento. Trocando o servidor."; break }
+					Write-Host ("  {0} partida(s) em andamento; faltam {1:N0} s do prazo." -f $n, ($deadline - (Get-Date)).TotalSeconds)
+					Start-Sleep -Seconds 15
 				}
 			}
-			finally {
-				Pop-Location
-				$env:AMONGUS_ADMIN_TOKEN = ""
-			}
+		}
+		finally {
+			Pop-Location
+			$env:AMONGUS_ADMIN_TOKEN = ""
 		}
 	}
 
-	Write-Host "Atualizando o servidor no cluster..."
-	kubectl apply -f (Join-Path $PSScriptRoot "k8s/amongus.yaml")
-	if ($LASTEXITCODE -ne 0) { throw "kubectl apply falhou." }
-
-	# O YAML tem um PLACEHOLDER na tag: quem resolve qual versão sobe é este comando, não o arquivo.
-	# Assim o manifesto continua igual entre versões e o histórico não vira uma sequência de commits
-	# que só trocam um número.
-	kubectl set image -n amongus deployment/amongus-server server=$fullImage
-	if ($LASTEXITCODE -ne 0) { throw "kubectl set image falhou." }
-
-	# Sem --timeout o comando espera para sempre se o pod não subir, e o deploy trava sem dizer por
-	# quê. Com ele, a falha aparece e os logs abaixo mostram a causa.
-	kubectl rollout status -n amongus deployment/amongus-server --timeout=180s
-	if ($LASTEXITCODE -ne 0) {
-		Write-Warning "O servidor não subiu. Últimas linhas do log:"
-		kubectl logs -n amongus deployment/amongus-server --tail=50
-		throw "rollout falhou."
+	# Troca o contêiner: o banco fica no volume /opt/amongus/data (dono 10001, o usuário da imagem), e o
+	# token no admin.env. As imagens antigas ficam na VPS de propósito: voltar atrás é um `docker run`
+	# com a etiqueta anterior (`docker images amongus-server` lista).
+	Write-Host "Trocando o servidor na VPS..."
+	Vps-Run ("docker rm -f $VpsContainer >/dev/null 2>&1; docker run -d --name $VpsContainer --restart unless-stopped " +
+		"-p 8934:8934/udp -v ${VpsData}:/data --env-file /opt/amongus/admin.env $fullImage") | Out-Null
+	# A mesma conferência da imagem local, agora no lugar de verdade: vivo depois de alguns segundos.
+	Start-Sleep -Seconds 8
+	$vivo = Vps-Run "docker inspect $VpsContainer --format '{{.State.Running}}'"
+	if ("$vivo".Trim() -ne "true") {
+		Write-Warning "O servidor não ficou de pé na VPS. Últimas linhas do log:"
+		Vps-Run "docker logs --tail 50 $VpsContainer 2>&1" | Out-Host
+		throw "O servidor não subiu na VPS."
 	}
-
-	$serverIp = kubectl get svc -n amongus amongus-server -o jsonpath="{.status.loadBalancer.ingress[0].ip}"
-	Write-Host "Servidor no ar em ${serverIp}:8934/udp"
+	Write-Host "Servidor no ar na VPS ($fullImage), porta 8934/udp."
 }
 
 if (-not $SkipSite) {
@@ -228,7 +223,7 @@ if (-not $SkipSite) {
 	# atualização lá (até a 0.51.0); a 0.51.1 em diante procura aqui. Cada arquivo sobe com nome
 	# temporário e é renomeado no fim - nunca se baixa um pacote pela metade - e o version.json é o
 	# ÚLTIMO a trocar, como no Azure: quem o lê já acha os pacotes que ele anuncia.
-	$ssh = @("-i", $VpsKey, "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes")
+	$ssh = Vps-SshArgs
 	$arquivos = @($clientZip)
 	foreach ($extra in @("AmongUs-linux.tar.gz", "AmongUs-linux.zip", "AmongUs-mac.iso", "AmongUs-android.apk")) {
 		$path = Join-Path $root $extra

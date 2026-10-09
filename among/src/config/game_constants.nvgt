@@ -9,7 +9,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.51.4";
+const string GAME_VERSION = "0.51.5";
 
 // Versão do PROTOCOLO de rede, separada da versão do jogo de propósito: a maioria das versões não
 // muda o que viaja pela rede, e as que mudam de um jeito incompatível são raras e precisam de um
@@ -59,7 +59,7 @@ const string DEFAULT_SERVER_HOST = "amongus-server.blindtabern.com";
 // Reserva para quando o NOME não resolve (DNS fora, rede do jogador que bloqueia o domínio): um
 // problema de DNS não pode impedir ninguém de jogar. É o IP para onde o nome aponta hoje - ao mudar o
 // servidor de lugar, troque os DOIS (o registro e este número) na mesma versão.
-const string FALLBACK_SERVER_IP = "20.206.112.223";
+const string FALLBACK_SERVER_IP = "179.199.151.166";
 const uint16 DEFAULT_SERVER_PORT = 8934;
 const uint MAX_PACKET_CHANNELS = 4;
 const uint NETWORK_TICKS_PER_SECOND = 20;

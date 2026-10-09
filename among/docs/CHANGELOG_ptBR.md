@@ -6,6 +6,28 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.5
+
+**O servidor do jogo mudou de casa.** Saiu do Azure para um servidor nosso. Se o jogo não conectar,
+atualize: as versões anteriores à 0.51.1 não acham mais o servidor.
+
+**Tela para quem enxerga (experimental):**
+
+- **ela mostra quem o radar de jogadores mostraria, e só isso:** quem está na mesma sala, parado ou
+  andando. Antes, quem parava para fazer uma tarefa sumia da tela;
+- **no começo da partida, o seu papel aparece grande na tela**, na cor do time, com o que a abertura
+  fala. Some depois de alguns segundos, ou quando você anda.
+
+**Corrigido:**
+
+- assistindo uma partida, o corpo limpo pelo lixeiro ou levado pelo carregador continuava soando;
+- quem morria deixava de ouvir o marcador do próprio corpo;
+- na tarefa de alinhar o motor, o som às vezes já começava no centro, e um Enter a completava sem
+  mexer em nada.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.4
 
 **A tela para quem enxerga ficou completa, e continua EXPERIMENTAL.** Com a opção "Mapa na tela,

@@ -14,7 +14,7 @@
 #   4. sounds.dat regerado se algum som mudou (sem isso o build sai com o som velho, calado);
 #   5. servidor publicado só se o código dele mudou desde o commit que está no ar;
 #   6. clientes (com o teste de abertura), Android, servidor; push; deploy;
-#   7. confere no ar: o site anuncia a versão nova, e o pod roda o commit novo.
+#   7. confere no ar: o site anuncia a versão nova, e o servidor na VPS roda o commit novo.
 #
 # Rode SEM redirecionar a saída (nada de `| Tee-Object`, `*>&1`): o deploy morre no PowerShell 5.1
 # quando a saída do docker build é redirecionada - ver notes/infra-e-deploy.md.
@@ -26,12 +26,12 @@
 param(
 	[int]$DrainSeconds = 300,
 	[switch]$Conferir,
-	[string]$StorageAccount = "amongusaudiogame",
-	[string]$Namespace = "amongus"
+	[string]$StorageAccount = "amongusaudiogame"
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $root "infra\vps.ps1")
 Push-Location $root
 try {
 	function Passo([string]$t) { Write-Host ""; Write-Host "== $t ==" }
@@ -56,7 +56,7 @@ try {
 
 	# Comparada como versão, e não como texto: "0.10.0" é MAIOR que "0.9.0".
 	$noAr = ""
-	try { $noAr = (Invoke-RestMethod "https://amongusaudiogame.z15.web.core.windows.net/version.json").version } catch { }
+	try { $noAr = (Invoke-RestMethod "https://amongus.blindtabern.com/version.json" -Headers @{ "Cache-Control" = "no-cache" }).version } catch { }
 	if ($noAr) {
 		if ([version]$versao -le [version]$noAr) { throw "O site já anuncia a $noAr; a $versao não seria oferecida a ninguém. Suba GAME_VERSION." }
 		Write-Host "No ar: $noAr -> publicando $versao"
@@ -66,8 +66,8 @@ try {
 
 	# Servidor: compara com o commit que ESTÁ no ar (a etiqueta da imagem). O que não é tela, som,
 	# texto do jogador ou ferramenta entra no servidor; na dúvida, publica.
-	$imagem = kubectl -n $Namespace get deploy amongus-server -o jsonpath='{..image}' 2>$null
-	$commitNoAr = if ($imagem -match ':([0-9a-f]{7,})$') { $Matches[1] } else { "" }
+	$commitNoAr = ""
+	try { $commitNoAr = Vps-ServerCommit } catch { }
 	$servidor = $true
 	if ($commitNoAr) {
 		# lang/ fica de fora: o servidor manda CHAVES e quem traduz é o cliente (ver server_main.nvgt), e
@@ -148,9 +148,9 @@ try {
 	}
 	if ($servidor) {
 		$head = (git rev-parse --short HEAD).Trim()
-		$imagem = kubectl -n $Namespace get deploy amongus-server -o jsonpath='{..image}'
-		if ($imagem -notmatch [regex]::Escape(":$head")) { throw "O servidor roda $imagem, e não o commit $head." }
-		Write-Host "Servidor: $imagem"
+		$noArAgora = Vps-ServerCommit
+		if ($noArAgora -ne $head) { throw "O servidor na VPS roda o commit '$noArAgora', e não o $head." }
+		Write-Host "Servidor na VPS: $noArAgora"
 	}
 	Write-Host ""
 	Write-Host "$versao publicada."

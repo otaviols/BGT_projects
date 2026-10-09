@@ -6,6 +6,28 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.5
+
+**The game server has moved.** It left Azure for a server of our own. If the game doesn't connect,
+update: versions before 0.51.1 can no longer find the server.
+
+**Screen for sighted players (experimental):**
+
+- **it shows who the player radar would show, and nothing else:** whoever is in the same room,
+  standing still or walking. Before, someone who stopped to do a task disappeared from the screen;
+- **at the start of the match, your role shows up big on the screen**, in your team's color, with what
+  the opening says. It goes away after a few seconds, or when you walk.
+
+**Fixed:**
+
+- when watching a match, a body cleaned by the janitor or picked up by the carrier kept making sound;
+- whoever died stopped hearing the marker of their own body;
+- in the align the engine task, the sound sometimes already started in the center, and one Enter
+  finished it without moving anything.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.51.4
 
 **The screen for sighted players is now complete, and still EXPERIMENTAL.** With the "On-screen map,

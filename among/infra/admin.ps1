@@ -27,16 +27,14 @@
 # - e o read_feedback quebrava nesta máquina por um detalhe que os outros não tinham. Agora o
 # conserto é feito uma vez.
 #
-# O token mora no segredo amongus-admin do cluster. Ele vai por variável de ambiente só durante o
-# comando e é apagado em seguida - nunca fica em arquivo nem no histórico. Para criar, uma vez:
-#   kubectl create secret generic amongus-admin -n amongus --from-literal=token=<senha longa>
-# e reiniciar o servidor (kubectl rollout restart deploy/amongus-server -n amongus).
+# O token mora na VPS, em /opt/amongus/admin.env (o arquivo com que o contêiner sobe; ver
+# infra/vps.ps1). Ele vai por variável de ambiente só durante o comando e é apagado em seguida - nunca
+# fica em arquivo nem no histórico. Até 2026-10-09 morava no segredo amongus-admin do cluster do Azure.
 
 param(
 	[Parameter(Position = 0)][string]$Comando = "",
 	[Parameter(Position = 1, ValueFromRemainingArguments = $true)][string[]]$Resto = @(),
 	[switch]$Local,
-	[string]$Namespace = "amongus",
 	# recados
 	[int]$Depois = 0,
 	[int]$Limite = 0,
@@ -54,6 +52,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "vps.ps1")
 $origem = Get-Location # caminhos relativos (-Saida, -Pasta) são relativos a de onde se chamou
 
 function Uso {
@@ -72,11 +71,7 @@ function Resolve-Caminho([string]$p) {
 # Roda um comando de tools/server_admin.nvgt com o token no ambiente, e limpa tudo ao sair.
 function Servidor([string[]]$argumentos) {
 	if (-not $Local) {
-		$encoded = kubectl get secret amongus-admin -n $Namespace -o jsonpath="{.data.token}" 2>$null
-		if ([string]::IsNullOrWhiteSpace($encoded)) {
-			throw "Não achei o segredo amongus-admin no namespace $Namespace (ver o topo deste script)."
-		}
-		$env:AMONGUS_ADMIN_TOKEN = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
+		$env:AMONGUS_ADMIN_TOKEN = Vps-AdminToken
 	} elseif ([string]::IsNullOrWhiteSpace($env:AMONGUS_ADMIN_TOKEN)) {
 		throw "Com -Local, defina AMONGUS_ADMIN_TOKEN no ambiente (o mesmo valor com que o servidor local subiu)."
 	} else {
@@ -97,21 +92,12 @@ function Servidor([string[]]$argumentos) {
 # Recados: lidos de uma CÓPIA do banco, e não por comando de rede - é leitura, e o crash.log de cada
 # recado não cabe num pacote. Quem escreve no banco (responder, arquivar) é sempre o servidor.
 function Recados {
-	$pod = kubectl get pods -n $Namespace -o jsonpath="{.items[0].metadata.name}"
-	if ([string]::IsNullOrWhiteSpace($pod)) { throw "Não achei o pod do servidor no namespace $Namespace." }
 	$work = Join-Path $env:TEMP "amongus_feedback"
 	New-Item -ItemType Directory -Force $work | Out-Null
 	Push-Location $work
 	try {
 		Remove-Item "feedback.db" -ErrorAction SilentlyContinue
-		# Caminho RELATIVO: com "C:\..." o kubectl lê o "C:" como o separador de "pod:caminho".
-		# E com o ErrorAction em Continue só aqui: o kubectl cp escreve um aviso do tar ("Removing
-		# leading '/'") na saída de erro, e com "Stop" o PowerShell 5.1 trata isso como falha - era por
-		# isso que o read_feedback.ps1 morria nesta máquina. A falha de verdade é o arquivo não chegar.
-		$ErrorActionPreference = "Continue"
-		kubectl cp -n $Namespace "${pod}:/data/among_users.db" "feedback.db" 2>&1 | Out-Null
-		$ErrorActionPreference = "Stop"
-		if (-not (Test-Path "feedback.db")) { throw "Não consegui copiar o banco do servidor." }
+		Vps-CopyDb (Join-Path $work "feedback.db")
 		$leitor = Join-Path $root "tools\read_feedback.py"
 		$flagCrash = if ($Crash) { "1" } else { "0" }
 		$flagTodos = if ($Todos) { "1" } else { "0" }
@@ -135,24 +121,13 @@ function Recados {
 # ela ativa. Fica FORA do repositório (tem hash de senha), e guarda os 30 mais recentes. O release.ps1
 # chama a cada publicação.
 function Backup {
-	$pod = kubectl get pods -n $Namespace -l app=amongus-server -o jsonpath="{.items[0].metadata.name}"
-	if ([string]::IsNullOrWhiteSpace($pod)) { throw "Não achei o pod do servidor no namespace $Namespace." }
 	$pasta = Join-Path $env:USERPROFILE "amongus_backups"
 	New-Item -ItemType Directory -Force $pasta | Out-Null
 	$nome = "among_users_" + (Get-Date -Format "yyyy-MM-dd_HHmmss") + ".db"
 	Push-Location $pasta
 	try {
-		# Caminho RELATIVO e ErrorAction em Continue, pelos mesmos motivos de Recados, acima.
-		$ErrorActionPreference = "Continue"
-		kubectl cp -n $Namespace "${pod}:/data/among_users.db" $nome 2>&1 | Out-Null
-		$ErrorActionPreference = "Stop"
-		# Um arquivo que chegou não prova um banco: confere o cabeçalho do SQLite.
-		$ok = $false
-		if (Test-Path $nome) {
-			$cabeca = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes((Join-Path $pasta $nome))[0..14])
-			$ok = $cabeca -eq "SQLite format 3"
-		}
-		if (-not $ok) { Remove-Item $nome -ErrorAction SilentlyContinue; throw "O backup do banco não chegou inteiro." }
+		# Vps-CopyDb confere o cabeçalho do SQLite: um arquivo que chegou não prova um banco.
+		Vps-CopyDb (Join-Path $pasta $nome)
 		Get-ChildItem -Filter "among_users_*.db" | Sort-Object Name -Descending | Select-Object -Skip 30 | Remove-Item
 		Write-Host ("Backup: {0} ({1:N0} KB)" -f (Join-Path $pasta $nome), ((Get-Item $nome).Length / 1KB))
 	}
