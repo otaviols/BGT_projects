@@ -10,6 +10,7 @@
 #include "../audio/sound_catalog.nvgt"
 #include "../audio/voice_chat.nvgt"
 #include "../i18n.nvgt"
+#include "visual_map.nvgt"
 
 // Som de amostra de cada família, na ordem de SOUND_FAMILY_*. Tocar o som DA FAMÍLIA ao mexer no
 // controle é o que torna o ajuste possível de ouvido: você ouve o que está ajustando, no volume em
@@ -52,7 +53,7 @@ void pump_settings_client() {
 void run_settings_menu(game_client@ client = null) {
 	@g_settings_pump_client = client;
 	while (true) {
-		menu m;
+		screen_menu m;
 		m.intro_text = tr("menu.settings");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
@@ -204,7 +205,7 @@ void run_volume_screen() {
 // precisar de uma lista fixa de teclas conhecidas.
 void run_keys_screen() {
 	while (true) {
-		menu m;
+		screen_menu m;
 		m.intro_text = tr("settings.keys_hint");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
@@ -294,7 +295,7 @@ void run_language_screen() {
 		return;
 	}
 
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("settings.language_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
@@ -498,7 +499,7 @@ void run_voice_chat_screen() {
 // aparelho novo, e é assim que se descobre se era esse mesmo.
 void run_output_device_screen() {
 	const array<string>@ outputs = get_sound_output_devices();
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("settings.output_device_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";

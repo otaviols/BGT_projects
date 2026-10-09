@@ -165,7 +165,7 @@ lobby_browser_result run_lobby_browser_inner(game_client@ client) {
 			speak(tr(reply_count == 1 ? "feedback.replies_one" : "feedback.replies_many", rp));
 		}
 
-		menu m;
+		screen_menu m;
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";

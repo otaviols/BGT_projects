@@ -15,6 +15,7 @@
 #include "../network/protocol.nvgt"
 #include "../i18n.nvgt"
 #include "../config/game_constants.nvgt"
+#include "visual_map.nvgt"
 
 game_client@ g_translation_pump_client;
 void pump_client_during_translation_menu(menu@ m, string data) {
@@ -31,7 +32,7 @@ void run_send_translation_screen(game_client@ client) {
 	}
 	if (candidates.length() == 0) { speak(tr("translation.none")); return; }
 
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("translation.pick_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";

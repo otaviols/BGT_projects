@@ -13,6 +13,7 @@
 #include "../audio/audio_manager.nvgt"
 #include "../i18n.nvgt"
 #include "../config/game_constants.nvgt"
+#include "visual_map.nvgt"
 
 // menu.run() bloqueia localmente enquanto o jogador escolhe o voto, sem nunca chamar
 // client.update() - sem isso a conexão para de ser "servida" (nada de keepalive/ack via ENet)
@@ -342,7 +343,7 @@ class meeting_ui {
 
 	private void run_voting_menu() {
 		ui_sound(SND_DIALOG_OPEN);
-		menu vote_menu;
+		screen_menu vote_menu;
 		vote_menu.intro_text = tr("game.meeting_voting");
 		vote_menu.click_sound = "ui/menu_click.ogg";
 		vote_menu.select_sound = ""; // os sons de marcar e confirmar são os do voto, tocados abaixo

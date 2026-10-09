@@ -19,12 +19,13 @@
 #include "../audio/sound_catalog.nvgt"
 #include "settings_screens.nvgt"
 #include "../core/touch_input.nvgt"
+#include "visual_map.nvgt"
 
 // Menu inicial (antes de conectar): conectar, aprender os sons do jogo, ou sair.
 // Retorna true se o jogador escolheu conectar (main.nvgt segue o fluxo normal); false = saiu.
 bool run_main_menu() {
 	while (true) {
-		menu m;
+		screen_menu m;
 		m.intro_text = tr("app.title");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
@@ -59,7 +60,7 @@ bool run_main_menu() {
 // A lista dos gestos, um por item, para ler no ritmo de cada um. É um menu, e não uma fala só, porque
 // são onze frases: dita de uma vez, a do meio já teria sido esquecida quando a última acabasse.
 void run_touch_help_screen() {
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("touch.menu_item");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
@@ -90,7 +91,7 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 };
 
 void run_learn_sounds_screen() {
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("learn.menu_hint");
 	m.sounds_prefix = "sounds/";
 	// Os sons de navegar e confirmar, como todo menu do jogo. Sem eles esta era a única lista muda ao

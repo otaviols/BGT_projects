@@ -11,7 +11,7 @@
 // seguinte pelo caminho de sempre - o menu não sabe o que cada ação faz, e nem precisa.
 void run_touch_action_menu(game_client@ client) {
 	ui_sound(SND_DIALOG_OPEN);
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("touch.action_menu");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
@@ -31,7 +31,7 @@ void run_touch_action_menu(game_client@ client) {
 
 void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	ui_sound(SND_DIALOG_OPEN);
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("game.doors_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
@@ -56,7 +56,7 @@ void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 // porque ele também pode estar sendo visto).
 void run_shapeshift_menu(game_client@ client, client_roster@ roster) {
 	ui_sound(SND_DIALOG_OPEN);
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("role.shift_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
@@ -88,7 +88,7 @@ void run_guess_menu(game_client@ client, client_roster@ roster, const array<stri
 	if (papeis.length() == 0) { speak(tr("role.guess_no_roles")); return; }
 
 	ui_sound(SND_DIALOG_OPEN);
-	menu alvos;
+	screen_menu alvos;
 	alvos.intro_text = tr("role.guess_target_hint");
 	alvos.click_sound = "ui/menu_click.ogg";
 	alvos.select_sound = "ui/menu_confirm.ogg";
@@ -104,7 +104,7 @@ void run_guess_menu(game_client@ client, client_roster@ roster, const array<stri
 	string alvo = alvos.selected_item_id;
 	if (alvo == "") { ui_sound(SND_DIALOG_CLOSE); return; }
 
-	menu quais;
+	screen_menu quais;
 	quais.intro_text = tr("role.guess_role_hint");
 	quais.click_sound = "ui/menu_click.ogg";
 	quais.select_sound = "ui/menu_confirm.ogg";
@@ -124,7 +124,7 @@ void run_swap_menu(game_client@ client, client_roster@ roster) {
 	ui_sound(SND_DIALOG_OPEN);
 	uint64 primeiro = 0;
 	for (int passo = 0; passo < 2; passo++) {
-		menu m;
+		screen_menu m;
 		m.intro_text = tr(passo == 0 ? "role.swap_pick_first" : "role.swap_pick_second");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
@@ -149,7 +149,7 @@ void run_swap_menu(game_client@ client, client_roster@ roster) {
 
 void run_sabotage_menu(impostor_controller@ imp) {
 	ui_sound(SND_DIALOG_OPEN);
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("game.sabotage_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
@@ -172,7 +172,7 @@ void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio
 	if (@current_vent == null) return;
 
 	ui_sound(SND_DIALOG_OPEN);
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("game.vent_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
@@ -241,7 +241,7 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 	}
 
 	ui_sound(SND_DIALOG_OPEN);
-	menu m;
+	screen_menu m;
 	m.intro_text = tr("game.tasks_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
@@ -302,7 +302,7 @@ string game_over_reason_text(const string&in reason) {
 void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 	string vencedor = game_winner_text(pkt); // tripulação, impostores ou o neutro que venceu sozinho
 
-	menu m;
+	screen_menu m;
 	m.intro_text = vencedor;
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";

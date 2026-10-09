@@ -19,6 +19,7 @@
 #include "../core/utf8.nvgt"
 #include "../network/protocol.nvgt"
 #include "../i18n.nvgt"
+#include "visual_map.nvgt"
 
 // menu.run() bloqueia sem chamar client.update() - mesmo problema das outras telas. Bomba própria
 // aqui, e não a do navegador de partidas: esta tela não deve depender de ser incluída depois dele.
@@ -95,7 +96,7 @@ void run_feedback_history_screen(game_client@ client) {
 	if (messages.length() == 0) { speak(tr("feedback.history_empty")); return; }
 	int foco = 0;
 	while (true) {
-		menu m;
+		screen_menu m;
 		m.intro_text = tr("feedback.history_hint");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
@@ -152,7 +153,7 @@ void run_feedback_thread_screen(game_client@ client, json_object@ msg) {
 
 	int foco = 0;
 	while (true) {
-		menu m;
+		screen_menu m;
 		m.intro_text = tr("feedback.thread_hint");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";

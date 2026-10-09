@@ -427,6 +427,10 @@ mentira, sem servidor nem teclado, e confere o estado - o caso novo entra lá.
 de novo depois, e as duas listas têm que bater (`-Raiz` roda numa cópia - um `git worktree` - para não
 travar a pasta de trabalho durante os ~40 minutos da rodada).
 
+**Todo menu é `screen_menu`, nunca `menu`** (`src/ui/visual_map.nvgt`). É o `menu` do NVGT com uma
+diferença só: a cada `monitor()` ele desenha a lista na tela para quem enxerga, se a opção estiver
+ligada. Um `menu` puro funciona igual pelo som, mas fica em branco na tela - e nada avisa.
+
 **Valor vindo do cliente é validado no servidor.** As configurações de sala passam por
 `lobby_config.validate()` depois de aplicadas: elas vêm da máquina do jogador.
 

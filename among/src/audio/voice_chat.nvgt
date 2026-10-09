@@ -22,6 +22,7 @@
 #include "sound_catalog.nvgt"
 #include "menu.nvgt"
 #include "../i18n.nvgt"
+#include "../ui/visual_map.nvgt"
 
 const uint VOICE_SAMPLE_RATE = 16000;
 // Um quadro de envio: 20 ms a 48 kHz. Menor que isto é cabeçalho demais por pacote; maior é latência
@@ -500,7 +501,7 @@ class voice_chat : voice_receiver {
 	// espera). A rede continua sendo bombeada pelo callback do menu, senão a conexão cairia.
 	void run_mute_menu() {
 		while (true) {
-			menu m;
+			screen_menu m;
 			m.intro_text = tr("voice.mute_hint");
 			m.click_sound = "ui/menu_click.ogg";
 			m.select_sound = "ui/menu_confirm.ogg";

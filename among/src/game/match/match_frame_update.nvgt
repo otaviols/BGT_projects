@@ -23,6 +23,9 @@ mixin class match_frame_update_part {
 	// com as mesmas regras de sabotagem do resto da partida.
 	void draw_visual_map() {
 		if (!g_settings.visual_map) { g_visual_map.clear_if_needed(); return; }
+		// Na reunião todo mundo está à mesa: a tela mostra a mesa, com o que a reunião já diz a todos
+		// (quem está vivo, quem morreu, quem já votou), e não o mapa.
+		if (movement_frozen && mui.phase_seconds_remaining() >= 0.0) { draw_visual_meeting(); return; }
 		bool luz_apagada = lights_out_for(active_sabotage_id, my_role, alive);
 		bool comms = comms_down_for(active_sabotage_id, my_role, alive);
 		array<roster_entry@> outros;
@@ -38,6 +41,21 @@ mixin class match_frame_update_part {
 		array<string>@ tarefas = null;
 		if (!comms) @tarefas = my_task_object_ids;
 		g_visual_map.draw(map, my_x, my_y, @eu != null ? eu.color : -1, alive, luz_apagada, outros, corpos, tarefas);
+	}
+
+	void draw_visual_meeting() {
+		array<visual_meeting_seat@> lugares;
+		for (uint i = 0; i < roster.entries.length(); i++) {
+			roster_entry@ e = roster.entries[i];
+			visual_meeting_seat st;
+			st.name = e.peer_id == client.my_peer_id ? tr("visual.you") : e.name;
+			st.color = e.color;
+			st.alive = e.alive;
+			st.voted = mui.voted_peers.find(e.peer_id) >= 0;
+			st.me = e.peer_id == client.my_peer_id;
+			lugares.insert_last(st);
+		}
+		g_visual_map.draw_meeting(lugares, mui.voting_active, mui.phase_seconds_remaining());
 	}
 
 	void say_opening_modifiers() {

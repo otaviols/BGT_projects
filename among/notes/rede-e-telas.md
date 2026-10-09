@@ -212,6 +212,18 @@ somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da 
 ao desligar, no fim da partida e ao sair do Conhecer o mapa - senão fica a nave parada nos menus. Sonda:
 `probe_visual_map.nvgt` (a regra, caso a caso com controles, e o desenho - capture a janela para ver).
 
+A tela cobre o jogo inteiro por três caminhos, e cada um é desenhado por QUEM ESTÁ RODANDO: o laço da
+partida desenha o mapa ou, na reunião (`movement_frozen` com relógio de fase), a mesa com cartões
+(vivo, morto, votou - o que a reunião já diz a todos); todo menu é um `screen_menu`, que desenha a
+lista inteira com o foco destacado a cada `monitor()` (o `run()` do NVGT é um laço sobre ele, então
+pega os menus que usam `run()` também); e o resto (formulários, esperas) aparece pelas LEGENDAS: o
+jogo instala `visual_on_speech` como `tts_default_text_processing_callback` da speech.nvgt, que guarda
+cada fala e DEVOLVE O TEXTO INTACTO (devolver outra coisa mudaria o que o leitor de tela fala), e
+redesenha a tela só se ninguém desenhou há 150 ms. As sondas que trocam esse gancho para gravar a
+fala desligam as legendas nelas - de propósito. Para conferir sem tirar o foco de quem usa o
+computador, capture com `PrintWindow` (flag 2, pega o Direct3D), não com `CopyFromScreen` +
+`SetForegroundWindow`.
+
 **Resposta a recado é HISTÓRICO, não leitura única** (recados #221, #226, #227). Até a 0.51.1 a tela
 lia a resposta numa fala só, marcava como lida na hora e voltava ao menu na primeira tecla - que falava
 por cima: uma tecla sem querer ou uma resposta longa, e ela sumia para sempre (o jogador pedia por

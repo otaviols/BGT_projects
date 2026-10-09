@@ -52,6 +52,32 @@ void main() {
 		wait(16);
 	}
 	confere("o renderizador da janela nasceu valido e desenhou", v.ready() && v.drew_last);
+
+	// As outras três telas, 3 s cada, para serem vistas ou capturadas (a sonda imprime quando começa
+	// cada uma). As legendas entram como entrariam pelo gancho de fala.
+	v.add_caption("Cafeteria.");
+	v.add_caption("Você está apaixonado por Ana.");
+	screen_menu m;
+	m.intro_text = "Configurações";
+	array<string> itens = {"Volumes", "Como eu ouço o jogo", "Teclas", "Voz", "Chat de voz", "Saída de som", "Idioma", "Mapa na tela, para quem enxerga: ligado", "Voltar"};
+	for (uint i = 0; i < itens.length(); i++) m.add_item(itens[i], "i" + i);
+	m.focused_item = 2;
+	println("cena: menu"); t.restart();
+	while (t.elapsed < 3000) { v.draw_menu(m); wait(16); }
+	array<visual_meeting_seat@> lugares;
+	array<string> nomes = {"Você", "Ana", "Bia", "Caio", "Davi", "Eva"};
+	for (uint i = 0; i < nomes.length(); i++) {
+		visual_meeting_seat s;
+		s.name = nomes[i]; s.color = int(i) * 2; s.alive = i != 3; s.voted = i == 1 || i == 4; s.me = i == 0;
+		lugares.insert_last(s);
+	}
+	println("cena: reuniao"); t.restart();
+	while (t.elapsed < 3000) { v.draw_meeting(lugares, true, 23.4); wait(16); }
+	v.add_caption("Recado enviado. Obrigado!");
+	println("cena: legendas"); t.restart();
+	while (t.elapsed < 3000) { v.draw_captions_screen(); wait(16); }
+	confere("menu, reuniao e legendas desenharam", v.drew_last && v.captions.length() == 3);
+
 	v.clear_if_needed();
 	confere("e limpa a janela ao desligar", !v.drew_last);
 

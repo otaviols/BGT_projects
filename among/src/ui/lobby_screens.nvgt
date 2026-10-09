@@ -29,3 +29,4 @@
 #include "lobby/lobby_browser.nvgt"
 #include "lobby/lobby_settings_form.nvgt"
 #include "lobby/lobby_waiting_room.nvgt"
+#include "visual_map.nvgt"

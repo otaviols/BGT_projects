@@ -1,11 +1,12 @@
 // visual_map.nvgt
-// O mapa na tela, para quem enxerga: formas simples, nada além do que o SOM já conta.
+// A tela para quem enxerga: o mapa na partida, a mesa na reunião, os menus e as legendas do que é
+// falado. Formas simples, e nada além do que o SOM já conta.
 //
 // Pedido do usuário: amigos que enxergam se perdiam na nave, e um rascunho visual também serve de
 // bancada para ideias de outros jogos. É opcional e nasce desligado (`g_settings.visual_map`): para
-// quem joga por som ele não muda nada.
+// quem joga por som ele não muda nada. É experimental - o desenho é recurso novo do NVGT.
 //
-// A regra que manda em tudo aqui: a tela mostra só o que o áudio deixa perceber, e nunca mais. O jogo é
+// A regra que manda no MAPA: a tela mostra só o que o áudio deixa perceber, e nunca mais. O jogo é
 // justo porque todo mundo sabe as mesmas coisas pelo som; uma tela que mostrasse todos os jogadores
 // daria a quem enxerga o impostor do outro lado da nave. Por isso:
 //   - outro jogador aparece quando um PASSO dele acabou de tocar dentro do alcance do som (40, ou 16 com
@@ -15,21 +16,37 @@
 //   - corpo aparece enquanto o marcador dele toca (as luzes apagadas o calam - aqui também);
 //   - os seus pontos de tarefa somem com as comunicações sabotadas, como os marcadores sonoros.
 // A decisão de cada caso sai de `visual_player_visible` e dos mesmos lights_out/comms_down da
-// partida: regra repetida aqui à parte divergiria da do som na primeira mudança.
+// partida: regra repetida aqui à parte divergiria da do som na primeira mudança. Menus, reunião e
+// legendas mostram o que já é falado a todos - não há o que vazar ali.
+//
+// Quatro jeitos de desenhar, e quem desenha é quem está rodando:
+//   - o laço da partida chama draw() (mapa) ou draw_meeting() (mesa), a cada quadro;
+//   - `screen_menu` (o `menu` do NVGT com o desenho a cada monitor) desenha a lista inteira;
+//   - o resto (formulários, esperas, avisos) não tem quadro próprio: as LEGENDAS - tudo o que o jogo
+//     fala passa por `visual_on_speech`, o gancho de texto da speech.nvgt - redesenham a tela quando
+//     ninguém desenhou há pouco.
 //
 // O desenho vai no RENDERIZADOR DA JANELA (`window.renderer`). O `graphics_renderer()` solto só nasce na
 // janela que tem o foco do teclado - aberto sem foco, ele vem inválido e nada aparece, sem erro.
 
+#include "menu.nvgt"
+#include "speech.nvgt"
 #include "../game/map.nvgt"
 #include "../core/client_state.nvgt"
 #include "../config/colors.nvgt"
 #include "../config/game_constants.nvgt"
+#include "../config/game_settings.nvgt"
 #include "../i18n.nvgt"
 
 // Um passo ouvido mantém o jogador na tela por este tempo: o bastante para não piscar entre um passo e
 // outro (um passo a cada ~0,35 s), curto o bastante para quem parou sumir como some no som.
 const uint64 VISUAL_HEARD_MS = 900;
 const float VISUAL_PIXELS_PER_UNIT = 18.0;
+// Quantas falas as legendas guardam, e quanto tempo sem desenho faz uma fala redesenhar a tela sozinha.
+const uint VISUAL_CAPTION_LINES = 4;
+const uint64 VISUAL_IDLE_REDRAW_MS = 150;
+// Texto vira textura uma vez e fica guardado; passando disto, o cache recomeça (menus e falas mudam).
+const uint VISUAL_TEXT_CACHE_MAX = 400;
 
 // A cor de cada jogador na tela, na ordem do enum player_color (config/colors.nvgt).
 const array<uint> VISUAL_COLOR_RGB = {
@@ -37,7 +54,29 @@ const array<uint> VISUAL_COLOR_RGB = {
 	0x7E22CE, 0x7C4A1E, 0x22D3EE, 0xFB7185, 0x14B8A6, 0xA8A29E, 0xD4A017
 };
 
-// O outro jogador aparece? É a regra do som, escrita UMA vez (ver o comentário do topo).
+// A paleta, num lugar só.
+const uint VC_BG = 0x0D1021;          // fundo
+const uint VC_BG_DARK = 0x05060C;     // fundo com as luzes apagadas
+const uint VC_PANEL = 0x1A1F3A;       // painéis (cabeçalho, legendas, cartões)
+const uint VC_PANEL_EDGE = 0x3B4475;
+const uint VC_ACCENT = 0x38BDF8;      // destaque (item em foco, título)
+const uint VC_TEXT = 0xE8EAF6;
+const uint VC_TEXT_DIM = 0x9AA0C3;
+const uint VC_ROOM = 0x2E3561;
+const uint VC_ROOM_DARK = 0x191C2B;
+const uint VC_CORRIDOR = 0x232848;
+const uint VC_CORRIDOR_DARK = 0x111320;
+const uint VC_ROOM_EDGE = 0x6E79B8;
+const uint VC_DOOR_LOCKED = 0xF43F5E;
+const uint VC_TASK = 0xFACC15;
+const uint VC_BODY = 0xEF4444;
+const uint VC_VOTED = 0x4ADE80;
+
+uint visual_player_rgb(int color) {
+	return color >= 0 && color < int(VISUAL_COLOR_RGB.length()) ? VISUAL_COLOR_RGB[color] : 0xCCCCCC;
+}
+
+// O outro jogador aparece no mapa? É a regra do som, escrita UMA vez (ver o comentário do topo).
 bool visual_player_visible(roster_entry@ e, float my_x, float my_y, bool lights_out, const client_roster@ roster) {
 	if (@e == null || !e.alive) return false;
 	float d = distance_2d(my_x, my_y, e.x, e.y);
@@ -48,31 +87,50 @@ bool visual_player_visible(roster_entry@ e, float my_x, float my_y, bool lights_
 	return !roster.perceptible_known || roster.perceptible.find(e.peer_id) >= 0;
 }
 
+// Um cartão da mesa da reunião: o que a reunião já diz a todos.
+class visual_meeting_seat {
+	string name;
+	int color = -1;
+	bool alive = true;
+	bool voted = false;
+	bool me = false;
+}
+
 class visual_map {
 	graphics_renderer@ r;
 	bool tried = false;
 	bool drew_last = false;
-	// O nome de cada sala vira textura UMA vez: renderizar texto a cada quadro pesa à toa.
-	dictionary name_textures;
-	text_font@ font;
+	uint64 last_draw = 0;
+	text_font@ font_title;
+	text_font@ font_body;
+	text_font@ font_small;
+	dictionary text_cache;
+	uint text_cache_count = 0;
+	array<string> captions;
 
 	bool ready() {
 		if (tried) return @r != null && r.is_valid;
 		tried = true;
 		game_window@ w = window;
 		if (@w != null) @r = w.renderer;
-		@font = get_font("Arial", 13);
+		@font_title = get_font("Arial", 22, FONT_STYLE_BOLD);
+		@font_body = get_font("Arial", 17);
+		@font_small = get_font("Arial", 13);
 		return @r != null && r.is_valid;
 	}
 
-	// Desligado no meio da partida: apaga uma vez, senão a janela fica com o último quadro parado.
+	bool enabled() { return g_settings.visual_map && ready(); }
+
+	// Desligado: apaga uma vez, senão a janela fica com o último quadro parado.
 	void clear_if_needed() {
 		if (!drew_last || !ready()) return;
-		r.set_draw_color(0, 0, 0, 255);
+		color(0x000000);
 		r.clear();
 		r.present();
 		drew_last = false;
 	}
+
+	// --- Peças de desenho ---
 
 	private void color(uint rgb, uint a = 255) { r.set_draw_color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, a); }
 
@@ -83,16 +141,101 @@ class visual_map {
 		}
 	}
 
-	private graphics_texture@ name_texture(map_zone@ z) {
-		graphics_texture@ t;
-		if (name_textures.get(z.id, @t)) return t;
-		if (@font != null) {
-			graphic@ g = font.render_text_blended(tr(z.name_key), 235, 235, 235);
-			if (@g != null) @t = r.create_texture(g);
+	// Painel com os cantos aparados (dois retângulos cruzados): o "arredondado" possível só com retângulos.
+	private void panel(float x, float y, float w, float h, uint fill, uint edge) {
+		const float c = 6.0;
+		color(fill);
+		r.fill_rect(x + c, y, w - 2 * c, h);
+		r.fill_rect(x, y + c, w, h - 2 * c);
+		// O recheio dos cantos, em degraus, e a borda fechando na diagonal - sem isso cada canto ficava
+		// com um vão vazio entre as duas bordas.
+		for (int k = 1; k < int(c); k++) {
+			r.fill_rect(x + c - k, y + k, w - 2 * (c - k), 1);
+			r.fill_rect(x + c - k, y + h - 1 - k, w - 2 * (c - k), 1);
 		}
-		name_textures.set(z.id, @t);
-		return t;
+		color(edge);
+		r.fill_rect(x + c, y, w - 2 * c, 1);
+		r.fill_rect(x + c, y + h - 1, w - 2 * c, 1);
+		r.fill_rect(x, y + c, 1, h - 2 * c);
+		r.fill_rect(x + w - 1, y + c, 1, h - 2 * c);
+		r.draw_line(x, y + c, x + c, y);
+		r.draw_line(x + w - 1 - c, y, x + w - 1, y + c);
+		r.draw_line(x, y + h - 1 - c, x + c, y + h - 1);
+		r.draw_line(x + w - 1 - c, y + h - 1, x + w - 1, y + h - 1 - c);
 	}
+
+	// Texto como textura, guardado pela combinação texto+fonte+cor+largura.
+	private graphics_texture@ text(const string&in t, text_font@ f, uint rgb, int wrap = 0) {
+		if (@f == null || t == "") return null;
+		string chave = t + "|" + f.size + "|" + rgb + "|" + wrap;
+		graphics_texture@ tex;
+		if (text_cache.get(chave, @tex)) return tex;
+		if (text_cache_count >= VISUAL_TEXT_CACHE_MAX) { text_cache.delete_all(); text_cache_count = 0; }
+		graphic@ g = wrap > 0 ? f.render_text_blended_wrapped(t, wrap, (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF)
+			: f.render_text_blended(t, (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+		if (@g != null) @tex = r.create_texture(g);
+		text_cache.set(chave, @tex);
+		text_cache_count++;
+		return tex;
+	}
+
+	private float put_text(const string&in t, text_font@ f, uint rgb, float x, float y, int wrap = 0) {
+		graphics_texture@ tex = text(t, f, rgb, wrap);
+		if (@tex == null) return 0;
+		r.render_texture(tex, x, y);
+		return float(tex.height);
+	}
+
+	private void begin(uint bg, int&out w, int&out h) {
+		r.get_output_size(w, h);
+		color(bg);
+		r.clear();
+	}
+
+	private void finish() {
+		r.present();
+		drew_last = true;
+		last_draw = ticks();
+	}
+
+	// Faixa de título no alto.
+	private float header(const string&in titulo, int w, const string&in direita = "") {
+		panel(8, 8, w - 16, 44, VC_PANEL, VC_PANEL_EDGE);
+		color(VC_ACCENT);
+		r.fill_rect(8, 8 + 6, 4, 32);
+		put_text(titulo, font_title, VC_TEXT, 22, 16, w - 160);
+		if (direita != "") {
+			graphics_texture@ t = text(direita, font_body, VC_ACCENT);
+			if (@t != null) r.render_texture(t, w - 20 - t.width, 20);
+		}
+		return 60;
+	}
+
+	// As últimas falas, num painel embaixo: o que o leitor de tela acabou de dizer, para quem está do lado.
+	private void caption_panel(int w, int h) {
+		if (captions.length() == 0) return;
+		float altura = 26.0 * float(captions.length()) + 16.0;
+		float y = float(h) - altura - 8.0;
+		panel(8, y, w - 16, altura, VC_PANEL, VC_PANEL_EDGE);
+		float ty = y + 8;
+		for (uint i = 0; i < captions.length(); i++) {
+			bool ultima = i == captions.length() - 1;
+			graphics_texture@ t = text(captions[i], font_small, ultima ? VC_TEXT : VC_TEXT_DIM, w - 48);
+			if (@t == null) continue;
+			r.render_texture(t, 20, ty);
+			ty += 26;
+		}
+	}
+
+	void add_caption(const string&in t) {
+		string limpo = t.replace("\r", " ", true).replace("\n", " ", true).trim_whitespace();
+		if (limpo == "") return;
+		if (captions.length() > 0 && captions[captions.length() - 1] == limpo) return;
+		captions.insert_last(limpo);
+		while (captions.length() > VISUAL_CAPTION_LINES) captions.remove_at(0);
+	}
+
+	// --- A partida: o mapa ---
 
 	// Um quadro. `others` e `bodies` já vêm filtrados pela regra do som; `task_ids` vem null quando as
 	// comunicações caíram.
@@ -100,12 +243,9 @@ class visual_map {
 			array<roster_entry@>@ others, array<vector>@ bodies, array<string>@ task_ids) {
 		if (!ready()) return;
 		int w = 0, h = 0;
-		r.get_output_size(w, h);
+		begin(lights_out ? VC_BG_DARK : VC_BG, w, h);
 		float cx = float(w) / 2.0, cy = float(h) / 2.0;
 		float s = VISUAL_PIXELS_PER_UNIT;
-
-		color(lights_out ? 0x050508 : 0x0F0F28);
-		r.clear();
 
 		// Salas e corredores. Com as luzes apagadas tudo escurece - o som também encolhe.
 		for (uint i = 0; i < map.zones.length(); i++) {
@@ -113,31 +253,27 @@ class visual_map {
 			float x0 = cx + (z.center_x - z.half_w - my_x) * s, y0 = cy + (z.center_y - z.half_h - my_y) * s;
 			float zw = z.half_w * 2.0 * s, zh = z.half_h * 2.0 * s;
 			if (x0 > w || y0 > h || x0 + zw < 0 || y0 + zh < 0) continue;
-			bool fechada = map.is_door_closed(z.id);
-			if (z.is_corridor) color(lights_out ? 0x1A1A24 : 0x34344E);
-			else color(lights_out ? 0x22222E : 0x46466E);
-			r.fill_rect(x0, y0, zw, zh);
-			color(fechada ? 0xE11D48 : (lights_out ? 0x3A3A48 : 0x8C8CB4));
-			r.draw_rect(x0, y0, zw, zh);
-			if (!z.is_corridor && !lights_out) {
-				graphics_texture@ t = name_texture(z);
-				if (@t != null) r.render_texture(t, x0 + 6, y0 + 4);
-			}
+			uint borda = map.is_door_closed(z.id) ? VC_DOOR_LOCKED : (lights_out ? VC_CORRIDOR : VC_ROOM_EDGE);
+			if (z.is_corridor) { color(lights_out ? VC_CORRIDOR_DARK : VC_CORRIDOR); r.fill_rect(x0, y0, zw, zh); color(borda); r.draw_rect(x0, y0, zw, zh); }
+			else panel(x0, y0, zw, zh, lights_out ? VC_ROOM_DARK : VC_ROOM, borda);
+			if (!z.is_corridor && !lights_out) put_text(tr(z.name_key), font_small, VC_TEXT_DIM, x0 + 8, y0 + 6);
 		}
 
-		// Os seus pontos de tarefa.
+		// Os seus pontos de tarefa: um losango amarelo.
 		if (@task_ids != null) {
-			color(0xFACC15);
+			color(VC_TASK);
 			for (uint i = 0; i < task_ids.length(); i++) {
 				map_object@ o = map.find_object(task_ids[i]);
 				if (@o == null) continue;
-				r.fill_rect(cx + (o.x - my_x) * s - 4, cy + (o.y - my_y) * s - 4, 8, 8);
+				float tx = cx + (o.x - my_x) * s, ty = cy + (o.y - my_y) * s;
+				for (int k = 0; k <= 5; k++) r.fill_rect(tx - k, ty - 5 + k, 2 * k + 1, 1);
+				for (int k = 4; k >= 0; k--) r.fill_rect(tx - k, ty + 5 - k, 2 * k + 1, 1);
 			}
 		}
 
 		// Corpos: um X vermelho, com três linhas de espessura (uma só some contra o chão da sala).
 		if (@bodies != null) {
-			color(0xEF4444);
+			color(VC_BODY);
 			for (uint i = 0; i < bodies.length(); i++) {
 				float bx = cx + (bodies[i].x - my_x) * s, by = cy + (bodies[i].y - my_y) * s;
 				for (int k = -1; k <= 1; k++) {
@@ -147,24 +283,125 @@ class visual_map {
 			}
 		}
 
-		// Os outros jogadores que o som deixa perceber.
+		// Os outros jogadores que o som deixa perceber: círculo da cor, com uma borda escura.
 		if (@others != null) {
 			for (uint i = 0; i < others.length(); i++) {
 				roster_entry@ e = others[i];
-				color(e.color >= 0 && e.color < int(VISUAL_COLOR_RGB.length()) ? VISUAL_COLOR_RGB[e.color] : 0xCCCCCC);
-				circle(cx + (e.x - my_x) * s, cy + (e.y - my_y) * s, 7.0);
+				float px = cx + (e.x - my_x) * s, py = cy + (e.y - my_y) * s;
+				color(0x000000);
+				circle(px, py, 8.0);
+				color(visual_player_rgb(e.color));
+				circle(px, py, 7.0);
 			}
 		}
 
 		// Você: sempre no centro, com um anel branco em volta para se achar. Fantasma, meio apagado.
 		color(0xFFFFFF, me_alive ? 255 : 120);
 		circle(cx, cy, 10.0);
-		color(my_color >= 0 && my_color < int(VISUAL_COLOR_RGB.length()) ? VISUAL_COLOR_RGB[my_color] : 0xCCCCCC, me_alive ? 255 : 120);
+		color(visual_player_rgb(my_color), me_alive ? 255 : 120);
 		circle(cx, cy, 8.0);
 
-		r.present();
-		drew_last = true;
+		caption_panel(w, h);
+		finish();
+	}
+
+	// --- A reunião: a mesa ---
+
+	void draw_meeting(array<visual_meeting_seat@>@ seats, bool voting, float seconds_left) {
+		if (!ready()) return;
+		int w = 0, h = 0;
+		begin(VC_BG, w, h);
+		string tempo = seconds_left >= 0 ? "" + int(seconds_left + 0.5) + " s" : "";
+		float top = header(tr(voting ? "visual.meeting_voting" : "visual.meeting_discussion"), w, tempo);
+
+		// Cartões em grade: círculo da cor, nome, e o que a reunião já anuncia (morto, votou).
+		const float cw = 190, ch = 64, gap = 10;
+		int colunas = int((float(w) - 16) / (cw + gap));
+		if (colunas < 1) colunas = 1;
+		for (uint i = 0; i < seats.length(); i++) {
+			visual_meeting_seat@ st = seats[i];
+			float x = 12 + float(int(i) % colunas) * (cw + gap);
+			float y = top + 8 + float(int(i) / colunas) * (ch + gap);
+			panel(x, y, cw, ch, st.alive ? VC_PANEL : VC_BG_DARK, st.me ? VC_ACCENT : VC_PANEL_EDGE);
+			color(visual_player_rgb(st.color), st.alive ? 255 : 90);
+			circle(x + 30, y + ch / 2, 16);
+			put_text(st.name, font_body, st.alive ? VC_TEXT : VC_TEXT_DIM, x + 56, y + 12, int(cw - 64));
+			if (!st.alive) {
+				put_text(tr("visual.dead"), font_small, VC_BODY, x + 56, y + 38);
+				color(VC_BODY);
+				r.draw_line(x + 18, y + ch / 2 - 12, x + 42, y + ch / 2 + 12);
+				r.draw_line(x + 18, y + ch / 2 + 12, x + 42, y + ch / 2 - 12);
+			} else if (voting && st.voted) {
+				put_text(tr("visual.voted"), font_small, VC_VOTED, x + 56, y + 38);
+			}
+		}
+		caption_panel(w, h);
+		finish();
+	}
+
+	// --- Menus ---
+
+	// A lista inteira, com o item em foco destacado e a janela de itens acompanhando o foco.
+	void draw_menu(menu@ m) {
+		if (!ready()) return;
+		int w = 0, h = 0;
+		begin(VC_BG, w, h);
+		float top = header(m.intro_text, w);
+		int total = m.item_count;
+		int foco = m.focused_item;
+		const float lh = 34;
+		float base = float(h) - 26.0 * float(captions.length() > 0 ? captions.length() : 0) - 40.0;
+		int cabem = int((base - top) / lh);
+		if (cabem < 1) cabem = 1;
+		int primeiro = 0;
+		if (foco >= cabem) primeiro = foco - cabem + 1;
+		for (int i = primeiro; i < total && i < primeiro + cabem; i++) {
+			float y = top + 6 + float(i - primeiro) * lh;
+			bool em_foco = i == foco;
+			if (em_foco) {
+				panel(14, y, w - 28, lh - 4, VC_PANEL, VC_ACCENT);
+				color(VC_ACCENT);
+				r.fill_rect(14, y + 5, 4, lh - 14);
+			}
+			put_text(m.get_item_text(i), font_body, em_foco ? VC_TEXT : VC_TEXT_DIM, 28, y + 5, w - 60);
+		}
+		if (total > primeiro + cabem) put_text("...", font_body, VC_TEXT_DIM, 28, top + 6 + float(cabem) * lh - 10);
+		caption_panel(w, h);
+		finish();
+	}
+
+	// --- O resto: só as legendas, em letra grande ---
+
+	void draw_captions_screen() {
+		if (!ready()) return;
+		int w = 0, h = 0;
+		begin(VC_BG, w, h);
+		float y = 24;
+		for (uint i = 0; i < captions.length(); i++) {
+			bool ultima = i == captions.length() - 1;
+			y += put_text(captions[i], ultima ? font_title : font_body, ultima ? VC_TEXT : VC_TEXT_DIM, 24, y, w - 48) + 14;
+		}
+		finish();
 	}
 }
 
 visual_map g_visual_map;
+
+// O gancho de texto da speech.nvgt: toda fala do jogo passa por aqui. Devolve o texto INTACTO - o leitor
+// de tela fala o mesmo de sempre - e só guarda a legenda. Se ninguém desenhou há pouco (um formulário,
+// uma espera), a própria fala redesenha a tela.
+string visual_on_speech(const string&in t) {
+	g_visual_map.add_caption(t);
+	if (g_visual_map.enabled() && ticks() - g_visual_map.last_draw > VISUAL_IDLE_REDRAW_MS) g_visual_map.draw_captions_screen();
+	return t;
+}
+
+// O menu do NVGT com a tela: a cada monitor (o quadro do menu), desenha a lista. É a ÚNICA diferença
+// para o `menu` - por isso todo menu do jogo é um screen_menu, e um menu novo deve ser também.
+class screen_menu : menu {
+	bool monitor() override {
+		bool continua = menu::monitor();
+		if (g_visual_map.enabled()) g_visual_map.draw_menu(this);
+		return continua;
+	}
+}

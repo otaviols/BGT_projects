@@ -121,7 +121,7 @@ string hall_people_text() {
 void run_hall_screen(game_client@ client) {
 	while (true) {
 		if (!client.connected) return;
-		menu m;
+		screen_menu m;
 		// Quem está no saguão é a informação que se vem buscar aqui: ela abre a tela, e é o que se
 		// ouve de novo a cada F5.
 		m.intro_text = hall_people_text();
