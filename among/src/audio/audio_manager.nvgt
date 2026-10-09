@@ -168,25 +168,13 @@ class audio_manager {
 	// beacon de toda task do mapa o jogo inteiro (ruído inútil pro impostor, spoiler pro tripulante) -
 	// e EXCETO painéis de reparo, que só apitam enquanto a sabotagem deles está acontecendo (é aí que
 	// seguir o som até o painel serve pra alguma coisa; fora disso é só barulho constante).
+	// A regra de QUAL objeto tem marcador tocando mora em landmark_beacon_on (game/map.nvgt): a tela para
+	// quem enxerga desenha exatamente os mesmos marcadores, e duas regras divergiriam.
 	void start_landmark_beacons(game_map@ map, array<string>@ my_task_object_ids = null, const string&in active_sabotage_id = "") {
 		stop_landmark_beacons();
 		for (uint i = 0; i < map.objects.length(); i++) {
 			map_object@ obj = map.objects[i];
-			if (obj.beacon_sound_path == "") continue;
-			if (obj.obj_type == OBJ_SABOTAGE_PANEL && obj.task_type != active_sabotage_id) continue;
-			// Luzes apagadas: o botão de emergência fica inutilizável (ver game_loop.find_interactable),
-			// então o beacon dele também cala - continuar chamando pra um botão que não responde seria
-			// só uma pista falsa no escuro.
-			if (obj.obj_type == OBJ_EMERGENCY_BUTTON && active_sabotage_id == "lights") continue;
-			if (obj.obj_type == OBJ_TASK_SPOT) {
-				bool mine = false;
-				if (@my_task_object_ids != null) {
-					for (uint t = 0; t < my_task_object_ids.length(); t++) {
-						if (my_task_object_ids[t] == obj.id) { mine = true; break; }
-					}
-				}
-				if (!mine) continue;
-			}
+			if (!landmark_beacon_on(obj, my_task_object_ids, active_sabotage_id)) continue;
 			int slot = spatial.play_looping(obj.beacon_sound_path, obj.x, obj.y, true, family_db(SOUND_FAMILY_BEACONS));
 			if (slot != -1) landmark_beacon_slots.insert_last(slot);
 		}

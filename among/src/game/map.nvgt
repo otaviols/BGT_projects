@@ -129,6 +129,22 @@ class map_object {
 	}
 }
 
+// O marcador contínuo deste objeto está tocando agora? É a regra INTEIRA dos marcadores do mapa, e mora
+// aqui porque duas partes perguntam por ela: o som (audio_manager.start_landmark_beacons) e a tela para
+// quem enxerga (ui/visual_map.nvgt), que desenha exatamente os marcadores que tocam.
+//   - tarefa: só as SUAS (senão todo mundo ouviria toda tarefa do mapa - ruído para o impostor, spoiler
+//     para o tripulante);
+//   - painel de reparo: só durante a sabotagem dele (fora disso é barulho constante);
+//   - botão de emergência: cala com as luzes apagadas (inutilizável no escuro, ver find_interactable);
+//   - o resto com beacon (dutos, câmeras): sempre, para todos.
+bool landmark_beacon_on(map_object@ obj, array<string>@ my_task_object_ids, const string&in active_sabotage_id) {
+	if (@obj == null || obj.beacon_sound_path == "") return false;
+	if (obj.obj_type == OBJ_SABOTAGE_PANEL) return obj.task_type == active_sabotage_id;
+	if (obj.obj_type == OBJ_EMERGENCY_BUTTON) return active_sabotage_id != "lights";
+	if (obj.obj_type == OBJ_TASK_SPOT) return @my_task_object_ids != null && my_task_object_ids.find(obj.id) >= 0;
+	return true;
+}
+
 class game_map {
 	// Ligações que a convenção de nome não expressa (ver zone_link).
 	array<zone_link@> extra_links;

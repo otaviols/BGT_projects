@@ -39,8 +39,26 @@ void main() {
 	morto.alive = false;
 	confere("morto (fantasma) nunca aparece para o vivo", !visual_player_visible(morto, 0, 0, false, r));
 
-	println("== desenho ==");
+	println("== marcadores (a MESMA regra do som) ==");
 	game_map@ map = build_the_hub_map();
+	map_object@ duto = map.find_object("vent_navigation");
+	map_object@ botao = null;
+	map_object@ painel_luz = null;
+	map_object@ tarefa = null;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type == OBJ_EMERGENCY_BUTTON && @botao == null) @botao = o;
+		if (o.obj_type == OBJ_SABOTAGE_PANEL && o.task_type == "lights" && @painel_luz == null) @painel_luz = o;
+		if (o.obj_type == OBJ_TASK_SPOT && @tarefa == null) @tarefa = o;
+	}
+	array<string> minhas = {tarefa.id};
+	confere("duto: marcador para todos, sem sabotagem", landmark_beacon_on(duto, null, ""));
+	confere("botao de emergencia: toca com luz", landmark_beacon_on(botao, null, ""));
+	confere("e cala com as luzes apagadas", !landmark_beacon_on(botao, null, "lights"));
+	confere("painel das luzes: so durante a sabotagem dele", landmark_beacon_on(painel_luz, null, "lights") && !landmark_beacon_on(painel_luz, null, "comms") && !landmark_beacon_on(painel_luz, null, ""));
+	confere("tarefa: so a SUA", landmark_beacon_on(tarefa, minhas, "") && !landmark_beacon_on(tarefa, null, ""));
+
+	println("== desenho ==");
 	array<roster_entry@> outros = {r.find(1), r.find(2), colado};
 	array<vector> corpos = {vector(3.0, 2.0, 0.0)};
 	array<string> tarefas;
@@ -52,6 +70,9 @@ void main() {
 		wait(16);
 	}
 	confere("o renderizador da janela nasceu valido e desenhou", v.ready() && v.drew_last);
+	// Perto do duto da navegação, com a sabotagem das luzes em curso: duto, painel piscando, legenda.
+	println("cena: duto"); t.restart();
+	while (t.elapsed < 3000) { v.draw(map, duto.x - 4, duto.y, COLOR_CYAN, true, false, null, null, tarefas, "lights"); wait(16); }
 
 	// As outras três telas, 3 s cada, para serem vistas ou capturadas (a sonda imprime quando começa
 	// cada uma). As legendas entram como entrariam pelo gancho de fala.

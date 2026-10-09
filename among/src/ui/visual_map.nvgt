@@ -74,6 +74,8 @@ const uint VC_DOOR_LOCKED = 0xF43F5E;
 const uint VC_TASK = 0xFACC15;
 const uint VC_BODY = 0xEF4444;
 const uint VC_VOTED = 0x4ADE80;
+const uint VC_VENT = 0x94A3B8;
+const uint VC_PANEL_ALERT = 0xF97316;
 
 uint visual_player_rgb(int color) {
 	return color >= 0 && color < int(VISUAL_COLOR_RGB.length()) ? VISUAL_COLOR_RGB[color] : 0xCCCCCC;
@@ -300,7 +302,8 @@ class visual_map {
 	// Um quadro. `others` e `bodies` já vêm filtrados pela regra do som; `task_ids` vem null quando as
 	// comunicações caíram.
 	void draw(game_map@ map, float my_x, float my_y, int my_color, bool me_alive, bool lights_out,
-			array<roster_entry@>@ others, array<vector>@ bodies, array<string>@ task_ids) {
+			array<roster_entry@>@ others, array<vector>@ bodies, array<string>@ task_ids,
+			const string&in active_sabotage_id = "") {
 		if (!ready()) return;
 		int w = 0, h = 0;
 		begin(lights_out ? VC_BG_DARK : VC_BG, w, h);
@@ -319,16 +322,12 @@ class visual_map {
 			if (!z.is_corridor && !lights_out) put_text(tr(z.name_key), font_small, VC_TEXT_DIM, x0 + 8, y0 + 6);
 		}
 
-		// Os seus pontos de tarefa: um losango amarelo.
-		if (@task_ids != null) {
-			color(VC_TASK);
-			for (uint i = 0; i < task_ids.length(); i++) {
-				map_object@ o = map.find_object(task_ids[i]);
-				if (@o == null) continue;
-				float tx = cx + (o.x - my_x) * s, ty = cy + (o.y - my_y) * s;
-				for (int k = 0; k <= 5; k++) r.fill_rect(tx - k, ty - 5 + k, 2 * k + 1, 1);
-				for (int k = 4; k >= 0; k--) r.fill_rect(tx - k, ty + 5 - k, 2 * k + 1, 1);
-			}
+		// Os marcadores do mapa: EXATAMENTE os que estão tocando no som (landmark_beacon_on) - as suas
+		// tarefas, os dutos, o botão de emergência (some no escuro), o painel da sabotagem em curso.
+		for (uint i = 0; i < map.objects.length(); i++) {
+			map_object@ o = map.objects[i];
+			if (!landmark_beacon_on(o, task_ids, active_sabotage_id)) continue;
+			landmark_icon(o.obj_type, cx + (o.x - my_x) * s, cy + (o.y - my_y) * s);
 		}
 
 		// Corpos: um X vermelho, com três linhas de espessura (uma só some contra o chão da sala).
@@ -361,8 +360,54 @@ class visual_map {
 		color(visual_player_rgb(my_color), me_alive ? 255 : 120);
 		circle(cx, cy, 8.0);
 
+		legend(w);
 		caption_panel(w, h);
 		finish();
+	}
+
+	// Um ícone por tipo de marcador, simples o bastante para se ler de relance.
+	private void landmark_icon(int tipo, float x, float y) {
+		if (tipo == OBJ_TASK_SPOT) {
+			// Tarefa: losango amarelo.
+			color(VC_TASK);
+			for (int k = 0; k <= 6; k++) r.fill_rect(x - k, y - 6 + k, 2 * k + 1, 1);
+			for (int k = 5; k >= 0; k--) r.fill_rect(x - k, y + 6 - k, 2 * k + 1, 1);
+		} else if (tipo == OBJ_VENT) {
+			// Duto: uma grade - quadrado com as barras da tampa.
+			color(VC_VENT);
+			r.fill_rect(x - 8, y - 6, 16, 12);
+			color(VC_BG);
+			for (int k = 0; k < 3; k++) r.fill_rect(x - 6, y - 4 + k * 4, 12, 2);
+		} else if (tipo == OBJ_EMERGENCY_BUTTON) {
+			// Botão de emergência: círculo vermelho com o miolo claro.
+			color(VC_BODY);
+			circle(x, y, 9);
+			color(0xFCA5A5);
+			circle(x, y, 4);
+		} else if (tipo == OBJ_SABOTAGE_PANEL) {
+			// Painel da sabotagem em curso: quadrado laranja, que pisca para chamar atenção.
+			if ((ticks() / 400) % 2 == 0) { color(VC_PANEL_ALERT); r.fill_rect(x - 7, y - 7, 14, 14); }
+			color(0xFFFFFF);
+			r.draw_rect(x - 7, y - 7, 14, 14);
+		} else {
+			// O resto com marcador (as câmeras): um quadrado azul.
+			color(VC_ACCENT);
+			r.fill_rect(x - 6, y - 6, 12, 12);
+		}
+	}
+
+	// A legenda dos ícones, no canto: quem enxerga não tem como adivinhar o que é cada símbolo.
+	private void legend(int w) {
+		array<int> tipos = {OBJ_TASK_SPOT, OBJ_VENT, OBJ_EMERGENCY_BUTTON, OBJ_SABOTAGE_PANEL};
+		array<string> chaves = {"visual.legend_task", "visual.legend_vent", "visual.legend_button", "visual.legend_panel"};
+		float lw = 210, lh = 26.0 * float(tipos.length()) + 12;
+		float x = float(w) - lw - 10, y = 10;
+		panel(x, y, lw, lh, VC_PANEL, VC_PANEL_EDGE);
+		for (uint i = 0; i < tipos.length(); i++) {
+			float ly = y + 19 + float(i) * 26;
+			landmark_icon(tipos[i], x + 20, ly);
+			put_text(tr(chaves[i]), font_small, VC_TEXT_DIM, x + 40, ly - 9);
+		}
 	}
 
 	// --- A reunião: a mesa ---

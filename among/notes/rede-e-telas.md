@@ -224,6 +224,13 @@ fala desligam as legendas nelas - de propósito. Para conferir sem tirar o foco 
 computador, capture com `PrintWindow` (flag 2, pega o Direct3D), não com `CopyFromScreen` +
 `SetForegroundWindow`.
 
+**Os marcadores do mapa na tela são os que TOCAM no som.** A regra de qual objeto tem marcador
+(as suas tarefas; dutos e câmeras sempre; o botão de emergência cala no escuro; o painel só durante a
+sabotagem dele) saiu do `audio_manager.start_landmark_beacons` para `landmark_beacon_on`
+(`game/map.nvgt`), e o som e a tela perguntam a ela. Os dutos aparecem para TODOS, porque o marcador
+sonoro deles toca para todos - não é informação do impostor. A legenda dos ícones fica no canto: quem
+enxerga não tem como adivinhar o que é cada símbolo. A sonda confere a regra caso a caso.
+
 **Tela cheia e escala.** Com a opção ligada o jogo entra em tela cheia sozinho (`window.set_fullscreen`)
 e o F11 alterna; desligada, volta à janela. Tudo é desenhado numa tela LÓGICA de 640 de altura e
 ampliado pelo `set_scale`, MENOS o texto: ele é gerado já no tamanho real (fonte de tamanho inteiro =

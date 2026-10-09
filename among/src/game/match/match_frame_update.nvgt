@@ -41,7 +41,10 @@ mixin class match_frame_update_part {
 		if (!luz_apagada) @corpos = known_body_positions;
 		array<string>@ tarefas = null;
 		if (!comms) @tarefas = my_task_object_ids;
-		g_visual_map.draw(map, my_x, my_y, @eu != null ? eu.color : -1, alive, luz_apagada, outros, corpos, tarefas);
+		// As tarefas vão nulas com as comunicações caídas, como no refresh_landmark_beacons: os marcadores
+		// desenhados são os que tocam.
+		g_visual_map.draw(map, my_x, my_y, @eu != null ? eu.color : -1, alive, luz_apagada, outros, corpos, tarefas,
+			active_sabotage_id);
 	}
 
 	void draw_visual_meeting() {
