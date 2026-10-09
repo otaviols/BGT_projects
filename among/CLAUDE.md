@@ -204,15 +204,22 @@ por meses achamos que não existiam). Formulário novo: ponha o seguidor, senão
 surdo. Sonda: `probe_screen_keyboard.nvgt`. Nenhum de nós tem
 aparelho: tudo aqui foi feito às cegas e é validado pelos jogadores.
 
-**O TalkBack não deveria tomar os toques: o manifesto do NVGT já traz
-`dev.nvgt.capability.DIRECT_TOUCH`**, que pede ao Android toque direto na janela do jogo. E o
+**O leitor de tela TOMA os toques, e o jogo não tem como evitar sozinho.** O
+`dev.nvgt.capability.DIRECT_TOUCH` do manifesto do NVGT não é pedido ao Android: só o lê o **NVGT
+Bridge** (github.com/aryanchoudharypro/NVGTBridge), um app à parte, instalado por APK, que desliga a
+exploração por toque enquanto o jogo está na frente - com TalkBack ou outro leitor que use exploração
+por toque. Sem ele, o jogador desliga a exploração por toque à mão (recados #222 e #231). E o
 manifesto é também onde se passa variável ao SDL antes de ele iniciar: `<meta-data
-android:name="SDL_ENV.<HINT>">`. É por aí que vão duas decisões nossas em
-`tools/android/AndroidManifest.xml`: `SDL_ANDROID_BLOCK_ON_PAUSE=0` (por padrão o SDL CONGELA o jogo
-quando ele sai do primeiro plano - a pergunta do microfone, a aba de notificações - e congelado a rede
-não é atendida: em 18 s o servidor derruba; é a suspeita do "caio do servidor quando a partida começa",
-recado #161, e o `build_android.ps1` confere que ela chegou no APK) e `sensorLandscape` (na vertical o
-estéreo dos alto-falantes do celular some, recado #165).
+android:name="SDL_ENV.<HINT>">`. É por aí que vão três decisões nossas em
+`tools/android/AndroidManifest.xml`, e o `build_android.ps1` confere que cada uma chegou no APK:
+`SDL_ANDROID_BLOCK_ON_PAUSE=0` (por padrão o SDL CONGELA o jogo quando ele sai do primeiro plano - a
+pergunta do microfone, a aba de notificações - e congelado a rede não é atendida: em 18 s o servidor
+derruba; é a suspeita do "caio do servidor quando a partida começa", recado #161); a horizontal, por
+causa do estéreo dos alto-falantes do celular (recado #165); e, para a horizontal valer,
+`SDL_ORIENTATIONS=LandscapeLeft LandscapeRight`. **O `sensorLandscape` da atividade sozinho NÃO
+basta:** ao abrir a janela o SDL chama `setOrientation` e, sem a dica e com a janela redimensionável,
+pede `FULL_USER`, que segue a trava de rotação do celular. Sintoma: o jogo abre em pé, sem erro - foi
+assim da 0.43.1 à 0.51.5 (recado #233), com o manifesto dizendo horizontal o tempo todo.
 
 **O jogo anota no `crash.log` quando a rede fica 3 s ou mais sem ser atendida, e quando a conexão
 cai** (`log_diagnostic`, com o contexto em `g_net_stall_context`). O `crash.log` segue junto de todo
