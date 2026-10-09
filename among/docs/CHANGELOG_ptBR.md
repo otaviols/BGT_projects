@@ -6,6 +6,30 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.4
+
+**A tela para quem enxerga ficou completa, e continua EXPERIMENTAL.** Com a opção "Mapa na tela,
+para quem enxerga" ligada:
+
+- o jogo abre em **tela cheia**, e **F11** alterna entre tela cheia e janela;
+- **os menus** aparecem inteiros na tela, com o item escolhido destacado;
+- **na reunião**, a tela mostra a mesa: cada jogador com a sua cor, quem morreu e quem já votou, e o
+  tempo que falta;
+- **as falas do jogo** aparecem como legendas embaixo, e as telas sem menu nem mapa mostram as falas
+  em letra grande;
+- **no mapa**, aparecem também os dutos, o botão de emergência e o painel de reparo durante a
+  sabotagem, com uma legenda dos símbolos no canto. Como antes, só o que o som também mostra.
+
+**Corrigido:** andando, a tela mostrava um rastro, como se a imagem anterior ficasse por baixo da
+nova.
+
+Lembrando: o desenho na tela é um recurso novo do NVGT, a ferramenta com que o jogo é feito, e pode
+falhar, principalmente no Android. Se algo sair errado, desligue a opção e mande um recado. Para quem
+joga só pelo som, nada muda.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.3
 
 **Novo, e EXPERIMENTAL: mapa na tela, para quem enxerga.** É para amigos que enxergam e querem

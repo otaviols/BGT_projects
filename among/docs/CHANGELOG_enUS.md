@@ -6,6 +6,30 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.4
+
+**The screen for sighted players is now complete, and still EXPERIMENTAL.** With the "On-screen map,
+for sighted players" option on:
+
+- the game opens in **full screen**, and **F11** switches between full screen and a window;
+- **menus** show up in full on the screen, with the chosen item highlighted;
+- **in a meeting**, the screen shows the table: each player with their color, who died and who has
+  already voted, and the time left;
+- **what the game says** shows up as captions at the bottom, and screens with no menu or map show it
+  in large text;
+- **on the map**, vents, the emergency button and the repair panel during its sabotage also show up,
+  with a legend of the symbols in the corner. As before, only what the sound also tells you.
+
+**Fixed:** while walking, the screen showed a trail, as if the previous image stayed underneath the
+new one.
+
+A reminder: drawing on screen is a new feature of NVGT, the tool the game is made with, and it may
+fail, especially on Android. If something goes wrong, turn the option off and send a message. For
+anyone who plays by sound alone, nothing changes.
+
+We are still in the pre-release: bugs may show up, and the idea is to fix them before the stable
+version. Found something? Send it through feedback.
+
 ## 0.51.3
 
 **New, and EXPERIMENTAL: an on-screen map, for sighted players.** It is meant for sighted friends
