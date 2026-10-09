@@ -9,6 +9,8 @@
 //   3. quem está LONGE não recebe pacote nenhum nessa hora - a lista não pode virar um aviso à nave
 //      inteira de que alguém entrou num duto;
 //   4. ao sair do duto, ele volta à lista.
+// E o campo "radar" do mesmo pacote (quem o radar alcança, o que a tela para quem enxerga desenha): tem
+// quem está na mesma sala, não tem quem está em outra, e perde e recupera quem entra e sai do duto.
 // (O engolido pelo lobo sai da lista pela mesma regra - conferido em probe_wolf.)
 #include "../../src/network/client.nvgt"
 #include "../../src/config/game_constants.nvgt"
@@ -50,9 +52,9 @@ net_packet@ ultima_lista(uint i) {
 	for (uint k = 0; k < caixa[i].length(); k++) if (caixa[i][k].type == S_NEARBY_PLAYERS) @achada = caixa[i][k];
 	return achada;
 }
-bool lista_tem(net_packet@ lista, uint64 peer) {
+bool lista_tem(net_packet@ lista, uint64 peer, const string&in campo = "peers") {
 	if (@lista == null) return false;
-	json_array@ peers = lista.get_array("peers");
+	json_array@ peers = lista.get_array(campo);
 	if (@peers == null) return false;
 	for (uint i = 0; i < peers.length(); i++) if (uint64(peers[i]) == peer) return true;
 	return false;
@@ -117,16 +119,14 @@ void main() {
 
 	map_object@ duto = mapa.find_object("vent_navigation");
 	if (@duto == null) { println("o duto vent_navigation nao existe mais no mapa"); return; }
-	// O de longe vai ao duto de armas, do outro lado da cafeteria: PERCEPTION_SET_RANGE é o alcance do som
-	// (40), e a cafeteria, onde todos nascem, fica dentro dele.
-	map_object@ oposto = mapa.find_object("vent_weapons");
-	if (@oposto == null) { println("o duto vent_weapons nao existe mais no mapa"); return; }
+	// O de longe fica na cafeteria, onde todos nasceram - bem mais longe do duto que PERCEPTION_SET_RANGE.
 	anda_ate(todos, todos[imp], xs[imp], ys[imp], duto.x, duto.y);
 	anda_ate(todos, todos[perto], xs[perto], ys[perto], duto.x + 0.5, duto.y);
-	anda_ate(todos, todos[longe], xs[longe], ys[longe], oposto.x + 0.5, oposto.y);
-	xs[longe] = oposto.x + 0.5; ys[longe] = oposto.y;
 	bombeia(todos, 800);
 	confere("controle: quem esta colado ve o impostor na lista", lista_tem(ultima_lista(perto), todos[imp].my_peer_id));
+	// O campo "radar" (o que a tela para quem enxerga desenha) segue a regra do radar: mesma sala.
+	confere("radar: na mesma sala, o impostor esta na lista do radar", lista_tem(ultima_lista(perto), todos[imp].my_peer_id, "radar"));
+	confere("radar: o de longe (outra sala) nao tem o impostor no radar", @ultima_lista(longe) != null && !lista_tem(ultima_lista(longe), todos[imp].my_peer_id, "radar"));
 	confere("controle: o de longe esta longe mesmo (" + distance_2d(xs[longe], ys[longe], duto.x, duto.y) + ")",
 		distance_2d(xs[longe], ys[longe], duto.x, duto.y) > PERCEPTION_SET_RANGE + 1.0);
 
@@ -138,6 +138,7 @@ void main() {
 	net_packet@ depois = ultima_lista(perto);
 	confere("quem esta colado recebeu uma lista nova", @depois != null);
 	confere("e o impostor nao esta mais nela", @depois != null && !lista_tem(depois, todos[imp].my_peer_id));
+	confere("nem na do radar", @depois != null && !lista_tem(depois, todos[imp].my_peer_id, "radar"));
 	confere("o de longe nao recebeu pacote de lista nenhum", @ultima_lista(longe) == null);
 
 	esvazia_caixa();
@@ -145,6 +146,7 @@ void main() {
 	espera(todos, imp, S_VENT_STATE, 3000);
 	bombeia(todos, 800);
 	confere("ao sair do duto ele volta a lista", lista_tem(ultima_lista(perto), todos[imp].my_peer_id));
+	confere("e a do radar", lista_tem(ultima_lista(perto), todos[imp].my_peer_id, "radar"));
 
 	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
 	println("");

@@ -120,12 +120,7 @@ const float PLAYER_REPORT_RANGE = 2.0;
 // que todo alcance que o cliente mede (anúncio de quem está perto, kill, escudo, engolir) de propósito:
 // a lista só diz quem PODE ser anunciado, e a distância exata continua sendo medida no cliente. Com a
 // folga, o atraso da lista não corta ninguém que acabou de chegar perto.
-// Vai até o alcance do som (NORMAL_AUDIO_MAX_DISTANCE, escrito aqui como número porque aquela constante
-// é declarada mais abaixo - ver a armadilha das globais no CLAUDE.md) por causa da tela para quem
-// enxerga: ela mostra todo mundo dentro do alcance, parado ou andando, e é esta lista que diz quem
-// entrou num duto ou ficou invisível - essas pessoas param de mandar posição e, sem ela, ficariam
-// congeladas no último ponto. Era 3,5; quem parava para fazer tarefa sumia da tela.
-const float PERCEPTION_SET_RANGE = 40.0;
+const float PERCEPTION_SET_RANGE = 3.5;
 // Ritmo dos passos e dos esbarrões ao andar. Compartilhado pela partida e pelo modo de conhecer o
 // mapa - os dois têm que soar iguais, senão o mapa "aprendido" não é o mapa jogado.
 //

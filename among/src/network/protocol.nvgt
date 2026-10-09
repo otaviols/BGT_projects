@@ -167,7 +167,9 @@ const string S_PLAYER_MOVED = "s_player_moved";           // {peer_id, x, y, seq
 // do lobo), dentro de PERCEPTION_SET_RANGE. Mandado quando a lista MUDA. O elenco do cliente guarda o
 // último ponto de todo mundo, e quem some sem andar (entrou no duto, foi engolido, ficou invisível)
 // continuava "parado" lá - anunciado a quem passasse e mirado pela tecla de matar. Ver nearest_alive.
-const string S_NEARBY_PLAYERS = "s_nearby_players";       // {peers: [peer_id...]}
+// "radar" é quem o radar dele alcança agora (radar_targets), e é o que a tela para quem enxerga desenha.
+// Servidor antigo não manda o campo: o cliente percebe pela falta dele.
+const string S_NEARBY_PLAYERS = "s_nearby_players";       // {peers: [peer_id...], radar: [peer_id...]}
 const string S_PLAYER_JOINED = "s_player_joined";         // {peer_id, name, color}
 const string S_PLAYER_LEFT = "s_player_left";             // {peer_id}
 const string S_TASK_RESULT = "s_task_result";             // {task_id, ok, progress}

@@ -9,10 +9,9 @@
 // A regra que manda no MAPA: a tela mostra só o que o áudio deixa perceber, e nunca mais. O jogo é
 // justo porque todo mundo sabe as mesmas coisas pelo som; uma tela que mostrasse todos os jogadores
 // daria a quem enxerga o impostor do outro lado da nave. Por isso:
-//   - outro jogador aparece dentro do alcance do som (40, ou 16 com as luzes apagadas - o mesmo
-//     LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER), parado ou andando. Parado ele é silencioso no som, e de início
-//     sumia daqui também; o usuário preferiu mostrá-lo, porque quem parava para fazer tarefa "sumia" e
-//     parecia defeito. Quem está no duto ou invisível sai da lista de perceptíveis do servidor e some;
+//   - outro jogador aparece quando o RADAR de jogadores o alcançaria agora, parado ou andando - a lista
+//     vem do servidor, calculada pela mesma função do radar (ver S_NEARBY_PLAYERS). Com servidor antigo,
+//     que não a manda, vale a regra de antes: um passo dele acabou de tocar no alcance do som;
 //   - corpo aparece enquanto o marcador dele toca (as luzes apagadas o calam - aqui também);
 //   - os seus pontos de tarefa somem com as comunicações sabotadas, como os marcadores sonoros.
 // A decisão de cada caso sai de `visual_player_visible` e dos mesmos lights_out/comms_down da
@@ -84,15 +83,18 @@ uint visual_player_rgb(int color) {
 // O outro jogador aparece no mapa? É a regra do som, escrita UMA vez (ver o comentário do topo).
 bool visual_player_visible(roster_entry@ e, float my_x, float my_y, bool lights_out, const client_roster@ roster) {
 	if (@e == null || !e.alive) return false;
+	// A regra é a do RADAR (decisão do usuário: "a visão vê o que o radar pode mostrar, só isso"), dita
+	// pelo servidor: mesma sala, fora de duto e visível, ninguém com as comunicações sabotadas, só quem
+	// está colado com as luzes apagadas - e o impostor imune às duas. Parado também aparece: de início
+	// valia o passo ouvido, e quem parava para fazer tarefa sumia da tela.
+	if (roster.radar_known) return roster.radar_visible.find(e.peer_id) >= 0;
+	// Servidor antigo, sem a lista do radar: a regra do passo ouvido, de antes.
 	float d = distance_2d(my_x, my_y, e.x, e.y);
 	float alcance = NORMAL_AUDIO_MAX_DISTANCE * (lights_out ? LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER : 1.0);
-	if (d > alcance) return false;
-	if (e.heard_at > 0 && ticks() - e.heard_at <= VISUAL_HEARD_MS) return true;
-	// Parado também aparece (decisão do usuário: quem parava para fazer tarefa sumia, e parecia defeito).
-	// Quem diz que ele continua ali - e não num duto ou invisível - é a lista do servidor, que cobre o
-	// alcance do som (PERCEPTION_SET_RANGE). Servidor antigo não manda a lista: aí só aparece colado.
-	if (roster.perceptible_known) return roster.perceptible.find(e.peer_id) >= 0;
-	return d <= PLAYER_INTERACT_RANGE;
+	if (e.heard_at > 0 && ticks() - e.heard_at <= VISUAL_HEARD_MS && d <= alcance) return true;
+	// Colado e anunciado pelo nome (o mesmo nearest_alive da partida, que respeita a lista do servidor).
+	if (d > PLAYER_INTERACT_RANGE) return false;
+	return !roster.perceptible_known || roster.perceptible.find(e.peer_id) >= 0;
 }
 
 // Um cartão da mesa da reunião: o que a reunião já diz a todos.

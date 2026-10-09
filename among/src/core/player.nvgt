@@ -131,6 +131,8 @@ class game_player {
 	// só mandar de novo quando mudar. Vazia no começo de cada partida, e por isso a primeira sempre sai.
 	array<uint64> nearby_sent;
 	bool nearby_sent_once = false;
+	// E quem o radar dele alcança agora (o campo "radar" do mesmo pacote), pela mesma razão.
+	array<uint64> radar_sent;
 
 	// --- Bot ---
 	// Bots são game_player normais em tudo (entram na contagem, recebem tasks, podem ser mortos,
@@ -287,6 +289,7 @@ class game_player {
 		follow_peer = 0;
 		nearby_sent.resize(0);
 		nearby_sent_once = false;
+		radar_sent.resize(0);
 		left_match = false;
 		set_role(ROLE_CREWMATE);
 		vented = false;

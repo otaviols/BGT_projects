@@ -201,15 +201,15 @@ lista vem do `send_hall_state()` de sempre. Sonda: `probe_lobby_privacy.nvgt` (s
 
 **O mapa na tela mostra só o que o SOM deixa perceber** (`src/ui/visual_map.nvgt`, opção desligada
 por padrão em Configurações; pedido do usuário, para amigos que enxergam). Decisão do usuário: a vista
-acompanha o jogador, jogadores são círculos, e a visão é restrita como o áudio. Outro jogador aparece
-dentro do alcance do som (`NORMAL_AUDIO_MAX_DISTANCE`, encolhido pelo `LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER`
-com as luzes apagadas), parado ou andando, se estiver na lista de perceptíveis do servidor
-(`S_NEARBY_PLAYERS`, que cobre esse alcance - ver notes/som.md). **De início, parado sumia** (só
-aparecia quem tinha um passo tocado há menos de 0,9 s, `roster_entry.heard_at`): fiel ao som, mas quem
-parava para fazer tarefa "sumia" e o usuário relatou como defeito, e decidiu mostrar todos no alcance. A
-lista é o que tira da tela quem entrou num duto ou ficou invisível - essas pessoas param de mandar
-posição e, sem ela, ficariam congeladas no último ponto. O passo recente ainda vale sozinho (cobre o
-atraso da lista), e com servidor antigo, sem lista, parado só aparece colado. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
+acompanha o jogador, jogadores são círculos, e **a visão vê o que o radar de jogadores pode mostrar, só
+isso** (palavras do usuário): mesma sala, fora de duto e visível; ninguém com as comunicações sabotadas;
+só quem está colado com as luzes apagadas; o impostor imune às duas. Quem diz é o servidor, no campo
+`radar` do `S_NEARBY_PLAYERS`, calculado pela própria `radar_targets` - a regra mora numa função só, e a
+tela e o radar nunca discordam. **Antes valia o passo ouvido** (`roster_entry.heard_at`, um passo tocado
+há menos de 0,9 s no alcance do som): fiel ao som, mas quem parava para fazer tarefa sumia da tela, e o
+usuário relatou como defeito. Uma tentativa intermediária (mostrar todos no alcance do som, alargando a
+lista de perto para 40) foi descartada na mesma hora pela regra do radar. Com servidor antigo, sem o
+campo, ainda vale o passo ouvido. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
 somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da partida. A regra mora em
 `visual_player_visible`; uma regra paralela divergiria da do som na primeira mudança. A janela é limpa
 ao desligar, no fim da partida e ao sair do Conhecer o mapa - senão fica a nave parada nos menus. Sonda:

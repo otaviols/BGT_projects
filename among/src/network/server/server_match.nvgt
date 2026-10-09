@@ -13,6 +13,11 @@ mixin class server_match_part {
 	// outros - quem passasse por ali ouvia o nome dele como "jogador por perto", e o impostor que mirasse
 	// ali tinha o kill recusado calado. Avisar a TODOS que fulano sumiu entregaria o duto e o lobo; esta
 	// lista só fala do entorno de cada um, que é o que ele perceberia de qualquer jeito.
+	//
+	// O campo "radar" é quem o radar dele alcança agora, pela própria `radar_targets`: é o que a tela para
+	// quem enxerga desenha (decisão do usuário: "a visão vê o que o radar pode mostrar, só isso"). Sai da
+	// MESMA função do radar para as duas nunca discordarem - sala, duto, invisível, luzes, comunicações e a
+	// imunidade do impostor vêm juntos, de graça.
 	void send_nearby_players(game_state@ lobby) {
 		if (lobby.state != "in_progress") return;
 		for (uint i = 0; i < lobby.players.length(); i++) {
@@ -20,13 +25,22 @@ mixin class server_match_part {
 			if (!reaches_client(me)) continue;
 			array<uint64>@ perto = lobby.players_near(me, PERCEPTION_SET_RANGE);
 			perto.sort_ascending();
-			if (me.nearby_sent_once && perto == me.nearby_sent) continue;
+			string fail_key;
+			array<game_player@>@ alvos = radar_targets(lobby, me, fail_key);
+			array<uint64> radar;
+			if (@alvos != null) for (uint k = 0; k < alvos.length(); k++) radar.insert_last(alvos[k].peer_id);
+			radar.sort_ascending();
+			if (me.nearby_sent_once && perto == me.nearby_sent && radar == me.radar_sent) continue;
 			me.nearby_sent = perto;
+			me.radar_sent = radar;
 			me.nearby_sent_once = true;
 			json_array@ lista = json_array();
 			for (uint k = 0; k < perto.length(); k++) lista.add(perto[k]);
+			json_array@ lista_radar = json_array();
+			for (uint k = 0; k < radar.length(); k++) lista_radar.add(radar[k]);
 			net_packet@ pkt = net_packet(S_NEARBY_PLAYERS);
 			pkt.set_array("peers", lista);
+			pkt.set_array("radar", lista_radar);
 			send_to(me.peer_id, pkt);
 		}
 	}

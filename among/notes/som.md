@@ -43,15 +43,6 @@ entra no duto. Preço aceito de propósito: quando o FANTASMA some, quem está c
 nova sem ele - o jogador não ouve nada, mas um cliente modificado percebe. Deixá-lo na lista faria o
 jogo anunciar o nome dele no ponto onde sumiu, que é pior (`probe_phantom` confere as duas coisas).
 
-**A lista vai até o alcance do som (40), e não mais até 3,5 (0.51.5).** Quem pediu foi a tela para
-quem enxerga: ela mostra todo mundo dentro do alcance, parado ou andando (decisão do usuário - quem
-parava para fazer tarefa sumia da tela e parecia defeito), e é a lista que diz quem continua ali e
-quem entrou num duto ou ficou invisível. Para o som nada muda: `nearest_alive` continua medindo a
-distância exata. O preço aceito ficou maior: um cliente modificado agora percebe QUEM some num duto a
-até 40, e não só colado - e a tela, honesta, mostra o círculo dele sumir no duto. "Quem está longe não
-recebe pacote" continua valendo, só que "longe" agora é além de 40 (a sonda usa os dutos de lados
-opostos da cafeteria).
-
 **Regra de percepção fica em `src/core/sabotage_rules.nvgt`, nunca espalhada.** Quem é atrapalhado
 por qual sabotagem se decide num lugar só. Espalhada como `if` em cada ponto (marcadores, radar, som
 de corpo, alcance de audição), bastava esquecer um para o jogador ficar cego pela metade sem que nada
