@@ -202,11 +202,14 @@ lista vem do `send_hall_state()` de sempre. Sonda: `probe_lobby_privacy.nvgt` (s
 **O mapa na tela mostra só o que o SOM deixa perceber** (`src/ui/visual_map.nvgt`, opção desligada
 por padrão em Configurações; pedido do usuário, para amigos que enxergam). Decisão do usuário: a vista
 acompanha o jogador, jogadores são círculos, e a visão é restrita como o áudio. Outro jogador aparece
-quando um PASSO dele acabou de tocar (`roster_entry.heard_at`, marcado em `on_player_moved` junto do
-`play_footstep`) dentro do alcance do som (`NORMAL_AUDIO_MAX_DISTANCE`, encolhido pelo
-`LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER` com as luzes apagadas), ou quando está colado e na lista do servidor
-(o mesmo critério do anúncio pelo nome). Parado e longe é silencioso no som, então some na tela; duto e
-invisibilidade nem mandam posição. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
+dentro do alcance do som (`NORMAL_AUDIO_MAX_DISTANCE`, encolhido pelo `LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER`
+com as luzes apagadas), parado ou andando, se estiver na lista de perceptíveis do servidor
+(`S_NEARBY_PLAYERS`, que cobre esse alcance - ver notes/som.md). **De início, parado sumia** (só
+aparecia quem tinha um passo tocado há menos de 0,9 s, `roster_entry.heard_at`): fiel ao som, mas quem
+parava para fazer tarefa "sumia" e o usuário relatou como defeito, e decidiu mostrar todos no alcance. A
+lista é o que tira da tela quem entrou num duto ou ficou invisível - essas pessoas param de mandar
+posição e, sem ela, ficariam congeladas no último ponto. O passo recente ainda vale sozinho (cobre o
+atraso da lista), e com servidor antigo, sem lista, parado só aparece colado. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
 somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da partida. A regra mora em
 `visual_player_visible`; uma regra paralela divergiria da do som na primeira mudança. A janela é limpa
 ao desligar, no fim da partida e ao sair do Conhecer o mapa - senão fica a nave parada nos menus. Sonda:

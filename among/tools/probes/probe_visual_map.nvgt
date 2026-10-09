@@ -29,12 +29,20 @@ void main() {
 	confere("passo acabou de tocar, a 20 unidades: aparece", visual_player_visible(alguem(r, 1, 20, 0, 100), 0, 0, false, r));
 	confere("o mesmo passo com as luzes apagadas (alcance 16): nao aparece", !visual_player_visible(r.find(1), 0, 0, true, r));
 	confere("controle: com luz apagada, a 10 unidades, aparece", visual_player_visible(alguem(r, 2, 10, 0, 100), 0, 0, true, r));
-	confere("parado ha 2 s, a 5 unidades: nao aparece (parado e silencioso)", !visual_player_visible(alguem(r, 3, 5, 0, 2000), 0, 0, false, r));
-	confere("nunca ouvido, longe: nao aparece", !visual_player_visible(alguem(r, 4, 8, 0, 0), 0, 0, false, r));
-	roster_entry@ colado = alguem(r, 5, 1.0, 0, 0);
-	confere("colado (1 unidade) mas fora da lista do servidor (duto, invisivel): nao aparece", !visual_player_visible(colado, 0, 0, false, r));
-	r.perceptible.insert_last(5);
-	confere("colado e na lista: aparece, como o anuncio pelo nome", visual_player_visible(colado, 0, 0, false, r));
+	// Parado: aparece se o servidor diz que ele continua perceptível (não está em duto nem invisível).
+	roster_entry@ parado = alguem(r, 3, 30, 0, 2000);
+	confere("parado ha 2 s, a 30, fora da lista do servidor (duto, invisivel): nao aparece", !visual_player_visible(parado, 0, 0, false, r));
+	r.perceptible.insert_last(3);
+	confere("parado ha 2 s, a 30, na lista (fazendo tarefa): aparece", visual_player_visible(parado, 0, 0, false, r));
+	confere("o mesmo parado com as luzes apagadas (alcance 16): nao aparece", !visual_player_visible(parado, 0, 0, true, r));
+	roster_entry@ alem = alguem(r, 4, 45, 0, 0);
+	r.perceptible.insert_last(4);
+	confere("na lista mas alem do alcance do som (45): nao aparece", !visual_player_visible(alem, 0, 0, false, r));
+	// Servidor antigo (sem a lista): parado só aparece colado, como antes.
+	r.perceptible_known = false;
+	confere("servidor antigo: parado a 30 nao aparece", !visual_player_visible(parado, 0, 0, false, r));
+	confere("servidor antigo: colado (1 unidade) aparece", visual_player_visible(alguem(r, 5, 1.0, 0, 0), 0, 0, false, r));
+	r.perceptible_known = true;
 	roster_entry@ morto = alguem(r, 6, 3, 0, 100);
 	morto.alive = false;
 	confere("morto (fantasma) nunca aparece para o vivo", !visual_player_visible(morto, 0, 0, false, r));
@@ -59,7 +67,7 @@ void main() {
 	confere("tarefa: so a SUA", landmark_beacon_on(tarefa, minhas, "") && !landmark_beacon_on(tarefa, null, ""));
 
 	println("== desenho ==");
-	array<roster_entry@> outros = {r.find(1), r.find(2), colado};
+	array<roster_entry@> outros = {r.find(1), r.find(2), r.find(5)};
 	array<vector> corpos = {vector(3.0, 2.0, 0.0)};
 	array<string> tarefas;
 	for (uint i = 0; i < map.objects.length() && tarefas.length() < 6; i++) if (map.objects[i].obj_type == OBJ_TASK_SPOT) tarefas.insert_last(map.objects[i].id);

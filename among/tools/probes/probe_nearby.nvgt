@@ -117,9 +117,14 @@ void main() {
 
 	map_object@ duto = mapa.find_object("vent_navigation");
 	if (@duto == null) { println("o duto vent_navigation nao existe mais no mapa"); return; }
-	// O de longe fica na cafeteria, onde todos nasceram - bem mais longe do duto que PERCEPTION_SET_RANGE.
+	// O de longe vai ao duto de armas, do outro lado da cafeteria: PERCEPTION_SET_RANGE é o alcance do som
+	// (40), e a cafeteria, onde todos nascem, fica dentro dele.
+	map_object@ oposto = mapa.find_object("vent_weapons");
+	if (@oposto == null) { println("o duto vent_weapons nao existe mais no mapa"); return; }
 	anda_ate(todos, todos[imp], xs[imp], ys[imp], duto.x, duto.y);
 	anda_ate(todos, todos[perto], xs[perto], ys[perto], duto.x + 0.5, duto.y);
+	anda_ate(todos, todos[longe], xs[longe], ys[longe], oposto.x + 0.5, oposto.y);
+	xs[longe] = oposto.x + 0.5; ys[longe] = oposto.y;
 	bombeia(todos, 800);
 	confere("controle: quem esta colado ve o impostor na lista", lista_tem(ultima_lista(perto), todos[imp].my_peer_id));
 	confere("controle: o de longe esta longe mesmo (" + distance_2d(xs[longe], ys[longe], duto.x, duto.y) + ")",
