@@ -154,9 +154,13 @@ class visual_map {
 	void clear_if_needed() {
 		if (!drew_last || !ready()) return;
 		r.set_scale(1, 1);
-		color(0x000000);
-		r.clear();
-		r.present();
+		// Duas vezes, com uma apresentação no meio: a tela fica parada depois, e os dois buffers da placa
+		// precisam ficar pretos (ver present_static).
+		for (int vez = 0; vez < 2; vez++) {
+			color(0x000000);
+			r.clear();
+			if (vez == 0) r.present();
+		}
 		drew_last = false;
 	}
 
@@ -259,10 +263,20 @@ class visual_map {
 		r.clear();
 	}
 
+	// O quadro fica pronto e quem APRESENTA é o NVGT: o refresh_window() de todo wait() chama present()
+	// sem condição (src/UI.cpp do NVGT). Apresentar aqui também fazia DUAS apresentações por quadro, e a
+	// segunda mostrava o outro buffer da placa, com um quadro antigo - a tela alternava entre o agora e o
+	// antes, e andando aparecia o rastro, as telas "duplicadas por baixo" (relato do usuário).
 	private void finish() {
-		r.present();
 		drew_last = true;
 		last_draw = ticks();
+	}
+
+	// Para tela que é desenhada UMA vez e fica parada (legendas, limpeza): os wait() seguintes continuam
+	// apresentando sem desenho novo, alternando entre os dois buffers da placa. Desenhando a mesma imagem
+	// duas vezes, com uma apresentação no meio, os dois buffers ficam iguais e a tela não pisca.
+	private void present_static() {
+		r.present();
 	}
 
 	// Faixa de título no alto.
@@ -477,14 +491,18 @@ class visual_map {
 
 	// --- O resto: só as legendas, em letra grande ---
 
+	// Tela parada: desenhada duas vezes, com uma apresentação no meio (ver present_static).
 	void draw_captions_screen() {
 		if (!ready()) return;
-		int w = 0, h = 0;
-		begin(VC_BG, w, h);
-		float y = 24;
-		for (uint i = 0; i < captions.length(); i++) {
-			bool ultima = i == captions.length() - 1;
-			y += put_text(captions[i], ultima ? font_title : font_body, ultima ? VC_TEXT : VC_TEXT_DIM, 24, y, w - 48) + 14;
+		for (int vez = 0; vez < 2; vez++) {
+			int w = 0, h = 0;
+			begin(VC_BG, w, h);
+			float y = 24;
+			for (uint i = 0; i < captions.length(); i++) {
+				bool ultima = i == captions.length() - 1;
+				y += put_text(captions[i], ultima ? font_title : font_body, ultima ? VC_TEXT : VC_TEXT_DIM, 24, y, w - 48) + 14;
+			}
+			if (vez == 0) present_static();
 		}
 		finish();
 	}

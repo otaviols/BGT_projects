@@ -392,6 +392,13 @@ ficarem sem o confirmar. Formulário que cresce com uma lista (papéis, idiomas)
 documentação), e o construtor solto só se prende à janela que tem o FOCO do teclado. Sintoma: o
 renderizador vem inválido e nada aparece, sem erro - sempre que o jogo abre sem foco (aberto por outro
 programa, ou o Windows segurando o foco). A janela devolvida por `show_window` tem o dela, sempre válido.
+**E NÃO chame `present()` em quadro que se redesenha a cada volta: todo `wait()` já apresenta**
+(`refresh_window()` do NVGT, sem condição). Apresentando também, cada quadro saía duas vezes e a segunda
+mostrava o outro buffer da placa, com um quadro antigo. Sintoma (0.51.3, relato do usuário): andando,
+"as telas anteriores ficam embaixo, meio duplicado". Tela desenhada UMA vez e deixada parada é o caso
+inverso: os `wait()` seguintes alternam entre os dois buffers, então ela é desenhada duas vezes com um
+`present()` no meio, para os dois ficarem iguais (`present_static` em `visual_map.nvgt`). Captura de tela
+não pega essa alternância (ela dura uma fração de quadro) - a prova é o código do NVGT.
 Para conferir um desenho sem ver, capture a janela (PowerShell + `CopyFromScreen`) e leia a imagem. É o
 que faz o mapa na tela (`src/ui/visual_map.nvgt`).
 
