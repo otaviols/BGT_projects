@@ -49,10 +49,9 @@ em `*.sh`; se aparecer outro script que vai para o contêiner com outra extensã
 
 **Máquina nova para publicar** (o que cada ferramenta precisa, na ordem em que falha): NVGT da release
 `latest` do GitHub `samtupy/nvgt` (instalador Inno Setup em `C:\nvgt`, `/VERYSILENT` já traz os stubs
-de Linux, Mac e Android) e `C:\nvgt` no PATH; `az login`; `az aks get-credentials -g
-rg-fallenrealms-alpha -n aks-fallenrealms-alpha`; Docker Desktop; `docker login ghcr.io -u otaviols`
-com token de `write:packages` (o do `gh auth login` NÃO tem: `gh auth refresh -s write:packages` e
-`gh auth token | docker login ghcr.io -u otaviols --password-stdin`); Python 3 no PATH; identidade
+de Linux, Mac e Android) e `C:\nvgt` no PATH; `az login` (só para o site antigo, no Azure); Docker
+Desktop; a chave `~/.ssh/amongus_vps` (ver "VPS na Hostinger") e a VPS no `known_hosts` pelo NOME;
+Python 3 no PATH; identidade
 do git (`user.name`/`user.email`), sem a qual nenhum commit sai; a chave de assinatura do Android
 (`%USERPROFILE%\.nvgt_android.keystore`, copiada da outra máquina - ver CLAUDE.md, Android).
 Com `core.autocrlf=true`, o git escreve avisos de fim de linha na saída de erro, e script PowerShell
@@ -207,6 +206,13 @@ parágrafo (é o título dele); depois de gerar, confira que o `version.json` n�
 
 ## Infra — o que não é óbvio
 
+**Desde 2026-10-09 o servidor mora na VPS da Hostinger** (ver "VPS na Hostinger", abaixo), e o que
+fala com ela está em `infra/vps.ps1`. O servidor do cluster ficou com `--replicas=0` (o banco de lá
+parou no backup `among_users_2026-10-09_105901_final_azure.db`; NÃO o religue, ou haverá dois bancos
+divergindo). O site do Azure segue de pé para as versões até a 0.51.0 acharem a atualização. O que vem
+abaixo sobre AKS, `kubectl`, `ghcr-pull` e a assinatura é da época do Azure - serve se um dia for
+preciso voltar ou para desligar de vez o que sobrou (o cluster também roda o fallen-realms).
+
 **Não há VM.** Esta assinatura Azure não consegue criar nenhuma SKU barata
 (`NotAvailableForSubscription` em todas as regiões), e as sem restrição têm **cota zero** — o que não
 aparece em `az vm list-skus` e fazia o `terraform apply` falhar sempre no mesmo ponto. O servidor roda
@@ -237,10 +243,21 @@ do Azure. O que custou descobrir:
 - **Montagem:** `/opt/amongus/data` (dono 10001, o usuário da imagem) com o `among_users.db`,
   `/opt/amongus/admin.env` (modo 600, `AMONGUS_ADMIN_TOKEN=...`, o mesmo token do segredo do
   cluster - mandado pelo PowerShell ganha um `\r` no fim; o `sed` tira). A imagem vai sem registro:
-  `docker save -o` aqui, `scp`, `docker load` lá (55 MB comprimida). Contêiner:
+  `docker save -o` aqui, `scp`, `docker load` lá - o `deploy.ps1` faz isso, com a imagem chamada
+  `amongus-server:<commit>`. Contêiner:
   `docker run -d --name amongus-server --restart unless-stopped -p 8934:8934/udp -v
-  /opt/amongus/data:/data --env-file /opt/amongus/admin.env <imagem>`. Testar com
-  `AMONGUS_SERVER_HOST=179.199.151.166` antes do `admin.ps1 status` e das sondas.
+  /opt/amongus/data:/data --env-file /opt/amongus/admin.env <imagem>`. As imagens antigas ficam lá:
+  voltar atrás é esse mesmo `docker run` com a etiqueta anterior (`docker images amongus-server`).
+  Para falar com um servidor da VPS sem passar pelo DNS: `AMONGUS_SERVER_HOST=179.199.151.166`.
+- **A troca (2026-10-09), na ordem que funcionou, com ~5 min fora do ar:** compilar e testar o servidor
+  ANTES de tocar em nada; drenar o Azure; backup final (`kubectl cp`); `--replicas=0` no Azure; na VPS,
+  tirar o contêiner de teste, guardar o banco de teste em `/opt/amongus/backups/` e pôr o backup final
+  no lugar (dono 10001; o `sha256sum` de lá tem que bater com o daqui); `deploy.ps1 -SkipSite
+  -DrainSeconds 0 -SkipTranslations` com `AMONGUS_SERVER_HOST` no IP (a conferência de traduções
+  precisa de um servidor que ainda não existe); conferir com `admin.ps1 recados` que o banco é o de
+  verdade (o último recado está lá); registro A (`overwrite: true`, só com aquele nome - o
+  `dns_records_validate` antes); sonda pelo nome. O `release.ps1` viu o servidor já no commit dele e
+  publicou só os clientes. O DNS da Hostinger propagou em segundos (TTL 300).
 - **O site `amongus.blindtabern.com` mora na VPS** (desde a 0.51.1, que consulta o `version.json`
   lá): registro A na Hostinger, `/etc/nginx/conf.d/amongus.blindtabern.com.conf` servindo
   `/var/www/amongus`, certificado do Let's Encrypt pelo `certbot --nginx` (a renovação é o
@@ -272,8 +289,7 @@ volume junto.
 ## Operar
 
 ```
-kubectl get pods -n amongus
-kubectl logs -n amongus deploy/amongus-server -f
+ssh -i ~/.ssh/amongus_vps -o IdentitiesOnly=yes root@amongus.blindtabern.com "docker ps; docker logs -f amongus-server"
 infra\admin.ps1 recados [-Depois <id>] [-Crash] [-Saida arquivo]   # recados dos jogadores
 infra\admin.ps1 responder <id> "..."     # o jogador ouve dentro do jogo
 infra\admin.ps1 arquivar <id> [-Ate]     # tira da caixa (desarquivar <id> desfaz)
@@ -301,11 +317,11 @@ publicação, antes do push. Até 2026-10-07 não havia NENHUM - a assinatura de
 banco só sairia do disco do cluster com ela ativa. A pasta é local: uma cópia fora desta máquina é
 com o usuário.
 
-**"Caí do servidor": cruze o crash.log do recado com as linhas `[queda]` do log** (`kubectl logs -n
-amongus deploy/amongus-server --timestamps | Select-String queda`, desde a 0.50.9). O jogador só sabe
+**"Caí do servidor": cruze o crash.log do recado com as linhas `[queda]` do log** (na VPS,
+`docker logs --timestamps amongus-server 2>&1 | grep queda`, desde a 0.50.9). O jogador só sabe
 dizer "o servidor encerrou a conexão"; o servidor diz se foi tempo esgotado, o cliente desligando ou
 sessão substituída (a mesma conta entrando em outro aparelho - o único lugar em que o servidor
 derruba alguém de propósito). O horário do crash.log é o relógio do JOGADOR, no fuso dele, e o do
-`--timestamps` é UTC. O log só guarda desde o último pod: um deploy apaga o histórico.
+`--timestamps` é UTC. O log só guarda desde o último contêiner: um deploy apaga o histórico.
 
 

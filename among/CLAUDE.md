@@ -2,7 +2,8 @@
 
 Jogo de dedução social **jogado inteiramente por som**, escrito em [NVGT](https://nvgt.gg)
 (AngelScript). Cliente Windows distribuído por um site estático; servidor dedicado rodando como
-contêiner num cluster AKS. Está em **beta**, com jogadores reais usando.
+contêiner Docker numa VPS da Hostinger (até 2026-10-09, num cluster AKS do Azure). Está em **beta**,
+com jogadores reais usando.
 
 Tudo que o jogador percebe passa por leitor de tela e áudio posicionado — **não existe informação
 visual**. Ao decidir qualquer coisa de interface, a pergunta certa é "como isso soa?", não "como isso
@@ -24,7 +25,7 @@ perder é não ser lida.
 | protocolo, login, sessão, tela, menu, fila de pacotes, saguão | [notes/rede-e-telas.md](notes/rede-e-telas.md) |
 | chat de voz | [notes/voz.md](notes/voz.md) |
 | escrever uma sonda | [notes/sondas.md](notes/sondas.md) |
-| publicar, servidor, Docker, Kubernetes, banco | [notes/infra-e-deploy.md](notes/infra-e-deploy.md) |
+| publicar, servidor, VPS, Docker, banco | [notes/infra-e-deploy.md](notes/infra-e-deploy.md) |
 | idioma, `lang/`, envio de tradução | [notes/traducoes.md](notes/traducoes.md) |
 
 As **Armadilhas do NVGT**, abaixo, valem para tudo: são coisas da linguagem e da engine que falham em
@@ -71,7 +72,7 @@ Antes de afirmar algo, **verifique contra o código**, não contra a memória da
 | `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `check_translation.py`, ferramentas de administração, `probes/` (sondas que conversam com um servidor de verdade) |
 | `docs/` | manuais e histórico de versões, distribuídos com o jogo numa pasta `docs/` |
 | `notes/` | as notas de projeto por área (som, papéis, mapa, partida, rede, voz, sondas, infra, traduções). **Não** vai para o jogador — é `docs/` que vai |
-| `infra/` | Terraform, Dockerfile, manifests do Kubernetes, `deploy.ps1`, `admin.ps1` (recados, avisos, traduções, status - tudo da administração) |
+| `infra/` | Dockerfile, `deploy.ps1`, `admin.ps1` (recados, avisos, traduções, status - tudo da administração), `vps.ps1` (o acesso à VPS); Terraform e manifests do Kubernetes são da época do Azure |
 
 `lang/` fica fora de `src/` de propósito: é lido por caminho em tempo de execução, e esse caminho
 precisa ser o mesmo rodando do fonte ou do build compilado.
@@ -249,7 +250,7 @@ As duas versões **têm que bater**. O `version.json` é o que os clientes insta
 mesmos: se ele ficar para trás, ninguém é avisado da atualização.
 
 **Deploy do servidor derruba quem está jogando - por isso ele AVISA antes.** O estado das partidas
-vive na memória do processo; trocar o pod no meio de uma partida derrubou todo mundo sem aviso (e
+vive na memória do processo; trocar o servidor no meio de uma partida derrubou todo mundo sem aviso (e
 foi assim que se descobriu). O `deploy.ps1` agora, com a imagem nova pronta e conferida, manda
 `C_ADMIN_DRAIN` ao servidor atual: todo jogador conectado ouve "o servidor vai reiniciar em N
 minutos", nenhuma partida nova começa, e o script espera as partidas em andamento acabarem (ou o
@@ -261,9 +262,10 @@ sempre numa nave vazia, sem aviso) e volta ao menu inicial avisando.
 `src/network/server/`, `src/core/game_state.nvgt` e `src/core/game_state/`, protocolo, banco). Som, UI e textos são só cliente.
 
 Para o servidor, a imagem é etiquetada com o **commit** (`git rev-parse --short HEAD`, e não a versão
-do jogo - é o que diz exatamente qual código está no pod: `kubectl -n amongus get deploy amongus-server
--o jsonpath='{..image}'`) e o `deploy.ps1` **sobe a imagem e confere que o
-servidor fica de pé antes de publicar** — ver "compilação que sai defeituosa", abaixo.
+do jogo - é o que diz exatamente qual código está no ar: `Vps-ServerCommit`, de `infra/vps.ps1`, ou
+`docker inspect amongus-server` na VPS) e o `deploy.ps1` **sobe a imagem e confere que o
+servidor fica de pé antes de publicar** — ver "compilação que sai defeituosa", abaixo. Todo acesso à
+VPS (token, banco, commit no ar) passa por `infra/vps.ps1`, usado pelo deploy, pelo admin e pelo release.
 
 ## Ao terminar uma feature
 
