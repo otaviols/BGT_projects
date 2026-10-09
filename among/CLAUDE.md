@@ -319,6 +319,14 @@ soma a diferença entre leituras. Sonda: `tools/probes/probe_frame_timer.nvgt`.
 **`DIRECTORY_TEMP` já termina com barra.** Concatenar outra gera caminhos com `\\` no meio que o
 PowerShell tolera e o NVGT não enxerga de volta.
 
+**A build do NVGT de 06/10/2026 vem com a `menu.nvgt` QUEBRADA - corrigida à mão na instalação.**
+Sintoma: nada que inclua menu compila, nem o jogo ("No matching symbol 'setup_menu'", em
+`c:/nvgt/include/menu.nvgt`, e o `nvgt -c` sai com código 70); na bateria de sondas, as que usam menu
+aparecem com `ok=0 falhas=2`. O `choose_number` novo (commit 143ca55 do NVGT) chama um `setup_menu` que
+não existe. A linha foi trocada por `menu@ m = menu(); m.intro_text = intro;` em `C:\nvgt\include\menu.nvgt`
+(a original ficou ao lado, `.orig_2026-10-06`). **Reinstalou o NVGT? Confira se ainda precisa** - até o
+NVGT corrigir, todo reinstalar desfaz o conserto.
+
 **A `menu.nvgt` instalada pode ser mais velha que a documentação.** A daqui **não** suporta a forma
 `"som{1...6}.wav"` — ela entrega esse texto direto ao carregador, não acha o arquivo e fica muda, sem
 erro. Use lista separada por vírgula, que funciona nas duas versões (ver `sound_variants_list`).
