@@ -90,7 +90,7 @@ void main() {
 	v.add_caption("Você está apaixonado por Ana.");
 	screen_menu m;
 	m.intro_text = "Configurações";
-	array<string> itens = {"Volumes", "Como eu ouço o jogo", "Teclas", "Voz", "Chat de voz", "Saída de som", "Idioma", "Mapa na tela, para quem enxerga: ligado", "Voltar"};
+	array<string> itens = {"Volumes", "Como eu ouço o jogo", "Teclas", "Voz", "Chat de voz", "Saída de som", "Idioma", "Modo gráfico, para quem enxerga: ligado", "Voltar"};
 	for (uint i = 0; i < itens.length(); i++) m.add_item(itens[i], "i" + i);
 	m.focused_item = 2;
 	// A escala: com a janela maior (como numa tela cheia, sem tomar a tela de quem está no computador),
