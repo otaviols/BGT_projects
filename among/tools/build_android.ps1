@@ -110,6 +110,9 @@ try {
 		# O jogo que não congela ao sair do primeiro plano (recado #161). Sem isto, a queda ao começar a
 		# partida volta calada - o manifesto teria saído do template, e nada mais avisaria.
 		if ($texto -notmatch "SDL_ANDROID_BLOCK_ON_PAUSE") { throw "O APK saiu sem SDL_ANDROID_BLOCK_ON_PAUSE: o jogo congelaria (e cairia) ao sair do primeiro plano." }
+		# A horizontal: sem a dica, o SDL troca a orientação do manifesto pela trava de rotação do
+		# celular ao abrir a janela (recado #233) - e o jogo abre em pé, sem erro nenhum.
+		if ($texto -notmatch "SDL_ORIENTATIONS") { throw "O APK saiu sem SDL_ORIENTATIONS: o jogo abriria na vertical." }
 
 		"idiomas: $($idiomas -join ', ')"
 	}

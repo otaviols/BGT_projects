@@ -86,6 +86,16 @@
             android:name="SDL_ENV.SDL_ANDROID_BLOCK_ON_PAUSE"
             android:value="0" />
 
+        <!-- NOSSO: a horizontal precisa ser dita TAMBÉM ao SDL. O sensorLandscape da atividade, logo
+             abaixo, vale só até a janela abrir: aí o SDL chama setOrientation (SDLActivity) e, sem esta
+             dica e com a janela redimensionável, pede FULL_USER - que segue a trava de rotação do
+             celular, quase sempre em vertical. Foi assim da 0.43.1 à 0.51.5: o manifesto dizia
+             horizontal e o jogo abria em pé (recado #233, confirmado por um amigo do usuário). Com as
+             duas paisagens na dica, o SDL pede USER_LANDSCAPE: horizontal, para qualquer lado. -->
+        <meta-data
+            android:name="SDL_ENV.SDL_ORIENTATIONS"
+            android:value="LandscapeLeft LandscapeRight" />
+
         <!-- NOSSO: sensorLandscape trava o jogo na HORIZONTAL (qualquer um dos dois lados). Na
              vertical, os dois alto-falantes do celular ficam um em cima do outro e o estéreo some -
              e o estéreo é metade da orientação deste jogo (recado #165). -->
