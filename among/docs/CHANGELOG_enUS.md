@@ -6,6 +6,20 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.6
+
+**Android: the game now really stays in landscape.** It was meant to lie sideways since 0.43.1, so each
+of the phone's speakers plays on one side, but it opened upright if the phone's rotation was locked to
+portrait. This fix was made without a device to test on: if the game still opens upright on your
+phone, send a message.
+
+**The "On-screen map" option is now called "Graphics mode, for sighted players"**, because today it
+shows much more than the map: the menus, the meeting, the captions and your role at the start of the
+match.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.51.5
 
 **The game server has moved.** It left Azure for a server of our own. If the game doesn't connect,

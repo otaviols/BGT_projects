@@ -6,6 +6,19 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.6
+
+**Android: o jogo agora fica na horizontal de verdade.** Ele devia ficar deitado desde a 0.43.1, para
+cada alto-falante do celular tocar de um lado, mas abria em pé se a rotação do celular estivesse
+travada na vertical. Esta correção foi feita sem um aparelho para testar: se o jogo ainda abrir em pé
+no seu celular, mande um recado.
+
+**A opção "Mapa na tela" passou a se chamar "Modo gráfico, para quem enxerga"**, porque hoje ela mostra
+muito mais que o mapa: os menus, a reunião, as legendas e o seu papel no começo da partida.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.5
 
 **O servidor do jogo mudou de casa.** Saiu do Azure para um servidor nosso. Se o jogo não conectar,
