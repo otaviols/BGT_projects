@@ -9,7 +9,8 @@
 #include "../../src/core/crash_log.nvgt"
 #include "../../src/config/server_address.nvgt"
 
-const string TOKEN = "sonda-historico";
+// O token do servidor local: o do ambiente (o run_probes.ps1 usa "teste-local"), ou o das instruções.
+string TOKEN = read_environment_variable("AMONGUS_ADMIN_TOKEN", "sonda-historico");
 int falhas = 0;
 void confere(const string&in o_que, bool ok) {
 	println((ok ? "  ok     " : "  FALHA  ") + o_que);
