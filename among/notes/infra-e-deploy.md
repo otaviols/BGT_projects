@@ -311,6 +311,13 @@ que religa é `az aks update -g rg-fallenrealms-alpha -n aks-fallenrealms-alpha 
 ele para numa pergunta e, sem terminal, morre com `EOFError`). ~5 min, e o pod sobe sozinho com o
 mesmo IP e o volume intacto. O site volta sozinho com a assinatura.
 
+**`admin.ps1 plataformas` conta desde a troca para a VPS (2026-10-09, ~14h UTC).** A tabela
+`client_logins` (uma linha por conta, por dia) foi zerada ali para medir a adesão ao servidor novo; o
+histórico do Azure está no backup `among_users_2026-10-09_105901_final_azure.db` (aqui e em
+`/opt/amongus/backups/` na VPS). **Sonda rodada contra o servidor de verdade entra na contagem**: as
+contas dela (`nb0x...`, `pc...`) logam como Windows na versão do código. Na troca, quatro delas eram
+quase metade dos logins da 0.51.5 - foram tiradas à mão.
+
 **Backup do banco: `infra\admin.ps1 backup`, para `%USERPROFILE%\amongus_backups\`**, fora do
 repositório (tem hash de senha), guardando os 30 mais recentes; o `release.ps1` faz um a cada
 publicação, antes do push. Até 2026-10-07 não havia NENHUM - a assinatura desativada mostrou que o
