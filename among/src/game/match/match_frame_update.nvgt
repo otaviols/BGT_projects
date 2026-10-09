@@ -23,6 +23,7 @@ mixin class match_frame_update_part {
 	// com as mesmas regras de sabotagem do resto da partida.
 	void draw_visual_map() {
 		if (!g_settings.visual_map) { g_visual_map.clear_if_needed(); return; }
+		g_visual_map.handle_keys(); // F11: tela cheia
 		// Na reunião todo mundo está à mesa: a tela mostra a mesa, com o que a reunião já diz a todos
 		// (quem está vivo, quem morreu, quem já votou), e não o mapa.
 		if (movement_frozen && mui.phase_seconds_remaining() >= 0.0) { draw_visual_meeting(); return; }

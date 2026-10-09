@@ -84,6 +84,10 @@ void run_settings_menu(game_client@ client = null) {
 		else if (id == "visual_map") {
 			g_settings.visual_map = !g_settings.visual_map;
 			g_settings.save();
+			// Ligou: tela cheia já (o F11 volta à janela). Desligou: janela normal e tela limpa.
+			g_visual_map.set_fullscreen(g_settings.visual_map);
+			g_visual_map.fullscreen_done = g_settings.visual_map;
+			if (!g_settings.visual_map) g_visual_map.clear_if_needed();
 			speak(tr(g_settings.visual_map ? "settings.visual_map_now_on" : "settings.visual_map_now_off"));
 		}
 		else return; // "back", ESC ou fechou sem escolher

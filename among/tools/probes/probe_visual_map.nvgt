@@ -62,6 +62,10 @@ void main() {
 	array<string> itens = {"Volumes", "Como eu ouço o jogo", "Teclas", "Voz", "Chat de voz", "Saída de som", "Idioma", "Mapa na tela, para quem enxerga: ligado", "Voltar"};
 	for (uint i = 0; i < itens.length(); i++) m.add_item(itens[i], "i" + i);
 	m.focused_item = 2;
+	// A escala: com a janela maior (como numa tela cheia, sem tomar a tela de quem está no computador),
+	// tudo cresce junto e o texto continua nítido.
+	game_window@ jan = window;
+	if (@jan != null) jan.set_size(1200, 960);
 	println("cena: menu"); t.restart();
 	while (t.elapsed < 3000) { v.draw_menu(m); wait(16); }
 	array<visual_meeting_seat@> lugares;

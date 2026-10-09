@@ -42,6 +42,9 @@
 // outro (um passo a cada ~0,35 s), curto o bastante para quem parou sumir como some no som.
 const uint64 VISUAL_HEARD_MS = 900;
 const float VISUAL_PIXELS_PER_UNIT = 18.0;
+// A altura da tela LÓGICA em que tudo é desenhado (ver visual_map.k). É a altura da janela padrão do
+// jogo: em janela a escala fica perto de 1, e em tela cheia tudo cresce junto, na mesma proporção.
+const float VISUAL_LOGICAL_HEIGHT = 640.0;
 // Quantas falas as legendas guardam, e quanto tempo sem desenho faz uma fala redesenhar a tela sozinha.
 const uint VISUAL_CAPTION_LINES = 4;
 const uint64 VISUAL_IDLE_REDRAW_MS = 150;
@@ -107,27 +110,70 @@ class visual_map {
 	dictionary text_cache;
 	uint text_cache_count = 0;
 	array<string> captions;
+	// A escala da tela: tudo é desenhado numa tela LÓGICA de VISUAL_LOGICAL_HEIGHT de altura e ampliado
+	// pelo renderizador (set_scale). O texto, não: ele é gerado já no tamanho real (fonte * k) e desenhado
+	// reduzido de volta, senão a ampliação o deixaria borrado numa tela cheia grande.
+	float k = 1.0;
+	float fonts_k = 0.0;
+	bool fullscreen_applied = false;
 
 	bool ready() {
 		if (tried) return @r != null && r.is_valid;
 		tried = true;
 		game_window@ w = window;
 		if (@w != null) @r = w.renderer;
-		@font_title = get_font("Arial", 22, FONT_STYLE_BOLD);
-		@font_body = get_font("Arial", 17);
-		@font_small = get_font("Arial", 13);
 		return @r != null && r.is_valid;
 	}
 
 	bool enabled() { return g_settings.visual_map && ready(); }
 
+	// Tela cheia: entra sozinha quando a tela para quem enxerga está ligada, e o F11 alterna (o atalho de
+	// costume). Desligada a opção, a janela volta ao tamanho normal - quem joga por som não tem por que
+	// ficar com a tela inteira tomada.
+	void set_fullscreen(bool cheia) {
+		game_window@ w = window;
+		if (@w != null) w.set_fullscreen(cheia);
+		fullscreen_applied = cheia;
+	}
+	void ensure_fullscreen_once() {
+		if (fullscreen_done) return;
+		fullscreen_done = true;
+		set_fullscreen(true);
+	}
+	bool fullscreen_done = false;
+	// O F11, lido por quem está desenhando (menu, partida, Conhecer o mapa).
+	void handle_keys() {
+		if (!g_settings.visual_map) return;
+		ensure_fullscreen_once();
+		if (key_pressed(KEY_F11)) set_fullscreen(!fullscreen_applied);
+	}
+
 	// Desligado: apaga uma vez, senão a janela fica com o último quadro parado.
 	void clear_if_needed() {
 		if (!drew_last || !ready()) return;
+		r.set_scale(1, 1);
 		color(0x000000);
 		r.clear();
 		r.present();
 		drew_last = false;
+	}
+
+	// As fontes no tamanho REAL desta escala; trocar de escala refaz as fontes e esvazia o cache de texto.
+	private void fit_fonts() {
+		float alvo = float(int(k * 10.0 + 0.5)) / 10.0;
+		if (alvo == fonts_k && @font_body != null) return;
+		fonts_k = alvo;
+		// Tamanho inteiro: fração de ponto deixava o espaçamento entre letras irregular.
+		@font_title = get_font("Arial", float(int(22 * alvo + 0.5)), FONT_STYLE_BOLD);
+		@font_body = get_font("Arial", float(int(17 * alvo + 0.5)));
+		@font_small = get_font("Arial", float(int(13 * alvo + 0.5)));
+		// Sem o ajuste de pares de letras: com ele o "e" encostava sob o "T" e o resto da palavra não
+		// acompanhava - "Teclas" saía "Te clas" (desenho de texto do NVGT de 15/09/2026).
+		if (@font_title != null) font_title.kerning = false;
+		if (@font_body != null) font_body.kerning = false;
+		if (@font_small != null) font_small.kerning = false;
+		text_cache.delete_all();
+		text_cache_count = 0;
 	}
 
 	// --- Peças de desenho ---
@@ -171,7 +217,7 @@ class visual_map {
 		graphics_texture@ tex;
 		if (text_cache.get(chave, @tex)) return tex;
 		if (text_cache_count >= VISUAL_TEXT_CACHE_MAX) { text_cache.delete_all(); text_cache_count = 0; }
-		graphic@ g = wrap > 0 ? f.render_text_blended_wrapped(t, wrap, (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF)
+		graphic@ g = wrap > 0 ? f.render_text_blended_wrapped(t, int(float(wrap) * fonts_k), (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF)
 			: f.render_text_blended(t, (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
 		if (@g != null) @tex = r.create_texture(g);
 		text_cache.set(chave, @tex);
@@ -179,15 +225,34 @@ class visual_map {
 		return tex;
 	}
 
+	// Desenha o texto em coordenadas LÓGICAS: a textura tem o tamanho real, e entra reduzida pela escala
+	// (que o set_scale amplia de volta - pixel por pixel, nítido). Devolve a altura lógica.
 	private float put_text(const string&in t, text_font@ f, uint rgb, float x, float y, int wrap = 0) {
 		graphics_texture@ tex = text(t, f, rgb, wrap);
 		if (@tex == null) return 0;
-		r.render_texture(tex, x, y);
-		return float(tex.height);
+		// Dividido pela escala EXATA (k): na tela a textura sai pixel por pixel, sem reamostrar - dividir
+		// pela escala arredondada das fontes esticava o texto de leve ("Te clas").
+		float tw = float(tex.width) / k, th = float(tex.height) / k;
+		r.render_texture(tex, 0, 0, tex.width, tex.height, x, y, tw, th);
+		return th;
 	}
 
+	private float text_width(const string&in t, text_font@ f, uint rgb) {
+		graphics_texture@ tex = text(t, f, rgb);
+		return @tex != null ? float(tex.width) / k : 0;
+	}
+
+	// Começo de todo quadro: a escala pela altura real da janela, e as dimensões LÓGICAS para o desenho.
 	private void begin(uint bg, int&out w, int&out h) {
-		r.get_output_size(w, h);
+		int pw = 0, ph = 0;
+		r.get_output_size(pw, ph);
+		k = float(ph) / VISUAL_LOGICAL_HEIGHT;
+		if (k < 0.6) k = 0.6;
+		if (k > 4.0) k = 4.0;
+		fit_fonts();
+		r.set_scale(k, k);
+		w = int(float(pw) / k);
+		h = int(float(ph) / k);
 		color(bg);
 		r.clear();
 	}
@@ -204,10 +269,7 @@ class visual_map {
 		color(VC_ACCENT);
 		r.fill_rect(8, 8 + 6, 4, 32);
 		put_text(titulo, font_title, VC_TEXT, 22, 16, w - 160);
-		if (direita != "") {
-			graphics_texture@ t = text(direita, font_body, VC_ACCENT);
-			if (@t != null) r.render_texture(t, w - 20 - t.width, 20);
-		}
+		if (direita != "") put_text(direita, font_body, VC_ACCENT, w - 20 - text_width(direita, font_body, VC_ACCENT), 20);
 		return 60;
 	}
 
@@ -220,9 +282,7 @@ class visual_map {
 		float ty = y + 8;
 		for (uint i = 0; i < captions.length(); i++) {
 			bool ultima = i == captions.length() - 1;
-			graphics_texture@ t = text(captions[i], font_small, ultima ? VC_TEXT : VC_TEXT_DIM, w - 48);
-			if (@t == null) continue;
-			r.render_texture(t, 20, ty);
+			put_text(captions[i], font_small, ultima ? VC_TEXT : VC_TEXT_DIM, 20, ty, w - 48);
 			ty += 26;
 		}
 	}
@@ -401,7 +461,10 @@ string visual_on_speech(const string&in t) {
 class screen_menu : menu {
 	bool monitor() override {
 		bool continua = menu::monitor();
-		if (g_visual_map.enabled()) g_visual_map.draw_menu(this);
+		if (g_visual_map.enabled()) {
+			g_visual_map.handle_keys();
+			g_visual_map.draw_menu(this);
+		}
 		return continua;
 	}
 }

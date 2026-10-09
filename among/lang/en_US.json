@@ -88,7 +88,7 @@
   "visual.you": "You",
   "settings.visual_map_off": "On-screen map, for sighted players: off",
   "settings.visual_map_on": "On-screen map, for sighted players: on",
-  "settings.visual_map_now_on": "On-screen map on. In a match and in Explore the map, the window shows the rooms, you, and only what the sound lets you perceive.",
+  "settings.visual_map_now_on": "On-screen map on, in full screen; F11 switches between full screen and a window. The screen shows the menus, the match map, the meeting and captions of what is spoken, and on the map only what the sound lets you perceive.",
   "settings.visual_map_now_off": "On-screen map off.",
   "settings.voice_chat": "Voice chat",
   "settings.voice_chat_hint": "With voice chat on, players near you on the ship hear what you say, and everyone hears everyone during meetings. The talk key is changed under Keys; Ctrl plus it opens the list to mute someone.",

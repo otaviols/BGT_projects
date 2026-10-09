@@ -224,6 +224,14 @@ fala desligam as legendas nelas - de propósito. Para conferir sem tirar o foco 
 computador, capture com `PrintWindow` (flag 2, pega o Direct3D), não com `CopyFromScreen` +
 `SetForegroundWindow`.
 
+**Tela cheia e escala.** Com a opção ligada o jogo entra em tela cheia sozinho (`window.set_fullscreen`)
+e o F11 alterna; desligada, volta à janela. Tudo é desenhado numa tela LÓGICA de 640 de altura e
+ampliado pelo `set_scale`, MENOS o texto: ele é gerado já no tamanho real (fonte de tamanho inteiro =
+tamanho * escala) e desenhado dividido pela escala EXATA, para sair pixel por pixel. Duas armadilhas
+que a captura mostrou: dividir pela escala arredondada esticava o texto, e o ajuste de pares de letras
+(`kerning`) do desenho de texto do NVGT de 15/09/2026 encaixava o "e" sob o "T" sem puxar o resto da
+palavra - "Teclas" saía "Te clas"; as fontes ficam com `kerning = false`.
+
 **Resposta a recado é HISTÓRICO, não leitura única** (recados #221, #226, #227). Até a 0.51.1 a tela
 lia a resposta numa fala só, marcava como lida na hora e voltava ao menu na primeira tecla - que falava
 por cima: uma tecla sem querer ou uma resposta longa, e ela sumia para sempre (o jogador pedia por
