@@ -64,19 +64,18 @@ try {
 		Write-Warning "Não consegui ler a versão do site; seguindo sem essa conferência."
 	}
 
-	# Servidor: compara com o commit que ESTÁ no ar (a etiqueta da imagem). O que não é tela, som,
-	# texto do jogador ou ferramenta entra no servidor; na dúvida, publica.
+	# Servidor: compara com o commit que ESTÁ no ar (a etiqueta da imagem), olhando só os arquivos que o
+	# servidor de fato compila - server_main.nvgt e o que ele inclui, seguindo os #include
+	# (tools/server_sources.py). Era uma lista de pastas "só do cliente" para excluir, e um arquivo do
+	# cliente fora dela (o game_settings, na 0.51.7) reiniciava o servidor à toa, derrubando quem jogava.
+	# lang/ fica de fora sozinho: o servidor manda CHAVES e quem traduz é o cliente.
 	$commitNoAr = ""
 	try { $commitNoAr = Vps-ServerCommit } catch { }
 	$servidor = $true
+	$fontesDoServidor = @(python tools\server_sources.py)
+	if ($LASTEXITCODE -ne 0 -or $fontesDoServidor.Count -lt 5) { throw "Não consegui listar os arquivos do servidor (tools\server_sources.py)." }
 	if ($commitNoAr) {
-		# lang/ fica de fora: o servidor manda CHAVES e quem traduz é o cliente (ver server_main.nvgt), e
-		# só texto de idioma mudando reiniciava o servidor à toa - foi o que a 0.50.6 fez.
-		$mudou = git diff --name-only $commitNoAr HEAD -- server_main.nvgt src |
-			# Só do cliente: telas, som, e o laço da partida e de quem assiste (src/game/match/, game_loop,
-			# spectate_loop) - o servidor não inclui nenhum deles. Sem isto, conserto só de cliente
-			# reiniciava o servidor e derrubava quem estava jogando à toa.
-			Where-Object { $_ -notmatch '^(among/)?src/(ui|audio|game/match)/' -and $_ -notmatch '^(among/)?src/game/(game_loop|spectate_loop)\.nvgt$' }
+		$mudou = git diff --name-only $commitNoAr HEAD -- $fontesDoServidor
 		# O GAME_VERSION muda em TODA versão, e sozinho não é motivo para reiniciar o servidor: se é a
 		# única linha mexida no game_constants, ele sai da conta.
 		$constantes = @($mudou | Where-Object { $_ -match 'src/config/game_constants\.nvgt$' })

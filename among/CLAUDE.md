@@ -267,6 +267,9 @@ sempre numa nave vazia, sem aviso) e volta ao menu inicial avisando.
 
 **O servidor só precisa de deploy quando o código dele muda** (`src/network/server.nvgt` e
 `src/network/server/`, `src/core/game_state.nvgt` e `src/core/game_state/`, protocolo, banco). Som, UI e textos são só cliente.
+Quem decide no release é `tools/server_sources.py`: a lista exata do que o servidor compila, seguindo os
+`#include` a partir do `server_main.nvgt`. Era uma lista de pastas do cliente para excluir, e um arquivo
+de fora dela (o `game_settings.nvgt`, na 0.51.7) reiniciava o servidor à toa.
 
 Para o servidor, a imagem é etiquetada com o **commit** (`git rev-parse --short HEAD`, e não a versão
 do jogo - é o que diz exatamente qual código está no ar: `Vps-ServerCommit`, de `infra/vps.ps1`, ou
