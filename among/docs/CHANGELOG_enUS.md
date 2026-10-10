@@ -6,6 +6,19 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.7
+
+**Shift plus the ability key tells you how long until it recharges**, or "ready", without using it. For
+impostors, **Shift plus the kill key** does the same for the kill. It works even if you changed those
+keys in Settings.
+
+**The first time the game opens on a computer, it asks whether you want to play with graphics mode**,
+already drawn on the screen. That way a sighted friend who doesn't use a screen reader can turn it on
+alone. Players who already have the game don't hear the question.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.51.6
 
 **Android: the game now really stays in landscape.** It was meant to lie sideways since 0.43.1, so each

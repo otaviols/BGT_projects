@@ -6,6 +6,19 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.7
+
+**Shift + a tecla da habilidade diz quanto falta para ela recarregar**, ou "pronta", sem usá-la. Para
+os impostores, **Shift + a tecla de matar** faz o mesmo com o kill. Funciona mesmo que você tenha
+trocado essas teclas nas Configurações.
+
+**Na primeira vez que o jogo abre num computador, ele pergunta se você quer jogar com o modo gráfico**,
+já desenhado na tela. Assim um amigo que enxerga e não usa leitor de tela consegue ligá-lo sozinho.
+Quem já joga não ouve a pergunta.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.6
 
 **Android: o jogo agora fica na horizontal de verdade.** Ele devia ficar deitado desde a 0.43.1, para
