@@ -1,0 +1,89 @@
+// Sonda da pergunta do modo gráfico na primeira abertura (run_graphics_mode_first_run, recado #235):
+//   nvgt tools/probes/probe_first_run_graphics.nvgt
+//
+// As teclas são apertadas de DENTRO do laço do menu, pelo g_screen_menu_frame_hook (simular antes de abrir
+// a tela não funciona - ver probe_lobby_form). Confere:
+//   1. a pergunta é falada (para quem não enxerga saber o que é) e o Enter direto LIGA - a primeira opção
+//      já vem em foco, que é o que quem enxerga vê destacado;
+//   2. seta para baixo e Enter: só som;
+//   3. ESC: só som (fechar sem escolher não pode ligar nada);
+//   e nos três, a pergunta fica marcada como feita.
+// Grava nas preferências REAIS desta máquina: guarda o que havia e devolve no fim. Cuidado: a janela da
+// sonda recebe também o que você digitar enquanto ela roda.
+#include "../../src/ui/onboarding_screens.nvgt"
+
+int falhas = 0;
+array<string> falado;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (ok) return;
+	falhas++;
+	for (uint i = 0; i < falado.length(); i++) println("           falado: " + falado[i]);
+}
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+bool falou(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return true;
+	return false;
+}
+
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+bool tinha_visual = false, tinha_perguntado = false;
+// Em QUALQUER saída: a sonda mexe nas preferências reais desta máquina.
+void devolve_preferencias() {
+	@g_screen_menu_frame_hook = null;
+	g_settings.visual_map = tinha_visual;
+	g_settings.visual_map_asked = tinha_perguntado;
+	g_settings.save();
+	g_visual_map.clear_if_needed();
+}
+void dirige() {
+	quadro++;
+	if (quadro > 6000) { // o menu não devolveu em ~30 s: travou, e é isso que a sonda acusa
+		println("  FALHA  o menu nao devolveu; passo " + passo + " de " + roteiro.length() + "; falado:");
+		for (uint i = 0; i < falado.length(); i++) println("           " + falado[i]);
+		devolve_preferencias();
+		exit(1);
+	}
+	if (passo >= roteiro.length()) return;
+	if (quadro < 40) return; // o menu termina de se apresentar antes da primeira tecla
+	if (quadro % 15 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 15 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+void roda(array<int>@ teclas) {
+	roteiro = teclas;
+	passo = 0;
+	quadro = 0;
+	falado.resize(0);
+	g_settings.visual_map_asked = false;
+	run_graphics_mode_first_run();
+}
+
+void main() {
+	show_window("sonda: primeira abertura");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	g_settings.load();
+	tinha_visual = g_settings.visual_map;
+	tinha_perguntado = g_settings.visual_map_asked;
+	@tts_default_text_processing_callback = grava;
+	sound_master_volume = -100;
+	@g_screen_menu_frame_hook = dirige;
+
+	roda({KEY_RETURN});
+	confere("a pergunta foi falada", falou(tr("visual.first_run_question")));
+	confere("Enter direto: modo grafico LIGADO (a primeira opcao vem em foco)", g_settings.visual_map);
+	confere("e a pergunta fica marcada como feita", g_settings.visual_map_asked);
+
+	roda({KEY_DOWN, KEY_RETURN});
+	confere("seta para baixo e Enter: so som", !g_settings.visual_map && g_settings.visual_map_asked);
+
+	roda({KEY_ESCAPE});
+	confere("ESC: so som, e marcada como feita", !g_settings.visual_map && g_settings.visual_map_asked);
+
+	devolve_preferencias();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

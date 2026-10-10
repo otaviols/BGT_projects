@@ -212,7 +212,12 @@ lista de perto para 40) foi descartada na mesma hora pela regra do radar. Com se
 campo, ainda vale o passo ouvido. **No começo da partida, um cartão com o papel** (`draw_role_card`,
 recado #229: só dava para ver o papel de engenheiro - o anúncio ia para as legendas, que o resto da
 abertura empurrava): o nome do papel grande, na cor do time, e o texto que a abertura fala, por
-`VISUAL_ROLE_CARD_MS` ou até a pessoa sair do lugar. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
+`VISUAL_ROLE_CARD_MS` ou até a pessoa sair do lugar. **Na primeira abertura num computador, o jogo
+pergunta se a pessoa quer o modo gráfico** (`run_graphics_mode_first_run`, recados #235 e #236: o modo
+nasce desligado, e quem enxerga sem leitor de tela não chegava à opção). É um MENU e não "aperte G",
+porque no celular não há gesto que vire G. Durante a pergunta a tela se desenha mesmo com o modo
+desligado, sem tela cheia. "Primeira abertura" = sem `visual_map_asked` gravado E sem conta lembrada:
+quem já joga não ouve a pergunta depois de atualizar. Sonda: `probe_first_run_graphics.nvgt`. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
 somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da partida. A regra mora em
 `visual_player_visible`; uma regra paralela divergiria da do som na primeira mudança. A janela é limpa
 ao desligar, no fim da partida e ao sair do Conhecer o mapa - senão fica a nave parada nos menus. Sonda:

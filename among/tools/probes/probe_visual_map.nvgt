@@ -99,6 +99,13 @@ void main() {
 	if (@jan != null) jan.set_size(1200, 960);
 	println("cena: menu"); t.restart();
 	while (t.elapsed < 3000) { v.draw_menu(m); wait(16); }
+	// A pergunta da primeira abertura: um parágrafo no título - o cabeçalho tem que crescer com ele.
+	screen_menu primeira;
+	primeira.intro_text = tr("visual.first_run_question");
+	primeira.add_item(tr("visual.first_run_on"), "on");
+	primeira.add_item(tr("visual.first_run_off"), "off");
+	println("cena: primeira abertura"); t.restart();
+	while (t.elapsed < 3000) { v.draw_menu(primeira); wait(16); }
 	array<visual_meeting_seat@> lugares;
 	array<string> nomes = {"Você", "Ana", "Bia", "Caio", "Davi", "Eva"};
 	for (uint i = 0; i < nomes.length(); i++) {

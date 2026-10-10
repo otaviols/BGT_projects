@@ -5,6 +5,20 @@
 // frame(), chamado por ele nesta ordem. Enxerga todos os campos da partida; não compila sozinho.
 
 mixin class match_frame_keys_part {
+	// Shift + habilidade e Shift + kill: quanto falta de recarga, ou "pronta". Só perguntam, nunca agem.
+	string ability_cooldown_text() {
+		if (my_ability_cooldown_remaining <= 0.0) return tr("role.ability_ready");
+		dictionary@ cd = dictionary();
+		cd.set("seconds", "" + int(my_ability_cooldown_remaining + 0.5));
+		return tr("role.ability_cooldown", cd);
+	}
+	string kill_cooldown_text() {
+		if (my_kill_cooldown_remaining <= 0.0) return tr("game.kill_ready");
+		dictionary@ cd = dictionary();
+		cd.set("seconds", "" + int(my_kill_cooldown_remaining + 0.5));
+		return tr("game.kill_cooldown_remaining", cd);
+	}
+
 	// O papel de agora, como Ctrl + habilidade o diz: o NOME do papel ATUAL, quem são os parceiros (se
 	// o papel conhece o time), o nome dos modificadores e o alvo do carrasco. Só nomes, sem a explicação
 	// de cada um: ela é a da abertura, e repeti-la a cada consulta era ouvir o tutorial de novo (pedido
@@ -205,6 +219,10 @@ mixin class match_frame_keys_part {
 				// O anjo da guarda VIVO cai aqui: o papel dele só age depois de morrer, e dizer
 				// "fantasma não interage" seria exatamente o contrário do que acontece.
 				else if (!me_now.has_ability()) speak(tr(alive ? "role.ability_only_dead" : "game.ghost_cannot_interact"));
+				// Shift + habilidade só PERGUNTA: quanto falta, ou "pronta" (recado #234 - o espectro não
+				// sabia se podia usar sem usar, e usar no escuro era se arriscar). Sem o Shift, a tecla
+				// pronta já agia, e a única forma de saber era gastando.
+				else if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(ability_cooldown_text());
 				else if (my_ability_cooldown_remaining > 0.0) {
 					dictionary@ cd = dictionary();
 					cd.set("seconds", "" + int(my_ability_cooldown_remaining + 0.5));
@@ -266,7 +284,10 @@ mixin class match_frame_keys_part {
 				if (me.can_kill() && action_pressed(ACTION_KILL)) {
 					// Antes só avisava do cooldown quando já tinha um alvo no alcance - agora sempre diz
 					// o que está impedindo o kill (cooldown, ou ninguém por perto).
-					if (my_kill_cooldown_remaining > 0.0) {
+					// Shift + kill só pergunta, como Shift + habilidade: com alguém ao lado, a tecla pronta
+					// mataria quem estivesse ali só para saber se podia.
+					if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) speak(kill_cooldown_text());
+					else if (my_kill_cooldown_remaining > 0.0) {
 						dictionary@ cd = dictionary();
 						cd.set("seconds", "" + int(my_kill_cooldown_remaining + 0.5));
 						speak(tr("game.kill_cooldown_remaining", cd));

@@ -206,6 +206,10 @@ class game_settings {
 	// O mapa desenhado na janela, para quem enxerga (ui/visual_map.nvgt). Desligado: para quem joga por
 	// som ele não muda nada, e desenhar a cada quadro é trabalho à toa.
 	bool visual_map = false;
+	// Já se perguntou, na primeira abertura, se a pessoa quer o modo gráfico (run_graphics_mode_first_run).
+	// Quem já tem conta lembrada conta como perguntado: a pergunta é para computador NOVO, e quem já
+	// joga por som não precisa ouvi-la depois de uma atualização.
+	bool visual_map_asked = false;
 	// Quem lê a CONVERSA (chat da partida, da sala de espera e do saguão): "igual ao jogo", o leitor de
 	// tela ou a voz do jogo. Pedido do recado #89 e decisão do usuário: duas categorias só - o que as
 	// pessoas escrevem e o que o jogo narra -, para quem quer separar as duas coisas pelo timbre. O
@@ -254,6 +258,7 @@ class game_settings {
 		exit_alignment_beep = store.read_number("exit_alignment_beep", 1) != 0;
 		ghost_own_footsteps = store.read_number("ghost_own_footsteps", 0) != 0;
 		visual_map = store.read_number("visual_map", 0) != 0;
+		visual_map_asked = store.read_number("visual_map_asked", 0) != 0 || visual_map || last_username != "";
 		chat_voice = store.read_string("chat_voice", CHAT_VOICE_SAME);
 		if (chat_voice != CHAT_VOICE_SR && chat_voice != CHAT_VOICE_TTS) chat_voice = CHAT_VOICE_SAME;
 		if (background_audio != BACKGROUND_AUDIO_QUIET && background_audio != BACKGROUND_AUDIO_MUTE) background_audio = BACKGROUND_AUDIO_NORMAL;
@@ -345,6 +350,7 @@ class game_settings {
 		store.write_number("exit_alignment_beep", exit_alignment_beep ? 1 : 0);
 		store.write_number("ghost_own_footsteps", ghost_own_footsteps ? 1 : 0);
 		store.write_number("visual_map", visual_map ? 1 : 0);
+		store.write_number("visual_map_asked", visual_map_asked ? 1 : 0);
 		store.write_string("chat_voice", chat_voice);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));

@@ -58,6 +58,20 @@ void main() {
 	confere("comeca vivo, andando, sem sabotagem", p.alive && !p.movement_frozen && p.active_sabotage_id == "");
 	confere("o cartao do papel (tela para quem enxerga) fica marcado para os primeiros segundos", p.role_card_until > ticks());
 
+	// Shift + habilidade / Shift + kill: só perguntam (recado #234). O texto diz "pronta" sem recarga e o
+	// tempo com ela - e as duas respostas têm que ser diferentes, senão a pergunta não informa nada.
+	p.my_ability_cooldown_remaining = 0.0;
+	string hab_pronta = p.ability_cooldown_text();
+	p.my_ability_cooldown_remaining = 12.4;
+	string hab_recarga = p.ability_cooldown_text();
+	confere("Shift + habilidade: pronta sem recarga, e o tempo com ela", hab_pronta == tr("role.ability_ready") && hab_recarga.find("12") >= 0 && hab_pronta != hab_recarga);
+	p.my_kill_cooldown_remaining = 0.0;
+	string kill_pronto = p.kill_cooldown_text();
+	p.my_kill_cooldown_remaining = 7.6;
+	confere("Shift + kill: pronto sem recarga, e o tempo com ela", kill_pronto == tr("game.kill_ready") && p.kill_cooldown_text().find("8") >= 0);
+	p.my_ability_cooldown_remaining = 0.0;
+	p.my_kill_cooldown_remaining = 0.0;
+
 	// Quem morre continua ouvindo o marcador do PRÓPRIO corpo: a lista de corpos era refeita antes de o
 	// corpo entrar nela, e o marcador sumia até outra coisa refazê-la.
 	match_session@ morre = nova_partida(ROLE_CREWMATE);

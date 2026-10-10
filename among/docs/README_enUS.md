@@ -293,6 +293,7 @@ in with the code stays to play the next one.
 | G | say which sabotage is in progress and where to fix it |
 | H | use your role's ability (if your role has one) |
 | Ctrl + H | say what your role is right now, with partners and modifiers |
+| Shift + H | how long until your ability recharges, or "ready" (without using it) |
 | Enter at the button | call an emergency meeting (one per player) |
 
 **Impostor**
@@ -300,6 +301,7 @@ in with the code stays to play the next one.
 | Key | Action |
 |---|---|
 | K | kill whoever is in range |
+| Shift + K | how long until your kill recharges, or "ready" (without killing) |
 | Enter (at a vent) | enter the vent |
 | V (inside a vent) | leave it or travel to another |
 | G | sabotage menu |

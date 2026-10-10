@@ -137,6 +137,13 @@ void main() {
 	// tempo justamente nessas telas, então era ali que o buraco doía mais.
 	while (true) {
 		try {
+			// Computador novo: o modo gráfico é perguntado antes do menu inicial, a primeira coisa que quem
+			// enxerga precisaria ver (ver run_graphics_mode_first_run). Marcado ANTES de perguntar: se a
+			// pergunta quebrasse, o laço a repetiria para sempre, um crash.log a cada volta.
+			if (!g_settings.visual_map_asked) {
+				g_settings.visual_map_asked = true;
+				run_graphics_mode_first_run();
+			}
 			if (!run_main_menu()) break;
 			run_session();
 		}

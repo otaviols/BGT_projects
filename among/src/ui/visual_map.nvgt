@@ -298,13 +298,18 @@ class visual_map {
 	}
 
 	// Faixa de título no alto.
+	// Cresce com o título: a pergunta do modo gráfico, na primeira abertura, é um parágrafo, e numa faixa
+	// de altura fixa ela vazava por cima da lista.
 	private float header(const string&in titulo, int w, const string&in direita = "") {
-		panel(8, 8, w - 16, 44, VC_PANEL, VC_PANEL_EDGE);
+		graphics_texture@ medida = text(titulo, font_title, VC_TEXT, w - 160);
+		float alto = @medida != null ? float(medida.height) / k + 16 : 44;
+		if (alto < 44) alto = 44;
+		panel(8, 8, w - 16, alto, VC_PANEL, VC_PANEL_EDGE);
 		color(VC_ACCENT);
-		r.fill_rect(8, 8 + 6, 4, 32);
+		r.fill_rect(8, 8 + 6, 4, alto - 12);
 		put_text(titulo, font_title, VC_TEXT, 22, 16, w - 160);
 		if (direita != "") put_text(direita, font_body, VC_ACCENT, w - 20 - text_width(direita, font_body, VC_ACCENT), 20);
-		return 60;
+		return alto + 16;
 	}
 
 	// As últimas falas, num painel embaixo: o que o leitor de tela acabou de dizer, para quem está do lado.
@@ -567,10 +572,17 @@ string visual_on_speech(const string&in t) {
 	return t;
 }
 
+// Chamado a cada quadro de todo screen_menu. Só as SONDAS o usam: é por ele que apertam teclas de dentro
+// do laço do menu (simular antes de abrir a tela não funciona - ver probe_lobby_form). O jogo nunca o
+// liga.
+funcdef void screen_menu_frame_hook();
+screen_menu_frame_hook@ g_screen_menu_frame_hook = null;
+
 // O menu do NVGT com a tela: a cada monitor (o quadro do menu), desenha a lista. É a ÚNICA diferença
 // para o `menu` - por isso todo menu do jogo é um screen_menu, e um menu novo deve ser também.
 class screen_menu : menu {
 	bool monitor() override {
+		if (@g_screen_menu_frame_hook != null) g_screen_menu_frame_hook();
 		bool continua = menu::monitor();
 		if (g_visual_map.enabled()) {
 			g_visual_map.handle_keys();

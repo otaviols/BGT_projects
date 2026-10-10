@@ -21,6 +21,38 @@
 #include "../core/touch_input.nvgt"
 #include "visual_map.nvgt"
 
+// A primeira vez num computador: jogar com o modo gráfico ou só com som? (recado #235, e o #236 chegou
+// ao mesmo problema: o modo nasce desligado, e quem enxerga e não usa leitor de tela não tinha como
+// chegar à opção nos Ajustes sem alguém que soubesse o caminho). Um MENU, e não "aperte G": no celular
+// não há gesto que vire a tecla G, e as setas e o Enter têm.
+//
+// Durante a pergunta a tela se desenha mesmo com o modo desligado - é para quem enxerga, e ninguém
+// enxergaria uma pergunta em branco -, mas SEM tela cheia: quem joga por som não precisa ver a janela
+// tomar a tela por um instante. A fala sai pela voz do jogo quando não há leitor de tela.
+void run_graphics_mode_first_run() {
+	g_settings.visual_map = true;
+	g_visual_map.fullscreen_done = true;
+	screen_menu m;
+	m.intro_text = tr("visual.first_run_question");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	// Já em foco: quem enxerga vê de cara qual opção o Enter escolhe, sem ter que descobrir as setas. Antes
+	// dos itens: o add_item também lê esta opção.
+	m.focus_first_item = true;
+	m.add_item(tr("visual.first_run_on"), "on");
+	m.add_item(tr("visual.first_run_off"), "off");
+	m.run();
+	bool ligar = m.selected_item_id == "on";
+	g_settings.visual_map = ligar;
+	g_settings.visual_map_asked = true;
+	g_settings.save();
+	// Ligado: a tela cheia entra no próximo quadro desenhado, como em quem liga pelos Ajustes.
+	g_visual_map.fullscreen_done = false;
+	if (ligar) speak(tr("settings.visual_map_now_on"));
+	else g_visual_map.clear_if_needed();
+}
+
 // Menu inicial (antes de conectar): conectar, aprender os sons do jogo, ou sair.
 // Retorna true se o jogador escolheu conectar (main.nvgt segue o fluxo normal); false = saiu.
 bool run_main_menu() {

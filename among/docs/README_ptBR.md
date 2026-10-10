@@ -287,6 +287,7 @@ jogar a próxima.
 | G | dizer qual sabotagem está em andamento e onde consertar |
 | H | usar a habilidade do seu papel (se o seu papel tiver uma) |
 | Ctrl + H | dizer qual é o seu papel agora, com parceiros e modificadores |
+| Shift + H | quanto falta para a habilidade recarregar, ou "pronta" (sem usar) |
 | Enter no botão | chamar reunião de emergência (uma por jogador) |
 
 **Impostor**
@@ -294,6 +295,7 @@ jogar a próxima.
 | Tecla | Ação |
 |---|---|
 | K | matar quem estiver ao alcance |
+| Shift + K | quanto falta para o kill recarregar, ou "pronto" (sem matar) |
 | Enter (num duto) | entrar no duto |
 | V (dentro do duto) | sair dele ou viajar para outro |
 | G | menu de sabotagem |

@@ -82,6 +82,18 @@ falhar, imprima o que foi FALADO (o gancho de `tts_default_text_processing_callb
 sequência de itens mostra na hora onde o foco estava. E uma sonda que copia mexe na área de
 transferência de quem está na máquina.
 
+**Tecla simulada às vezes NÃO CHEGA - rode a sonda de teclas mais de uma vez.** Em `probe_first_run_graphics`
+(2026-10-10), uma rodada em cada quatro ou cinco travava ou dava o resultado errado: o falado mostrava só
+a introdução do menu, sem nem o item que a seta para baixo deveria anunciar - as teclas tinham ido
+para lugar nenhum. A mesma sonda, sem mudar nada, passava nas rodadas seguintes. Suspeita: a janela da
+sonda abre sem o foco do teclado quando outra janela o segura. Antes de caçar defeito numa tela
+porque a sonda de teclas falhou, rode de novo: falha que vem sem nada falado depois da introdução é
+do ambiente. Os menus agora têm `g_screen_menu_frame_hook` (`visual_map.nvgt`), que faz para qualquer
+`screen_menu` o que o gancho do cliente faz para os formulários: apertar teclas de dentro do laço.
+**E sonda que grava nas preferências reais tem que devolvê-las em QUALQUER saída**, inclusive na do
+limite de tempo: a primeira versão daquela sonda saía por `exit(1)` no travamento e deixava o modo
+gráfico ligado e a pergunta marcada como feita nas preferências de quem estava na máquina.
+
 Para coisas que só falham no build compilado (o menu de sons, a atualização, caminhos), compile uma
 sonda com `nvgt -c`, rode o `.exe` e grave o resultado num arquivo — o app compilado não tem console.
 
