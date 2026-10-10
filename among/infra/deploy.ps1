@@ -5,14 +5,12 @@
 #   nvgt tools/build_pack.nvgt
 #   nvgt -c -plinux server_main.nvgt
 #   nvgt -c AmongUs.nvgt
-#   infra\deploy.ps1 -StorageAccount <nome>
+#   infra\deploy.ps1
 #
-# O nome do storage sai do `terraform output` (é o site antigo, no Azure, que as versões até a 0.51.0
-# consultam). O servidor e o site novo moram na VPS da Hostinger desde 2026-10-09 - antes o servidor era
-# um contêiner no cluster AKS do Azure. O acesso à VPS está em infra/vps.ps1.
+# O servidor e o site moram na VPS da Hostinger desde 2026-10-09 - antes eram o cluster AKS e um
+# storage do Azure, apagados nesse mesmo dia. O acesso à VPS está em infra/vps.ps1.
 
 param(
-	[Parameter(Mandatory = $true)][string]$StorageAccount,
 	# O nome da imagem do servidor; a etiqueta é o commit.
 	[string]$Image = "amongus-server",
 	# Pular uma das partes é útil quando só o cliente mudou (ou só o servidor).
@@ -199,30 +197,11 @@ if (-not $SkipSite) {
 	}
 
 	Write-Host "Publicando o site e o cliente..."
-	# O site estático mora no container `$web` - é o nome que o Azure exige, não é escolha nossa.
-	az storage blob upload --account-name $StorageAccount --auth-mode login `
-		--container-name '$web' --name "AmongUs.zip" --file $clientZip --overwrite | Out-Null
-	# Os pacotes de Linux e Mac só sobem se existirem: são gerados à parte (ver CLAUDE.md, "Compilar"),
-	# e o de Mac depende de um stub que nem toda máquina tem. Um deploy sem eles publica só o Windows
-	# e deixa os links antigos de pé.
-	foreach ($extra in @("AmongUs-linux.tar.gz", "AmongUs-linux.zip", "AmongUs-mac.iso", "AmongUs-android.apk")) {
-		$path = Join-Path $root $extra
-		if (Test-Path $path) {
-			az storage blob upload --account-name $StorageAccount --auth-mode login `
-				--container-name '$web' --name $extra --file $path --overwrite | Out-Null
-			Write-Host "Publicado $extra"
-		}
-	}
-	az storage blob upload-batch --account-name $StorageAccount --auth-mode login `
-		--destination '$web' --source (Join-Path $PSScriptRoot "site") --overwrite | Out-Null
-
-	$url = az storage account show --name $StorageAccount --query "primaryEndpoints.web" -o tsv
-	Write-Host "Site publicado: $url"
-
-	# E o site novo, na VPS. O do Azure continua de pé por quem está numa versão que procura a
-	# atualização lá (até a 0.51.0); a 0.51.1 em diante procura aqui. Cada arquivo sobe com nome
-	# temporário e é renomeado no fim - nunca se baixa um pacote pela metade - e o version.json é o
-	# ÚLTIMO a trocar, como no Azure: quem o lê já acha os pacotes que ele anuncia.
+	# O site mora na VPS (o do Azure foi apagado em 2026-10-09). Os pacotes de Linux, Mac e Android só
+	# sobem se existirem: são gerados à parte (ver CLAUDE.md, "Compilar"), e o de Mac depende de um stub
+	# que nem toda máquina tem. Cada arquivo sobe com nome temporário e é renomeado no fim - nunca se
+	# baixa um pacote pela metade - e o version.json é o ÚLTIMO a trocar: quem o lê já acha os pacotes
+	# que ele anuncia.
 	$ssh = Vps-SshArgs
 	$arquivos = @($clientZip)
 	foreach ($extra in @("AmongUs-linux.tar.gz", "AmongUs-linux.zip", "AmongUs-mac.iso", "AmongUs-android.apk")) {

@@ -25,8 +25,7 @@
 
 param(
 	[int]$DrainSeconds = 300,
-	[switch]$Conferir,
-	[string]$StorageAccount = "amongusaudiogame"
+	[switch]$Conferir
 )
 
 $ErrorActionPreference = "Stop"
@@ -132,15 +131,15 @@ try {
 
 	Passo "deploy"
 	if ($servidor) {
-		& infra\deploy.ps1 -StorageAccount $StorageAccount -DrainSeconds $DrainSeconds
+		& infra\deploy.ps1 -DrainSeconds $DrainSeconds
 	} else {
-		& infra\deploy.ps1 -StorageAccount $StorageAccount -SkipServer
+		& infra\deploy.ps1 -SkipServer
 	}
 
 	Passo "conferindo no ar"
-	# Os DOIS sites: o novo, que a 0.51.1 em diante consulta, e o do Azure, que as versões até a 0.51.0
-	# consultam - se um ficar para trás, parte dos jogadores não é avisada da atualização.
-	foreach ($site in @("https://amongus.blindtabern.com/", "https://amongusaudiogame.z15.web.core.windows.net/")) {
+	# O site da VPS, que a 0.51.1 em diante consulta. (O do Azure, das versões até a 0.51.0, foi apagado
+	# em 2026-10-09: quem ficou nelas não é mais avisado e precisa baixar o jogo de novo no site.)
+	foreach ($site in @("https://amongus.blindtabern.com/")) {
 		$publicada = (Invoke-RestMethod ($site + "version.json") -Headers @{ "Cache-Control" = "no-cache" }).version
 		if ($publicada -ne $versao) { throw "O site $site anuncia $publicada, e não $versao." }
 		Write-Host "Site $site : $publicada"

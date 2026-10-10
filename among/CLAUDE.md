@@ -250,8 +250,8 @@ Sempre, e nesta ordem:
    limpa e site; regera o `sounds.dat` se um som mudou; compila clientes, Android e - só se o código
    dele mudou desde o commit no ar - o servidor; faz o push, o deploy com aviso aos jogadores, e confere
    no ar o que ficou publicado. `-Conferir` faz só as conferências. Os passos à mão continuam
-   possíveis (`build_clients.ps1`, `build_android.ps1`, `infra\deploy.ps1 -StorageAccount
-   amongusaudiogame [-SkipServer]`), mas cada um deles já escapou calado uma vez.
+   possíveis (`build_clients.ps1`, `build_android.ps1`, `infra\deploy.ps1 [-SkipServer]`), mas cada
+   um deles já escapou calado uma vez.
 
 As duas versões **têm que bater**. O `version.json` é o que os clientes instalados comparam contra si
 mesmos: se ele ficar para trás, ninguém é avisado da atualização.

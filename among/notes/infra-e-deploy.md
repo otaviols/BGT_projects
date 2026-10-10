@@ -206,12 +206,15 @@ parágrafo (é o título dele); depois de gerar, confira que o `version.json` n�
 
 ## Infra — o que não é óbvio
 
-**Desde 2026-10-09 o servidor mora na VPS da Hostinger** (ver "VPS na Hostinger", abaixo), e o que
-fala com ela está em `infra/vps.ps1`. O servidor do cluster ficou com `--replicas=0` (o banco de lá
-parou no backup `among_users_2026-10-09_105901_final_azure.db`; NÃO o religue, ou haverá dois bancos
-divergindo). O site do Azure segue de pé para as versões até a 0.51.0 acharem a atualização. O que vem
-abaixo sobre AKS, `kubectl`, `ghcr-pull` e a assinatura é da época do Azure - serve se um dia for
-preciso voltar ou para desligar de vez o que sobrou (o cluster também roda o fallen-realms).
+**Desde 2026-10-09 o servidor e o site moram na VPS da Hostinger** (ver "VPS na Hostinger", abaixo), e
+o que fala com ela está em `infra/vps.ps1`. **O Azure foi apagado pelo usuário no mesmo dia**: o
+storage do site antigo e os grupos de recursos, cluster incluído (o activity log mostra os
+`storageAccounts/delete`). O banco de lá ficou no backup `among_users_2026-10-09_105901_final_azure.db`.
+Quem ficou numa versão até a 0.51.0 procurava atualização no site do Azure, então não é mais avisado:
+precisa baixar o jogo de novo em amongus.blindtabern.com. Sintoma, se algum script ainda tentar o
+Azure: "Failed to resolve 'amongusaudiogame.blob.core.windows.net'" e "Storage account not found" - foi
+assim que a 0.51.7 descobriu. O que vem abaixo sobre AKS, `kubectl`, `ghcr-pull` e a assinatura é
+histórico.
 
 **Não há VM.** Esta assinatura Azure não consegue criar nenhuma SKU barata
 (`NotAvailableForSubscription` em todas as regiões), e as sem restrição têm **cota zero** — o que não
@@ -261,17 +264,16 @@ do Azure. O que custou descobrir:
 - **O site `amongus.blindtabern.com` mora na VPS** (desde a 0.51.1, que consulta o `version.json`
   lá): registro A na Hostinger, `/etc/nginx/conf.d/amongus.blindtabern.com.conf` servindo
   `/var/www/amongus`, certificado do Let's Encrypt pelo `certbot --nginx` (a renovação é o
-  `certbot.timer` que o painel já tinha). O `deploy.ps1` publica nos DOIS sites - o do Azure segue
-  para as versões até a 0.51.0 - e o `release.ps1` confere os dois no fim. Na VPS cada arquivo sobe
-  como `.nome.novo` e é renomeado no fim, com o `version.json` por último.
+  `certbot.timer` que o painel já tinha). É o único site desde que o do Azure foi apagado
+  (2026-10-09), e o `release.ps1` confere no fim que ele anuncia a versão nova. Cada arquivo sobe como
+  `.nome.novo` e é renomeado no fim, com o `version.json` por último.
 - **"scp: Connection closed" no envio para a VPS = o NOME não está no `known_hosts`.** A chave da
   máquina foi aceita para o IP (primeiro SSH), e o deploy usa o nome `amongus.blindtabern.com`; com
   `BatchMode` o ssh recusa calado (pelo ssh direto aparece "Host key verification failed"). O
   `ssh-keyscan` deste Windows não devolve nada; a entrada do nome foi feita copiando a linha
   ed25519 do IP, depois de conferir que o nome resolve para ele. Ao trocar de VPS, isto volta.
   A 0.51.1 parou aqui: o site do Azure já tinha ido, o da VPS não, e o `release.ps1` não roda de
-  novo com a versão já anunciada - o que falta sai com `infra\deploy.ps1 -StorageAccount
-  amongusaudiogame -SkipServer`.
+  novo com a versão já anunciada - o que falta sai com `infra\deploy.ps1 -SkipServer`.
 - **Texto mandado pelo PowerShell por pipe chega com BOM e `\r`.** Sintoma: `nginx -t` recusa com
   `unknown directive "﻿#"` na linha 1 de um arquivo que parece certo. Tire com
   `sed -i '1s/^\xEF\xBB\xBF//; s/\r$//'`. O nginx recusar um `reload` NÃO o derruba - a configuração
