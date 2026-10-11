@@ -210,6 +210,9 @@ class game_settings {
 	// Quem já tem conta lembrada conta como perguntado: a pergunta é para computador NOVO, e quem já
 	// joga por som não precisa ouvi-la depois de uma atualização.
 	bool visual_map_asked = false;
+	// Com o modo gráfico ligado, não dizer nada em voz alta: o que seria falado vai só para as legendas
+	// (recado #240, quem enxerga e joga lendo). Vale SÓ com o modo ligado - ver visual_on_speech.
+	bool visual_mute_speech = false;
 	// Quem lê a CONVERSA (chat da partida, da sala de espera e do saguão): "igual ao jogo", o leitor de
 	// tela ou a voz do jogo. Pedido do recado #89 e decisão do usuário: duas categorias só - o que as
 	// pessoas escrevem e o que o jogo narra -, para quem quer separar as duas coisas pelo timbre. O
@@ -259,6 +262,7 @@ class game_settings {
 		ghost_own_footsteps = store.read_number("ghost_own_footsteps", 0) != 0;
 		visual_map = store.read_number("visual_map", 0) != 0;
 		visual_map_asked = store.read_number("visual_map_asked", 0) != 0 || visual_map || last_username != "";
+		visual_mute_speech = store.read_number("visual_mute_speech", 0) != 0;
 		chat_voice = store.read_string("chat_voice", CHAT_VOICE_SAME);
 		if (chat_voice != CHAT_VOICE_SR && chat_voice != CHAT_VOICE_TTS) chat_voice = CHAT_VOICE_SAME;
 		if (background_audio != BACKGROUND_AUDIO_QUIET && background_audio != BACKGROUND_AUDIO_MUTE) background_audio = BACKGROUND_AUDIO_NORMAL;
@@ -351,6 +355,7 @@ class game_settings {
 		store.write_number("ghost_own_footsteps", ghost_own_footsteps ? 1 : 0);
 		store.write_number("visual_map", visual_map ? 1 : 0);
 		store.write_number("visual_map_asked", visual_map_asked ? 1 : 0);
+		store.write_number("visual_mute_speech", visual_mute_speech ? 1 : 0);
 		store.write_string("chat_voice", chat_voice);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));

@@ -49,6 +49,19 @@ void main() {
 	r.radar_known = false;
 	r.radar_visible.resize(0);
 
+	println("== falas caladas no modo grafico (recado #240) ==");
+	// Só cala com as DUAS ligadas: a preferência sozinha, com o modo desligado, não pode deixar ninguém mudo.
+	bool tinha_modo = g_settings.visual_map, tinha_mudo = g_settings.visual_mute_speech;
+	g_settings.visual_map = false; g_settings.visual_mute_speech = true;
+	confere("modo desligado: fala mesmo com a opcao de calar ligada", visual_on_speech("um") == "um");
+	g_settings.visual_map = true;
+	confere("modo ligado e calado: nao fala nada", visual_on_speech("dois") == "");
+	confere("e a legenda continua guardada", g_visual_map.captions.length() > 0 && g_visual_map.captions[g_visual_map.captions.length() - 1] == "dois");
+	g_settings.visual_mute_speech = false;
+	confere("modo ligado, fala ligada: fala", visual_on_speech("tres") == "tres");
+	g_settings.visual_map = tinha_modo; g_settings.visual_mute_speech = tinha_mudo;
+	g_visual_map.captions.resize(0);
+
 	println("== marcadores (a MESMA regra do som) ==");
 	game_map@ map = build_the_hub_map();
 	map_object@ duto = map.find_object("vent_navigation");

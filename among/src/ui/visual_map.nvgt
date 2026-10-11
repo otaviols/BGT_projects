@@ -566,10 +566,19 @@ visual_map g_visual_map;
 // O gancho de texto da speech.nvgt: toda fala do jogo passa por aqui. Devolve o texto INTACTO - o leitor
 // de tela fala o mesmo de sempre - e só guarda a legenda. Se ninguém desenhou há pouco (um formulário,
 // uma espera), a própria fala redesenha a tela.
+//
+// Com o modo gráfico ligado e a fala calada (recado #240), devolve "": a speech.nvgt então só interrompe
+// e não diz nada, e o texto fica nas legendas. A preferência só vale com o modo LIGADO - quem desliga o
+// modo gráfico volta a ouvir, mesmo esquecendo a outra opção ligada.
 string visual_on_speech(const string&in t) {
 	g_visual_map.add_caption(t);
 	if (g_visual_map.enabled() && ticks() - g_visual_map.last_draw > VISUAL_IDLE_REDRAW_MS) g_visual_map.draw_captions_screen();
+	if (visual_speech_muted()) return "";
 	return t;
+}
+
+bool visual_speech_muted() {
+	return g_settings.visual_map && g_settings.visual_mute_speech;
 }
 
 // Chamado a cada quadro de todo screen_menu. Só as SONDAS o usam: é por ele que apertam teclas de dentro

@@ -217,7 +217,12 @@ pergunta se a pessoa quer o modo gráfico** (`run_graphics_mode_first_run`, reca
 nasce desligado, e quem enxerga sem leitor de tela não chegava à opção). É um MENU e não "aperte G",
 porque no celular não há gesto que vire G. Durante a pergunta a tela se desenha mesmo com o modo
 desligado, sem tela cheia. "Primeira abertura" = sem `visual_map_asked` gravado E sem conta lembrada:
-quem já joga não ouve a pergunta depois de atualizar. Sonda: `probe_first_run_graphics.nvgt`. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
+quem já joga não ouve a pergunta depois de atualizar. Sonda: `probe_first_run_graphics.nvgt`.
+**Falas caladas, só legendas** (`visual_mute_speech`, recado #240): o gancho `visual_on_speech` devolve
+"" e a speech.nvgt não diz nada. Vale SÓ com o modo gráfico ligado, e a opção só aparece com ele
+ligado - desligar o modo devolve a fala sozinho, para quem joga por som nunca ficar mudo por um toque
+errado. Ao calar, a tela segura o aviso (que diz como voltar) até uma tecla ou 12 s: o menu reaberto
+falaria por cima e o cortaria, e calado aquele corte seria a última coisa ouvida. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
 somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da partida. A regra mora em
 `visual_player_visible`; uma regra paralela divergiria da do som na primeira mudança. A janela é limpa
 ao desligar, no fim da partida e ao sair do Conhecer o mapa - senão fica a nave parada nos menus. Sonda:
