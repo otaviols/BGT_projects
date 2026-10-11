@@ -6,6 +6,28 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.8
+
+**Change your password:** in the match list, the "Change my password" option. It asks for your current
+password and the new one twice. After the change, the account is signed out of any other computer where
+it was open or remembered.
+
+**What's new, in parts:** Enter on a version opens a list with each part of it, and the arrow keys read
+one at a time, instead of everything in one long speech.
+
+**Graphics mode:** in Settings, with graphics mode on, you can turn speech off and keep the text on the
+screen only. Turning graphics mode off brings speech back.
+
+**Watering the plants:** the order of the beds now changes every time.
+
+**Fixed:**
+
+- asking for more tasks than the ship has gave everyone far fewer than exist. Now you get all of them;
+- pasting text (Ctrl+V) with nothing copied sent the player back to the main menu.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.51.7
 
 **Shift plus the ability key tells you how long until it recharges**, or "ready", without using it. For

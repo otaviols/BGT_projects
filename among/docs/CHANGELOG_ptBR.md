@@ -6,6 +6,27 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.8
+
+**Trocar a senha:** na lista de partidas, a opção "Trocar a senha". Ela pede a senha atual e a nova duas
+vezes. Ao trocar, a conta sai de qualquer outro computador em que estivesse aberta ou lembrada.
+
+**Novidades em partes:** Enter numa versão abre uma lista com cada parte dela, e as setas leem uma por
+vez, em vez de tudo numa fala só.
+
+**Modo gráfico:** nas Configurações, com o modo gráfico ligado, dá para desligar as falas e deixar o texto
+só na tela. Desligando o modo gráfico, as falas voltam.
+
+**Regar as plantas:** a ordem dos canteiros agora muda a cada vez.
+
+**Corrigido:**
+
+- pedindo mais tarefas do que a nave tem, cada um recebia bem menos do que existe. Agora recebe todas;
+- colar texto (Ctrl+V) com nada copiado devolvia o jogador ao menu inicial.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.7
 
 **Shift + a tecla da habilidade diz quanto falta para ela recarregar**, ou "pronta", sem usá-la. Para
