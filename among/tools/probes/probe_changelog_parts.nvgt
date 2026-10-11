@@ -1,0 +1,40 @@
+// Sonda da divisão de uma versão das Novidades em partes (recado #237: a versão inteira numa fala só).
+//   nvgt tools/probes/probe_changelog_parts.nvgt
+// Usa o histórico de VERDADE, na versão 0.51.5, que tem de tudo: parágrafo de várias linhas, título em
+// negrito, lista com itens que continuam na linha de baixo. Confere que cada item de lista vira UMA
+// parte (inteiro, com a continuação), que o parágrafo quebrado em linhas vira uma só, e que nenhuma
+// parte leva marcação ("**", "- ") nem quebra de linha.
+#include "../../src/ui/changelog_screen.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	array<changelog_entry@>@ entries = parse_changelog(file_get_contents("docs/CHANGELOG_ptBR.md"));
+	changelog_entry@ e = null;
+	for (uint i = 0; i < entries.length(); i++) if (entries[i].version == "0.51.5") @e = entries[i];
+	if (@e == null) { println("a 0.51.5 sumiu do historico"); exit(1); }
+	array<string>@ partes = changelog_parts(e.text);
+	for (uint i = 0; i < partes.length(); i++) println("  [" + i + "] " + partes[i]);
+	bool limpas = true;
+	for (uint i = 0; i < partes.length(); i++) {
+		if (partes[i].find("**") >= 0 || partes[i].find("\n") >= 0 || partes[i].starts_with("- ")) limpas = false;
+	}
+	confere("nenhuma parte com marcacao ou quebra de linha", limpas);
+	// O primeiro parágrafo ocupa duas linhas no arquivo: tem que vir inteiro, numa parte só.
+	confere("parágrafo de duas linhas numa parte so", partes.length() > 0 && partes[0].find("mudou de casa") >= 0 && partes[0].find("0.51.1") >= 0);
+	// Os itens da lista de "Corrigido" são três, e o do motor continua na linha de baixo.
+	int itens_do_motor = 0;
+	for (uint i = 0; i < partes.length(); i++) if (partes[i].find("alinhar o motor") >= 0) itens_do_motor++;
+	bool motor_inteiro = false;
+	for (uint i = 0; i < partes.length(); i++) if (partes[i].find("alinhar o motor") >= 0 && partes[i].find("sem") >= 0 && partes[i].find("mexer em nada") >= 0) motor_inteiro = true;
+	confere("o item do motor e UMA parte, com a continuacao da linha de baixo", itens_do_motor == 1 && motor_inteiro);
+	confere("partes suficientes (paragrafos e itens separados: " + partes.length() + ")", partes.length() >= 7);
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

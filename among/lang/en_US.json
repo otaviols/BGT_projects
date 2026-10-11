@@ -27,7 +27,7 @@
   "changelog.hint": "Choose a version to hear what changed in it.",
   "changelog.item": "Version {version}",
   "changelog.item_current": "Version {version} (yours)",
-  "changelog.read": "Version {version}. {text} Press any key to go back.",
+  "changelog.parts_hint": "Version {version}. Use the arrow keys to hear each part, and Esc to go back to the versions.",
   "changelog.missing": "The version history did not come with this copy of the game.",
   "update.manual_platform": "A new version is out. On this system updating is still manual: opening the download page.",
   "volume.music": "Music",

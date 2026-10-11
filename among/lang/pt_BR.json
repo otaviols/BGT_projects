@@ -27,7 +27,7 @@
   "changelog.hint": "Escolha uma versão para ouvir o que mudou nela.",
   "changelog.item": "Versão {version}",
   "changelog.item_current": "Versão {version} (a sua)",
-  "changelog.read": "Versão {version}. {text} Aperte qualquer tecla para voltar.",
+  "changelog.parts_hint": "Versão {version}. Use as setas para ouvir cada parte, e Esc para voltar às versões.",
   "changelog.missing": "O histórico de versões não veio com esta cópia do jogo.",
   "update.manual_platform": "Saiu uma versão nova. Neste sistema a atualização ainda é manual: vou abrir a página de download.",
   "volume.music": "Música",

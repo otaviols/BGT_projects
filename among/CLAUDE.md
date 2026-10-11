@@ -394,6 +394,13 @@ byte solto que o leitor de tela lê como lixo. Para tamanho ou corte de texto qu
 `utf8_length`/`utf8_truncate` (`src/core/utf8.nvgt`). E `s[i]` devolve um texto, não um byte: o byte é
 `character_to_ascii(s.substr(i, 1))`. Sonda: `probe_text_limits.nvgt`.
 
+**`string.split` DESCARTA os pedaços vazios por padrão** - `split(delim, full = true, allow_blanks = false)`.
+Para manter linhas em branco é o TERCEIRO parâmetro (`split("\n", true, true)`); o segundo é outra coisa
+(o delimitador conta inteiro ou por caractere), e passar `false` nele não muda nada para "\n". Sintoma
+(0.51.8): as Novidades em partes grudavam cada parágrafo no título seguinte, porque as linhas em branco
+que os separam tinham sumido. E texto vazio vira lista VAZIA, sem o item 0 - o crash do colar da
+`form.nvgt`, acima.
+
 **`sound.stream_pcm` BLOQUEIA quando o buffer do stream enche - e para sempre se o som parou.** É o
 "o jogo não responde" sem `crash.log`: não é exceção, é o jogo preso numa chamada nativa. Nunca
 escreva num stream sem saber quanto ainda cabe (a voz descarta acima de 1 s esperando e refaz o som

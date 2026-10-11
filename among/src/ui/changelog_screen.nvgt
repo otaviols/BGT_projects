@@ -47,7 +47,9 @@ string changelog_file_for_language() {
 // "## x.y.z" abre uma versão, e o resto do texto até o próximo "## " é o corpo dela.
 array<changelog_entry@>@ parse_changelog(const string&in contents) {
 	array<changelog_entry@> entries;
-	array<string>@ lines = contents.replace("\r", "", true).split("\n");
+	// Com as linhas vazias (o terceiro parâmetro, allow_blanks): são elas que separam as partes de uma
+	// versão (changelog_parts). O split do NVGT as descarta por padrão.
+	array<string>@ lines = contents.replace("\r", "", true).split("\n", true, true);
 	changelog_entry@ current = null;
 	for (uint i = 0; i < lines.length(); i++) {
 		string line = lines[i];
@@ -78,6 +80,54 @@ string speakable_markdown(const string&in text) {
 	return join(partes, " ");
 }
 
+// As partes de uma versão, uma por item: cada parágrafo e cada item de lista. No markdown um parágrafo
+// ocupa várias linhas (quebradas em ~100 colunas), e é a linha em branco que o fecha; o item de lista
+// abre com "- " e continua nas linhas recuadas logo abaixo.
+array<string>@ changelog_parts(const string&in text) {
+	array<string> partes;
+	string atual = "";
+	// allow_blanks (o terceiro parâmetro) mantém as linhas VAZIAS: o split do NVGT as descarta por padrão,
+	// e é a linha em branco que separa um parágrafo do outro - sem ela, cada parágrafo grudava no título
+	// que vem depois. (O segundo parâmetro é outra coisa: se o delimitador conta inteiro ou por caractere.)
+	array<string>@ lines = text.split("\n", true, true);
+	for (uint i = 0; i < lines.length(); i++) {
+		string l = lines[i].trim_whitespace();
+		bool item = l.starts_with("- ") || l.starts_with("* ");
+		if (l == "" || item) {
+			if (atual != "") partes.insert_last(speakable_markdown(atual));
+			atual = "";
+			if (l == "") continue;
+		}
+		atual += (atual == "" ? "" : " ") + l;
+	}
+	if (atual != "") partes.insert_last(speakable_markdown(atual));
+	return partes;
+}
+
+// Uma versão em partes: as setas leem uma a uma, Esc volta à lista de versões. Era uma fala só com a
+// versão inteira, e numa versão grande o que vinha no meio já tinha sido esquecido quando ela acabava
+// (recado #237) - sem como voltar a um trecho sem ouvir tudo de novo.
+void run_changelog_version_screen(changelog_entry@ e) {
+	array<string>@ partes = changelog_parts(e.text);
+	dictionary@ p = dictionary();
+	p.set("version", e.version);
+	screen_menu m;
+	m.intro_text = tr("changelog.parts_hint", p);
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	for (uint i = 0; i < partes.length(); i++) m.add_item(partes[i], "" + i);
+	m.add_item(tr("menu.back"), "__back__");
+	// Enter numa parte a lê de novo e continua na lista; só Voltar ou Esc saem.
+	while (true) {
+		m.run();
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		speak(partes[uint(parse_int(id))]);
+	}
+}
+
 void run_changelog_screen() {
 	string caminho = changelog_file_for_language();
 	if (caminho == "") { speak(tr("changelog.missing")); return; }
@@ -100,16 +150,6 @@ void run_changelog_screen() {
 		m.run();
 		string id = m.selected_item_id;
 		if (id == "" || id == "__back__") return;
-		changelog_entry@ e = entries[uint(parse_int(id))];
-		dictionary@ p = dictionary();
-		p.set("version", e.version);
-		p.set("text", speakable_markdown(e.text));
-		speak(tr("changelog.read", p));
-		// Deixa a fala correr; qualquer tecla volta à lista.
-		timer t;
-		while (t.elapsed < 60000) {
-			wait(20);
-			if (keys_pressed().length() > 0) break;
-		}
+		run_changelog_version_screen(entries[uint(parse_int(id))]);
 	}
 }
