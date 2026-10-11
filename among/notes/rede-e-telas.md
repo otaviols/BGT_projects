@@ -164,6 +164,14 @@ computador seguiria "dentro" de uma conta que não existe. `user_stats` é apaga
 `tools/probes/probe_delete_account.nvgt` (o nome ficar livre para cadastro é a prova de que a linha
 saiu do banco, e não só a sessão).
 
+**Trocar a senha segue o mesmo molde** (`C_CHANGE_PASSWORD`, recado #239): pede a atual, só do saguão,
+e apaga TODAS as sessões lembradas da conta - trocar a senha é o que se faz para expulsar alguém, e o
+"lembrar de mim" num computador emprestado continuaria entrando. Quem trocou recebe um token novo se
+este computador lembrava a conta, senão o próximo início pediria a senha sem explicar. O tamanho mínimo
+(`MIN_PASSWORD_LENGTH`) mora no `game_constants`, porque os dois lados o aplicam. Trocar o NOME ficou
+de fora de propósito: o nome é o login, e trocá-lo abriria caminho para alguém se passar por outra
+pessoa. Sonda: `probe_change_password.nvgt`.
+
 ## Sala de espera e saguão
 
 **O saguão é derivado, não declarado.** "Estar no saguão" é `autenticado && lobby_id == ""`

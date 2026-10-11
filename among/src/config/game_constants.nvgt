@@ -113,6 +113,9 @@ const float TAG_HEAD_START_SECONDS = 10.0;
 const int MODES_PROTOCOL = 9;
 float move_speed_for_percent(int percent) { return PLAYER_MOVE_SPEED * float(percent) / 100.0; }
 const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servidor (anti-cheat simples)
+// Tamanho mínimo de senha. Aqui, e não no banco, porque os DOIS lados a aplicam: o servidor no cadastro
+// e na troca, e a tela de trocar a senha antes de mandar (recado #239).
+const uint MIN_PASSWORD_LENGTH = 6;
 const float PLAYER_INTERACT_RANGE = 1.4; // distância máxima para usar objetos/tasks/vents
 const float PLAYER_KILL_RANGE = 1.2;
 const float PLAYER_REPORT_RANGE = 2.0;

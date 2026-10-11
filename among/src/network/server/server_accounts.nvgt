@@ -119,6 +119,30 @@ mixin class server_accounts_part {
 		send_hall_state(); // saiu da lista de quem está online
 	}
 
+	// Troca a senha de quem está conectado (recado #239). Confere a ATUAL de novo, como o apagar conta: o
+	// token lembrado num computador emprestado não pode bastar. Só do saguão, pelo mesmo motivo de lá - é
+	// onde a tela existe, e uma partida não é hora de mexer em conta.
+	//
+	// Trocou: todas as sessões lembradas caem (change_password) e as outras conexões da conta também -
+	// quem troca a senha está, quase sempre, expulsando alguém. Se o pedido diz que este computador
+	// lembrava a conta, ele recebe um token novo, senão o próximo início pediria a senha sem explicar.
+	void on_change_password(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		net_packet@ result = net_packet(S_CHANGE_PASSWORD_RESULT);
+		string fail = "";
+		if (@conn == null || !conn.authenticated) fail = "account.delete_not_logged_in";
+		else if (conn.lobby_id != "") fail = "account.password_in_lobby";
+		else if (!g_user_db.verify_login(conn.username, pkt.get_string("password"))) fail = "account.password_wrong_current";
+		if (fail == "") fail = g_user_db.change_password(conn.username, pkt.get_string("new_password"));
+		result.set_bool("ok", fail == "");
+		result.set_string("message", fail == "" ? "account.password_changed" : fail);
+		if (fail == "" && pkt.get_bool("remember")) result.set_string("session_token", g_user_db.create_session(conn.username));
+		send_to(peer_id, result);
+		if (fail != "") return;
+		println("[conta] senha trocada: " + conn.username);
+		drop_other_sessions(peer_id, conn.username);
+	}
+
 	// A cor que o jogador quer, escolhida na sala de espera (tecla E). Só da sala, e só antes da
 	// partida: a cor da partida é decidida no início. Quem chegou primeiro fica com a cor - a unicidade
 	// é garantida AQUI, na hora da escolha, para o início da partida não ter conflito a resolver e a

@@ -247,6 +247,14 @@ class game_client {
 		send(p);
 	}
 
+	void send_change_password(const string&in password, const string&in new_password, bool remember) {
+		net_packet@ p = net_packet(C_CHANGE_PASSWORD);
+		p.set_string("password", password);
+		p.set_string("new_password", new_password);
+		p.set_bool("remember", remember);
+		send(p);
+	}
+
 	void send_register(const string&in username, const string&in password) {
 		net_packet@ p = net_packet(C_REGISTER);
 		p.set_string("username", username);

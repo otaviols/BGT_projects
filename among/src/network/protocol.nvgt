@@ -52,6 +52,9 @@ const string C_LOGOUT = "c_logout";               // {token} - esquece este comp
 // Apaga a conta de quem está logado. Pede a SENHA mesmo para quem entrou por token: o token lembrado
 // num computador emprestado não pode bastar para apagar uma conta.
 const string C_DELETE_ACCOUNT = "c_delete_account"; // {password}
+// Troca a senha de quem está logado, pedindo a atual (pelo mesmo motivo do apagar conta). `remember`
+// diz se este computador lembrava a conta: trocar apaga todas as sessões lembradas, e ele recebe outra.
+const string C_CHANGE_PASSWORD = "c_change_password"; // {password, new_password, remember}
 // A cor que o jogador quer na sala de espera (-1 = sem preferência, sortear). Só vale quando a sala
 // deixa escolher (lobby_config.color_choice); fora disso fica guardada e não é usada. A resposta é o
 // S_LOBBY_STATE de sempre, e S_ERROR "lobby.color_taken" se outra pessoa da sala já a escolheu.
@@ -293,6 +296,7 @@ const string S_HALL_EVENT = "s_hall_event";                 // {kind: created|st
 // mandar feedback é falar no vácuo, e quem não tem certeza de que chegou manda de novo.
 const string S_FEEDBACK_ACK = "s_feedback_ack";             // {ok}
 const string S_DELETE_ACCOUNT_RESULT = "s_delete_account_result"; // {ok, message}
+const string S_CHANGE_PASSWORD_RESULT = "s_change_password_result"; // {ok, message, session_token?}
 const string S_FEEDBACK_REPLIES = "s_feedback_replies";     // {replies: [{reply_id, feedback_id, feedback_text, reply_text, created_at}]}
 const string S_FEEDBACK_HISTORY = "s_feedback_history";     // {messages: [{feedback_id, text, created_at, replies: [{reply_id, text, created_at, read}]}]}, do mais novo
 const string S_ADMIN_RESULT = "s_admin_result";             // {ok, message} - só para a ferramenta de administração

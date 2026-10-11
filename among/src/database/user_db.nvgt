@@ -6,13 +6,13 @@
 #pragma plugin nvgt_sqlite
 #include "sqlite3constants.nvgt"
 #include "models.nvgt"
+#include "../config/game_constants.nvgt" // MIN_PASSWORD_LENGTH
 
 const uint PASSWORD_HASH_ITERATIONS = 20000;
 // Quantos recados o histórico devolve: os mais recentes. Um pacote só, e ninguém relê o centésimo.
 const int FEEDBACK_HISTORY_LIMIT = 50;
 const uint MIN_USERNAME_LENGTH = 3;
 const uint MAX_USERNAME_LENGTH = 20;
-const uint MIN_PASSWORD_LENGTH = 6;
 
 // Nomes de coluna permitidos para update_stat(); nunca interpolar stat_name livre na query.
 array<string>@ allowed_stat_columns() {
@@ -550,6 +550,28 @@ class user_database {
 			valid = stored_hash == hash_password(password, salt);
 		}
 		return valid;
+	}
+
+	// Troca a senha (recado #239), com sal NOVO - o mesmo caminho do cadastro. E apaga TODAS as sessões
+	// lembradas da conta: trocar a senha é o que se faz quando se desconfia que alguém mais a sabe, e um
+	// "lembrar de mim" num computador emprestado continuaria entrando sem ela. Quem trocou recebe uma
+	// sessão nova, se a tinha (ver on_change_password). Devolve a chave do erro, ou "" se trocou.
+	string change_password(const string&in username, const string&in new_password) {
+		if (@db == null) return "account.password_failed";
+		if (new_password.length() < MIN_PASSWORD_LENGTH) return "account.password_too_short";
+		string salt = string_base64_encode(random_bytes(16));
+		// Em variáveis NOMEADAS: bind_text(..., false) não copia, e um temporário morreria antes do step
+		// (ver create_session).
+		string hash = hash_password(new_password, salt);
+		sqlite3statement@ st = db.prepare("UPDATE users SET password_hash = ?, salt = ? WHERE username = ?");
+		if (@st == null) return "account.password_failed";
+		st.bind_text(1, hash, false);
+		st.bind_text(2, salt, false);
+		st.bind_text(3, username, false);
+		if (st.step() != SQLITE_DONE) return "account.password_failed";
+		sqlite3statement@ sess = db.prepare("DELETE FROM sessions WHERE username = ?");
+		if (@sess != null) { sess.bind_text(1, username, false); sess.step(); }
+		return "";
 	}
 
 	int get_user_id(const string&in username) {
