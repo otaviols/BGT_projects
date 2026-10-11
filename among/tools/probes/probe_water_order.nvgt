@@ -1,0 +1,28 @@
+// Sonda da ordem sorteada de regar as plantas (recado #244: era sempre esquerda, meio, direita).
+//   nvgt tools/probes/probe_water_order.nvgt
+// Em 400 sorteios: toda ordem usa os três canteiros uma vez cada, nenhuma começa no meio (onde o
+// regador já está - o primeiro canteiro sairia sem movimento), e as QUATRO ordens possíveis aparecem
+// (um sorteio que só devolvesse uma passaria nas duas primeiras conferências).
+#include "../../src/game/tasks/water_plants.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	bool todas_validas = true, nenhuma_no_meio = true;
+	dictionary vistas;
+	for (int n = 0; n < 400; n++) {
+		array<uint>@ o = watering_order();
+		if (o.length() != 3 || o.find(0) < 0 || o.find(1) < 0 || o.find(2) < 0) todas_validas = false;
+		if (o.length() > 0 && o[0] == WATERING_CAN_START) nenhuma_no_meio = false;
+		vistas.set("" + o[0] + o[1] + o[2], true);
+	}
+	confere("toda ordem rega os tres canteiros, uma vez cada", todas_validas);
+	confere("nenhuma comeca no canteiro do meio", nenhuma_no_meio);
+	confere("as quatro ordens possiveis aparecem (" + vistas.get_size() + ")", vistas.get_size() == 4);
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

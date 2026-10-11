@@ -3,9 +3,10 @@
 // canteiro do meio, e o jogador precisa LEVÁ-LO até o canteiro da vez com as setas esquerda/direita
 // antes de apertar Espaço. Regar no lugar errado não rega nada.
 //
-// A ordem é sempre esquerda, meio, direita: o jogador sai do centro, vai uma casa pra esquerda, rega,
-// volta pro meio, rega, e segue pra direita. Cada canteiro exige um movimento diferente, então
-// nenhum dos três é resolvido pelo mesmo gesto do anterior.
+// A ordem é SORTEADA a cada vez (recado #244: era sempre esquerda, meio, direita, e decorada a tarefa
+// deixava de pedir que se ouvisse). O sorteio só tira as ordens que começam no meio: o regador já está
+// lá, e o primeiro canteiro sairia sem movimento nenhum. Em qualquer outra, cada canteiro exige um
+// movimento diferente do anterior - o que a ordem fixa existia para garantir.
 //
 // Uma versão anterior era só segurar Espaço até ouvir o canteiro encher. Não havia nada pra decidir:
 // o jogador segurava, ouvia, soltava - três vezes seguidas o mesmo gesto, e igual ao que a task de
@@ -17,12 +18,22 @@
 // Pan de cada posição: esquerda, centro, direita. O índice é a posição do regador.
 const array<float> PLANT_PANS = {-100.0, 0.0, 100.0};
 
-// Em que ordem os canteiros precisam ser regados. Começando o regador no meio (índice 1), esta
-// ordem obriga a sequência esquerda -> volta ao meio -> direita.
-const array<uint> WATERING_ORDER = {0, 1, 2};
-
 // Onde o regador começa: o canteiro do meio.
 const uint WATERING_CAN_START = 1;
+
+// Uma ordem de rega sorteada: as três posições embaralhadas, nunca começando onde o regador já está.
+array<uint>@ watering_order() {
+	array<uint> ordem = {0, 1, 2};
+	do {
+		for (int i = 2; i > 0; i--) {
+			int j = random(0, i);
+			uint t = ordem[i];
+			ordem[i] = ordem[j];
+			ordem[j] = t;
+		}
+	} while (ordem[0] == WATERING_CAN_START);
+	return ordem;
+}
 
 // A frase que anuncia cada canteiro, na ordem dos índices de PLANT_PANS. É um array, e não uma
 // chave montada com o índice concatenado, pra que uma chave faltando apareça como texto errado na
@@ -41,9 +52,10 @@ bool run_water_plants_task(game_client@ client) {
 	if (!task_wait(500, client)) return false;
 
 	uint can_position = WATERING_CAN_START;
+	array<uint>@ ordem = watering_order();
 
-	for (uint step = 0; step < WATERING_ORDER.length(); step++) {
-		uint target = WATERING_ORDER[step];
+	for (uint step = 0; step < ordem.length(); step++) {
+		uint target = ordem[step];
 		speak(tr(PLANT_PROMPT_KEYS[target]));
 
 		bool watered = false;
