@@ -157,4 +157,10 @@ proporção exata. A configuração é **total + quantas longas** (não uma cont
 curtas são o resto, ninguém faz conta, e as versões anteriores, que só mandavam o total, continuam
 entendidas. Sonda: `tools/probes/probe_task_mix.nvgt`.
 
+**Pedir mais tarefas do que a nave tem entrega TODAS as que existem - 24 hoje** (27 pontos, menos o
+cartão comum e os dois pontos do meio de correntes; às vezes 23, quando o scanner foi para outro pelo
+teto de visíveis). Não há teto no formulário: quem pede 30 recebe 24. Até a 0.51.7 recebia 18 ou 19
+(recado #241): as curtas acabavam, e a sobra só passava às longas se coubesse INTEIRA - senão se perdia
+toda. A `probe_task_mix` agora cobra o caso de 30.
+
 

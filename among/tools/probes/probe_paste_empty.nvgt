@@ -1,0 +1,44 @@
+// Sonda do Ctrl+V com a área de transferência VAZIA num campo de uma linha (recado #237):
+//   nvgt tools/probes/probe_paste_empty.nvgt
+//
+// O `paste_text` do form.nvgt do NVGT parte o texto colado por linhas e lê a primeira - e com a área de
+// transferência vazia a lista vem vazia: "Index out of bounds" em control::paste_text(). No jogo, o
+// try da sessão pegava o erro e devolvia o jogador ao menu inicial. O conserto está na INSTALAÇÃO do
+// NVGT (ver CLAUDE.md); esta sonda diz se a instalação desta máquina tem o conserto.
+// Mexe na área de transferência de quem está na máquina: guarda e devolve.
+#include "form.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+string calado(const string&in t) { return ""; }
+
+void main() {
+	show_window("sonda: colar vazio");
+	@tts_default_text_processing_callback = calado;
+	string guardado = clipboard_get_text();
+	clipboard_set_text("");
+	audio_form f;
+	f.create_window("colar", false, true);
+	int campo = f.create_input_box("nome", "abc");
+	f.focus(campo);
+	bool quebrou = false;
+	try {
+		for (int quadro = 0; quadro < 120; quadro++) {
+			if (quadro == 40) { simulate_key_down(KEY_LCTRL); simulate_key_down(KEY_V); }
+			if (quadro == 43) { simulate_key_up(KEY_V); simulate_key_up(KEY_LCTRL); }
+			f.monitor();
+			wait(5);
+		}
+	} catch {
+		quebrou = true;
+		println("  erro: " + get_exception_info());
+	}
+	clipboard_set_text(guardado);
+	confere("Ctrl+V com a area de transferencia vazia nao quebra o formulario", !quebrou);
+	confere("e o campo continua com o texto que tinha", f.get_text(campo) == "abc");
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

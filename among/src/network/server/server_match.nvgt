@@ -239,7 +239,11 @@ mixin class server_match_part {
 				if (want_short > short_pool.length()) {
 					uint sobra = want_short - short_pool.length();
 					want_short = short_pool.length();
-					if (want_long + sobra <= long_pool.length()) want_long += sobra;
+					// Até onde as longas aguentarem. Era "só se a sobra INTEIRA couber" - e quando não
+					// cabia, a sobra inteira se perdia: com 30 tarefas pedidas, cada um recebia 18 ou 19
+					// num mapa que tem 24 (recado #241).
+					want_long += sobra;
+					if (want_long > long_pool.length()) want_long = long_pool.length();
 				}
 				// As duas categorias saem pelo MESMO caminho e compartilham o teto por sala: separar
 				// deixaria um jogador com duas longas e duas curtas na mesma sala.

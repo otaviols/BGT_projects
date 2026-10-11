@@ -339,6 +339,13 @@ não existe. A linha foi trocada por `menu@ m = menu(); m.intro_text = intro;` e
 (a original ficou ao lado, `.orig_2026-10-06`). **Reinstalou o NVGT? Confira se ainda precisa** - até o
 NVGT corrigir, todo reinstalar desfaz o conserto.
 
+**E a `form.nvgt` (todas as builds até a de 06/10/2026) quebra no Ctrl+V com a área de transferência
+VAZIA** num campo de uma linha: "Index out of bounds" em `control::paste_text()` - o `split` de um texto
+vazio devolve lista vazia, e ele lê o item 0. No jogo o `try` da sessão pega e o jogador volta ao menu
+inicial (recado #237, o crash.log dizia "contexto: sessao"). Também corrigida à mão em
+`C:\nvgt\include\form.nvgt` (original ao lado, `.orig_2026-10-06`); o jogo compilado leva a include de
+quem compilou, então só sai consertado de uma máquina consertada. Sonda: `probe_paste_empty.nvgt`.
+
 **A `menu.nvgt` instalada pode ser mais velha que a documentação.** A daqui **não** suporta a forma
 `"som{1...6}.wav"` — ela entrega esse texto direto ao carregador, não acha o arquivo e fica muda, sem
 erro. Use lista separada por vírgula, que funciona nas duas versões (ver `sound_variants_list`).

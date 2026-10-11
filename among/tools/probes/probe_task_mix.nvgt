@@ -12,24 +12,24 @@ net_packet@ wf(game_client@ c, const string&in t, int ms) {
 	return null;
 }
 
-void mede(int total, int longas) {
+uint mede(int total, int longas) {
 	server_address addr = resolve_server_address();
 	string name = "mix" + random(10000, 99999);
 	game_client c;
-	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+	if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return 0; }
 	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
 	c.send_register(name, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
 	c.send_login(name, "probe123");
-	if (@wf(c, S_LOGIN_RESULT, 5000) == null) { println("login falhou"); return; }
+	if (@wf(c, S_LOGIN_RESULT, 5000) == null) { println("login falhou"); return 0; }
 	lobby_overrides ov;
 	ov.impostor_count = 1; ov.task_count_per_crewmate = total; ov.long_task_count = longas;
 	c.send_create_lobby("mix", "classic", ov);
-	if (@wf(c, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return; }
+	if (@wf(c, S_LOBBY_STATE, 5000) == null) { println("sem sala"); return 0; }
 	for (int b = 0; b < 3; b++) { c.send_add_bot(); timer w; while (w.elapsed < 150) { c.update(); c.clear_incoming(); wait(5); } }
 	c.send_start_game();
 	net_packet@ start = wf(c, S_GAME_START, 8000);
-	if (@start == null) { println("nao comecou"); return; }
-	if (role_for(start.get_string("your_role")).team == TEAM_IMPOSTOR) { c.disconnect(); mede(total, longas); return; } // impostor não tem tarefa: repete
+	if (@start == null) { println("nao comecou"); return 0; }
+	if (role_for(start.get_string("your_role")).team == TEAM_IMPOSTOR) { c.disconnect(); return mede(total, longas); } // impostor não tem tarefa: repete
 	json_array@ tasks = start.get_array("tasks");
 	uint n_longas = 0, n_curtas = 0, n_comuns = 0;
 	for (uint i = 0; i < tasks.length(); i++) {
@@ -41,6 +41,7 @@ void mede(int total, int longas) {
 	println("pedido: " + total + " no total (" + longas + " longas) -> recebido: " + n_longas + " longas, "
 		+ n_curtas + " curtas, " + n_comuns + " comuns (total " + (n_longas + n_curtas + n_comuns) + ")");
 	c.disconnect();
+	return n_longas + n_curtas + n_comuns;
 }
 
 void main() {
@@ -48,4 +49,9 @@ void main() {
 	mede(6, 0);
 	mede(6, 6); // mais longas do que o mapa tem: o total tem que ser mantido com curtas
 	mede(4, 4);
+	// Mais tarefas do que a nave tem (recado #241): recebe TODAS as que existem. As curtas acabavam e a
+	// sobra só ia para as longas se coubesse INTEIRA - senão se perdia, e 30 pedidas davam 18 ou 19 num
+	// mapa de 24. 22 deixa folga para o scanner, que pode ter saído para outro (teto de tarefas visíveis).
+	uint muitas = mede(30, 2);
+	println((muitas >= 22 ? "ok     " : "FALHA  ") + "30 pedidas: recebe todas as que a nave tem (" + muitas + ", esperado >= 22)");
 }
