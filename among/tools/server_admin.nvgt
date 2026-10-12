@@ -10,6 +10,7 @@
 //   reply <id> <texto...>       -> responde a um recado; o jogador ouve dentro do jogo
 //   resolve <id> [until|undo]   -> arquiva um recado (until: todos até ele; undo: desarquiva)
 //   translations <pasta> [keep] -> traz as traduções enviadas pelo jogo e as APAGA do servidor
+//   password <conta> <senha>    -> define a senha de uma conta (quem esqueceu a dele)
 //   (o token vem de AMONGUS_ADMIN_TOKEN; AMONGUS_SERVER_HOST aponta para outro servidor)
 //
 // Eram quatro programas quase iguais (este, reply_feedback, resolve_feedback e read_translations), cada
@@ -120,6 +121,17 @@ void cmd_resolve(game_client@ c, const string&in token) {
 	else println(n + " recado(s) arquivado(s).");
 }
 
+// A senha não é impressa de volta: a saída desta ferramenta vai para o terminal e para o histórico.
+void cmd_password(game_client@ c, const string&in token) {
+	if (ARGS.length() < 4) { println("uso: password <nome da conta> <senha nova>"); return; }
+	c.send_admin_set_password(token, ARGS[2], ARGS[3]);
+	net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
+	if (@r != null && r.get_bool("ok")) println("Senha definida para a conta '" + r.get_string("message") + "'. Ela saiu de onde estava aberta e precisa entrar com a senha nova.");
+	else if (@r != null && r.get_string("message") == "account_not_found") println("Recusado: nao existe conta com esse nome.");
+	else if (@r != null && r.get_string("message") == "account.password_too_short") println("Recusado: a senha precisa de pelo menos " + MIN_PASSWORD_LENGTH + " caracteres.");
+	else println("Recusado: " + motivo(r));
+}
+
 // Cada envio vira <código>__<usuário>.json na pasta e é APAGADO do servidor depois de gravado (a menos
 // de "keep"): o banco do servidor é caixa de entrada, não arquivo.
 void cmd_translations(game_client@ c, const string&in token) {
@@ -155,7 +167,7 @@ void main() {
 	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
 	if (token == "") { println("erro=AMONGUS_ADMIN_TOKEN nao definido - use infra\\admin.ps1"); exit(2); }
 	string cmd = ARGS[1];
-	array<string> conhecidos = {"status", "drain", "notice", "platforms", "reply", "resolve", "translations"};
+	array<string> conhecidos = {"status", "drain", "notice", "platforms", "reply", "resolve", "translations", "password"};
 	if (conhecidos.find(cmd) < 0) { println("erro=comando desconhecido " + cmd); exit(2); }
 
 	server_address address = resolve_server_address();
@@ -172,5 +184,6 @@ void main() {
 	else if (cmd == "reply") cmd_reply(c, token);
 	else if (cmd == "resolve") cmd_resolve(c, token);
 	else if (cmd == "translations") cmd_translations(c, token);
+	else if (cmd == "password") cmd_password(c, token);
 	c.disconnect();
 }

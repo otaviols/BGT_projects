@@ -157,6 +157,10 @@ const string C_ADMIN_PLATFORMS = "c_admin_platforms"; // {token, days}
 // Recado fixo do saguão. Texto VAZIO apaga. Existe para avisar os jogadores de algo (uma versão
 // nova no site, uma manutenção) sem publicar uma versão do jogo só por causa do aviso.
 const string C_ADMIN_SET_NOTICE = "c_admin_set_notice"; // {token, text}
+// Define a senha de uma conta - para quem esqueceu a dele (o jogo não guarda e-mail, então não há
+// recuperação pelo jogador). O nome é achado sem diferenciar maiúsculas. Resposta: S_ADMIN_RESULT com
+// o nome exato da conta em `message`.
+const string C_ADMIN_SET_PASSWORD = "c_admin_set_password"; // {token, username, password}
 
 // Servidor -> Cliente
 const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id, session_token?} - peer_id = como o SERVIDOR me identifica

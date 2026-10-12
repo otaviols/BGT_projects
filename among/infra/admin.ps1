@@ -18,6 +18,7 @@
 #   infra\admin.ps1 drenar 120                 # avisa todo mundo e trava partidas novas por 2 minutos
 #   infra\admin.ps1 plataformas 30             # jogadores distintos por plataforma e versão nos últimos 30 dias
 #   infra\admin.ps1 backup                     # copia o banco de contas para %USERPROFILE%\amongus_backups
+#   infra\admin.ps1 senha prajwal novasenha1   # define a senha de quem esqueceu a dele (a conta sai de onde estiver)
 #
 # -Local em qualquer comando que passa pelo servidor: fala com o servidor desta máquina, usando o
 # AMONGUS_ADMIN_TOKEN do ambiente (o mesmo com que ele subiu).
@@ -56,7 +57,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $origem = Get-Location # caminhos relativos (-Saida, -Pasta) são relativos a de onde se chamou
 
 function Uso {
-	Get-Content $PSCommandPath | Select-Object -Skip 3 -First 18 | ForEach-Object { $_ -replace '^# ?', '' }
+	Get-Content $PSCommandPath | Select-Object -Skip 3 -First 19 | ForEach-Object { $_ -replace '^# ?', '' }
 }
 
 # Acentos: Python e NVGT imprimem UTF-8, e o console do Windows mostra "vers�o" se não for avisado.
@@ -177,6 +178,10 @@ switch ($Comando) {
 	"plataformas" {
 		$d = if ($Resto.Count -gt 0) { $Resto[0] } else { "30" }
 		Servidor @("platforms", $d)
+	}
+	"senha" {
+		if ($Resto.Count -lt 2) { throw 'Uso: infra\admin.ps1 senha <nome da conta> <senha nova>' }
+		Servidor @("password", $Resto[0], $Resto[1])
 	}
 	default { Uso; if ($Comando -ne "") { throw "Comando desconhecido: $Comando" } }
 }

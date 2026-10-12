@@ -355,6 +355,14 @@ class game_client {
 		send(p);
 	}
 
+	void send_admin_set_password(const string&in token, const string&in username, const string&in password) {
+		net_packet@ p = net_packet(C_ADMIN_SET_PASSWORD);
+		p.set_string("token", token);
+		p.set_string("username", username);
+		p.set_string("password", password);
+		send(p);
+	}
+
 	void send_admin_drain(const string&in token, int seconds) {
 		net_packet@ p = net_packet(C_ADMIN_DRAIN);
 		p.set_string("token", token);

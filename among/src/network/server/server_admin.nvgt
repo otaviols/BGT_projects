@@ -209,6 +209,23 @@ mixin class server_admin_part {
 		send_to(peer_id, result);
 	}
 
+	// Senha nova para uma conta (recado #251: quem esquece a senha não tem como recuperá-la sozinho - o
+	// jogo não guarda e-mail). O mesmo caminho da troca pelo jogador (change_password): sal novo, regra
+	// de tamanho, e as sessões lembradas caem. E a conta sai de onde estiver aberta: quem tomou a conta
+	// de alguém não pode continuar dentro dela depois de a senha voltar ao dono.
+	void on_admin_set_password(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		net_packet@ result = net_packet(S_ADMIN_RESULT);
+		string nome = g_user_db.find_username(pkt.get_string("username", ""));
+		string fail = nome == "" ? "account_not_found" : g_user_db.change_password(nome, pkt.get_string("password", ""));
+		result.set_bool("ok", fail == "");
+		result.set_string("message", fail == "" ? nome : fail);
+		send_to(peer_id, result);
+		if (fail != "") return;
+		println("[conta] senha definida pela administracao: " + nome);
+		drop_other_sessions(0, nome);
+	}
+
 	void on_admin_drain(uint64 peer_id, net_packet@ pkt) {
 		if (!admin_token_ok(peer_id, pkt)) return;
 		drain_seconds = float(pkt.get_int("seconds", 120));

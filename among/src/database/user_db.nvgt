@@ -574,6 +574,16 @@ class user_database {
 		return "";
 	}
 
+	// O nome exato da conta, achado sem diferenciar maiúsculas, ou "". Para a administração: quem pede
+	// ajuda escreve o nome de cabeça ("Prajwal" para a conta "prajwal"), e o login diferencia.
+	string find_username(const string&in name) {
+		if (@db == null) return "";
+		sqlite3statement@ st = db.prepare("SELECT username FROM users WHERE lower(username) = lower(?) LIMIT 1");
+		if (@st == null) return "";
+		st.bind_text(1, name, false);
+		return st.step() == SQLITE_ROW ? st.column_text(0) : "";
+	}
+
 	int get_user_id(const string&in username) {
 		sqlite3statement@ stmt = db.prepare("SELECT id FROM users WHERE username = ?");
 		if (@stmt == null) return -1;

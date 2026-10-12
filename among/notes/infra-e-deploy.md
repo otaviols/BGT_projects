@@ -298,6 +298,7 @@ infra\admin.ps1 arquivar <id> [-Ate]     # tira da caixa (desarquivar <id> desfa
 infra\admin.ps1 aviso "..." | -Apagar    # recado fixo do saguão
 infra\admin.ps1 traducoes                # traduções enviadas pelo jogo -> translations_inbox/ (e apaga do servidor)
 infra\admin.ps1 status | drenar <s> | plataformas <dias>
+infra\admin.ps1 senha <conta> <senha nova>   # quem esqueceu a senha (o jogo não guarda e-mail); a conta sai de onde estiver
 ```
 
 **`kubectl`: "lookup ...azmk8s.io: no such host" NÃO é a internet daqui - é o cluster PARADO.** O
