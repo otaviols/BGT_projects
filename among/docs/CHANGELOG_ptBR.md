@@ -6,6 +6,23 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.9
+
+**Xerife:** agora ele pode atirar em qualquer neutro sem morrer, porque nenhum neutro é tripulante. Ele
+só morre se atirar em um tripulante.
+
+**Modo gráfico:**
+
+- engolido pelo lobo, a tela mostra que você está na barriga dele, e por onde ele anda. Antes ela
+  continuava mostrando o mapa, e não dava para saber se você já tinha saído;
+- quando alguém usa o scanner, aparecem anéis verdes no lugar, como o som que ele faz. O nome de quem
+  escaneia aparece para quem está na mesma sala.
+
+**Android:** nos formulários, três dedos para a esquerda voltam ao campo anterior.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.8
 
 **Trocar a senha:** na lista de partidas, a opção "Trocar a senha". Ela pede a senha atual e a nova duas

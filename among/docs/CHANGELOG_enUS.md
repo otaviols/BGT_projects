@@ -6,6 +6,23 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.9
+
+**Sheriff:** they can now shoot any neutral without dying, because no neutral is a crewmate. They only
+die if they shoot a crewmate.
+
+**Graphics mode:**
+
+- when the wolf swallows you, the screen shows that you are in its belly, and where it is going. Before,
+  it kept showing the map, and you couldn't tell whether you were already out;
+- when someone uses the scanner, green rings show up at that spot, like the sound it makes. The name of
+  who is scanning shows for anyone in the same room.
+
+**Android:** in forms, three fingers left go back to the previous field.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.51.8
 
 **Change your password:** in the match list, the "Change my password" option. It asks for your current
