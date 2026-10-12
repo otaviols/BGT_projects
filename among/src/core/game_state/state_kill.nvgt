@@ -65,13 +65,14 @@ mixin class state_kill_part {
 		// inteira: some um impostor e a tripulação ganha de graça.
 		if (killer_is_impostor && target.is_impostor) return false;
 
-		// Quem atira pela TRIPULAÇÃO e erra o alvo morre no lugar dele. É o que faz o xerife ser uma
-		// aposta e não uma arma: matar o inocente custa a própria vida, e a tripulação perde duas
+		// Quem atira pela TRIPULAÇÃO e acerta um TRIPULANTE morre no lugar dele. É o que faz o xerife ser
+		// uma aposta e não uma arma: matar o inocente custa a própria vida, e a tripulação perde duas
 		// pessoas de uma vez. O alvo não fica sabendo de nada - ele só ouve um assassinato do lado,
 		// como qualquer vizinho, e essa ambiguidade é o ponto.
-		// O lobo (hostile_to_crew) é alvo LEGÍTIMO do xerife: ele come a tripulação, e errar nele
-		// mataria o xerife por acertar a ameaça certa.
-		misfire = !killer_is_impostor && !target.is_impostor && !target.role().hostile_to_crew;
+		// Todo NEUTRO é alvo legítimo (decisão do usuário, 2026-10-12: "eles não são tripulantes"). Até
+		// ali só o lobo e o incendiário eram (hostile_to_crew), e o xerife que atirasse no Bobo, no
+		// Carrasco ou no Amnésico morria - o que parecia defeito para quem jogava.
+		misfire = !killer_is_impostor && target.role().team == TEAM_CREW;
 		game_player@ victim = misfire ? killer : target;
 
 		victim.alive = false;

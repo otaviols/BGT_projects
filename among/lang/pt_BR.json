@@ -514,7 +514,7 @@
   "role.ability_only_dead": "O seu papel só age depois que você morrer.",
   "role.assigned_noisemaker": "Você é o Alarmista. Você é um tripulante comum, mas se morrer, a nave inteira vai ouvir que você morreu e em que sala. E com H você aperta o botão de emergência de qualquer lugar da nave, usando as mesmas reuniões que todo mundo tem. Ninguém sabe que é você.",
   "role.noisemaker_alarm": "Alarme: {name} morreu. Sala: {room}.",
-  "role.assigned_sheriff": "Você é o Xerife. Você joga pela tripulação e pode matar, com a mesma tecla do impostor. Mas se atirar em quem não for impostor, quem morre é você. Tenha certeza antes.",
+  "role.assigned_sheriff": "Você é o Xerife. Você joga pela tripulação e pode matar, com a mesma tecla do impostor. Pode atirar em impostores e em neutros, mas se atirar em um tripulante, quem morre é você. Tenha certeza antes.",
   "role.sheriff_misfire": "Você atirou em um inocente. O tiro voltou contra você.",
   "role.assigned_crewmate": "Você é Tripulante. Complete as tasks e descubra o impostor.",
   "role.assigned_engineer": "Você é o Engenheiro. Você joga pela tripulação, faz as suas tarefas e pode usar os dutos. A tecla da habilidade conserta a sabotagem em andamento de onde você estiver, com uma recarga longa. Cuidado: quem ouvir a tampa do duto não sabe que é você.",

@@ -177,7 +177,7 @@ de a sabotagem acabar - e **sem dizer quem consertou**: o sinal é a sabotagem t
 ter chegado ao painel. Sonda: `tools/probes/probe_engineer.nvgt`.
 
 **Xerife: quem morre no tiro é DECIDIDO, não presumido - e o erro é segredo dele.** `try_kill`
-escolhe a vítima (atirador da tripulação + alvo que não é impostor = morre o atirador), então todo
+escolhe a vítima (atirador da tripulação + alvo do time TRIPULAÇÃO = morre o atirador), então todo
 lugar que tratava "o alvo morreu" passou a ler o `peer_id` do PACOTE - foi assim que o `on_kill`
 soltava a câmera da pessoa errada. O `misfire` **não vai no `S_PLAYER_KILLED`**: ele é transmitido
 à partida inteira, e o campo entregaria de graça que houve um xerife e que ele errou. O aviso vai
@@ -185,6 +185,11 @@ em particular, por `S_ERROR`, só para quem atirou; para todos os outros - inclu
 mirou, que nem sabe que foi mirado - aquilo é um assassinato qualquer. E `you_were_killed_text`
 trata o caso de o assassino ser a própria vítima, senão a fala é "você foi eliminado por <seu
 nome>". Sonda: `tools/probes/probe_sheriff.nvgt`.
+**Todo neutro é alvo legítimo dele** (decisão do usuário, 2026-10-12: "eles não são tripulantes"). Até
+a 0.51.8 a regra era "o alvo não é impostor", com exceção só para quem tem `hostile_to_crew` (o lobo e
+o incendiário): o xerife que atirasse no Bobo, no Carrasco ou no Amnésico morria, e para quem jogava
+parecia defeito novo - não era, os neutros chegaram depois do xerife e só os hostis ganharam a
+exceção. Papel neutro novo entra nisto sozinho, pelo time. A sonda atira no Bobo.
 
 **Alarmista: o aviso sai da CAPACIDADE (`announces_own_death`) e depois do pacote da morte.** A
 ordem importa - invertida, o texto contaria o que aconteceu antes de o som do assassinato tocar. O

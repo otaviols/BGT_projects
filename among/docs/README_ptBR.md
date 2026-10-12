@@ -481,8 +481,8 @@ Duas coisas o diferenciam:
   todo mundo percebe: a sabotagem acaba sem ninguém ter chegado ao painel.
 
 **Xerife** (tripulação). Ele pode matar, com a **mesma tecla e o mesmo alcance do impostor** — e o
-tiro soa igual para quem está por perto. Mas se ele atirar em quem **não** é impostor, **quem morre
-é ele**. A pessoa que ele mirou não fica sabendo de nada: ouve um assassinato do lado, como
+tiro soa igual para quem está por perto. Ele acerta impostores e **neutros** (nenhum neutro é
+tripulante). Mas se atirar em um **tripulante**, **quem morre é ele**. A pessoa que ele mirou não fica sabendo de nada: ouve um assassinato do lado, como
 qualquer vizinho, e não tem como saber que era ela na mira.
 
 Isso faz do xerife uma aposta, não um detector. Errar custa duas pessoas à tripulação de uma vez —

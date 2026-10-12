@@ -7,7 +7,8 @@
 //   3. o tiro errado NÃO aparece no pacote que vai para a partida - ninguém além dele descobre que
 //      foi um tiro errado, nem o inocente que ele mirou;
 //   4. o inocente mirado continua VIVO e sem saber de nada;
-//   5. quem não é xerife nem impostor não mata ninguém.
+//   5. quem não é xerife nem impostor não mata ninguém;
+//   6. atirando num NEUTRO (o Bobo), morre o neutro - nenhum neutro é tripulante.
 //
 //   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_sheriff.nvgt
 #include "../../src/network/client.nvgt"
@@ -64,13 +65,14 @@ class elenco {
 	game_client@ xerife; uint64 xerife_peer;
 	game_client@ impostor; uint64 impostor_peer;
 	game_client@ inocente; uint64 inocente_peer;
+	game_client@ neutro; uint64 neutro_peer;
 	array<game_client@> todos;
 	bool ok = false;
 }
 
 // Monta uma partida com um xerife garantido e devolve quem é quem. Repete até o sorteio dar um
 // xerife que não seja o próprio impostor (times diferentes, mas quem recebe o quê é sorteio).
-elenco@ monta_partida(server_address addr, const string&in sufixo) {
+elenco@ monta_partida(server_address addr, const string&in sufixo, const string&in papel_extra = "") {
 	elenco e;
 	array<string> nomes = {"xer_a", "xer_b", "xer_c", "xer_d"};
 	for (uint i = 0; i < nomes.length(); i++) {
@@ -83,6 +85,7 @@ elenco@ monta_partida(server_address addr, const string&in sufixo) {
 	lobby_overrides ov;
 	ov.impostor_count = 1;
 	ov.role_counts.set(ROLE_SHERIFF, 1);
+	if (papel_extra != "") ov.role_counts.set(papel_extra, 1);
 	// A partida começa com o kill em recarga, e a sonda atira logo: 5 s é o mínimo que a sala
 	// aceita (ver lobby_config.validate), e é o que torna a espera abaixo curta.
 	ov.kill_cooldown_seconds = 5.0;
@@ -103,9 +106,10 @@ elenco@ monta_partida(server_address addr, const string&in sufixo) {
 		uint64 meu = st.get_uint64("your_peer_id");
 		if (rid == ROLE_SHERIFF) { @e.xerife = e.todos[i]; e.xerife_peer = meu; }
 		else if (role_for(st.get_string("your_role")).team == TEAM_IMPOSTOR) { @e.impostor = e.todos[i]; e.impostor_peer = meu; }
+		else if (role_for(rid).team == TEAM_NEUTRAL) { @e.neutro = e.todos[i]; e.neutro_peer = meu; }
 		else if (@e.inocente == null) { @e.inocente = e.todos[i]; e.inocente_peer = meu; }
 	}
-	e.ok = @e.xerife != null && @e.impostor != null && @e.inocente != null;
+	e.ok = @e.xerife != null && @e.impostor != null && (papel_extra != "" ? @e.neutro != null : @e.inocente != null);
 	return e;
 }
 
@@ -170,5 +174,19 @@ void main() {
 	check("tripulante comum nao mata", @nada == null, "nenhuma morte");
 
 	for (uint i = 0; i < e2.todos.length(); i++) e2.todos[i].disconnect();
+
+	// --- NEUTRO: o xerife acerta (decisao do usuario, 2026-10-12) ---
+	// Nenhum neutro e tripulante, entao o tiro nele nao e erro: morre o Bobo, nao o xerife. Era assim so
+	// com o lobo e o incendiario (os que atacam a tripulacao); o Bobo, o Carrasco e o Amnesico matavam o
+	// xerife que atirasse neles.
+	println("--- o xerife atira no Bobo (neutro) ---");
+	elenco@ e3 = monta_partida(addr, "" + random(1000, 9999), ROLE_JESTER);
+	if (!e3.ok) { println("nao consegui montar a terceira partida"); return; }
+	encosta(e3, e3.xerife, e3.neutro, 0.0, 0.0);
+	e3.xerife.send_kill(e3.neutro_peer);
+	net_packet@ morte3 = wf(e3.xerife, S_PLAYER_KILLED, 6000);
+	check("alguem morreu", @morte3 != null, "S_PLAYER_KILLED");
+	if (@morte3 != null) check("quem morreu foi o BOBO, e nao o xerife", morte3.get_uint64("peer_id") == e3.neutro_peer, "o Bobo");
+	for (uint i = 0; i < e3.todos.length(); i++) e3.todos[i].disconnect();
 	println(falhas == 0 ? "--- tudo certo ---" : ("--- " + falhas + " falha(s) ---"));
 }

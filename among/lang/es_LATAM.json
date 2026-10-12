@@ -444,7 +444,7 @@
   "role.ability_only_dead": "Tu rol solo actúa después de que mueras.",
   "role.assigned_noisemaker": "Eres el Ruidoso. Eres un tripulante común, pero si mueres, toda la nave oye que moriste y en qué sala. Nadie sabe que eres tú.",
   "role.noisemaker_alarm": "Alarma: murió {name}. Sala: {room}.",
-  "role.assigned_sheriff": "Eres el Sheriff. Juegas para la tripulación y puedes asesinar, con la misma tecla que usa el impostor. Pero si le disparas a alguien que no es impostor, el que muere eres tú. Asegúrate antes.",
+  "role.assigned_sheriff": "Eres el Sheriff. Juegas para la tripulación y puedes asesinar, con la misma tecla que usa el impostor. Puedes dispararles a los impostores y a los neutrales, pero si le disparas a un tripulante, el que muere eres tú. Asegúrate antes.",
   "role.sheriff_misfire": "Le disparaste a un inocente. El disparo se volvió contra ti.",
   "role.assigned_engineer": "Eres el Ingeniero. Juegas para la tripulación, haces tus tareas y puedes usar las alcantarillas. Tu tecla de habilidad repara el sabotaje en curso desde donde estés, con una recarga larga. Cuidado: quien oiga la tapa de la alcantarilla no sabe que eres tú.",
   "role.assigned_crewmate": "Eres un Tripulante. Completa tareas y encuentra al impostor.",

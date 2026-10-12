@@ -444,7 +444,7 @@
   "role.ability_only_dead": "Rolün yalnızca öldükten sonra işe yarar.",
   "role.assigned_noisemaker": "Sen Ses Çıkaransın. Sıradan bir masumsun ama ölürsen tüm gemi öldüğünü ve hangi odada olduğunu duyar. Ve H ile geminin herhangi bir yerinden acil durum butonuna basarsın, herkesin sahip olduğu aynı toplantıları kullanırsın. Kimse senin olduğunu bilmez.",
   "role.noisemaker_alarm": "Alarm: {name} öldü. Oda: {room}.",
-  "role.assigned_sheriff": "Sen Şerifsin. Masumlar için oynarsın ve hainin kullandığı aynı tuşla öldürebilirsin. Ama hain olmayan birini vurursan ölen sen olursun. Önce emin ol.",
+  "role.assigned_sheriff": "Sen Şerifsin. Masumlar için oynarsın ve hainin kullandığı aynı tuşla öldürebilirsin. Hainleri ve tarafsız rolleri vurabilirsin, ama bir masumu vurursan ölen sen olursun. Önce emin ol.",
   "role.sheriff_misfire": "Masum birini vurdun. Mermi sana döndü.",
   "role.assigned_engineer": "Sen Mühendissin. Masumlar için oynarsın, görevlerini yaparsın ve havalandırmaları kullanabilirsin. Yetenek tuşun, uzun bir bekleme süresiyle, devam eden sabotajı nerede olursan ol düzeltir. Dikkatli ol: Havalandırma kapağını duyan kişi senin olduğunu bilmez.",
   "role.assigned_crewmate": "Sen bir Masumsun. Görevleri tamamla ve haini bul.",

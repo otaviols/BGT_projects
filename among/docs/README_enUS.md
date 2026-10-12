@@ -486,8 +486,8 @@ them apart:
   everyone notices: the sabotage ends without anyone having reached the panel.
 
 **Sheriff** (crew). They can kill, with the **same key and the same range as the impostor** — and
-the shot sounds the same to anyone nearby. But if they shoot someone who is **not** an impostor,
-**they are the one who dies**. The person they aimed at learns nothing: they hear a murder next to
+the shot sounds the same to anyone nearby. They can hit impostors and **neutrals** (no neutral is a
+crewmate). But if they shoot a **crewmate**, **they are the one who dies**. The person they aimed at learns nothing: they hear a murder next to
 them, like any neighbor, with no way to know they were the target.
 
 That makes the sheriff a bet, not a detector. Being wrong costs the crew two people at once — the
