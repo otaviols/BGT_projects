@@ -105,6 +105,10 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	string active_sabotage_id;
 	array<string> fixed_sabotage_panels;
 	bool scanner_busy;
+	// Onde está o scanner em uso e quem o usa, para o modo gráfico mostrar a varredura como o som a toca
+	// (ver draw_visual_map). Nulo quando ninguém está escaneando.
+	map_object@ scan_spot;
+	string scan_name;
 	string oxygen_code;
 	int team_task_percent;
 	bool is_vented;

@@ -134,6 +134,16 @@ class visual_map {
 	float k = 1.0;
 	float fonts_k = 0.0;
 	bool fullscreen_applied = false;
+	// O scanner em uso, posto pelo laço da partida antes de cada draw() (ver draw_visual_map). O rótulo é
+	// o nome de quem escaneia, ou "" quando quem olha não está na mesma sala.
+	bool scan_on = false;
+	float scan_x = 0, scan_y = 0;
+	string scan_label = "";
+	dictionary@ scan_label_params() {
+		dictionary@ p = dictionary();
+		p.set("name", scan_label);
+		return p;
+	}
 
 	bool ready() {
 		if (tried) return @r != null && r.is_valid;
@@ -208,6 +218,18 @@ class visual_map {
 		for (int dy = -int(raio); dy <= int(raio); dy++) {
 			float meia = sqrt(raio * raio - float(dy * dy));
 			r.fill_rect(cx - meia, cy + dy, meia * 2.0, 1.0);
+		}
+	}
+
+	// Um anel (o contorno de um círculo), em segmentos de reta, com dois pixels de espessura.
+	private void ring(float cx, float cy, float raio) {
+		const int PARTES = 36;
+		for (int esp = 0; esp < 2; esp++) {
+			float rr = raio + esp;
+			for (int i = 0; i < PARTES; i++) {
+				float a0 = 6.2831853 * float(i) / PARTES, a1 = 6.2831853 * float(i + 1) / PARTES;
+				r.draw_line(cx + cos(a0) * rr, cy + sin(a0) * rr, cx + cos(a1) * rr, cy + sin(a1) * rr);
+			}
 		}
 	}
 
@@ -379,6 +401,23 @@ class visual_map {
 			}
 		}
 
+		// O scanner em uso (a tarefa VISÍVEL): anéis verdes saindo do ponto, como o som que ele toca. Quem
+		// pede é o laço da partida, pela regra do som - no alcance da escuta, e o nome só para quem está
+		// na mesma sala (ver draw_visual_map). É a prova de inocência do jogo: tem que se ver de relance.
+		if (scan_on) {
+			float sx = cx + (scan_x - my_x) * s, sy = cy + (scan_y - my_y) * s;
+			float fase = float(ticks() % 1200) / 1200.0;
+			color(VC_VOTED);
+			for (int anel = 0; anel < 2; anel++) {
+				float f = fase + 0.5 * anel;
+				if (f >= 1.0) f -= 1.0;
+				ring(sx, sy, 8.0 + f * 26.0);
+			}
+			circle(sx, sy, 4.0);
+			string rotulo = scan_label == "" ? tr("visual.scanning") : tr("visual.scanning_name", scan_label_params());
+			put_text(rotulo, font_small, VC_VOTED, sx - text_width(rotulo, font_small, VC_VOTED) / 2.0, sy - 46);
+		}
+
 		// Os outros jogadores que o som deixa perceber: círculo da cor, com uma borda escura.
 		if (@others != null) {
 			for (uint i = 0; i < others.length(); i++) {
@@ -508,6 +547,39 @@ class visual_map {
 		if (largura > 760) largura = 760;
 		y += put_text(details, font_body, VC_TEXT, cx - largura / 2.0, y, int(largura)) + 14;
 		if (modifiers != "") put_text(modifiers, font_body, VC_ACCENT, cx - largura / 2.0, y, int(largura));
+		finish();
+	}
+
+	// --- Na barriga do lobo ---
+
+	// Engolido, a pessoa não está na nave: o mapa com o próprio círculo no meio dizia o contrário, e quem
+	// olhava nunca sabia se já tinha saído (relato do usuário). Aqui, um fundo escuro com o que o som
+	// já diz a ela - a sala por onde o lobo anda, e como se sai. Solto, o laço volta a desenhar o mapa.
+	void draw_belly(const string&in room_name) {
+		if (!ready()) return;
+		int w = 0, h = 0;
+		begin(VC_BG_DARK, w, h);
+		float cx = float(w) / 2.0;
+		float y = float(h) * 0.22;
+		// O lobo como uma silhueta: um anel vermelho, a cor do perigo, em volta do escuro. (A transparência
+		// não vale aqui - o renderizador não mistura cores sem um modo de mistura, e o anel nítido lê melhor.)
+		color(VC_BODY);
+		circle(cx, y + 40, 46);
+		color(VC_BG_DARK);
+		circle(cx, y + 40, 40);
+		y += 110;
+		string titulo = tr("visual.belly_title");
+		y += put_text(titulo, font_big, VC_BODY, cx - text_width(titulo, font_big, VC_BODY) / 2.0, y) + 18;
+		if (room_name != "") {
+			dictionary@ p = dictionary();
+			p.set("room", room_name);
+			string sala = tr("visual.belly_room", p);
+			y += put_text(sala, font_body, VC_TEXT, cx - text_width(sala, font_body, VC_TEXT) / 2.0, y) + 12;
+		}
+		float largura = float(w) * 0.7;
+		if (largura > 760) largura = 760;
+		put_text(tr("visual.belly_hint"), font_body, VC_TEXT_DIM, cx - largura / 2.0, y, int(largura));
+		caption_panel(w, h);
 		finish();
 	}
 

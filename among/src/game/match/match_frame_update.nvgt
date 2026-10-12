@@ -37,7 +37,26 @@ mixin class match_frame_update_part {
 		// Na reunião todo mundo está à mesa: a tela mostra a mesa, com o que a reunião já diz a todos
 		// (quem está vivo, quem morreu, quem já votou), e não o mapa.
 		if (movement_frozen && mui.phase_seconds_remaining() >= 0.0) { draw_visual_meeting(); return; }
+		// Na barriga do lobo não há nave para ver: a tela diz onde se está e como se sai (ver draw_belly).
+		// A posição acompanha a do lobo (follow_wolves), então a sala é a dele.
+		if (swallowed) {
+			map_zone@ zona = map.zone_at(my_x, my_y);
+			g_visual_map.draw_belly(@zona != null ? tr(zona.name_key) : "");
+			return;
+		}
 		bool luz_apagada = lights_out_for(active_sabotage_id, my_role, alive);
+		// O scanner em uso, pela regra do som: aparece onde a varredura se OUVE (o alcance da escuta, que o
+		// escuro encolhe), e o nome só para quem está na mesma sala - é quando a fala o diz (on_task_visible).
+		g_visual_map.scan_on = false;
+		if (@scan_spot != null) {
+			float alcance_som = NORMAL_AUDIO_MAX_DISTANCE * (luz_apagada ? LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER : 1.0);
+			if (distance_2d(my_x, my_y, scan_spot.x, scan_spot.y) <= alcance_som) {
+				g_visual_map.scan_on = true;
+				g_visual_map.scan_x = scan_spot.x;
+				g_visual_map.scan_y = scan_spot.y;
+				g_visual_map.scan_label = map.room_id_at(my_x, my_y) == scan_spot.room_id ? scan_name : "";
+			}
+		}
 		bool comms = comms_down_for(active_sabotage_id, my_role, alive);
 		array<roster_entry@> outros;
 		for (uint i = 0; i < roster.entries.length(); i++) {

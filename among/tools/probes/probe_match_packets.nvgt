@@ -72,6 +72,18 @@ void main() {
 	p.my_ability_cooldown_remaining = 0.0;
 	p.my_kill_cooldown_remaining = 0.0;
 
+	// O scanner em uso: o modo gráfico desenha a varredura enquanto ela dura, e para quando ela acaba.
+	map_object@ scanner = null;
+	for (uint i = 0; i < p.map.objects.length() && @scanner == null; i++) if (p.map.objects[i].task_type == "submit_scan") @scanner = p.map.objects[i];
+	net_packet@ vis = net_packet(S_TASK_VISIBLE);
+	vis.set_uint64("peer_id", 2); vis.set_string("name", "ana"); vis.set_string("object_id", @scanner != null ? scanner.id : ""); vis.set_bool("active", true);
+	p.handle_packet(vis);
+	confere("scanner em uso: a tela sabe onde e quem", @p.scan_spot != null && p.scan_name == "ana");
+	net_packet@ fim_vis = net_packet(S_TASK_VISIBLE);
+	fim_vis.set_uint64("peer_id", 2); fim_vis.set_bool("active", false);
+	p.handle_packet(fim_vis);
+	confere("e quando acaba, some", @p.scan_spot == null && p.scan_name == "");
+
 	// Quem morre continua ouvindo o marcador do PRÓPRIO corpo: a lista de corpos era refeita antes de o
 	// corpo entrar nela, e o marcador sumia até outra coisa refazê-la.
 	match_session@ morre = nova_partida(ROLE_CREWMATE);

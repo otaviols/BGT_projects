@@ -96,6 +96,18 @@ void main() {
 	// Perto do duto da navegação, com a sabotagem das luzes em curso: duto, painel piscando, legenda.
 	println("cena: duto"); t.restart();
 	while (t.elapsed < 3000) { v.draw(map, duto.x - 4, duto.y, COLOR_CYAN, true, false, null, null, tarefas, "lights"); wait(16); }
+	// O scanner em uso: anéis verdes no ponto, com o nome de quem escaneia (mesma sala).
+	map_object@ scanner = null;
+	for (uint i = 0; i < map.objects.length() && @scanner == null; i++) if (map.objects[i].task_type == "submit_scan") @scanner = map.objects[i];
+	if (@scanner != null) {
+		v.scan_on = true; v.scan_x = scanner.x; v.scan_y = scanner.y; v.scan_label = "Ana";
+		println("cena: scanner"); t.restart();
+		while (t.elapsed < 3000) { v.draw(map, scanner.x - 3, scanner.y + 2, COLOR_CYAN, true, false, null, null, null); wait(16); }
+		v.scan_on = false;
+	}
+	confere("o scanner existe no mapa (para a cena da varredura)", @scanner != null);
+	println("cena: barriga"); t.restart();
+	while (t.elapsed < 3000) { v.draw_belly("Navegação"); wait(16); }
 
 	// As outras três telas, 3 s cada, para serem vistas ou capturadas (a sonda imprime quando começa
 	// cada uma). As legendas entram como entrariam pelo gancho de fala.

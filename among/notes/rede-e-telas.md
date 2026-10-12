@@ -230,7 +230,12 @@ quem já joga não ouve a pergunta depois de atualizar. Sonda: `probe_first_run_
 "" e a speech.nvgt não diz nada. Vale SÓ com o modo gráfico ligado, e a opção só aparece com ele
 ligado - desligar o modo devolve a fala sozinho, para quem joga por som nunca ficar mudo por um toque
 errado. Ao calar, a tela segura o aviso (que diz como voltar) até uma tecla ou 12 s: o menu reaberto
-falaria por cima e o cortaria, e calado aquele corte seria a última coisa ouvida. Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
+falaria por cima e o cortaria, e calado aquele corte seria a última coisa ouvida. **O scanner em uso**
+(a tarefa visível) aparece como anéis verdes no ponto, pela regra do SOM dele: no alcance da escuta, e
+o nome de quem escaneia só para quem está na mesma sala (`scan_spot`/`scan_name`, guardados em
+`on_task_visible`). **Engolido pelo lobo, a tela troca o mapa por "na barriga do Lobo"** (`draw_belly`,
+relato do usuário): com o mapa e o próprio círculo no meio, a pessoa nunca sabia se já tinha saído.
+Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
 somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da partida. A regra mora em
 `visual_player_visible`; uma regra paralela divergiria da do som na primeira mudança. A janela é limpa
 ao desligar, no fim da partida e ao sair do Conhecer o mapa - senão fica a nave parada nos menus. Sonda:
