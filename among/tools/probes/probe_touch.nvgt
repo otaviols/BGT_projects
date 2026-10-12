@@ -55,6 +55,13 @@ void main() {
 	varios(2, 0, 0.2); confere("dois dedos para baixo = Esc", apertou(KEY_ESCAPE));
 	varios(2, 0, 0); confere("toque com dois dedos = espaco", apertou(KEY_SPACE));
 	varios(3, 0.2, 0); confere("tres dedos para a direita = Tab", apertou(KEY_TAB));
+	// O campo ANTERIOR (recado #248): Tab com o Shift seguro, como no teclado.
+	varios(3, -0.2, 0);
+	wait(30);
+	bool tab_volta = key_pressed(KEY_TAB);
+	bool com_shift = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);
+	for (int k = 0; k < 5; k++) wait(10);
+	confere("tres dedos para a esquerda = Shift+Tab (campo anterior)", tab_volta && com_shift);
 
 	// O modo de números (recado #165): três dedos abrem, um dedo escolhe, toque duplo digita.
 	g_touch_digit = 0;

@@ -280,13 +280,16 @@ void touch_gesture_menu(const string&in nome, uint dedos) {
 		else if (nome == "swipe_up") touch_press(g_keys.key(ACTION_CHAT_SWITCH));
 	} else if (dedos == 3) {
 		// Toque com três dedos abre os NÚMEROS, que três telas pedem (os painéis de sabotagem, rever
-		// registros, destravar coletores). Três dedos para a direita passam de campo nos formulários.
+		// registros, destravar coletores). Três dedos para a direita passam de campo nos formulários, e
+		// para a esquerda voltam um (Shift+Tab) - recado #248: só havia ida, e um campo passado por
+		// engano obrigava a dar a volta no formulário inteiro.
 		if (nome == "tap") {
 			g_touch_digit_mode = true;
 			dictionary@ p = dictionary();
 			p.set("digit", "" + g_touch_digit);
 			speak(tr("touch.digits_open", p));
 		} else if (nome == "swipe_right") touch_press(KEY_TAB);
+		else if (nome == "swipe_left") touch_press_with_shift(KEY_TAB);
 	}
 }
 
