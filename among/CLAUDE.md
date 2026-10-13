@@ -410,7 +410,10 @@ que parou - ver [notes/voz.md](notes/voz.md)). Sonda: `tools/probes/probe_stream
 vazia.** Sintoma: o jogo fecha ao abrir (código 65; do fonte, "Failed to initialize global variable
 'g_settings'" com "Null pointer access" no construtor). Compila limpo e passa em toda sonda que não
 abre o cliente inteiro - foi a 0.45.0 no ar, e quem atualizou ficou sem updater para sair dela. Constante
-que um construtor de global lê vem ANTES da global. O `build_clients.ps1` agora abre o exe compilado
+que um construtor de global lê vem ANTES da global. **E o `#include` não resolve isso:** as globais do
+arquivo que inclui inicializam ANTES das do arquivo incluído, então pôr `#include "../i18n.nvgt"` no
+`game_settings.nvgt` não salvou o `DEFAULT_LANGUAGE` - quem precisa incluir primeiro é o ponto de
+entrada (no jogo, o i18n já vem antes; numa sonda, inclua-o no topo, como `probe_screen_keyboard`). O `build_clients.ps1` agora abre o exe compilado
 e recusa o build se ele fechar sozinho.
 
 **`audio_form` tem teto de 50 controles - e o que passa disso não é criado, em silêncio.** O

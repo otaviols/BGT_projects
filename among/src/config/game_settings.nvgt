@@ -8,6 +8,7 @@
 
 #include "settings.nvgt"
 #include "speech.nvgt"
+#include "form.nvgt" // audioform_keyboard_echo (ver keyboard_echo)
 #include "keybindings.nvgt"
 
 // Famílias de som. Cada som do jogo pertence a exatamente uma - ver audio/audio_manager.nvgt, que é
@@ -213,6 +214,14 @@ class game_settings {
 	// Com o modo gráfico ligado, não dizer nada em voz alta: o que seria falado vai só para as legendas
 	// (recado #240, quem enxerga e joga lendo). Vale SÓ com o modo ligado - ver visual_on_speech.
 	bool visual_mute_speech = false;
+	// O que se fala ao digitar num campo (letras, palavras, as duas, nada), que o F2 troca - é do
+	// form.nvgt do NVGT (audioform_keyboard_echo), e ele só guarda na memória: voltava ao padrão a cada
+	// abertura (recado #260). -1 = nunca mudou, fica o padrão do NVGT. Quem guarda a mudança é o
+	// screen_keyboard_follower, que roda em todo laço de formulário.
+	int keyboard_echo = -1;
+	// As preferências foram LIDAS do disco. Quem grava sozinho (o seguidor do teclado) confere isto: numa
+	// sonda que não as carrega, gravar escreveria os valores padrão por cima das preferências reais.
+	bool loaded = false;
 	// Quem lê a CONVERSA (chat da partida, da sala de espera e do saguão): "igual ao jogo", o leitor de
 	// tela ou a voz do jogo. Pedido do recado #89 e decisão do usuário: duas categorias só - o que as
 	// pessoas escrevem e o que o jogo narra -, para quem quer separar as duas coisas pelo timbre. O
@@ -263,6 +272,9 @@ class game_settings {
 		visual_map = store.read_number("visual_map", 0) != 0;
 		visual_map_asked = store.read_number("visual_map_asked", 0) != 0 || visual_map || last_username != "";
 		visual_mute_speech = store.read_number("visual_mute_speech", 0) != 0;
+		keyboard_echo = int(store.read_number("keyboard_echo", -1));
+		if (keyboard_echo >= 0) audioform_keyboard_echo = keyboard_echo;
+		loaded = true;
 		chat_voice = store.read_string("chat_voice", CHAT_VOICE_SAME);
 		if (chat_voice != CHAT_VOICE_SR && chat_voice != CHAT_VOICE_TTS) chat_voice = CHAT_VOICE_SAME;
 		if (background_audio != BACKGROUND_AUDIO_QUIET && background_audio != BACKGROUND_AUDIO_MUTE) background_audio = BACKGROUND_AUDIO_NORMAL;
@@ -356,6 +368,7 @@ class game_settings {
 		store.write_number("visual_map", visual_map ? 1 : 0);
 		store.write_number("visual_map_asked", visual_map_asked ? 1 : 0);
 		store.write_number("visual_mute_speech", visual_mute_speech ? 1 : 0);
+		store.write_number("keyboard_echo", keyboard_echo);
 		store.write_string("chat_voice", chat_voice);
 		store.write_string("language", language);
 		store.write_string("tts", tts_dump_config(tts, true));

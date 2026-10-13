@@ -16,6 +16,7 @@
 // de fechar em cada um seria um teclado esquecido aberto por cima do jogo.
 #include "form.nvgt"
 #include "platform.nvgt"
+#include "../config/game_settings.nvgt"
 
 class screen_keyboard_follower {
 	private bool opened = false;
@@ -25,6 +26,12 @@ class screen_keyboard_follower {
 	bool get_is_open() const property { return opened; }
 
 	void follow(audio_form@ f) {
+		// O F2 de um campo troca o que se fala ao digitar, e o form.nvgt só guarda na memória: aqui, que
+		// roda em todo laço de formulário (no PC também), a mudança vai para as preferências (recado #260).
+		if (g_settings.loaded && audioform_keyboard_echo != g_settings.keyboard_echo) {
+			g_settings.keyboard_echo = audioform_keyboard_echo;
+			g_settings.save();
+		}
 		if (!enabled) return;
 		int foco = f.get_current_focus();
 		bool quer = foco >= 0 && f.get_control_type(foco) == ct_input;

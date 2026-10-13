@@ -2,6 +2,10 @@
 // que a entrada de texto abre no campo de texto, fecha fora dele e fecha quando a tela acaba.
 //   nvgt tools/probes/probe_screen_keyboard.nvgt
 // No PC a entrada de texto vem ligada da abertura; a sonda a desliga antes e religa no fim.
+// O i18n ANTES: o seguidor inclui as preferências, cujo construtor lê DEFAULT_LANGUAGE, e o NVGT
+// inicializa as globais de um arquivo incluído antes das dos arquivos que ELE inclui - incluir o i18n
+// dentro de game_settings.nvgt não basta (null pointer em game_settings::game_settings()).
+#include "../../src/i18n.nvgt"
 #include "../../src/core/screen_keyboard.nvgt"
 
 int falhas = 0;
