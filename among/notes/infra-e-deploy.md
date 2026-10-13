@@ -334,4 +334,16 @@ sessão substituída (a mesma conta entrando em outro aparelho - o único lugar 
 derruba alguém de propósito). O horário do crash.log é o relógio do JOGADOR, no fuso dele, e o do
 `--timestamps` é UTC. O log só guarda desde o último contêiner: um deploy apaga o histórico.
 
+**Até a 0.51.10, "o cliente desligou" e "o servidor encerrou a conexão" MENTIAM: quase sempre eram
+tempo esgotado.** O NVGT entrega o `DISCONNECT_TIMEOUT` do ENet como um `DISCONNECT` comum, a menos que
+`network.receive_timeout_event` esteja ligado (`src/network.cpp` do NVGT) - e não estava. Sintoma (levas
+de 2026-10-12, sala inteira caindo junta): o servidor dizia que os clientes desligaram, e o crash.log de
+cada um dizia que o servidor encerrou - cada lado culpando o outro. Hoje os dois lados o ligam, e a queda
+por silêncio sai como "tempo esgotado" (o cliente leva ~31 s para desistir, o servidor também). Para
+separar servidor de rede, o servidor registra `[trava]` quando uma volta do laço passa de 1 s (travado,
+ele derruba todo mundo) e `[pulso] conectados=N` a cada 5 min: numa leva de quedas, cai TODO MUNDO =
+servidor ou VPS; cai um grupo = o caminho de rede deles. A VPS também roda o `ampfirewall` (do painel
+AMP) a cada 5 min; ele só mexe nas regras de entrada dele (80, 443, 2223, 12820), e as do Docker para a
+8934 ficam intactas - investigado e, até aqui, inocentado.
+
 

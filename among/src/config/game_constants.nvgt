@@ -124,6 +124,10 @@ const float PLAYER_REPORT_RANGE = 2.0;
 // a lista só diz quem PODE ser anunciado, e a distância exata continua sendo medida no cliente. Com a
 // folga, o atraso da lista não corta ninguém que acabou de chegar perto.
 const float PERCEPTION_SET_RANGE = 3.5;
+// Diagnóstico do servidor (ver game_server.run): uma volta do laço acima disto é registrada como TRAVA,
+// e a cada tanto ele registra quantos estão conectados.
+const uint64 SERVER_STALL_LOG_MS = 1000;
+const uint64 SERVER_PULSE_MS = 300000;
 // Ritmo dos passos e dos esbarrões ao andar. Compartilhado pela partida e pelo modo de conhecer o
 // mapa - os dois têm que soar iguais, senão o mapa "aprendido" não é o mapa jogado.
 //

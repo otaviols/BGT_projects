@@ -125,6 +125,11 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			println("Não consegui abrir a porta " + port + "/UDP. Ela já está em uso por outro processo?");
 			return false;
 		}
+		// Sem isto o NVGT entrega o TEMPO ESGOTADO como um desligamento comum, e o log dizia "o cliente
+		// desligou" para quem na verdade parou de responder - e o cliente, do lado dele, "o servidor
+		// encerrou a conexão". Cada lado culpava o outro, e nenhum dos dois era verdade (src/network.cpp
+		// do NVGT: sem receive_timeout_event, DISCONNECT_TIMEOUT vira DISCONNECT).
+		net.receive_timeout_event = true;
 
 		@g_user_db = user_database();
 		const string db_path = "among_users.db";
@@ -153,8 +158,11 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		// um peer sumiu (kickando gente do nada) só por falta de round-trip a tempo. O meio-termo:
 		// processa até um limite por volta, garantindo que sempre volta pro wait(5) regularmente.
 		const uint MAX_EVENTS_PER_TICK = 200;
+		uint64 ultimo_pulso = ticks();
 		while (true) {
-			for (uint processed = 0; processed < MAX_EVENTS_PER_TICK; processed++) {
+			uint64 inicio_volta = ticks();
+			uint processados = 0;
+			for (; processados < MAX_EVENTS_PER_TICK; processados++) {
 				const network_event@ ev = net.request(0);
 				if (@ev == null || ev.type == event_none) break;
 				handle_event(ev);
@@ -165,6 +173,18 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			float delta = clock.tick();
 			tick_lobbies(delta);
 			tick_hall(delta);
+
+			// Diagnóstico das levas de queda (relato do usuário, 2026-10-12: a sala inteira caindo junta).
+			// Uma volta deste laço leva milissegundos; se uma levar mais de 1 s, o servidor TRAVOU, e com
+			// alguns segundos travado o ENet derruba todo mundo - sem o registro, isso se confunde com
+			// queda de rede. E o pulso a cada 5 min diz quantos estavam conectados: numa leva de quedas, é
+			// o que separa "caiu todo mundo" (servidor ou VPS) de "caiu um grupo" (o caminho deles).
+			uint64 duracao = ticks() - inicio_volta;
+			if (duracao > SERVER_STALL_LOG_MS) println("[trava] uma volta do servidor levou " + duracao + " ms (" + processados + " eventos)");
+			if (ticks() - ultimo_pulso >= SERVER_PULSE_MS) {
+				ultimo_pulso = ticks();
+				println("[pulso] conectados=" + connections.length() + " salas=" + lobbies.length() + " partidas=" + matches_in_progress());
+			}
 			wait(5);
 		}
 	}

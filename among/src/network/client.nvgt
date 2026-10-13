@@ -80,6 +80,9 @@ class game_client {
 	bool connect_to(const string&in host, uint16 port) {
 		@net = network();
 		if (!net.setup_client(MAX_PACKET_CHANNELS, 1)) return false;
+		// O tempo esgotado chega como tal, e não como "o servidor encerrou a conexão" (ver o mesmo no
+		// servidor, game_server.start): o crash.log de quem cai é o diagnóstico que temos do lado dele.
+		net.receive_timeout_event = true;
 		local_peer_id = net.connect(host, port);
 		return local_peer_id != 0;
 	}
