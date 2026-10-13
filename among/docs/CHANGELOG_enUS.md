@@ -6,6 +6,23 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.53.0
+
+**Getting back into the match after a drop:** over the last few days, many people dropped from the
+server mid-match, sometimes several at once. It may be the new server's fault; we are still
+investigating. Meanwhile, dropping no longer takes you out of the match:
+
+- your place is kept for a minute, and the game tries to get you back on its own. You hear that the
+  connection dropped and that it is trying to get back, and Escape gives up;
+- you can also close the game, open it again and log in: within that minute, you go straight back into
+  the match;
+- while you are away, your character stands still where it was and can be killed. The others hear that
+  you lost connection and, later, that you came back;
+- leaving through the menu, with Escape during the match, really leaves, as before.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.52.0
 
 **Host:** in the waiting room, **Ctrl + K** opens the player list. Choose someone to **kick** from the

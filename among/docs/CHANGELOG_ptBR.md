@@ -6,6 +6,22 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.53.0
+
+**Voltar à partida depois de cair:** nos últimos dias, muita gente caiu do servidor no meio da partida,
+às vezes várias pessoas ao mesmo tempo. Pode ser que seja culpa do servidor novo; ainda estamos
+investigando. Enquanto isso, cair não tira mais você da partida:
+
+- o seu lugar fica guardado por um minuto, e o jogo tenta voltar sozinho. Você ouve que a conexão caiu
+  e que ele está tentando voltar, e o Esc desiste;
+- também dá para fechar o jogo, abrir de novo e entrar: dentro do minuto, você cai direto na partida;
+- enquanto você está fora, o seu personagem fica parado onde estava e pode ser morto. Os outros ouvem
+  que você perdeu a conexão e, depois, que voltou;
+- quem sai pelo menu, com Esc na partida, sai de verdade, como antes.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.52.0
 
 **Anfitrião:** na sala de espera, **Ctrl + K** abre a lista de jogadores. Escolha alguém para
