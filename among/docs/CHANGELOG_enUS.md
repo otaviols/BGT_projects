@@ -6,6 +6,29 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.52.0
+
+**Host:** in the waiting room, **Ctrl + K** opens the player list. Choose someone to **kick** from the
+room or to **spectate** the next match. A kicked player can't join that room again. Someone moved to
+spectate can go back to playing with the A key.
+
+**Mute in chat:** when you mute someone (Ctrl + talk key), you can now mute them in text chat too.
+Their messages stop showing up.
+
+**Private rooms:** you can no longer create a room with a code another room already uses. Before, the
+second room couldn't be found by its code.
+
+**Fixes:**
+
+- an amnesiac who becomes a crew role now gets the tasks of the person who died, where that person
+  left them;
+- locked doors also stop attacks: you can no longer kill, swallow or douse someone on the other side;
+- the F2 reading mode in text fields is now saved, instead of going back to the default every time you
+  open the game.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.51.11
 
 **Connection drops:** when someone drops from the server, the game and the server now record the right

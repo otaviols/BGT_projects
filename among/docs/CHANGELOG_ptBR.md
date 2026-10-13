@@ -6,6 +6,30 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.52.0
+
+**Anfitrião:** na sala de espera, **Ctrl + K** abre a lista de jogadores. Escolha alguém para
+**expulsar** da sala ou para mandar **assistir** a próxima partida. Quem é expulso não consegue entrar
+de novo naquela sala. Quem foi mandado assistir pode voltar a jogar com a tecla A.
+
+**Silenciar no chat:** ao silenciar alguém (Ctrl + tecla de falar), agora há a opção de silenciar essa
+pessoa também no chat de texto. As mensagens dela deixam de aparecer.
+
+**Salas privadas:** não dá mais para criar uma sala com um código que outra sala já usa. Antes, a
+segunda sala ficava impossível de encontrar pelo código.
+
+**Correções:**
+
+- o amnésico que vira um papel de tripulante agora recebe as tarefas de quem morreu, no ponto em que a
+  pessoa parou;
+- porta trancada também segura ataques: não dá mais para matar, engolir ou encharcar quem está do
+  outro lado;
+- o modo de leitura do F2 nos campos de texto agora fica guardado, e não volta ao padrão cada vez que
+  você abre o jogo.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.11
 
 **Quedas de conexão:** quando alguém cai do servidor, o jogo e o servidor agora registram o motivo

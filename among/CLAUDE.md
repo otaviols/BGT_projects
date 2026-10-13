@@ -235,7 +235,9 @@ chegava "com crash.log". O contexto na lista de partidas é por passo e por tela
 
 Sempre, e nesta ordem:
 
-1. **Suba `GAME_VERSION`** em `src/config/game_constants.nvgt`.
+1. **Suba `GAME_VERSION`** em `src/config/game_constants.nvgt`. O número do MEIO sobe quando a versão
+   traz função nova ou muda o protocolo (0.51.11 → 0.52.0); o ÚLTIMO, só para correções e ajustes
+   (decisão do usuário, 2026-10-13 - até ali não havia padrão, e chegou-se a 0.51.11).
 2. **Escreva a entrada no changelog**, nos DOIS idiomas: `docs/CHANGELOG_ptBR.md` e
    `docs/CHANGELOG_enUS.md`, no topo, como `## x.y.z`. A entrada diz **o que a versão traz para quem
    joga** — nunca detalhe interno (nome de arquivo, refatoração, como o bug era no código). O texto é
