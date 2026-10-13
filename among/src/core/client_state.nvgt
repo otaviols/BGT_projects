@@ -7,6 +7,7 @@
 #include "../network/packet.nvgt"
 #include "../config/game_constants.nvgt"
 #include "../i18n.nvgt" // spoken_name
+#include "../game/map.nvgt" // door_blocks (ver nearest_alive)
 
 class roster_entry {
 	uint64 peer_id;
@@ -130,8 +131,11 @@ class client_roster {
 	// de max_range estiver rastreado (posições só são conhecidas se S_PLAYER_MOVED já chegou).
 	// also_exclude serve pra tirar um grupo inteiro da busca - hoje, os parceiros de impostor na
 	// hora de escolher quem matar (ver game/game_loop.nvgt).
+	// `doors`: com o mapa, quem está do outro lado de uma porta trancada não é alvo - a mesma regra do
+	// servidor (try_kill e companhia, via game_map.door_blocks), para o bip e a tecla não prometerem um
+	// alvo que o servidor recusa.
 	roster_entry@ nearest_alive(float x, float y, uint64 exclude_peer, float max_range,
-			const array<uint64>@ also_exclude = null) const {
+			const array<uint64>@ also_exclude = null, const game_map@ doors = null) const {
 		roster_entry@ best = null;
 		float best_dist = max_range;
 		for (uint i = 0; i < entries.length(); i++) {
@@ -139,6 +143,7 @@ class client_roster {
 			if (!e.alive || e.peer_id == exclude_peer) continue;
 			if (perceptible_known && perceptible.find(e.peer_id) == -1) continue;
 			if (@also_exclude != null && also_exclude.find(e.peer_id) != -1) continue;
+			if (@doors != null && doors.door_blocks(x, y, e.x, e.y)) continue;
 			float dist = distance_2d(x, y, e.x, e.y);
 			if (dist <= best_dist) {
 				best_dist = dist;

@@ -4,6 +4,30 @@
 // Funções da partida que não dependem do estado dela (recebem o que usam). Incluído pelo
 // src/game/game_loop.nvgt, que declara os #include de todas as partes.
 
+// Troca a lista de tarefas pela que veio do servidor: a do começo da partida e a que um papel novo traz
+// (a herança do amnésico). `my_task_object_ids` guarda só as pendentes - é o que o radar e os
+// marcadores procuram.
+void load_tasks_from_json(json_array@ tasks_json, array<player_task>@ my_tasks, array<string>@ my_task_object_ids) {
+	my_tasks.resize(0);
+	my_task_object_ids.resize(0);
+	if (@tasks_json == null) return;
+	for (uint i = 0; i < tasks_json.length(); i++) {
+		json_object@ tj = tasks_json.get_object(i);
+		if (@tj == null) continue; // task malformada não pode derrubar a entrada na partida
+		player_task pt;
+		pt.object_id = string(tj["object_id"]);
+		pt.task_type = string(tj["task_type"]);
+		// Servidor antigo não manda fase: uma fase só, como sempre foi.
+		if (tj.exists("phase")) pt.phase = uint(int(tj["phase"]));
+		if (tj.exists("phase_count")) pt.phase_count = uint(int(tj["phase_count"]));
+		if (tj.exists("completed")) pt.completed = bool(tj["completed"]);
+		json_array@ chain_json = tj.get_array("chain");
+		if (@chain_json != null) for (uint c = 0; c < chain_json.length(); c++) pt.chain.insert_last(string(chain_json[c]));
+		my_tasks.insert_last(pt);
+		if (!pt.completed) my_task_object_ids.insert_last(pt.object_id);
+	}
+}
+
 bool my_tasks_all_completed(array<player_task>@ tasks) {
 	if (tasks.length() == 0) return false;
 	for (uint i = 0; i < tasks.length(); i++) {

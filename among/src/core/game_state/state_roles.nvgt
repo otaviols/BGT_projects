@@ -21,7 +21,8 @@ mixin class state_roles_part {
 		// Alvo inválido, longe, no duto ou protegido: tudo cai no mesmo "ninguém ao alcance". Uma
 		// recusa própria para o escudo contaria ao lobo que aquela pessoa está blindada.
 		if (@alvo == null || !alvo.alive || alvo.peer_id == lobo.peer_id || alvo.vented || alvo.shield_remaining > 0.0 ||
-				distance_2d(lobo.x, lobo.y, alvo.x, alvo.y) > PLAYER_KILL_RANGE) {
+				distance_2d(lobo.x, lobo.y, alvo.x, alvo.y) > PLAYER_KILL_RANGE ||
+				map.door_blocks(lobo.x, lobo.y, alvo.x, alvo.y)) { // a porta trancada, como no kill (try_kill)
 			fail_key = "role.eat_no_target";
 			return false;
 		}
@@ -324,7 +325,8 @@ mixin class state_roles_part {
 		game_player@ a = find_player(arsonist_peer);
 		game_player@ t = find_player(target_peer);
 		if (@a == null || !a.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
-		if (@t == null || !t.alive || t.peer_id == a.peer_id || distance_2d(a.x, a.y, t.x, t.y) > PLAYER_KILL_RANGE) { fail_key = "role.douse_no_target"; return false; }
+		if (@t == null || !t.alive || t.peer_id == a.peer_id || distance_2d(a.x, a.y, t.x, t.y) > PLAYER_KILL_RANGE
+				|| map.door_blocks(a.x, a.y, t.x, t.y)) { fail_key = "role.douse_no_target"; return false; }
 		if (a.doused.find(target_peer) != -1) { fail_key = "role.douse_already"; return false; }
 		a.doused.insert_last(target_peer);
 		remaining = not_doused_count(a);
@@ -357,6 +359,14 @@ mixin class state_roles_part {
 		if (@morto == null) { fail_key = "role.no_body_near"; return false; }
 		new_role = morto.role_id;
 		p.set_role(new_role);
+		// Papel de quem faz tarefa vem COM as tarefas do morto, no ponto em que ele as deixou: o amnésico
+		// começa sem nenhuma, e herdar um tripulante sem tarefas deixava-o sem o que fazer e sem
+		// disfarce (achado do usuário). Cópia, e o morto para de contar (tasks_passed_on): o total da
+		// equipe fica igual. O fantasma dele segue com a lista, mas o que fizer ali não conta mais.
+		if (p.role().tasks_count_for_crew && !morto.tasks_passed_on) {
+			p.tasks = morto.tasks;
+			morto.tasks_passed_on = true;
+		}
 		// O kill recarregando (ninguém herda uma faca pronta no meio de todo mundo) e o alvo do carrasco.
 		// A habilidade do papel novo também começa recarregando: on_use_ability arma a recarga depois
 		// daqui, já com o papel novo - herdar não dá uma habilidade pronta de graça.

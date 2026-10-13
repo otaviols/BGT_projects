@@ -212,8 +212,10 @@ mixin class match_frame_update_part {
 				// promete um alvo que a tecla depois recusa.
 				// Os parceiros de impostor entram na exclusão sempre: para quem não é impostor a lista
 				// está vazia, e passá-la de qualquer jeito evita um ternário entre tipos diferentes.
+				// A porta trancada conta só para quem ATACA (matar, engolir): o escudo do anjo atravessa.
+				bool ataca = my_role.ability_id != ABILITY_SHIELD || agora.can_kill();
 				@target_in_range_entry = roster.nearest_alive(my_x, my_y, client.my_peer_id, alcance,
-					impostor_partner_peers);
+					impostor_partner_peers, ataca ? @map : null);
 				tem_alvo = @target_in_range_entry != null;
 			}
 			if (tem_alvo && !target_was_in_range) ui_sound(SND_TARGET_IN_RANGE);

@@ -162,6 +162,9 @@ mixin class match_net_abilities_part {
 			nomes.insert_last(spoken_name(string(o["name"])));
 			impostor_partner_names.insert_last(string(o["name"]));
 		}
+		// As tarefas que o papel novo trouxe (o amnésico herda as do morto). Servidor antigo não manda o
+		// campo: aí fica a lista que já havia.
+		if (pkt.exists("tasks")) load_tasks_from_json(pkt.get_array("tasks"), my_tasks, my_task_object_ids);
 		// Marcadores e sabotagem dependem do papel (o impostor não ouve as próprias tarefas como tripulante).
 		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 			my_role, alive, known_body_peers, known_body_positions);

@@ -75,6 +75,11 @@ trancada (para não congelá-lo, a regra deixava sair por qualquer ponta), e o c
 elétrica, onde o oxigênio está pendurado, trancava o oxigênio junto com a carga ou a elétrica. O som
 da porta toca em cada passagem (`openings_of`), não no meio do corredor. Sonda:
 `tools/probes/probe_doors.nvgt`, que acha as passagens pela geometria em vez de coordenadas fixas.
+**A porta separa ataques também** (0.51.12): matar, engolir e encharcar perguntam o mesmo
+`door_blocks` entre atacante e alvo. Antes só olhavam a distância (1,2), e colado na borda dava para
+matar quem estava do outro lado da porta trancada. No cliente o `nearest_alive` recebe o mapa, para a
+tecla e o bip de alvo não oferecerem quem o servidor vai recusar. O escudo do anjo atravessa (não é
+ataque). Ataque novo de contato: ponha a porta nos dois lados.
 
 **Um tipo pode ter VÁRIAS correntes, e a escolhida mora no JOGADOR.** O destino saía de
 `map.chain_object_at(tipo, fase)`, que é global: todo mundo com "abastecer os motores" ia ao mesmo

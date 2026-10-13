@@ -32,6 +32,10 @@ mixin class state_kill_part {
 		if (!killer.can_kill()) return false;
 		if (!target.alive || target.peer_id == killer.peer_id) return false;
 		if (distance_2d(killer.x, killer.y, target.x, target.y) > PLAYER_KILL_RANGE) return false;
+		// Porta trancada separa: o alcance é de 1,2, e colado na borda de uma sala trancada dava para
+		// matar quem estava do outro lado (pergunta do usuário, 2026-10-13). A mesma regra que barra o
+		// passo (game_map.door_blocks) - porta que não deixa passar não deixa a faca passar.
+		if (map.door_blocks(killer.x, killer.y, target.x, target.y)) return false;
 
 		// DUTO: ninguém mata de dentro dele, e ninguém morre dentro dele. As duas pontas, pela mesma
 		// razão - a posição de quem está num duto PAROU de ser transmitida (ver on_move), então o

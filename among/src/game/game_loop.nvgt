@@ -289,22 +289,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 			if (map.objects[i].obj_type == OBJ_TASK_SPOT) all_task_spot_ids.insert_last(map.objects[i].id);
 		}
 		@tasks_json = start_pkt.get_array("tasks");
-		if (@tasks_json != null) {
-			for (uint i = 0; i < tasks_json.length(); i++) {
-				json_object@ tj = tasks_json.get_object(i);
-				if (@tj == null) continue; // task malformada não pode derrubar a entrada na partida
-				player_task pt;
-				pt.object_id = string(tj["object_id"]);
-				pt.task_type = string(tj["task_type"]);
-				// Servidor antigo não manda fase: uma fase só, como sempre foi.
-				if (tj.exists("phase")) pt.phase = uint(int(tj["phase"]));
-				if (tj.exists("phase_count")) pt.phase_count = uint(int(tj["phase_count"]));
-				json_array@ chain_json = tj.get_array("chain");
-				if (@chain_json != null) for (uint c = 0; c < chain_json.length(); c++) pt.chain.insert_last(string(chain_json[c]));
-				my_tasks.insert_last(pt);
-				my_task_object_ids.insert_last(pt.object_id);
-			}
-		}
+		load_tasks_from_json(tasks_json, my_tasks, my_task_object_ids);
 
 		opening_sound_slot = audio.play_start_game();
 		audio.start_ship_ambience();

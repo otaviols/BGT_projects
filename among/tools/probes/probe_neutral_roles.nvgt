@@ -86,11 +86,22 @@ void main() {
 
 	println("== amnesico ==");
 	game_state@ m = mesa(ROLE_AMNESIAC, ROLE_SHERIFF);
+	// Como na partida de verdade: o amnésico começa sem tarefas, e o xerife tem duas, uma já feita.
+	m.find_player(1).tasks.resize(0);
+	{
+		array<map_object@>@ spots = m.map.objects_by_type(OBJ_TASK_SPOT);
+		player_task feita; feita.object_id = spots[1].id; feita.task_type = spots[1].task_type; feita.completed = true;
+		m.find_player(2).tasks.insert_last(feita);
+	}
 	net_packet@ ev;
 	m.find_player(4).kill_cooldown_remaining = 0.0;
 	m.try_kill(4, 2, ev); // o impostor mata o xerife
+	uint total_antes = m.crew_task_total(), feitas_antes = m.crew_task_completed();
 	string novo;
 	confere("perto do corpo do xerife, o amnesico vira xerife", m.try_remember(1, novo, falha) && novo == ROLE_SHERIFF && m.find_player(1).role_id == ROLE_SHERIFF);
+	confere("e herda as tarefas dele, com a feita ja feita", m.find_player(1).tasks.length() == 2 && m.find_player(1).completed_task_count() == 1);
+	confere("a barra da equipe nao muda (" + total_antes + "/" + feitas_antes + " -> " + m.crew_task_total() + "/" + m.crew_task_completed() + ")",
+		m.crew_task_total() == total_antes && m.crew_task_completed() == feitas_antes);
 	game_state@ i = mesa(ROLE_AMNESIAC, ROLE_SHERIFF);
 	i.find_player(2).kill_cooldown_remaining = 0.0;
 	i.try_kill(2, 4, ev); // o xerife mata o impostor

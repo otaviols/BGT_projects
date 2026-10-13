@@ -38,6 +38,24 @@ bool atravessa(game_map@ m, const string&in sala, const string&in para, bool ida
 	return false;
 }
 
+// Os dois lados da passagem de `sala` para `para`, a 0,2 da borda cada um (0,4 entre eles: bem dentro
+// do alcance de matar, 1,2).
+bool lados(game_map@ m, const string&in sala, const string&in para, float&out ax, float&out ay, float&out bx, float&out by) {
+	array<zone_opening@>@ saidas = m.openings_of(sala);
+	for (uint i = 0; i < saidas.length(); i++) {
+		zone_opening@ e = saidas[i];
+		if (e.to_zone != para) continue;
+		float meio = (e.span_min + e.span_max) / 2.0;
+		float sinal = (e.side == "east" || e.side == "south") ? 1.0 : -1.0;
+		bool vertical = e.side == "east" || e.side == "west";
+		float dentro = e.edge - sinal * 0.2, fora = e.edge + sinal * 0.2;
+		ax = vertical ? dentro : meio; ay = vertical ? meio : dentro;
+		bx = vertical ? fora : meio; by = vertical ? meio : fora;
+		return true;
+	}
+	return false;
+}
+
 // Um passo curto dentro da própria zona, a partir do centro dela.
 bool anda_dentro(game_map@ m, const string&in zona) {
 	map_zone@ z = m.find_zone(zona);
@@ -67,6 +85,23 @@ void main() {
 	caso("fantasma entra na carga", atravessa(m, "storage", "corridor_storage_electrical", false, false), true);
 	caso("vivo anda dentro da carga", anda_dentro(m, "storage"), true);
 
+	println("--- atacar através da porta trancada ---");
+	// O impostor no corredor, colado na borda; a vítima dentro da carga, do outro lado.
+	game_player@ vit = game_player(2, "vitima");
+	vit.set_role(ROLE_CREWMATE);
+	lobby.players.insert_last(vit);
+	game_player@ testemunha = game_player(3, "outro");
+	testemunha.set_role(ROLE_CREWMATE);
+	lobby.players.insert_last(testemunha);
+	float ax, ay, bx, by;
+	caso("achou a passagem da carga", lados(m, "storage", "corridor_storage_electrical", ax, ay, bx, by), true);
+	vit.x = ax; vit.y = ay;
+	imp.x = bx; imp.y = by;
+	imp.kill_cooldown_remaining = 0.0;
+	net_packet@ ev;
+	caso("matar quem está do outro lado da porta trancada", lobby.try_kill(1, 2, ev), false);
+	caso("e a vítima continua viva", vit.alive, true);
+
 	println("--- o resto da nave segue aberto ---");
 	caso("vivo anda no corredor da carga", anda_dentro(m, "corridor_storage_electrical"), true);
 	caso("vivo entra no oxigênio pelo corredor da carga", atravessa(m, "oxygen", "corridor_storage_electrical", false, true), true);
@@ -75,6 +110,8 @@ void main() {
 	println("--- e reabre ---");
 	m.open_doors(fechadas);
 	caso("vivo entra na carga com a porta aberta", atravessa(m, "storage", "corridor_storage_electrical", false, true), true);
+	// O controle: com a porta aberta, o mesmo golpe acerta - senão a recusa lá em cima podia ser outra coisa.
+	caso("com a porta aberta, o mesmo golpe acerta", lobby.try_kill(1, 2, ev), true);
 
 	println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHA(S)");
 }

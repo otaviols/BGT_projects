@@ -372,6 +372,11 @@ com uma sala reaberta onde todos voltaram a tripulante (custou uma rodada achar 
 - **Amnésico: herda QUALQUER papel, impostor inclusive** (decisão do usuário). O corpo fica onde está;
   só os impostores são avisados quando ele vira um deles (`role.teammate_joined`). O kill herdado
   começa recarregando, e a habilidade também (on_use_ability arma a recarga já com o papel novo).
+  **Herdando papel de quem faz tarefa, herda as TAREFAS do morto** no ponto em que estavam (até a
+  0.51.11 ele ficava sem nenhuma - sintoma: "virou tripulante e não tem tarefa", achado do usuário). O
+  morto para de contar (`tasks_passed_on`): contando os dois, o total da equipe subiria na hora, e a
+  barra caindo do nada contaria a todos que alguém lembrou um tripulante. O `S_ROLE_CHANGED` leva a
+  lista (`tasks_json_of`, a mesma do `S_GAME_START`, agora com `completed`).
 Sondas: `probe_neutral_roles.nvgt` (sem rede) e o caso do `S_ROLE_CHANGED` no `probe_match_packets`.
 
 **Médico (0.47.0): o único limite é a JANELA depois da morte** (`TUNABLE_WINDOW`, decisão do usuário):

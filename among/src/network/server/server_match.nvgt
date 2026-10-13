@@ -172,6 +172,7 @@ mixin class server_match_part {
 			p.alive = true;
 			p.swallowed_by = 0;
 			p.left_match = false;
+			p.tasks_passed_on = false;
 			p.vented = false;
 			p.current_vent_id = "";
 			p.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
@@ -385,25 +386,7 @@ mixin class server_match_part {
 			}
 			start.set_array("players", roster);
 
-			json_array@ tasks_json = json_array();
-			for (uint t = 0; t < p.tasks.length(); t++) {
-				json_object@ tj = json_object();
-				tj.set("object_id", p.tasks[t].object_id);
-				tj.set("task_type", p.tasks[t].task_type);
-				// A fase vai junto porque a partida pode ter recomeçado com a tarefa no meio (reunião,
-				// reconexão): o cliente precisa mirar o ponto certo, não o começo da corrente.
-				tj.set("phase", int(p.tasks[t].phase));
-				tj.set("phase_count", int(p.tasks[t].phase_count));
-				// A corrente sorteada vai junto: sem ela o cliente adivinhava o destino pelo mapa e
-				// mandava todo mundo ao reator (ver player_task.chain_object).
-				if (p.tasks[t].chain.length() > 0) {
-					json_array@ chain_json = json_array();
-					for (uint c = 0; c < p.tasks[t].chain.length(); c++) chain_json.add(p.tasks[t].chain[c]);
-					tj.set("chain", chain_json);
-				}
-				tasks_json.add(tj);
-			}
-			start.set_array("tasks", tasks_json);
+			start.set_array("tasks", tasks_json_of(p));
 
 			send_to(p.peer_id, start);
 		}
@@ -665,5 +648,31 @@ mixin class server_match_part {
 			// pessoa de atravessar a nave para resolver um painel que já está resolvido.
 			broadcast_sabotage_progress(lobby, lobby.active_sabotage, object_id, panels_fixed, panels_required);
 		}
+	}
+
+	// As tarefas do jogador como viajam ao cliente: no começo da partida (S_GAME_START) e quando um
+	// papel novo as traz (S_ROLE_CHANGED do amnésico).
+	json_array@ tasks_json_of(game_player@ p) {
+		json_array@ tasks_json = json_array();
+		for (uint t = 0; t < p.tasks.length(); t++) {
+			json_object@ tj = json_object();
+			tj.set("object_id", p.tasks[t].object_id);
+			tj.set("task_type", p.tasks[t].task_type);
+			// A fase vai junto porque a partida pode ter recomeçado com a tarefa no meio (reunião,
+			// reconexão, a herança do amnésico): o cliente precisa mirar o ponto certo, não o começo.
+			tj.set("phase", int(p.tasks[t].phase));
+			tj.set("phase_count", int(p.tasks[t].phase_count));
+			// Concluída também vai: a lista herdada traz as que o morto já tinha feito.
+			tj.set("completed", p.tasks[t].completed);
+			// A corrente sorteada vai junto: sem ela o cliente adivinhava o destino pelo mapa e
+			// mandava todo mundo ao reator (ver player_task.chain_object).
+			if (p.tasks[t].chain.length() > 0) {
+				json_array@ chain_json = json_array();
+				for (uint c = 0; c < p.tasks[t].chain.length(); c++) chain_json.add(p.tasks[t].chain[c]);
+				tj.set("chain", chain_json);
+			}
+			tasks_json.add(tj);
+		}
+		return tasks_json;
 	}
 }

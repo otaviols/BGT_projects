@@ -122,6 +122,10 @@ class game_player {
 	// tasks dele, principalmente: sem isso a vitória por tasks nunca acontecia, porque o jogo ficava
 	// esperando pra sempre as tasks de quem não está mais lá.
 	bool left_match = false;
+	// Um amnésico herdou o papel E as tarefas dele (ver try_remember). As tarefas passam a contar pelo
+	// amnésico; contando pelos dois, o total da equipe subiria na hora - e a barra que cai do nada
+	// contaria a todos que alguém acabou de lembrar um tripulante.
+	bool tasks_passed_on = false;
 
 	// Quer receber voz (C_VOICE_STATE). Falso até o cliente dizer o contrário: cliente antigo nunca
 	// diz, e assim não recebe 128 kbps de áudio que não sabe tocar.
@@ -291,6 +295,7 @@ class game_player {
 		nearby_sent_once = false;
 		radar_sent.resize(0);
 		left_match = false;
+		tasks_passed_on = false;
 		set_role(ROLE_CREWMATE);
 		vented = false;
 		current_vent_id = "";

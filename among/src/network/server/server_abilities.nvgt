@@ -366,6 +366,9 @@ mixin class server_abilities_part {
 			}
 		}
 		r.set_array("impostor_partners", parceiros);
+		// A lista de tarefas que o papel novo trouxe (a do morto, no amnésico). Sempre vai: um papel
+		// sem tarefas manda a lista vazia, e o cliente não fica com tarefas de um papel que já não é o dele.
+		r.set_array("tasks", tasks_json_of(p));
 		send_to(p.peer_id, r);
 	}
 }

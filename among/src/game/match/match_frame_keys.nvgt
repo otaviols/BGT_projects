@@ -247,7 +247,7 @@ mixin class match_frame_keys_part {
 				} else if (my_role.ability_id == ABILITY_EAT) {
 					// Mirada como o kill: o mais perto ao alcance. Quem engolir sai do elenco na
 					// confirmação (ver S_ABILITY_RESULT).
-					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE);
+					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE, null, map);
 					if (@alvo == null) speak(tr("role.eat_no_target"));
 					else {
 						pending_eat_peer = alvo.peer_id;
@@ -256,7 +256,7 @@ mixin class match_frame_keys_part {
 				} else if (my_role.ability_id == ABILITY_DOUSE) {
 					// Mirado como o kill: o mais perto ao alcance. Sem ninguém perto o pedido vai assim
 					// mesmo - com todos encharcados, a mesma tecla é o fogo, e quem sabe é o servidor.
-					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE);
+					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE, null, map);
 					client.send_use_ability(my_role.ability_id, @alvo != null ? alvo.peer_id : 0);
 				} else if (my_role.ability_id == ABILITY_SHIELD) {
 					// Habilidade MIRADA: o alvo é quem estiver mais perto, pela mesma função da
@@ -296,7 +296,7 @@ mixin class match_frame_keys_part {
 						// disso, ignorando ele aqui, estar colado no parceiro não impede mais de matar o
 						// tripulante que está logo atrás dele.
 						roster_entry@ target = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE,
-							impostor_partner_peers);
+							impostor_partner_peers, map);
 						if (@target != null) imp.kill(target.peer_id);
 						else speak(tr("game.kill_no_target_nearby"));
 					}
