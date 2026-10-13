@@ -213,7 +213,9 @@ formulário mostra o código nos dois modos, e o `C_UPDATE_LOBBY_CONFIG` leva `j
 PRESENÇA do campo que vale - cliente antigo não o manda, e ler a falta como "" tornaria pública a
 sala de quem só mexeu numa regra; por isso `send_update_lobby_config` tem as duas formas (as sondas
 antigas usam a sem código). Código de outra sala recusa a edição inteira (`lobby.code_in_use`),
-conferido antes de aplicar qualquer coisa. "As regras mudaram" só sai se o retrato das regras mudou -
+conferido antes de aplicar qualquer coisa. A CRIAÇÃO só passou a conferir na 0.51.12
+(`lobby.code_in_use_create`, antes de tirar o anfitrião de onde ele está): até ali duas salas podiam
+nascer com o mesmo código, e quem o digitava caía sempre na primeira. "As regras mudaram" só sai se o retrato das regras mudou -
 trocar só a privacidade com aquele aviso mandaria todo mundo apertar C à toa. A entrada e saída da
 lista vem do `send_hall_state()` de sempre. Sonda: `probe_lobby_privacy.nvgt` (servidor local).
 

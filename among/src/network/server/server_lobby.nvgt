@@ -9,6 +9,11 @@ mixin class server_lobby_part {
 	void on_create_lobby(uint64 peer_id, net_packet@ pkt) {
 		game_player@ conn = find_connection(peer_id);
 		if (@conn == null || !conn.authenticated) return;
+		// Código já usado por outra sala: recusa ANTES de tirar o anfitrião de onde está. Com duas salas
+		// no mesmo código, quem o digitasse cairia sempre na primeira, e a segunda ficava inalcançável
+		// (relato do usuário, 2026-10-13). A edição de sala aberta já recusava; a criação não.
+		string codigo = normalize_join_code(pkt.get_string("join_code", ""));
+		if (codigo != "" && @find_lobby_by_code(codigo) != null) { send_error(peer_id, "lobby.code_in_use_create"); return; }
 		leave_current_lobby(peer_id); // ninguém entra numa lobby estando em outra
 
 		game_state@ lobby = game_state();
@@ -24,7 +29,7 @@ mixin class server_lobby_part {
 		// validate() DEPOIS de aplicar, e não antes: estes números vieram da máquina do jogador, e é
 		// aqui que um "1000 jogadores" ou um cooldown de meio segundo voltam para dentro dos limites.
 		lobby.config.validate();
-		lobby.join_code = normalize_join_code(pkt.get_string("join_code", ""));
+		lobby.join_code = codigo;
 		lobby.host_peer_id = peer_id;
 		@lobby.map = build_the_hub_map();
 

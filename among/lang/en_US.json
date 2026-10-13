@@ -386,6 +386,7 @@
   "lobby.now_private": "The match is now private: it left the list, and only those who know the code {code} can join.",
   "lobby.now_public": "The match is now public: it shows up in the list for everyone.",
   "lobby.code_in_use": "Another room already uses that code. Pick another one; nothing was changed.",
+  "lobby.code_in_use_create": "Another room already uses that code, so the room was not created. Create it again with another code.",
   "lobby.player_joined": "{name} joined the lobby.",
   "lobby.player_left": "{name} left the lobby.",
   "lobby.you_are_host": "You are now the host.",

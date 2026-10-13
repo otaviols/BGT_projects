@@ -556,6 +556,8 @@ net_packet@ wait_for_lobby_state_after_create(game_client@ client) {
 		net_packet@ pkt = client.poll_message();
 		while (@pkt != null) {
 			if (pkt.type == S_LOBBY_STATE) return pkt;
+			// A recusa (o código já é de outra sala): dita na hora, em vez de cinco segundos calado.
+			if (pkt.type == S_ERROR) { speak(tr_server_message(pkt)); return null; }
 			@pkt = client.poll_message();
 		}
 	}

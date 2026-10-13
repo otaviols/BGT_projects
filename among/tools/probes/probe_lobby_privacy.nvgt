@@ -101,6 +101,17 @@ void main() {
 	confere("recusado: o codigo e de outra sala", disse(cx, "lobby.code_in_use"));
 	confere("e nada mudou (sem retrato novo)", @achar(cx, S_LOBBY_STATE) == null);
 
+	println("== criar sala com codigo ja usado ==");
+	// Era aceito: duas salas no mesmo código, e quem o digitava caía sempre na primeira.
+	game_client@ terceiro = entra("tres" + n);
+	terceiro.send_create_lobby("copia", "classic", nada, codigo2.upper()); // maiúscula não disfarça
+	cx = coleta(terceiro, 1000);
+	confere("recusado na criacao, com o motivo", disse(cx, "lobby.code_in_use_create"));
+	confere("e a sala nao foi criada", @achar(cx, S_LOBBY_STATE) == null);
+	terceiro.send_create_lobby("livre", "classic", nada, "livre" + n);
+	confere("controle: com um codigo livre, cria", @achar(coleta(terceiro, 1000), S_LOBBY_STATE) != null);
+	terceiro.disconnect();
+
 	println("== entrar pelo codigo ==");
 	outro.send_join_by_code(codigo.upper()); // ditado de viva voz: maiúscula não importa
 	net_packet@ j = achar(coleta(outro, 1000), S_JOIN_RESULT);
