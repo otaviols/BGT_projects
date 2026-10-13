@@ -6,6 +6,15 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.11
+
+**Connection drops:** when someone drops from the server, the game and the server now record the right
+reason. This helps us find out why a whole room sometimes drops at once, and fix it faster. If you
+drop, send a message telling us what was happening.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.51.10
 
 **Graphics mode:**

@@ -1,8 +1,8 @@
 {
-	"version": "0.51.10",
+	"version": "0.51.11",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "Modo gráfico: durante uma sabotagem, aparece um aviso vermelho no alto da tela, com o nome dela, e a borda da tela pulsa em vermelho; engolido pelo lobo, você continua vendo o jogo: a tela acompanha o lobo, com um aviso no alto de que você está na barriga dele. Na versão anterior, a tela mostrava só a barriga. Teclas: a tecla Page Down deixou de trocar entre as mensagens e os eventos. Fica só a tecla que se escolhe nas Configurações, que é a Page Up se você não mudou. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
-		"en_US": "Graphics mode: during a sabotage, a red warning with its name shows at the top of the screen, and the edge of the screen pulses red; when the wolf swallows you, you keep seeing the game: the screen follows the wolf, with a note at the top that you are in its belly. In the previous version, the screen showed only the belly. Keys: the Page Down key no longer switches between messages and events. Only the key chosen in Settings does that, which is Page Up unless you changed it. We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version. Found something? Send a message."
+		"pt_BR": "Quedas de conexão: quando alguém cai do servidor, o jogo e o servidor agora registram o motivo certo. Isso nos ajuda a descobrir por que, às vezes, uma sala inteira cai junta, e a corrigir mais rápido. Se você cair, mande um recado contando o que estava acontecendo. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
+		"en_US": "Connection drops: when someone drops from the server, the game and the server now record the right reason. This helps us find out why a whole room sometimes drops at once, and fix it faster. If you drop, send a message telling us what was happening. We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version. Found something? Send a message."
 	}
 }

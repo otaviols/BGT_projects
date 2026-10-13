@@ -6,6 +6,15 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.11
+
+**Quedas de conexão:** quando alguém cai do servidor, o jogo e o servidor agora registram o motivo
+certo. Isso nos ajuda a descobrir por que, às vezes, uma sala inteira cai junta, e a corrigir mais
+rápido. Se você cair, mande um recado contando o que estava acontecendo.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.10
 
 **Modo gráfico:**
