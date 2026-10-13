@@ -290,105 +290,12 @@ mixin class server_match_part {
 		lobby.assign_execution_targets();
 		lobby.assign_modifiers();
 
-		json_array@ roster = json_array();
-		for (uint i = 0; i < lobby.players.length(); i++) {
-			json_object@ rj = json_object();
-			rj.set("peer_id", lobby.players[i].peer_id);
-			rj.set("name", lobby.players[i].public_name()); // no modo cor, a marca da cor
-			rj.set("color", lobby.players[i].color);
-			rj.set("x", lobby.players[i].x);
-			rj.set("y", lobby.players[i].y);
-			roster.add(rj);
-		}
-
+		lobby.start_impostor_count = impostor_count;
+		json_array@ roster = build_start_roster(lobby);
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			game_player@ p = lobby.players[i];
 			if (p.is_bot) continue; // não tem pra quem mandar
-			net_packet@ start = net_packet(S_GAME_START);
-			start.set_string("map_name", lobby.map.name);
-			start.set_string("your_role", p.role_id);
-			if (p.execution_target != 0) {
-				game_player@ alvo = lobby.find_player(p.execution_target);
-				if (@alvo != null) start.set_string("execution_target_name", alvo.public_name());
-			}
-			// O que a SALA configurou (id -> quantos, e a chance de cada um), para todo mundo: assim
-			// como o número de impostores, saber que "pode haver um xerife" muda a leitura de tudo o
-			// que acontece. É a configuração, e nunca o resultado do sorteio: dizer o que realmente
-			// saiu entregaria a dedução que a chance existe para criar.
-			json_object@ cfg_json = lobby.config.to_json(lobby.players.length());
-			start.set_object("role_counts", cfg_json.get_object("role_counts"));
-			start.set_object("role_chances", cfg_json.get_object("role_chances"));
-			start.set_int("your_color", p.color);
-			start.set_uint64("your_peer_id", p.peer_id);
-			start.set_float("your_x", p.x);
-			start.set_float("your_y", p.y);
-			start.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
-			// A recarga da habilidade DESTE papel, pela mesma razão do kill: o servidor a rearma no fim
-			// da votação, e o cliente precisa acompanhar sem ter usado a habilidade nenhuma vez ainda
-			// (é por S_ABILITY_RESULT que ele descobriria, e esse só chega depois do primeiro uso).
-			start.set_float("ability_cooldown_seconds", lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN));
-			// Quanto da recarga já está correndo no começo (o lobo começa recarregando). Servidor antigo
-			// não manda: zero, como sempre foi.
-			start.set_float("ability_initial_cooldown", p.ability_cooldown_remaining);
-			// Quantos palpites por reunião (sniper). Pela mesma razão da recarga: o cliente precisa
-			// saber antes do primeiro uso para a tecla responder sem ir à rede.
-			start.set_int("ability_guesses", int(lobby.config.role_value(p.role_id, TUNABLE_GUESSES)));
-			start.set_float("sabotage_cooldown_seconds", lobby.sabotage_cooldown_remaining);
-			// Regra de voz da sala: sem ela o cliente capturaria e mandaria áudio que o servidor iria
-			// descartar - microfone aberto à toa.
-			start.set_bool("voice_chat", lobby.config.voice_chat);
-			// O cliente decide sozinho se abre o microfone, e precisa da MESMA regra que o servidor
-			// usa para decidir quem ouve - senão ele cala a reunião que o servidor deixaria passar.
-			start.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
-			// Velocidade e dutos: o cliente anda e oferece o duto sozinho, sem perguntar, então precisa
-			// da MESMA regra que o servidor usa para aceitar o passo e o duto.
-			// Flash e Gigante andam no próprio ritmo; a sala só dá a base.
-			start.set_float("move_speed", lobby.config.move_speed() * p.speed_multiplier());
-			start.set_float("room_move_speed", lobby.config.move_speed());
-			start.set_string("speed_modifier", p.speed_modifier);
-			if (p.lover != 0) {
-				game_player@ par = lobby.find_player(p.lover);
-				if (@par != null) start.set_string("lover_name", par.public_name());
-			}
-			start.set_bool("vents_enabled", lobby.config.vents_enabled);
-			// Modo cor: o cliente anuncia a cor do jogador junto do papel (os nomes já chegam como cor).
-			start.set_bool("color_mode", lobby.config.color_mode);
-			// O modo, e no pega-pega quanto o pegador fica parado: a contagem é feita por cada cliente.
-			start.set_string("game_mode", lobby.config.game_mode);
-			start.set_float("head_start", lobby.config.game_mode == GAME_MODE_TAG ? TAG_HEAD_START_SECONDS : 0.0);
-			// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
-			// um ou três, senão a discussão da reunião é chute puro.
-			start.set_int("impostor_count", impostor_count);
-			// Pega-pega: quem é o pegador vai para TODOS, como no original - no modo não há dedução, e
-			// fugir sem saber de quem é jogar no escuro (pedido do usuário).
-			if (lobby.config.game_mode == GAME_MODE_TAG) {
-				for (uint j = 0; j < lobby.players.length(); j++) {
-					if (lobby.players[j].is_impostor) { start.set_string("tagger_name", lobby.players[j].public_name()); break; }
-				}
-			}
-
-			// Os OUTROS impostores, mandados só pra quem é impostor - cada um precisa saber quem é do
-			// time dele pra não se denunciar sozinho na reunião. A lista sai montada por destinatário
-			// justamente pra nunca sair daqui pra um tripulante.
-			// Vai peer_id junto com o nome porque o cliente usa os ids pra nunca mirar um parceiro na
-			// hora de matar (ver a tecla de kill em game/game_loop.nvgt).
-			if (p.is_impostor) {
-				json_array@ partners = json_array();
-				for (uint j = 0; j < lobby.players.length(); j++) {
-					game_player@ other = lobby.players[j];
-					if (!other.is_impostor || other.peer_id == p.peer_id) continue;
-					json_object@ entry = json_object();
-					entry.set("peer_id", other.peer_id);
-					entry.set("name", other.public_name());
-					partners.add(entry);
-				}
-				start.set_array("impostor_partners", partners);
-			}
-			start.set_array("players", roster);
-
-			start.set_array("tasks", tasks_json_of(p));
-
-			send_to(p.peer_id, start);
+			send_to(p.peer_id, build_game_start(lobby, p, roster));
 		}
 
 		for (uint i = 0; i < lobby.spectators.length(); i++) {
@@ -674,5 +581,114 @@ mixin class server_match_part {
 			tasks_json.add(tj);
 		}
 		return tasks_json;
+	}
+
+	// O elenco que o S_GAME_START leva: todos da partida, com a posição de agora. No começo todo mundo
+	// está vivo; para quem VOLTA depois de cair (server_rejoin.nvgt) o `alive` diz quem já morreu - sem
+	// ele o elenco de quem voltou contaria os mortos como vivos (radar, votação, quem está perto).
+	json_array@ build_start_roster(game_state@ lobby) {
+		json_array@ roster = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			json_object@ rj = json_object();
+			rj.set("peer_id", lobby.players[i].peer_id);
+			rj.set("name", lobby.players[i].public_name()); // no modo cor, a marca da cor
+			rj.set("color", lobby.players[i].color);
+			rj.set("x", lobby.players[i].x);
+			rj.set("y", lobby.players[i].y);
+			rj.set("alive", lobby.players[i].alive);
+			roster.add(rj);
+		}
+		return roster;
+	}
+
+	// O S_GAME_START de UM jogador. Uma função só para o começo da partida e para quem volta depois de
+	// cair: escrito duas vezes, o da volta esqueceria o próximo campo que o começo ganhasse.
+	net_packet@ build_game_start(game_state@ lobby, game_player@ p, json_array@ roster) {
+		net_packet@ start = net_packet(S_GAME_START);
+		start.set_string("map_name", lobby.map.name);
+		start.set_string("your_role", p.role_id);
+		if (p.execution_target != 0) {
+			game_player@ alvo = lobby.find_player(p.execution_target);
+			if (@alvo != null) start.set_string("execution_target_name", alvo.public_name());
+		}
+		// O que a SALA configurou (id -> quantos, e a chance de cada um), para todo mundo: assim
+		// como o número de impostores, saber que "pode haver um xerife" muda a leitura de tudo o
+		// que acontece. É a configuração, e nunca o resultado do sorteio: dizer o que realmente
+		// saiu entregaria a dedução que a chance existe para criar.
+		json_object@ cfg_json = lobby.config.to_json(lobby.players.length());
+		start.set_object("role_counts", cfg_json.get_object("role_counts"));
+		start.set_object("role_chances", cfg_json.get_object("role_chances"));
+		start.set_int("your_color", p.color);
+		start.set_uint64("your_peer_id", p.peer_id);
+		start.set_float("your_x", p.x);
+		start.set_float("your_y", p.y);
+		start.set_float("kill_cooldown_seconds", lobby.config.kill_cooldown_seconds);
+		// A recarga da habilidade DESTE papel, pela mesma razão do kill: o servidor a rearma no fim
+		// da votação, e o cliente precisa acompanhar sem ter usado a habilidade nenhuma vez ainda
+		// (é por S_ABILITY_RESULT que ele descobriria, e esse só chega depois do primeiro uso).
+		start.set_float("ability_cooldown_seconds", lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN));
+		// Quanto da recarga já está correndo no começo (o lobo começa recarregando). Servidor antigo
+		// não manda: zero, como sempre foi.
+		start.set_float("ability_initial_cooldown", p.ability_cooldown_remaining);
+		// Quantos palpites por reunião (sniper). Pela mesma razão da recarga: o cliente precisa
+		// saber antes do primeiro uso para a tecla responder sem ir à rede.
+		start.set_int("ability_guesses", int(lobby.config.role_value(p.role_id, TUNABLE_GUESSES)));
+		start.set_float("sabotage_cooldown_seconds", lobby.sabotage_cooldown_remaining);
+		// Regra de voz da sala: sem ela o cliente capturaria e mandaria áudio que o servidor iria
+		// descartar - microfone aberto à toa.
+		start.set_bool("voice_chat", lobby.config.voice_chat);
+		// O cliente decide sozinho se abre o microfone, e precisa da MESMA regra que o servidor
+		// usa para decidir quem ouve - senão ele cala a reunião que o servidor deixaria passar.
+		start.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
+		// Velocidade e dutos: o cliente anda e oferece o duto sozinho, sem perguntar, então precisa
+		// da MESMA regra que o servidor usa para aceitar o passo e o duto.
+		// Flash e Gigante andam no próprio ritmo; a sala só dá a base.
+		start.set_float("move_speed", lobby.config.move_speed() * p.speed_multiplier());
+		start.set_float("room_move_speed", lobby.config.move_speed());
+		start.set_string("speed_modifier", p.speed_modifier);
+		if (p.lover != 0) {
+			game_player@ par = lobby.find_player(p.lover);
+			if (@par != null) start.set_string("lover_name", par.public_name());
+		}
+		start.set_bool("vents_enabled", lobby.config.vents_enabled);
+		// Modo cor: o cliente anuncia a cor do jogador junto do papel (os nomes já chegam como cor).
+		start.set_bool("color_mode", lobby.config.color_mode);
+		// O modo, e no pega-pega quanto o pegador fica parado: a contagem é feita por cada cliente.
+		start.set_string("game_mode", lobby.config.game_mode);
+		start.set_float("head_start", lobby.config.game_mode == GAME_MODE_TAG ? TAG_HEAD_START_SECONDS : 0.0);
+		// Quantos impostores existem. Vai pra todo mundo: o tripulante precisa saber se está caçando
+		// um ou três, senão a discussão da reunião é chute puro.
+		start.set_int("impostor_count", lobby.start_impostor_count);
+		// Pega-pega: quem é o pegador vai para TODOS, como no original - no modo não há dedução, e
+		// fugir sem saber de quem é jogar no escuro (pedido do usuário).
+		if (lobby.config.game_mode == GAME_MODE_TAG) {
+			for (uint j = 0; j < lobby.players.length(); j++) {
+				if (lobby.players[j].is_impostor) { start.set_string("tagger_name", lobby.players[j].public_name()); break; }
+			}
+		}
+
+		// Os OUTROS impostores, mandados só pra quem é impostor - cada um precisa saber quem é do
+		// time dele pra não se denunciar sozinho na reunião. A lista sai montada por destinatário
+		// justamente pra nunca sair daqui pra um tripulante.
+		// Vai peer_id junto com o nome porque o cliente usa os ids pra nunca mirar um parceiro na
+		// hora de matar (ver a tecla de kill em game/game_loop.nvgt).
+		if (p.is_impostor) {
+			json_array@ partners = json_array();
+			for (uint j = 0; j < lobby.players.length(); j++) {
+				game_player@ other = lobby.players[j];
+				if (!other.is_impostor || other.peer_id == p.peer_id) continue;
+				json_object@ entry = json_object();
+				entry.set("peer_id", other.peer_id);
+				entry.set("name", other.public_name());
+				partners.add(entry);
+			}
+			start.set_array("impostor_partners", partners);
+		}
+		if (@roster == null) @roster = build_start_roster(lobby);
+		start.set_array("players", roster);
+
+		start.set_array("tasks", tasks_json_of(p));
+
+		return start;
 	}
 }

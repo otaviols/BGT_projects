@@ -1,0 +1,123 @@
+// Sonda da volta à partida pelo LADO DO JOGO: a reconnect_to_match de verdade (ui/onboarding_screens),
+// contra um servidor local.
+//   nvgt server_main.nvgt                                            (num terminal à parte)
+//   $env:AMONGUS_SERVER_HOST = "127.0.0.1"; nvgt tools/probes/probe_rejoin_client.nvgt
+//
+//   1. Três jogadores começam uma partida; a conexão de B cai.
+//   2. reconnect_to_match(B) volta sozinha: devolve o S_GAME_START de volta, com o id antigo de B, e diz
+//      que está tentando voltar. A partida ouve que B voltou.
+//   3. O controle: com um token que o servidor não conhece, ela desiste logo (sem gastar os 50 s) e diz
+//      que não deu.
+// Muda: as falas são gravadas, não ditas.
+#include "../../src/i18n.nvgt"
+#include "../../src/ui/onboarding_screens.nvgt"
+
+int falhas = 0;
+array<string> falado;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (ok) return;
+	falhas++;
+	for (uint i = 0; i < falado.length(); i++) println("           falado: " + falado[i]);
+}
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+bool falou(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return true;
+	return false;
+}
+
+net_packet@ espera(game_client@ c, const string&in tipo, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		c.update();
+		net_packet@ p = c.poll_message();
+		while (@p != null) { if (p.type == tipo) return p; @p = c.poll_message(); }
+		wait(5);
+	}
+	return null;
+}
+// Bombeia os outros enquanto espera, sem jogar nada fora de `c`.
+void bombeia(array<game_client@>@ cs, int ms) {
+	timer t;
+	while (t.elapsed < ms) { for (uint i = 0; i < cs.length(); i++) if (@cs[i] != null) cs[i].update(); wait(5); }
+}
+
+game_client@ entra(const string&in nome) {
+	game_client@ c = game_client();
+	if (!connect_quietly(c, 5000)) return null;
+	c.send_register(nome, "probe123"); espera(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = espera(c, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return null;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	c.rejoin_token = lr.get_string("rejoin_token", "");
+	return c;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+	@tts_default_text_processing_callback = grava;
+	show_window("sonda: voltar a partida");
+
+	string sfx = "" + random(1000, 9999);
+	game_client@ a = entra("rc0x" + sfx);
+	game_client@ b = entra("rc1x" + sfx);
+	game_client@ c = entra("rc2x" + sfx);
+	if (@a == null || @b == null || @c == null) { println("sem servidor (AMONGUS_SERVER_HOST=127.0.0.1?)"); return; }
+	confere("o login guardou o token de volta", b.rejoin_token != "");
+	uint64 id_b = b.my_peer_id;
+
+	lobby_overrides ov;
+	ov.max_players = 6;
+	ov.impostor_count = 1;
+	a.send_create_lobby("rc" + sfx, "classic", ov);
+	net_packet@ st = espera(a, S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	b.send_join_lobby(st.get_string("lobby_id")); espera(b, S_JOIN_RESULT, 5000);
+	c.send_join_lobby(st.get_string("lobby_id")); espera(c, S_JOIN_RESULT, 5000);
+	bombeia({a, b, c}, 500);
+	a.send_start_game();
+	confere("a partida comecou para B", @espera(b, S_GAME_START, 8000) != null);
+	bombeia({a, c}, 500);
+
+	println("== 1-2. a conexao de B cai, e o jogo volta sozinho ==");
+	b.disconnect();
+	timer t; while (t.elapsed < 300) { b.update(); wait(5); }
+	falado.resize(0);
+	timer quanto;
+	net_packet@ volta = reconnect_to_match(b);
+	confere("devolveu o S_GAME_START de volta", @volta != null && volta.type == S_GAME_START && volta.get_bool("rejoin"));
+	confere("com o id antigo de B", b.my_peer_id == id_b);
+	confere("conectado de novo", b.connected);
+	confere("disse que estava tentando voltar", falou(tr("net.rejoin_trying")));
+	confere("e nao disse que desistiu", !falou(tr("net.rejoin_failed")));
+	confere("em poucos segundos (" + quanto.elapsed + " ms)", quanto.elapsed < 10000);
+	bool ouviu_volta = false;
+	timer ta;
+	while (ta.elapsed < 3000 && !ouviu_volta) {
+		a.update();
+		net_packet@ p = a.poll_message();
+		while (@p != null) {
+			if (p.type == S_ERROR && p.get_string(MSG_KEY_FIELD) == "match.player_reconnected") ouviu_volta = true;
+			@p = a.poll_message();
+		}
+		wait(5);
+	}
+	confere("a partida ouviu que B voltou", ouviu_volta);
+
+	println("== 3. controle: token que o servidor nao conhece ==");
+	game_client@ estranho = game_client();
+	estranho.rejoin_token = "token-que-nao-existe";
+	falado.resize(0);
+	timer quanto2;
+	net_packet@ nada = reconnect_to_match(estranho);
+	confere("devolve null", @nada == null);
+	confere("desiste logo, sem gastar o prazo (" + quanto2.elapsed + " ms)", quanto2.elapsed < 10000);
+	confere("e diz que nao deu", falou(tr("net.rejoin_failed")));
+
+	a.disconnect(); b.disconnect(); c.disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

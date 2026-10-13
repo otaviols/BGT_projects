@@ -277,6 +277,47 @@ void main() {
 	vt.handle_packet(bia_votou);
 	confere("e quando todos votaram, diz isso", vt.mui.missing_voters_text() == tr("game.vote_missing_none"));
 
+	println("== voltar a partida depois de cair ==");
+	// O S_GAME_START de volta (server_rejoin.nvgt): o estado de AGORA, e não o do começo.
+	game_client@ cv = game_client();
+	@cv.net = network();
+	cv.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	cv.my_peer_id = 1;
+	net_packet@ inicio_volta = net_packet(S_GAME_START);
+	inicio_volta.set_uint64("your_peer_id", 1);
+	inicio_volta.set_string("your_role", ROLE_IMPOSTOR);
+	inicio_volta.set_float("your_x", 5.0);
+	inicio_volta.set_float("your_y", 4.0);
+	inicio_volta.set_float("kill_cooldown_seconds", 25.0);
+	inicio_volta.set_float("sabotage_cooldown_seconds", 10.0);
+	inicio_volta.set_bool("rejoin", true);
+	inicio_volta.set_bool("alive", false);
+	inicio_volta.set_float("kill_cooldown_remaining", 4.0);
+	json_array@ elenco = json_array();
+	json_object@ eu_morto = jogador(1, "eu", 5.0, 4.0); eu_morto.set("alive", false); elenco.add(eu_morto);
+	json_object@ ana_viva = jogador(2, "ana", 1.0, 0.0); ana_viva.set("alive", true); elenco.add(ana_viva);
+	json_object@ bia_morta = jogador(3, "bia", 2.0, 0.0); bia_morta.set("alive", false); elenco.add(bia_morta);
+	inicio_volta.set_array("players", elenco);
+	match_session pv(cv, inicio_volta);
+	confere("volta marcada como volta", pv.rejoining);
+	confere("quem morreu fora volta morto (e sem votar)", !pv.alive && !pv.mui.alive);
+	confere("o elenco sabe quem ja morreu (bia) e quem nao (ana)", !pv.roster.find(3).alive && pv.roster.find(2).alive);
+	confere("a recarga do kill e a de agora, nao a cheia", pv.my_kill_cooldown_remaining == 4.0);
+	confere("e a posicao e a de agora", pv.my_x == 5.0 && pv.my_y == 4.0);
+	// O resto da partida chega pelos pacotes de sempre, logo atrás.
+	net_packet@ corpo_volta = net_packet(S_BODY_PLACED);
+	corpo_volta.set_uint64("peer_id", 3); corpo_volta.set_float("x", 2.0); corpo_volta.set_float("y", 0.0);
+	pv.handle_packet(corpo_volta);
+	confere("o corpo que ja estava la", pv.known_body_peers.find(3) >= 0);
+	net_packet@ sab_volta = net_packet(S_SABOTAGE_STARTED);
+	sab_volta.set_string("sabotage_id", "lights"); sab_volta.set_float("timer", 0.0);
+	pv.handle_packet(sab_volta);
+	confere("e a sabotagem em andamento", pv.active_sabotage_id == "lights");
+	// O controle: um começo comum, sem os campos de volta.
+	match_session@ comum = nova_partida(ROLE_IMPOSTOR);
+	confere("controle: o comeco comum nasce vivo, com a recarga cheia, e nao e volta",
+		comum.alive && comum.my_kill_cooldown_remaining == 25.0 && !comum.rejoining);
+
 	confere("nenhuma excecao (crash.log intocado)", file_get_contents(crash_log_path()) == crash_antes);
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

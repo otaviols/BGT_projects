@@ -174,6 +174,37 @@ com a limpeza na mão como em `drop_other_sessions`. **O silenciar no chat é fi
 (`g_chat_muted` em `client.enqueue`), não em cada tela: o chat é lido na sala, na partida, na reunião,
 assistindo, no histórico e por menus que bombeiam a rede. Sonda: `probe_host_tools.nvgt`.
 
+**Cair no meio da partida GUARDA o lugar por um minuto, e o jogo volta sozinho** (protocolo 13,
+`server_rejoin.nvgt`; decisões do usuário em 2026-10-13, depois de quedas de rede derrubarem três
+jogadores em duas salas com o servidor de pé). Na queda (`on_disconnect` → `try_hold`) o personagem fica
+parado na partida: pode morrer, conta na reunião sem votar, e a partida ouve "perdeu a conexão" e depois
+"voltou". Larga o que prenderia os outros (câmeras, scanner, corpo carregado, barriga) e sai do duto.
+Sem voltar em `REJOIN_GRACE_MS`, sai pela saída de sempre (`remove_from_lobby`); partida que acaba antes
+tira os guardados antes de reabrir (`end_holds_of`). Quem sai pelo MENU (`C_LEAVE_LOBBY`) sai de verdade.
+Três decisões que alguém pode querer desfazer sem saber o que evitam:
+- **O ID da partida não muda; a rede ganha um APELIDO.** Quem volta chega por outra conexão, com outro
+  id, e a partida guarda ids em toda parte (votos, corpos, carrasco, apaixonados, lobo). Trocar em cada
+  lugar seria uma lista para esquecer. `handle_event` traduz o id de rede novo para o antigo
+  (`logical_of`), e `send_to` e a voz fazem o inverso (`net_of`). Funciona porque o NVGT nunca
+  reaproveita id de peer (`next_peer++`). Envio direto por `net.` no servidor: passe por `net_of`.
+- **O desligamento ATRASADO de uma conexão que o servidor mesmo derrubou é ignorado** (`drop_net_peer`,
+  `ignored_net_ids`). Na sessão substituída, a conexão velha é derrubada no login e o ENet ainda entrega
+  o desligamento dela depois - com o id de rede velho, que é exatamente o id lógico de quem acabou de
+  voltar. Sem ignorar, ele derrubaria a sessão nova. É o caso mais comum: o cliente percebe a queda e
+  entra de novo antes de o servidor desistir da conexão velha.
+- **O cliente volta com um TOKEN de volta**, e não com a senha (que nunca é guardada): o login dá um
+  (`rejoin_token`, só na memória dos dois lados), e ele só serve para voltar a um lugar guardado ou a uma
+  conexão que ainda vai cair. Quem entra pela tela de login dentro do prazo também volta (o servidor
+  acha o lugar pela conta). O servidor reconstrói a partida mandando o `S_GAME_START` (montado por
+  `build_game_start`, o MESMO do começo, marcado `rejoin` e com o estado de agora) e depois os pacotes de
+  sempre: progresso, corpos (`S_BODY_PLACED`), sabotagem e painéis, portas, câmeras, scanner, barriga e a
+  reunião em andamento com os votos (`send_rejoin_state`). **Estado de partida novo: pergunte se quem
+  volta precisa dele, e ponha no `send_rejoin_state`.** Cliente abaixo do 13 não tem lugar guardado.
+O prazo se encurta só para sonda (`AMONGUS_REJOIN_GRACE_MS` no servidor). Sondas: `probe_rejoin` (o
+servidor: queda, volta por token e por senha, na reunião, sessão substituída, prazo vencido, saída pelo
+menu) e `probe_rejoin_client` (a `reconnect_to_match` de verdade); o caso do cliente sem servidor está no
+`probe_match_packets`. Um deploy do servidor apaga os lugares guardados junto com as partidas.
+
 **Trocar a senha segue o mesmo molde** (`C_CHANGE_PASSWORD`, recado #239): pede a atual, só do saguão,
 e apaga TODAS as sessões lembradas da conta - trocar a senha é o que se faz para expulsar alguém, e o
 "lembrar de mim" num computador emprestado continuaria entrando. Quem trocou recebe um token novo se

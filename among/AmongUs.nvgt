@@ -177,38 +177,45 @@ void run_session() {
 	if (!login.ok) { client.disconnect(); return; }
 	// O servidor só manda voz para quem disse que quer: sem este aviso ninguém ouviria ninguém.
 	g_voice.announce(client.connected);
+	g_match_connection_lost = false;
 
 	// Sala para a qual voltar direto, sem passar pelo navegador: é o retrato que o servidor manda ao
 	// reabrir a sala no fim da partida, para o grupo jogar de novo sem se reorganizar.
 	net_packet@ rejoin_state = null;
+	// A partida a entrar sem passar pela sala de espera: a de quem caiu e voltou. Pela tela de login (o
+	// servidor tinha o lugar desta conta guardado) ou pela volta automática (reconnect_to_match).
+	net_packet@ start_pkt = null;
+	if (login.rejoin) @start_pkt = wait_for_packet_type(client, S_GAME_START, 5000);
 
 	while (true) {
-		bool is_host;
-		net_packet@ lobby_state;
-		if (@rejoin_state != null) {
-			@lobby_state = rejoin_state;
-			@rejoin_state = null;
-			// O anfitrião pode ter mudado durante a partida (o antigo caiu), e quem manda a verdade é
-			// o retrato - não o que este cliente achava antes de a partida começar.
-			is_host = lobby_state.get_uint64("host_peer_id") == client.my_peer_id;
-		} else {
-			// Começo limpo a cada volta: o que sobrou na fila é de uma partida ou sala que ficou pra
-			// trás. Sem isto, sair de uma partida e entrar noutra fazia a tela nova processar eventos
-			// da antiga. (Na volta para a MESMA sala isto não vale: lá a fila é a continuação.)
-			client.clear_incoming();
-			g_voice.leave(); // fora de sala, nem captura nem toca
+		if (@start_pkt == null) {
+			bool is_host;
+			net_packet@ lobby_state;
+			if (@rejoin_state != null) {
+				@lobby_state = rejoin_state;
+				@rejoin_state = null;
+				// O anfitrião pode ter mudado durante a partida (o antigo caiu), e quem manda a verdade é
+				// o retrato - não o que este cliente achava antes de a partida começar.
+				is_host = lobby_state.get_uint64("host_peer_id") == client.my_peer_id;
+			} else {
+				// Começo limpo a cada volta: o que sobrou na fila é de uma partida ou sala que ficou pra
+				// trás. Sem isto, sair de uma partida e entrar noutra fazia a tela nova processar eventos
+				// da antiga. (Na volta para a MESMA sala isto não vale: lá a fila é a continuação.)
+				client.clear_incoming();
+				g_voice.leave(); // fora de sala, nem captura nem toca
 
-			g_net_stall_context = "lista de partidas";
-			lobby_browser_result browse = run_lobby_browser_screen(client);
-			if (browse.go_back || !browse.joined) break;
-			is_host = browse.is_host;
-			@lobby_state = browse.initial_lobby_state;
+				g_net_stall_context = "lista de partidas";
+				lobby_browser_result browse = run_lobby_browser_screen(client);
+				if (browse.go_back || !browse.joined) break;
+				is_host = browse.is_host;
+				@lobby_state = browse.initial_lobby_state;
+			}
+
+			g_net_stall_context = "sala de espera"; // diagnóstico de rede: onde uma pausa longa aconteceu
+			@start_pkt = run_waiting_room_screen(client, is_host, lobby_state);
+			if (!client.connected) break; // conexão perdida: as telas já avisaram; volta ao menu inicial
+			if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador
 		}
-
-		g_net_stall_context = "sala de espera"; // diagnóstico de rede: onde uma pausa longa aconteceu
-		net_packet@ start_pkt = run_waiting_room_screen(client, is_host, lobby_state);
-		if (!client.connected) break; // conexão perdida: as telas já avisaram; volta ao menu inicial
-		if (@start_pkt == null) continue; // jogador saiu da sala de espera, volta pro navegador
 
 		// No fim da partida o servidor reabre a MESMA sala e manda o retrato dela; com ele em mãos, a
 		// volta é direto para a sala de espera. Sem ele (sala fechada, servidor antigo), navegador.
@@ -216,6 +223,16 @@ void run_session() {
 		// (ver src/game/spectate_loop.nvgt). A volta é a mesma: o retrato da sala reaberta.
 		if (start_pkt.type == S_SPECTATE_START) @rejoin_state = run_spectate(client, start_pkt);
 		else @rejoin_state = run_game(client, start_pkt);
+		@start_pkt = null;
+		// A conexão caiu NO MEIO da partida: o servidor guarda o lugar por um minuto, e o jogo tenta
+		// voltar sozinho. Voltou: a partida segue daqui; não deu: menu inicial, como antes.
+		if (!client.connected && g_match_connection_lost) {
+			g_match_connection_lost = false;
+			@start_pkt = reconnect_to_match(client);
+			if (@start_pkt == null) break;
+			g_voice.announce(client.connected); // a conexão nova diz de novo que quer voz
+			continue;
+		}
 		if (!client.connected) break;
 	}
 

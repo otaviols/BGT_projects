@@ -365,7 +365,7 @@ mixin class server_lobby_part {
 		} else {
 			// Cliente anterior não sabe sair da sala sozinho e ficaria numa tela morta: cai para o menu
 			// inicial avisando que perdeu a conexão. Limpeza na mão, como em drop_other_sessions.
-			net.disconnect_peer_softly(alvo);
+			drop_net_peer(alvo);
 			on_disconnect(alvo, "expulso pelo anfitriao (cliente antigo)");
 		}
 		dictionary@ np = dictionary();

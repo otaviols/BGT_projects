@@ -98,12 +98,16 @@ void main() {
 	espera(todos, 1000);
 	confere("controle: saiu um, ainda ha humano - a sala continua", na_lista(obs, todos, sala));
 
+	// O último humano SAI (pelo menu). Até a 0.52.0 aqui ele só desconectava; desde que a queda guarda o
+	// lugar (server_rejoin.nvgt), cair deixa a sala esperando a volta dele até o prazo vencer - e aí ela
+	// fecha pelo mesmo remove_from_lobby (a queda que vence está na probe_rejoin). Sair é sair na hora.
 	// Continua atendendo o cliente depois de desconectar: o aviso de saída só sai no update seguinte.
-	// Sem isso o servidor só percebia pela queda por tempo, muito depois da conferência abaixo.
+	outro.send_leave_lobby();
+	espera(todos, 300);
 	outro.disconnect();
 	espera(todos, 1500);
 	@todos[2] = null;
-	confere("caiu o ultimo humano: a sala sai da lista", !na_lista(obs, todos, sala));
+	confere("saiu o ultimo humano: a sala sai da lista", !na_lista(obs, todos, sala));
 
 	obs.disconnect(); dono.disconnect();
 	println("");

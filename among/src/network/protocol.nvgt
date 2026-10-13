@@ -287,6 +287,14 @@ const string C_KICK_PLAYER = "c_kick_player";               // {peer_id}
 // derruba a conexão (ver on_kick_player).
 const string S_KICKED = "s_kicked";                         // {}
 const int HOST_TOOLS_PROTOCOL = 12;
+// --- Voltar à partida depois de cair (protocolo 13) ---
+// Quem cai no meio da partida tem o lugar guardado por REJOIN_GRACE_MS (ver server_rejoin.nvgt). Volta
+// de dois jeitos: o cliente sozinho, com o token de volta que o login deu (`rejoin_token` no S_LOGIN_RESULT
+// e no C_LOGIN), ou a pessoa entrando de novo pela tela de login. O S_LOGIN_RESULT diz `rejoin` = true,
+// e logo atrás vem um S_GAME_START com `rejoin` = true e o estado de AGORA (vivo, onde, recargas), seguido
+// dos pacotes de sempre que reconstroem o resto (corpos, sabotagem, portas, reunião). Cliente anterior ao
+// 13 não sabe voltar: a ele o lugar não é guardado, e a queda é a saída de sempre.
+const int REJOIN_PROTOCOL = 13;
 // O espectador escolhe de quem acompanhar a partida: a voz que ele ouve é a que chega perto dessa pessoa.
 const string C_SPECTATE_FOLLOW = "c_spectate_follow";       // {peer_id}
 // Para quem vai assistir, no lugar do S_GAME_START: o elenco e as regras que a tela precisa - e NADA de

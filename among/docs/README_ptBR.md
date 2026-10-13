@@ -259,6 +259,14 @@ fim, como todo mundo, e não pode fazer nada na partida. A sua voz chega só a o
 a partida acaba, você volta para a sala de espera como os outros; quem entrou pelo código fica para
 jogar a próxima.
 
+## Se a conexão cair no meio da partida
+
+O seu lugar fica guardado por um minuto, e o jogo tenta voltar sozinho: você ouve que a conexão caiu e
+que ele está tentando voltar (Esc desiste). Também dá para fechar o jogo, abrir de novo e entrar: dentro
+do minuto, você cai direto na partida. Enquanto você está fora, o seu personagem fica parado onde estava
+e pode ser morto, e os outros ouvem que você perdeu a conexão e, depois, que voltou. Quem sai pelo menu
+(Esc, na partida) sai de verdade.
+
 ## Teclas durante a partida
 
 **Movimento e exploração**

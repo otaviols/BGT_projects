@@ -1,0 +1,290 @@
+// server_rejoin.nvgt
+// Voltar à partida depois de cair: guardar o lugar, dar ao id de rede novo o id antigo, e reconstruir a
+// partida para quem volta.
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class`: o AngelScript não tem classe
+// parcial, e o mixin é o jeito de a mesma classe morar em vários arquivos. Os métodos daqui enxergam
+// os campos e os métodos de todas as outras partes, e não compilam sozinhos - quem inclui é o server.nvgt.
+//
+// Por que existe (2026-10-13): quedas de REDE derrubavam gente no meio da partida - três jogadores, em duas
+// salas, no mesmo meio minuto, com o servidor de pé -, e quem caía virava um morto que "saiu". Decisões do
+// usuário: o lugar fica guardado por REJOIN_GRACE_MS; os outros ouvem que a pessoa caiu e que voltou; e o
+// personagem fica parado na nave, podendo morrer e contando na reunião (sem votar). Quem sai pelo menu
+// (ESC) sai de verdade: isto é só para a conexão que cai.
+//
+// O problema de fundo é o ID. Toda a partida conhece o jogador pelo id da conexão (votos, corpos, alvo do
+// carrasco, par de apaixonados, quem engoliu quem), e quem volta chega por uma conexão NOVA, com outro id.
+// Trocar o id em todo lugar que o guarda seria uma lista que se esquece na próxima mudança. Em vez disso,
+// o id da partida (o "lógico", o da primeira conexão) fica, e a rede ganha um APELIDO: o que chega pelo id
+// novo é tratado como vindo do antigo (handle_event), e o que vai ao antigo sai pelo novo (send_to). O
+// NVGT nunca reaproveita id de peer (`next_peer++` em src/network.cpp), então um id antigo nunca volta a
+// ser de outra conexão.
+
+mixin class server_rejoin_part {
+	// --- Apelidos de id ---
+
+	uint64 logical_of(uint64 net_id) const {
+		string k = "" + net_id;
+		if (!net_to_logical.exists(k)) return net_id;
+		int64 v = 0;
+		net_to_logical.get(k, v);
+		return uint64(v);
+	}
+
+	uint64 net_of(uint64 logical) const {
+		string k = "" + logical;
+		if (!logical_to_net.exists(k)) return logical;
+		int64 v = 0;
+		logical_to_net.get(k, v);
+		return uint64(v);
+	}
+
+	void forget_alias_of_net(uint64 net_id) {
+		string k = "" + net_id;
+		if (!net_to_logical.exists(k)) return;
+		int64 logico = 0;
+		net_to_logical.get(k, logico);
+		net_to_logical.delete(k);
+		string kl = "" + logico;
+		int64 atual = 0;
+		if (logical_to_net.exists(kl) && logical_to_net.get(kl, atual) && uint64(atual) == net_id) logical_to_net.delete(kl);
+	}
+
+	// Derruba uma conexão que ESTE servidor decidiu derrubar (sessão substituída, expulsão de cliente
+	// antigo). O ENet ainda entrega o desligamento dela depois, com o id de rede dela - e esse id pode ser
+	// o id LÓGICO de quem acabou de voltar (o da primeira conexão). Sem ignorá-lo, o desligamento atrasado
+	// chegaria como "o jogador que voltou caiu de novo".
+	void drop_net_peer(uint64 logical) {
+		uint64 net_id = net_of(logical);
+		net.disconnect_peer_softly(net_id);
+		if (ignored_net_ids.find(net_id) < 0) ignored_net_ids.insert_last(net_id);
+		// Um teto, para a lista não crescer para sempre se algum desligamento nunca chegar.
+		while (ignored_net_ids.length() > 256) ignored_net_ids.remove_at(0);
+		forget_alias_of_net(net_id);
+	}
+
+	// --- Guardar o lugar ---
+
+	// Chamado na queda (on_disconnect): guarda o lugar se der, e devolve se guardou. Não guardando, quem
+	// chamou segue com a saída de sempre (remove_from_lobby).
+	bool try_hold(game_state@ lobby, uint64 peer_id, const string&in motivo) {
+		if (lobby.state == "waiting" || lobby.state == "ended") return false;
+		game_player@ p = lobby.find_player(peer_id);
+		if (@p == null || p.is_bot || p.left_match || p.held) return false;
+		// Cliente que não sabe voltar: guardar o lugar dele só faria a partida esperar por ninguém.
+		if (p.protocol_version < REJOIN_PROTOCOL) return false;
+
+		p.held = true;
+		p.held_since = ticks();
+		held_players.insert_last(p);
+		// O que a queda não pode deixar preso a quem não está aqui - o mesmo que a saída larga (ver
+		// remove_from_lobby): o posto de câmeras, o scanner, o corpo que ele carregava, quem estava na
+		// barriga dele. E o duto: escondido ali ele seria intocável o prazo inteiro, e o cliente que volta
+		// não saberia que está num duto. Sai no mesmo ponto, calado - ninguém ouve a tampa.
+		if (lobby.release_cameras(peer_id)) broadcast_camera_watching(lobby);
+		end_visible_task(lobby, peer_id);
+		net_packet@ largado = lobby.drop_carried_body(p);
+		if (@largado != null) broadcast_to_lobby(lobby, largado, peer_id);
+		if (p.alive) lobby.release_belly(p, p.x, p.y);
+		if (p.vented) { p.vented = false; p.current_vent_id = ""; }
+
+		announce_connection(lobby, p, "match.player_disconnected");
+		println("[espera] " + p.username + ": " + motivo + " - lugar guardado por " + (rejoin_grace_ms / 1000)
+			+ " s (sala \"" + lobby.lobby_name + "\")");
+		return true;
+	}
+
+	// "Fulano perdeu a conexão" / "fulano voltou" - decisão do usuário: quem está numa reunião precisa
+	// saber por que alguém não vota. Pelo nome PÚBLICO (no modo cor, a cor). Só a cliente que conhece a
+	// fala: um anterior falaria a chave crua.
+	void announce_connection(game_state@ lobby, game_player@ p, const string&in key) {
+		dictionary@ params = dictionary();
+		params.set("name", p.public_name());
+		net_packet@ aviso = build_message(S_ERROR, key, params);
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ o = lobby.players[i];
+			if (o is p || !reaches_client(o) || o.protocol_version < REJOIN_PROTOCOL) continue;
+			send_to(o.peer_id, aviso);
+		}
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			if (lobby.spectators[i].protocol_version >= REJOIN_PROTOCOL) send_to(lobby.spectators[i].peer_id, aviso);
+		}
+	}
+
+	// A cada volta do servidor: quem passou do prazo sai como quem saiu. E quem ficou guardado numa partida
+	// que acabou, ou numa sala que fechou, deixa de estar guardado (reopen_lobby já o tirou da sala).
+	void tick_holds() {
+		for (int i = int(held_players.length()) - 1; i >= 0; i--) {
+			game_player@ p = held_players[i];
+			if (!p.held) { held_players.remove_at(i); continue; } // voltou, ou a partida acabou
+			game_state@ lobby = find_lobby(p.lobby_id);
+			bool na_partida = @lobby != null && lobby.state != "waiting" && lobby.state != "ended"
+				&& lobby.find_player(p.peer_id) is p;
+			if (na_partida && ticks() - p.held_since < rejoin_grace_ms) continue;
+			held_players.remove_at(i);
+			p.held = false;
+			println("[espera] " + p.username + ": nao voltou a tempo; saiu da partida");
+			// A saída de sempre: o registro de quem saiu, o aviso "saiu da partida" e o resto.
+			if (na_partida) remove_from_lobby(lobby, p.peer_id);
+			p.lobby_id = "";
+		}
+	}
+
+	// A partida acabou com alguém guardado: ele sai da sala antes de ela reabrir. Sem isto a sala de espera
+	// listaria quem não está mais aqui, e a próxima partida o sortearia.
+	void end_holds_of(game_state@ lobby) {
+		for (int i = int(lobby.players.length()) - 1; i >= 0; i--) {
+			game_player@ p = lobby.players[i];
+			if (!p.held) continue;
+			p.reset_match_state(); // desliga o `held`, e tick_holds o tira da lista
+			p.lobby_id = "";
+			lobby.players.remove_at(i);
+			println("[espera] " + p.username + ": a partida acabou antes de ele voltar");
+		}
+	}
+
+	// --- Voltar ---
+
+	// O lugar guardado desta conta, ou null.
+	game_player@ find_held(const string&in username) const {
+		string nome = username.lower();
+		for (uint i = 0; i < held_players.length(); i++) {
+			if (held_players[i].held && held_players[i].username.lower() == nome) return held_players[i];
+		}
+		return null;
+	}
+
+	// A conta dona de um token de volta: a de um lugar guardado, ou a de uma conexão que ainda nem caiu
+	// para o servidor. O segundo caso é o comum: o cliente percebe a queda e volta antes de o ENet do
+	// servidor desistir da conexão velha - ela é derrubada no login (drop_other_sessions), e é ali que o
+	// lugar fica guardado, a tempo de a volta encontrá-lo.
+	string account_of_rejoin_token(const string&in token) const {
+		if (token == "") return "";
+		for (uint i = 0; i < held_players.length(); i++) {
+			if (held_players[i].held && held_players[i].rejoin_token == token) return held_players[i].username;
+		}
+		for (uint i = 0; i < connections.length(); i++) {
+			if (connections[i].authenticated && connections[i].rejoin_token == token) return connections[i].username;
+		}
+		return "";
+	}
+
+	// Põe a conexão nova no lugar guardado `p`. O objeto da PARTIDA (p) passa a ser a conexão - é ele que
+	// a sala, os votos e o elenco conhecem -, e o da conexão nova (conn) sai da lista. Depois disto, quem
+	// chamou responde o login com o id de `p` e manda send_rejoin_state.
+	void rejoin_held(game_player@ conn, game_player@ p) {
+		net_to_logical.set("" + conn.peer_id, int64(p.peer_id));
+		logical_to_net.set("" + p.peer_id, int64(conn.peer_id));
+		int at = -1;
+		for (uint i = 0; i < connections.length() && at < 0; i++) if (connections[i] is conn) at = int(i);
+		if (at >= 0) @connections[at] = p;
+		else connections.insert_last(p);
+		p.authenticated = true;
+		p.protocol_version = conn.protocol_version;
+		p.client_platform = conn.client_platform;
+		p.rejoin_token = conn.rejoin_token;
+		// O cliente novo diz de novo se quer voz (C_VOICE_STATE), e precisa de listas novas de quem está
+		// perto - as últimas foram para a conexão que caiu.
+		p.voice_enabled = false;
+		p.nearby_sent.resize(0);
+		p.radar_sent.resize(0);
+		p.nearby_sent_once = false;
+		p.held = false;
+		for (uint i = 0; i < held_players.length(); i++) {
+			if (held_players[i] is p) { held_players.remove_at(i); break; }
+		}
+		game_state@ lobby = find_lobby(p.lobby_id);
+		if (@lobby != null) announce_connection(lobby, p, "match.player_reconnected");
+		println("[volta] " + p.username + " voltou depois de " + ((ticks() - p.held_since) / 1000) + " s");
+	}
+
+	// A partida inteira, para quem voltou: o S_GAME_START de sempre (marcado `rejoin`, com o estado de
+	// AGORA), e então os pacotes que o cliente já conhece para o resto - os mesmos que ele teria recebido
+	// se estivesse aqui. Pacote novo de estado de partida: pergunte se quem volta precisa dele.
+	void send_rejoin_state(game_state@ lobby, game_player@ p) {
+		net_packet@ start = build_game_start(lobby, p, null);
+		start.set_bool("rejoin", true);
+		start.set_bool("alive", p.alive);
+		start.set_float("kill_cooldown_remaining", p.kill_cooldown_remaining);
+		start.set_float("head_start", 0.0); // a largada do pega-pega já passou
+		send_to(p.peer_id, start);
+
+		send_to(p.peer_id, lobby.build_task_progress_packet());
+		for (uint i = 0; i < lobby.bodies.length(); i++) {
+			net_packet@ corpo = net_packet(S_BODY_PLACED);
+			corpo.set_uint64("peer_id", lobby.bodies[i].victim_peer_id);
+			corpo.set_float("x", lobby.bodies[i].x);
+			corpo.set_float("y", lobby.bodies[i].y);
+			send_to(p.peer_id, corpo);
+		}
+		if (lobby.active_sabotage != "") {
+			net_packet@ sab = net_packet(S_SABOTAGE_STARTED);
+			sab.set_string("sabotage_id", lobby.active_sabotage);
+			sab.set_float("timer", lobby.sabotage_timer);
+			sab.set_bool("critical", lobby.is_critical_sabotage(lobby.active_sabotage));
+			sab.set_string("oxygen_code", lobby.oxygen_code);
+			send_to(p.peer_id, sab);
+			for (uint i = 0; i < lobby.sabotage_fixed_panels.length(); i++) {
+				net_packet@ painel = net_packet(S_SABOTAGE_PROGRESS);
+				painel.set_string("sabotage_id", lobby.active_sabotage);
+				painel.set_string("object_id", lobby.sabotage_fixed_panels[i]);
+				send_to(p.peer_id, painel);
+			}
+		}
+		if (lobby.map.closed_door_zones.length() > 0) send_to(p.peer_id, lobby.build_doors_packet(lobby.map.closed_door_zones, true));
+		if (lobby.camera_room_id != "") {
+			net_packet@ cam = net_packet(S_CAMERA_WATCHING);
+			cam.set_string("room_id", lobby.camera_room_id);
+			send_to(p.peer_id, cam);
+		}
+		if (lobby.visible_task_peer != 0) {
+			game_player@ quem = lobby.find_player(lobby.visible_task_peer);
+			net_packet@ scan = net_packet(S_TASK_VISIBLE);
+			scan.set_uint64("peer_id", lobby.visible_task_peer);
+			scan.set_string("name", @quem != null ? quem.display_name() : "");
+			scan.set_string("object_id", lobby.visible_task_object_id);
+			scan.set_bool("active", true);
+			send_to(p.peer_id, scan);
+		}
+		if (p.swallowed()) {
+			game_player@ lobo = lobby.find_player(p.swallowed_by);
+			net_packet@ dentro = net_packet(S_SWALLOWED);
+			dentro.set_uint64("wolf_peer", p.swallowed_by);
+			dentro.set_string("wolf_name", @lobo != null ? lobo.public_name() : "");
+			send_to(p.peer_id, dentro);
+		}
+		// Reunião em andamento: a mesa como ela está - quem chamou, o tempo que SOBRA e quem já votou.
+		if (lobby.state == "voting") {
+			net_packet@ reuniao = net_packet(S_MEETING_STARTED);
+			reuniao.set_uint64("caller_peer", lobby.meeting_caller);
+			reuniao.set_string("reason", lobby.meeting_reason);
+			reuniao.set_float("gather_x", MEETING_GATHER_X);
+			reuniao.set_float("gather_y", MEETING_GATHER_Y);
+			reuniao.set_float("discussion_time", lobby.voting_timer);
+			json_array@ ausentes = json_array();
+			for (uint i = 0; i < lobby.players.length(); i++) {
+				if (lobby.players[i].swallowed()) ausentes.add(lobby.players[i].peer_id);
+			}
+			reuniao.set_array("absent", ausentes);
+			send_to(p.peer_id, reuniao);
+			net_packet@ vs = net_packet(S_VOTING_STARTED);
+			vs.set_float("voting_time", lobby.voting_timer);
+			send_to(p.peer_id, vs);
+			for (uint i = 0; i < lobby.votes.length(); i++) {
+				game_player@ eleitor = lobby.find_player(lobby.votes[i].voter_peer_id);
+				if (@eleitor == null) continue;
+				net_packet@ voto = net_packet(S_VOTE_CAST);
+				voto.set_uint64("voter_peer", eleitor.peer_id);
+				voto.set_string("voter_name", eleitor.public_name());
+				voto.set_bool("target_revealed", lobby.config.show_votes);
+				if (lobby.config.show_votes) {
+					int64 alvo = lobby.votes[i].target_peer_id;
+					voto.set_bool("skipped", alvo == -1);
+					game_player@ tp = alvo == -1 ? null : lobby.find_player(uint64(alvo));
+					voto.set_string("target_name", @tp != null ? tp.public_name() : "");
+				}
+				send_to(p.peer_id, voto);
+			}
+		}
+	}
+}

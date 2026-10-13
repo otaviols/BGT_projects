@@ -26,6 +26,7 @@
 #include "server/server_ship.nvgt"
 #include "server/server_talk.nvgt"
 #include "server/server_admin.nvgt"
+#include "server/server_rejoin.nvgt"
 
 uint g_lobby_counter = 0;
 // Ids de bot vivem bem longe da faixa que o ENet usa pra peers de verdade (que vão de 0 até o
@@ -86,10 +87,20 @@ void pick_task_spots(array<map_object@>@ pool, uint want, dictionary@ per_room,
 	}
 }
 
-class game_server : server_accounts_part, server_hall_part, server_lobby_part, server_match_part, server_abilities_part, server_meeting_part, server_ship_part, server_talk_part, server_admin_part {
+class game_server : server_accounts_part, server_hall_part, server_lobby_part, server_match_part, server_abilities_part, server_meeting_part, server_ship_part, server_talk_part, server_admin_part, server_rejoin_part {
 	network@ net;
 	array<game_player@> connections;
 	array<game_state@> lobbies;
+	// Voltar à partida depois de cair (ver server_rejoin.nvgt): quem está com o lugar guardado, e os
+	// apelidos entre o id de rede novo de quem voltou e o id com que a partida o conhece.
+	array<game_player@> held_players;
+	dictionary net_to_logical;
+	dictionary logical_to_net;
+	// Conexões que o servidor derrubou e cujo desligamento ainda vai chegar (ver drop_net_peer).
+	array<uint64> ignored_net_ids;
+	// O prazo do lugar guardado. Só a SONDA o encurta (AMONGUS_REJOIN_GRACE_MS, lido em start): conferir
+	// que quem não volta sai da partida não pode custar um minuto parado por rodada.
+	uint64 rejoin_grace_ms = REJOIN_GRACE_MS;
 	frame_timer clock;
 	// Reinício anunciado (ver C_ADMIN_DRAIN): enquanto faltar tempo, nenhuma partida nova começa.
 	timer@ drain_clock = null;
@@ -130,6 +141,8 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		// encerrou a conexão". Cada lado culpava o outro, e nenhum dos dois era verdade (src/network.cpp
 		// do NVGT: sem receive_timeout_event, DISCONNECT_TIMEOUT vira DISCONNECT).
 		net.receive_timeout_event = true;
+		string prazo = read_environment_variable("AMONGUS_REJOIN_GRACE_MS", "");
+		if (prazo != "" && parse_int(prazo) > 0) rejoin_grace_ms = uint64(parse_int(prazo));
 
 		@g_user_db = user_database();
 		const string db_path = "among_users.db";
@@ -173,6 +186,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			float delta = clock.tick();
 			tick_lobbies(delta);
 			tick_hall(delta);
+			tick_holds();
 
 			// Diagnóstico das levas de queda (relato do usuário, 2026-10-12: a sala inteira caindo junta).
 			// Uma volta deste laço leva milissegundos; se uma levar mais de 1 s, o servidor TRAVOU, e com
@@ -183,7 +197,8 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			if (duracao > SERVER_STALL_LOG_MS) println("[trava] uma volta do servidor levou " + duracao + " ms (" + processados + " eventos)");
 			if (ticks() - ultimo_pulso >= SERVER_PULSE_MS) {
 				ultimo_pulso = ticks();
-				println("[pulso] conectados=" + connections.length() + " salas=" + lobbies.length() + " partidas=" + matches_in_progress());
+				println("[pulso] conectados=" + connections.length() + " salas=" + lobbies.length() + " partidas=" + matches_in_progress()
+					+ " guardados=" + held_players.length());
 			}
 			wait(5);
 		}
@@ -240,8 +255,10 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		// tratadores dos jogadores (consertar painel, reportar corpo), e esses respondem a quem pediu -
 		// sem esta guarda, a resposta iria para um peer que não existe.
 		if (peer_id >= BOT_PEER_ID_BASE) return;
-		if (reliable) net.send_reliable(peer_id, pkt.to_wire(), CHANNEL_RELIABLE);
-		else net.send_unreliable(peer_id, pkt.to_wire(), CHANNEL_UNRELIABLE);
+		// O id é o da PARTIDA; quem voltou depois de cair está numa conexão nova (ver server_rejoin.nvgt).
+		uint64 net_id = net_of(peer_id);
+		if (reliable) net.send_reliable(net_id, pkt.to_wire(), CHANNEL_RELIABLE);
+		else net.send_unreliable(net_id, pkt.to_wire(), CHANNEL_UNRELIABLE);
 	}
 
 	// Bot não tem conexão: mandar pacote pro "peer" dele seria jogar no lixo (ou pior, mirar um peer
@@ -279,21 +296,32 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 	}
 
 	// Há alguém do outro lado deste registro? Bot não tem conexão; quem saiu da partida tem uma
-	// conexão que já não pertence a esta sala.
+	// conexão que já não pertence a esta sala; e quem caiu e está com o lugar guardado não tem conexão
+	// nenhuma até voltar.
 	bool reaches_client(game_player@ p) const {
-		return !p.is_bot && !p.left_match;
+		return !p.is_bot && !p.left_match && !p.held;
 	}
 
 	void handle_event(const network_event@ ev) {
+		// Uma conexão que o próprio servidor derrubou: o desligamento dela chega atrasado e não pode ser
+		// lido como o de mais ninguém (ver drop_net_peer).
+		int ignorado = ignored_net_ids.find(ev.peer_id);
+		if (ignorado >= 0) {
+			if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) ignored_net_ids.remove_at(ignorado);
+			return;
+		}
+		// O id da PARTIDA de quem chega por aqui: o próprio id, ou o antigo de quem voltou depois de cair.
+		uint64 peer_id = logical_of(ev.peer_id);
 		if (ev.type == event_connect) {
 			game_player@ conn = game_player(ev.peer_id, "");
 			connections.insert_last(conn);
 		} else if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) {
-			on_disconnect(ev.peer_id, ev.type == event_disconnect_timeout ? "tempo esgotado" : "o cliente desligou");
+			on_disconnect(peer_id, ev.type == event_disconnect_timeout ? "tempo esgotado" : "o cliente desligou");
+			forget_alias_of_net(ev.peer_id);
 		} else if (ev.type == event_receive) {
-			if (ev.channel == CHANNEL_VOICE) { on_voice_frame(ev.peer_id, ev.message); return; }
+			if (ev.channel == CHANNEL_VOICE) { on_voice_frame(peer_id, ev.message); return; }
 			net_packet@ pkt = packet_from_wire(ev.message);
-			if (@pkt != null) route_packet(ev.peer_id, pkt);
+			if (@pkt != null) route_packet(peer_id, pkt);
 		}
 	}
 
@@ -308,7 +336,9 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			println("[queda] " + conn.username + ": " + motivo
 				+ (@lobby != null ? " (sala \"" + lobby.lobby_name + "\", " + lobby.state + ")" : " (fora de sala)"));
 		}
-		if (@lobby != null) remove_from_lobby(lobby, peer_id);
+		// No meio da partida, a queda GUARDA o lugar (ver try_hold); a saída de sempre fica para quando não
+		// der para guardar, ou para quando o prazo vencer.
+		if (@lobby != null && !try_hold(lobby, peer_id, motivo)) remove_from_lobby(lobby, peer_id);
 
 		for (uint i = 0; i < connections.length(); i++) {
 			if (connections[i].peer_id == peer_id) { connections.remove_at(i); break; }
@@ -653,6 +683,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 	// de espera listaria gente que foi embora e a próxima partida contaria com ela.
 	void reopen_lobby(int index) {
 		game_state@ lobby = lobbies[index];
+		end_holds_of(lobby); // quem caiu e não voltou a tempo da partida acabar sai antes da reabertura
 		for (int i = int(lobby.players.length()) - 1; i >= 0; i--) {
 			if (lobby.players[i].left_match) lobby.players.remove_at(i);
 		}

@@ -232,6 +232,19 @@ class game_client {
 		p.set_string("version", GAME_VERSION);
 	}
 
+	// O token de VOLTA que o último login deu (ver REJOIN_PROTOCOL): só na memória, nunca no disco - ele
+	// só serve para voltar à partida depois de cair, e morre com o jogo.
+	string rejoin_token = "";
+
+	// Login para VOLTAR à partida depois de cair: o token de volta no lugar da senha.
+	void send_login_rejoin(const string&in token) {
+		net_packet@ p = net_packet(C_LOGIN);
+		p.set_string("rejoin_token", token);
+		p.set_int("protocol", PROTOCOL_VERSION);
+		set_client_identity(p);
+		send(p);
+	}
+
 	// Login com o token guardado por "lembrar de mim" (ver C_LOGIN).
 	void send_login_token(const string&in token) {
 		net_packet@ p = net_packet(C_LOGIN);

@@ -265,6 +265,14 @@ role until the end, like everyone else, and you cannot do anything in the match.
 other spectators. When the match ends you go back to the waiting room like everyone else; whoever came
 in with the code stays to play the next one.
 
+## If your connection drops mid-match
+
+Your place is kept for a minute, and the game tries to get you back on its own: you hear that the
+connection dropped and that it is trying to get back (Escape gives up). You can also close the game, open
+it again and log in: within that minute, you go straight back into the match. While you are away, your
+character stands still where it was and can be killed, and the others hear that you lost connection and,
+later, that you came back. Leaving through the menu (Escape, during the match) really leaves.
+
 ## Keys during a match
 
 **Movement and exploration**

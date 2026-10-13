@@ -166,6 +166,9 @@ class client_roster {
 			// spoken_name: no modo cor o nome chega como marca de cor, e o elenco guarda a cor JÁ no
 			// idioma deste jogador - é dele que saem quem está perto, quem fala na voz, a lista de votação.
 			add(uint64(p["peer_id"]), spoken_name(string(p["name"])), int(p["color"]), safe_var_to_float(vx), safe_var_to_float(vy));
+			// Quem VOLTOU à partida depois de cair recebe o elenco de agora, com quem já morreu (ver
+			// server_rejoin.nvgt). No começo de partida todos vêm vivos, e servidor antigo não manda.
+			if (p.exists("alive") && !bool(p["alive"])) mark_dead(uint64(p["peer_id"]));
 		}
 	}
 }

@@ -16,4 +16,7 @@ class login_result {
 	bool ok = false;
 	string message = "";
 	string username = "";
+	// O servidor tinha o lugar desta conta guardado numa partida (caiu e entrou de novo): a sessão vai
+	// direto para ela, e o S_GAME_START de volta já vem a caminho.
+	bool rejoin = false;
 }

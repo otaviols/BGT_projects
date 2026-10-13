@@ -282,6 +282,80 @@ bool connect_to_server(game_client@ client) {
 	return false;
 }
 
+// A conexão das tentativas de volta (reconnect_to_match): a mesma do connect_to_server, sem falar nada -
+// a cada poucos segundos, um "conectando" por cima da própria tentativa seria só ruído.
+bool connect_quietly(game_client@ client, uint wait_ms) {
+	server_address address = resolve_server_address();
+	bool conectando = client.connect_to(address.host, address.port);
+	if (!conectando && !address.from_override && address.host != FALLBACK_SERVER_IP)
+		conectando = client.connect_to(FALLBACK_SERVER_IP, address.port);
+	if (!conectando) return false;
+	timer espera;
+	while (espera.elapsed < wait_ms) {
+		wait(20);
+		client.update();
+		if (client.connected) return true;
+	}
+	return false;
+}
+
+// O primeiro pacote deste tipo, esperando até `ms` (null se não chegou, ou se a conexão caiu).
+net_packet@ wait_for_packet_type(game_client@ client, const string&in type, uint ms) {
+	timer espera;
+	while (espera.elapsed < ms) {
+		wait(20);
+		client.update();
+		if (!client.connected) return null;
+		net_packet@ pkt = client.poll_message();
+		while (@pkt != null) {
+			if (pkt.type == type) return pkt;
+			@pkt = client.poll_message();
+		}
+	}
+	return null;
+}
+
+// A conexão caiu no meio da partida: tenta VOLTAR a ela (ver REJOIN_PROTOCOL). O servidor guarda o lugar
+// por um minuto; aqui se insiste por REJOIN_CLIENT_TRY_MS, reconectando e entrando com o token de volta
+// (só na memória - a senha nunca é guardada). Devolve o S_GAME_START de volta, ou null se não deu: o lugar
+// já não existe (a partida acabou, o prazo venceu, o servidor reiniciou), a rede não voltou a tempo, ou a
+// pessoa desistiu com Esc. O caso que isto resolve (2026-10-13): quedas de rede de alguns segundos que
+// derrubavam gente no meio da partida, com o servidor de pé.
+net_packet@ reconnect_to_match(game_client@ client) {
+	string token = client.rejoin_token;
+	if (token == "") { speak(tr("net.connection_lost")); return null; }
+	speak(tr("net.rejoin_trying"));
+	g_net_stall_context = "voltando a partida";
+	timer total;
+	bool desistiu = false;
+	while (total.elapsed < REJOIN_CLIENT_TRY_MS && !desistiu) {
+		client.clear_incoming();
+		if (connect_quietly(client, 4000)) {
+			client.send_login_rejoin(token);
+			net_packet@ r = wait_for_packet_type(client, S_LOGIN_RESULT, 5000);
+			if (@r != null) {
+				// Recusado: o servidor não tem mais o lugar. Insistir não muda isso.
+				if (!r.get_bool("ok") || !r.get_bool("rejoin")) break;
+				client.my_peer_id = r.get_uint64("peer_id");
+				client.rejoin_token = r.get_string("rejoin_token", "");
+				net_packet@ inicio = wait_for_packet_type(client, S_GAME_START, 5000);
+				if (@inicio != null) return inicio;
+				break;
+			}
+		}
+		client.disconnect();
+		// Uma pausa entre tentativas, com o Esc ouvido: a rede pode levar alguns segundos para voltar.
+		timer pausa;
+		while (pausa.elapsed < 2000) {
+			wait(20);
+			if (key_pressed(KEY_ESCAPE)) { desistiu = true; break; }
+		}
+	}
+	client.disconnect();
+	speak(tr("net.rejoin_failed"));
+	return null;
+}
+
 // Tela combinada de login/cadastro. Envia C_LOGIN ou C_REGISTER e espera a resposta do servidor.
 // Em caso de cadastro bem sucedido, tenta logar automaticamente com as mesmas credenciais.
 // Reutiliza a classe login_result (database/models.nvgt): campo "ok" indica sucesso, "username" o
@@ -390,6 +464,10 @@ bool wait_for_auth_result(game_client@ client, bool was_register, const string&i
 				// A partir daqui o cliente sabe com que id o servidor o identifica - tudo que compara
 				// peer_id vindo de pacote (anfitrião, voto, chat, radar) depende disso estar certo.
 				client.my_peer_id = pkt.get_uint64("peer_id");
+				// O token de volta (só na memória) e se o servidor tinha o lugar desta conta guardado
+				// numa partida - quem caiu e abriu o jogo de novo volta direto para ela.
+				client.rejoin_token = pkt.get_string("rejoin_token", "");
+				result.rejoin = pkt.get_bool("rejoin", false);
 				result.ok = true;
 				result.username = pkt.get_string("username", username);
 				// Guarda pra próxima vez. Só depois do login DAR CERTO: gravar antes deixaria um nome

@@ -1,0 +1,243 @@
+// Sonda da volta à partida depois de cair (src/network/server/server_rejoin.nvgt), contra um servidor
+// LOCAL com o prazo encurtado:
+//   $env:AMONGUS_REJOIN_GRACE_MS = "4000"; nvgt server_main.nvgt   (num terminal à parte)
+//   $env:AMONGUS_SERVER_HOST = "127.0.0.1"; nvgt tools/probes/probe_rejoin.nvgt
+//
+// Quatro jogadores, um impostor. V é um tripulante que não é o anfitrião.
+//   1. V cai: o lugar fica guardado, e a partida ouve "perdeu a conexão" (e não "saiu").
+//   2. V volta pelo TOKEN de volta: o login diz rejoin, com o id ANTIGO, e o S_GAME_START de volta traz o
+//      mesmo papel; a partida ouve "voltou".
+//   3. O que V manda pela conexão nova chega como dele (o id antigo): o voto na reunião.
+//   4. V cai NO MEIO da reunião e volta pela SENHA: recebe a reunião em andamento, com o voto dele.
+//   5. V entra de novo com a conexão ainda viva (sessão substituída): volta na hora, e o desligamento
+//      atrasado da conexão velha NÃO derruba a nova (o controle: um ping respondido depois).
+//   6. E cai e não volta: passado o prazo, sai da partida como quem saiu.
+//   7. O token de E já não serve: o lugar dele não existe mais.
+//   8. Quem sai pelo MENU sai de verdade: "saiu", sem "perdeu a conexão".
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Cada "jogador" pode trocar de cliente (a conexão nova de quem volta); a caixa é por jogador.
+array<game_client@> cli;
+array<array<net_packet@>@> caixa;
+array<string> nome;
+array<uint64> id;
+array<string> papel;
+array<string> token_volta;
+
+void drena() {
+	for (uint i = 0; i < cli.length(); i++) {
+		if (@cli[i] == null) continue;
+		cli[i].update();
+		net_packet@ p = cli[i].poll_message();
+		while (@p != null) { caixa[i].insert_last(p); @p = cli[i].poll_message(); }
+	}
+}
+void pausa(int ms) { timer w; while (w.elapsed < ms) { drena(); wait(10); } }
+void esvazia() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+net_packet@ espera(uint i, const string&in tipo, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		drena();
+		for (uint k = 0; k < caixa[i].length(); k++) if (caixa[i][k].type == tipo) { net_packet@ p = caixa[i][k]; caixa[i].remove_at(k); return p; }
+		wait(5);
+	}
+	return null;
+}
+bool ouviu(uint i, const string&in chave, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		drena();
+		for (uint k = 0; k < caixa[i].length(); k++)
+			if (caixa[i][k].type == S_ERROR && caixa[i][k].get_string(MSG_KEY_FIELD) == chave) { caixa[i].remove_at(k); return true; }
+		wait(5);
+	}
+	return false;
+}
+// Quantas vezes a chave chegou a `i`, sem esperar (o que já está na caixa).
+int contou(uint i, const string&in chave) {
+	int n = 0;
+	for (uint k = 0; k < caixa[i].length(); k++)
+		if (caixa[i][k].type == S_ERROR && caixa[i][k].get_string(MSG_KEY_FIELD) == chave) n++;
+	return n;
+}
+
+game_client@ conecta() {
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	return c.connected ? c : null;
+}
+
+// Login de `i` por senha num cliente novo; devolve o S_LOGIN_RESULT.
+net_packet@ entra_senha(uint i) {
+	@cli[i] = conecta();
+	if (@cli[i] == null) return null;
+	cli[i].send_login(nome[i], "probe123");
+	net_packet@ lr = espera(i, S_LOGIN_RESULT, 5000);
+	if (@lr != null && lr.get_bool("ok")) {
+		cli[i].my_peer_id = lr.get_uint64("peer_id");
+		token_volta[i] = lr.get_string("rejoin_token");
+	}
+	return lr;
+}
+
+// Login de `i` pelo token de volta, num cliente novo.
+net_packet@ entra_token(uint i, const string&in token) {
+	@cli[i] = conecta();
+	if (@cli[i] == null) return null;
+	cli[i].send_login_rejoin(token);
+	net_packet@ lr = espera(i, S_LOGIN_RESULT, 5000);
+	if (@lr != null && lr.get_bool("ok")) {
+		cli[i].my_peer_id = lr.get_uint64("peer_id");
+		token_volta[i] = lr.get_string("rejoin_token");
+	}
+	return lr;
+}
+
+// A conexão de `i` cai (sem C_LEAVE_LOBBY). O cliente velho continua bombeado um instante, para o aviso
+// de desligamento sair (ver notes/ciclo-da-partida.md).
+void cai(uint i) {
+	game_client@ velho = cli[i];
+	@cli[i] = null;
+	velho.disconnect();
+	timer t; while (t.elapsed < 300) { velho.update(); wait(5); }
+}
+
+void main() {
+	string sfx = "" + random(1000, 9999);
+	for (uint i = 0; i < 4; i++) {
+		cli.insert_last(null); caixa.insert_last(array<net_packet@>()); nome.insert_last("rj" + i + "x" + sfx);
+		id.insert_last(0); papel.insert_last(""); token_volta.insert_last("");
+		@cli[i] = conecta();
+		if (@cli[i] == null) { println("sem conexao com o servidor"); return; }
+		cli[i].send_register(nome[i], "probe123"); espera(i, S_REGISTER_RESULT, 3000);
+		@cli[i] = null; // o login de verdade é por entra_senha, que guarda o token de volta
+		net_packet@ lr = entra_senha(i);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou: " + nome[i]); return; }
+		id[i] = cli[i].my_peer_id;
+	}
+	confere("o login da um token de volta", token_volta[0] != "");
+
+	lobby_overrides ov;
+	ov.max_players = 6;
+	ov.impostor_count = 1;
+	cli[0].send_create_lobby("volta" + sfx, "classic", ov);
+	net_packet@ st = espera(0, S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	string sala = st.get_string("lobby_id");
+	for (uint i = 1; i < 4; i++) { cli[i].send_join_lobby(sala); espera(i, S_JOIN_RESULT, 5000); }
+	pausa(500);
+	cli[0].send_start_game();
+	for (uint i = 0; i < 4; i++) {
+		net_packet@ gs = espera(i, S_GAME_START, 8000);
+		if (@gs == null) { println("sem S_GAME_START para " + nome[i]); return; }
+		papel[i] = gs.get_string("your_role");
+	}
+	// V e E: dois tripulantes que não são o anfitrião. O impostor caindo e voltando funciona igual, mas
+	// expirar o impostor acabaria a partida no meio da sonda.
+	int V = -1, E = -1, W = -1;
+	for (uint i = 1; i < 4; i++) {
+		if (role_for(papel[i]).team == TEAM_IMPOSTOR) continue;
+		if (V < 0) V = int(i); else if (E < 0) E = int(i);
+	}
+	for (uint i = 1; i < 4; i++) if (int(i) != V && int(i) != E) W = int(i);
+	if (V < 0 || E < 0) { println("sorteio sem dois tripulantes fora o anfitriao"); return; }
+	println("V = " + nome[V] + " (" + papel[V] + "), E = " + nome[E] + ", W = " + nome[W] + " (" + papel[W] + ")");
+	pausa(500);
+
+	println("== 1. V cai ==");
+	esvazia();
+	string token_v = token_volta[V];
+	cai(V);
+	confere("a partida ouve que V perdeu a conexao", ouviu(0, "match.player_disconnected", 4000));
+	pausa(300);
+	bool saiu = false;
+	for (uint k = 0; k < caixa[0].length(); k++) if (caixa[0][k].type == S_PLAYER_LEFT) saiu = true;
+	confere("e NAO que V saiu", !saiu);
+
+	println("== 2. V volta pelo token ==");
+	esvazia();
+	net_packet@ lr = entra_token(V, token_v);
+	confere("login de volta aceito", @lr != null && lr.get_bool("ok"));
+	confere("com rejoin = true", @lr != null && lr.get_bool("rejoin"));
+	confere("e o id ANTIGO (" + id[V] + ")", @lr != null && lr.get_uint64("peer_id") == id[V]);
+	confere("e um token de volta novo", token_volta[V] != "" && token_volta[V] != token_v);
+	net_packet@ gs = espera(V, S_GAME_START, 4000);
+	confere("chega o S_GAME_START de volta", @gs != null && gs.get_bool("rejoin"));
+	confere("com o mesmo papel", @gs != null && gs.get_string("your_role") == papel[V]);
+	confere("e vivo", @gs != null && gs.get_bool("alive"));
+	confere("e o progresso das tarefas logo atras", @espera(V, S_TASK_PROGRESS, 3000) != null);
+	confere("a partida ouve que V voltou", ouviu(0, "match.player_reconnected", 3000));
+
+	println("== 3. o que V manda chega como dele ==");
+	esvazia();
+	cli[0].send_call_meeting();
+	confere("reuniao aberta para V", @espera(V, S_VOTING_STARTED, 6000) != null);
+	cli[V].send_cast_vote(-1);
+	net_packet@ voto = espera(0, S_VOTE_CAST, 4000);
+	confere("o voto chega com o id antigo de V", @voto != null && voto.get_uint64("voter_peer") == id[V]);
+
+	println("== 4. V cai na reuniao e volta pela senha ==");
+	cai(V);
+	confere("a partida ouve a queda", ouviu(0, "match.player_disconnected", 4000));
+	esvazia();
+	@lr = entra_senha(V);
+	confere("login pela senha volta para a partida", @lr != null && lr.get_bool("rejoin") && lr.get_uint64("peer_id") == id[V]);
+	confere("S_GAME_START de volta", @espera(V, S_GAME_START, 4000) != null);
+	confere("a reuniao em andamento", @espera(V, S_MEETING_STARTED, 3000) != null);
+	net_packet@ vs = espera(V, S_VOTING_STARTED, 3000);
+	confere("a votacao, com o tempo que sobra", @vs != null && vs.get_float("voting_time") > 0.0);
+	net_packet@ meu_voto = espera(V, S_VOTE_CAST, 3000);
+	confere("e o voto que V ja tinha dado", @meu_voto != null && meu_voto.get_uint64("voter_peer") == id[V]);
+
+	println("== 5. sessao substituida: entrar de novo com a conexao viva ==");
+	pausa(300);
+	esvazia();
+	game_client@ velho = cli[V];
+	@lr = entra_senha(V); // a conexão velha ainda está de pé
+	confere("volta na hora", @lr != null && lr.get_bool("rejoin") && lr.get_uint64("peer_id") == id[V]);
+	confere("S_GAME_START de volta", @espera(V, S_GAME_START, 4000) != null);
+	timer tv; while (tv.elapsed < 600) { velho.update(); wait(5); } // a velha recebe o aviso e cai
+	pausa(3000); // tempo de o desligamento atrasado da velha chegar ao servidor
+	confere("a partida ouviu uma queda e uma volta, e so", contou(0, "match.player_disconnected") == 1 && contou(0, "match.player_reconnected") == 1);
+	cli[V].send_ping();
+	confere("a conexao nova continua de pe (ping respondido)", @espera(V, S_PONG, 3000) != null);
+
+	println("== 6. E cai e nao volta ==");
+	esvazia();
+	string token_e = token_volta[E];
+	cai(E);
+	confere("a partida ouve a queda de E", ouviu(0, "match.player_disconnected", 4000));
+	net_packet@ left = espera(0, S_PLAYER_LEFT, 12000);
+	confere("passado o prazo, E sai da partida", @left != null && left.get_uint64("peer_id") == id[E]);
+
+	println("== 7. o token de E nao serve mais ==");
+	@lr = entra_token(E, token_e);
+	confere("recusado: o lugar de E ja nao existe", @lr != null && !lr.get_bool("ok") && lr.get_string("message") == "login.rejoin_failed");
+	if (@cli[E] != null) { cli[E].disconnect(); @cli[E] = null; }
+
+	println("== 8. sair pelo menu e sair de verdade ==");
+	esvazia();
+	cli[W].send_leave_lobby();
+	pausa(200);
+	cai(W);
+	net_packet@ left_w = espera(0, S_PLAYER_LEFT, 4000);
+	confere("W saiu na hora", @left_w != null && left_w.get_uint64("peer_id") == id[W]);
+	pausa(500);
+	confere("sem \"perdeu a conexao\" para quem saiu pelo menu", contou(0, "match.player_disconnected") == 0);
+
+	for (uint i = 0; i < cli.length(); i++) if (@cli[i] != null) cli[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

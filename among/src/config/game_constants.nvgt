@@ -32,7 +32,7 @@ const string GAME_VERSION = "0.52.0";
 // conhece e só é recusado em salas que ligaram o Atirador - a exigência passou a ser POR PAPEL (ver
 // role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
 // a barrar quem só queria jogar com engenheiro.
-const int PROTOCOL_VERSION = 12; // 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
+const int PROTOCOL_VERSION = 13; // 13 = voltar à partida depois de cair (ver REJOIN_PROTOCOL); 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
 const int MIN_PROTOCOL_VERSION = 2;
 
 // Site de download. O updater lê o version.json daqui e, havendo novidade, manda o jogador para a
@@ -128,6 +128,11 @@ const float PERCEPTION_SET_RANGE = 3.5;
 // e a cada tanto ele registra quantos estão conectados.
 const uint64 SERVER_STALL_LOG_MS = 1000;
 const uint64 SERVER_PULSE_MS = 300000;
+// Quanto o servidor guarda o lugar de quem caiu no meio da partida (decisão do usuário, 2026-10-13: cobre
+// uma queda de rede e até reabrir o jogo e entrar de novo). E quanto o CLIENTE insiste em voltar sozinho:
+// menos que o prazo, para a última tentativa ainda chegar com o lugar guardado.
+const uint64 REJOIN_GRACE_MS = 60000;
+const uint64 REJOIN_CLIENT_TRY_MS = 50000;
 // Ritmo dos passos e dos esbarrões ao andar. Compartilhado pela partida e pelo modo de conhecer o
 // mapa - os dois têm que soar iguais, senão o mapa "aprendido" não é o mapa jogado.
 //

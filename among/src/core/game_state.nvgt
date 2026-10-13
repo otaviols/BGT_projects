@@ -89,6 +89,9 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	// existir, nem jogando nem assistindo pelo código. Vive com a sala, não com o anfitrião - passar o
 	// posto adiante não reabre a porta.
 	array<string> kicked_accounts;
+	// Quantos impostores a partida começou com (o S_GAME_START diz a todos). Guardado porque quem VOLTA
+	// depois de cair recebe o início de novo (ver server_rejoin.nvgt), e contar agora daria os VIVOS.
+	int start_impostor_count = 0;
 	array<body_info> bodies;
 	// Corpos nas mãos de um carregador: fora de `bodies` (não se reporta, não se examina, não faz
 	// som) até ele largar. Duas listas paralelas: quem carrega e o quê.

@@ -24,46 +24,64 @@ mixin class server_accounts_part {
 			return;
 		}
 
+		// O token de VOLTA (ver server_rejoin.nvgt): o cliente voltando sozinho depois de cair, sem senha.
+		// Só serve para isso - um token que não é de um lugar guardado (nem de uma conexão que ainda vai
+		// cair) é recusado, e o cliente desiste de voltar.
+		string rejoin_token = pkt.get_string("rejoin_token");
 		bool ok;
-		if (token != "") {
+		if (rejoin_token != "") {
+			username = account_of_rejoin_token(rejoin_token);
+			ok = username != "";
+		} else if (token != "") {
 			username = g_user_db.session_user(token);
 			ok = username != "";
 		} else {
 			ok = g_user_db.verify_login(username, password);
 		}
+		game_player@ conn = ok ? find_connection(peer_id) : null;
+		if (ok && @conn != null) {
+			conn.username = username;
+			conn.authenticated = true;
+			conn.protocol_version = protocol;
+			// Só um nome da lista: o texto vem da máquina do jogador e vira linha no banco.
+			string plataforma = pkt.get_string("platform", "unknown");
+			if (CLIENT_PLATFORMS.find(plataforma) < 0) plataforma = "unknown";
+			conn.client_platform = plataforma;
+			g_user_db.record_client_login(username, plataforma, safe_client_version(pkt.get_string("version", "")));
+			if (protocol >= REJOIN_PROTOCOL) conn.rejoin_token = string_base64_encode(random_bytes(24));
+		}
+		// A sessão velha sai ANTES de procurar o lugar guardado: quando o cliente percebe a queda antes do
+		// servidor, é derrubando a conexão velha aqui que o lugar fica guardado (try_hold) - a tempo da
+		// volta, logo abaixo, encontrá-lo. E antes do retrato do saguão: o mesmo nome apareceria duas vezes.
+		if (ok) drop_other_sessions(peer_id, username);
+		game_player@ guardado = null;
+		if (ok && @conn != null && protocol >= REJOIN_PROTOCOL) @guardado = find_held(username);
+		if (@guardado != null) rejoin_held(conn, guardado);
+
 		if (ok) {
-			game_player@ conn = find_connection(peer_id);
-			if (@conn != null) {
-				conn.username = username;
-				conn.authenticated = true;
-				conn.protocol_version = protocol;
-				// Só um nome da lista: o texto vem da máquina do jogador e vira linha no banco.
-				string plataforma = pkt.get_string("platform", "unknown");
-				if (CLIENT_PLATFORMS.find(plataforma) < 0) plataforma = "unknown";
-				conn.client_platform = plataforma;
-				g_user_db.record_client_login(username, plataforma, safe_client_version(pkt.get_string("version", "")));
-			}
 			result.set_bool("ok", true);
 			result.set_string("message", "login.success");
 			result.set_string("username", username);
 			// Pediu para lembrar: sai um token novo; o cliente guarda o token, nunca a senha.
-			if (token == "" && pkt.get_bool("remember")) result.set_string("session_token", g_user_db.create_session(username));
+			if (token == "" && rejoin_token == "" && pkt.get_bool("remember")) result.set_string("session_token", g_user_db.create_session(username));
 			// O cliente não tem como descobrir sozinho com que id o servidor o identifica (o id que
 			// o ENet dele devolve é só um handle local) - sem isso ele compara maçã com laranja em
-			// todo peer_id que chega e às vezes "acerta" o de outro jogador (ver game_client).
-			result.set_uint64("peer_id", peer_id);
+			// todo peer_id que chega e às vezes "acerta" o de outro jogador (ver game_client). Quem VOLTOU
+			// recebe o id antigo, o da partida.
+			result.set_uint64("peer_id", @guardado != null ? guardado.peer_id : peer_id);
+			if (@conn != null && conn.rejoin_token != "") result.set_string("rejoin_token", conn.rejoin_token);
+			result.set_bool("rejoin", @guardado != null);
 		} else {
 			result.set_bool("ok", false);
-			result.set_string("message", "login.invalid_credentials");
+			result.set_string("message", rejoin_token != "" ? "login.rejoin_failed" : "login.invalid_credentials");
 		}
 		send_to(peer_id, result);
-		if (ok) {
-			// Antes do retrato do saguão: a sessão velha tem que sair da lista de quem está online,
-			// senão o mesmo nome apareceria duas vezes nela.
-			drop_other_sessions(peer_id, username);
-			// Depois de responder, e não antes: assim quem acabou de entrar já se vê na lista.
-			send_hall_state();
+		if (@guardado != null) {
+			game_state@ sala = find_lobby(guardado.lobby_id);
+			if (@sala != null) send_rejoin_state(sala, guardado);
 		}
+		// Depois de responder, e não antes: assim quem acabou de entrar já se vê na lista.
+		if (ok) send_hall_state();
 	}
 
 	// Uma conta, uma sessão: entrar de novo DERRUBA a anterior.
@@ -81,7 +99,7 @@ mixin class server_accounts_part {
 			game_player@ other = connections[i];
 			if (other.peer_id == keep_peer_id || !other.authenticated || other.username != username) continue;
 			send_error(other.peer_id, "login.session_replaced");
-			net.disconnect_peer_softly(other.peer_id);
+			drop_net_peer(other.peer_id); // e ignora o desligamento atrasado dela (ver server_rejoin.nvgt)
 			// A limpeza é feita AQUI, e não deixada para o evento de desconexão: o peer já saiu do
 			// mapa da rede, e sem isto a sessão velha continuaria pendurada na sala (contando como
 			// jogador, recebendo pacotes que ninguém lê) até o ENet avisar.

@@ -23,7 +23,7 @@ mixin class server_talk_part {
 			for (uint i = 0; i < lobby.spectators.length(); i++) {
 				game_player@ s = lobby.spectators[i];
 				if (s.peer_id == peer_id || !s.voice_enabled) continue;
-				net.send_unreliable(s.peer_id, sw, CHANNEL_VOICE);
+				net.send_unreliable(net_of(s.peer_id), sw, CHANNEL_VOICE);
 			}
 			return;
 		}
@@ -42,12 +42,12 @@ mixin class server_talk_part {
 			game_player@ p = lobby.players[i];
 			if (!reaches_client(p) || p.peer_id == peer_id || !p.voice_enabled) continue;
 			if (!lobby.can_hear_voice(talker, p)) continue;
-			net.send_unreliable(p.peer_id, wire, CHANNEL_VOICE);
+			net.send_unreliable(net_of(p.peer_id), wire, CHANNEL_VOICE);
 		}
 		for (uint i = 0; i < lobby.spectators.length(); i++) {
 			game_player@ s = lobby.spectators[i];
 			if (!s.voice_enabled || !lobby.spectator_hears(talker, s)) continue;
-			net.send_unreliable(s.peer_id, wire, CHANNEL_VOICE);
+			net.send_unreliable(net_of(s.peer_id), wire, CHANNEL_VOICE);
 		}
 	}
 

@@ -160,6 +160,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	string watched_room_id;
 	// Saiu da partida sem sala para voltar (abandonou, ou a conexão caiu): run_game devolve null.
 	bool abandoned = false;
+	// Esta partida começou por uma VOLTA depois de cair (o S_GAME_START veio com `rejoin`).
+	bool rejoining = false;
 
 	match_session(game_client@ client, net_packet@ start_pkt) {
 		@this.client = client;
@@ -216,7 +218,10 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		@target_in_range_entry = null;
 		// Declarado aqui, junto do papel, e não mais adiante: a partir da montagem dos marcadores já se
 		// pergunta se o jogador está vivo (sabotagem não atinge fantasma - ver core/sabotage_rules.nvgt).
-		alive = true;
+		// Quem VOLTA depois de cair (`rejoin`, ver server_rejoin.nvgt) pode ter morrido enquanto estava fora.
+		rejoining = start_pkt.get_bool("rejoin", false);
+		alive = start_pkt.get_bool("alive", true);
+		g_match_connection_lost = false;
 		// Na barriga do Lobo Mau: `alive` é false (sai da votação e do radar de todos), mas não é fantasma -
 		// não anda, não faz tarefa, não usa radar. Vai aonde o lobo for: o ouvinte acompanha a posição dele
 		// (ver o fim do quadro), e é isso que faz a barriga soar como um lugar.
@@ -255,7 +260,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// continua sendo quem decide de fato se o kill vale (ver network/server.on_kill), isso aqui é só
 		// pra dar feedback na hora sem precisar de um round-trip toda vez que aperta a tecla.
 		kill_cooldown_config = start_pkt.get_float("kill_cooldown_seconds");
-		my_kill_cooldown_remaining = kill_cooldown_config;
+		// Quem volta à partida traz a recarga de AGORA; no começo ela é a cheia.
+		my_kill_cooldown_remaining = start_pkt.get_float("kill_cooldown_remaining", kill_cooldown_config);
 
 		// Cooldown de sabotagem acompanhado do mesmo jeito. A partida já começa com ele contando (ver
 		// SABOTAGE_INITIAL_COOLDOWN_SECONDS) - quem manda o valor é o servidor, que é quem de fato
@@ -283,6 +289,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		begin_chat_review(messages_log, events_log);
 
 		@mui = meeting_ui(client, audio, roster, events_log, is_impostor);
+		mui.alive = alive; // quem volta morto não vota (o servidor recusaria de qualquer jeito)
 
 		// Todos os pontos de tarefa do mapa: o radar de objetos do impostor (ver a tecla do radar).
 		for (uint i = 0; i < map.objects.length(); i++) {
@@ -386,6 +393,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		if (game_mode == GAME_MODE_TAG) role_text += " " + tr("mode.tag_intro");
 		else if (game_mode == GAME_MODE_WOLVES) role_text += " " + tr("mode.wolves_intro");
 		while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
+		// De volta depois de cair: primeiro ONDE se está (de volta, e se ainda vivo), depois o papel - quem
+		// caiu pode ter passado um minuto fora, e a partida pode ter mudado inteira nesse tempo.
+		if (rejoining) role_text = tr(alive ? "game.rejoined" : "game.rejoined_dead") + " " + role_text;
 		speak(role_text);
 		events_log.add("", role_text); // dá pra reler com PageUp + vírgula/ponto
 		// Segunda etapa: sem par, os modificadores entram na fila da fala logo atrás do papel. Com par,
@@ -461,9 +471,15 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// rodando para sempre - o jogador andava por uma nave onde ninguém mais ouvia ninguém, sem
 		// nenhum aviso. Quem chama (run_session) vê connected == false e volta ao menu inicial.
 		if (!client.connected) {
-			speak(tr("net.connection_lost"));
+			// Quem chama tenta VOLTAR à partida (reconnect_to_match): o servidor guarda o lugar por um
+			// minuto. O aviso de queda é dele, junto da tentativa.
 			end_chat_review();
+			audio.stop_ship_ambience();
+			audio.stop_room_ambience();
+			audio.stop_landmark_beacons();
+			@g_match_roster = null;
 			abandoned = true;
+			g_match_connection_lost = true;
 			return false;
 		}
 
@@ -576,6 +592,10 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		return back_to_lobby;
 	}
 }
+
+// A última partida terminou porque a CONEXÃO caiu (e não por ESC nem pelo fim): é o sinal para a sessão
+// tentar voltar a ela (reconnect_to_match, em ui/onboarding_screens.nvgt).
+bool g_match_connection_lost = false;
 
 net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	match_session partida(client, start_pkt);
