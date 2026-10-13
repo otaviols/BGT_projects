@@ -1,0 +1,163 @@
+// Sonda das ferramentas do anfitrião (Ctrl+K) e do silenciar no chat.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_host_tools.nvgt
+//
+// A cria a sala; B e C entram.
+//   1. C (não anfitrião) tenta mandar B assistir e é recusado;
+//   2. A manda B assistir: B fica marcado e ouve que foi o anfitrião; A volta B a jogar;
+//   3. C tenta expulsar B e é recusado; A expulsa B: B recebe S_KICKED, sai da sala, e quem ficou ouve;
+//   4. B tenta entrar de novo e é recusado com o motivo;
+//   5. silenciar no chat: com o gancho dizendo que C está silenciado, a mensagem de C não chega a A, e a
+//      do próprio A chega (a gente nunca silencia a si mesmo).
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+array<game_client@> todos;
+// O último retrato da sala que A recebeu - guardado fora da caixa, que é esvaziada entre os passos.
+net_packet@ g_retrato = null;
+array<array<net_packet@>@> caixa;
+void drena() {
+	for (uint i = 0; i < todos.length(); i++) {
+		todos[i].update();
+		net_packet@ p = todos[i].poll_message();
+		while (@p != null) {
+			if (i == 0 && p.type == S_LOBBY_STATE) @g_retrato = p;
+			caixa[i].insert_last(p); @p = todos[i].poll_message();
+		}
+	}
+}
+void esvazia() { for (uint i = 0; i < caixa.length(); i++) caixa[i].resize(0); }
+void pausa(int ms) { timer w; while (w.elapsed < ms) { drena(); wait(10); } }
+net_packet@ espera(uint i, const string&in tipo, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		drena();
+		for (uint k = 0; k < caixa[i].length(); k++) if (caixa[i][k].type == tipo) { net_packet@ p = caixa[i][k]; caixa[i].remove_at(k); return p; }
+		wait(5);
+	}
+	return null;
+}
+// Um S_ERROR com esta chave chegou a `i` (dentro de `ms`)?
+bool ouviu(uint i, const string&in chave, int ms) {
+	timer t;
+	while (t.elapsed < ms) {
+		drena();
+		for (uint k = 0; k < caixa[i].length(); k++)
+			if (caixa[i][k].type == S_ERROR && caixa[i][k].get_string(MSG_KEY_FIELD) == chave) { caixa[i].remove_at(k); return true; }
+		wait(5);
+	}
+	return false;
+}
+bool entra(server_address addr, const string&in nome) {
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return false;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	todos.insert_last(c); caixa.insert_last(array<net_packet@>());
+	uint i = todos.length() - 1;
+	c.send_register(nome, "probe123"); espera(i, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	net_packet@ lr = espera(i, S_LOGIN_RESULT, 5000);
+	if (@lr == null || !lr.get_bool("ok")) return false;
+	c.my_peer_id = lr.get_uint64("peer_id");
+	return true;
+}
+// Como `quem` aparece no último retrato que A recebeu: -1 = fora da sala, 0 = jogando, 1 = assistindo.
+int situacao(uint quem) {
+	net_packet@ ultimo = g_retrato;
+	if (@ultimo == null) return -2;
+	json_array@ l = ultimo.get_array("players");
+	for (uint k = 0; k < l.length(); k++)
+		if (uint64(l.get_object(k)["peer_id"]) == todos[quem].my_peer_id) return bool(l.get_object(k)["spectating"]) ? 1 : 0;
+	return -1;
+}
+
+uint64 g_silenciado = 0;
+bool silenciado(uint64 peer) { return peer == g_silenciado; }
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	for (int i = 0; i < 3; i++) if (!entra(addr, "ht" + i + "x" + sfx)) { println("login falhou"); return; }
+	const uint A = 0, B = 1, C = 2;
+	lobby_overrides ov;
+	ov.max_players = 6;
+	todos[A].send_create_lobby("anfitriao" + sfx, "classic", ov);
+	net_packet@ st = espera(A, S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	string id = st.get_string("lobby_id");
+	todos[B].send_join_lobby(id); espera(B, S_JOIN_RESULT, 5000);
+	todos[C].send_join_lobby(id); espera(C, S_JOIN_RESULT, 5000);
+	pausa(500);
+
+	esvazia();
+	todos[C].send_set_spectate(true, todos[B].my_peer_id);
+	confere("quem nao e anfitriao nao manda ninguem assistir", ouviu(C, "lobby.host_players_host_only", 3000));
+	pausa(300);
+	confere("e B continua jogando", situacao(B) == 0);
+
+	esvazia();
+	todos[A].send_set_spectate(true, todos[B].my_peer_id);
+	confere("o anfitriao ouve que B vai assistir", ouviu(A, "lobby.host_moved_to_watch", 3000));
+	confere("B ouve que foi o anfitriao", ouviu(B, "lobby.host_made_you_watch", 3000));
+	pausa(300);
+	confere("B esta marcado para assistir", situacao(B) == 1);
+	esvazia();
+	todos[A].send_set_spectate(false, todos[B].my_peer_id);
+	confere("o anfitriao volta B a jogar", ouviu(B, "lobby.host_made_you_play", 3000));
+	pausa(300);
+	confere("e B esta jogando de novo", situacao(B) == 0);
+
+	esvazia();
+	todos[C].send_kick_player(todos[B].my_peer_id);
+	confere("quem nao e anfitriao nao expulsa", ouviu(C, "lobby.host_players_host_only", 3000));
+	pausa(300);
+	confere("e B continua na sala", situacao(B) == 0);
+
+	esvazia();
+	todos[A].send_kick_player(todos[B].my_peer_id);
+	confere("B recebe S_KICKED", @espera(B, S_KICKED, 3000) != null);
+	confere("quem ficou ouve a expulsao", ouviu(C, "lobby.player_kicked", 3000));
+	pausa(300);
+	confere("B saiu da sala", situacao(B) == -1);
+	todos[A].send_kick_player(todos[A].my_peer_id);
+	pausa(300);
+	confere("o anfitriao nao expulsa a si mesmo", situacao(A) == 0);
+
+	esvazia();
+	todos[B].send_join_lobby(id);
+	net_packet@ volta = espera(B, S_JOIN_RESULT, 5000);
+	confere("B nao entra de novo, e sabe por que", @volta != null && !volta.get_bool("ok")
+		&& volta.get_string(MSG_KEY_FIELD) == "lobby.kicked_cannot_return");
+
+	// O filtro é do cliente de A: o gancho é global, então vale para todos os clientes desta sonda -
+	// por isso a conta é olhar a caixa de A e a de C, cada uma com o que deveria ter.
+	esvazia();
+	g_silenciado = todos[C].my_peer_id;
+	@g_chat_muted = @silenciado;
+	todos[C].send_chat_message("mensagem de C");
+	todos[A].send_chat_message("mensagem de A");
+	pausa(1500);
+	bool a_viu_c = false, a_viu_a = false;
+	for (uint k = 0; k < caixa[A].length(); k++) {
+		if (caixa[A][k].type != S_CHAT_MESSAGE) continue;
+		if (caixa[A][k].get_uint64("peer_id") == todos[C].my_peer_id) a_viu_c = true;
+		if (caixa[A][k].get_uint64("peer_id") == todos[A].my_peer_id) a_viu_a = true;
+	}
+	confere("silenciado no chat: a mensagem de C nao chega a A", !a_viu_c);
+	confere("a mensagem de A chega a A", a_viu_a);
+	bool c_viu_c = false;
+	for (uint k = 0; k < caixa[C].length(); k++)
+		if (caixa[C][k].type == S_CHAT_MESSAGE && caixa[C][k].get_uint64("peer_id") == todos[C].my_peer_id) c_viu_c = true;
+	confere("C ve a propria mensagem (ninguem silencia a si mesmo)", c_viu_c);
+	@g_chat_muted = null;
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

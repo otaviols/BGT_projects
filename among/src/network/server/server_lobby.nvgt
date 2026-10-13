@@ -60,6 +60,13 @@ mixin class server_lobby_part {
 				fail_key = "lobby.code_not_found";
 			}
 		}
+		// Expulso daqui não volta - nem jogando nem assistindo pelo código (ver C_KICK_PLAYER).
+		if (@lobby != null && lobby.kicked_accounts.find(conn.username.lower()) != -1) {
+			result.set_bool("ok", false);
+			result.set_string(MSG_KEY_FIELD, "lobby.kicked_cannot_return");
+			send_to(peer_id, result);
+			return;
+		}
 		// Partida PRIVADA em andamento, aberta pelo código: quem chega entra ASSISTINDO (decisão do
 		// usuário). Só a privada - a pública em andamento aparece na lista, mas não se assiste a
 		// partida de estranhos. E só pelo código: o id sozinho já circulou na lista um dia.
@@ -302,10 +309,17 @@ mixin class server_lobby_part {
 
 	// Sala de espera: "vou assistir" / "vou jogar". Só ali - no meio da partida, quem joga não vira
 	// espectador (sairia sabendo os papéis que viu, e voltaria para assistir sabendo).
+	//
+	// Com `peer_id` de outra pessoa, é o anfitrião decidindo por ela (Ctrl+K) - para quem está ausente,
+	// ou numa sala cheia em que alguém precisa ceder a vaga. A pessoa ouve que foi o anfitrião, e a
+	// tecla A continua dela: quem quer mesmo jogar volta, e aí o caso é de expulsar, não de assistir.
 	void on_set_spectate(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "waiting") return;
-		game_player@ p = lobby.find_player(peer_id);
+		uint64 alvo = pkt.get_uint64("peer_id", peer_id);
+		bool pelo_anfitriao = alvo != peer_id;
+		if (pelo_anfitriao && lobby.host_peer_id != peer_id) { send_error(peer_id, "lobby.host_players_host_only"); return; }
+		game_player@ p = lobby.find_player(alvo);
 		if (@p == null || p.is_bot) return;
 		bool quer = pkt.get_bool("on");
 		if (quer == p.wants_to_spectate) return;
@@ -316,6 +330,42 @@ mixin class server_lobby_part {
 		if (quer && lobby.marked_spectator_count() >= MAX_SPECTATORS) { send_error(peer_id, "spectate.full"); return; }
 		p.wants_to_spectate = quer;
 		send_lobby_state(lobby, 0); // a lista de quem está na sala diz quem vai assistir
+		if (pelo_anfitriao) {
+			dictionary@ np = dictionary();
+			np.set("name", p.username);
+			send_error(peer_id, quer ? "lobby.host_moved_to_watch" : "lobby.host_moved_to_play", np);
+			if (p.protocol_version >= HOST_TOOLS_PROTOCOL)
+				send_error(alvo, quer ? "lobby.host_made_you_watch" : "lobby.host_made_you_play");
+		}
+	}
+
+	// Ctrl+K: o anfitrião tira alguém da sala. Só na sala de espera (ver run_host_players_screen), só
+	// gente (bot sai por Shift+B), e nunca ele mesmo.
+	void on_kick_player(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		if (lobby.host_peer_id != peer_id) { send_error(peer_id, "lobby.host_players_host_only"); return; }
+		if (lobby.state != "waiting") { send_error(peer_id, "lobby.kick_only_waiting"); return; }
+		uint64 alvo = pkt.get_uint64("peer_id");
+		if (alvo == peer_id) return;
+		game_player@ p = lobby.find_player(alvo);
+		if (@p == null || p.is_bot) return;
+		string nome = p.username;
+		lobby.kicked_accounts.insert_last(nome.lower());
+		println("[expulsao] " + nome + " expulso da sala \"" + lobby.lobby_name + "\" pelo anfitriao");
+		if (p.protocol_version >= HOST_TOOLS_PROTOCOL) {
+			// Avisado ANTES de sair: depois, fora da sala, ele não receberia mais nada dela.
+			send_to(alvo, net_packet(S_KICKED));
+			leave_current_lobby(alvo);
+		} else {
+			// Cliente anterior não sabe sair da sala sozinho e ficaria numa tela morta: cai para o menu
+			// inicial avisando que perdeu a conexão. Limpeza na mão, como em drop_other_sessions.
+			net.disconnect_peer_softly(alvo);
+			on_disconnect(alvo, "expulso pelo anfitriao (cliente antigo)");
+		}
+		dictionary@ np = dictionary();
+		np.set("name", nome);
+		broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.player_kicked", np));
 	}
 
 	void on_spectate_follow(uint64 peer_id, net_packet@ pkt) {

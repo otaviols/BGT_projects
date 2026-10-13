@@ -164,6 +164,16 @@ computador seguiria "dentro" de uma conta que não existe. `user_stats` é apaga
 `tools/probes/probe_delete_account.nvgt` (o nome ficar livre para cadastro é a prova de que a linha
 saiu do banco, e não só a sessão).
 
+**Expulsar e mandar assistir (Ctrl+K do anfitrião, protocolo 12) só na sala de espera**, como no
+original: no meio da partida o anfitrião impostor expulsaria quem o viu. Quem é expulso entra em
+`game_state.kicked_accounts` e não volta à MESMA sala, nem assistindo pelo código - sem isso, numa sala
+pública, voltava no segundo seguinte. O "mandar assistir" reaproveita o `C_SET_SPECTATE` com um
+`peer_id`; a tecla A continua do jogador (quem insiste em jogar é caso de expulsar). Cliente abaixo do
+12 não conhece o `S_KICKED` e ficaria numa sala de espera morta: a ele o servidor derruba a conexão,
+com a limpeza na mão como em `drop_other_sessions`. **O silenciar no chat é filtrado na CHEGADA**
+(`g_chat_muted` em `client.enqueue`), não em cada tela: o chat é lido na sala, na partida, na reunião,
+assistindo, no histórico e por menus que bombeiam a rede. Sonda: `probe_host_tools.nvgt`.
+
 **Trocar a senha segue o mesmo molde** (`C_CHANGE_PASSWORD`, recado #239): pede a atual, só do saguão,
 e apaga TODAS as sessões lembradas da conta - trocar a senha é o que se faz para expulsar alguém, e o
 "lembrar de mim" num computador emprestado continuaria entrando. Quem trocou recebe um token novo se

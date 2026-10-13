@@ -20,6 +20,13 @@
 funcdef void client_frame_hook();
 client_frame_hook@ g_client_frame_hook = null;
 
+// Quem o jogador silenciou no CHAT (a caixa "também no chat" do silenciar de voz). A mensagem dessa
+// pessoa é descartada na chegada, antes da fila: o chat é lido em muitos lugares (sala de espera,
+// partida, reunião, assistindo, histórico, menus que bombeiam a rede), e filtrar em cada um seria um
+// lugar a esquecer. Gancho pelo mesmo motivo do de cima - quem sabe quem está silenciado é o jogo.
+funcdef bool chat_mute_check(uint64 peer);
+chat_mute_check@ g_chat_muted = null;
+
 // Onde o jogo está (sala de espera, partida, uma tarefa...), para o diagnóstico de rede dizer ONDE a
 // pausa aconteceu. Quem troca de tela atualiza; vazio = não informado.
 string g_net_stall_context = "";
@@ -151,6 +158,10 @@ class game_client {
 	// Põe o pacote na fila, anotando se ele interrompe uma minigame e mantendo a fila dentro do teto.
 	private void enqueue(net_packet@ pkt) {
 		string type = pkt.type;
+		if (type == S_CHAT_MESSAGE && @g_chat_muted != null) {
+			uint64 from = pkt.get_uint64("peer_id");
+			if (from != my_peer_id && g_chat_muted(from)) return;
+		}
 		if (type == S_MEETING_STARTED || type == S_BODY_REPORTED || type == S_GAME_OVER) interrupt_pending = true;
 		if (type == S_SABOTAGE_FIXED) sabotage_ended = true;
 		if (type == S_VOTE_RESULT) voting_ended = true;
@@ -372,10 +383,18 @@ class game_client {
 		p.set_int("seconds", seconds);
 		send(p);
 	}
-	// Sala de espera: "vou assistir" (true) ou "vou jogar".
-	void send_set_spectate(bool on) {
+	// Sala de espera: "vou assistir" (true) ou "vou jogar". Com `peer`, é o anfitrião decidindo por
+	// outra pessoa (Ctrl+K).
+	void send_set_spectate(bool on, uint64 peer = 0) {
 		net_packet@ p = net_packet(C_SET_SPECTATE);
 		p.set_bool("on", on);
+		if (peer != 0) p.set_uint64("peer_id", peer);
+		send(p);
+	}
+	// Anfitrião: tirar alguém da sala (Ctrl+K).
+	void send_kick_player(uint64 peer) {
+		net_packet@ p = net_packet(C_KICK_PLAYER);
+		p.set_uint64("peer_id", peer);
 		send(p);
 	}
 	// Espectador: de quem acompanhar a partida.

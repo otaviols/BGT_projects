@@ -232,6 +232,7 @@ class voice_chat : voice_receiver {
 	void attach(game_client@ c) {
 		@client = c;
 		@c.voice = this;
+		@g_chat_muted = @chat_muted_peer; // quem sabe as contas dos peers é a voz (settings_key_of)
 	}
 
 	// Entrando numa partida: as vozes passam a ser posicionadas pelo elenco.
@@ -517,6 +518,7 @@ class voice_chat : voice_receiver {
 				string chave = settings_key_of(parse_int(keys[i]));
 				string label = name;
 				if (g_settings.is_muted(chave)) label = tr("voice.muted_item", name_params(name));
+				else if (g_settings.is_chat_muted(chave)) label = tr("voice.chat_muted_item", name_params(name));
 				else if (g_settings.voice_volume_of(chave) != 100) {
 					dictionary@ vp = dictionary();
 					vp.set("name", name);
@@ -543,6 +545,10 @@ class voice_chat : voice_receiver {
 		screen_keyboard_follower teclado_tela;
 		f.create_window(name, false);
 		int f_muted = f.create_checkbox(tr("voice.mute_checkbox"), g_settings.is_muted(chave));
+		// O chat é a outra metade: quem incomoda na voz costuma incomodar no texto também. Caixa à parte,
+		// e não junto do silenciar de voz, porque há quem queira só um dos dois (o microfone ruim de um
+		// amigo não é motivo para deixar de ler o que ele escreve).
+		int f_chat = f.create_checkbox(tr("voice.mute_chat_checkbox"), g_settings.is_chat_muted(chave));
 		int f_volume = f.create_slider(tr("voice.volume_label"), g_settings.voice_volume_of(chave), 0, VOICE_VOLUME_MAX_PERCENT);
 		int f_ok = f.create_button(tr("menu.confirm"), true);
 		int f_cancel = f.create_button(tr("menu.cancel"), false, true);
@@ -556,10 +562,13 @@ class voice_chat : voice_receiver {
 			if (f.is_pressed(f_cancel)) return;
 			if (f.is_pressed(f_ok)) {
 				bool quer_mudo = f.is_checked(f_muted);
+				bool quer_chat = f.is_checked(f_chat);
 				if (quer_mudo != g_settings.is_muted(chave)) g_settings.toggle_muted(chave);
+				g_settings.set_chat_muted(chave, quer_chat);
 				g_settings.set_voice_volume(chave, int(f.get_slider(f_volume)));
 				g_settings.save();
-				speak(tr(quer_mudo ? "voice.now_muted" : "voice.now_unmuted", name_params(name)));
+				speak(tr(quer_mudo ? "voice.now_muted" : "voice.now_unmuted", name_params(name)) + " "
+					+ tr(quer_chat ? "voice.chat_now_muted" : "voice.chat_now_unmuted"));
 				return;
 			}
 		}
@@ -581,6 +590,8 @@ class voice_chat : voice_receiver {
 		monitor_snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES);
 	}
 }
+
+bool chat_muted_peer(uint64 peer) { return g_settings.is_chat_muted(g_voice.settings_key_of(peer)); }
 
 dictionary@ name_params(const string&in name) { dictionary@ d = dictionary(); d.set("name", name); return d; }
 

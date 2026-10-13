@@ -243,6 +243,7 @@ your file and English — worth sending a message about it.
 | A | switches between playing and only **watching** the next match (see "Watching a match") |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
+| Ctrl + K | manage players (host only): choose someone to **kick** from the room or to **spectate** the next match. A kicked player can't join that room again |
 | Y | write in chat |
 | Comma / Period | move through messages |
 | ESC | leave the match |
@@ -280,7 +281,7 @@ in with the code stays to play the next one.
 | T | your task list, your progress and the team's |
 | F1 | measure ping to the server |
 | X | talk in voice chat (hold it; in automatic mode, turns the microphone on and off) |
-| Ctrl + X | choose whom to mute |
+| Ctrl + X | choose whom to mute, in voice and, if you want, in text chat too |
 | Shift + X | who is talking right now |
 | Ctrl + Shift + X | mute **every** voice at once; again, they come back |
 | ESC | leave the match (asks for confirmation) |

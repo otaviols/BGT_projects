@@ -247,6 +247,61 @@ void run_color_choice_screen(game_client@ client, lobby_snapshot@ snapshot) {
 	speak(tr(lobby_color_choice(snapshot.config) ? "lobby.color_pick_done" : "lobby.color_pick_saved", cp));
 }
 
+// Ctrl+K do anfitrião: escolher alguém da sala e expulsá-lo ou mandá-lo assistir (voltar a jogar).
+// Duas listas, pessoa e depois ação, e não "Enter expulsa": a segunda escolha é a confirmação, e
+// expulsar alguém por um Enter apertado na pessoa errada não tem volta. Só na sala de espera, como no
+// original - no meio da partida, quem manda na sala tiraria quem quisesse do jogo (o impostor
+// anfitrião expulsando quem o viu). Bots ficam de fora: B e Shift+B já cuidam deles.
+// O servidor confere tudo de novo (on_kick_player, on_set_spectate); a fala do resultado vem dele.
+void run_host_players_screen(game_client@ client, lobby_snapshot@ snapshot) {
+	screen_menu m;
+	m.intro_text = tr("lobby.host_players_title");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+	uint listed = 0;
+	for (uint i = 0; @snapshot.players != null && i < snapshot.players.length(); i++) {
+		json_object@ pj = snapshot.players.get_object(i);
+		if (@pj == null || bool(pj["is_bot"])) continue;
+		uint64 peer = uint64(pj["peer_id"]);
+		if (peer == client.my_peer_id) continue;
+		string texto = string(pj["name"]);
+		if (snapshot.is_spectating(peer)) texto += ", " + tr("lobby.host_players_watching");
+		m.add_item(texto, "" + peer);
+		listed++;
+	}
+	if (listed == 0) { speak(tr("lobby.host_players_nobody")); return; }
+	m.add_item(tr("menu.back"), "__back__");
+	if (run_menu_until_next_match(m, client)) return;
+	string id = m.selected_item_id;
+	if (id == "" || id == "__back__") return;
+	uint64 alvo = parse_int(id);
+	string nome = snapshot.name_of(alvo);
+	bool assistindo = snapshot.is_spectating(alvo);
+
+	screen_menu a;
+	a.intro_text = nome;
+	a.click_sound = "ui/menu_click.ogg";
+	a.select_sound = "ui/menu_confirm.ogg";
+	a.sounds_prefix = "sounds/";
+	a.focus_first_item = true;
+	@a.background_callback = @pump_client_during_menu;
+	a.add_item(tr(assistindo ? "lobby.host_action_play" : "lobby.host_action_watch"), "spectate");
+	a.add_item(tr("lobby.host_action_kick"), "kick");
+	a.add_item(tr("menu.back"), "__back__");
+	if (run_menu_until_next_match(a, client)) return;
+	string acao = a.selected_item_id;
+	if (acao == "kick") client.send_kick_player(alvo);
+	else if (acao == "spectate") {
+		// Voltar a jogar ocupa uma vaga: com a sala cheia nem pede, como a tecla A.
+		if (assistindo && seated_in(snapshot.players) >= snapshot.max_players) speak(tr("lobby.full_cannot_play"));
+		else client.send_set_spectate(!assistindo, alvo);
+	}
+}
+
 net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		net_packet@ initial_lobby_state = null) {
 	audio_manager@ audio = audio_manager();
@@ -334,6 +389,13 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 				events_log.add("", aviso);
 			} else if (pkt.type == S_ERROR) {
 				if (!pkt.announced) speak(tr_server_message(pkt));
+			} else if (pkt.type == S_KICKED) {
+				// O servidor já nos tirou da sala: sair daqui é só acompanhar, sem C_LEAVE_LOBBY.
+				@g_logging_packet = null;
+				ui_sound(SND_SERVER_NOTICE);
+				speak(tr("lobby.you_were_kicked"));
+				end_chat_review();
+				return null;
 			} else if (pkt.type == S_GAME_START || pkt.type == S_SPECTATE_START) {
 				// A partida começou - para jogar ou para assistir (quem marcou A, ou entrou pelo código
 				// com ela já andando). Quem chama decide a tela pelo tipo do pacote.
@@ -404,6 +466,12 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		// E: escolher a cor. Funciona em qualquer sala - a escolha vira a preferência guardada -, mas só
 		// VALE numa sala que deixa escolher, e a tela diz isso quando não deixa.
 		if (key_pressed(KEY_E)) run_color_choice_screen(client, snapshot);
+		// Ctrl + tecla de matar (K): o anfitrião expulsa alguém ou o manda assistir. A tecla de matar não
+		// faz nada na sala de espera, e "K de kick" é o que o usuário pediu.
+		if (action_pressed(ACTION_KILL) && (key_down(KEY_LCTRL) || key_down(KEY_RCTRL))) {
+			if (!is_host) speak(tr("lobby.host_players_host_only"));
+			else run_host_players_screen(client, snapshot);
+		}
 		// C abre as regras como LISTA: eram lidas numa frase só, e com papéis e tempos ligados ela
 		// passou a durar mais de um minuto, sem jeito de voltar a um item.
 		if (key_pressed(KEY_C)) run_rules_screen(client, snapshot);

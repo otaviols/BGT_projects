@@ -239,6 +239,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | A | alterna entre jogar e só **assistir** a próxima partida (ver "Assistir uma partida") |
 | B | adicionar um bot (só o anfitrião, até 8) |
 | Shift + B | remover o último bot |
+| Ctrl + K | gerenciar jogadores (só o anfitrião): escolha alguém para **expulsar** da sala ou mandar **assistir** a próxima partida. Quem é expulso não pode entrar de novo naquela sala |
 | Y | escrever no chat |
 | Vírgula / Ponto | navegar pelas mensagens |
 | ESC | sair da partida |
@@ -274,7 +275,7 @@ jogar a próxima.
 | T | lista das suas tarefas, seu progresso e o do time |
 | F1 | medir o ping com o servidor |
 | X | falar no chat de voz (segurando; no modo automático, liga e desliga o microfone) |
-| Ctrl + X | escolher quem silenciar |
+| Ctrl + X | escolher quem silenciar, na voz e, se quiser, também no chat de texto |
 | Shift + X | quem está falando agora |
 | Ctrl + Shift + X | silenciar **todas** as vozes de uma vez; de novo, elas voltam |
 | ESC | sair da partida (pede confirmação) |

@@ -85,6 +85,10 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	// votos, kill, vitória, tarefas, papéis - procura em `players`, então um espectador não tem como
 	// influenciar nada por acidente. O que ele recebe é escolhido no servidor, caso a caso.
 	array<game_player@> spectators;
+	// Contas que o anfitrião expulsou (em minúsculas): não entram de novo nesta sala enquanto ela
+	// existir, nem jogando nem assistindo pelo código. Vive com a sala, não com o anfitrião - passar o
+	// posto adiante não reabre a porta.
+	array<string> kicked_accounts;
 	array<body_info> bodies;
 	// Corpos nas mãos de um carregador: fora de `bodies` (não se reporta, não se examina, não faz
 	// som) até ele largar. Duas listas paralelas: quem carrega e o quê.
