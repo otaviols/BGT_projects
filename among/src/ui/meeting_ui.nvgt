@@ -127,7 +127,7 @@ class meeting_ui {
 	}
 
 	// Fala na hora (igual sempre foi) e também guarda no container de eventos, pra dar pra reler
-	// depois com PageUp/PageDown + vírgula/ponto.
+	// depois com PageUp + vírgula/ponto.
 	// `say` em false quando uma tela bloqueante já disse isto (ver core/event_speech.nvgt): o texto
 	// ainda entra no histórico para ser relido, mas não é falado de novo ao fechar a tela.
 	private void announce(const string&in text, bool say = true) {
@@ -255,7 +255,7 @@ class meeting_ui {
 		if (pkt.announced) return; // uma tela bloqueante já disse este número
 		if (pkt.get_bool("final")) {
 			// speak() direto, sem passar pelo registro de eventos: dez números seguidos entupiriam o
-			// histórico que o jogador relê com PageUp/PageDown, empurrando pra fora justamente o que
+			// histórico que o jogador relê com PageUp, empurrando pra fora justamente o que
 			// interessa reler (quem reportou, quem votou em quem).
 			// E sem esperar a fala anterior terminar - numa contagem, um número atrasado é pior do que
 			// um número interrompido.

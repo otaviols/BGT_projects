@@ -16,15 +16,15 @@
 
 // As teclas de chat e de voto agora vêm do mapa de teclas do jogador (config/keybindings.nvgt):
 // ACTION_CHAT, ACTION_CHAT_PREV, ACTION_CHAT_NEXT, ACTION_CHAT_SWITCH e ACTION_VOTE.
-// PageDown continua funcionando como segunda tecla de trocar de container, fixa, porque a dupla
-// PageUp/PageDown é o gesto natural pra quem usa leitor de tela.
-const int KEY_CHAT_SWITCH_CONTAINER_ALT = KEY_PAGEDOWN;
+// Houve uma PageDown fixa como segunda tecla de trocar de lista, e ela saiu (recado #256, decisão do
+// usuário): não aparecia na tela de teclas, e quem a pusesse em outra ação disparava as duas. Com duas
+// listas só, uma tecla basta.
 
 // O pacote que o laço principal está tratando agora (null fora disso). É por ele que chat_log.add sabe
 // que a linha já foi registrada com uma tela aberta - ver net_packet.logged.
 net_packet@ g_logging_packet = null;
 
-// O histórico que as teclas de leitura (vírgula, ponto, PageUp/PageDown) percorrem, onde quer que o
+// O histórico que as teclas de leitura (vírgula, ponto, PageUp) percorrem, onde quer que o
 // jogador esteja: no laço da partida, na sala de espera, ou DENTRO de um menu (votação, regras da sala,
 // escolha de cor). Antes as teclas só eram lidas pelos laços principais - aberto um menu, a leitura
 // travava, e o que chegava com ele aberto só entrava no histórico ao fechar. Na votação, que é
@@ -63,7 +63,7 @@ void log_background_into_review(net_packet@ pkt, const string&in text) {
 // lida UMA vez e guardada (ver Armadilhas no CLAUDE.md: key_pressed é consumo de evento).
 void chat_review_keys() {
 	if (@g_chat_review == null) return;
-	if (action_pressed(ACTION_CHAT_SWITCH) || key_pressed(KEY_CHAT_SWITCH_CONTAINER_ALT)) {
+	if (action_pressed(ACTION_CHAT_SWITCH)) {
 		g_chat_review.viewing_events = !g_chat_review.viewing_events;
 		speak(tr(g_chat_review.viewing_events ? "chat.events_container" : "chat.messages_container"));
 	}

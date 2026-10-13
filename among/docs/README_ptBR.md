@@ -311,7 +311,7 @@ jogar a próxima.
 | Vírgula / Ponto | mensagem anterior / próxima |
 | Shift + Vírgula | primeira mensagem |
 | Shift + Ponto | última mensagem |
-| Page Up / Page Down | alternar entre as mensagens e os eventos do jogo |
+| Page Up | alternar entre as mensagens e os eventos do jogo |
 
 ## O radar (Tab)
 

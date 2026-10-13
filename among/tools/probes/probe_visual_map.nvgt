@@ -106,8 +106,13 @@ void main() {
 		v.scan_on = false;
 	}
 	confere("o scanner existe no mapa (para a cena da varredura)", @scanner != null);
-	println("cena: barriga"); t.restart();
-	while (t.elapsed < 3000) { v.draw_belly("Navegação"); wait(16); }
+	// Engolido e com sabotagem: o mapa continua (centrado no lobo), com a faixa da barriga, o anel vermelho
+	// no próprio círculo, e a faixa e a moldura vermelhas da sabotagem.
+	v.me_swallowed = true; v.status_banner = "Na barriga do Lobo: você sai quando ele morrer ou for expulso";
+	v.alert_banner = "Sabotagem: Luzes";
+	println("cena: barriga e sabotagem"); t.restart();
+	while (t.elapsed < 3000) { v.draw(map, duto.x - 4, duto.y, COLOR_CYAN, true, false, null, null, tarefas, "lights"); wait(16); }
+	v.me_swallowed = false; v.status_banner = ""; v.alert_banner = "";
 
 	// As outras três telas, 3 s cada, para serem vistas ou capturadas (a sonda imprime quando começa
 	// cada uma). As legendas entram como entrariam pelo gancho de fala.

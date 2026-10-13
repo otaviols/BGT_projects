@@ -37,13 +37,19 @@ mixin class match_frame_update_part {
 		// Na reunião todo mundo está à mesa: a tela mostra a mesa, com o que a reunião já diz a todos
 		// (quem está vivo, quem morreu, quem já votou), e não o mapa.
 		if (movement_frozen && mui.phase_seconds_remaining() >= 0.0) { draw_visual_meeting(); return; }
-		// Na barriga do lobo não há nave para ver: a tela diz onde se está e como se sai (ver draw_belly).
-		// A posição acompanha a do lobo (follow_wolves), então a sala é a dele.
-		if (swallowed) {
-			map_zone@ zona = map.zone_at(my_x, my_y);
-			g_visual_map.draw_belly(@zona != null ? tr(zona.name_key) : "");
-			return;
-		}
+		// Na barriga do lobo o mapa CONTINUA - centrado no lobo, porque a posição acompanha a dele
+		// (follow_wolves), e com quem o radar dele mostraria, que é o que o engolido ouve. Era uma tela só
+		// com "na barriga", e quem enxerga não via mais nada do jogo (relato de amigos do usuário). O que
+		// diz que se está dentro é a faixa no alto e o anel vermelho no próprio círculo.
+		g_visual_map.me_swallowed = swallowed;
+		g_visual_map.status_banner = swallowed ? tr("visual.belly_title") + ": " + tr("visual.belly_hint") : "";
+		// A sabotagem em curso, para todos: o alarme é ouvido pela nave inteira, então a faixa não diz nada
+		// que o som já não diga.
+		if (active_sabotage_id != "") {
+			dictionary@ sp = dictionary();
+			sp.set("name", tr("sabotage." + active_sabotage_id + ".name"));
+			g_visual_map.alert_banner = tr("visual.sabotage_banner", sp);
+		} else g_visual_map.alert_banner = "";
 		bool luz_apagada = lights_out_for(active_sabotage_id, my_role, alive);
 		// O scanner em uso, pela regra do som: aparece onde a varredura se OUVE (o alcance da escuta, que o
 		// escuro encolhe), e o nome só para quem está na mesma sala - é quando a fala o diz (on_task_visible).

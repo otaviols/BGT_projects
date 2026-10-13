@@ -233,8 +233,13 @@ errado. Ao calar, a tela segura o aviso (que diz como voltar) até uma tecla ou 
 falaria por cima e o cortaria, e calado aquele corte seria a última coisa ouvida. **O scanner em uso**
 (a tarefa visível) aparece como anéis verdes no ponto, pela regra do SOM dele: no alcance da escuta, e
 o nome de quem escaneia só para quem está na mesma sala (`scan_spot`/`scan_name`, guardados em
-`on_task_visible`). **Engolido pelo lobo, a tela troca o mapa por "na barriga do Lobo"** (`draw_belly`,
-relato do usuário): com o mapa e o próprio círculo no meio, a pessoa nunca sabia se já tinha saído.
+`on_task_visible`). **Engolido pelo lobo, o mapa CONTINUA** - centrado no lobo (a posição acompanha a
+dele) e com quem o radar dele mostraria -, com uma faixa "Na barriga do Lobo" no alto e um anel vermelho
+no próprio círculo. Houve uma versão (0.51.9) que trocava o mapa por uma tela só da barriga, e amigos do
+usuário que testaram disseram que não dava para ver nada do jogo; antes dela, só o mapa, e a pessoa não
+sabia se já tinha saído. **Sabotagem em curso:** faixa vermelha com o nome e a moldura da tela pulsando
+devagar (1,6 s) - pulso, e não pisca-pisca, porque luz piscando rápido faz mal a quem tem sensibilidade.
+As faixas crescem com o texto (`banner_height`): fixas, o texto quebrado em duas linhas vazava.
 Corpos só enquanto o marcador toca (as luzes apagadas calam), tarefas
 somem com as comunicações - pelas MESMAS `lights_out_for`/`comms_down_for` da partida. A regra mora em
 `visual_player_visible`; uma regra paralela divergiria da do som na primeira mudança. A janela é limpa

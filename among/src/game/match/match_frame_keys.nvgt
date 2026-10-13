@@ -424,7 +424,7 @@ mixin class match_frame_keys_part {
 
 		if (alive && action_pressed(ACTION_VOTE)) mui.open_vote_menu_if_active();
 
-		// Leitura do histórico (vírgula, ponto, PageUp/PageDown): uma função só, a mesma que os menus
+		// Leitura do histórico (vírgula, ponto, PageUp): uma função só, a mesma que os menus
 		// chamam - ver chat_review em core/chat_log.nvgt.
 		chat_review_keys();
 	}

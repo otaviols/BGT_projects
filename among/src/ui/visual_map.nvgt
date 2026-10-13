@@ -139,6 +139,13 @@ class visual_map {
 	bool scan_on = false;
 	float scan_x = 0, scan_y = 0;
 	string scan_label = "";
+	// Faixas no alto do mapa, postas pelo laço da partida antes de cada draw(): a sabotagem em curso
+	// (vermelha, com a moldura da tela pulsando) e a situação de quem olha (a barriga do lobo). Vazias, não
+	// aparecem.
+	string alert_banner = "";
+	string status_banner = "";
+	// Engolido: o próprio círculo ganha um anel vermelho - ele está DENTRO do lobo, no ponto do lobo.
+	bool me_swallowed = false;
 	dictionary@ scan_label_params() {
 		dictionary@ p = dictionary();
 		p.set("name", scan_label);
@@ -431,14 +438,53 @@ class visual_map {
 		}
 
 		// Você: sempre no centro, com um anel branco em volta para se achar. Fantasma, meio apagado.
+		// Engolido, o anel é vermelho e largo: o centro é o lobo, e você está dentro dele.
+		if (me_swallowed) {
+			color(VC_BODY);
+			ring(cx, cy, 13.0);
+			ring(cx, cy, 15.0);
+		}
 		color(0xFFFFFF, me_alive ? 255 : 120);
 		circle(cx, cy, 10.0);
 		color(visual_player_rgb(my_color), me_alive ? 255 : 120);
 		circle(cx, cy, 8.0);
 
 		legend(w);
+		banners(w, h);
 		caption_panel(w, h);
 		finish();
+	}
+
+	// As faixas do alto (sabotagem, barriga) e, com sabotagem, a moldura vermelha da tela. A moldura PULSA
+	// devagar (um ciclo de 1,6 s) em vez de piscar: pisca-pisca rápido de tela inteira pode fazer mal a
+	// quem tem sensibilidade à luz, e o pulso já chama o olho sem isso.
+	private void banners(int w, int h) {
+		float y = 10;
+		float largura = float(w) - 260; // a legenda ocupa o canto direito
+		if (largura > 620) largura = 620;
+		if (alert_banner != "") {
+			float fase = float(ticks() % 1600) / 1600.0;
+			float onda = fase < 0.5 ? fase * 2.0 : (1.0 - fase) * 2.0; // 0 -> 1 -> 0
+			uint vermelho = uint(110 + 145 * onda);
+			r.set_draw_color(vermelho, 30, 40, 255);
+			for (int k = 0; k < 6; k++) r.draw_rect(k, k, w - 2 * k, h - 2 * k);
+			float alto = banner_height(alert_banner, font_title, largura);
+			panel(10, y, largura, alto, 0x5A1018, VC_BODY);
+			put_text(alert_banner, font_title, 0xFFE4E6, 22, y + 8, int(largura - 24));
+			y += alto + 8;
+		}
+		if (status_banner != "") {
+			panel(10, y, largura, banner_height(status_banner, font_body, largura), VC_PANEL, VC_BODY);
+			put_text(status_banner, font_body, VC_TEXT, 22, y + 8, int(largura - 24));
+		}
+	}
+
+	// A altura de uma faixa: a do texto quebrado na largura dela, com folga. Fixa, o texto que quebrava em
+	// duas linhas (janela pequena) passava da faixa.
+	private float banner_height(const string&in t, text_font@ f, float largura) {
+		graphics_texture@ medida = text(t, f, VC_TEXT, int(largura - 24));
+		float alto = @medida != null ? float(medida.height) / k + 16 : 40;
+		return alto < 40 ? 40 : alto;
 	}
 
 	// Um ícone por tipo de marcador, simples o bastante para se ler de relance.
@@ -547,39 +593,6 @@ class visual_map {
 		if (largura > 760) largura = 760;
 		y += put_text(details, font_body, VC_TEXT, cx - largura / 2.0, y, int(largura)) + 14;
 		if (modifiers != "") put_text(modifiers, font_body, VC_ACCENT, cx - largura / 2.0, y, int(largura));
-		finish();
-	}
-
-	// --- Na barriga do lobo ---
-
-	// Engolido, a pessoa não está na nave: o mapa com o próprio círculo no meio dizia o contrário, e quem
-	// olhava nunca sabia se já tinha saído (relato do usuário). Aqui, um fundo escuro com o que o som
-	// já diz a ela - a sala por onde o lobo anda, e como se sai. Solto, o laço volta a desenhar o mapa.
-	void draw_belly(const string&in room_name) {
-		if (!ready()) return;
-		int w = 0, h = 0;
-		begin(VC_BG_DARK, w, h);
-		float cx = float(w) / 2.0;
-		float y = float(h) * 0.22;
-		// O lobo como uma silhueta: um anel vermelho, a cor do perigo, em volta do escuro. (A transparência
-		// não vale aqui - o renderizador não mistura cores sem um modo de mistura, e o anel nítido lê melhor.)
-		color(VC_BODY);
-		circle(cx, y + 40, 46);
-		color(VC_BG_DARK);
-		circle(cx, y + 40, 40);
-		y += 110;
-		string titulo = tr("visual.belly_title");
-		y += put_text(titulo, font_big, VC_BODY, cx - text_width(titulo, font_big, VC_BODY) / 2.0, y) + 18;
-		if (room_name != "") {
-			dictionary@ p = dictionary();
-			p.set("room", room_name);
-			string sala = tr("visual.belly_room", p);
-			y += put_text(sala, font_body, VC_TEXT, cx - text_width(sala, font_body, VC_TEXT) / 2.0, y) + 12;
-		}
-		float largura = float(w) * 0.7;
-		if (largura > 760) largura = 760;
-		put_text(tr("visual.belly_hint"), font_body, VC_TEXT_DIM, cx - largura / 2.0, y, int(largura));
-		caption_panel(w, h);
 		finish();
 	}
 

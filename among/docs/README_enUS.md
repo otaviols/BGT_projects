@@ -317,7 +317,7 @@ in with the code stays to play the next one.
 | Comma / Period | previous / next message |
 | Shift + Comma | first message |
 | Shift + Period | last message |
-| Page Up / Page Down | switch between messages and game events |
+| Page Up | switch between messages and game events |
 
 ## The radar (Tab)
 

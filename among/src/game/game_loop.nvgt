@@ -402,7 +402,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (game_mode == GAME_MODE_WOLVES) role_text += " " + tr("mode.wolves_intro");
 		while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
 		speak(role_text);
-		events_log.add("", role_text); // dá pra reler com PageUp/PageDown + vírgula/ponto
+		events_log.add("", role_text); // dá pra reler com PageUp + vírgula/ponto
 		// Segunda etapa: sem par, os modificadores entram na fila da fala logo atrás do papel. Com par,
 		// esperam o som de início e a batida de coração (opening_tick) - a batida é o sinal do casal.
 		opening_stage = opening_lover ? 1 : 0;
