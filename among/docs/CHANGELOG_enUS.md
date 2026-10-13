@@ -6,6 +6,21 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.51.10
+
+**Graphics mode:**
+
+- during a sabotage, a red warning with its name shows at the top of the screen, and the edge of the
+  screen pulses red;
+- when the wolf swallows you, you keep seeing the game: the screen follows the wolf, with a note at the
+  top that you are in its belly. In the previous version, the screen showed only the belly.
+
+**Keys:** the Page Down key no longer switches between messages and events. Only the key chosen in
+Settings does that, which is Page Up unless you changed it.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.51.9
 
 **Sheriff:** they can now shoot any neutral without dying, because no neutral is a crewmate. They only

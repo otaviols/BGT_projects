@@ -6,6 +6,21 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.51.10
+
+**Modo gráfico:**
+
+- durante uma sabotagem, aparece um aviso vermelho no alto da tela, com o nome dela, e a borda da tela
+  pulsa em vermelho;
+- engolido pelo lobo, você continua vendo o jogo: a tela acompanha o lobo, com um aviso no alto de que
+  você está na barriga dele. Na versão anterior, a tela mostrava só a barriga.
+
+**Teclas:** a tecla Page Down deixou de trocar entre as mensagens e os eventos. Fica só a tecla que se
+escolhe nas Configurações, que é a Page Up se você não mudou.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.51.9
 
 **Xerife:** agora ele pode atirar em qualquer neutro sem morrer, porque nenhum neutro é tripulante. Ele
