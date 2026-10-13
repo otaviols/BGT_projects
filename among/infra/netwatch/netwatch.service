@@ -1,0 +1,12 @@
+[Unit]
+Description=Among Us Audiogame - monitor da rede da VPS (ver /opt/netwatch/netwatch.sh)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/bin/sh /opt/netwatch/netwatch.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

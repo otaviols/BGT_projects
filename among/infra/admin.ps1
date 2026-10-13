@@ -19,6 +19,7 @@
 #   infra\admin.ps1 plataformas 30             # jogadores distintos por plataforma e versão nos últimos 30 dias
 #   infra\admin.ps1 backup                     # copia o banco de contas para %USERPROFILE%\amongus_backups
 #   infra\admin.ps1 senha prajwal novasenha1   # define a senha de quem esqueceu a dele (a conta sai de onde estiver)
+#   infra\admin.ps1 rede 2                     # a rede da VPS nas últimas 2 horas (o monitor netwatch)
 #
 # -Local em qualquer comando que passa pelo servidor: fala com o servidor desta máquina, usando o
 # AMONGUS_ADMIN_TOKEN do ambiente (o mesmo com que ele subiu).
@@ -57,7 +58,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $origem = Get-Location # caminhos relativos (-Saida, -Pasta) são relativos a de onde se chamou
 
 function Uso {
-	Get-Content $PSCommandPath | Select-Object -Skip 3 -First 19 | ForEach-Object { $_ -replace '^# ?', '' }
+	Get-Content $PSCommandPath | Select-Object -Skip 3 -First 20 | ForEach-Object { $_ -replace '^# ?', '' }
 }
 
 # Acentos: Python e NVGT imprimem UTF-8, e o console do Windows mostra "vers�o" se não for avisado.
@@ -182,6 +183,14 @@ switch ($Comando) {
 	"senha" {
 		if ($Resto.Count -lt 2) { throw 'Uso: infra\admin.ps1 senha <nome da conta> <senha nova>' }
 		Servidor @("password", $Resto[0], $Resto[1])
+	}
+	"rede" {
+		# O monitor da VPS (infra/netwatch): uma linha por minuto, mais uma por segundo SEM REDE. Para
+		# cruzar com as linhas [queda] do servidor - os dois relógios são UTC.
+		$h = if ($Resto.Count -gt 0) { [int]$Resto[0] } else { 2 }
+		$linhas = Vps-Run "tail -n $([Math]::Max(60, $h * 70)) /var/log/netwatch.log"
+		$corte = (Get-Date).ToUniversalTime().AddHours(-$h).ToString("yyyy-MM-ddTHH:mm:ss")
+		$linhas | Where-Object { $_.Substring(0, [Math]::Min(19, $_.Length)) -ge $corte }
 	}
 	default { Uso; if ($Comando -ne "") { throw "Comando desconhecido: $Comando" } }
 }

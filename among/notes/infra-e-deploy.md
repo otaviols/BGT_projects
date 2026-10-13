@@ -346,4 +346,17 @@ servidor ou VPS; cai um grupo = o caminho de rede deles. A VPS também roda o `a
 AMP) a cada 5 min; ele só mexe nas regras de entrada dele (80, 443, 2223, 12820), e as do Docker para a
 8934 ficam intactas - investigado e, até aqui, inocentado.
 
+**A rede da VPS vista de dentro: `infra\admin.ps1 rede [horas]`** (desde 2026-10-13). Um serviço na
+VPS (`netwatch.service`, script `/opt/netwatch/netwatch.sh`; a fonte é `infra/netwatch/`) pinga a cada
+segundo o NIC.br em São Paulo, o 1.1.1.1 e o 8.8.8.8, e grava em `/var/log/netwatch.log`: uma linha
+"SEM REDE" por segundo em que NENHUM respondeu, e uma por minuto com o UDP que o contêiner do jogo
+recebeu e as falhas de cada alvo. Nasceu da leva de 2026-10-13 (três jogadores, em duas salas, por
+tempo esgotado no mesmo meio minuto, sem `[trava]`): numa próxima, "SEM REDE" no minuto = a VPS perdeu
+a rede (chamado na Hostinger); nada = o caminho de alguns provedores. O que a instalação ensinou: **o
+gateway da Hostinger não responde a ping** (o primeiro log era falha a cada segundo); **o NIC.br perde
+um ping de vez em quando** (ruído - por isso a falha de um alvo só vai na conta do minuto); e **o
+contador UDP da máquina fica em zero**, porque o Docker encaminha direto para o contêiner, que é outro
+espaço de rede - o certo é `/proc/<pid do contêiner>/net/snmp`. Reinstalar (VPS nova): os dois arquivos
+de `infra/netwatch/` por `scp`, o `sed` de BOM e `\r` (ver acima), `systemctl enable --now netwatch`.
+
 
