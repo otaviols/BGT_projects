@@ -172,29 +172,52 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		// processa até um limite por volta, garantindo que sempre volta pro wait(5) regularmente.
 		const uint MAX_EVENTS_PER_TICK = 200;
 		uint64 ultimo_pulso = ticks();
+		uint64 ultima_perda = ticks();
+		int64 descartados_antes = udp_receive_drops();
+		// A prova de que o contador é lido (no Windows, de onde as sondas rodam, não existe).
+		println(descartados_antes >= 0 ? "Descartes UDP do kernel ate agora: " + descartados_antes : "Contador de descartes UDP indisponivel aqui");
 		while (true) {
 			uint64 inicio_volta = ticks();
 			uint processados = 0;
+			slowest_event_ms = 0;
+			slowest_event_type = "";
 			for (; processados < MAX_EVENTS_PER_TICK; processados++) {
 				const network_event@ ev = net.request(0);
 				if (@ev == null || ev.type == event_none) break;
 				handle_event(ev);
 			}
+			uint64 fim_eventos = ticks();
 
 			// Sem perder frações (ver core/frame_timer.nvgt): este relógio é o de TODA a partida -
 			// recargas, oxigênio, bots e o tempo que o anti-cheat usa para medir a velocidade.
 			float delta = clock.tick();
 			tick_lobbies(delta);
+			uint64 fim_salas = ticks();
 			tick_hall(delta);
 			tick_holds();
 
-			// Diagnóstico das levas de queda (relato do usuário, 2026-10-12: a sala inteira caindo junta).
-			// Uma volta deste laço leva milissegundos; se uma levar mais de 1 s, o servidor TRAVOU, e com
-			// alguns segundos travado o ENet derruba todo mundo - sem o registro, isso se confunde com
-			// queda de rede. E o pulso a cada 5 min diz quantos estavam conectados: numa leva de quedas, é
-			// o que separa "caiu todo mundo" (servidor ou VPS) de "caiu um grupo" (o caminho deles).
+			// Diagnóstico das levas de queda. Uma volta deste laço leva milissegundos. Mais que isso e o
+			// socket não é lido: o buffer do kernel (uns 200 KB, menos de meio segundo de voz de uma sala
+			// cheia) transborda e os pacotes são DESCARTADOS calados - voz, movimento e as confirmações do
+			// ENet, e quem manda e recebe mais (a sala inteira falando na reunião) cai por tempo esgotado.
+			// Foi o que os 16 mil descartes de 2026-10-13 mostraram (ver udp_receive_drops). Por isso o
+			// limite aqui é de 250 ms, e não mais o 1 s da [trava] de antes: abaixo de 1 s já transbordava.
+			// O registro diz ONDE a volta demorou - eventos ou salas, e o pacote mais lento -, que é o que
+			// falta para achar o culpado em vez de adivinhá-lo.
 			uint64 duracao = ticks() - inicio_volta;
-			if (duracao > SERVER_STALL_LOG_MS) println("[trava] uma volta do servidor levou " + duracao + " ms (" + processados + " eventos)");
+			if (duracao > SERVER_SLOW_LOOP_MS) {
+				println("[lento] volta de " + duracao + " ms: eventos " + (fim_eventos - inicio_volta) + " ms (" + processados
+					+ "), salas " + (fim_salas - fim_eventos) + " ms, saguao e guardados " + (ticks() - fim_salas) + " ms; pacote mais lento: "
+					+ (slowest_event_type != "" ? slowest_event_type + " (" + slowest_event_ms + " ms)" : "nenhum"));
+			}
+			if (ticks() - ultima_perda >= SERVER_DROP_CHECK_MS) {
+				ultima_perda = ticks();
+				int64 descartados = udp_receive_drops();
+				if (descartados > descartados_antes && descartados_antes >= 0)
+					println("[perda] o kernel descartou " + (descartados - descartados_antes) + " pacotes UDP nos ultimos "
+						+ (SERVER_DROP_CHECK_MS / 1000) + " s: o servidor nao leu o socket a tempo");
+				descartados_antes = descartados;
+			}
 			if (ticks() - ultimo_pulso >= SERVER_PULSE_MS) {
 				ultimo_pulso = ticks();
 				println("[pulso] conectados=" + connections.length() + " salas=" + lobbies.length() + " partidas=" + matches_in_progress()
@@ -202,6 +225,32 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			}
 			wait(5);
 		}
+	}
+
+	// O pacote que mais demorou na volta atual do laço (ver run): o suspeito quando uma volta fica lenta.
+	uint64 slowest_event_ms = 0;
+	string slowest_event_type = "";
+
+	// Quantos pacotes UDP o kernel descartou por buffer cheio desde que o sistema subiu (RcvbufErrors, em
+	// /proc/net/snmp - dentro do contêiner, o contador é o do espaço de rede DELE). -1 fora do Linux. Em
+	// 2026-10-13 passava de 16 mil, e era a explicação das salas caindo juntas na reunião.
+	int64 udp_receive_drops() const {
+		file f;
+		if (!f.open("/proc/net/snmp", "rb")) return -1;
+		array<string>@ nomes = null;
+		while (!f.eof) {
+			string linha = f.read_line();
+			if (linha.substr(0, 4) != "Udp:") continue;
+			array<string>@ campos = linha.split(" ");
+			// A primeira linha "Udp:" traz os NOMES; a segunda, os valores na mesma ordem.
+			if (@nomes == null) { @nomes = campos; continue; }
+			int at = nomes.find("RcvbufErrors");
+			f.close();
+			if (at < 0 || uint(at) >= campos.length()) return -1;
+			return parse_int(campos[at]);
+		}
+		f.close();
+		return -1;
 	}
 
 	// --- Infra de conexão ---
@@ -312,17 +361,27 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		}
 		// O id da PARTIDA de quem chega por aqui: o próprio id, ou o antigo de quem voltou depois de cair.
 		uint64 peer_id = logical_of(ev.peer_id);
+		uint64 inicio = ticks();
+		string tipo;
 		if (ev.type == event_connect) {
+			tipo = "conexao";
 			game_player@ conn = game_player(ev.peer_id, "");
 			connections.insert_last(conn);
 		} else if (ev.type == event_disconnect || ev.type == event_disconnect_timeout) {
+			tipo = "queda";
 			on_disconnect(peer_id, ev.type == event_disconnect_timeout ? "tempo esgotado" : "o cliente desligou");
 			forget_alias_of_net(ev.peer_id);
 		} else if (ev.type == event_receive) {
-			if (ev.channel == CHANNEL_VOICE) { on_voice_frame(peer_id, ev.message); return; }
-			net_packet@ pkt = packet_from_wire(ev.message);
-			if (@pkt != null) route_packet(peer_id, pkt);
+			if (ev.channel == CHANNEL_VOICE) {
+				tipo = "voz";
+				on_voice_frame(peer_id, ev.message);
+			} else {
+				net_packet@ pkt = packet_from_wire(ev.message);
+				if (@pkt != null) { tipo = pkt.type; route_packet(peer_id, pkt); }
+			}
 		}
+		uint64 demorou = ticks() - inicio;
+		if (demorou > slowest_event_ms) { slowest_event_ms = demorou; slowest_event_type = tipo; }
 	}
 
 	// `motivo` vai para o log do servidor: o crash.log do jogador só sabe dizer "o servidor encerrou
@@ -394,6 +453,9 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 				record.y = p.y;
 				record.alive = false;
 				record.left_match = true; // as tasks dele param de contar já (ver counts_for_task_win)
+				// O que ele fez na partida vai ao banco no fim dela, pelo registro (ver record_match_counters).
+				record.match_tasks_done = p.match_tasks_done;
+				record.match_kills = p.match_kills;
 				for (uint i = 0; i < lobby.players.length(); i++) {
 					if (lobby.players[i].peer_id == peer_id) { @lobby.players[i] = record; break; }
 				}
@@ -725,6 +787,12 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 	// zero, sem herança nenhuma.
 	void close_lobby(int index) {
 		game_state@ lobby = lobbies[index];
+		// Fechando no meio da partida (saiu o último humano): o que se fez nela ainda vai ao banco.
+		if (lobby.state != "waiting") {
+			g_user_db.begin_batch();
+			record_match_counters(lobby);
+			g_user_db.end_batch();
+		}
 		// Os game_player são objetos de CONEXÃO e continuam vivos depois da lobby - limpar o estado
 		// de partida deles é o que impede a próxima sala de herdar morte, papel e tasks da anterior.
 		lobby.reset_players_after_match();

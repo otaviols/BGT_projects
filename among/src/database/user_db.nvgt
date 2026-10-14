@@ -626,6 +626,14 @@ class user_database {
 
 	// stat_column precisa estar em allowed_stat_columns() - nunca aceitar esse nome vindo direto
 	// da rede sem validar contra essa lista, para evitar injeção via nome de coluna.
+	// Várias gravações numa transação só. Sem isto cada UPDATE é a sua própria transação, e cada uma espera
+	// o disco confirmar várias vezes (~2,4 ms por escrita sincronizada no disco da VPS): o fim de uma
+	// partida cheia eram dezenas delas com o servidor parado - e servidor parado não lê o socket (ver o
+	// [lento] em game_server.run). O modo WAL resolveria mais, e foi descartado: com ele as gravações
+	// recentes moram num arquivo à parte, e a cópia do banco que lê os recados e faz o backup as perderia.
+	void begin_batch() { if (@db != null) db.execute("BEGIN"); }
+	void end_batch() { if (@db != null) db.execute("COMMIT"); }
+
 	bool increment_stat(const string&in username, const string&in stat_column, int amount = 1) {
 		array<string>@ allowed = allowed_stat_columns();
 		bool is_allowed = false;

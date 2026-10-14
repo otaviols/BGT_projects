@@ -133,6 +133,10 @@ class game_player {
 	// voltar, ele sai como quem saiu.
 	bool held = false;
 	uint64 held_since = 0;
+	// Estatísticas desta partida, gravadas no banco de uma vez no fim (record_match_stats). Eram gravadas
+	// na hora, uma transação por tarefa e por morte, com o servidor parado esperando o disco a cada uma.
+	uint match_tasks_done = 0;
+	uint match_kills = 0;
 	// O token de VOLTA desta conexão: o servidor o dá no login e guarda só na memória. É com ele que o
 	// cliente volta sozinho, sem pedir a senha (que nunca é guardada) - e ele só serve para voltar a um
 	// lugar guardado. É da CONEXÃO, não da partida: não sai em reset_match_state.
@@ -309,6 +313,8 @@ class game_player {
 		tasks_passed_on = false;
 		held = false;
 		held_since = 0;
+		match_tasks_done = 0;
+		match_kills = 0;
 		set_role(ROLE_CREWMATE);
 		vented = false;
 		current_vent_id = "";

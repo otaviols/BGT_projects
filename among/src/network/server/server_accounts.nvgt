@@ -208,6 +208,8 @@ mixin class server_accounts_part {
 	// (wins_with_crew), "impostors" o time impostor, e o neutro só quando é ele o vencedor sozinho.
 	// Quem saiu no meio conta a partida, mas não a vitória - não estava lá quando ela aconteceu.
 	void record_match_stats(game_state@ lobby) {
+		g_user_db.begin_batch(); // uma transação para a partida inteira (ver begin_batch)
+		record_match_counters(lobby);
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			game_player@ p = lobby.players[i];
 			if (p.is_bot || p.username == "") continue;
@@ -222,6 +224,22 @@ mixin class server_accounts_part {
 			if (coluna == "") continue;
 			g_user_db.increment_stat(p.username, "games_won", 1);
 			g_user_db.increment_stat(p.username, coluna, 1);
+		}
+		g_user_db.end_batch();
+	}
+
+	// Tarefas e mortes da partida, contadas na memória (match_tasks_done, match_kills) e gravadas aqui.
+	// Também quando a sala fecha no meio da partida (close_lobby): antes elas iam ao banco na hora, e uma
+	// partida abandonada não pode apagar o que a pessoa fez nela. Zera depois de gravar, para nenhum
+	// caminho gravar duas vezes.
+	void record_match_counters(game_state@ lobby) {
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (p.is_bot || p.username == "") continue;
+			if (p.match_tasks_done > 0) g_user_db.increment_stat(p.username, "tasks_completed", int(p.match_tasks_done));
+			if (p.match_kills > 0) g_user_db.increment_stat(p.username, "kills", int(p.match_kills));
+			p.match_tasks_done = 0;
+			p.match_kills = 0;
 		}
 	}
 

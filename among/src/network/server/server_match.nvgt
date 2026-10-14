@@ -387,8 +387,8 @@ mixin class server_match_part {
 		if (!lobby.advance_task(p, task_id, next_object_id, phase)) return;
 
 		// A estatística conta FASES concluídas: é o que o jogador fez, e é o mesmo passo que move a
-		// barra da equipe.
-		g_user_db.increment_stat(p.username, "tasks_completed", 1);
+		// barra da equipe. Vai ao banco no fim da partida (ver match_tasks_done).
+		p.match_tasks_done++;
 
 		net_packet@ result = net_packet(S_TASK_RESULT);
 		result.set_string("task_id", task_id);
@@ -426,7 +426,7 @@ mixin class server_match_part {
 		if (lobby.try_kill(peer_id, target_peer, event, misfire)) {
 			announce_kill(lobby, event);
 			// Assassinato de quem tem conta. O tiro errado do xerife não conta: quem morreu foi ele.
-			if (!misfire && @killer != null && !killer.is_bot && killer.username != "") g_user_db.increment_stat(killer.username, "kills", 1);
+			if (!misfire && @killer != null && !killer.is_bot && killer.username != "") killer.match_kills++;
 			// O tiro errado é dito SÓ a quem errou, depois do pacote da morte: para todos os outros
 			// (inclusive para quem ele mirou) aquilo foi um assassinato qualquer, e é isso que
 			// mantém o xerife sendo uma aposta em vez de um detector.

@@ -124,9 +124,13 @@ const float PLAYER_REPORT_RANGE = 2.0;
 // a lista só diz quem PODE ser anunciado, e a distância exata continua sendo medida no cliente. Com a
 // folga, o atraso da lista não corta ninguém que acabou de chegar perto.
 const float PERCEPTION_SET_RANGE = 3.5;
-// Diagnóstico do servidor (ver game_server.run): uma volta do laço acima disto é registrada como TRAVA,
-// e a cada tanto ele registra quantos estão conectados.
-const uint64 SERVER_STALL_LOG_MS = 1000;
+// Diagnóstico do servidor (ver game_server.run): uma volta do laço acima disto é registrada como LENTA
+// ([lento]), e a cada tanto ele registra quantos estão conectados. 250 ms, e não 1 s: o buffer do socket
+// transborda com menos de meio segundo sem leitura numa sala cheia falando.
+const uint64 SERVER_SLOW_LOOP_MS = 250;
+// De quanto em quanto o servidor confere se o kernel descartou pacotes por buffer cheio (ver
+// udp_receive_drops): o registro sai com a hora, para cruzar com as linhas [queda].
+const uint64 SERVER_DROP_CHECK_MS = 5000;
 const uint64 SERVER_PULSE_MS = 300000;
 // Quanto o servidor guarda o lugar de quem caiu no meio da partida (decisão do usuário, 2026-10-13: cobre
 // uma queda de rede e até reabrir o jogo e entrar de novo). E quanto o CLIENTE insiste em voltar sozinho:

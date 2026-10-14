@@ -340,9 +340,23 @@ tempo esgotado.** O NVGT entrega o `DISCONNECT_TIMEOUT` do ENet como um `DISCONN
 de 2026-10-12, sala inteira caindo junta): o servidor dizia que os clientes desligaram, e o crash.log de
 cada um dizia que o servidor encerrou - cada lado culpando o outro. Hoje os dois lados o ligam, e a queda
 por silêncio sai como "tempo esgotado" (o cliente leva ~31 s para desistir, o servidor também). Para
-separar servidor de rede, o servidor registra `[trava]` quando uma volta do laço passa de 1 s (travado,
-ele derruba todo mundo) e `[pulso] conectados=N` a cada 5 min: numa leva de quedas, cai TODO MUNDO =
-servidor ou VPS; cai um grupo = o caminho de rede deles. A VPS também roda o `ampfirewall` (do painel
+separar servidor de rede, o servidor registra `[pulso] conectados=N` a cada 5 min: numa leva de quedas,
+cai TODO MUNDO = servidor ou VPS; cai um grupo = o caminho de rede deles... ou o buffer, abaixo.
+
+**Salas inteiras caindo juntas na REUNIÃO = o kernel descartando pacotes do servidor (2026-10-14).** O
+contador `RcvbufErrors` do `/proc/net/snmp` do contêiner passava de 16 mil: o buffer de recepção do
+socket (~208 KB, `net.core.rmem_max`; menos de meio segundo de voz de uma sala cheia) transbordava
+sempre que uma volta do laço do servidor demorava, e o kernel jogava fora voz, movimento E as
+confirmações do ENet. Quem manda e recebe mais - a sala inteira falando, na reunião e na sala de espera,
+onde todos ouvem todos - perde mais e cai por tempo esgotado, junto, enquanto as outras salas seguem e a
+VPS nunca fica sem rede (o netwatch dizia "sem_rede=0"). O que ficou para pegar o culpado: `[perda]`
+(o servidor confere o contador a cada 5 s e diz quantos o kernel descartou) e `[lento]` (uma volta acima
+de 250 ms, com o tempo dos eventos, o das salas e o pacote mais lento - era `[trava]` acima de 1 s, e
+abaixo disso já transbordava). Uma causa já tirada do caminho: o BANCO no laço - cada estatística era
+uma transação, com o servidor parado esperando o disco (~2,4 ms por escrita sincronizada nesta VPS);
+hoje tarefas e mortes ficam na memória e a partida inteira grava numa transação só
+(`record_match_counters`, `begin_batch`). O modo WAL foi descartado: com ele as gravações recentes
+moram num arquivo à parte, e a cópia do `.db` (recados, backup) as perderia. A VPS também roda o `ampfirewall` (do painel
 AMP) a cada 5 min; ele só mexe nas regras de entrada dele (80, 443, 2223, 12820), e as do Docker para a
 8934 ficam intactas - investigado e, até aqui, inocentado.
 
