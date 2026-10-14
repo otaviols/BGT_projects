@@ -14,9 +14,12 @@ faz os dois sentidos - traz os da comunidade para `lang/`, manda os embutidos pa
 (commit + push automático) - e roda no começo do `build_clients.ps1`. Não edite um idioma da
 comunidade em `lang/`: o próximo sync sobrescreve; edite no repositório de traduções.
 
-**Nós mantemos SÓ `pt_BR` e `en_US`; os idiomas da comunidade são dos tradutores** (decisão do usuário,
-2026-10-14: são os obrigatórios, e não temos conhecimento dos outros idiomas para mantê-los). Chave nova
-cai no inglês nos outros até a comunidade traduzir. Em 2026-10-14 houve UMA exceção: os três da
+**Chave NOVA: só `pt_BR` e `en_US`. Chave EXISTENTE que muda de texto: todos os idiomas** (decisões do
+usuário, 2026-10-05 e 2026-10-14). Os dois embutidos são os obrigatórios, e não temos conhecimento dos
+outros idiomas para mantê-los: chave nova cai no inglês nos da comunidade até ela traduzir. Mas um texto
+que NÓS mudamos (erro nosso, ou sentido novo) muda em todos, na mesma chave - senão cada idioma ficaria
+dizendo a coisa errada até o tradutor voltar. Pedido de revisão vai à COMUNIDADE, pelo aviso do saguão,
+nunca a um tradutor pelo nome: a comunidade de cada língua se ajuda, e o peso não cai numa pessoa só. Em 2026-10-14 houve UMA exceção: os três da
 comunidade foram completados de uma vez (126 chaves no espanhol e no turco, 90 no chinês), para ficar
 tudo sincronizado e pedir à comunidade que revise - não é o padrão. Se um dia precisar mexer neles:
 no repositório de traduções, mantendo o `language.translator` (as `language.*` são o crédito e nunca
