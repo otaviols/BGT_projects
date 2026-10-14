@@ -26,6 +26,15 @@ class user_database {
 	bool open(const string&in path = "among_users.db") {
 		@db = sqlite3();
 		if (db.open(path) != SQLITE_OK) return false;
+		// WAL com synchronous=NORMAL: a gravação deixa de esperar o disco confirmar (só o checkpoint, raro,
+		// espera). O banco roda DENTRO do laço do servidor, e no disco compartilhado da VPS cada gravação
+		// levava de 4 a 25 ms - às vezes segundos: em 2026-10-14 um login parou o servidor por 4,3 s e um
+		// logout por 3,1 s, e o kernel descartou 1.400 pacotes de todo mundo ([lento] e [perda] no log).
+		// O preço: numa queda de energia a última gravação pode se perder, mas o banco não corrompe.
+		// As gravações recentes moram no among_users.db-wal até o checkpoint, então quem COPIA o banco
+		// copia os dois (Vps-CopyDb) - foi por isso que o WAL tinha sido descartado antes.
+		db.execute("PRAGMA journal_mode=WAL");
+		db.execute("PRAGMA synchronous=NORMAL");
 		return create_tables();
 	}
 

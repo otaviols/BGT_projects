@@ -355,8 +355,15 @@ de 250 ms, com o tempo dos eventos, o das salas e o pacote mais lento - era `[tr
 abaixo disso já transbordava). Uma causa já tirada do caminho: o BANCO no laço - cada estatística era
 uma transação, com o servidor parado esperando o disco (~2,4 ms por escrita sincronizada nesta VPS);
 hoje tarefas e mortes ficam na memória e a partida inteira grava numa transação só
-(`record_match_counters`, `begin_batch`). O modo WAL foi descartado: com ele as gravações recentes
-moram num arquivo à parte, e a cópia do `.db` (recados, backup) as perderia. E na VPS o teto do buffer
+(`record_match_counters`, `begin_batch`). **E o banco roda em WAL com `synchronous=NORMAL`** (desde
+2026-10-14): o `[lento]` mostrou um LOGIN parando o servidor por 4,3 s e um logout por 3,1 s, com 1.400
+pacotes descartados - o banco tem 880 KB, nenhuma consulta é lenta; é o disco compartilhado da VPS, onde
+cada gravação sincronizada levou de 4 a 25 ms medida dentro da imagem do servidor, e às vezes segundos.
+No WAL a gravação não espera o disco (só o checkpoint, raro). O preço: numa queda de energia a última
+gravação pode se perder, sem corromper. **Quem copia o banco copia o `-wal` junto** (`Vps-CopyDb`) e o
+junta à cópia (`tools/consolidate_db.py`): só o `.db` não vê as gravações recentes - testado, a cópia só
+do `.db` enxergava 0 de 5 recados gravados, a consolidada os 5. Foi esse risco que fez o WAL ser
+descartado da primeira vez. E na VPS o teto do buffer
 subiu (`/etc/sysctl.d/90-amongus-udp.conf`, `net.core.rmem_max = 1048576`): o ENet do NVGT pede 256 KB
 (`ENET_HOST_RECEIVE_BUFFER_SIZE`), e o teto antigo (208 KB) cortava o pedido. Confira com `nsenter -t <pid
 do contêiner> -n ss -uamn` - o `rb` da porta 8934 passou de 425984 para 524288. VPS nova: refaça o arquivo. A VPS também roda o `ampfirewall` (do painel

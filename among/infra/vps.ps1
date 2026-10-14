@@ -31,10 +31,25 @@ function Vps-AdminToken {
 }
 
 # Copia o banco de contas da VPS para `destino`, e confere que chegou um SQLite inteiro.
+#
+# O banco roda em modo WAL (ver user_database.open): as gravações recentes ficam em among_users.db-wal até
+# o checkpoint, e copiar só o .db perderia os últimos recados e logins. Por isso o -wal vem junto e é
+# aplicado à cópia (tools/consolidate_db.py). O retrato não é atômico (dois arquivos, um depois do outro),
+# e o SQLite tolera: os quadros do WAL têm soma de controle, e um quadro pela metade é ignorado.
 function Vps-CopyDb([string]$destino) {
 	$a = Vps-SshArgs
+	Remove-Item "$destino-wal", "$destino-shm" -ErrorAction SilentlyContinue
 	scp -q @a "root@${script:VpsHost}:$script:VpsData/among_users.db" $destino
 	if ($LASTEXITCODE -ne 0 -or -not (Test-Path $destino)) { throw "Não consegui copiar o banco da VPS." }
+	$temWal = Vps-Run "test -s $script:VpsData/among_users.db-wal && echo sim || echo nao"
+	if ("$temWal".Trim() -eq "sim") {
+		scp -q @a "root@${script:VpsHost}:$script:VpsData/among_users.db-wal" "$destino-wal"
+		if ($LASTEXITCODE -ne 0) { throw "Não consegui copiar o WAL do banco da VPS." }
+	}
+	# A cópia vira UM arquivo, com o WAL aplicado: o backup abre em qualquer lugar, e quem lê não deixa
+	# um -wal largado (ver tools/consolidate_db.py).
+	python -I (Join-Path (Split-Path -Parent $PSScriptRoot) "tools\consolidate_db.py") $destino
+	if ($LASTEXITCODE -ne 0) { throw "Não consegui juntar o WAL à cópia do banco." }
 	$cabeca = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($destino)[0..14])
 	if ($cabeca -ne "SQLite format 3") { Remove-Item $destino -ErrorAction SilentlyContinue; throw "O banco copiado da VPS não é um SQLite inteiro." }
 }

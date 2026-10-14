@@ -38,6 +38,8 @@ server.txt
 # É estado de execução - contas, senhas e estatísticas de quem jogou nesta máquina - e muda a cada
 # partida. O servidor recria o arquivo sozinho se ele não existir.
 among_users.db
+among_users.db-wal
+among_users.db-shm
 
 # Terraform: o estado guarda TUDO que foi criado, inclusive dados sensíveis em texto puro, e o
 # tfvars tem a sua chave e o seu IP. Nenhum dos dois vai pro repositório.
