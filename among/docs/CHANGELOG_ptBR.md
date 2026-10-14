@@ -6,6 +6,23 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.53.1
+
+**Tarefas longas e curtas:** a separação agora segue uma regra só. É longa a tarefa que prende você
+por muito tempo, numa tela só ou em etapas pela nave. Calibrar o distribuidor passou a ser longa;
+esvaziar o lixo e alinhar o motor passaram a ser curtas.
+
+**Alinhar o motor:** as setas agora movem o bipe de verdade. Antes ele ficava colado num ouvido até
+quase o centro, e parecia que as setas não faziam nada. E só o centro exato completa a tarefa.
+
+**Conhecer o mapa:** os painéis de reparo tocam o marcador, e Enter num deles abre o conserto, para
+treinar cada sabotagem onde ela fica. Enter num duto entra nele, e dá para viajar pela rede de dutos.
+
+**Traduções:** espanhol, turco e chinês estão completos de novo, sem trechos em inglês no meio.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.53.0
 
 **Voltar à partida depois de cair:** nos últimos dias, muita gente caiu do servidor no meio da partida,

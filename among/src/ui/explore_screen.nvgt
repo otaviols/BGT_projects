@@ -75,7 +75,7 @@ void run_explore_map_screen() {
 	// Todos os painéis tocam: aqui não há sabotagem, e é onde se aprende onde cada um fica.
 	audio.start_landmark_beacons(map, all_task_ids, BEACON_ALL_PANELS);
 
-	speak(tr("explore.intro_panels_vents"));
+	speak(tr("explore.intro"));
 
 	string last_zone_id = "";
 	string last_object_id = "";

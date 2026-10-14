@@ -14,6 +14,16 @@ faz os dois sentidos - traz os da comunidade para `lang/`, manda os embutidos pa
 (commit + push automático) - e roda no começo do `build_clients.ps1`. Não edite um idioma da
 comunidade em `lang/`: o próximo sync sobrescreve; edite no repositório de traduções.
 
+**Todo idioma da comunidade fica COMPLETO, no mesmo ponto do inglês** (decisão do usuário, 2026-10-14:
+"para evitar que alguém seja penalizado" - quem joga em outro idioma ouvia trechos em inglês justamente
+nas funções novas). Chave nova nasce traduzida nos idiomas da comunidade, na mesma mudança; chave que
+muda de texto muda em todos, com a MESMA chave - criar uma chave nova para não mexer nas traduções foi
+o erro que gerou a regra. Sempre no repositório de traduções, mantendo o `language.translator`, os
+marcadores `{...}` e a terminologia de cada tradutor (o espanhol diz "alcantarilla" e "asesinato", o
+turco "kurucu" e "Havalandırma", o chinês "通风口" e "主持人"). O tradutor continua podendo revisar e
+mandar por cima. Na leva de 2026-10-14 (126 chaves no espanhol e no turco, 90 no chinês) as chaves que
+o jogo não usa mais saíram dos três, menos as `language.*`, que são o crédito.
+
 **Como uma tradução chega:** o jogador manda pelo jogo ("Enviar uma tradução", na lista de partidas)
 -> fica no banco do servidor, UMA por (usuário, idioma), reenvio substitui -> `infra\admin.ps1 traducoes`
 traz para `translations_inbox/` e APAGA do servidor -> `python tools/check_translation.py <arquivo>`

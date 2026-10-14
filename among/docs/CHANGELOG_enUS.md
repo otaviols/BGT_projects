@@ -6,6 +6,24 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.53.1
+
+**Long and short tasks:** they now follow a single rule. A long task is one that keeps you busy for a
+long time, on one screen or in steps across the ship. Calibrate the distributor is now long; empty the
+garbage and align the engine are now short.
+
+**Align the engine:** the arrows now really move the beep. Before, it stayed stuck in one ear until
+nearly the center, and the arrows seemed to do nothing. And only the exact center completes the task.
+
+**Explore the map:** the repair panels play their marker, and Enter on one opens the repair, to practice
+each sabotage where it is. Enter on a vent takes you inside, and you can travel through the vent
+network.
+
+**Translations:** Spanish, Turkish and Chinese are complete again, with no English bits in the middle.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.53.0
 
 **Getting back into the match after a drop:** over the last few days, many people dropped from the
