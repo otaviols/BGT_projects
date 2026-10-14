@@ -80,6 +80,10 @@ void main() {
 	confere("e cala com as luzes apagadas", !landmark_beacon_on(botao, null, "lights"));
 	confere("painel das luzes: so durante a sabotagem dele", landmark_beacon_on(painel_luz, null, "lights") && !landmark_beacon_on(painel_luz, null, "comms") && !landmark_beacon_on(painel_luz, null, ""));
 	confere("tarefa: so a SUA", landmark_beacon_on(tarefa, minhas, "") && !landmark_beacon_on(tarefa, null, ""));
+	// No "Conhecer o mapa" todos os painéis tocam (o controle é o painel mudo sem sabotagem, logo acima),
+	// e o botão segue tocando - "todos os painéis" não é uma sabotagem de luzes.
+	confere("conhecer o mapa: o painel toca sem sabotagem nenhuma", landmark_beacon_on(painel_luz, null, BEACON_ALL_PANELS));
+	confere("e o botao continua tocando", landmark_beacon_on(botao, null, BEACON_ALL_PANELS));
 
 	println("== desenho ==");
 	array<roster_entry@> outros = {r.find(1), r.find(2), colado};

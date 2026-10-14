@@ -8,15 +8,18 @@
 
 bool run_align_engine_task(game_client@ client) {
 	const float TRACK_HALF_WIDTH = 50.0; // -50..50, 0 = centro
-	const float STEP = 3.0;
-	const float SUCCESS_TOLERANCE = 6.0;
+	// Só o CENTRO EXATO vale (pedido do usuário: "o mais centralizado possível, para não terminar só
+	// pondo um pouco para o lado"). Até a 0.53.0 valiam o centro e um passo para cada lado. Com o centro
+	// exato, o passo cresceu de 6% para 10% do caminho: um passo de 6% fora do centro mal se distingue
+	// dele de ouvido, e a tarefa viraria tentativa e erro em vez de escuta.
+	const float STEP = 5.0;
 
 	speak(tr("task.align_engine.instructions"));
 
-	// Sempre LONGE do centro, de um lado ou do outro. Sorteado entre -40 e 40, cerca de 1 vez em 6 o
-	// som já começava dentro da tolerância, e um Enter dado logo ao abrir completava a tarefa sem mexer
-	// em nada (recado #230: "dois Enter e ela se faz sozinha").
-	float position = float(random(int(SUCCESS_TOLERANCE) * 3, 40)) * (random(0, 1) == 0 ? -1.0 : 1.0);
+	// Sempre LONGE do centro, de um lado ou do outro, e num múltiplo do passo - senão o centro exato não
+	// seria alcançável. De 3 a 8 passos de distância: começando perto demais, um Enter dado logo ao abrir
+	// quase completava a tarefa (recado #230: "dois Enter e ela se faz sozinha").
+	float position = STEP * float(random(3, 8)) * (random(0, 1) == 0 ? -1.0 : 1.0);
 
 	// beep.wav é ESTÉREO de verdade (2 canais, conferido no cabeçalho do arquivo), então o modo
 	// padrão AUDIO_PAN_MODE_BALANCE (atenua o canal oposto ao valor de pan) é o certo aqui. A ESCALA
@@ -43,7 +46,7 @@ bool run_align_engine_task(game_client@ client) {
 		engine_beep.pan = pan_from_linear(position / TRACK_HALF_WIDTH);
 
 		if (key_pressed(KEY_RETURN)) {
-			if (absf(position) <= SUCCESS_TOLERANCE) {
+			if (absf(position) < STEP / 2.0) { // o centro exato (folga só para o arredondamento do float)
 				engine_beep.stop();
 				speak(tr("task.completed"));
 				return true;

@@ -12,9 +12,11 @@
 // estar logado.
 //
 // O que existe aqui é deliberadamente pouco: andar, ouvir, o radar de objetos, a tecla de "onde
-// estou" - e as TAREFAS, que abrem com Enter no próprio ponto (recado #217, decisão do usuário: todas
-// as do mapa). O menu de treino ensina a tarefa; aqui se treina ela onde ela fica, com o caminho até
-// ela, que é o que a partida cobra. O resto dos objetos (painéis, dutos, câmeras) só diz o que é.
+// estou" - e o que se aprende ONDE fica: as TAREFAS (recado #217, decisão do usuário: todas as do
+// mapa), os PAINÉIS de reparo, todos tocando o marcador como se cada sabotagem estivesse no ar, e os
+// DUTOS, com o menu de viagem (pedido do usuário, 2026-10-14: antes os dois apareciam e não faziam
+// nada, e o painel nem tocava). O menu de treino ensina a tarefa; aqui se treina com o caminho até
+// ela, que é o que a partida cobra. Câmeras e botão só dizem o que são.
 
 #include "speech.nvgt"
 #include "../audio/audio_manager.nvgt"
@@ -70,9 +72,10 @@ void run_explore_map_screen() {
 	audio.update_listener(my_x, my_y);
 	audio.start_ship_ambience();
 	audio.start_room_ambience(map);
-	audio.start_landmark_beacons(map, all_task_ids, "");
+	// Todos os painéis tocam: aqui não há sabotagem, e é onde se aprende onde cada um fica.
+	audio.start_landmark_beacons(map, all_task_ids, BEACON_ALL_PANELS);
 
-	speak(tr("explore.intro"));
+	speak(tr("explore.intro_panels_vents"));
 
 	string last_zone_id = "";
 	string last_object_id = "";
@@ -182,15 +185,28 @@ void run_explore_map_screen() {
 			speak(tr("game.location_info", p));
 		}
 
-		// Enter num ponto de tarefa abre a tarefa, a mesma minigame da partida. Nos outros objetos, diz o
-		// que ele é e o que faria - é o lugar de aprender "isto é o painel de oxigênio" sem o relógio
-		// correndo.
+		// Enter num ponto de tarefa abre a tarefa, a mesma minigame da partida; num painel de reparo, o
+		// conserto daquela sabotagem; num duto, o menu de dentro dele. Nos outros objetos (câmeras,
+		// botão), diz o que ele é. É o lugar de treinar tudo isso onde fica, sem o relógio correndo.
 		if (action_pressed(ACTION_INTERACT)) {
 			map_object@ obj = nearest_object(map, my_x, my_y);
 			if (@obj != null && obj.obj_type == OBJ_TASK_SPOT && obj.task_type != "") {
 				bool ok = run_task_minigame(offline, obj.task_type, explore_phase_of(map, obj));
 				speak(tr(ok ? "practice.done" : "practice.not_done"));
 				frame_clock.tick(); // o tempo da minigame não vira um passo
+			} else if (@obj != null && obj.obj_type == OBJ_SABOTAGE_PANEL) {
+				// O painel guarda a sabotagem dele no task_type (ver landmark_beacon_on). O código do
+				// oxigênio vem do servidor na partida; aqui é sorteado, como no treino de reparos.
+				string codigo = "";
+				for (uint i = 0; i < 5; i++) codigo += "" + random(0, 9);
+				bool ok = run_sabotage_panel(offline, obj.task_type, codigo, obj.id);
+				speak(tr(ok ? "practice.done" : "practice.not_done"));
+				frame_clock.tick();
+			} else if (@obj != null && obj.obj_type == OBJ_VENT) {
+				explore_vent(map, audio, obj, my_x, my_y);
+				last_zone_id = map.room_id_at(my_x, my_y); // a sala do duto de saída: sem anunciá-la de novo ao andar
+				last_object_id = "";
+				frame_clock.tick();
 			} else {
 				speak(@obj != null ? object_name(obj) + ". " + tr("explore.object_hint") : tr("game.nothing_nearby"));
 			}
@@ -199,12 +215,56 @@ void run_explore_map_screen() {
 		// O mapa na tela, para quem enxerga: aqui não há outros jogadores, e todo ponto de tarefa é seu,
 		// como nos marcadores sonoros desta tela.
 		if (g_settings.visual_map) g_visual_map.handle_keys(); // F11: tela cheia
-		if (g_settings.visual_map) g_visual_map.draw(map, my_x, my_y, COLOR_RED, true, false, null, null, all_task_ids);
+		if (g_settings.visual_map) g_visual_map.draw(map, my_x, my_y, COLOR_RED, true, false, null, null, all_task_ids, BEACON_ALL_PANELS);
 		else g_visual_map.clear_if_needed();
 	}
 	g_visual_map.clear_if_needed(); // de volta ao menu: a janela não fica com a nave parada
 	audio.stop_room_ambience();
 	audio.stop_landmark_beacons();
+}
+
+// Dentro de um duto, no treino: o mesmo menu da partida (sair aqui, ou ir a outro duto da mesma rede),
+// com a viagem feita aqui mesmo - não há servidor, e não há ninguém para ouvir a tampa. Na partida só o
+// impostor e o engenheiro entram; aqui qualquer um, porque é onde se aprende para onde cada duto leva.
+// ESC também sai, diferente da partida (lá ele só fecha o menu e o jogador continua escondido): aqui não
+// há do que se esconder, e ficar preso no menu sem saber a tecla de sair seria o único jeito de travar.
+void explore_vent(game_map@ map, audio_manager@ audio, map_object@ vent, float&inout x, float&inout y) {
+	audio.play_object_interact(vent);
+	speak(tr("game.vent_entered"));
+	map_object@ atual = vent;
+	while (true) {
+		screen_menu m;
+		m.intro_text = tr("game.vent_menu_hint");
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		m.add_item(tr("game.vent_exit"), "__exit__");
+		array<string>@ ligados = map.vent_connections(atual);
+		for (uint i = 0; i < ligados.length(); i++) {
+			map_object@ dest = map.find_object(ligados[i]);
+			if (@dest == null) continue;
+			map_zone@ zone = map.find_zone(dest.room_id);
+			dictionary@ p = dictionary();
+			p.set("room", @zone != null ? tr(zone.name_key) : tr(dest.name_key));
+			m.add_item(tr("game.vent_destination", p), dest.id);
+		}
+		m.run();
+		string escolha = m.selected_item_id;
+		map_object@ dest = escolha != "" && escolha != "__exit__" ? map.find_object(escolha) : null;
+		if (@dest == null) {
+			audio.play_object_interact(atual);
+			speak(tr("game.vent_exited"));
+			return;
+		}
+		@atual = dest;
+		x = dest.x;
+		y = dest.y;
+		// O ouvinte vai ANTES do passo: tocado antes, o passo sairia no destino com os ouvidos ainda na
+		// origem, e ficaria mudo (a mesma ordem da partida, em on_vent_state).
+		audio.update_listener(x, y);
+		audio.play_footstep("VentTile", footstep_variant_count("VentTile"), x, y);
+		speak(tr("game.vent_traveled"));
+	}
 }
 
 // O objeto mais perto dentro do alcance de interação, decoração de fora. Diferente do

@@ -51,7 +51,10 @@ for you to paste in your bank app, and **card, from any country** opens the Ko-f
 ship alone, with no server and no pressure. Each room is named as you enter it, Tab lists what is in
 the room, the plus and minus keys change your speed (from 50 to 200 percent, the same range rooms
 allow), and ESC returns to the menu. **Enter on a task spot opens the task**, the same one as in a
-match, to practice it where it actually is; on other objects, Enter says what they are. A task with
+match, to practice it where it actually is. **The repair panels** all play their marker, as if each
+sabotage were happening, and Enter on one opens the repair. **Enter on a vent** takes you inside it, and
+the menu takes you to any other vent on the same network, to learn where each one leads. On other
+objects, Enter says what they are. A task with
 several steps, like fueling the engines, practices each step at its own spot: take the fuel at the
 storage and walk to the engine. It is the way to learn where everything is before there is an
 impostor nearby.

@@ -49,7 +49,10 @@ banco, e **cartão, de qualquer país** abre a página do Ko-fi (ko-fi.com/otavi
 sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela, Tab lista o que há na
 sala, as teclas de mais e menos mudam a velocidade (de 50 a 200 por cento, a mesma faixa das salas),
 e ESC volta ao menu. **Enter num ponto de tarefa abre a tarefa**, a mesma da partida, para treinar
-no lugar onde ela fica; nos outros objetos, Enter diz o que eles são. Uma tarefa de várias etapas,
+no lugar onde ela fica. **Os painéis de reparo** tocam todos o seu marcador, como se cada sabotagem
+estivesse acontecendo, e Enter num deles abre o conserto. **Enter num duto** entra nele, e o menu leva a
+qualquer outro duto da mesma rede, para aprender para onde cada um vai. Nos outros objetos, Enter diz o
+que eles são. Uma tarefa de várias etapas,
 como abastecer os motores, treina cada etapa no seu ponto: pegue o combustível no depósito e ande até
 o motor. É o jeito de aprender onde fica cada coisa antes de haver um impostor por perto.
 

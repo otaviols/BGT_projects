@@ -137,9 +137,14 @@ class map_object {
 //   - painel de reparo: só durante a sabotagem dele (fora disso é barulho constante);
 //   - botão de emergência: cala com as luzes apagadas (inutilizável no escuro, ver find_interactable);
 //   - o resto com beacon (dutos, câmeras): sempre, para todos.
+//   No "Conhecer o mapa", BEACON_ALL_PANELS no lugar da sabotagem liga TODOS os painéis: lá não há
+//   sabotagem, e é onde se treina achar e consertar cada um (pedido do usuário, 2026-10-14 - antes eles
+//   apareciam e ficavam mudos).
+const string BEACON_ALL_PANELS = "*todos os paineis*";
+
 bool landmark_beacon_on(map_object@ obj, array<string>@ my_task_object_ids, const string&in active_sabotage_id) {
 	if (@obj == null || obj.beacon_sound_path == "") return false;
-	if (obj.obj_type == OBJ_SABOTAGE_PANEL) return obj.task_type == active_sabotage_id;
+	if (obj.obj_type == OBJ_SABOTAGE_PANEL) return active_sabotage_id == BEACON_ALL_PANELS || obj.task_type == active_sabotage_id;
 	if (obj.obj_type == OBJ_EMERGENCY_BUTTON) return active_sabotage_id != "lights";
 	if (obj.obj_type == OBJ_TASK_SPOT) return @my_task_object_ids != null && my_task_object_ids.find(obj.id) >= 0;
 	return true;

@@ -1,0 +1,73 @@
+// Sonda do duto no "Conhecer o mapa" (explore_vent, pedido do usuário em 2026-10-14: antes o duto só dizia
+// o que era). As teclas são apertadas de DENTRO do menu, pelo g_screen_menu_frame_hook (ver
+// probe_first_run_graphics).
+//   nvgt tools/probes/probe_explore_vent.nvgt
+//
+//   1. entra num duto, desce até o primeiro destino e viaja: a posição passa a ser a do duto de chegada;
+//   2. no menu do duto de chegada, "Sair": a função devolve, e o jogador fica onde chegou;
+//   3. as falas de entrar, viajar e sair aconteceram, nessa ordem.
+// Muda: falas gravadas, som no mínimo.
+#include "../../src/i18n.nvgt"
+#include "../../src/ui/onboarding_screens.nvgt"
+
+int falhas = 0;
+array<string> falado;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (ok) return;
+	falhas++;
+	for (uint i = 0; i < falado.length(); i++) println("           falado: " + falado[i]);
+}
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+int falou_em(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return int(i);
+	return -1;
+}
+
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 8000) {
+		println("  FALHA  o menu do duto nao devolveu; passo " + passo + " de " + roteiro.length());
+		exit(1);
+	}
+	if (passo >= roteiro.length() || quadro < 40) return;
+	if (quadro % 15 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 15 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+
+void main() {
+	show_window("sonda: duto no conhecer o mapa");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	@tts_default_text_processing_callback = grava;
+	sound_master_volume = -100;
+
+	game_map@ map = build_the_hub_map();
+	audio_manager@ audio = audio_manager();
+	map_object@ duto = null;
+	for (uint i = 0; i < map.objects.length() && @duto == null; i++) if (map.objects[i].obj_type == OBJ_VENT) @duto = map.objects[i];
+	if (@duto == null) { println("o mapa nao tem duto"); return; }
+	array<string>@ ligados = map.vent_connections(duto);
+	if (ligados.length() == 0) { println("o duto " + duto.id + " nao leva a lugar nenhum"); return; }
+	map_object@ chegada = map.find_object(ligados[0]);
+	println("duto " + duto.id + " -> " + chegada.id);
+
+	// Menu 1: baixo ("Sair"), baixo (primeiro destino), Enter. Menu 2: baixo ("Sair"), Enter.
+	roteiro = {KEY_DOWN, KEY_DOWN, KEY_RETURN, KEY_DOWN, KEY_RETURN};
+	@g_screen_menu_frame_hook = dirige;
+	float x = duto.x, y = duto.y;
+	explore_vent(map, audio, duto, x, y);
+	@g_screen_menu_frame_hook = null;
+
+	confere("viajou: a posicao e a do duto de chegada (" + x + ", " + y + ")", x == chegada.x && y == chegada.y);
+	confere("e nao a do duto de partida (o controle)", !(x == duto.x && y == duto.y));
+	int entrou = falou_em(tr("game.vent_entered")), viajou = falou_em(tr("game.vent_traveled")), saiu = falou_em(tr("game.vent_exited"));
+	confere("falou entrar, viajar e sair, nessa ordem", entrou >= 0 && viajou > entrou && saiu > viajou);
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
