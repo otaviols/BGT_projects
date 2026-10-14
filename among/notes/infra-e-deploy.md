@@ -356,7 +356,10 @@ abaixo disso já transbordava). Uma causa já tirada do caminho: o BANCO no laç
 uma transação, com o servidor parado esperando o disco (~2,4 ms por escrita sincronizada nesta VPS);
 hoje tarefas e mortes ficam na memória e a partida inteira grava numa transação só
 (`record_match_counters`, `begin_batch`). O modo WAL foi descartado: com ele as gravações recentes
-moram num arquivo à parte, e a cópia do `.db` (recados, backup) as perderia. A VPS também roda o `ampfirewall` (do painel
+moram num arquivo à parte, e a cópia do `.db` (recados, backup) as perderia. E na VPS o teto do buffer
+subiu (`/etc/sysctl.d/90-amongus-udp.conf`, `net.core.rmem_max = 1048576`): o ENet do NVGT pede 256 KB
+(`ENET_HOST_RECEIVE_BUFFER_SIZE`), e o teto antigo (208 KB) cortava o pedido. Confira com `nsenter -t <pid
+do contêiner> -n ss -uamn` - o `rb` da porta 8934 passou de 425984 para 524288. VPS nova: refaça o arquivo. A VPS também roda o `ampfirewall` (do painel
 AMP) a cada 5 min; ele só mexe nas regras de entrada dele (80, 443, 2223, 12820), e as do Docker para a
 8934 ficam intactas - investigado e, até aqui, inocentado.
 
