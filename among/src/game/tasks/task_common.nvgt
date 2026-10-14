@@ -13,6 +13,23 @@
 
 const int TASK_CANCEL_KEY = KEY_ESCAPE;
 
+// O `pan` do som que o NVGT espera, a partir de uma posição LINEAR (-1 todo à esquerda, 0 no centro,
+// 1 todo à direita). O motor padrão do NVGT nasce com a compatibilidade do BGT
+// (AUDIO_ENGINE_PERCENTAGE_ATTRIBUTES, em src/sound.cpp dele), e nela o pan é em DECIBÉIS de -100 a
+// 100, e não uma porcentagem: 50 já é o som quase todo de um lado (99,7%), e só abaixo de uns 20 ele
+// sai do canto. Sintoma (recado #272): no "Alinhar motor", que mandava a posição de -100 a 100 direto,
+// as setas "não moviam o bipe" - ele ficava colado num ouvido até faltarem dois ou três apertos.
+// Extremos (-100, 0, 100), como os dos asteroides, não precisam disto: neles os dois jeitos coincidem.
+float pan_from_linear(float linear) {
+	if (linear > 1.0) linear = 1.0;
+	if (linear < -1.0) linear = -1.0;
+	float resto = 1.0 - absf(linear); // o quanto o ouvido do outro lado ainda ouve
+	if (resto <= 0.00001) return linear > 0.0 ? 100.0 : -100.0;
+	float db = -20.0 * log10(resto);
+	if (db > 100.0) db = 100.0;
+	return linear > 0.0 ? db : -db;
+}
+
 // true se a minigame deve parar agora: o jogador pediu pra cancelar (ESC), OU chegou um evento que
 // interrompe a partida (reunião, corpo reportado, fim de jogo).
 //

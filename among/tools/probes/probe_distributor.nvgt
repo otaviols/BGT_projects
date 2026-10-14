@@ -111,7 +111,8 @@ void main() {
 	check("  nao esta colado noutro objeto da eletrica", menor >= 3.0,
 		"pelo menos 3, e' " + menor + " (de " + vizinho + ")");
 
-	check("  esta' classificada como curta", !task_is_long(TIPO), "fora de LONG_TASK_TYPES");
+	// Longa desde 2026-10-14 (decisão do usuário): as três etapas esperando prendem o jogador na tela.
+	check("  esta' classificada como longa", task_is_long(TIPO), "em LONG_TASK_TYPES");
 	check("  nao e' tarefa comum", !task_is_common(TIPO), "fora de COMMON_TASK_TYPES");
 	check("  nao e' tarefa visivel (nao serve de alibi)", !task_is_visible(TIPO), "fora de VISIBLE_TASK_TYPES");
 

@@ -356,15 +356,18 @@ const uint DEFAULT_LONG_TASK_COUNT = 2;
 //
 // Por isso também: uma task comum tem UM ponto só no mapa inteiro (ver game/map.nvgt), senão "fui no
 // outro" viraria escapatória.
-// Tarefas LONGAS: as que fazem o jogador atravessar a nave ou ficar parado um bom tempo. A
-// distinção existe por um motivo que vale mais aqui do que no jogo original: nesta versão, andar é
-// fazer barulho, e barulho é a moeda do jogo. Uma tarefa curta feita num canto não produz
-// informação nenhuma para ninguém; uma longa é álibi para quem a faz e janela para o impostor.
+// Tarefas LONGAS: as que PRENDEM o jogador no contexto delas por muito tempo - numa tela só (limpar
+// asteroides, revisar as gravações, as três esperas do distribuidor, os 10 s parado no scanner) ou em
+// etapas pela nave (abastecer: buscar e despejar). É a regra do usuário (2026-10-14), e é a do jogo
+// original. Ela pesa mais aqui: nesta versão andar é fazer barulho, e barulho é a moeda do jogo - uma
+// tarefa curta feita num canto não produz informação nenhuma para ninguém; uma longa é álibi para
+// quem a faz e janela para o impostor. Até a 0.53.0 a lista tinha o lixo e o alinhar motor (rápidas,
+// de uma tela) e não tinha o distribuidor.
 //
 // Uma tarefa que não é comum nem longa é CURTA - não existe terceira lista para ficar fora de
-// sincronia com esta. Ao acrescentar uma tarefa nova, decida aqui se ela é longa; esquecer é
-// tratá-la como curta, que é o padrão seguro.
-const array<string> LONG_TASK_TYPES = {"empty_garbage", "align_engine", "fuel_engines",
+// sincronia com esta. Ao acrescentar uma tarefa nova, decida aqui se ela é longa pela regra acima;
+// esquecer é tratá-la como curta, que é o padrão seguro.
+const array<string> LONG_TASK_TYPES = {"calibrate_distributor", "fuel_engines",
 	"clear_asteroids", "review_records", "submit_scan"};
 
 // Tarefas COMUNS: iguais para todo tripulante, no mesmo ponto do mapa. São a ferramenta de dedução

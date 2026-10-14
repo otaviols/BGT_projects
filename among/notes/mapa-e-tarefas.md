@@ -152,8 +152,11 @@ receita (original -> tradução para o ouvido -> maquete em ffmpeg -> ouvir -> c
 onde uma tarefa nova se registra, os dois casos que produziram a receita, a lição do som contínuo e a
 fila de ideias estão lá. Aqui fica o que o mapa e o sorteio fazem com a tarefa depois de ela existir.
 **Tarefa longa vale mais aqui do que no jogo original.** `LONG_TASK_TYPES` (em
-`config/game_constants.nvgt`) marca as tarefas que fazem atravessar a nave ou ficar parado um bom
-tempo; o que não é comum nem longo é CURTO, sem terceira lista para sair de sincronia. O motivo não
+`config/game_constants.nvgt`) marca as tarefas que **prendem o jogador no contexto delas por muito
+tempo** - numa tela só (asteroides, gravações, as três esperas do distribuidor, os 10 s no scanner) ou
+em etapas pela nave (abastecer). É a regra do usuário (2026-10-14); até ali o lixo e o alinhar motor,
+rápidos e de uma tela, eram longos, e o distribuidor era curto. Tarefa nova: classifique por ela. O que
+não é comum nem longo é CURTO, sem terceira lista para sair de sincronia. O motivo não
 é paridade com o original: nesta versão andar é fazer barulho, e barulho é a moeda do jogo - uma
 tarefa curta feita num canto não produz informação para ninguém, uma longa é álibi para quem a faz
 e janela para o impostor. O sorteio é por categoria (`on_start_game`), e quando o mapa não tem

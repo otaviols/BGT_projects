@@ -19,13 +19,13 @@ bool run_align_engine_task(game_client@ client) {
 	float position = float(random(int(SUCCESS_TOLERANCE) * 3, 40)) * (random(0, 1) == 0 ? -1.0 : 1.0);
 
 	// beep.wav é ESTÉREO de verdade (2 canais, conferido no cabeçalho do arquivo), então o modo
-	// padrão AUDIO_PAN_MODE_BALANCE (atenua o canal oposto ao valor de pan) é o certo aqui. O bug de
-	// verdade era a ESCALA: sound.pan vai de -100 (esquerda) a 100 (direita), não de -1 a 1 - ver
-	// exemplo oficial em async/!async.nvgt ("pan += random(-2,2); if (pan < -100) ...; s.pan = pan;").
-	// Alimentar valores -1..1 deixava o som sempre a 1% do centro, praticamente inaudível.
+	// padrão AUDIO_PAN_MODE_BALANCE (atenua o canal oposto ao valor de pan) é o certo aqui. A ESCALA
+	// do pan é a armadilha, e já mordeu duas vezes: valores -1..1 deixavam o som a 1% do centro, e
+	// -100..100 lineares deixavam o som colado num ouvido (o pan do NVGT é em decibéis - ver
+	// pan_from_linear, recado #272). A posição vai linear, e a conversão é de lá.
 	sound engine_beep;
 	engine_beep.load("sounds/" + SND_BEEP);
-	engine_beep.pan = (position / TRACK_HALF_WIDTH) * 100.0;
+	engine_beep.pan = pan_from_linear(position / TRACK_HALF_WIDTH);
 	engine_beep.play_looped();
 
 	while (true) {
@@ -40,7 +40,7 @@ bool run_align_engine_task(game_client@ client) {
 		if (key_pressed(KEY_RIGHT)) position += STEP;
 		if (position < -TRACK_HALF_WIDTH) position = -TRACK_HALF_WIDTH;
 		if (position > TRACK_HALF_WIDTH) position = TRACK_HALF_WIDTH;
-		engine_beep.pan = (position / TRACK_HALF_WIDTH) * 100.0; // -100 = extremo esquerdo, 0 = centro, 100 = extremo direito
+		engine_beep.pan = pan_from_linear(position / TRACK_HALF_WIDTH);
 
 		if (key_pressed(KEY_RETURN)) {
 			if (absf(position) <= SUCCESS_TOLERANCE) {
