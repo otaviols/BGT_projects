@@ -81,7 +81,10 @@ void apply_sabotage_effects(audio_manager@ audio, meeting_ui@ mui, game_map@ map
 	// é só barulho por cima do resto da partida - e era ligado em três lugares diferentes, o que
 	// fazia cada caminho esquecer um deles: quem morria no meio da sabotagem continuava ouvindo, e
 	// a volta da reunião religava o alarme para todo mundo, vivo ou não (recado #96).
-	if (active_sabotage_id != "" && alive) audio.start_sabotage_alarm();
+	// O apagão NÃO toca alarme, como no original (recado #275, decisão do usuário em 2026-10-14: é a
+	// sabotagem menos danosa, e sem alarme ela fica mais traiçoeira - percebe-se pelo som encolhendo, e
+	// não por uma sirene). As outras tocam.
+	if (active_sabotage_id != "" && active_sabotage_id != "lights" && alive) audio.start_sabotage_alarm();
 	else audio.stop_sabotage_alarm();
 	mui.body_sounds_enabled = !lights_out;
 	audio.apply_lights_out(lights_out, NORMAL_AUDIO_MAX_DISTANCE);

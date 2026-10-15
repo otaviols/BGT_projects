@@ -113,6 +113,11 @@ todo mundo, vivo ou não - foi o recado #96, chegado JÁ com a correção parcia
 no alarme é `apply_sabotage_effects`, o mesmo lugar que decide os outros efeitos, e que roda no
 começo, no conserto, na MORTE e na volta da reunião. O `meeting_ui` não toca mais nele. Sonda:
 `tools/probes/probe_alarme_fantasma.nvgt`, que chama a função de verdade e olha o slot do som.
+**O apagão não toca alarme** (como no original; recado #275, decisão do usuário em 2026-10-14: é a menos
+danosa, e sem sirene fica traiçoeira - percebe-se pelo som encolhendo). E **a saída da partida sem o fim
+normal (queda, Esc) cala TUDO o que ela deixou em laço** (`audio_manager.stop_all`): cada saída desligava
+a ambiência e os marcadores e esquecia o alarme, a câmera, o scanner e os corpos - quem caía seguia
+ouvindo o alarme durante a tentativa de volta. Som em laço novo não precisa ser lembrado ali.
 
 **Conserto de percepção que "não pega" está do OUTRO lado da rede.** "Sabotagem não atinge fantasma"
 foi corrigida três vezes e continuava acontecendo, porque todas as correções foram feitas no CLIENTE.

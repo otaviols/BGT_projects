@@ -80,8 +80,8 @@ void main() {
 	g_settings.last_lobby_name = nome_antes;
 
 	println("== botao de papeis ==");
-	// nome, código, modo, predefinição, kill, jogadores, impostores -> o 8º é o botão de papéis.
-	array<int> ate_papeis = {KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_RETURN, KEY_ESCAPE, KEY_ESCAPE};
+	// nome, código, modo, predefinição, kill, jogadores, impostores, neutros -> o 9º é o botão de papéis.
+	array<int> ate_papeis = {KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_RETURN, KEY_ESCAPE, KEY_ESCAPE};
 	roda(ate_papeis);
 	run_lobby_settings_form(c, null, true);
 	confere("o botao de papeis abre a tela de PAPEIS", falou(tr("lobby.roles_title") + " Dialog"));

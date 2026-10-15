@@ -110,8 +110,8 @@ preenchido, a partida tem exatamente essas vagas, e cada uma sorteia um dos neut
 chance dele; o "quantos" de cada neutro vira o MÁXIMO dele (o que se esgota sai do sorteio). Vazio ou
 zero é o jeito de antes - cada neutro pelas próprias vagas -, e é o que toda sala e configuração salva
 anterior tem. Escolhido contra um TETO (cada neutro como antes, e o número só cortando o excesso): as
-vagas dão variedade sem configurar papel por papel, como o Town of Us. O campo fica na tela de papéis,
-logo antes do primeiro neutro. Sonda: `probe_draw_fairness` (exatamente N, cada neutro na mesma
+vagas dão variedade sem configurar papel por papel, como o Town of Us. O campo fica no formulário da
+sala, logo depois dos impostores (a mesma pergunta: contra quem se joga); a tela de papéis só diz QUAIS. Sonda: `probe_draw_fairness` (exatamente N, cada neutro na mesma
 proporção, o máximo respeitado, e o controle com zero vagas).
 
 **NEUTROS: o terceiro time (0.41.0, com o Bobo).** `TEAM_NEUTRAL`, sorteado entre os não impostores
