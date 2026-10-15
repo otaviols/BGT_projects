@@ -318,6 +318,21 @@ void main() {
 	confere("controle: o comeco comum nasce vivo, com a recarga cheia, e nao e volta",
 		comum.alive && comum.my_kill_cooldown_remaining == 25.0 && !comum.rejoining);
 
+	println("== cair da partida cala o que ela deixou tocando ==");
+	// Relato do usuário (2026-10-14): quem caía seguia ouvindo o alarme de sabotagem. O cliente desta sonda
+	// nunca conecta, então o primeiro quadro já vê a conexão caída - é o caminho da queda de verdade.
+	match_session@ caiu = nova_partida(ROLE_CREWMATE);
+	net_packet@ sab_caiu = net_packet(S_SABOTAGE_STARTED);
+	sab_caiu.set_string("sabotage_id", "oxygen"); sab_caiu.set_float("timer", 40.0);
+	caiu.handle_packet(sab_caiu);
+	int slot_alarme = caiu.audio.ambient_sabotage_slot;
+	confere("controle: com a sabotagem, o alarme esta tocando", slot_alarme != -1 && caiu.audio.spatial.is_playing(slot_alarme));
+	bool seguiu = caiu.frame();
+	confere("o quadro percebe a queda e para a partida", !seguiu && caiu.abandoned && g_match_connection_lost);
+	confere("e o alarme parou", caiu.audio.ambient_sabotage_slot == -1 && !caiu.audio.spatial.is_playing(slot_alarme));
+	confere("e a ambiencia da nave tambem", caiu.audio.ambient_ship_slot == -1);
+	g_match_connection_lost = false;
+
 	confere("nenhuma excecao (crash.log intocado)", file_get_contents(crash_log_path()) == crash_antes);
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

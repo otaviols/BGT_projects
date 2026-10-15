@@ -243,7 +243,7 @@ your file and English — worth sending a message about it.
 | C | opens this match's rules as a list: arrows go through one rule at a time, with items to copy the code (private match) and all the rules. If the match starts while it is open, it closes by itself |
 | O | change the rules (host only): the fields come with the current values, and anything left blank stays as it is. Everyone is told. |
 | E | pick your color. A color already taken is read with the name of whoever took it. Your pick is saved and sent to the next lobbies by itself; it only counts in lobbies that let players choose (in the others, colors are drawn) |
-| A | switches between playing and only **watching** the next match (see "Watching a match") |
+| F2 | switches between playing and only **watching** the next match (see "Watching a match") |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
 | Ctrl + K | manage players (host only): choose someone to **kick** from the room or to **spectate** the next match. A kicked player can't join that room again |
@@ -256,7 +256,7 @@ your file and English — worth sending a message about it.
 The **radar** (Tab, with Shift, Ctrl and Q as in a match) works from the point of the player you are
 following, and sees what they see.
 
-You can watch a match without playing, in two ways: in the waiting room, the **A** key marks that you
+You can watch a match without playing, in two ways: in the waiting room, the **F2** key marks that you
 will only watch the next one (you stay in the lobby, but you are not in the crew); or, for a **private
 lobby** whose match is already running, typing its code lets you in as a spectator. Public matches in
 progress only show up in the list - you cannot watch strangers' matches.

@@ -239,7 +239,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | C | abre as regras desta partida como lista: setas percorrem uma regra por vez, e há itens para copiar o código (sala privada) e todas as regras. Se a partida começar com ela aberta, ela fecha sozinha |
 | O | mudar as regras (só o anfitrião): os campos vêm com os valores atuais, e o que ficar em branco continua como está. Todo mundo é avisado. |
 | E | escolher a sua cor. Cor já tomada vem com o nome de quem a pegou. A escolha fica guardada e vai sozinha para as próximas salas; ela só vale nas salas que deixam escolher (nas outras, a cor é sorteada) |
-| A | alterna entre jogar e só **assistir** a próxima partida (ver "Assistir uma partida") |
+| F2 | alterna entre jogar e só **assistir** a próxima partida (ver "Assistir uma partida") |
 | B | adicionar um bot (só o anfitrião, até 8) |
 | Shift + B | remover o último bot |
 | Ctrl + K | gerenciar jogadores (só o anfitrião): escolha alguém para **expulsar** da sala ou mandar **assistir** a próxima partida. Quem é expulso não pode entrar de novo naquela sala |
@@ -249,7 +249,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 
 ## Assistir uma partida
 
-Dá para assistir uma partida sem jogar, de dois jeitos: na sala de espera, a tecla **A** marca que
+Dá para assistir uma partida sem jogar, de dois jeitos: na sala de espera, a tecla **F2** marca que
 você vai só assistir a próxima (você continua na sala, mas não entra na equipe); ou, numa **sala
 privada** que já está em andamento, digitando o código dela você entra assistindo. Partidas públicas
 em andamento só aparecem na lista - não dá para assistir partida de estranhos.

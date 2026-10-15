@@ -101,6 +101,11 @@ class spatial_audio {
 		pool.destroy_sound(slot);
 	}
 
+	// Cala TUDO o que este reprodutor está tocando (ver audio_manager.stop_all).
+	void stop_all() {
+		pool.destroy_all();
+	}
+
 	bool is_playing(int slot) const {
 		return pool.sound_is_playing(slot);
 	}

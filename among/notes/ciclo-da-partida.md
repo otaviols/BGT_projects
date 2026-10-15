@@ -175,7 +175,7 @@ nome do assassino, a barriga) nunca passa por ela. Laços que mandam pacote púb
 (a morte pública em `announce_kill`, o som de engolir) precisam incluir a lista à mão - quem
 acrescentar um laço assim, lembre. Decisões do usuário: não vê papel até o fim; a voz dele chega só a
 outros espectadores; ouve como quem está ao lado de quem acompanha (`spectator_hears`), e a mesa na
-reunião; entra marcando A na sala de espera, ou pelo CÓDIGO de uma sala privada em andamento - a pública
+reunião; entra marcando F2 na sala de espera (era o A até a 0.53.1), ou pelo CÓDIGO de uma sala privada em andamento - a pública
 em andamento só aparece na lista, porque nem sempre quem joga se sente tranquilo sendo assistido, e quem
 tem o código foi convidado. Pelo mesmo motivo quem joga OUVE quando alguém começa ou para de assistir,
 com o nome (`announce_spectator`, recado #185; só a clientes do protocolo 11, que conhecem a fala). E quem marcou para assistir NÃO ocupa vaga: lotação, teto de bots e a contagem da lista usam

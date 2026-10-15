@@ -317,7 +317,7 @@ mixin class server_lobby_part {
 	//
 	// Com `peer_id` de outra pessoa, é o anfitrião decidindo por ela (Ctrl+K) - para quem está ausente,
 	// ou numa sala cheia em que alguém precisa ceder a vaga. A pessoa ouve que foi o anfitrião, e a
-	// tecla A continua dela: quem quer mesmo jogar volta, e aí o caso é de expulsar, não de assistir.
+	// tecla F2 continua dela: quem quer mesmo jogar volta, e aí o caso é de expulsar, não de assistir.
 	void on_set_spectate(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "waiting") return;
@@ -329,7 +329,7 @@ mixin class server_lobby_part {
 		bool quer = pkt.get_bool("on");
 		if (quer == p.wants_to_spectate) return;
 		// Voltar a jogar ocupa uma vaga: com a sala cheia, quem assiste continua assistindo - senão a
-		// sala passaria da lotação. O cliente confere antes de pedir (ver a tecla A na sala de espera);
+		// sala passaria da lotação. O cliente confere antes de pedir (ver a tecla F2 na sala de espera);
 		// aqui é a regra de verdade, para o pedido que chegar mesmo assim.
 		if (!quer && lobby.seated_count() >= lobby.config.max_players) { send_error(peer_id, "lobby.full_cannot_play"); return; }
 		if (quer && lobby.marked_spectator_count() >= MAX_SPECTATORS) { send_error(peer_id, "spectate.full"); return; }

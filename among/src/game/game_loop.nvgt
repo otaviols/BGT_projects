@@ -474,9 +474,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 			// Quem chama tenta VOLTAR à partida (reconnect_to_match): o servidor guarda o lugar por um
 			// minuto. O aviso de queda é dele, junto da tentativa.
 			end_chat_review();
-			audio.stop_ship_ambience();
-			audio.stop_room_ambience();
-			audio.stop_landmark_beacons();
+			audio.stop_all(); // o alarme de sabotagem inclusive: ele seguia tocando durante a tentativa de volta
 			@g_match_roster = null;
 			abandoned = true;
 			g_match_connection_lost = true;
@@ -519,9 +517,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		if (key_pressed(KEY_ESCAPE)) {
 			if (yes_no(tr("menu.quit_confirm"), null, tr("menu.yes"), tr("menu.no"))) {
 				client.send_leave_lobby();
-				audio.stop_ship_ambience();
-				audio.stop_room_ambience();
-				audio.stop_landmark_beacons();
+				audio.stop_all(); // saiu no meio: nada da partida segue tocando no menu
 				@g_match_roster = null;
 				end_chat_review();
 				abandoned = true; // abandonou a partida: não há sala para voltar

@@ -296,7 +296,7 @@ void run_host_players_screen(game_client@ client, lobby_snapshot@ snapshot) {
 	string acao = a.selected_item_id;
 	if (acao == "kick") client.send_kick_player(alvo);
 	else if (acao == "spectate") {
-		// Voltar a jogar ocupa uma vaga: com a sala cheia nem pede, como a tecla A.
+		// Voltar a jogar ocupa uma vaga: com a sala cheia nem pede, como a tecla F2.
 		if (assistindo && seated_in(snapshot.players) >= snapshot.max_players) speak(tr("lobby.full_cannot_play"));
 		else client.send_set_spectate(!assistindo, alvo);
 	}
@@ -397,7 +397,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 				end_chat_review();
 				return null;
 			} else if (pkt.type == S_GAME_START || pkt.type == S_SPECTATE_START) {
-				// A partida começou - para jogar ou para assistir (quem marcou A, ou entrou pelo código
+				// A partida começou - para jogar ou para assistir (quem marcou F2, ou entrou pelo código
 				// com ela já andando). Quem chama decide a tela pelo tipo do pacote.
 				@g_logging_packet = null;
 				end_chat_review(); // a partida liga o histórico dela
@@ -451,9 +451,10 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 			speak(tr("lobby.back_from_settings"));
 		}
 		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players, lobby_color_choice(snapshot.config)));
-		// A: assistir a próxima partida em vez de jogar (ou voltar a jogar). O estado vem do retrato da
-		// sala, que o servidor reenvia a todos na hora - é por ele que a tecla sabe o que alternar.
-		if (key_pressed(KEY_A)) {
+		// F2: assistir a próxima partida em vez de jogar (ou voltar a jogar). O estado vem do retrato da
+		// sala, que o servidor reenvia a todos na hora - é por ele que a tecla sabe o que alternar. Era o A
+		// até a 0.53.1 (pedido do usuário, 2026-10-14).
+		if (key_pressed(KEY_F2)) {
 			bool vou_assistir = !snapshot.is_spectating(client.my_peer_id);
 			// Voltar a jogar ocupa uma vaga: com a sala cheia, nem pede - a fala "você vai jogar" seria
 			// uma promessa que o servidor recusa (ver on_set_spectate, que confere de novo).

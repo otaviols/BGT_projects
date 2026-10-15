@@ -202,6 +202,22 @@ class audio_manager {
 		}
 	}
 
+	// A partida acabou SEM o fim normal (a conexão caiu, ou o jogador saiu pelo Esc): cala tudo o que
+	// ela deixou tocando em laço. Antes cada saída desligava a ambiência e os marcadores e esquecia o resto
+	// - o alarme de sabotagem, o zumbido da sala sob câmera, o scanner, os corpos -, e quem caía ficava
+	// ouvindo o alarme enquanto o jogo tentava voltar à partida (relato do usuário, 2026-10-14). Um "pare
+	// tudo" no fim, em vez de mais uma linha por som: o próximo som em laço não precisa ser lembrado aqui.
+	void stop_all() {
+		stop_sabotage_alarm();
+		stop_camera_watching();
+		stop_visible_task();
+		stop_all_body_beacons();
+		stop_landmark_beacons();
+		stop_room_ambience();
+		stop_ship_ambience();
+		spatial.stop_all();
+	}
+
 	// Toca uma vez pra nave inteira quando alguém aperta o botão de emergência (reunião chamada).
 	void play_meeting_alarm() { spatial.play_ui(SND_MEETING_ALARM, false, family_db(SOUND_FAMILY_EVENTS)); }
 
