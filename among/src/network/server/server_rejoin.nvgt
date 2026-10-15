@@ -237,12 +237,12 @@ mixin class server_rejoin_part {
 			cam.set_string("room_id", lobby.camera_room_id);
 			send_to(p.peer_id, cam);
 		}
-		if (lobby.visible_task_peer != 0) {
-			game_player@ quem = lobby.find_player(lobby.visible_task_peer);
+		for (uint i = 0; i < lobby.visible_task_peers.length(); i++) {
+			game_player@ quem = lobby.find_player(lobby.visible_task_peers[i]);
 			net_packet@ scan = net_packet(S_TASK_VISIBLE);
-			scan.set_uint64("peer_id", lobby.visible_task_peer);
+			scan.set_uint64("peer_id", lobby.visible_task_peers[i]);
 			scan.set_string("name", @quem != null ? quem.display_name() : "");
-			scan.set_string("object_id", lobby.visible_task_object_id);
+			scan.set_string("object_id", lobby.visible_task_objects[i]);
 			scan.set_bool("active", true);
 			send_to(p.peer_id, scan);
 		}

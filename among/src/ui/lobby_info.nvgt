@@ -211,6 +211,8 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 	// "Escolhidas" é o padrão desde a 0.40.0; só o contrário é dito.
 	if (cfg.exists("color_choice") && !bool(cfg["color_choice"])) partes.insert_last(tr("lobby.info.colors_random"));
 	if (cfg.exists("color_mode") && bool(cfg["color_mode"])) partes.insert_last(tr("lobby.info.color_mode_on"));
+	// Tarefas visíveis, só quando desligadas: muda o que vale como álibi, e quem entra precisa saber.
+	if (cfg.exists("visible_tasks") && !bool(cfg["visible_tasks"])) partes.insert_last(tr("lobby.info.visible_tasks_off"));
 	if (cfg.exists("move_speed_percent") && int(cfg["move_speed_percent"]) != 100) {
 		dictionary@ sp = dictionary();
 		sp.set("percent", "" + int(cfg["move_speed_percent"]));

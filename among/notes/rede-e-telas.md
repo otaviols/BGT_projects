@@ -273,10 +273,10 @@ quem já joga não ouve a pergunta depois de atualizar. Sonda: `probe_first_run_
 "" e a speech.nvgt não diz nada. Vale SÓ com o modo gráfico ligado, e a opção só aparece com ele
 ligado - desligar o modo devolve a fala sozinho, para quem joga por som nunca ficar mudo por um toque
 errado. Ao calar, a tela segura o aviso (que diz como voltar) até uma tecla ou 12 s: o menu reaberto
-falaria por cima e o cortaria, e calado aquele corte seria a última coisa ouvida. **O scanner em uso**
-(a tarefa visível) aparece como anéis verdes no ponto, pela regra do SOM dele: no alcance da escuta, e
-o nome de quem escaneia só para quem está na mesma sala (`scan_spot`/`scan_name`, guardados em
-`on_task_visible`). **Engolido pelo lobo, o mapa CONTINUA** - centrado no lobo (a posição acompanha a
+falaria por cima e o cortaria, e calado aquele corte seria a última coisa ouvida. **As tarefas
+visíveis em uso** (o scanner, a arma) aparecem como anéis verdes no ponto, pela regra do SOM delas: no
+alcance da escuta, e o nome de quem as faz só para quem está na mesma sala (`visible_spots`/
+`visible_names`, guardados em `on_task_visible`; desenhadas por `task_marks`). **Engolido pelo lobo, o mapa CONTINUA** - centrado no lobo (a posição acompanha a
 dele) e com quem o radar dele mostraria -, com uma faixa "Na barriga do Lobo" no alto e um anel vermelho
 no próprio círculo. Houve uma versão (0.51.9) que trocava o mapa por uma tela só da barriga, e amigos do
 usuário que testaram disseram que não dava para ver nada do jogo; antes dela, só o mapa, e a pessoa não

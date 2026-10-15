@@ -104,10 +104,10 @@ void main() {
 	map_object@ scanner = null;
 	for (uint i = 0; i < map.objects.length() && @scanner == null; i++) if (map.objects[i].task_type == "submit_scan") @scanner = map.objects[i];
 	if (@scanner != null) {
-		v.scan_on = true; v.scan_x = scanner.x; v.scan_y = scanner.y; v.scan_label = "Ana";
+		v.task_marks.insert_last(visible_task_mark(scanner.x, scanner.y, "Ana escaneando"));
 		println("cena: scanner"); t.restart();
 		while (t.elapsed < 3000) { v.draw(map, scanner.x - 3, scanner.y + 2, COLOR_CYAN, true, false, null, null, null); wait(16); }
-		v.scan_on = false;
+		v.task_marks.resize(0);
 	}
 	confere("o scanner existe no mapa (para a cena da varredura)", @scanner != null);
 	// Engolido e com sabotagem: o mapa continua (centrado no lobo), com a faixa da barriga, o anel vermelho

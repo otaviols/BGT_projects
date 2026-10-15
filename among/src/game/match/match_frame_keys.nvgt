@@ -119,11 +119,11 @@ mixin class match_frame_keys_part {
 		if (!movement_frozen && !is_vented && !swallowed) {
 			if (action_pressed(ACTION_INTERACT)) {
 				map_object@ obj = find_interactable(map, my_x, my_y, my_tasks, player_abilities(my_role, alive).can_vent(room_allows_vents), active_sabotage_id, alive);
-				// Duas recusas que poupam trabalho jogado fora: o scanner é de um de cada vez (o
-				// servidor recusa o segundo, e o scan dele não valeria de prova para ninguém), e um
-				// painel já resolvido não tem mais o que resolver.
-				if (@obj != null && obj.obj_type == OBJ_TASK_SPOT && obj.task_type == "submit_scan" && scanner_busy) {
-					speak(tr("task.scanner_busy"));
+				// Duas recusas que poupam trabalho jogado fora: o ponto de tarefa visível é de um de cada
+				// vez (o servidor recusa o segundo, e a tarefa dele não valeria de prova para ninguém), e
+				// um painel já resolvido não tem mais o que resolver.
+				if (@obj != null && obj.obj_type == OBJ_TASK_SPOT && task_is_visible(obj.task_type) && visible_spot_busy(obj.id)) {
+					speak(tr(obj.task_type == "clear_asteroids" ? "task.weapons_busy" : "task.scanner_busy"));
 				} else if (@obj != null && obj.obj_type == OBJ_SABOTAGE_PANEL && fixed_sabotage_panels.find(obj.id) != -1) {
 					speak(tr("sabotage.panel_already_fixed"));
 				} else if (@obj != null) {

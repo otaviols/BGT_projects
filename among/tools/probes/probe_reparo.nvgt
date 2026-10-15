@@ -40,6 +40,33 @@ void main() {
 	l.end_visible_task(1);
 	caso("depois que o primeiro sai, o segundo entra", l.try_start_visible_task(2, scanner.id), true);
 
+	println("--- a arma dos asteroides: cada ponto e' de um, pontos diferentes juntos ---");
+	array<map_object@>@ todos_pontos = l.map.objects_by_type(OBJ_TASK_SPOT);
+	array<map_object@> armas;
+	for (uint i = 0; i < todos_pontos.length(); i++) if (todos_pontos[i].task_type == "clear_asteroids") armas.insert_last(todos_pontos[i]);
+	caso("o mapa tem duas armas", armas.length() == 2, true);
+	game_player@ jc = poe(l, 3, "c", armas[0].x, armas[0].y);
+	game_player@ jd = poe(l, 4, "d", armas[0].x, armas[0].y);
+	game_player@ je = poe(l, 5, "e", armas[1].x, armas[1].y);
+	player_task tc; tc.object_id = armas[0].id; tc.task_type = "clear_asteroids"; jc.tasks.insert_last(tc);
+	player_task td; td.object_id = armas[0].id; td.task_type = "clear_asteroids"; jd.tasks.insert_last(td);
+	player_task te; te.object_id = armas[1].id; te.task_type = "clear_asteroids"; je.tasks.insert_last(te);
+	caso("c entra na arma 1 com b no scanner", l.try_start_visible_task(3, armas[0].id), true);
+	caso("d e' recusado na arma 1", l.try_start_visible_task(4, armas[0].id), false);
+	caso("e entra na arma 2", l.try_start_visible_task(5, armas[1].id), true);
+	caso("tres tarefas visiveis ao mesmo tempo", l.visible_task_peers.length() == 3, true);
+	l.end_visible_task(3);
+	caso("o fim de c solta so a arma 1", l.visible_task_peers.length() == 2 && l.visible_task_objects.find(armas[0].id) < 0, true);
+	caso("impostor sem a tarefa nao e' anunciado", l.try_start_visible_task(1, armas[0].id), false);
+	array<uint64>@ fim_todos = l.end_visible_task();
+	caso("o fim geral (reuniao) encerra todas", fim_todos.length() == 2 && l.visible_task_peers.length() == 0, true);
+
+	println("--- tarefas visiveis desligadas na sala ---");
+	l.config.visible_tasks = false;
+	caso("com a opcao desligada, nada e' anunciado", l.try_start_visible_task(2, scanner.id), false);
+	l.config.visible_tasks = true;
+	caso("ligada de novo, o mesmo pedido e' anunciado", l.try_start_visible_task(2, scanner.id), true);
+
 	println("--- fantasma e sabotagem ---");
 	game_state@ l2 = monta();
 	game_player@ vivo = poe(l2, 1, "vivo", 6, -20);

@@ -32,7 +32,7 @@ const string GAME_VERSION = "0.53.1";
 // conhece e só é recusado em salas que ligaram o Atirador - a exigência passou a ser POR PAPEL (ver
 // role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
 // a barrar quem só queria jogar com engenheiro.
-const int PROTOCOL_VERSION = 13; // 13 = voltar à partida depois de cair (ver REJOIN_PROTOCOL); 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
+const int PROTOCOL_VERSION = 14; // 14 = várias tarefas visíveis ao mesmo tempo, a arma dos asteroides entre elas (ver VISIBLE_TASKS_PROTOCOL); 13 = voltar à partida depois de cair (ver REJOIN_PROTOCOL); 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
 const int MIN_PROTOCOL_VERSION = 2;
 
 // Site de download. O updater lê o version.json daqui e, havendo novidade, manda o jogador para a
@@ -381,12 +381,18 @@ const float COMMON_TASK_CHANCE = 0.5;
 // try_start_visible_task). São as únicas que valem como álibi, porque o impostor não as tem e o
 // cliente dele não consegue forjar o anúncio.
 //
-// Lista, e não um `task_type == "submit_scan"` solto: quem acrescentar a segunda tarefa visível
-// precisa acertar o teto abaixo e o anúncio no mesmo lugar, senão a nova nasce sem limite nenhum.
-const array<string> VISIBLE_TASK_TYPES = {"submit_scan"};
+// Lista, e não um `task_type == "submit_scan"` solto: quem acrescentar outra tarefa visível precisa
+// acertar o teto abaixo e o anúncio no mesmo lugar, senão a nova nasce sem limite nenhum.
+//
+// A arma dos asteroides entrou na 0.54.0 (recado #275, decisão do usuário): quem está perto ouve os
+// disparos. O lixo foi considerado e ficou de fora - o exame e a arma bastam, e cada tarefa visível a
+// mais é álibi a mais. O som que os OUTROS ouvem de cada uma mora no cliente (start_visible_task).
+const array<string> VISIBLE_TASK_TYPES = {"submit_scan", "clear_asteroids"};
 
-// Teto de quantos tripulantes recebem uma tarefa visível, em por cento da sala, arredondado PARA
-// CIMA (mínimo 1 quando há sala). 20% dá 1 numa sala de 5, 2 numa de 10, 3 numa de 15.
+// Teto de quantas tarefas visíveis a partida distribui, em por cento da sala, arredondado PARA CIMA
+// (mínimo 1 quando há sala). 20% dá 1 numa sala de 5, 2 numa de 10, 3 numa de 15. O exame e a arma
+// DIVIDEM o mesmo teto: a arma não veio trazer mais álibi, e sim variar de onde ele sai. Conta-se
+// tarefa, não pessoa - quem recebe as duas ocupa duas vagas.
 //
 // Sem teto, o sorteio é independente por jogador e a variância manda: numa sala de 10 saíam ~2 em
 // média, mas nada impedia 5 - e álibi demais encolhe a lista de suspeitos a ponto de a dedução

@@ -23,6 +23,15 @@ float family_db(int family) {
 	return g_settings.volume_db(family);
 }
 
+// Uma tarefa visível de outro jogador tocando: o laço do scanner (slot) ou a hora do próximo disparo da
+// arma (next_shot, em ticks(); 0 = não é arma). Ver start_visible_task.
+class visible_task_sound {
+	uint64 peer = 0;
+	float x = 0, y = 0;
+	int slot = -1;
+	uint64 next_shot = 0;
+}
+
 class audio_manager {
 	spatial_audio@ spatial;
 	// Um beacon por corpo. Antes era um slot só: com dois corpos no chão, o mais novo calava o som
@@ -241,18 +250,41 @@ class audio_manager {
 		camera_watching_slot = -1;
 	}
 
-	// --- Task visível (o scanner da enfermaria rodando para alguém) ---
-	// Posicionado no scanner e em loop enquanto durar: quem entrar na enfermaria no meio ouve. É a
-	// família dos eventos, não dos marcadores - é informação de partida, não orientação.
-	private int visible_task_slot = -1;
-	void start_visible_task(float x, float y) {
-		stop_visible_task();
-		visible_task_slot = spatial.play_looping("sounds/" + SND_MEDBAY_SCAN, x, y, false, family_db(SOUND_FAMILY_EVENTS));
+	// --- Tarefas visíveis de outros jogadores (o exame médico, a arma dos asteroides) ---
+	// Posicionadas no ponto da tarefa enquanto durarem: quem chegar no meio ouve. É a família dos
+	// eventos, não dos marcadores - é informação de partida, não orientação. Uma por jogador.
+	//
+	// O scanner é um som em laço. A arma são DISPAROS soltos, em intervalos irregulares como os da própria
+	// tarefa (tick_visible_tasks, a cada quadro): um tiro em laço viraria metralhadora, e o que se quer
+	// ouvir é "alguém está atirando ali". Os tiros são do cliente de quem ouve, e não um a um pela rede: o
+	// que é prova é o servidor ter anunciado a tarefa (ver try_start_visible_task), e não o ritmo dela.
+	private array<visible_task_sound@> visible_tasks;
+	void start_visible_task(uint64 peer, const string&in task_type, float x, float y) {
+		stop_visible_task(peer);
+		visible_task_sound v;
+		v.peer = peer;
+		v.x = x;
+		v.y = y;
+		if (task_type == "clear_asteroids") v.next_shot = ticks() + uint64(random(300, 900));
+		else v.slot = spatial.play_looping("sounds/" + SND_MEDBAY_SCAN, x, y, false, family_db(SOUND_FAMILY_EVENTS));
+		visible_tasks.insert_last(v);
 	}
-	void stop_visible_task() {
-		if (visible_task_slot == -1) return;
-		spatial.stop_sound(visible_task_slot);
-		visible_task_slot = -1;
+	// De um jogador, ou de todos com peer 0.
+	void stop_visible_task(uint64 peer = 0) {
+		for (int i = int(visible_tasks.length()) - 1; i >= 0; i--) {
+			if (peer != 0 && visible_tasks[i].peer != peer) continue;
+			if (visible_tasks[i].slot != -1) spatial.stop_sound(visible_tasks[i].slot);
+			visible_tasks.remove_at(i);
+		}
+	}
+	void tick_visible_tasks() {
+		uint64 agora = ticks();
+		for (uint i = 0; i < visible_tasks.length(); i++) {
+			visible_task_sound@ v = visible_tasks[i];
+			if (v.next_shot == 0 || agora < v.next_shot) continue;
+			spatial.play_once("sounds/" + SND_ASTEROID_FIRE, v.x, v.y, family_db(SOUND_FAMILY_EVENTS));
+			v.next_shot = agora + uint64(random(700, 1900));
+		}
 	}
 
 	void apply_lights_out(bool active, int normal_max_distance) {

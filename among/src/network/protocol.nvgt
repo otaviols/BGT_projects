@@ -295,6 +295,11 @@ const int HOST_TOOLS_PROTOCOL = 12;
 // dos pacotes de sempre que reconstroem o resto (corpos, sabotagem, portas, reunião). Cliente anterior ao
 // 13 não sabe voltar: a ele o lugar não é guardado, e a queda é a saída de sempre.
 const int REJOIN_PROTOCOL = 13;
+// --- Mais de uma tarefa visível (protocolo 14) ---
+// A arma dos asteroides passou a ser tarefa visível, junto do exame médico, e várias podem rodar ao mesmo
+// tempo (uma por ponto): o S_TASK_VISIBLE de FIM traz o `object_id` de qual parou. Cliente anterior só
+// conhece o scanner, e tocaria o som dele para qualquer tarefa - a esse só vai o aviso do scanner.
+const int VISIBLE_TASKS_PROTOCOL = 14;
 // O espectador escolhe de quem acompanhar a partida: a voz que ele ouve é a que chega perto dessa pessoa.
 const string C_SPECTATE_FOLLOW = "c_spectate_follow";       // {peer_id}
 // Para quem vai assistir, no lugar do S_GAME_START: o elenco e as regras que a tela precisa - e NADA de

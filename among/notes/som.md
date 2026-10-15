@@ -76,12 +76,14 @@ passo: `wait_for_task_sound(task_sound(..., pitch), client)`; pausa: `task_wait(
 de tecla: toca e NÃO espera. Medido em `tools/probes/probe_play_wait.nvgt`: o `play_wait` em si
 volta direito (504 ms no tom grave), o problema é o que não acontece enquanto ele não volta.
 
-**Task visível (o scan) é prova porque o SERVIDOR a anuncia, não o cliente.** O cliente manda
-`C_START_TASK` ao abrir qualquer minigame; só para o scan o servidor confere que aquele jogador tem a
+**Task visível (o scan, a arma dos asteroides) é prova porque o SERVIDOR a anuncia, não o cliente.** O
+cliente manda `C_START_TASK` ao abrir qualquer minigame; só para as visíveis o servidor confere que aquele jogador tem a
 task pendente e está vivo, e então manda `S_TASK_VISIBLE` a todos menos a ele. Impostor não tem a
 task, então nada é anunciado por mais que o cliente dele finja - é isso que faz o som do scanner na
 enfermaria valer como álibi. O fim vem pelo `C_TASK_INPUT` (sucesso ou cancelamento), e reunião,
-morte e saída também encerram (`end_visible_task`), senão o scanner soaria numa sala vazia.
+morte e saída também encerram (`end_visible_task`), senão o scanner soaria numa sala vazia. O
+scanner é um som em laço; a arma são disparos soltos (`SND_ASTEROID_FIRE` a cada 0,7-1,9 s), tocados
+pelo `tick_visible_tasks` do laço da partida - um tiro em laço viraria metralhadora.
 
 **"Task concluída" é UM som, tocado num lugar só.** `SND_TASK_COMPLETE` sai do `task_manager` ao
 fechar a task com sucesso (e de `run_sabotage_panel` para reparos). Nenhuma task toca um som de

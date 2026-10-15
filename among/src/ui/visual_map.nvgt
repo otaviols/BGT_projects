@@ -50,6 +50,14 @@ const float VISUAL_LOGICAL_HEIGHT = 640.0;
 // Quantas falas as legendas guardam, e quanto tempo sem desenho faz uma fala redesenhar a tela sozinha.
 const uint VISUAL_CAPTION_LINES = 4;
 const uint64 VISUAL_IDLE_REDRAW_MS = 150;
+
+// Uma tarefa visível em andamento, desenhada como anéis saindo do ponto (o exame, a arma).
+class visible_task_mark {
+	float x = 0, y = 0;
+	string label;
+	visible_task_mark() {}
+	visible_task_mark(float x, float y, const string&in label) { this.x = x; this.y = y; this.label = label; }
+}
 // Texto vira textura uma vez e fica guardado; passando disto, o cache recomeça (menus e falas mudam).
 const uint VISUAL_TEXT_CACHE_MAX = 400;
 
@@ -134,11 +142,10 @@ class visual_map {
 	float k = 1.0;
 	float fonts_k = 0.0;
 	bool fullscreen_applied = false;
-	// O scanner em uso, posto pelo laço da partida antes de cada draw() (ver draw_visual_map). O rótulo é
-	// o nome de quem escaneia, ou "" quando quem olha não está na mesma sala.
-	bool scan_on = false;
-	float scan_x = 0, scan_y = 0;
-	string scan_label = "";
+	// As tarefas visíveis em andamento que quem olha OUVE, postas pelo laço da partida antes de cada draw()
+	// (ver draw_visual_map). O rótulo já vem pronto ("Ana escaneando", ou só "Atirando" quando quem olha não
+	// está na mesma sala).
+	array<visible_task_mark@> task_marks;
 	// Faixas no alto do mapa, postas pelo laço da partida antes de cada draw(): a sabotagem em curso
 	// (vermelha, com a moldura da tela pulsando) e a situação de quem olha (a barriga do lobo). Vazias, não
 	// aparecem.
@@ -146,11 +153,6 @@ class visual_map {
 	string status_banner = "";
 	// Engolido: o próprio círculo ganha um anel vermelho - ele está DENTRO do lobo, no ponto do lobo.
 	bool me_swallowed = false;
-	dictionary@ scan_label_params() {
-		dictionary@ p = dictionary();
-		p.set("name", scan_label);
-		return p;
-	}
 
 	bool ready() {
 		if (tried) return @r != null && r.is_valid;
@@ -411,8 +413,9 @@ class visual_map {
 		// O scanner em uso (a tarefa VISÍVEL): anéis verdes saindo do ponto, como o som que ele toca. Quem
 		// pede é o laço da partida, pela regra do som - no alcance da escuta, e o nome só para quem está
 		// na mesma sala (ver draw_visual_map). É a prova de inocência do jogo: tem que se ver de relance.
-		if (scan_on) {
-			float sx = cx + (scan_x - my_x) * s, sy = cy + (scan_y - my_y) * s;
+		for (uint ti = 0; ti < task_marks.length(); ti++) {
+			visible_task_mark@ tm = task_marks[ti];
+			float sx = cx + (tm.x - my_x) * s, sy = cy + (tm.y - my_y) * s;
 			float fase = float(ticks() % 1200) / 1200.0;
 			color(VC_VOTED);
 			for (int anel = 0; anel < 2; anel++) {
@@ -421,7 +424,7 @@ class visual_map {
 				ring(sx, sy, 8.0 + f * 26.0);
 			}
 			circle(sx, sy, 4.0);
-			string rotulo = scan_label == "" ? tr("visual.scanning") : tr("visual.scanning_name", scan_label_params());
+			string rotulo = tm.label;
 			put_text(rotulo, font_small, VC_VOTED, sx - text_width(rotulo, font_small, VC_VOTED) / 2.0, sy - 46);
 		}
 

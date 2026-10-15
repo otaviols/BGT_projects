@@ -127,7 +127,10 @@ senão "treinar" a tarefa é só a etapa que não tem o que treinar. Sonda:
 **O sorteio de tarefas tem DOIS tetos, e os dois são do sorteio, não da sala.** Antes ele era
 independente por jogador, e a variância mandava.
 
-A **tarefa visível** (hoje só o scan) sai para no máximo `visible_task_cap(jogadores)` pessoas -
+A **tarefa visível** (o exame médico e, desde a 0.54.0, a arma dos asteroides) sai no máximo
+`visible_task_cap(jogadores)` vezes na partida - as duas DIVIDEM o teto, contado em tarefas (quem leva
+as duas ocupa duas vagas; o sorteio de cada jogador corta as visíveis além das vagas que restam, senão
+uma vaga sobrando entregava as duas) -
 20% arredondado para cima, 1 numa sala de 5 e 2 numa de 10. Ela é a única prova de inocência do
 jogo, e sem teto uma rodada em cada tantas entregava álibi a quase todo mundo (medido: 4 dos 5
 tripulantes numa sala de 6). Há um motivo mecânico junto do de equilíbrio: o scanner é recurso de
@@ -136,6 +139,17 @@ considerado e descartado - daria exatamente 1 em qualquer sala até 10 pessoas, 
 um bilhete de loteria em vez de uma economia. **"Visível" é uma LISTA** (`VISIBLE_TASK_TYPES`), e
 não um `task_type == "submit_scan"` solto: a segunda tarefa visível precisa nascer com teto e com
 anúncio, e a lista é o que obriga a lembrar dos dois.
+
+**Tarefas visíveis: o que se decidiu (recado #275, 2026-10-14).** A arma dos asteroides entrou; o lixo
+foi considerado e ficou de fora - cada visível a mais é álibi a mais, e o teto é o mesmo. Quem está perto
+ouve DISPAROS soltos no ponto da arma, gerados no cliente de quem ouve (`tick_visible_tasks`), e não um a
+um pela rede: a prova é o servidor ter anunciado, não o ritmo. Cada PONTO é de um de cada vez, mas
+pontos diferentes rodam juntos (`visible_task_peers`/`visible_task_objects`). E a sala tem a opção
+"Tarefas visíveis" (`lobby_config.visible_tasks`, ligada por padrão): desligada, a tarefa continua
+caindo e valendo, só ninguém ouve quem a faz - e o teto deixa de valer, porque não há álibi a racionar.
+"Desligado tira a tarefa da partida" foi a outra leitura, descartada pelo usuário. Cliente anterior ao
+protocolo 14 só recebe o anúncio do scanner: ele tocaria o som do scanner para qualquer tarefa. Sonda ao
+vivo: `probe_task_limits` (abre uma visível por rodada e confere começo e fim com o ponto).
 
 E **no máximo `MAX_TASKS_PER_ROOM` (2) tarefas do mesmo jogador na mesma sala do mapa** - para
 ninguém resolver a lista inteira num canto, num jogo em que andar é fazer barulho. É

@@ -1,8 +1,9 @@
 // Sonda dos dois tetos do sorteio de tarefas.
 //
-//   1. TAREFA VISÍVEL (o scanner): no máximo `visible_task_cap(jogadores)` pessoas a recebem. Ela é
-//      a única prova de inocência do jogo; sem teto, o sorteio independente por jogador entregava
-//      álibi a meia sala de vez em quando, só por variância.
+//   1. TAREFA VISÍVEL (o exame e a arma dos asteroides): no máximo `visible_task_cap(jogadores)` delas
+//      saem na partida. São a única prova de inocência do jogo; sem teto, o sorteio independente por
+//      jogador entregava álibi a meia sala de vez em quando, só por variância. E uma delas é ABERTA a
+//      cada rodada, para conferir que os outros ouvem o começo e o fim, com o ponto (protocolo 14).
 //   2. DUAS POR SALA: nenhum jogador recebe mais de MAX_TASKS_PER_ROOM tarefas na mesma sala do
 //      mapa - a não ser que respeitar isso o deixasse com menos tarefas do que a sala pediu, porque
 //      aí o total ganha (é preferência, não parede).
@@ -99,6 +100,16 @@ bool todos_recebem(array<game_client@>@ todos, const string&in tipo, int ms) {
 	}
 	return false;
 }
+// Espera que UM cliente receba `tipo`, bombeando todos.
+bool todos_recebem_de(array<game_client@>@ todos, uint i, const string&in tipo, int ms) {
+	timer x;
+	while (x.elapsed < ms) {
+		drena(todos);
+		if (@achado(i, tipo) != null) return true;
+		wait(5);
+	}
+	return false;
+}
 void bombeia(array<game_client@>@ todos, int ms) {
 	timer t;
 	while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); }
@@ -148,6 +159,7 @@ void main() {
 	uint sorteios = 0;
 	uint sorteios_com_folga = 0; // os que precisaram afrouxar o teto por sala para fechar o total
 	uint rodadas_ok = 0;
+	uint anuncios_ok = 0, anuncios_tentados = 0, armas_vistas = 0;
 
 	for (uint r = 0; r < RODADAS; r++) {
 		todos[0].send_start_game();
@@ -156,6 +168,8 @@ void main() {
 		uint64 impostor_peer = 0;
 		bool rodada_valida = true;
 		todos_recebem(todos, S_GAME_START, 10000);
+		int quem_visivel = -1;
+		string ponto_visivel = "";
 		for (uint i = 0; i < todos.length(); i++) {
 			net_packet@ st = achado(i, S_GAME_START);
 			if (@st == null) { println("rodada " + (r + 1) + ": um cliente nao recebeu o inicio"); rodada_valida = false; break; }
@@ -169,7 +183,12 @@ void main() {
 				json_object@ tj = tarefas.get_object(t);
 				if (@tj == null) continue;
 				string tipo = string(tj["task_type"]);
-				if (task_is_visible(tipo)) visiveis_nesta++;
+				if (task_is_visible(tipo)) {
+					visiveis_nesta++;
+					// A arma tem preferência: é a tarefa visível nova, e a que mais precisa ser vista anunciada.
+					if (quem_visivel < 0 || tipo == "clear_asteroids") { quem_visivel = int(i); ponto_visivel = string(tj["object_id"]); }
+					if (tipo == "clear_asteroids") armas_vistas++;
+				}
 				map_object@ obj = mapa.find_object(string(tj["object_id"]));
 				if (@obj == null) { println("  ponto desconhecido: " + string(tj["object_id"])); continue; }
 				int n = 0;
@@ -193,6 +212,24 @@ void main() {
 		// retrato da sala reaberta, que costuma chegar junto do fim da partida; não esvaziar nunca
 		// faria a espera pelo retrato achar o da entrada e passar sem esperar nada.
 		esvazia_caixa();
+		// O ANÚNCIO: quem tem a tarefa visível a abre, e os outros têm que ouvir o começo e o fim, com o
+		// ponto nos dois (o fim sem ponto era o jeito de antes, quando só existia o scanner).
+		if (quem_visivel >= 0) {
+			anuncios_tentados++;
+			todos[quem_visivel].send_start_task(ponto_visivel);
+			uint outro = quem_visivel == 0 ? 1 : 0;
+			bool comecou = todos_recebem_de(todos, outro, S_TASK_VISIBLE, 5000);
+			net_packet@ ini = achado(outro, S_TASK_VISIBLE);
+			bool inicio_certo = comecou && ini.get_bool("active") && ini.get_string("object_id") == ponto_visivel;
+			esvazia_caixa();
+			todos[quem_visivel].send_task_input(ponto_visivel, false);
+			bool acabou = todos_recebem_de(todos, outro, S_TASK_VISIBLE, 5000);
+			net_packet@ fim = achado(outro, S_TASK_VISIBLE);
+			bool fim_certo = acabou && !fim.get_bool("active") && fim.get_string("object_id") == ponto_visivel;
+			if (inicio_certo && fim_certo) anuncios_ok++;
+			else println("  rodada " + (r + 1) + ": anuncio de " + ponto_visivel + " - inicio " + inicio_certo + ", fim " + fim_certo);
+			esvazia_caixa();
+		}
 		if (visiveis_nesta > pior_visiveis) pior_visiveis = visiveis_nesta;
 		println("  rodada " + (r + 1) + ": " + tripulantes + " tripulantes, " + visiveis_nesta +
 			" com tarefa visivel");
@@ -220,6 +257,9 @@ void main() {
 		bombeia(todos, 300);
 	}
 
+	check("toda tarefa visivel aberta foi anunciada, comeco e fim com o ponto", anuncios_ok == anuncios_tentados && anuncios_tentados > 0,
+		"" + anuncios_tentados + " de " + anuncios_tentados + ", foram " + anuncios_ok);
+	println("armas dos asteroides sorteadas nas rodadas: " + armas_vistas);
 	check("rodaram todas as rodadas", rodadas_ok == RODADAS, "" + RODADAS + " rodadas");
 	check("nenhuma rodada passou do teto de tarefas visiveis", pior_visiveis <= teto,
 		"pior caso <= " + teto + ", foi " + pior_visiveis);

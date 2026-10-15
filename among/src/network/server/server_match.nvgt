@@ -155,8 +155,9 @@ mixin class server_match_part {
 			lobby.config.role_counts, lobby.config.role_chances, lobby.config.neutral_count);
 
 		// Teto de tarefas visíveis da PARTIDA inteira, contado sobre quem está na sala (bot incluído:
-		// ele ocupa lugar e o scanner dele soa igual). Ver visible_task_cap.
-		uint teto_visiveis = visible_task_cap(shuffled.length());
+		// ele ocupa lugar e o scanner dele soa igual). Ver visible_task_cap. Com as tarefas visíveis
+		// desligadas na sala não há álibi a racionar, e elas saem como qualquer outra.
+		uint teto_visiveis = lobby.config.visible_tasks ? visible_task_cap(shuffled.length()) : 0xFFFFFFFF;
 		uint visiveis_dadas = 0;
 
 		for (uint i = 0; i < shuffled.length(); i++) {
@@ -228,6 +229,14 @@ mixin class server_match_part {
 				}
 				shuffle_object_array(long_pool);
 				shuffle_object_array(short_pool);
+				// E dentro do MESMO jogador: com duas tarefas visíveis no mapa (o exame e a arma), quem
+				// sorteia com uma vaga só sobrando podia levar as duas e passar do teto. Ficam só as
+				// primeiras do embaralhamento, até as vagas que restam.
+				if (teto_visiveis > visiveis_dadas) {
+					uint vagas = teto_visiveis - visiveis_dadas;
+					limit_visible_spots(long_pool, vagas);
+					limit_visible_spots(short_pool, vagas);
+				}
 
 				uint total = lobby.config.task_count_per_crewmate;
 				total = total > p.tasks.length() ? total - p.tasks.length() : 0;
@@ -305,6 +314,16 @@ mixin class server_match_part {
 		broadcast_to_lobby(lobby, lobby.build_task_progress_packet()); // placar zerado, pra todo mundo já começar sabendo o total
 	}
 
+	// Tira do monte as tarefas visíveis além de `vagas`, que é decrementado pelas que ficam - chamado nos
+	// dois montes em sequência, as vagas valem para os dois juntos.
+	void limit_visible_spots(array<map_object@>@ pool, uint&inout vagas) {
+		for (uint i = 0; i < pool.length(); ) {
+			if (!task_is_visible(pool[i].task_type)) { i++; continue; }
+			if (vagas > 0) { vagas--; i++; continue; }
+			pool.remove_at(i);
+		}
+	}
+
 	void on_move(uint64 peer_id, net_packet@ pkt) {
 		game_state@ lobby = find_lobby_of_peer(peer_id);
 		if (@lobby == null || lobby.state != "in_progress") return;
@@ -345,23 +364,46 @@ mixin class server_match_part {
 		broadcast_task_visible(lobby, peer_id, @p != null ? p.display_name() : "", object_id, true);
 	}
 
+	// `object_id` vai também no FIM: com várias tarefas visíveis ao mesmo tempo, o cliente precisa saber
+	// qual parou. Cliente anterior ao VISIBLE_TASKS_PROTOCOL só conhece o scanner: a ele não vai o aviso
+	// de outra tarefa, que ele tocaria como se fosse um exame médico no meio da sala de armas.
 	void broadcast_task_visible(game_state@ lobby, uint64 peer_id, const string&in name, const string&in object_id, bool active) {
 		net_packet@ pkt = net_packet(S_TASK_VISIBLE);
 		pkt.set_uint64("peer_id", peer_id);
 		pkt.set_string("name", name);
 		pkt.set_string("object_id", object_id);
 		pkt.set_bool("active", active);
-		// Quem faz a task já ouve o scanner no próprio cliente; para ele o aviso seria eco.
-		broadcast_to_lobby(lobby, pkt, peer_id);
+		map_object@ spot = lobby.map.find_object(object_id);
+		bool so_novos = @spot != null && spot.task_type != "submit_scan";
+		// Quem faz a task já ouve o próprio minijogo; para ele o aviso seria eco.
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ o = lobby.players[i];
+			if (!reaches_client(o) || o.peer_id == peer_id) continue;
+			if (so_novos && o.protocol_version < VISIBLE_TASKS_PROTOCOL) continue;
+			send_to(o.peer_id, pkt);
+		}
+		for (uint i = 0; i < lobby.spectators.length(); i++) {
+			if (so_novos && lobby.spectators[i].protocol_version < VISIBLE_TASKS_PROTOCOL) continue;
+			send_to(lobby.spectators[i].peer_id, pkt);
+		}
 	}
 
-	// Encerra a task visível (de um jogador, ou de quem estiver nela com peer 0) e avisa a partida.
-	// Chamado de todo lugar que interrompe a task: fim normal, reunião, morte, saída.
+	// Encerra a task visível (de um jogador, ou de todos com peer 0) e avisa a partida. Chamado de todo
+	// lugar que interrompe a task: fim normal, reunião, morte, saída.
 	void end_visible_task(game_state@ lobby, uint64 peer_id = 0) {
-		uint64 quem = lobby.end_visible_task(peer_id);
-		if (quem == 0) return;
-		game_player@ p = lobby.find_player(quem);
-		broadcast_task_visible(lobby, quem, @p != null ? p.display_name() : "", "", false);
+		// Quem e onde são lidos ANTES de encerrar: depois, a lista já não diz onde cada um estava.
+		array<uint64> quem;
+		array<string> pontos;
+		for (uint i = 0; i < lobby.visible_task_peers.length(); i++) {
+			if (peer_id != 0 && lobby.visible_task_peers[i] != peer_id) continue;
+			quem.insert_last(lobby.visible_task_peers[i]);
+			pontos.insert_last(lobby.visible_task_objects[i]);
+		}
+		lobby.end_visible_task(peer_id);
+		for (uint i = 0; i < quem.length(); i++) {
+			game_player@ p = lobby.find_player(quem[i]);
+			broadcast_task_visible(lobby, quem[i], @p != null ? p.display_name() : "", pontos[i], false);
+		}
 	}
 
 	void on_task_input(uint64 peer_id, net_packet@ pkt) {

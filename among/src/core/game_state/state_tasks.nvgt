@@ -89,13 +89,17 @@ mixin class state_tasks_part {
 	// Começa uma task visível para `peer`, se ele tiver essa task pendente e estiver vivo. Devolve
 	// false quando não tem - que é exatamente o caso do impostor fingindo, e do fantasma (o scan de
 	// quem já morreu não serve de álibi a ninguém).
+	//
+	// Com as tarefas visíveis desligadas na sala, nada é anunciado: a tarefa roda igual, sem ninguém ouvir.
 	bool try_start_visible_task(uint64 peer, const string&in object_id) {
+		if (!config.visible_tasks) return false;
 		game_player@ p = find_player(peer);
 		if (@p == null || !p.alive) return false;
-		// O scanner é de um de cada vez. Sem isto, três pessoas entrando juntas se sobrescreviam aqui:
-		// o servidor passava a acompanhar só a última, o fim do scan das outras não avisava ninguém, e
-		// o som do scanner ficava tocando (ou parava cedo) sem relação com quem estava nele.
-		if (visible_task_peer != 0 && visible_task_peer != peer) return false;
+		// Cada ponto é de um de cada vez. Sem isto, três pessoas entrando juntas no scanner se
+		// sobrescreviam: o servidor passava a acompanhar só a última, o fim do scan das outras não
+		// avisava ninguém, e o som ficava tocando (ou parava cedo) sem relação com quem estava nele.
+		int ocupado = visible_task_objects.find(object_id);
+		if (ocupado >= 0 && visible_task_peers[ocupado] != peer) return false;
 		map_object@ spot = map.find_object(object_id);
 		if (@spot == null || spot.obj_type != OBJ_TASK_SPOT || !task_is_visible(spot.task_type)) return false;
 		bool pending = false;
@@ -103,18 +107,28 @@ mixin class state_tasks_part {
 			if (p.tasks[i].object_id == object_id && !p.tasks[i].completed) { pending = true; break; }
 		}
 		if (!pending) return false;
-		visible_task_peer = peer;
-		visible_task_object_id = object_id;
+		// Uma pessoa faz uma minigame de cada vez: se ela "estava" em outro ponto (o fim se perdeu),
+		// o novo substitui o antigo em vez de deixá-lo ocupado para sempre.
+		int dela = visible_task_peers.find(peer);
+		if (dela >= 0) {
+			visible_task_objects[dela] = object_id;
+			return true;
+		}
+		visible_task_peers.insert_last(peer);
+		visible_task_objects.insert_last(object_id);
 		return true;
 	}
 
-	// Encerra a task visível se for deste jogador (ou de qualquer um, com peer 0). Devolve quem
-	// estava nela, para o servidor avisar a partida - o mesmo motivo do release_cameras_any.
-	uint64 end_visible_task(uint64 peer = 0) {
-		if (visible_task_peer == 0 || (peer != 0 && visible_task_peer != peer)) return 0;
-		uint64 quem = visible_task_peer;
-		visible_task_peer = 0;
-		visible_task_object_id = "";
+	// Encerra a task visível deste jogador (ou de todos, com peer 0). Devolve quem estava nelas, para
+	// o servidor avisar a partida - o mesmo motivo do release_cameras_any.
+	array<uint64>@ end_visible_task(uint64 peer = 0) {
+		array<uint64> quem;
+		for (int i = int(visible_task_peers.length()) - 1; i >= 0; i--) {
+			if (peer != 0 && visible_task_peers[i] != peer) continue;
+			quem.insert_last(visible_task_peers[i]);
+			visible_task_peers.remove_at(i);
+			visible_task_objects.remove_at(i);
+		}
 		return quem;
 	}
 }

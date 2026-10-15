@@ -78,11 +78,22 @@ void main() {
 	net_packet@ vis = net_packet(S_TASK_VISIBLE);
 	vis.set_uint64("peer_id", 2); vis.set_string("name", "ana"); vis.set_string("object_id", @scanner != null ? scanner.id : ""); vis.set_bool("active", true);
 	p.handle_packet(vis);
-	confere("scanner em uso: a tela sabe onde e quem", @p.scan_spot != null && p.scan_name == "ana");
+	confere("scanner em uso: a tela sabe onde e quem", p.visible_spots.length() == 1 && p.visible_names[0] == "ana" && p.visible_spot_busy(scanner.id));
+	// A arma dos asteroides, ao mesmo tempo, por outra pessoa (protocolo 14): as duas convivem.
+	map_object@ arma = null;
+	for (uint i = 0; i < p.map.objects.length() && @arma == null; i++) if (p.map.objects[i].task_type == "clear_asteroids") @arma = p.map.objects[i];
+	net_packet@ vis2 = net_packet(S_TASK_VISIBLE);
+	vis2.set_uint64("peer_id", 3); vis2.set_string("name", "bia"); vis2.set_string("object_id", arma.id); vis2.set_bool("active", true);
+	p.handle_packet(vis2);
+	confere("a arma e o scanner ao mesmo tempo", p.visible_spots.length() == 2 && p.visible_spot_busy(arma.id) && p.visible_spot_busy(scanner.id));
 	net_packet@ fim_vis = net_packet(S_TASK_VISIBLE);
 	fim_vis.set_uint64("peer_id", 2); fim_vis.set_bool("active", false);
 	p.handle_packet(fim_vis);
-	confere("e quando acaba, some", @p.scan_spot == null && p.scan_name == "");
+	confere("o fim de um nao derruba o outro", p.visible_spots.length() == 1 && !p.visible_spot_busy(scanner.id) && p.visible_spot_busy(arma.id));
+	net_packet@ fim_vis2 = net_packet(S_TASK_VISIBLE);
+	fim_vis2.set_uint64("peer_id", 3); fim_vis2.set_string("object_id", arma.id); fim_vis2.set_bool("active", false);
+	p.handle_packet(fim_vis2);
+	confere("e quando acaba, some", p.visible_spots.length() == 0);
 
 	// Quem morre continua ouvindo o marcador do PRÓPRIO corpo: a lista de corpos era refeita antes de o
 	// corpo entrar nela, e o marcador sumia até outra coisa refazê-la.

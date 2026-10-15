@@ -136,10 +136,12 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	uint64 camera_user_peer = 0;
 	string camera_room_id = "";
 
-	// Quem está numa task VISÍVEL agora (o scan da enfermaria), e em qual ponto. 0 = ninguém.
-	// Um de cada vez basta: só existe um scanner na nave.
-	uint64 visible_task_peer = 0;
-	string visible_task_object_id = "";
+	// Quem está numa task VISÍVEL agora, e em qual ponto: as duas listas andam juntas, um item por
+	// pessoa. Cada PONTO é de um de cada vez (o scanner, cada arma), mas pontos diferentes rodam ao
+	// mesmo tempo - era um campo só enquanto o scanner era a única tarefa visível; com a arma dos
+	// asteroides (0.54.0), duas pessoas em armas diferentes se sobrescreveriam.
+	array<uint64> visible_task_peers;
+	array<string> visible_task_objects;
 
 	// Código do oxigênio desta sabotagem. Decidido aqui, uma vez, para ser o MESMO nos dois painéis:
 	// quem ouviu num painel pode ditar para quem está no outro.
@@ -422,8 +424,8 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		oxygen_code = "";
 		camera_user_peer = 0;
 		camera_room_id = "";
-		visible_task_peer = 0;
-		visible_task_object_id = "";
+		visible_task_peers.resize(0);
+		visible_task_objects.resize(0);
 		winner = "";
 		neutral_winner_peer = 0;
 		win_reason = "";

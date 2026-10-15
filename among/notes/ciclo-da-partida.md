@@ -141,10 +141,11 @@ Nada é falado ao fechar de propósito: o laço da partida volta no instante seg
 apuração inteira - uma frase nossa seria cortada por ela.
 
 **Recurso de UM de cada vez precisa ser recusado no servidor E anunciado ao cliente.** O scanner da
-enfermaria guarda um `visible_task_peer` só; com três pessoas entrando juntas, elas se sobrescreviam
+enfermaria guardava um `visible_task_peer` só; com três pessoas entrando juntas, elas se sobrescreviam
 ali e o fim do scan de uma não avisava ninguém - o som ficava tocando sem relação com quem estava
 nele. Hoje `try_start_visible_task` recusa o segundo, e o cliente sabe que está ocupado pelo mesmo
-`S_TASK_VISIBLE` que já recebia, então nem abre a minigame. A mesma forma do posto de câmeras.
+`S_TASK_VISIBLE` que já recebia, então nem abre a minigame. A mesma forma do posto de câmeras. Desde
+a arma dos asteroides (0.54.0) a ocupação é POR PONTO, numa lista, e o fim traz o `object_id`.
 
 **Trabalho que o servidor vai recusar não pode ser oferecido ao jogador.** Duas versões disso no
 mesmo lugar: o fantasma abria o painel de sabotagem, resolvia a minigame inteira e só então ouvia
