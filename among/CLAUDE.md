@@ -115,6 +115,12 @@ updater só avisa e abre o site.
 **Mexeu em qualquer arquivo de `sounds/`? Rode o `build_pack` antes de compilar.** O jogo empacota o
 `sounds.dat`, não a pasta — sem regerar, o build sai com o som antigo e nada avisa.
 
+**iOS compila, mas não instala.** A instalação traz `stub/nvgt_ios.bin`, e `nvgt -c -pios AmongUs.nvgt`
+gera um `AmongUs.ipa` (~19 MB, com sons, `lang/` e `docs/`) em segundos, testado em 2026-10-15. Só que
+ele sai SEM assinatura (iOS não instala), com o identificador `com.NVGTUser.AmongUs` e sem
+`NSMicrophoneUsageDescription` (o iOS fecha o app quando a voz tocar no microfone). Assinar exige conta
+de desenvolvedor da Apple. Ninguém seguiu adiante.
+
 ### Android
 
 ```
