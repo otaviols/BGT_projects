@@ -856,6 +856,8 @@
   "lobby.info.impostors_many": "{count} impostors",
   "lobby.info.impostors_automatic": "(automatic, depends on how many join)",
   "lobby.info.roles_in_play": "Roles in play: {roles}",
+  "lobby.info.neutral_count": "Neutrals in the match: {count}, drawn from the neutrals above.",
+  "lobby.neutral_count_field": "How many neutrals in the match, drawn from the neutrals below (empty = each neutral by its own fields; filled, each neutral's how many becomes its maximum)",
   "lobby.info.role_count": "{count} {role}",
   "lobby.info.role_tunable": "{what}: {seconds} seconds",
   "lobby.info.role_chance": "at {percent}% chance",

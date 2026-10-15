@@ -290,6 +290,8 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 					r.ov.role_counts.set(ids_da_sala[i], escolha.count(ids_da_sala[i]));
 					r.ov.role_chances.set(ids_da_sala[i], escolha.chance(ids_da_sala[i]));
 				}
+				// Sempre mandado, com 0 quando vazio, pela mesma razão dos papéis: é como se desliga.
+				r.ov.neutral_count = escolha.neutral_slots;
 			}
 			r.ov.task_count_per_crewmate = text_to_int_or_default(visible_text(f, f_tasks));
 			r.ov.long_task_count = text_to_int_or_default(visible_text(f, f_long_tasks));
@@ -328,10 +330,14 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 class role_choice {
 	dictionary counts;  // id -> quantos (ausente = 0)
 	dictionary chances; // id -> por cento (ausente = 100, "sempre")
+	// Quantas vagas de neutro a partida tem (ver lobby_config.neutral_count). 0 = cada neutro pelas
+	// próprias vagas, o jeito de antes.
+	int neutral_slots = 0;
 
 	void load(json_object@ current) {
 		clear();
 		if (@current == null) return;
+		if (current.exists("neutral_count")) neutral_slots = int(current["neutral_count"]);
 		json_object@ c = current.get_object("role_counts");
 		json_object@ ch = current.get_object("role_chances");
 		array<string>@ ids = configurable_ids();
@@ -340,7 +346,7 @@ class role_choice {
 			if (@ch != null && ch.exists(ids[i]) && int(ch[ids[i]]) < 100) chances.set(ids[i], int(ch[ids[i]]));
 		}
 	}
-	void clear() { counts.delete_all(); chances.delete_all(); }
+	void clear() { counts.delete_all(); chances.delete_all(); neutral_slots = 0; }
 	int count(const string&in id) { int n = 0; if (counts.exists(id)) counts.get(id, n); return n; }
 	int chance(const string&in id) { int c = 100; if (chances.exists(id)) chances.get(id, c); return c; }
 	uint on_count(const array<string>@ ids) { uint n = 0; for (uint i = 0; i < ids.length(); i++) if (count(ids[i]) > 0) n++; return n; }
@@ -361,7 +367,12 @@ void run_role_choice_form(game_client@ client, role_choice@ escolha, const array
 	screen_keyboard_follower teclado_tela;
 	f.create_window(tr(title_key), false);
 	array<int> f_counts, f_chances;
+	// "Quantos neutros na partida", logo antes do primeiro neutro: é a regra que manda nos campos que vêm
+	// depois dele (com ela preenchida, o "quantos" de cada neutro vira o máximo dele).
+	int f_neutral_slots = -1;
 	for (uint i = 0; i < ids.length(); i++) {
+		if (f_neutral_slots < 0 && role_for(ids[i]).team == TEAM_NEUTRAL && !is_modifier_id(ids[i]))
+			f_neutral_slots = f.create_input_box(tr("lobby.neutral_count_field"), escolha.neutral_slots > 0 ? "" + escolha.neutral_slots : "");
 		int n = escolha.count(ids[i]);
 		f_counts.insert_last(f.create_input_box(tr("lobby.role_count." + ids[i]), n > 0 ? "" + n : ""));
 		int c = escolha.chance(ids[i]);
@@ -383,6 +394,10 @@ void run_role_choice_form(game_client@ client, role_choice@ escolha, const array
 				if (n > 0) escolha.counts.set(ids[i], n); else escolha.counts.delete(ids[i]);
 				int c = text_to_int_or_default(f.get_text(f_chances[i]));
 				if (c >= 0 && c < 100) escolha.chances.set(ids[i], c); else escolha.chances.delete(ids[i]);
+			}
+			if (f_neutral_slots >= 0) {
+				int vagas = text_to_int_or_default(f.get_text(f_neutral_slots));
+				escolha.neutral_slots = vagas > 0 ? vagas : 0;
 			}
 			return;
 		}

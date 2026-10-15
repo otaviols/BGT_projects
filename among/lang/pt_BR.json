@@ -856,6 +856,8 @@
   "lobby.info.impostors_many": "{count} impostores",
   "lobby.info.impostors_automatic": "(automático, depende de quantos entrarem)",
   "lobby.info.roles_in_play": "Papéis em jogo: {roles}",
+  "lobby.info.neutral_count": "Neutros na partida: {count}, sorteados entre os neutros acima.",
+  "lobby.neutral_count_field": "Quantos neutros na partida, sorteados entre os neutros abaixo (vazio = cada neutro pelos próprios campos; preenchido, o quantos de cada neutro vira o máximo dele)",
   "lobby.info.role_count": "{count} {role}",
   "lobby.info.role_tunable": "{what}: {seconds} segundos",
   "lobby.info.role_chance": "com {percent}% de chance",

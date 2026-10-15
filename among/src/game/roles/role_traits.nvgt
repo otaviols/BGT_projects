@@ -82,11 +82,15 @@ const string SOLO_WIN_TARGET_EJECTED = "target_ejected";
 // Pôr fogo na nave com todos os vivos encharcados (o Incendiário).
 const string SOLO_WIN_IGNITE = "ignite";
 
-// Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras.
-const array<string> CONFIGURABLE_ROLE_IDS = {ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER,
-	ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JESTER, ROLE_WOLF,
-	ROLE_MAYOR, ROLE_SWAPPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC,
-	ROLE_DOCTOR};
+// Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras: AGRUPADOS
+// POR TIME - tripulação, impostores, neutros (pedido do usuário, 2026-10-14: antes estavam na ordem em
+// que foram criados, misturados). Papel novo entra no FIM do grupo do time dele; a probe_roles confere
+// o agrupamento. A ordem não pesa em mais nada: o sorteio embaralha as vagas (draw_special_roles).
+const array<string> CONFIGURABLE_ROLE_IDS = {
+	ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER, ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_MAYOR, ROLE_SWAPPER,
+	ROLE_DOCTOR,
+	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER,
+	ROLE_JESTER, ROLE_WOLF, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
 //
@@ -741,11 +745,16 @@ void shuffle_player_order(array<int>@ ordem) {
 //      nunca (tools/probes/probe_draw_fairness.nvgt). Na tripulação era igual - engenheiro e xerife
 //      tomavam a vez do resto. Embaralhar as vagas, e não os jogadores, é o que faltava: os
 //      jogadores já vinham embaralhados, e por isso nenhuma PESSOA era favorecida, só o papel.
+//   5. `neutral_slots` > 0 (a sala disse "quantos neutros"): os neutros deixam de entrar pelas próprias
+//      vagas e passam a entrar por ESTAS - cada uma sorteia um dos neutros ligados, e então rola a
+//      chance dele. O "quantos" de cada neutro vira o máximo dele; o que se esgota sai do sorteio. Zero
+//      é o jeito de antes, e é o que toda sala e configuração salva anterior tem.
 array<string> draw_special_roles(uint player_count, uint impostor_count, const array<bool>&in is_bot,
-		const dictionary&in role_counts, const dictionary&in role_chances) {
+		const dictionary&in role_counts, const dictionary&in role_chances, uint neutral_slots = 0) {
 	array<string> vagas_sorteadas;
 	for (uint r = 0; r < CONFIGURABLE_ROLE_IDS.length(); r++) {
 		string rid = CONFIGURABLE_ROLE_IDS[r];
+		if (neutral_slots > 0 && role_for(rid).team == TEAM_NEUTRAL) continue; // entram pelas vagas de neutro
 		int vagas = 0;
 		if (!role_counts.get(rid, vagas) || vagas <= 0) continue;
 		int chance = 100;
@@ -753,6 +762,29 @@ array<string> draw_special_roles(uint player_count, uint impostor_count, const a
 		for (int n = vagas; n > 0; n--) {
 			if (chance < 100 && random(1, 100) > chance) continue;
 			vagas_sorteadas.insert_last(rid);
+		}
+	}
+	if (neutral_slots > 0) {
+		// Quantas vezes cada neutro ainda pode sair (o "quantos" dele).
+		array<string> neutros;
+		array<int> restam;
+		for (uint r = 0; r < CONFIGURABLE_ROLE_IDS.length(); r++) {
+			string rid = CONFIGURABLE_ROLE_IDS[r];
+			int vagas = 0;
+			if (role_for(rid).team != TEAM_NEUTRAL || !role_counts.get(rid, vagas) || vagas <= 0) continue;
+			neutros.insert_last(rid);
+			restam.insert_last(vagas);
+		}
+		for (uint s = 0; s < neutral_slots; s++) {
+			array<int> candidatos;
+			for (uint k = 0; k < neutros.length(); k++) if (restam[k] > 0) candidatos.insert_last(int(k));
+			if (candidatos.length() == 0) break; // todos esgotados: as vagas que sobram não saem
+			int k = candidatos[random(0, int(candidatos.length()) - 1)];
+			restam[k]--;
+			int chance = 100;
+			if (role_chances.exists(neutros[k])) role_chances.get(neutros[k], chance);
+			if (chance < 100 && random(1, 100) > chance) continue;
+			vagas_sorteadas.insert_last(neutros[k]);
 		}
 	}
 	for (int i = int(vagas_sorteadas.length()) - 1; i > 0; i--) {

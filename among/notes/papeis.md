@@ -101,6 +101,19 @@ que não dá nem tira nada. Os dois lados têm que pausar juntos, senão o clien
 tecla é recusada. O kill continua recomeçando, de propósito. Sonda: `tools/probes/probe_meeting_reset.nvgt`,
 que espera antes da reunião justamente para "pausou" e "recomeçou" darem números diferentes.
 
+**A lista dos papéis é AGRUPADA por time** (`CONFIGURABLE_ROLE_IDS`: tripulação, impostores, neutros;
+pedido do usuário, 2026-10-14) - é a ordem da tela da sala e da leitura das regras, e a `probe_draw_fairness`
+confere. Papel novo entra no FIM do grupo do time dele. A ordem não pesa no sorteio, que embaralha as vagas.
+
+**VAGAS DE NEUTRO (`lobby_config.neutral_count`, decisão do usuário, 2026-10-14):** com o número
+preenchido, a partida tem exatamente essas vagas, e cada uma sorteia um dos neutros ligados e rola a
+chance dele; o "quantos" de cada neutro vira o MÁXIMO dele (o que se esgota sai do sorteio). Vazio ou
+zero é o jeito de antes - cada neutro pelas próprias vagas -, e é o que toda sala e configuração salva
+anterior tem. Escolhido contra um TETO (cada neutro como antes, e o número só cortando o excesso): as
+vagas dão variedade sem configurar papel por papel, como o Town of Us. O campo fica na tela de papéis,
+logo antes do primeiro neutro. Sonda: `probe_draw_fairness` (exatamente N, cada neutro na mesma
+proporção, o máximo respeitado, e o controle com zero vagas).
+
 **NEUTROS: o terceiro time (0.41.0, com o Bobo).** `TEAM_NEUTRAL`, sorteado entre os não impostores
 (o `draw_special_roles` já manda tudo que não é impostor para esse lado). Vitória própria em
 `role_traits.solo_win` (hoje só `SOLO_WIN_EJECTED`); quando se cumpre, `winner = WINNER_NEUTRAL` e

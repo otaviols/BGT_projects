@@ -83,6 +83,66 @@ void main() {
 		confere(crew[i] + ": " + n + " (esperado " + RODADAS + ": cabem todos)", n == RODADAS);
 	}
 
+	// 4. A lista dos papéis está AGRUPADA por time (tripulação, impostores, neutros), que é a ordem da
+	// tela da sala e onde um papel novo tem que entrar (pedido do usuário, 2026-10-14).
+	println("== 4. a lista de papeis agrupada por time ==");
+	array<string> ordem_dos_times = {TEAM_CREW, TEAM_IMPOSTOR, TEAM_NEUTRAL};
+	int grupo = 0;
+	bool agrupada = true;
+	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++) {
+		int t = ordem_dos_times.find(role_for(CONFIGURABLE_ROLE_IDS[i]).team);
+		if (t < grupo) { agrupada = false; println("           fora do grupo: " + CONFIGURABLE_ROLE_IDS[i]); }
+		if (t > grupo) grupo = t;
+	}
+	confere("tripulantes, depois impostores, depois neutros", agrupada);
+
+	// 5. Vagas de NEUTRO (lobby_config.neutral_count): exatamente N neutros, sorteados entre os ligados,
+	// sem passar do "quantos" de cada um. O controle é a mesma sala com zero vagas: os quatro saem.
+	println("== 5. vagas de neutro ==");
+	dictionary neutros;
+	neutros.set(ROLE_JESTER, 1);
+	neutros.set(ROLE_EXECUTIONER, 1);
+	neutros.set(ROLE_ARSONIST, 1);
+	neutros.set(ROLE_AMNESIAC, 1);
+	array<bool> dez_sem_bots(10, false);
+	const int R_NEUTROS = 20000;
+	int sempre_dois = 0, repetido = 0;
+	dictionary cada;
+	for (int r = 0; r < R_NEUTROS; r++) {
+		array<string> papel = draw_special_roles(10, 1, dez_sem_bots, neutros, chances, 2);
+		int n = 0;
+		array<string> vistos;
+		for (uint i = 0; i < papel.length(); i++) {
+			if (papel[i] == "" || role_for(papel[i]).team != TEAM_NEUTRAL) continue;
+			n++;
+			if (vistos.find(papel[i]) >= 0) repetido++;
+			vistos.insert_last(papel[i]);
+			int c = 0;
+			if (cada.exists(papel[i])) cada.get(papel[i], c);
+			cada.set(papel[i], c + 1);
+		}
+		if (n == 2) sempre_dois++;
+	}
+	confere("2 vagas: exatamente 2 neutros em toda partida (" + sempre_dois + " de " + R_NEUTROS + ")", sempre_dois == R_NEUTROS);
+	confere("nenhum neutro repetido (o quantos de cada um e 1)", repetido == 0);
+	array<string> ids_neutros = neutros.get_keys();
+	for (uint i = 0; i < ids_neutros.length(); i++) {
+		int c = 0;
+		if (cada.exists(ids_neutros[i])) cada.get(ids_neutros[i], c);
+		// Cada um dos 4 sai em metade das partidas (2 vagas de 4).
+		confere(ids_neutros[i] + ": " + c + " (esperado ~" + (R_NEUTROS / 2) + ")", perto(c, float(R_NEUTROS) / 2.0));
+	}
+	array<string> controle = draw_special_roles(10, 1, dez_sem_bots, neutros, chances, 0);
+	int no_controle = 0;
+	for (uint i = 0; i < controle.length(); i++) if (controle[i] != "" && role_for(controle[i]).team == TEAM_NEUTRAL) no_controle++;
+	confere("controle: sem vagas, os 4 neutros saem como antes (" + no_controle + ")", no_controle == 4);
+	dictionary so_bobo;
+	so_bobo.set(ROLE_JESTER, 1);
+	array<string> poucos = draw_special_roles(10, 1, dez_sem_bots, so_bobo, chances, 3);
+	int bobos = 0;
+	for (uint i = 0; i < poucos.length(); i++) if (poucos[i] == ROLE_JESTER) bobos++;
+	confere("3 vagas e so 1 bobo ligado: sai 1, o maximo dele (" + bobos + ")", bobos == 1);
+
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

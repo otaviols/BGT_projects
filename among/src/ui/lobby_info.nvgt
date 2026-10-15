@@ -164,6 +164,13 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 	string papeis = roles_in_play_text(cfg.get_object("role_counts"), cfg.get_object("role_chances"));
 	if (papeis != "") {
 		partes.insert_last(papeis);
+		// As vagas de neutro mudam a leitura da linha de cima: com elas, os neutros listados são os que
+		// PODEM sair, e não os que vão sair (ver lobby_config.neutral_count).
+		if (cfg.exists("neutral_count") && int(cfg["neutral_count"]) > 0) {
+			dictionary@ np = dictionary();
+			np.set("count", "" + int(cfg["neutral_count"]));
+			partes.insert_last(tr("lobby.info.neutral_count", np));
+		}
 		// E os tempos de cada um. Eles mudam o jogo tanto quanto o número de vagas - um metamorfo
 		// com 10 segundos de fantasia e outro com 120 são papéis diferentes -, então quem entra
 		// numa sala alheia precisa poder ouvir isso antes de a partida começar.
