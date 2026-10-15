@@ -6,6 +6,32 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.54.0
+
+**Arma dos asteroides:** agora é tarefa visível, como o exame médico. Quem está perto ouve os
+disparos, e quem está na mesma sala ouve quem está atirando. As duas dividem o mesmo limite por
+partida, para não sobrar álibi demais. Cada arma é de uma pessoa por vez.
+
+**Tarefas visíveis na sala:** opção nova, ligada por padrão. Desligada, as tarefas continuam
+existindo, mas ninguém ouve quem as faz.
+
+**Neutros na partida:** ao lado do número de impostores, um campo novo diz quantos neutros a partida
+terá. Eles são sorteados entre os neutros ligados nos papéis especiais, e a partida varia sem você
+configurar papel por papel.
+
+**Papéis especiais:** a lista agora vem em ordem de time: tripulantes, impostores e neutros.
+
+**Apagão:** a sabotagem das luzes não toca mais o alarme, como no original. Você percebe que ela
+caiu pelo som encolhendo. As outras sabotagens continuam com alarme.
+
+**Assistir:** a tecla da sala de espera para assistir à partida passou a ser F2.
+
+**Quedas:** quem cai da partida não fica mais ouvindo o alarme de sabotagem e outros sons dela
+enquanto o jogo tenta voltar.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.53.1
 
 **Tarefas longas e curtas:** a separação agora segue uma regra só. É longa a tarefa que prende você

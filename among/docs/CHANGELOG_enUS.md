@@ -6,6 +6,32 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.54.0
+
+**Asteroid weapons:** now a visible task, like the medical scan. People nearby hear the shots, and
+people in the same room hear who is shooting. Both share the same limit per match, so there aren't
+too many alibis. Each weapon takes one person at a time.
+
+**Visible tasks in the lobby:** a new option, on by default. When it's off, the tasks still exist,
+but nobody hears who is doing them.
+
+**Neutrals in the match:** next to the number of impostors, a new field says how many neutrals the
+match will have. They're drawn from the neutrals turned on in special roles, so the match varies
+without you setting up each role.
+
+**Special roles:** the list now comes in team order: crewmates, impostors and neutrals.
+
+**Lights:** the lights sabotage no longer plays the alarm, like in the original. You notice it by the
+sound shrinking. The other sabotages still have the alarm.
+
+**Spectate:** the waiting room key to watch the match is now F2.
+
+**Disconnects:** if you drop from a match, you no longer keep hearing the sabotage alarm and other
+match sounds while the game tries to get back in.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.53.1
 
 **Long and short tasks:** they now follow a single rule. A long task is one that keeps you busy for a
