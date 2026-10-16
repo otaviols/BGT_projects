@@ -233,7 +233,9 @@ mixin class match_frame_update_part {
 	// O pegador não sai do lugar durante a contagem (o servidor recusa o passo de qualquer jeito).
 	void move(float delta) {
 		bool parado_na_largada = head_start > 0.0 && my_role.team == TEAM_IMPOSTOR;
-		if (!movement_frozen && !is_vented && !swallowed && !parado_na_largada) {
+		// Nas câmeras não se anda (relato do usuário, 2026-10-16): o posto é arriscado justamente porque quem
+		// observa fica parado ali - e as setas que andam são as mesmas que trocam a sala observada.
+		if (!movement_frozen && !is_vented && !swallowed && !parado_na_largada && !cameras.active) {
 			// Jogador morto (morto ou expulso) ainda se move como fantasma, igual o Among Us original -
 			// só que em silêncio (sem passos/esbarrão) e invisível pra quem tá vivo (o servidor só
 			// retransmite a posição dele pra outros fantasmas, ver network/server.nvgt on_move).

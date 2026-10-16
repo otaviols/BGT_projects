@@ -371,6 +371,22 @@ void main() {
 	confere("ao fechar o menu o voto nao entra de novo", mesa.events_log.lines.length() == linhas_antes);
 	@g_vote_pump_client = null; @g_vote_pump_ui = null;
 
+	println("== nas cameras nao se anda ==");
+	// Relato do usuário: no posto de câmeras dava para andar. A tecla de andar segurada, com e sem câmera.
+	match_session@ cam = nova_partida(ROLE_CREWMATE);
+	int tecla_norte = g_keys.key(ACTION_MOVE_NORTH);
+	cam.cameras.active = true;
+	float y_antes = cam.my_y;
+	simulate_key_down(tecla_norte);
+	cam.move(0.2);
+	simulate_key_up(tecla_norte);
+	confere("com a camera ligada, segurar a tecla de andar nao move", cam.my_y == y_antes);
+	cam.cameras.active = false;
+	simulate_key_down(tecla_norte);
+	cam.move(0.2);
+	simulate_key_up(tecla_norte);
+	confere("controle: sem a camera, a mesma tecla anda", cam.my_y < y_antes);
+
 	println("== recarga das portas ==");
 	// O F diz a recarga como a sabotagem: o cliente a recebe em cada S_DOORS_STATE (pedido do usuário).
 	match_session@ portas = nova_partida(ROLE_IMPOSTOR);
