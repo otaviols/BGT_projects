@@ -48,7 +48,7 @@ bool run_water_plants_task(game_client@ client) {
 	const uint FILL_TICKS = 3;           // quantos goles até o canteiro encher
 	const float TICK_SECONDS = 0.28;     // intervalo entre um gole e outro
 
-	speak(tr("task.water_plants.instructions"));
+	speak_hint("task.water_plants.instructions");
 	if (!task_wait(500, client)) return false;
 
 	uint can_position = WATERING_CAN_START;

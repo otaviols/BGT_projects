@@ -48,6 +48,15 @@ map_object@ find_interactable(game_map@ map, float x, float y, array<player_task
 	return best;
 }
 
+// O anúncio do papel: a explicação inteira, ou só o nome com as dicas desligadas (core/hints.nvgt). O
+// nome sempre: é a informação. A explicação é o que um jogador antigo já sabe.
+string role_intro_text(role_traits@ role) {
+	if (hints_on()) return tr(role.assignment_key());
+	dictionary@ p = dictionary();
+	p.set("role", tr(role.name_key()));
+	return tr("role.your_role", p);
+}
+
 // footstep_variant_count() e footstep_variant_extension() moraram aqui e agora vivem em
 // audio/sound_catalog.nvgt, junto do resto do que sabe quais arquivos de som existem: o menu de
 // aprender os sons precisa das mesmas contagens, e duas listas separadas acabariam discordando.

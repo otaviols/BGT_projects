@@ -38,7 +38,7 @@ bool play_manifold_sequence(array<int>@ sequence, game_client@ client) {
 }
 
 bool run_unlock_manifolds_task(game_client@ client) {
-	speak(tr("task.unlock_manifolds.instructions"));
+	speak_hint("task.unlock_manifolds.instructions");
 
 	array<int> sequence;
 	for (uint i = 0; i < MANIFOLD_SEQUENCE_LENGTH; i++) sequence.insert_last(random(0, int(MANIFOLD_PITCHES.length()) - 1));

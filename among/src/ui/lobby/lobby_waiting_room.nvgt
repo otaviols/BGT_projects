@@ -125,7 +125,7 @@ void apply_host_change(game_client@ client, uint64&inout host_peer_id, bool&inou
 	is_host = client.my_peer_id == host_peer_id;
 	if (!changed) return;
 	if (is_host) {
-		speak(tr("lobby.you_are_host") + " " + tr("lobby.host_start_hint"));
+		speak(with_hint(tr("lobby.you_are_host"), "lobby.host_start_hint"));
 	} else if (new_host_name != "") {
 		dictionary@ p = dictionary();
 		p.set("name", new_host_name);
@@ -291,10 +291,12 @@ void run_host_players_screen(game_client@ client, lobby_snapshot@ snapshot) {
 	@a.background_callback = @pump_client_during_menu;
 	a.add_item(tr(assistindo ? "lobby.host_action_play" : "lobby.host_action_watch"), "spectate");
 	a.add_item(tr("lobby.host_action_kick"), "kick");
+	a.add_item(tr("lobby.host_action_transfer"), "transfer");
 	a.add_item(tr("menu.back"), "__back__");
 	if (run_menu_until_next_match(a, client)) return;
 	string acao = a.selected_item_id;
 	if (acao == "kick") client.send_kick_player(alvo);
+	else if (acao == "transfer") client.send_transfer_host(alvo);
 	else if (acao == "spectate") {
 		// Voltar a jogar ocupa uma vaga: com a sala cheia nem pede, como a tecla F2.
 		if (assistindo && seated_in(snapshot.players) >= snapshot.max_players) speak(tr("lobby.full_cannot_play"));
@@ -334,8 +336,11 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 
 	// A dica das teclas vem junto do aviso de entrada: numa sala de espera ninguém vai descobrir
 	// sozinho que P e C fazem alguma coisa, e é justamente ali que essas duas respostas importam.
-	speak(tr(is_host ? "lobby.host_start_hint" : "lobby.waiting_for_host") + " " + tr("lobby.info.keys_hint")
-		+ private_lobby_text(snapshot.join_code));
+	// Dicas desligadas (core/hints.nvgt): fica o que é informação - aguardando o anfitrião, e o código.
+	string entrada = is_host ? hint_text("lobby.host_start_hint") : tr("lobby.waiting_for_host");
+	entrada = with_hint(entrada, "lobby.info.keys_hint") + private_lobby_text(snapshot.join_code);
+	while (entrada.substr(0, 1) == " ") entrada = entrada.substr(1);
+	if (entrada != "") speak(entrada);
 
 	while (true) {
 		wait(10);

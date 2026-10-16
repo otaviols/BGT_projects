@@ -9,6 +9,7 @@
 #include "../config/game_settings.nvgt"
 #include "../audio/sound_catalog.nvgt"
 #include "../audio/menu_music.nvgt"
+#include "../core/hints.nvgt"
 #include "../audio/voice_chat.nvgt"
 #include "../i18n.nvgt"
 #include "visual_map.nvgt"
@@ -68,6 +69,8 @@ void run_settings_menu(game_client@ client = null) {
 		m.add_item(tr("settings.voice_chat"), "voice_chat");
 		m.add_item(tr("settings.output_device"), "output");
 		m.add_item(tr("settings.language"), "language");
+		// As dicas: um interruptor que diz o próprio estado, como o modo gráfico.
+		m.add_item(tr(g_settings.game_hints ? "settings.hints_on" : "settings.hints_off"), "hints");
 		// O mapa na tela, para quem enxerga: um interruptor que diz o próprio estado, sem tela própria.
 		m.add_item(tr(g_settings.visual_map ? "settings.visual_map_on" : "settings.visual_map_off"), "visual_map");
 		// Calar a fala, para quem enxerga e joga lendo (recado #240). Só existe com o modo gráfico ligado,
@@ -87,6 +90,11 @@ void run_settings_menu(game_client@ client = null) {
 		else if (id == "voice_chat") run_voice_chat_screen();
 		else if (id == "output") run_output_device_screen();
 		else if (id == "language") run_language_screen();
+		else if (id == "hints") {
+			g_settings.game_hints = !g_settings.game_hints;
+			g_settings.save();
+			speak(tr(g_settings.game_hints ? "settings.hints_now_on" : "settings.hints_now_off"));
+		}
 		else if (id == "visual_map") {
 			g_settings.visual_map = !g_settings.visual_map;
 			g_settings.save();
@@ -140,7 +148,7 @@ void run_hearing_screen() {
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 	f.focus(f_pitch); // audio_form nasce sem foco - ver CLAUDE.md
-	speak(tr("settings.hearing_hint"));
+	speak_hint("settings.hearing_hint");
 
 	while (true) {
 		wait(5);
@@ -238,7 +246,7 @@ void run_volume_screen() {
 void run_keys_screen() {
 	while (true) {
 		screen_menu m;
-		m.intro_text = tr("settings.keys_hint");
+		m.intro_text = hint_text("settings.keys_hint");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
@@ -478,7 +486,7 @@ void run_voice_chat_screen() {
 	int f_save = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 	f.focus(f_enabled);
-	speak(tr("settings.voice_chat_hint"), false);
+	if (hints_on()) speak(tr("settings.voice_chat_hint"), false);
 
 	bool orig_enabled = g_settings.voice_chat_enabled;
 	string orig_mode = g_settings.voice_mode;

@@ -287,6 +287,10 @@ const string C_KICK_PLAYER = "c_kick_player";               // {peer_id}
 // derruba a conexão (ver on_kick_player).
 const string S_KICKED = "s_kicked";                         // {}
 const int HOST_TOOLS_PROTOCOL = 12;
+// Passar o anfitrião a outra pessoa da sala (Ctrl+K, pedido do usuário em 2026-10-16). A resposta é o
+// S_LOBBY_STATE de sempre com o host_peer_id novo, que todo cliente já sabe anunciar - por isso não
+// precisa de versão de protocolo: quem é avisado é qualquer cliente, e só quem PEDE precisa ser novo.
+const string C_TRANSFER_HOST = "c_transfer_host";           // {peer_id}
 // --- Voltar à partida depois de cair (protocolo 13) ---
 // Quem cai no meio da partida tem o lugar guardado por REJOIN_GRACE_MS (ver server_rejoin.nvgt). Volta
 // de dois jeitos: o cliente sozinho, com o token de volta que o login deu (`rejoin_token` no S_LOGIN_RESULT

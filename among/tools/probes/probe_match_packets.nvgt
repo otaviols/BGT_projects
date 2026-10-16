@@ -344,6 +344,22 @@ void main() {
 	confere("e a ambiencia da nave tambem", caiu.audio.ambient_ship_slot == -1);
 	g_match_connection_lost = false;
 
+	println("== dicas desligadas ==");
+	// A abertura fica com o que é INFORMAÇÃO (o nome do papel, quantos impostores, o par) e perde a
+	// explicação; ligadas, a explicação volta. Sem mexer no arquivo de preferências: só o campo.
+	bool dicas_antes = g_settings.game_hints;
+	g_settings.game_hints = false;
+	match_session@ curta = nova_partida(ROLE_SHERIFF, "ana", "flash");
+	dictionary@ rp = dictionary();
+	rp.set("role", tr(role_for(ROLE_SHERIFF).name_key()));
+	confere("sem dicas: o papel vem pelo nome (" + curta.role_text + ")", curta.role_text.find(tr("role.your_role", rp)) >= 0);
+	confere("e sem a explicacao do xerife", curta.role_text.find(tr("role.assigned_sheriff")) < 0);
+	confere("o par vem curto, mas vem", curta.opening_modifiers_text.find("ana") >= 0 && curta.opening_modifiers_text.find(tr("modifier.assigned_lovers").substr(0, 12)) < 0);
+	g_settings.game_hints = true;
+	match_session@ longa = nova_partida(ROLE_SHERIFF);
+	confere("com dicas: a explicacao do papel volta", longa.role_text.find(tr("role.assigned_sheriff")) >= 0);
+	g_settings.game_hints = dicas_antes;
+
 	confere("nenhuma excecao (crash.log intocado)", file_get_contents(crash_log_path()) == crash_antes);
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

@@ -18,7 +18,7 @@
 const float SCAN_SECONDS = 10.0;
 
 bool run_submit_scan_task(game_client@ client) {
-	speak(tr("task.submit_scan.instructions"));
+	speak_hint("task.submit_scan.instructions");
 
 	sound@ scanner = task_sound(SND_MEDBAY_SCAN);
 	timer clock;

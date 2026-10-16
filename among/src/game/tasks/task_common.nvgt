@@ -4,6 +4,7 @@
 // jogador está deliberadamente parado interagindo com um objeto. O resultado final (sucesso ou
 // cancelamento) é reportado ao servidor via crewmate_controller.submit_task_result().
 
+#include "../../core/hints.nvgt" // as instruções dos minijogos são dica (speak_hint)
 #include "speech.nvgt"
 #include "../../i18n.nvgt"
 #include "../../audio/sound_catalog.nvgt"

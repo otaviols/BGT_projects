@@ -168,7 +168,10 @@ saiu do banco, e não só a sessão).
 original: no meio da partida o anfitrião impostor expulsaria quem o viu. Quem é expulso entra em
 `game_state.kicked_accounts` e não volta à MESMA sala, nem assistindo pelo código - sem isso, numa sala
 pública, voltava no segundo seguinte. O "mandar assistir" reaproveita o `C_SET_SPECTATE` com um
-`peer_id`; a tecla de assistir (F2) continua do jogador (quem insiste em jogar é caso de expulsar). Cliente abaixo do
+`peer_id`; a tecla de assistir (F2) continua do jogador (quem insiste em jogar é caso de expulsar). **Passar o
+anfitrião** (`C_TRANSFER_HOST`, 2026-10-16) só troca o `host_peer_id` e manda o `S_LOBBY_STATE` de
+sempre: todo cliente, até o antigo, já anuncia o anfitrião novo por ele (`apply_host_change`), então não
+precisou de versão de protocolo. Cliente abaixo do
 12 não conhece o `S_KICKED` e ficaria numa sala de espera morta: a ele o servidor derruba a conexão,
 com a limpeza na mão como em `drop_other_sessions`. **O silenciar no chat é filtrado na CHEGADA**
 (`g_chat_muted` em `client.enqueue`), não em cada tela: o chat é lido na sala, na partida, na reunião,
@@ -273,7 +276,14 @@ quem já joga não ouve a pergunta depois de atualizar. Sonda: `probe_first_run_
 "" e a speech.nvgt não diz nada. Vale SÓ com o modo gráfico ligado, e a opção só aparece com ele
 ligado - desligar o modo devolve a fala sozinho, para quem joga por som nunca ficar mudo por um toque
 errado. Ao calar, a tela segura o aviso (que diz como voltar) até uma tecla ou 12 s: o menu reaberto
-falaria por cima e o cortaria, e calado aquele corte seria a última coisa ouvida. **As tarefas
+falaria por cima e o cortaria, e calado aquele corte seria a última coisa ouvida. **Quem ASSISTE também tem o modo gráfico** (`spectate_draw_visual`,
+2026-10-16; antes a tela ficava em branco): a nave centrada em quem ele acompanha, quem está na mesma sala
+dessa pessoa (no escuro, só quem está colado), os corpos e a faixa da sabotagem, e a mesa na reunião. As
+luzes contam como apagadas para todos: quem assiste não sabe papel, e a imunidade do impostor entregaria
+quem é. Sonda: `probe_spectate_visual.nvgt` (capture a janela pelo processo - `MainWindowHandle` e
+`PrintWindow` -, e não a tela: com o jogo do usuário aberto em tela cheia, `CopyFromScreen` fotografa o
+jogo dele). **A faixa da sabotagem é o próprio nome** (`sabotage.<id>.name`, que já começa com
+"Sabotagem:"); um modelo "Sabotagem: {name}" fez a faixa dizer "Sabotagem: Sabotagem: Oxigênio". **As tarefas
 visíveis em uso** (o scanner, a arma) aparecem como anéis verdes no ponto, pela regra do SOM delas: no
 alcance da escuta, e o nome de quem as faz só para quem está na mesma sala (`visible_spots`/
 `visible_names`, guardados em `on_task_visible`; desenhadas por `task_marks`). **Engolido pelo lobo, o mapa CONTINUA** - centrado no lobo (a posição acompanha a
@@ -345,4 +355,13 @@ partidas seguidas na mesma sala) e `probe_leavemid.nvgt` (anfitrião sai no meio
 quem está na sala (tecla P) sai do último retrato; só o S_PLAYER_LEFT não a atualiza, e quem saiu
 continuava listado. `remove_from_lobby` manda o retrato quando não há partida em curso.
 
-
+**Dicas desligáveis** (`g_settings.game_hints`, `src/core/hints.nvgt`; pedido do usuário em
+2026-10-16, para jogador antigo não ouvir tudo de novo). Quatro grupos, escolhidos por ele: as teclas da
+sala de espera, a explicação do papel (e dos modificadores e do modo), as instruções dos minijogos e
+dos painéis de reparo, e as frases de abertura dos menus. A regra: **dica é o que ensina; informação
+nunca some.** Por isso as falas que misturam as duas têm versão curta, e não só "cala": o código do
+oxigênio (`sabotage.oxygen.repeat`), o número do dado (`task.roll_dice.target`), o estado dos
+disjuntores, o nome do papel (`role.your_role`), o par e a velocidade em nome curto. Menu com título
+vazio vai direto ao primeiro item - menos o de aprender os sons: com título vazio, o
+`learn_game_sounds_menu` do NVGT põe o dele, em inglês. Sonda: o caso "dicas desligadas" em
+`probe_match_packets.nvgt`.

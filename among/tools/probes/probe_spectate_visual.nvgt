@@ -1,0 +1,58 @@
+// Sonda do modo gráfico de quem ASSISTE (pedido do usuário, 2026-10-16: a tela ficava em branco).
+//   nvgt tools/probes/probe_spectate_visual.nvgt
+//
+// Desenha a cena de quem acompanha "Ana" na cafeteria, com "Bia" na mesma sala, "Caio" em outra (não pode
+// aparecer) e um corpo, e depois a mesa da reunião. Confere que nada quebra e que a faixa diz quem se
+// acompanha; para VER o desenho, capture a janela durante os 4 s de cada cena (CopyFromScreen) - a regra
+// de quem aparece é a mesma do som, e só a imagem prova o desenho.
+#include "../../src/i18n.nvgt"
+#include "../../src/game/spectate_loop.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	show_window("sonda: assistir com o modo grafico");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	bool antes = g_settings.visual_map;
+	g_settings.visual_map = true; // só o campo: nada vai para o arquivo de preferências
+
+	game_map@ map = build_the_hub_map();
+	map_zone@ cafe = map.find_zone("cafeteria");
+	map_zone@ outra = map.find_zone("medbay");
+	client_roster@ roster = client_roster();
+	roster.add(2, "Ana", 3, cafe.center_x, cafe.center_y);
+	roster.add(3, "Bia", 5, cafe.center_x + 3, cafe.center_y + 1);
+	roster.add(4, "Caio", 1, outra.center_x, outra.center_y);
+	roster.add(9, "", -1, 0, 0); // a âncora da voz, como em run_spectate
+	roster.mark_dead(9);
+
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	c.my_peer_id = 9;
+	audio_manager@ audio = audio_manager();
+	chat_log@ ev = chat_log();
+	meeting_ui@ mui = meeting_ui(c, audio, roster, ev, false);
+	array<vector> corpos = {vector(cafe.center_x - 3, cafe.center_y - 1, 0)};
+
+	println("cena: nave (4 s)");
+	timer t;
+	while (t.elapsed < 4000) { spectate_draw_visual(map, roster, mui, 9, roster.find(2), "comms", corpos); wait(16); }
+	confere("a faixa diz quem se acompanha (" + g_visual_map.status_banner + ")", g_visual_map.status_banner.find("Ana") >= 0);
+	confere("a faixa da sabotagem aparece", g_visual_map.alert_banner != "");
+	confere("o modo grafico esta desenhando (renderizador valido)", g_visual_map.enabled());
+
+	println("sem ninguem para acompanhar: nao quebra");
+	spectate_draw_visual(map, roster, mui, 9, null, "", corpos);
+
+	g_settings.visual_map = antes;
+	g_visual_map.clear_if_needed();
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -20,7 +20,7 @@ bool run_fix_wiring_task(game_client@ client) {
 	// sem esse som a task começava com o jogador já com a mão nos fios, do nada. É o mesmo par dos
 	// painéis de sabotagem (ver run_sabotage_panel) - abre com a tampa, fecha com a tampa.
 	if (!wait_for_task_sound(task_sound_path(SND_OPEN_PANEL), client)) return false;
-	speak(tr("task.fix_wiring.instructions"));
+	speak_hint("task.fix_wiring.instructions");
 	task_sound(electrical_string_sound(left_order[left_cursor] + 1));
 
 	while (true) {

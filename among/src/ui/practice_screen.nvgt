@@ -13,6 +13,7 @@
 
 #include "menu.nvgt"
 #include "../audio/menu_music.nvgt"
+#include "../core/hints.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../game/task_manager.nvgt"
@@ -50,7 +51,7 @@ void run_practice_screen() {
 	if (@g_practice_map == null) @g_practice_map = build_the_hub_map();
 	while (true) {
 		screen_menu m;
-		m.intro_text = tr("practice.hint");
+		m.intro_text = hint_text("practice.hint");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";

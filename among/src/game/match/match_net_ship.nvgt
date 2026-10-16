@@ -39,7 +39,7 @@ mixin class match_net_ship_part {
 				// quem já sabe operar e está varrendo a nave.
 				// Chave NOVA (hint_grid), e não a antiga com texto novo: as traduções da comunidade
 				// ainda diriam "esquerda e direita trocam de sala" e caem no inglês certo até traduzirem.
-				speak(nome_sala + ". " + tr("camera.hint_grid"));
+				speak(with_hint(nome_sala + ".", "camera.hint_grid"));
 			} else {
 				speak(nome_sala);
 			}

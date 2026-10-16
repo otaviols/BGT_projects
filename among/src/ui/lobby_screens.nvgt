@@ -2,6 +2,7 @@
 // Telas de lobby: navegador de partidas (listar/criar/entrar) e sala de espera (pronto/iniciar).
 
 #include "menu.nvgt"
+#include "../core/hints.nvgt"
 #include "../core/screen_keyboard.nvgt"
 #include "../core/crash_log.nvgt" // log_diagnostic, no formulário que perde controles
 #include "form.nvgt"

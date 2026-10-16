@@ -25,7 +25,7 @@ bool run_review_records_task(game_client@ client) {
 	const uint STEPS_PER_PERSON_MIN = 3;
 	const uint STEPS_PER_PERSON_MAX = 5;
 
-	speak(tr("task.review_records.instructions"));
+	speak_hint("task.review_records.instructions");
 
 	// A abertura e a fita rebobinando são a introdução da gravação: cada uma só começa quando a
 	// anterior acaba, e a contagem só começa depois delas. Com espera fixa, a fita ainda estava

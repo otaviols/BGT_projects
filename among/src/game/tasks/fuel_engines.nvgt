@@ -36,7 +36,7 @@ bool run_fuel_fill(game_client@ client) {
 	const float PITCH_TOLERANCE = 9.0;
 	const float OVERFLOW_MARGIN = 25.0; // passou muito do alvo: transbordou, falhou na hora
 
-	speak(tr("task.fuel_engines.instructions"));
+	speak_hint("task.fuel_engines.instructions");
 
 	// Sorteado a cada vez: com um alvo fixo, decorar o tempo de aperto resolveria a task sem ouvir
 	// nada - que é exatamente o que se quer evitar.

@@ -72,7 +72,7 @@ bool run_lights_panel(game_client@ client) {
 		off_count = 0;
 		for (uint i = 0; i < BREAKERS; i++) { on[i] = random(0, 1) == 1; if (!on[i]) off_count++; }
 	}
-	speak(tr("sabotage.lights.panel_intro") + " " + breakers_status_text(on));
+	speak(hints_on() ? tr("sabotage.lights.panel_intro") + " " + breakers_status_text(on) : breakers_status_text(on));
 
 	while (true) {
 		wait(5);
@@ -122,7 +122,7 @@ bool run_oxygen_panel(game_client@ client, const string&in code) {
 	if (code.length() == 0) return false; // servidor antigo, sem código: não há o que digitar
 	dictionary@ p = dictionary();
 	p.set("code", spaced_digits(code));
-	speak(tr("sabotage.oxygen.panel_intro", p));
+	speak(tr(hints_on() ? "sabotage.oxygen.panel_intro" : "sabotage.oxygen.repeat", p)); // o código sempre
 
 	string typed = "";
 	while (true) {
@@ -183,7 +183,7 @@ bool run_comms_panel(game_client@ client) {
 	while (int(abs(dial - station)) < 25) dial = random(0, 100); // começa longe, senão abre pronto
 
 	task_sound_path("sounds/" + SND_COMMS_PANEL_OPEN);
-	speak(tr("sabotage.comms.panel_intro"));
+	speak_hint("sabotage.comms.panel_intro");
 
 	sound@ voice = task_sound_path("sounds/" + SND_COMMS_RADIO_VOICE);
 	sound@ noise = task_sound_path("sounds/" + SND_COMMS_STATIC);

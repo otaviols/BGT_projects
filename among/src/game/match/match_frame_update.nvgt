@@ -45,11 +45,9 @@ mixin class match_frame_update_part {
 		g_visual_map.status_banner = swallowed ? tr("visual.belly_title") + ": " + tr("visual.belly_hint") : "";
 		// A sabotagem em curso, para todos: o alarme é ouvido pela nave inteira, então a faixa não diz nada
 		// que o som já não diga.
-		if (active_sabotage_id != "") {
-			dictionary@ sp = dictionary();
-			sp.set("name", tr("sabotage." + active_sabotage_id + ".name"));
-			g_visual_map.alert_banner = tr("visual.sabotage_banner", sp);
-		} else g_visual_map.alert_banner = "";
+		// O nome da sabotagem já começa com "Sabotagem:" - por um modelo "Sabotagem: {name}" a faixa dizia
+		// "Sabotagem: Sabotagem: Oxigênio".
+		g_visual_map.alert_banner = active_sabotage_id != "" ? tr("sabotage." + active_sabotage_id + ".name") : "";
 		bool luz_apagada = lights_out_for(active_sabotage_id, my_role, alive);
 		// As tarefas visíveis em andamento, pela regra do som: aparecem onde se OUVEM (o alcance da escuta,
 		// que o escuro encolhe), e o nome só para quem está na mesma sala - é quando a fala o diz

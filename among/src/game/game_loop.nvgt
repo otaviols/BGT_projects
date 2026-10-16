@@ -6,6 +6,7 @@
 
 #include "menu.nvgt"
 #include "../audio/menu_music.nvgt"
+#include "../core/hints.nvgt"
 #include "form.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
@@ -313,7 +314,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// A ORDEM do anúncio: cor (no modo cor), depois quantos impostores há / quem são os parceiros, e
 		// só então a descrição do papel. Era a descrição primeiro, e o recado #124 pediu o contrário - com
 		// razão: a descrição é longa, e o que se precisa guardar da abertura é contra quem se está jogando.
-		role_desc = tr(my_role.assignment_key());
+		role_desc = role_intro_text(my_role);
 		role_text = "";
 		// Modo cor: a cor é a identidade do jogador nesta partida - é por ela que os outros vão chamá-lo.
 		// Vem ANTES do papel, porque é o que ele precisa guardar primeiro.
@@ -375,11 +376,12 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		string mod_velocidade = start_pkt.get_string("speed_modifier", "");
 		string amor = start_pkt.get_string("lover_name", "");
 		opening_modifiers_text = "";
-		if (mod_velocidade != "") opening_modifiers_text += " " + tr("modifier.assigned_" + mod_velocidade);
+		// Com as dicas desligadas, os modificadores vêm no nome curto, como o Ctrl + habilidade os repete.
+		if (mod_velocidade != "") opening_modifiers_text += " " + (hints_on() ? tr("modifier.assigned_" + mod_velocidade) : tr("role." + mod_velocidade) + ".");
 		if (amor != "") {
 			dictionary@ lp = dictionary();
 			lp.set("name", spoken_name(amor));
-			opening_modifiers_text += " " + tr("modifier.assigned_lovers", lp);
+			opening_modifiers_text += " " + tr(hints_on() ? "modifier.assigned_lovers" : "modifier.lover_short", lp);
 		}
 		while (opening_modifiers_text.substr(0, 1) == " ") opening_modifiers_text = opening_modifiers_text.substr(1);
 		// O que o Ctrl + habilidade repete: só os NOMES (ver current_role_text).
@@ -394,8 +396,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 			role_text += " " + tr("role.executioner_target", ap);
 		}
 		// O modo vem por último: ele muda a regra de tudo o que veio antes ("aqui não há reunião").
-		if (game_mode == GAME_MODE_TAG) role_text += " " + tr("mode.tag_intro");
-		else if (game_mode == GAME_MODE_WOLVES) role_text += " " + tr("mode.wolves_intro");
+		if (game_mode == GAME_MODE_TAG) role_text = with_hint(role_text, "mode.tag_intro");
+		else if (game_mode == GAME_MODE_WOLVES) role_text = with_hint(role_text, "mode.wolves_intro");
 		while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
 		// De volta depois de cair: primeiro ONDE se está (de volta, e se ainda vivo), depois o papel - quem
 		// caiu pode ter passado um minuto fora, e a partida pode ter mudado inteira nesse tempo.

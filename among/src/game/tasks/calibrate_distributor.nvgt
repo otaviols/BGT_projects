@@ -124,7 +124,7 @@ bool run_one_distributor_dial(game_client@ client, uint lap_ms, bool&out calibra
 }
 
 bool run_calibrate_distributor_task(game_client@ client) {
-	speak(tr("task.calibrate_distributor.instructions"));
+	speak_hint("task.calibrate_distributor.instructions");
 	if (!task_wait(900, client)) return false;
 
 	for (uint d = 0; d < DIST_LAP_MS.length(); d++) {

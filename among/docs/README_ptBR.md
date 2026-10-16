@@ -191,6 +191,11 @@ Assim dá para ouvir a conversa numa voz e os avisos do jogo em outra.
 idioma escolhido da próxima vez. O jogo vem com português do Brasil e inglês dos Estados Unidos, e
 abre em inglês na primeira vez.
 
+**Dicas do jogo** — ligadas por padrão. Desligadas, o jogo para de explicar o que você já sabe: as
+teclas da sala de espera, o que cada papel faz, as instruções dos minijogos e dos consertos, e as frases
+de abertura dos menus. O que é informação continua: o nome do seu papel, os seus parceiros, o código do
+oxigênio, o número do dado.
+
 Tudo é salvo na hora e vale já na próxima partida.
 
 ## Traduzir o jogo para outro idioma
@@ -242,7 +247,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | F2 | alterna entre jogar e só **assistir** a próxima partida (ver "Assistir uma partida") |
 | B | adicionar um bot (só o anfitrião, até 8) |
 | Shift + B | remover o último bot |
-| Ctrl + K | gerenciar jogadores (só o anfitrião): escolha alguém para **expulsar** da sala ou mandar **assistir** a próxima partida. Quem é expulso não pode entrar de novo naquela sala |
+| Ctrl + K | gerenciar jogadores (só o anfitrião): escolha alguém para **expulsar** da sala, mandar **assistir** a próxima partida ou **passar o anfitrião** para essa pessoa. Quem é expulso não pode entrar de novo naquela sala |
 | Y | escrever no chat |
 | Vírgula / Ponto | navegar pelas mensagens |
 | ESC | sair da partida |
@@ -257,7 +262,8 @@ em andamento só aparecem na lista - não dá para assistir partida de estranhos
 Assistindo, você acompanha um jogador vivo por vez e ouve a partida de onde ele está: os passos, os
 sons, a voz que chega até ele. **Setas para os lados** trocam de quem acompanhar, e a tecla de **onde
 estou** diz quem e em que sala. O **radar** (Tab, com Shift, Ctrl e Q como na partida) funciona do
-ponto de quem você acompanha, e enxerga o que ele enxerga. Na reunião você ouve a mesa. Você não sabe o papel de ninguém até o
+ponto de quem você acompanha, e enxerga o que ele enxerga. Com o **modo gráfico** ligado, a tela mostra a
+nave centrada em quem você acompanha, com quem está na mesma sala, e na reunião mostra a mesa. Na reunião você ouve a mesa. Você não sabe o papel de ninguém até o
 fim, como todo mundo, e não pode fazer nada na partida. A sua voz chega só a outros espectadores. Quando
 a partida acaba, você volta para a sala de espera como os outros; quem entrou pelo código fica para
 jogar a próxima.

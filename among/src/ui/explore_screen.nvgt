@@ -20,6 +20,7 @@
 
 #include "speech.nvgt"
 #include "../audio/menu_music.nvgt"
+#include "../core/hints.nvgt"
 #include "../audio/audio_manager.nvgt"
 #include "../game/map.nvgt"
 #include "../config/keybindings.nvgt"
@@ -77,7 +78,7 @@ void run_explore_map_screen() {
 	// Todos os painéis tocam: aqui não há sabotagem, e é onde se aprende onde cada um fica.
 	audio.start_landmark_beacons(map, all_task_ids, BEACON_ALL_PANELS);
 
-	speak(tr("explore.intro"));
+	speak_hint("explore.intro");
 
 	string last_zone_id = "";
 	string last_object_id = "";
@@ -210,7 +211,7 @@ void run_explore_map_screen() {
 				last_object_id = "";
 				frame_clock.tick();
 			} else {
-				speak(@obj != null ? object_name(obj) + ". " + tr("explore.object_hint") : tr("game.nothing_nearby"));
+				speak(@obj != null ? with_hint(object_name(obj) + ".", "explore.object_hint") : tr("game.nothing_nearby"));
 			}
 		}
 
@@ -236,7 +237,7 @@ void explore_vent(game_map@ map, audio_manager@ audio, map_object@ vent, float&i
 	map_object@ atual = vent;
 	while (true) {
 		screen_menu m;
-		m.intro_text = tr("game.vent_menu_hint");
+		m.intro_text = hint_text("game.vent_menu_hint");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";

@@ -49,7 +49,7 @@ bool run_role_tunables_form(game_client@ client, lobby_overrides@ ov, json_objec
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 	f.focus(campos[0]); // audio_form nasce sem foco - ver CLAUDE.md
-	speak(tr("lobby.role_tunables_hint"));
+	speak_hint("lobby.role_tunables_hint");
 
 	g_voice.typing = true; // a tecla de falar é uma letra; aqui ela é texto
 	while (true) {
@@ -235,7 +235,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	// Um audio_form nasce sem foco: sem isto o primeiro campo não recebia o que era digitado até o
 	// jogador apertar Tab.
 	f.focus(creating ? f_name : f_mode);
-	if (!creating) speak(tr("lobby.edit_settings_hint"));
+	if (!creating) speak_hint("lobby.edit_settings_hint");
 
 	g_voice.typing = true; // a tecla de falar é uma letra; aqui ela é texto
 	while (true) {

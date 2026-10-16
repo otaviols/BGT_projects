@@ -15,7 +15,8 @@ bool run_roll_dice_task(game_client@ client) {
 	int target = random(1, DICE_SIDES);
 	dictionary@ target_params = dictionary();
 	target_params.set("number", "" + target);
-	speak(tr("task.roll_dice.instructions", target_params));
+	// O número é informação; o resto é dica (core/hints.nvgt).
+	speak(tr(hints_on() ? "task.roll_dice.instructions" : "task.roll_dice.target", target_params));
 
 	while (true) {
 		wait(5);

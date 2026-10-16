@@ -195,6 +195,10 @@ game's announcements in another.
 game opens in the chosen language next time. The game ships with US English and Brazilian
 Portuguese, and opens in English the first time.
 
+**Game hints** — on by default. When they're off, the game stops explaining what you already know: the
+waiting room keys, what each role does, the minigame and repair instructions, and the opening lines of
+menus. Information stays: your role's name, your partners, the oxygen code, the dice number.
+
 Everything is saved immediately and applies from the next match on.
 
 ## Translating the game
@@ -246,7 +250,7 @@ your file and English — worth sending a message about it.
 | F2 | switches between playing and only **watching** the next match (see "Watching a match") |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
-| Ctrl + K | manage players (host only): choose someone to **kick** from the room or to **spectate** the next match. A kicked player can't join that room again |
+| Ctrl + K | manage players (host only): choose someone to **kick** from the room, to **spectate** the next match, or to **make them the host**. A kicked player can't join that room again |
 | Y | write in chat |
 | Comma / Period | move through messages |
 | ESC | leave the match |
@@ -254,7 +258,8 @@ your file and English — worth sending a message about it.
 ## Watching a match
 
 The **radar** (Tab, with Shift, Ctrl and Q as in a match) works from the point of the player you are
-following, and sees what they see.
+following, and sees what they see. With the **graphics mode** on, the screen shows the ship centered on
+the player you follow, with whoever is in the same room, and the table during a meeting.
 
 You can watch a match without playing, in two ways: in the waiting room, the **F2** key marks that you
 will only watch the next one (you stay in the lobby, but you are not in the crew); or, for a **private

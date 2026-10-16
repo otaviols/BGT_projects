@@ -32,7 +32,7 @@ void run_touch_action_menu(game_client@ client) {
 void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	ui_sound(SND_DIALOG_OPEN);
 	screen_menu m;
-	m.intro_text = tr("game.doors_menu_hint");
+	m.intro_text = hint_text("game.doors_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
@@ -150,7 +150,7 @@ void run_swap_menu(game_client@ client, client_roster@ roster) {
 void run_sabotage_menu(impostor_controller@ imp) {
 	ui_sound(SND_DIALOG_OPEN);
 	screen_menu m;
-	m.intro_text = tr("game.sabotage_menu_hint");
+	m.intro_text = hint_text("game.sabotage_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
@@ -173,7 +173,7 @@ void run_vent_menu(impostor_controller@ imp, game_map@ map, audio_manager@ audio
 
 	ui_sound(SND_DIALOG_OPEN);
 	screen_menu m;
-	m.intro_text = tr("game.vent_menu_hint");
+	m.intro_text = hint_text("game.vent_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";
@@ -242,7 +242,7 @@ void run_task_list_menu(game_client@ client, game_map@ map, array<player_task>@ 
 
 	ui_sound(SND_DIALOG_OPEN);
 	screen_menu m;
-	m.intro_text = tr("game.tasks_menu_hint");
+	m.intro_text = hint_text("game.tasks_menu_hint");
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";

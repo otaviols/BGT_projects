@@ -410,6 +410,12 @@ class game_client {
 		p.set_uint64("peer_id", peer);
 		send(p);
 	}
+	// Anfitrião: passar a vez a outra pessoa da sala (Ctrl+K).
+	void send_transfer_host(uint64 peer) {
+		net_packet@ p = net_packet(C_TRANSFER_HOST);
+		p.set_uint64("peer_id", peer);
+		send(p);
+	}
 	// Espectador: de quem acompanhar a partida.
 	void send_spectate_follow(uint64 peer) {
 		net_packet@ p = net_packet(C_SPECTATE_FOLLOW);

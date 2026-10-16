@@ -14,7 +14,7 @@ bool run_align_engine_task(game_client@ client) {
 	// dele de ouvido, e a tarefa viraria tentativa e erro em vez de escuta.
 	const float STEP = 5.0;
 
-	speak(tr("task.align_engine.instructions"));
+	speak_hint("task.align_engine.instructions");
 
 	// Sempre LONGE do centro, de um lado ou do outro, e num múltiplo do passo - senão o centro exato não
 	// seria alcançável. De 3 a 8 passos de distância: começando perto demais, um Enter dado logo ao abrir

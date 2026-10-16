@@ -33,6 +33,59 @@ string spectate_where_text(game_map@ map, roster_entry@ alvo) {
 	return tr("spectate.following", p);
 }
 
+// O modo gráfico de quem assiste (pedido do usuário, 2026-10-16: a tela ficava em branco). A vista é a
+// de QUEM ELE ACOMPANHA, pela mesma lógica do som: o mapa centrado nessa pessoa (o círculo do meio, na
+// cor dela), quem está na mesma sala que ela, os corpos que se ouvem e a faixa da sabotagem. Na reunião,
+// a mesa, como para quem joga. Quem assiste não sabe papel nenhum, então as luzes contam como apagadas
+// para todos (a imunidade do impostor seria entregar quem é).
+void spectate_draw_visual(game_map@ map, client_roster@ roster, meeting_ui@ mui, uint64 my_peer, roster_entry@ alvo,
+		const string&in sabotagem, array<vector>@ corpos) {
+	if (!g_settings.visual_map) { g_visual_map.clear_if_needed(); return; }
+	g_visual_map.handle_keys(); // F11: tela cheia
+	if (mui.phase_seconds_remaining() >= 0.0) {
+		array<visual_meeting_seat@> lugares;
+		for (uint i = 0; i < roster.entries.length(); i++) {
+			roster_entry@ e = roster.entries[i];
+			if (e.peer_id == my_peer) continue; // a âncora da voz não é ninguém na mesa
+			visual_meeting_seat st;
+			st.name = e.name;
+			st.color = e.color;
+			st.alive = e.alive;
+			st.voted = mui.voted_peers.find(e.peer_id) >= 0;
+			lugares.insert_last(st);
+		}
+		g_visual_map.draw_meeting(lugares, mui.voting_active, mui.phase_seconds_remaining());
+		return;
+	}
+	if (@alvo == null) { g_visual_map.clear_if_needed(); return; }
+	dictionary@ wp = dictionary();
+	wp.set("name", alvo.name);
+	g_visual_map.status_banner = tr("visual.watching", wp);
+	g_visual_map.me_swallowed = false;
+	g_visual_map.alert_banner = sabotagem != "" ? tr("sabotage." + sabotagem + ".name") : ""; // o nome já diz "Sabotagem:"
+	g_visual_map.task_marks.resize(0);
+	bool luz_apagada = sabotagem == "lights";
+	string sala = map.room_id_at(alvo.x, alvo.y);
+	array<roster_entry@> outros;
+	for (uint i = 0; i < roster.entries.length(); i++) {
+		roster_entry@ e = roster.entries[i];
+		if (!e.alive || e is alvo || e.peer_id == my_peer) continue;
+		if (map.room_id_at(e.x, e.y) != sala) continue;
+		// No escuro, só quem está colado - a mesma regra do radar com as luzes apagadas.
+		if (luz_apagada && distance_2d(alvo.x, alvo.y, e.x, e.y) > PLAYER_INTERACT_RANGE) continue;
+		outros.insert_last(e);
+	}
+	g_visual_map.draw(map, alvo.x, alvo.y, alvo.color, true, luz_apagada, outros, luz_apagada ? null : corpos, null, sabotagem);
+}
+
+// O corpo deste jogador sai da lista do modo gráfico (limpo, carregado, revivido).
+void spectate_forget_body(array<uint64>@ peers, array<vector>@ pos, uint64 peer) {
+	int i = peers.find(peer);
+	if (i < 0) return;
+	peers.remove_at(i);
+	pos.remove_at(i);
+}
+
 net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 	menu_music_stop();
 	game_map@ map = build_the_hub_map();
@@ -77,6 +130,10 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 	speak(abertura);
 	events_log.add("", abertura);
 
+	// Onde estão os corpos, só para o modo gráfico (o som deles o audio_manager já guarda).
+	array<uint64> corpo_peers;
+	array<vector> corpo_pos;
+
 	net_packet@ back_to_lobby = null;
 	bool fim = false;
 	string ultima_sala = "";
@@ -104,6 +161,9 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 				}
 			} else if (t == S_PLAYER_KILLED) {
 				mui.on_player_killed(pkt); // som do assassinato no ponto, e marca morto
+				spectate_forget_body(corpo_peers, corpo_pos, pkt.get_uint64("peer_id"));
+				corpo_peers.insert_last(pkt.get_uint64("peer_id"));
+				corpo_pos.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0));
 			} else if (t == S_RADAR_RESULT) {
 				radar.handle_result(pkt);
 			} else if (t == S_BODY_SOUND) {
@@ -112,12 +172,17 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 				// O lixeiro limpou, o carregador pegou: o marcador para. Esta tela não tratava, e quem assistia
 				// continuava ouvindo um corpo que não existia mais (recado #230).
 				audio.stop_body_beacon(pkt.get_uint64("peer_id"));
+				spectate_forget_body(corpo_peers, corpo_pos, pkt.get_uint64("peer_id"));
 			} else if (t == S_BODY_PLACED) {
 				audio.start_body_beacon(pkt.get_uint64("peer_id"), pkt.get_float("x"), pkt.get_float("y"));
+				spectate_forget_body(corpo_peers, corpo_pos, pkt.get_uint64("peer_id"));
+				corpo_peers.insert_last(pkt.get_uint64("peer_id"));
+				corpo_pos.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0));
 			} else if (t == S_PLAYER_REVIVED) {
 				roster_entry@ voltou = roster.find(pkt.get_uint64("peer_id"));
 				if (@voltou != null) { voltou.alive = true; voltou.x = pkt.get_float("x"); voltou.y = pkt.get_float("y"); }
 				audio.stop_body_beacon(pkt.get_uint64("peer_id")); // quem voltou não é mais corpo
+				spectate_forget_body(corpo_peers, corpo_pos, pkt.get_uint64("peer_id"));
 				audio.play_revive(pkt.get_float("x"), pkt.get_float("y"));
 			} else if (t == S_SWALLOW_SOUND) {
 				audio.play_wolf_swallow(pkt.get_float("x"), pkt.get_float("y"));
@@ -136,6 +201,8 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 			} else if (t == S_MEETING_STARTED) {
 				reuniao = true;
 				audio.stop_all_body_beacons();
+				corpo_peers.resize(0); // a reunião limpa os corpos da nave
+				corpo_pos.resize(0);
 				json_array@ ausentes = pkt.get_array("absent");
 				if (@ausentes != null) for (uint i = 0; i < ausentes.length(); i++) roster.mark_dead(uint64(ausentes[i]));
 				float gx = pkt.get_float("gather_x"), gy = pkt.get_float("gather_y");
@@ -268,6 +335,7 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 			else if (g_settings.voice_mode == VOICE_MODE_AUTO) speak(tr(g_voice.toggle_mic_muted() ? "voice.mic_muted" : "voice.mic_open"));
 		}
 		chat_review_keys();
+		spectate_draw_visual(map, roster, mui, client.my_peer_id, roster.find(seguindo), sabotagem, corpo_pos);
 
 		if (key_pressed(KEY_ESCAPE)) {
 			if (yes_no(tr("spectate.quit_confirm"), null, tr("menu.yes"), tr("menu.no"))) {
@@ -281,5 +349,6 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 	audio.stop_all_body_beacons();
 	@g_match_roster = null;
 	end_chat_review();
+	g_visual_map.clear_if_needed(); // a janela não fica com a nave parada nos menus
 	return back_to_lobby;
 }

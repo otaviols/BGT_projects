@@ -10,7 +10,7 @@ bool run_empty_garbage_task(game_client@ client) {
 	const float HOLD_SECONDS_REQUIRED = 2.0;
 	const float REACTION_WINDOW_SECONDS = 1.0;
 
-	speak(tr("task.empty_garbage.instructions"));
+	speak_hint("task.empty_garbage.instructions");
 
 	// Etapa 1: segurar Espaço por HOLD_SECONDS_REQUIRED segundos. Usa Espaço (não Enter) porque Enter
 	// já é a tecla de interagir/abrir a task - segurar ela de novo aqui confundia o jogador.

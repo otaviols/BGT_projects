@@ -157,6 +157,22 @@ void main() {
 	confere("C ve a propria mensagem (ninguem silencia a si mesmo)", c_viu_c);
 	@g_chat_muted = null;
 
+	// Passar o anfitrião (pedido do usuário, 2026-10-16): só o anfitrião passa, e o retrato novo diz quem é.
+	esvazia();
+	todos[C].send_transfer_host(todos[C].my_peer_id);
+	confere("quem nao e anfitriao nao passa o anfitriao", ouviu(C, "lobby.host_players_host_only", 3000));
+	todos[A].send_transfer_host(todos[C].my_peer_id);
+	net_packet@ passou = espera(C, S_LOBBY_STATE, 3000);
+	confere("o retrato novo diz que C e o anfitriao", @passou != null && passou.get_uint64("host_peer_id") == todos[C].my_peer_id);
+	pausa(300);
+	confere("e A ve o mesmo", @g_retrato != null && g_retrato.get_uint64("host_peer_id") == todos[C].my_peer_id);
+	todos[A].send_kick_player(todos[C].my_peer_id);
+	confere("A, que deixou de ser anfitriao, nao expulsa mais", ouviu(A, "lobby.host_players_host_only", 3000));
+	esvazia(); // o retrato da primeira passagem ainda está na caixa de A
+	todos[C].send_transfer_host(todos[A].my_peer_id);
+	net_packet@ voltou = espera(A, S_LOBBY_STATE, 3000);
+	confere("C devolve o anfitriao a A", @voltou != null && voltou.get_uint64("host_peer_id") == todos[A].my_peer_id);
+
 	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

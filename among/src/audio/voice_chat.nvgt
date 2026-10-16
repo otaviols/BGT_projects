@@ -16,6 +16,7 @@
 #include "../network/client.nvgt"
 #include "../core/screen_keyboard.nvgt"
 #include "../core/platform.nvgt"
+#include "../core/hints.nvgt"
 #include "../config/game_settings.nvgt"
 #include "../config/keybindings.nvgt"
 #include "../core/client_state.nvgt"
@@ -503,7 +504,7 @@ class voice_chat : voice_receiver {
 	void run_mute_menu() {
 		while (true) {
 			screen_menu m;
-			m.intro_text = tr("voice.mute_hint");
+			m.intro_text = hint_text("voice.mute_hint");
 			m.click_sound = "ui/menu_click.ogg";
 			m.select_sound = "ui/menu_confirm.ogg";
 			m.sounds_prefix = "sounds/";

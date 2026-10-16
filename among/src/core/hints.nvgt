@@ -1,0 +1,34 @@
+// hints.nvgt
+// As DICAS do jogo, que um jogador antigo pode desligar (Configurações; pedido do usuário em 2026-10-16).
+//
+// Dica é a fala que ENSINA - que teclas uma tela usa, o que um papel faz, como se joga um minijogo - e
+// que quem já sabe ouve inteira toda vez. O que é INFORMAÇÃO continua sempre: o código do oxigênio, o
+// número do dado, quem são os parceiros, o nome do papel. Por isso as telas que misturam as duas coisas
+// têm uma versão curta da fala, e não só um "cala": desligar a dica nunca pode tirar o que a pessoa
+// precisa saber para jogar. Quatro grupos, escolhidos pelo usuário: as teclas da sala de espera, a
+// explicação do papel, as instruções dos minijogos e as frases de abertura de menus e telas.
+
+#include "speech.nvgt"
+#include "../config/game_settings.nvgt"
+#include "../i18n.nvgt"
+
+bool hints_on() { return g_settings.game_hints; }
+
+// O texto da dica, ou "" com as dicas desligadas - para quem monta uma fala maior ou o título de um menu
+// (um menu com título vazio vai direto ao primeiro item).
+string hint_text(const string&in key, dictionary@ params = null) {
+	if (!hints_on()) return "";
+	return params is null ? tr(key) : tr(key, params);
+}
+
+void speak_hint(const string&in key, dictionary@ params = null) {
+	if (hints_on()) speak(params is null ? tr(key) : tr(key, params));
+}
+
+// Junta uma informação e uma dica numa fala só, sem o espaço sobrando quando a dica some.
+string with_hint(const string&in info, const string&in key, dictionary@ params = null) {
+	string h = hint_text(key, params);
+	if (h == "") return info;
+	if (info == "") return h;
+	return info + " " + h;
+}

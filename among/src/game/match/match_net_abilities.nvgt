@@ -169,7 +169,7 @@ mixin class match_net_abilities_part {
 		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 			my_role, alive, known_body_peers, known_body_positions);
 		string texto = tr(pkt.get_string("reason") == "executioner_target_lost" ? "role.executioner_lost_target" : "role.remembered");
-		texto += " " + tr(my_role.assignment_key());
+		texto += " " + role_intro_text(my_role);
 		if (nomes.length() > 0) {
 			dictionary@ np = dictionary();
 			np.set("names", join(nomes, ", "));

@@ -54,7 +54,7 @@ const float O2_SUCK_DB = 0.0;
 const uint O2_LEAF_DELAY_MS = 90;
 
 bool run_clean_o2_filter_task(game_client@ client) {
-	speak(tr("task.clean_o2_filter.instructions"));
+	speak_hint("task.clean_o2_filter.instructions");
 	if (!task_wait(600, client)) return false;
 
 	// Onde estão as folhas. Sorteadas sem repetição: duas folhas na mesma posição seriam

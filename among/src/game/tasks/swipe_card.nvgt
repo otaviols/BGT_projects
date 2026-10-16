@@ -9,7 +9,7 @@ bool run_swipe_card_task(game_client@ client) {
 	const float WINDOW_START_SECONDS = 0.8;
 	const float WINDOW_LENGTH_SECONDS = 0.6;
 
-	speak(tr("task.swipe_card.instructions"));
+	speak_hint("task.swipe_card.instructions");
 	task_sound(SND_GET_CARD);
 
 	timer clock;

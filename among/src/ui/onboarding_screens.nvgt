@@ -7,6 +7,7 @@
 #include "../core/screen_keyboard.nvgt"
 #include "explore_screen.nvgt"
 #include "../audio/menu_music.nvgt"
+#include "../core/hints.nvgt"
 #include "changelog_screen.nvgt"
 #include "practice_screen.nvgt"
 #include "support_screen.nvgt"
@@ -127,6 +128,8 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 void run_learn_sounds_screen() {
 	menu_music_stop(); // o tema por baixo atrapalharia ouvir cada som
 	screen_menu m;
+	// Fica mesmo com as dicas desligadas: com o título vazio, o learn_game_sounds_menu do NVGT põe o dele,
+	// em inglês.
 	m.intro_text = tr("learn.menu_hint");
 	m.sounds_prefix = "sounds/";
 	// Os sons de navegar e confirmar, como todo menu do jogo. Sem eles esta era a única lista muda ao

@@ -9,7 +9,7 @@ bool run_download_data_task(game_client@ client) {
 	const float PROGRESS_PER_SECOND = 20.0;
 	const float BEEP_INTERVAL_SECONDS = 0.4;
 
-	speak(tr("task.download_data.instructions"));
+	speak_hint("task.download_data.instructions");
 
 	float progress = 0.0;
 	frame_timer frame_clock;
