@@ -115,11 +115,14 @@ updater só avisa e abre o site.
 **Mexeu em qualquer arquivo de `sounds/`? Rode o `build_pack` antes de compilar.** O jogo empacota o
 `sounds.dat`, não a pasta — sem regerar, o build sai com o som antigo e nada avisa.
 
-**iOS compila, mas não instala.** A instalação traz `stub/nvgt_ios.bin`, e `nvgt -c -pios AmongUs.nvgt`
-gera um `AmongUs.ipa` (~19 MB, com sons, `lang/` e `docs/`) em segundos, testado em 2026-10-15. Só que
-ele sai SEM assinatura (iOS não instala), com o identificador `com.NVGTUser.AmongUs` e sem
-`NSMicrophoneUsageDescription` (o iOS fecha o app quando a voz tocar no microfone). Assinar exige conta
-de desenvolvedor da Apple. Ninguém seguiu adiante.
+**iOS: só para TESTE, por `toolsuild_ios.ps1`** (-> `AmongUs-ios.ipa`, ~18 MB, sem assinatura). A
+instalação do NVGT traz `stub/nvgt_ios.bin` (arm64, iOS 16.0+), e o `-pios` gera o `.ipa` em segundos -
+mas o NVGT não deixa configurar o Info.plist do iOS, e o que ele grava não tem
+`NSMicrophoneUsageDescription` (sem ela o iOS FECHA o app quando a voz tocar no microfone) e aceita as
+quatro orientações. O `tools/patch_ios_ipa.py` acerta isso depois, o que só funciona porque o pacote sai
+sem assinatura. O iPhone só instala o que foi assinado: quem testa assina ao instalar, com o Sideloadly e
+um Apple ID gratuito (vale 7 dias). Fora do `build_clients.ps1` e do deploy de propósito: distribuir de
+verdade exige conta de desenvolvedor paga e passar pela Apple, e o nome "Among Us" é marca registrada.
 
 ### Android
 

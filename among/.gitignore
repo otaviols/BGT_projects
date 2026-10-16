@@ -16,6 +16,8 @@ maquete_*.wav
 # O APK do Android e a assinatura incremental que o apksigner grava ao lado dele.
 *.apk
 *.apk.idsig
+# O .ipa de teste do iOS (toolsuild_ios.ps1).
+*.ipa
 
 # Índice de idiomas gerado por tools/build_android.ps1 a partir de lang/. Existe só porque dentro de
 # um APK não há pasta para listar (ver get_available_languages em src/i18n.nvgt) - é derivado da
