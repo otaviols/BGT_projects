@@ -5,6 +5,7 @@
 // G = sabotagem), leitura da lista de tasks (T) e reação a todos os eventos de servidor.
 
 #include "menu.nvgt"
+#include "../audio/menu_music.nvgt"
 #include "form.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
@@ -598,6 +599,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 bool g_match_connection_lost = false;
 
 net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
+	menu_music_stop(); // na partida o som é o jogo
 	match_session partida(client, start_pkt);
 	while (partida.frame()) {}
 	g_visual_map.clear_if_needed(); // fim da partida, por qualquer saída: a janela não fica com a nave parada

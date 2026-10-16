@@ -653,7 +653,7 @@
   "task.empty_garbage.instructions": "按住 Space 直至听到警告，然后在听到蜂鸣声时快速松开并再次按下 Space。 ESC 取消。",
   "task.align_engine.instructions": "蜂鸣声持续响起。使用左右箭头将声音带到中心（两只耳朵相等）。居中后按 Enter 键即可锁定。ESC 取消。",
   "task.swipe_card.instructions": "在两声蜂鸣声之间的适当时刻按 Enter 键，以正确的节奏刷卡。 ESC 取消。",
-  "task.unlock_manifolds.instructions": "聆听音调序列并使用键 1 至 4 重复。每个键都有自己的音调，从最低 (1) 到最高 (4)。 ESC 取消。",
+  "task.unlock_manifolds.instructions": "聆听音调序列并使用键 1 至 4 重复。每个键都有自己的音调，从最低 (1) 到最高 (4)。按住 Ctrl 再按数字可试听该键的音调，不算作答案。空格键重新播放序列，然后从头输入。 ESC 取消。",
   "task.fuel_engines.instructions": "面板首先播放充满坦克的音调。然后按住空格键：填充的声音上升，当它达到相同的音调时，您必须释放。过早释放意味着燃料太少；越过它就会溢出。 ESC 取消。",
   "task.fuel_engines.pickup": "拿起燃油罐。",
   "task.fuel_engines.pickup_name": "拿起燃料",

@@ -653,7 +653,7 @@
   "task.empty_garbage.instructions": "Uyarıyı duyana kadar Boşluk tuşuna basılı tutun, ardından bırakın ve bip sesini duyduğunuzda hızlıca tekrar Boşluk tuşuna basın. ESC iptal eder.",
   "task.align_engine.instructions": "Sürekli bir bip sesi çalar. Sesi merkeze getirmek için (her iki kulak eşit olacak şekilde) sol ve sağ okları kullanın. Ortalandığında kilitlemek için Enter'a bir kez basın. ESC iptal eder.",
   "task.swipe_card.instructions": "Kartı doğru ritimde okutmak için iki bip sesi arasında doğru anda Enter'a basın. ESC iptal eder.",
-  "task.unlock_manifolds.instructions": "Sıralı tonları dinleyin ve 1'den 4'e kadar olan tuşlarla tekrarlayın. En düşükten (1) en yükseğe (4) kadar her tuşun kendi tonu vardır. ESC iptal eder.",
+  "task.unlock_manifolds.instructions": "Sıralı tonları dinleyin ve 1'den 4'e kadar olan tuşlarla tekrarlayın. En düşükten (1) en yükseğe (4) kadar her tuşun kendi tonu vardır. Ctrl ile bir sayı, o tuşun tonunu cevap sayılmadan çalar. Boşluk diziyi yeniden çalar ve ardından baştan yazarsınız. ESC iptal eder.",
   "task.fuel_engines.instructions": "Panel önce dolu bir deponun tonunu çalar. Ardından Boşluk tuşuna basılı tutun: Dolum sesi yükselir ve aynı tona ulaştığında bırakmalısınız. Erken bırakmak yetersiz yakıt demektir; aşmak ise taşırır. ESC iptal eder.",
   "task.fuel_engines.pickup": "Yakıt bidonu alınıyor.",
   "task.fuel_engines.pickup_name": "Yakıtı al",

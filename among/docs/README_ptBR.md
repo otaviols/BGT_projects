@@ -367,7 +367,8 @@ As onze tarefas:
 - **Alinhar motor** — use as setas para trazer o som até o centro (ambos os ouvidos iguais) e Enter
   para travar.
 - **Passar cartão** — aperte Enter entre os dois bipes, no ritmo certo.
-- **Destravar coletores** — ouça a sequência de tons e repita nas teclas 1 a 4.
+- **Destravar coletores** — ouça a sequência de tons e repita nas teclas 1 a 4. Ctrl com um número toca o
+  tom da tecla sem valer; Espaço toca a sequência de novo, e você digita desde o começo.
 - **Abastecer motores** — o painel toca primeiro o **tom do tanque cheio**. Depois segure Espaço: o
   som do enchimento vai subindo, e você solta quando ele chegar naquele mesmo tom. Soltar cedo é
   pouco combustível; passar do ponto transborda. O jogo não avisa a hora — quem julga é você.

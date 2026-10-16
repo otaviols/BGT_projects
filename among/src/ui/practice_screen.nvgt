@@ -12,6 +12,7 @@
 // enviado a lugar nenhum - o resultado é só dito.
 
 #include "menu.nvgt"
+#include "../audio/menu_music.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../game/task_manager.nvgt"
@@ -44,6 +45,7 @@ game_client@ make_offline_client() {
 game_map@ g_practice_map;
 
 void run_practice_screen() {
+	menu_music_stop(); // os minijogos são de ouvido: nada por baixo
 	game_client@ client = make_offline_client();
 	if (@g_practice_map == null) @g_practice_map = build_the_hub_map();
 	while (true) {

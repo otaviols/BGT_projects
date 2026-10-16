@@ -19,6 +19,7 @@
 // ela, que é o que a partida cobra. Câmeras e botão só dizem o que são.
 
 #include "speech.nvgt"
+#include "../audio/menu_music.nvgt"
 #include "../audio/audio_manager.nvgt"
 #include "../game/map.nvgt"
 #include "../config/keybindings.nvgt"
@@ -59,6 +60,7 @@ void explore_change_speed(int passo) {
 }
 
 void run_explore_map_screen() {
+	menu_music_stop();
 	game_map@ map = build_the_hub_map();
 	audio_manager@ audio = audio_manager();
 

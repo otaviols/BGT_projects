@@ -653,7 +653,7 @@
   "task.empty_garbage.instructions": "Mantén presionada la Barra espaciadora hasta escuchar la advertencia, luego suelta y vuelve a presionar la Barra espaciadora rápidamente al escuchar el pitido. ESC cancela.",
   "task.align_engine.instructions": "Suena un pitido continuo. Usa las flechas izquierda y derecha para centrar el sonido (igual en ambos oídos). Presiona Enter una vez centrado para fijarlo. ESC cancela.",
   "task.swipe_card.instructions": "Presiona Enter en el momento justo, entre los dos pitidos, para pasar la tarjeta al ritmo correcto. ESC cancela.",
-  "task.unlock_manifolds.instructions": "Escucha la secuencia de tonos y repítela con las teclas 1 a 4. Cada tecla tiene su propio tono, del más bajo (1) al más alto (4). ESC cancela.",
+  "task.unlock_manifolds.instructions": "Escucha la secuencia de tonos y repítela con las teclas 1 a 4. Cada tecla tiene su propio tono, del más bajo (1) al más alto (4). Ctrl con un número toca el tono de esa tecla sin contar como respuesta. Espacio toca la secuencia otra vez, y entonces la escribes desde el principio. ESC cancela.",
   "task.fuel_engines.instructions": "El panel primero reproduce el tono de un tanque lleno. Luego mantén presionada la Barra espaciadora: el sonido de llenado subirá y debes soltarlo cuando alcance ese mismo tono. Soltar antes significa poco combustible; pasarte hace que se desborde. ESC cancela.",
   "task.fuel_engines.pickup": "Recogiendo el bidón de combustible.",
   "task.fuel_engines.pickup_name": "Recoger el combustible",

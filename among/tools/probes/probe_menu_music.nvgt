@@ -1,0 +1,30 @@
+// Sonda da música dos menus (recado #277): o tema carrega, toca em LAÇO, e chamar de novo de outra tela
+// não o recomeça - era o que acontecia quando cada tela tinha o seu.
+//   nvgt tools/probes/probe_menu_music.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/audio/menu_music.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	if (!directory_exists("sounds")) chdir("..");
+	if (!directory_exists("sounds")) chdir("..");
+	sound_master_volume = -100;
+	menu_music_play();
+	confere("o tema carregou e esta tocando", menu_music_playing());
+	confere("em laco", @g_menu_music != null && g_menu_music.looping);
+	wait(1500);
+	double pos = g_menu_music.position;
+	menu_music_play(); // outra tela pedindo o tema
+	confere("chamar de novo nao recomeca (" + pos + " ms -> " + g_menu_music.position + " ms)", g_menu_music.position >= pos);
+	menu_music_stop();
+	confere("parar para de verdade", !menu_music_playing());
+	menu_music_play();
+	confere("e volta depois de parado", menu_music_playing());
+	menu_music_stop();
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

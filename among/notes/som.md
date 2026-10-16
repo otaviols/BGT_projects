@@ -85,6 +85,14 @@ morte e saída também encerram (`end_visible_task`), senão o scanner soaria nu
 scanner é um som em laço; a arma são disparos soltos (`SND_ASTEROID_FIRE` a cada 0,7-1,9 s), tocados
 pelo `tick_visible_tasks` do laço da partida - um tiro em laço viraria metralhadora.
 
+**O tema dos menus é UM som global, e não um por tela** (`src/audio/menu_music.nvgt`, recado #277).
+Começa no menu inicial, repete em laço e segue pela lista de partidas e pela sala de espera sem
+recomeçar - `menu_music_play()` não faz nada se já estiver tocando. Para na partida, ao assistir, no
+treino, no Conhecer o mapa e no menu de aprender os sons, e volta quando se retorna ao menu. Antes a lista
+de partidas tocava o tema UMA vez num `audio_manager` próprio, que morria com a tela: o tema só existia
+lá e recomeçava a cada volta. Na tela de volumes, mexer na música com o tema tocando ajusta o próprio
+tema em vez de tocar uma segunda cópia por cima. Sonda: `probe_menu_music.nvgt`.
+
 **"Task concluída" é UM som, tocado num lugar só.** `SND_TASK_COMPLETE` sai do `task_manager` ao
 fechar a task com sucesso (e de `run_sabotage_panel` para reparos). Nenhuma task toca um som de
 "acabei" por conta própria: `BeepComplet` e `CardComplet` são feedback de ETAPA (lixo puxado, cartão

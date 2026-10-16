@@ -373,7 +373,8 @@ The eleven tasks:
 - **Align engine output** — use the arrows to bring the sound to the center (both ears equal) and
   Enter to lock it in.
 - **Swipe card** — press Enter between the two beeps, at the right rhythm.
-- **Unlock manifolds** — listen to the tone sequence and repeat it with keys 1 to 4.
+- **Unlock manifolds** — listen to the tone sequence and repeat it with keys 1 to 4. Ctrl with a number
+  plays that key's tone without counting; Space plays the sequence again, and you type it from the start.
 - **Fuel engines** — the panel first plays the **tone of a full tank**. Then hold Space: the filling
   sound rises, and you release when it reaches that same tone. Releasing early means too little
   fuel; going past it overflows. The game does not signal the moment — you judge it.

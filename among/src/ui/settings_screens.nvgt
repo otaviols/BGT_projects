@@ -8,6 +8,7 @@
 #include "speech.nvgt"
 #include "../config/game_settings.nvgt"
 #include "../audio/sound_catalog.nvgt"
+#include "../audio/menu_music.nvgt"
 #include "../audio/voice_chat.nvgt"
 #include "../i18n.nvgt"
 #include "visual_map.nvgt"
@@ -199,6 +200,7 @@ void run_volume_screen() {
 		if (f.is_pressed(f_cancel)) {
 			g_settings.volumes = original; // desfaz tudo, inclusive o que já estava sendo ouvido
 			g_settings.apply_master();
+			menu_music_refresh_volume();
 			if (@preview != null) preview.stop();
 			speak(tr("settings.cancelled"));
 			return;
@@ -220,6 +222,9 @@ void run_volume_screen() {
 			if (int(i) == SOUND_FAMILY_MASTER) g_settings.apply_master();
 
 			if (@preview != null) preview.stop();
+			// A música dos menus já está tocando: a amostra é ela mesma, no volume novo. Uma segunda
+			// cópia do tema por cima não deixaria ouvir qual das duas mudou.
+			if (int(i) == SOUND_FAMILY_MUSIC && menu_music_playing()) { menu_music_refresh_volume(); continue; }
 			@preview = sound_play(FAMILY_PREVIEW_SOUNDS[i], vector(FLOAT_MAX, FLOAT_MAX, FLOAT_MAX),
 				g_settings.volume_db(int(i)), 0.0);
 		}

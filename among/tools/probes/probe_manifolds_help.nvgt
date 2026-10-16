@@ -1,0 +1,76 @@
+// Sonda das duas ajudas do destravar coletores (pedido do usuário, 2026-10-15): Ctrl + número toca o
+// tom SEM valer como resposta, e Espaço repete a sequência sem falhar a tarefa.
+//   nvgt tools/probes/probe_manifolds_help.nvgt
+//
+// A sequência é sorteada, então a sonda não sabe a resposta: o que ela confere é que as ajudas NUNCA
+// contam - quatro ensaios com Ctrl (um deles certamente seria um erro se contasse) e um Espaço, e a
+// tarefa tem que chegar ao Esc sem ter dito "falhou". As teclas são apertadas de dentro do laço da
+// tarefa, pelo gancho que client.update() chama a cada quadro (como em probe_lobby_form).
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/network/client.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+array<string> falado;
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+bool falou(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return true;
+	return false;
+}
+
+// Cada passo: as teclas a segurar, apertadas juntas num quadro e soltas três quadros depois.
+int quadro = 0;
+uint passo = 0;
+array<array<int>@> roteiro;
+void dirige() {
+	quadro++;
+	if (quadro > 8000) exit(1);
+	if (passo >= roteiro.length()) return;
+	if (quadro < 1200) return; // a sequência inicial (4 tons, ~3 s) termina de tocar
+	if (quadro % 60 == 0) for (uint k = 0; k < roteiro[passo].length(); k++) simulate_key_down(roteiro[passo][k]);
+	if (quadro % 60 == 3) { for (uint k = 0; k < roteiro[passo].length(); k++) simulate_key_up(roteiro[passo][k]); passo++; }
+}
+
+void main() {
+	show_window("sonda: coletores");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language(DEFAULT_LANGUAGE);
+	@tts_default_text_processing_callback = grava;
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	array<int> c1 = {KEY_LCTRL, KEY_1};
+	array<int> c2 = {KEY_LCTRL, KEY_2};
+	array<int> c3 = {KEY_LCTRL, KEY_3};
+	array<int> c4 = {KEY_LCTRL, KEY_4};
+	array<int> espaco = {KEY_SPACE};
+	array<int> esc = {KEY_ESCAPE};
+	roteiro.insert_last(c1); roteiro.insert_last(c2); roteiro.insert_last(c3); roteiro.insert_last(c4);
+	roteiro.insert_last(espaco);
+	roteiro.insert_last(c1); roteiro.insert_last(c4);
+	roteiro.insert_last(esc);
+
+	bool ok = run_unlock_manifolds_task(c);
+	confere("a tarefa terminou pelo Esc, e nao concluida", !ok);
+	confere("nenhuma ajuda contou como erro (nada de \"" + tr("task.failed") + "\")", !falou(tr("task.failed")));
+	// O Esc fecha a tarefa no quadro em que desce, antes de o roteiro contar o passo dele.
+	confere("o roteiro chegou ao Esc (todas as ajudas foram apertadas)", passo == roteiro.length() - 1);
+
+	// O contrário, para a sonda provar que enxerga um erro: os mesmos números SEM Ctrl contam, e uma
+	// sequência de quatro tons sorteados acertada às cegas é 1 em 256.
+	falado.resize(0); roteiro.resize(0); passo = 0; quadro = 0;
+	array<int> n1 = {KEY_1}; array<int> n2 = {KEY_2}; array<int> n3 = {KEY_3}; array<int> n4 = {KEY_4};
+	roteiro.insert_last(n1); roteiro.insert_last(n1); roteiro.insert_last(n1); roteiro.insert_last(n1);
+	roteiro.insert_last(n2); roteiro.insert_last(n3); roteiro.insert_last(n4); roteiro.insert_last(esc);
+	bool ok2 = run_unlock_manifolds_task(c);
+	confere("sem Ctrl os numeros contam (errou e disse \"" + tr("task.failed") + "\", ou acertou por sorte)", falou(tr("task.failed")) || ok2);
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -34,6 +34,7 @@ string spectate_where_text(game_map@ map, roster_entry@ alvo) {
 }
 
 net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
+	menu_music_stop();
 	game_map@ map = build_the_hub_map();
 	audio_manager@ audio = audio_manager();
 	radar_ui@ radar = radar_ui(client, audio); // o radar de quem assiste (ver radar_eyes no servidor)

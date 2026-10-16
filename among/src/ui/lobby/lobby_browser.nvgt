@@ -140,8 +140,7 @@ bool run_browser_menu(menu@ m, uint reply_count) {
 
 lobby_browser_result run_lobby_browser_inner(game_client@ client) {
 	lobby_browser_result result;
-	audio_manager@ audio = audio_manager();
-	audio.play_intro();
+	menu_music_play(); // segue do menu inicial, sem recomeçar (ver audio/menu_music.nvgt)
 
 	// Anunciado UMA vez por visita ao navegador: o jogador que voltar de uma partida ouve de novo se
 	// ainda não leu, mas não a cada "atualizar lista".

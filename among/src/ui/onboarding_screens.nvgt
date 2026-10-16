@@ -6,6 +6,7 @@
 #include "form.nvgt"
 #include "../core/screen_keyboard.nvgt"
 #include "explore_screen.nvgt"
+#include "../audio/menu_music.nvgt"
 #include "changelog_screen.nvgt"
 #include "practice_screen.nvgt"
 #include "support_screen.nvgt"
@@ -57,6 +58,7 @@ void run_graphics_mode_first_run() {
 // Retorna true se o jogador escolheu conectar (main.nvgt segue o fluxo normal); false = saiu.
 bool run_main_menu() {
 	while (true) {
+		menu_music_play(); // desde a abertura, e de volta depois do treino, do mapa e dos sons (que a calam)
 		screen_menu m;
 		m.intro_text = tr("app.title");
 		m.click_sound = "ui/menu_click.ogg";
@@ -123,6 +125,7 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 };
 
 void run_learn_sounds_screen() {
+	menu_music_stop(); // o tema por baixo atrapalharia ouvir cada som
 	screen_menu m;
 	m.intro_text = tr("learn.menu_hint");
 	m.sounds_prefix = "sounds/";

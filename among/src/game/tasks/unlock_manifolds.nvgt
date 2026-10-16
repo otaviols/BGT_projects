@@ -9,6 +9,12 @@
 // sequência digita rápido, e o "2" apertado enquanto o eco do "1" ainda tocava simplesmente se
 // perdia; o jogador ficava esperando uma resposta que não vinha. Foi o "o jogo não responde ao
 // fazer a tarefa dos coletores" do recado #97.
+//
+// Duas ajudas, pedidas pelo usuário em 2026-10-15 porque os jogadores estavam com dificuldade nela:
+// ESPAÇO toca a sequência de novo (e a digitação recomeça do primeiro tom - continuar do meio depois
+// de ouvir tudo de novo confundiria mais do que ajuda), e CTRL + número toca o tom daquela tecla sem
+// valer como resposta. A dificuldade estava em achar QUAL tecla é qual tom, não em lembrar: com o
+// ensaio, a tarefa passa a medir a memória da sequência, que é o que ela existe para medir.
 
 #include "task_common.nvgt"
 
@@ -21,6 +27,16 @@ sound@ play_manifold_tone(int index) {
 	return task_sound(SND_BEEP, 0.0, MANIFOLD_PITCHES[index]);
 }
 
+// Toca a sequência inteira, uma nota DEPOIS da outra: espera cada uma acabar, mas sem parar de servir
+// a rede. False = a tarefa foi cancelada no meio.
+bool play_manifold_sequence(array<int>@ sequence, game_client@ client) {
+	for (uint i = 0; i < sequence.length(); i++) {
+		if (!wait_for_task_sound(play_manifold_tone(sequence[i]), client)) return false;
+		if (!task_wait(150, client)) return false;
+	}
+	return true;
+}
+
 bool run_unlock_manifolds_task(game_client@ client) {
 	speak(tr("task.unlock_manifolds.instructions"));
 
@@ -29,11 +45,7 @@ bool run_unlock_manifolds_task(game_client@ client) {
 
 	// Respiro antes de começar a tocar, senão a sequência atropela a instrução falada.
 	if (!task_wait(600, client)) return false;
-	for (uint i = 0; i < sequence.length(); i++) {
-		// Uma nota DEPOIS da outra: espera cada uma acabar, mas sem parar de servir a rede.
-		if (!wait_for_task_sound(play_manifold_tone(sequence[i]), client)) return false;
-		if (!task_wait(150, client)) return false;
-	}
+	if (!play_manifold_sequence(sequence, client)) return false;
 
 	uint typed = 0;
 	while (typed < sequence.length()) {
@@ -41,12 +53,24 @@ bool run_unlock_manifolds_task(game_client@ client) {
 		client.update();
 		if (task_tick(client)) return false;
 
+		if (key_pressed(KEY_SPACE)) {
+			if (!play_manifold_sequence(sequence, client)) return false;
+			typed = 0;
+			continue;
+		}
+
 		int pressed = -1;
 		if (key_pressed(KEY_1)) pressed = 0;
 		else if (key_pressed(KEY_2)) pressed = 1;
 		else if (key_pressed(KEY_3)) pressed = 2;
 		else if (key_pressed(KEY_4)) pressed = 3;
 		if (pressed == -1) continue;
+
+		// Com Ctrl é só ensaio: o tom toca e nada conta.
+		if (key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) {
+			play_manifold_tone(pressed);
+			continue;
+		}
 
 		// Ecoa a tecla pro jogador conferir o que digitou - e NÃO espera o eco acabar: a próxima
 		// tecla pode vir antes disso, e ela tem que ser vista.
