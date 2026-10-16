@@ -267,6 +267,12 @@ do Azure. O que custou descobrir:
   `certbot.timer` que o painel já tinha). É o único site desde que o do Azure foi apagado
   (2026-10-09), e o `release.ps1` confere no fim que ele anuncia a versão nova. Cada arquivo sobe como
   `.nome.novo` e é renomeado no fim, com o `version.json` por último.
+- **Só a PÁGINA do site, sem publicar versão:** o `deploy.ps1` sobe junto o `AmongUs.zip` que estiver
+  na pasta - e entre duas versões ele é o código ainda NÃO publicado. Para mexer só no `index.html`:
+  `. .\infra\vps.ps1`, `scp` dele como `.index.html.novo` e `mv` no lugar (feito em 2026-10-16). A
+  página lê as novidades de `notes_by_language` no `version.json`; até ali ela lia um `notes` que não
+  existia mais, e a linha de novidades simplesmente não aparecia. Orientação na página (Android, onde
+  fica o manual, o que tem no menu) envelhece calada: ao mudar algo que ela descreve, olhe a página.
 - **"scp: Connection closed" no envio para a VPS = o NOME não está no `known_hosts`.** A chave da
   máquina foi aceita para o IP (primeiro SSH), e o deploy usa o nome `amongus.blindtabern.com`; com
   `BatchMode` o ssh recusa calado (pelo ssh direto aparece "Host key verification failed"). O

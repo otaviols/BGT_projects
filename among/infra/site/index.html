@@ -36,52 +36,73 @@
 	.meta { font-size: 0.95rem; opacity: 0.8; }
 	ul { padding-left: 1.2rem; }
 	li { margin-bottom: 0.4rem; }
+	section[lang="en"] { margin-top: 4rem; border-top: 1px solid currentColor; padding-top: 1rem; }
 </style>
 </head>
 <body>
+
+<p class="meta"><a href="#english">English version below</a></p>
 
 <h1>Among Us Audiogame</h1>
 
 <p>Um jogo de dedução social para jogar inteiramente de ouvido. Você é um tripulante
 tentando terminar as tarefas da nave, ou um impostor tentando eliminar todo mundo sem
-ser descoberto. Tudo é falado pelo leitor de tela e posicionado no espaço.</p>
+ser descoberto. Tudo é falado pelo leitor de tela e posicionado no espaço, e quem está perto
+de você na nave ouve a sua voz pelo chat de voz.</p>
+
+<p class="meta">O jogo está em pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes
+da versão estável. Achou algo? Mande pelo recado, dentro do próprio jogo.</p>
 
 <h2>Baixar</h2>
 
 <p><a class="download" href="AmongUs.zip">Baixar o jogo para Windows</a></p>
-<p><a href="AmongUs-android.apk">Versão para Android</a> — <strong>primeira versão, e ela espera
-um teclado</strong> (Bluetooth ou USB): os gestos de toque ainda não existem. Baixe o arquivo,
-abra-o e autorize a instalação de fora da loja quando o aparelho perguntar. A atualização não é
-automática: quando sair versão nova, volte aqui. Conte pelo recado dentro do jogo o que funcionou
-e o que não funcionou — é a primeira vez que ele roda num celular.</p>
+<p class="meta" id="version-line">Versão <span id="version">—</span>.</p>
+<p>Descompacte a pasta em qualquer lugar e abra sempre o <strong>AmongUs.exe</strong>. Não precisa
+instalar nada.</p>
+
+<p><a href="AmongUs-android.apk">Versão para Android</a>. Baixe o arquivo, abra-o e autorize a
+instalação de fora da loja quando o celular perguntar. Dá para jogar por <strong>gestos</strong> na
+tela: no menu inicial, a opção <strong>Gestos na tela de toque</strong> explica todos. Nos menus,
+deslize um dedo para navegar e toque duas vezes para confirmar; na partida, a metade esquerda da tela
+é um manche para andar e a direita faz as ações. Ao chegar num campo de texto, o teclado do celular se
+abre sozinho. Um teclado Bluetooth ou USB também funciona. O jogo roda <strong>na horizontal</strong>,
+para os dois alto-falantes ficarem um de cada lado.</p>
+<p>Com o <strong>TalkBack</strong> ligado, os toques vão para o leitor de tela e não para o jogo.
+Desligue a exploração por toque enquanto joga, ou instale o
+<a href="https://github.com/aryanchoudharypro/NVGTBridge">NVGT Bridge</a>, que faz isso sozinho
+enquanto o jogo está aberto. O jogo fala por conta própria.</p>
+
 <p><a href="AmongUs-linux.tar.gz">Versão para Linux</a> e <a href="AmongUs-mac.iso">versão para Mac</a>
-(imagem de disco: abra com dois cliques e arraste o AmongUs para a pasta Aplicativos). As duas são
-experimentais: compiladas, mas ainda sem teste em máquina de verdade — se você usa Linux ou Mac,
-conta o que aconteceu pelo recado dentro do jogo. Nesses sistemas a atualização não é automática:
-quando sair versão nova, o jogo avisa e abre esta página.</p>
-<p class="meta">Versão <span id="version">—</span>. Descompacte a pasta em qualquer lugar e
-execute <strong>AmongUs.exe</strong>. Não precisa instalar nada.</p>
+(imagem de disco: abra com dois cliques e arraste o jogo para a pasta Aplicativos). As duas são
+experimentais: se você usa Linux ou Mac, conte pelo recado dentro do jogo o que aconteceu.</p>
 
 <h2>Como jogar</h2>
 
 <ul>
 	<li>No menu inicial, escolha <strong>Conectar</strong>. O jogo já sabe o endereço do servidor.</li>
-	<li>Crie uma conta na primeira vez. Depois disso ele lembra o seu usuário.</li>
-	<li>Antes da primeira partida, passe pela opção <strong>Aprender os sons do jogo</strong>:
-	o jogo inteiro depende de reconhecer esses sons.</li>
-	<li>O manual completo, com todas as teclas, vem junto no arquivo <strong>LEIAME.md</strong>
-	(<strong>README.md</strong> para a versão em inglês).</li>
-	<li>Em <strong>Configurações</strong> dá para ajustar volumes, teclas, voz e idioma.</li>
+	<li>Crie uma conta na primeira vez. Depois disso ele lembra da sua conta e entra sozinho.</li>
+	<li>Antes da primeira partida, passe por <strong>Aprender os sons do jogo</strong>: o jogo inteiro
+	depende de reconhecer esses sons.</li>
+	<li><strong>Conhecer o mapa</strong> deixa você andar pela nave sozinho, sem partida, para aprender
+	as salas, as tarefas, os dutos e os painéis de reparo.</li>
+	<li><strong>Praticar tarefas e reparos</strong> roda qualquer tarefa ou conserto de sabotagem, para
+	treinar sem pressa.</li>
+	<li>O manual completo, com todas as teclas, fica na pasta <strong>docs</strong>, dentro da pasta do
+	jogo: <strong>LEIAME.md</strong> (em inglês, <strong>README.md</strong>). O que mudou em cada versão
+	está no menu inicial, em <strong>Novidades</strong>.</li>
+	<li>Em <strong>Configurações</strong> dá para ajustar volumes, a forma de ouvir o jogo, teclas, voz,
+	chat de voz, idioma e o modo gráfico, para quem joga junto com amigos que enxergam.</li>
 </ul>
 
 <h2>Atualizações</h2>
 
-<p><strong>Você só precisa baixar o jogo uma vez.</strong> A partir daí ele se atualiza sozinho: ao
-abrir, confere se saiu versão nova, diz o que mudou e pergunta se você quer atualizar. Aceitando, ele
-fecha, baixa, instala e abre de novo por conta própria. Suas configurações e sua conta não se
-perdem.</p>
+<p><strong>No Windows, você só precisa baixar o jogo uma vez.</strong> A partir daí ele se atualiza
+sozinho: ao abrir, confere se saiu versão nova, diz o que mudou e pergunta se você quer atualizar.
+Aceitando, ele fecha, baixa, instala e abre de novo por conta própria. Suas configurações e sua conta
+não se perdem.</p>
 
-<p>A versão atual e as novidades ficam em <a href="version.json">version.json</a>.</p>
+<p>No Android, no Linux e no Mac a atualização é manual: quando sair versão nova, o jogo avisa e abre
+esta página.</p>
 
 <h2>Apoiar o jogo</h2>
 
@@ -97,21 +118,63 @@ perdem.</p>
 <p class="meta">Dentro do jogo, o menu inicial tem a opção <strong>Apoiar o jogo</strong>, que copia
 a chave Pix ou abre o Ko-fi.</p>
 
+<section lang="en" id="english">
+
+<h2>Among Us Audiogame, in English</h2>
+
+<p>A social deduction game played entirely by ear. You are a crewmate trying to finish the ship's
+tasks, or an impostor trying to take everyone out without being caught. Everything is spoken by your
+screen reader and placed in space, and the players near you on the ship hear your voice through the
+voice chat. The game is in pre-release: bugs may show up, and the goal is to fix them before the
+stable version. Found something? Send a message from inside the game.</p>
+
+<p><a class="download" href="AmongUs.zip">Download for Windows</a></p>
+<p class="meta">Version <span id="version-en">—</span>. Unzip the folder anywhere and always open
+<strong>AmongUs.exe</strong>. Nothing to install. On Windows the game updates itself: it checks for a
+new version when it opens and asks you.</p>
+
+<p><a href="AmongUs-android.apk">Android version</a>: download it, open it and allow installing from
+outside the store. You can play with <strong>gestures</strong> (the main menu option
+<strong>Touch screen gestures</strong> lists them) or with a Bluetooth or USB keyboard. With
+<strong>TalkBack</strong> on, turn off explore by touch while playing, or install
+<a href="https://github.com/aryanchoudharypro/NVGTBridge">NVGT Bridge</a>, which does it for you.
+<a href="AmongUs-linux.tar.gz">Linux</a> and <a href="AmongUs-mac.iso">Mac</a> versions are
+experimental. On Android, Linux and Mac, updates are manual: the game tells you and opens this page.</p>
+
+<p>Choose <strong>Connect</strong> in the main menu and create an account. Before your first match,
+go through <strong>Learn the game's sounds</strong>; <strong>Explore the map</strong> and
+<strong>Practice tasks and repairs</strong> let you learn without a match. The full manual is
+<strong>README.md</strong>, in the <strong>docs</strong> folder inside the game folder.</p>
+
+<p>The game is free. Donations are optional and help keep the server running:
+<a href="https://ko-fi.com/otaviols">donate on Ko-fi</a> (no account needed).</p>
+
+</section>
+
 <script>
-	// Mostra a versão publicada sem precisar editar esta página a cada lançamento.
+	// Mostra a versão publicada e o que ela trouxe, sem editar esta página a cada lançamento. As
+	// novidades vêm por idioma (notes_by_language), como o jogo as lê.
 	fetch("version.json")
 		.then(function (r) { return r.json(); })
 		.then(function (data) {
-			var el = document.getElementById("version");
-			el.textContent = data.version;
-			if (data.notes) {
+			document.getElementById("version").textContent = data.version;
+			document.getElementById("version-en").textContent = data.version;
+			var notas = data.notes_by_language || {};
+			var lugares = [["pt_BR", "version-line", "Novidades desta versão: "], ["en_US", "version-en", "What's new: "]];
+			lugares.forEach(function (l) {
+				if (!notas[l[0]]) return;
+				var alvo = document.getElementById(l[1]);
+				if (alvo.tagName === "SPAN") alvo = alvo.parentNode;
 				var p = document.createElement("p");
 				p.className = "meta";
-				p.textContent = "Novidades desta versão: " + data.notes;
-				el.parentNode.parentNode.insertBefore(p, el.parentNode.nextSibling);
-			}
+				p.textContent = l[2] + notas[l[0]];
+				alvo.parentNode.insertBefore(p, alvo.nextSibling);
+			});
 		})
-		.catch(function () { document.getElementById("version").textContent = "atual"; });
+		.catch(function () {
+			document.getElementById("version").textContent = "atual";
+			document.getElementById("version-en").textContent = "current";
+		});
 </script>
 
 </body>
