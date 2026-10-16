@@ -6,6 +6,17 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.54.1
+
+**Música:** o tema agora começa ao abrir o jogo e repete sem parar no menu inicial e na lista de
+partidas. Ele acaba ao entrar numa sala.
+
+**Destravar coletores:** Espaço toca a sequência de novo, e você digita desde o começo. Ctrl com um
+número toca o tom daquela tecla sem valer como resposta, para conferir qual é qual antes de digitar.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.54.0
 
 **Arma dos asteroides:** agora é tarefa visível, como o exame médico. Quem está perto ouve os

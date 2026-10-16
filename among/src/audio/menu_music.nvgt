@@ -1,7 +1,7 @@
 // menu_music.nvgt
-// O tema do jogo nos menus: começa na abertura, repete sem parar e segue pelas telas de fora da
-// partida (menu inicial, lista de partidas, sala de espera). Para onde o som é o jogo: a partida,
-// assistir, o treino, o Conhecer o mapa e o menu de aprender os sons.
+// O tema do jogo nos menus: começa na abertura, repete sem parar e segue do menu inicial para a lista
+// de partidas. Para na sala de espera (decisão do usuário, 2026-10-15: ali a música já pode acabar) e
+// onde o som é o jogo: a partida, assistir, o treino, o Conhecer o mapa e o menu de aprender os sons.
 //
 // Pedido do recado #277 (2026-10-15): o tema tocava UMA vez e só ao abrir a lista de partidas - e
 // recomeçava do zero a cada volta a ela. Um som só, global, e não um por tela: cada tela com o seu

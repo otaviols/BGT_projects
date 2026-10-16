@@ -6,6 +6,18 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.54.1
+
+**Music:** the theme now starts when you open the game and loops in the main menu and the match
+list. It stops when you enter a lobby.
+
+**Unlock manifolds:** Space plays the sequence again, and you type it from the start. Ctrl with a
+number plays that key's tone without counting as an answer, so you can check which is which before
+typing.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.54.0
 
 **Asteroid weapons:** now a visible task, like the medical scan. People nearby hear the shots, and

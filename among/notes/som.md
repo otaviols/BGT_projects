@@ -86,9 +86,10 @@ scanner é um som em laço; a arma são disparos soltos (`SND_ASTEROID_FIRE` a c
 pelo `tick_visible_tasks` do laço da partida - um tiro em laço viraria metralhadora.
 
 **O tema dos menus é UM som global, e não um por tela** (`src/audio/menu_music.nvgt`, recado #277).
-Começa no menu inicial, repete em laço e segue pela lista de partidas e pela sala de espera sem
-recomeçar - `menu_music_play()` não faz nada se já estiver tocando. Para na partida, ao assistir, no
-treino, no Conhecer o mapa e no menu de aprender os sons, e volta quando se retorna ao menu. Antes a lista
+Começa no menu inicial, repete em laço e segue pela lista de partidas sem recomeçar -
+`menu_music_play()` não faz nada se já estiver tocando. Para na sala de espera (decisão do usuário: ali
+ela já pode acabar), na partida, ao assistir, no treino, no Conhecer o mapa e no menu de aprender os
+sons, e volta quando se retorna ao menu ou à lista. Antes a lista
 de partidas tocava o tema UMA vez num `audio_manager` próprio, que morria com a tela: o tema só existia
 lá e recomeçava a cada volta. Na tela de volumes, mexer na música com o tema tocando ajusta o próprio
 tema em vez de tocar uma segunda cópia por cima. Sonda: `probe_menu_music.nvgt`.

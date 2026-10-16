@@ -304,7 +304,7 @@ void run_host_players_screen(game_client@ client, lobby_snapshot@ snapshot) {
 
 net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		net_packet@ initial_lobby_state = null) {
-	menu_music_play(); // de volta da partida, a sala reaberta volta a ter o tema
+	menu_music_stop(); // na sala de espera o tema acaba (decisão do usuário): ali já se conversa e se combina a partida
 	audio_manager@ audio = audio_manager();
 	uint64 host_peer_id = 0; // 0 = ainda não recebemos nenhum S_LOBBY_STATE
 
