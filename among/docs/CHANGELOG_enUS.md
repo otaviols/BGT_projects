@@ -6,6 +6,30 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.55.0
+
+**Hand over host:** in the waiting room's Ctrl+K, after choosing someone, there's an option to make
+them the host.
+
+**Game hints:** a new option in Settings. When it's off, the game stops explaining what you already
+know: the waiting room keys, what each role does, the minigame and repair instructions, and the opening
+lines of menus. Your role's name, codes and numbers are still spoken.
+
+**Voting:** with the voting list open, you hear each vote as soon as it arrives, and it goes straight
+into the history.
+
+**Arsonist:** Ctrl+H says who is still left to douse.
+
+**Doors:** on cooldown, F says how long is left, like sabotage, instead of opening the room list.
+
+**Cameras:** you can no longer walk while watching the cameras.
+
+**Watching with the graphics mode:** spectators see the ship centered on the player they follow, and
+the table during a meeting. The sabotage banner no longer repeats the word "Sabotage".
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.54.1
 
 **Music:** the theme now starts when you open the game and loops in the main menu and the match

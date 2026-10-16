@@ -6,6 +6,30 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.55.0
+
+**Passar o anfitrião:** no Ctrl+K da sala de espera, ao escolher alguém, há a opção de passar o
+anfitrião para essa pessoa.
+
+**Dicas do jogo:** opção nova em Configurações. Desligada, o jogo para de explicar o que você já sabe:
+as teclas da sala de espera, o que cada papel faz, as instruções dos minijogos e dos consertos, e as
+frases de abertura dos menus. O nome do seu papel, os códigos e os números continuam sendo ditos.
+
+**Votação:** com a lista de votação aberta, você ouve cada voto assim que ele chega, e ele já entra no
+histórico.
+
+**Incendiário:** Ctrl+H diz quem ainda falta encharcar.
+
+**Portas:** em recarga, o F diz quanto tempo falta, como a sabotagem, em vez de abrir a lista de salas.
+
+**Câmeras:** não dá mais para andar enquanto se observa nas câmeras.
+
+**Assistir com o modo gráfico:** quem assiste vê a nave centrada em quem acompanha, e a mesa na
+reunião. A faixa da sabotagem não repete mais a palavra "Sabotagem".
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.54.1
 
 **Música:** o tema agora começa ao abrir o jogo e repete sem parar no menu inicial e na lista de
