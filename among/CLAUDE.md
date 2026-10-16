@@ -115,7 +115,7 @@ updater só avisa e abre o site.
 **Mexeu em qualquer arquivo de `sounds/`? Rode o `build_pack` antes de compilar.** O jogo empacota o
 `sounds.dat`, não a pasta — sem regerar, o build sai com o som antigo e nada avisa.
 
-**iOS: só para TESTE, por `toolsuild_ios.ps1`** (-> `AmongUs-ios.ipa`, ~18 MB, sem assinatura). A
+**iOS: só para TESTE, por `tools\build_ios.ps1`** (-> `AmongUs-ios.ipa`, ~18 MB, sem assinatura). A
 instalação do NVGT traz `stub/nvgt_ios.bin` (arm64, iOS 16.0+), e o `-pios` gera o `.ipa` em segundos -
 mas o NVGT não deixa configurar o Info.plist do iOS, e o que ele grava não tem
 `NSMicrophoneUsageDescription` (sem ela o iOS FECHA o app quando a voz tocar no microfone) e aceita as
