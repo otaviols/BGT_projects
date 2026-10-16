@@ -104,6 +104,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	float kill_cooldown_config;
 	float my_kill_cooldown_remaining;
 	float my_sabotage_cooldown_remaining;
+	float my_doors_cooldown_remaining;
+	// Quem eu (incendiário) já encharquei, dito pelo servidor (S_ABILITY_RESULT e, na volta, S_GAME_START).
+	array<uint64> my_doused; // dita pelo servidor em cada S_DOORS_STATE (ver build_doors_packet)
 	string active_sabotage_id;
 	array<string> fixed_sabotage_panels;
 	// As tarefas visíveis que OUTROS fazem agora: quem, em qual ponto, e o nome. As três listas andam
@@ -270,6 +273,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// SABOTAGE_INITIAL_COOLDOWN_SECONDS) - quem manda o valor é o servidor, que é quem de fato
 		// recusa a sabotagem cedo demais.
 		my_sabotage_cooldown_remaining = start_pkt.get_float("sabotage_cooldown_seconds");
+		my_doors_cooldown_remaining = 0.0; // a partida começa com as portas livres (ver on_start_game)
+		my_doused.resize(0);
+		read_doused(start_pkt);
 		active_sabotage_id = "";
 		// Painéis desta sabotagem que já foram resolvidos por alguém (o oxigênio pede dois), e se o
 		// scanner da enfermaria está ocupado. Os dois existem para o jogador não gastar uma travessia da

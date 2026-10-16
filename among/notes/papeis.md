@@ -435,4 +435,8 @@ com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma aç
 resposta virava um booleano em mais de sessenta pontos, e cada papel novo obrigava a revisitar todos.
 Um papel novo entra em três passos, descritos no topo daquele arquivo.
 
-
+**O incendiário sabe QUEM falta encharcar** (Ctrl + habilidade; pedido do usuário, 2026-10-16). O servidor
+manda a lista dele (`doused`, só peer ids) em todo `S_ABILITY_RESULT` de encharcar e no `S_GAME_START`
+da volta depois de cair; o cliente cruza com os VIVOS do elenco, então quem morre sai da conta sozinho -
+a mesma conta do `not_doused_count`. Guardar no cliente a partir do pedido (como o `pending_eat_peer`)
+foi descartado: a volta depois de cair zeraria a lista.

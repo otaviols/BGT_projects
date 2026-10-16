@@ -643,7 +643,7 @@ sozinho se o alvo for **expulso na votação**. Se o alvo morrer de outro jeito,
 fica sabendo na hora. O alvo engolido pelo lobo não conta: ele pode voltar.
 
 **Incendiário** (neutro). A tecla H **encharca** quem estiver colado nele, sem som e sem a pessoa
-perceber. Cada vez ele ouve quantos vivos faltam. Com **todos os vivos encharcados**, a mesma tecla
+perceber. Cada vez ele ouve quantos vivos faltam, e Ctrl+H diz **quem** falta encharcar. Com **todos os vivos encharcados**, a mesma tecla
 **põe fogo**: todos morrem e ele vence sozinho. Enquanto ele estiver vivo, expulsar os impostores não
 basta para a tripulação vencer, e o xerife pode atirar nele sem errar.
 
@@ -688,7 +688,8 @@ repetir a mesma duas vezes seguidas.
   setas até a voz ficar sem estática e segure ali um instante. É o único conserto que se faz de
   ouvido — ninguém consegue ditar a resposta de longe.
 
-**Portas (tecla F)** — tranca as portas de uma sala por 12 segundos, com recarga de 25 segundos:
+**Portas (tecla F)** — tranca as portas de uma sala por 12 segundos, com recarga de 25 segundos (em
+recarga, o F diz quanto falta):
 quem está dentro não sai, e quem está fora não entra; os corredores continuam livres. Não tem
 conserto: as portas reabrem sozinhas. Não é sabotagem, então dá para trancar uma sala **e** sabotar
 ao mesmo tempo. Fantasmas atravessam portas trancadas. Morto, o impostor continua fechando portas,

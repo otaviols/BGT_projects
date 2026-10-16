@@ -651,7 +651,8 @@ alone if the target is **voted out**. If the target dies any other way, they bec
 are told right away. A target swallowed by the wolf does not count: they may come back.
 
 **Arsonist** (neutral). The H key **douses** whoever is right next to them, with no sound and without
-the person noticing. Each time they hear how many living players are left. With **every living player
+the person noticing. Each time they hear how many living players are left, and Ctrl+H says **who** is
+still left to douse. With **every living player
 doused**, the same key **sets the fire**: everyone dies and they win alone. While they are alive,
 removing the impostors is not enough for the crew to win, and the sheriff can shoot them without
 missing.
@@ -697,7 +698,8 @@ cannot be repeated twice in a row.
   arrows until the voice is free of static and hold it there for a moment. It is the only repair done
   by ear — nobody can dictate the answer from afar.
 
-**Doors (F)** — locks a room's doors for 12 seconds, with a 25-second cooldown: whoever is inside
+**Doors (F)** — locks a room's doors for 12 seconds, with a 25-second cooldown (on cooldown, F says how
+long is left): whoever is inside
 cannot get out, and whoever is outside cannot get in; the corridors stay open. There is no fixing
 them: the doors reopen on their own. It is not a sabotage, so you can lock a room **and** sabotage
 at the same time. Ghosts walk through locked doors. A dead impostor can still lock doors, just as

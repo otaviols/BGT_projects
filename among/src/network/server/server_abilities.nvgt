@@ -43,7 +43,8 @@ mixin class server_abilities_part {
 		string message_key = "";
 		dictionary@ message_params = dictionary();
 		if (!run_ability(lobby, p, ability, pkt, message_key, message_params)) {
-			send_ability_result(peer_id, ability, false, message_key != "" ? message_key : "role.ability_unavailable", message_params);
+			send_ability_result(peer_id, ability, false, message_key != "" ? message_key : "role.ability_unavailable", message_params,
+				0.0, 0.0, doused_of(p, ability));
 			return;
 		}
 		// A recarga vem da SALA (o padrão do papel é só o ponto de partida - ver role_value), e a
@@ -52,7 +53,20 @@ mixin class server_abilities_part {
 		float recarga = lobby.config.role_value(p.role_id, TUNABLE_COOLDOWN);
 		p.ability_cooldown_remaining = recarga;
 		send_ability_result(peer_id, ability, true, message_key, message_params, recarga,
-			lobby.config.role_value(p.role_id, TUNABLE_DURATION));
+			lobby.config.role_value(p.role_id, TUNABLE_DURATION), doused_of(p, ability));
+	}
+
+	// Quem o incendiário já encharcou, para o Ctrl + habilidade dele dizer quem falta (pedido do usuário,
+	// 2026-10-16). Só na resposta do encharcar; nas outras habilidades, nada.
+	json_array@ peer_list_json(array<uint64>@ peers) {
+		json_array@ a = json_array();
+		for (uint i = 0; i < peers.length(); i++) a.add(peers[i]);
+		return a;
+	}
+
+	array<uint64>@ doused_of(game_player@ p, const string&in ability) {
+		if (ability != ABILITY_DOUSE) return null;
+		return p.doused;
 	}
 
 	// O que cada habilidade FAZ. Devolve false com message_key preenchida quando não dá, e pode
@@ -317,7 +331,7 @@ mixin class server_abilities_part {
 	}
 
 	void send_ability_result(uint64 peer_id, const string&in ability, bool ok, const string&in message_key,
-			dictionary@ params = null, float cooldown_seconds = 0.0, float duration_seconds = 0.0) {
+			dictionary@ params = null, float cooldown_seconds = 0.0, float duration_seconds = 0.0, array<uint64>@ doused = null) {
 		net_packet@ r = net_packet(S_ABILITY_RESULT);
 		r.set_string("ability", ability);
 		r.set_bool("ok", ok);
@@ -325,6 +339,7 @@ mixin class server_abilities_part {
 		if (@params != null) r.set_params(MSG_PARAMS_FIELD, params);
 		r.set_float("cooldown_seconds", cooldown_seconds);
 		r.set_float("duration_seconds", duration_seconds);
+		if (@doused != null) r.set_array("doused", peer_list_json(doused));
 		send_to(peer_id, r);
 	}
 

@@ -115,6 +115,7 @@ mixin class match_net_ship_part {
 	// local), então cliente e servidor nunca discordam sobre uma porta estar aberta.
 	void on_doors_state(net_packet@ pkt) {
 		bool closing = pkt.get_bool("closed");
+		if (pkt.exists("doors_cooldown")) my_doors_cooldown_remaining = pkt.get_float("doors_cooldown");
 		array<string> door_zones;
 		json_array@ zones_json = pkt.get_array("zones");
 		if (@zones_json != null) {

@@ -87,7 +87,16 @@ mixin class match_net_abilities_part {
 	// si (o conserto, o tiro) chega pelos pacotes de sempre - não há "som de habilidade"
 	// genérico, porque cada uma tem um ouvinte e um som próprios. Não deu: o motivo vem
 	// como chave, e a recarga fica como estava.
+	// A lista de encharcados que o servidor manda ao incendiário (ver doused_of no servidor).
+	void read_doused(net_packet@ pkt) {
+		json_array@ d = pkt.get_array("doused");
+		if (@d == null) return;
+		my_doused.resize(0);
+		for (uint i = 0; i < d.length(); i++) my_doused.insert_last(uint64(d[i]));
+	}
+
 	void on_ability_result(net_packet@ pkt) {
+		read_doused(pkt);
 		if (pkt.get_bool("ok")) {
 			my_ability_cooldown_remaining = pkt.get_float("cooldown_seconds", 0.0);
 			// O escudo é a única habilidade com som próprio, e ele toca SEM posição: é a

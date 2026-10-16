@@ -37,6 +37,10 @@ mixin class state_ship_part {
 		net_packet@ pkt = net_packet(S_DOORS_STATE);
 		pkt.set_bool("closed", closed);
 		pkt.set_array("zones", list);
+		// A recarga de trancar portas, que é da nave e não de um impostor: com ela o F do impostor diz
+		// "portas em recarga" na hora, como a sabotagem, em vez de abrir a lista de salas para o servidor
+		// recusar depois da escolha (pedido do usuário, 2026-10-16). Cliente antigo ignora o campo.
+		pkt.set_float("doors_cooldown", doors_cooldown_remaining);
 		return pkt;
 	}
 

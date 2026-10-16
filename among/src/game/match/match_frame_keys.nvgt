@@ -46,6 +46,22 @@ mixin class match_frame_keys_part {
 			ap.set("name", executioner_target_name);
 			texto += " " + tr("role.executioner_target", ap);
 		}
+		// O incendiário: quem falta encharcar, entre os vivos (pedido do usuário, 2026-10-16) - é a
+		// pergunta que ele faz a partida inteira, e o "faltam N" de cada encharcada não diz QUEM.
+		if (my_role.ability_id == ABILITY_DOUSE) {
+			array<string> faltam;
+			for (uint i = 0; i < roster.entries.length(); i++) {
+				roster_entry@ e = roster.entries[i];
+				if (!e.alive || e.peer_id == client.my_peer_id || my_doused.find(e.peer_id) >= 0) continue;
+				faltam.insert_last(spoken_name(e.name));
+			}
+			if (faltam.length() == 0) texto += " " + tr("role.douse_none_left");
+			else {
+				dictionary@ fp = dictionary();
+				fp.set("names", join(faltam, ", "));
+				texto += " " + tr("role.douse_left", fp);
+			}
+		}
 		return texto;
 	}
 
@@ -301,7 +317,14 @@ mixin class match_frame_keys_part {
 						else speak(tr("game.kill_no_target_nearby"));
 					}
 				}
-				if (me.can_close_doors() && action_pressed(ACTION_DOORS)) run_doors_menu(imp, map);
+				if (me.can_close_doors() && action_pressed(ACTION_DOORS)) {
+					// Como a sabotagem: em recarga, diz quanto falta em vez de abrir a lista de salas.
+					if (my_doors_cooldown_remaining > 0.0) {
+						dictionary@ dc = dictionary();
+						dc.set("seconds", "" + int(my_doors_cooldown_remaining + 0.5));
+						speak(tr("game.doors_cooldown_remaining", dc));
+					} else run_doors_menu(imp, map);
+				}
 
 				if (me.can_sabotage() && action_pressed(ACTION_SABOTAGE)) {
 					if (active_sabotage_id != "") {

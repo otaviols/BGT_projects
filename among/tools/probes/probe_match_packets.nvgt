@@ -359,7 +359,44 @@ void main() {
 	dictionary@ vp = dictionary(); vp.set("voter", "ana"); vp.set("target", "bia");
 	confere("o voto e dito com o menu aberto", voto.announced && vote_cast_text(voto) == tr("game.vote_cast", vp));
 	confere("e quem votou ja esta na mesa", mesa.mui.voted_peers.find(2) >= 0);
+	// No histórico JÁ, com o menu aberto: ponto e vírgula funcionam ali dentro (pedido do usuário).
+	uint linhas_antes = mesa.events_log.lines.length();
+	confere("o voto entra no historico na chegada, nao ao fechar o menu", linhas_antes > 0
+		&& mesa.events_log.move_last().find("ana") >= 0);
+	// O menu fecha e o laço trata o pacote: nada repetido no histórico.
+	mesa.client.incoming.resize(0);
+	@g_logging_packet = voto; // como o frame() faz antes de cada pacote (é o que evita a linha repetida)
+	mesa.handle_packet(voto);
+	@g_logging_packet = null;
+	confere("ao fechar o menu o voto nao entra de novo", mesa.events_log.lines.length() == linhas_antes);
 	@g_vote_pump_client = null; @g_vote_pump_ui = null;
+
+	println("== recarga das portas ==");
+	// O F diz a recarga como a sabotagem: o cliente a recebe em cada S_DOORS_STATE (pedido do usuário).
+	match_session@ portas = nova_partida(ROLE_IMPOSTOR);
+	confere("comeca sem recarga de portas", portas.my_doors_cooldown_remaining == 0.0);
+	net_packet@ fechou = net_packet(S_DOORS_STATE);
+	json_array@ zonas = json_array(); zonas.add("cafeteria");
+	fechou.set_bool("closed", true); fechou.set_array("zones", zonas); fechou.set_float("doors_cooldown", 25.0);
+	portas.handle_packet(fechou);
+	confere("portas trancadas: a recarga vem do servidor (" + portas.my_doors_cooldown_remaining + ")", portas.my_doors_cooldown_remaining == 25.0);
+	portas.tick_timers(0.1);
+	confere("e desconta com o tempo", portas.my_doors_cooldown_remaining < 25.0 && portas.my_doors_cooldown_remaining > 24.0);
+
+	println("== incendiario: quem falta ==");
+	match_session@ fogo = nova_partida(ROLE_ARSONIST);
+	dictionary@ todos_p = dictionary(); todos_p.set("names", "ana, bia");
+	confere("antes de encharcar: faltam todos os vivos", fogo.current_role_text().find(tr("role.douse_left", todos_p)) >= 0);
+	net_packet@ encharcou = net_packet(S_ABILITY_RESULT);
+	json_array@ ja = json_array(); ja.add(uint64(2));
+	encharcou.set_string("ability", ABILITY_DOUSE); encharcou.set_bool("ok", true); encharcou.set_array("doused", ja);
+	fogo.handle_packet(encharcou);
+	dictionary@ so_bia = dictionary(); so_bia.set("names", "bia");
+	confere("encharcou ana: falta so bia (" + fogo.current_role_text() + ")", fogo.current_role_text().find(tr("role.douse_left", so_bia)) >= 0);
+	net_packet@ morreu = net_packet(S_PLAYER_KILLED);
+	morreu.set_uint64("peer_id", 3); morreu.set_float("x", 2.0); morreu.set_float("y", 0.0);
+	fogo.handle_packet(morreu);
+	confere("bia morreu: nao falta ninguem", fogo.current_role_text().find(tr("role.douse_none_left")) >= 0);
 
 	println("== dicas desligadas ==");
 	// A abertura fica com o que é INFORMAÇÃO (o nome do papel, quantos impostores, o par) e perde a

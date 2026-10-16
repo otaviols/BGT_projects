@@ -149,6 +149,10 @@ mixin class match_frame_update_part {
 			my_kill_cooldown_remaining -= delta;
 			if (my_kill_cooldown_remaining < 0.0) my_kill_cooldown_remaining = 0.0;
 		}
+		if (my_doors_cooldown_remaining > 0.0) {
+			my_doors_cooldown_remaining -= delta;
+			if (my_doors_cooldown_remaining < 0.0) my_doors_cooldown_remaining = 0.0;
+		}
 		if (my_role.can_sabotage && my_sabotage_cooldown_remaining > 0.0) {
 			my_sabotage_cooldown_remaining -= delta;
 			if (my_sabotage_cooldown_remaining < 0.0) my_sabotage_cooldown_remaining = 0.0;

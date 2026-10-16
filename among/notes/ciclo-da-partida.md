@@ -221,5 +221,12 @@ fala o que chega pela mesma via das telas bloqueantes (`announce_background_even
 não ouvia os votos chegando, justamente quando eles mudam a decisão. Hoje o voto é dito por
 `vote_cast_text` (uma função só, para a mesa e o menu) e o `voted_peers` é atualizado no próprio
 bombeamento do menu, olhando só o que chegou desde o quadro anterior (`g_vote_pump_seen`) - varrer a fila
-inteira a cada quadro já travou o jogo. Evento novo que deva chegar a quem está com o menu aberto entra
+inteira a cada quadro já travou o jogo. **E entra no histórico na chegada**, com o menu aberto (o
+`g_background_log_sink` grava, e o `pkt.logged` impede a segunda linha quando o laço trata o pacote
+depois) - ponto e vírgula funcionam dentro do menu. Uma sonda que chame `handle_packet` direto, sem o
+`@g_logging_packet = pkt` que o `frame()` faz antes, vê a linha DUAS vezes: é a sonda, não o jogo.
+
+**A recarga de trancar portas vai ao cliente em cada `S_DOORS_STATE`** (`doors_cooldown`, a recarga da
+NAVE, que é uma só para todos os impostores). Antes o cliente não a conhecia: o F abria a lista de
+salas e só depois da escolha o servidor dizia "não dá agora". Agora o F responde como a sabotagem. Evento novo que deva chegar a quem está com o menu aberto entra
 em `background_event_text`. Sonda: o caso "votos com o menu de votacao aberto" em `probe_match_packets`.
