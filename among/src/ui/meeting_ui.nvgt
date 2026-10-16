@@ -26,12 +26,26 @@ game_client@ g_vote_pump_client;
 // tique dos dez segundos finais. Sem isto, quem abria a lista de nomes ficava numa sala silenciosa,
 // sem chat, sem sabotagem e sem contagem, até desistir de votar.
 meeting_ui@ g_vote_pump_ui;
+uint g_vote_pump_seen = 0; // até onde a fila já foi lida atrás de votos (ver pump_client_during_vote_menu)
 void pump_client_during_vote_menu(menu@ m, string data) {
 	if (@g_vote_pump_client != null) {
 		g_vote_pump_client.update();
 		// Fala o que chegou SEM tirar da fila: o laço principal ainda vai tratar cada pacote com
 		// todos os efeitos dele (ver announce_background_events).
 		announce_background_events(g_vote_pump_client);
+		// E quem já votou, já: a mesa (e o "quem falta") não pode esperar o menu fechar para saber.
+		// Só o que chegou desde o último quadro: com o menu aberto nada sai da fila, então ela só cresce, e
+		// varrê-la inteira a cada quadro foi o que já travou o jogo uma vez (ver MAX_INCOMING_PACKETS).
+		if (@g_vote_pump_ui != null) {
+			if (g_vote_pump_seen > g_vote_pump_client.incoming.length()) g_vote_pump_seen = 0;
+			for (uint i = g_vote_pump_seen; i < g_vote_pump_client.incoming.length(); i++) {
+				net_packet@ p = g_vote_pump_client.incoming[i];
+				if (p.type != S_VOTE_CAST) continue;
+				uint64 quem = p.get_uint64("voter_peer");
+				if (g_vote_pump_ui.voted_peers.find(quem) == -1) g_vote_pump_ui.voted_peers.insert_last(quem);
+			}
+			g_vote_pump_seen = g_vote_pump_client.incoming.length();
+		}
 	}
 	if (@g_vote_pump_ui != null) g_vote_pump_ui.tick_vote_timer();
 	// Reler o chat e os eventos SEM fechar a lista de votação: é na mesa que a conversa importa.
@@ -177,16 +191,10 @@ class meeting_ui {
 		uint64 voter_peer = pkt.get_uint64("voter_peer");
 		if (voter_peer == client.my_peer_id) has_voted = true;
 		if (voted_peers.find(voter_peer) == -1) voted_peers.insert_last(voter_peer);
-		dictionary@ params = dictionary();
-		params.set("voter", pkt.get_string("voter_name"));
 		// Votos abertos (regra da sala): o alvo vem junto e é dito na hora - é o que muda a discussão
-		// enquanto ela acontece. Fechados: só "votou".
-		if (pkt.get_bool("target_revealed", false)) {
-			if (pkt.get_bool("skipped", false)) announce(tr("game.vote_cast_skip", params));
-			else { params.set("target", pkt.get_string("target_name")); announce(tr("game.vote_cast", params)); }
-		} else {
-			announce(tr("game.vote_cast_announcement", params));
-		}
+		// enquanto ela acontece. Fechados: só "votou". Com o menu de votação aberto, ele já disse
+		// (announce_background_events): aqui só entra no histórico.
+		announce(vote_cast_text(pkt), !pkt.announced);
 	}
 
 	void on_vote_result(net_packet@ pkt) {
@@ -350,6 +358,7 @@ class meeting_ui {
 		vote_menu.sounds_prefix = "sounds/";
 		@g_vote_pump_client = client;
 		@g_vote_pump_ui = this;
+		g_vote_pump_seen = 0;
 		@vote_menu.background_callback = @pump_client_during_vote_menu;
 
 		array<roster_entry@>@ alive = roster.alive_entries();

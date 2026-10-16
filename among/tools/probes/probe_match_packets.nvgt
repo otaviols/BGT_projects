@@ -344,6 +344,23 @@ void main() {
 	confere("e a ambiencia da nave tambem", caiu.audio.ambient_ship_slot == -1);
 	g_match_connection_lost = false;
 
+	println("== votos com o menu de votacao aberto ==");
+	// O menu segura o laço da partida; o voto tem que ser DITO pela via das telas bloqueantes (e marcado,
+	// para o laço não repetir), e quem votou tem que entrar na mesa já (pedido do usuário, 2026-10-16).
+	match_session@ mesa = nova_partida(ROLE_CREWMATE);
+	net_packet@ voto = net_packet(S_VOTE_CAST);
+	voto.set_uint64("voter_peer", 2); voto.set_string("voter_name", "ana");
+	voto.set_bool("target_revealed", true); voto.set_string("target_name", "bia");
+	mesa.client.incoming.insert_last(voto);
+	@g_vote_pump_client = mesa.client;
+	@g_vote_pump_ui = mesa.mui;
+	g_vote_pump_seen = 0;
+	pump_client_during_vote_menu(null, "");
+	dictionary@ vp = dictionary(); vp.set("voter", "ana"); vp.set("target", "bia");
+	confere("o voto e dito com o menu aberto", voto.announced && vote_cast_text(voto) == tr("game.vote_cast", vp));
+	confere("e quem votou ja esta na mesa", mesa.mui.voted_peers.find(2) >= 0);
+	@g_vote_pump_client = null; @g_vote_pump_ui = null;
+
 	println("== dicas desligadas ==");
 	// A abertura fica com o que é INFORMAÇÃO (o nome do papel, quantos impostores, o par) e perde a
 	// explicação; ligadas, a explicação volta. Sem mexer no arquivo de preferências: só o campo.

@@ -214,3 +214,12 @@ solta na hora certa - saía com o jogador ainda ouvindo "3"; o sintoma relatado 
 de terminar a contagem". **O pegador é revelado a todos** (`tagger_name` no `S_GAME_START`, dito na
 abertura no lugar da contagem de impostores; decisão do usuário, como no original). Decisões do usuário; sonda: `probe_game_modes.nvgt` (sem rede,
 com os controles de cada regra) e `probe_game_modes_net.nvgt`.
+
+**O menu de votação SEGURA o laço da partida: o que ele não disser, ninguém ouve até ele fechar.** Ele
+fala o que chega pela mesma via das telas bloqueantes (`announce_background_events`, com o texto em
+`background_event_text`), e os VOTOS ficaram de fora até 2026-10-16: quem estava escolhendo em quem votar
+não ouvia os votos chegando, justamente quando eles mudam a decisão. Hoje o voto é dito por
+`vote_cast_text` (uma função só, para a mesa e o menu) e o `voted_peers` é atualizado no próprio
+bombeamento do menu, olhando só o que chegou desde o quadro anterior (`g_vote_pump_seen`) - varrer a fila
+inteira a cada quadro já travou o jogo. Evento novo que deva chegar a quem está com o menu aberto entra
+em `background_event_text`. Sonda: o caso "votos com o menu de votacao aberto" em `probe_match_packets`.

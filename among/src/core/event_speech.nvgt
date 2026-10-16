@@ -43,6 +43,19 @@ string sabotage_countdown_text(net_packet@ pkt) {
 	return tr(pkt.get_bool("final") ? "sabotage.countdown_final" : "sabotage.countdown_remaining", p);
 }
 
+// Quem votou - e em quem, com os votos abertos (regra da sala). Aqui, e não só na reunião, porque o
+// menu de votação também o diz: aberto, ele segura o laço da partida, e quem estava escolhendo em quem
+// votar não ouvia os votos chegando - justamente quando eles mudam a decisão (pedido do usuário,
+// 2026-10-16).
+string vote_cast_text(net_packet@ pkt) {
+	dictionary@ params = dictionary();
+	params.set("voter", pkt.get_string("voter_name"));
+	if (!pkt.get_bool("target_revealed", false)) return tr("game.vote_cast_announcement", params);
+	if (pkt.get_bool("skipped", false)) return tr("game.vote_cast_skip", params);
+	params.set("target", pkt.get_string("target_name"));
+	return tr("game.vote_cast", params);
+}
+
 string sabotage_fixed_text() {
 	return tr("sabotage.fixed");
 }
@@ -249,6 +262,7 @@ string background_event_text(net_packet@ pkt, game_client@ client) {
 	// A morte na mesa precisa chegar a quem está com a lista de votação aberta - que é exatamente
 	// onde todo mundo está quando ela acontece.
 	if (t == S_MEETING_KILL) return meeting_kill_text(pkt, g_match_roster);
+	if (t == S_VOTE_CAST) return vote_cast_text(pkt);
 	// A morte só é anunciada para a própria vítima: para os outros, o assassinato é o som, não o texto.
 	if (t == S_PLAYER_KILLED && @client != null && pkt.get_uint64("peer_id") == client.my_peer_id) {
 		return you_were_killed_text(pkt, g_match_roster);
