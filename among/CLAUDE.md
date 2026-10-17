@@ -109,8 +109,12 @@ porque ISO não comprime.
 do instalador oficial de nvgt.gg, componente "MacOS binary stub"). Não estão no repositório
 `D:\git\nvgt`: o stub é produto de compilar o NVGT num Mac. Se sumirem numa reinstalação, o
 `-pmac` falha com "File not found: stub/nvgt_mac.bin" e o `build_clients.ps1` pula o Mac avisando.
-Os builds de Linux e Mac são experimentais: compilam, mas ninguém os rodou; fora do Windows o
-updater só avisa e abre o site.
+Os builds de Linux e Mac são experimentais; fora do Windows o updater só avisa e abre o site. **O de
+Linux se testa aqui mesmo, num contêiner** (2026-10-17, recado #280): `docker run fedora:44`, com
+`xorg-x11-server-Xvfb` instalado, `Xvfb :1 &`, `DISPLAY=:1` e o pacote montado num volume. Para saber
+ONDE cai, uma cópia temporária do `AmongUs.nvgt` com `file_put_contents("/tmp/trace.txt", ...)` entre os
+passos; foto da tela com `xwd -root | magick xwd:- foto.png`. Use `timeout -s KILL`: o jogo ignora o
+sinal comum e o `timeout` sem `-s KILL` espera para sempre.
 
 **Mexeu em qualquer arquivo de `sounds/`? Rode o `build_pack` antes de compilar.** O jogo empacota o
 `sounds.dat`, não a pasta — sem regerar, o build sai com o som antigo e nada avisa.
@@ -449,6 +453,13 @@ inverso: os `wait()` seguintes alternam entre os dois buffers, então ela é des
 não pega essa alternância (ela dura uma fração de quadro) - a prova é o código do NVGT.
 Para conferir um desenho sem ver, capture a janela (PowerShell + `CopyFromScreen`) e leia a imagem. É o
 que faz o mapa na tela (`src/ui/visual_map.nvgt`).
+
+**No Linux (e no Android) o `get_font` do NVGT só acha fonte pelo CAMINHO do arquivo.** Pelo nome
+("Arial", "DejaVu Sans") ele devolve uma fonte VAZIA, de tamanho 0, sem erro - mesmo com o sistema
+dizendo que "Arial" é a Liberation Sans. E `render_text_blended_wrapped` numa fonte vazia DERRUBA o
+processo. Sintoma (recado #280): "core dumped" no Fedora 44 logo ao abrir, porque a pergunta do modo
+gráfico da primeira abertura desenha texto com quebra de linha. A fonte é sempre conferida (`size > 0`)
+e, sem a Arial, procurada por caminho (`ui_font` e `VISUAL_FONT_FILES` em `visual_map.nvgt`).
 
 **Uma compilação do NVGT pode sair defeituosa.** Aconteceu: mesmo código-fonte, um build gerou binário
 com segfault na inicialização e o seguinte saiu bom. Compilar com sucesso **não** é o mesmo que o

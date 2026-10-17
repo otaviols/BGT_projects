@@ -50,6 +50,21 @@ const float VISUAL_LOGICAL_HEIGHT = 640.0;
 // Quantas falas as legendas guardam, e quanto tempo sem desenho faz uma fala redesenhar a tela sozinha.
 const uint VISUAL_CAPTION_LINES = 4;
 const uint64 VISUAL_IDLE_REDRAW_MS = 150;
+// Fontes por CAMINHO, para quando a "Arial" não vem pelo nome (ver ui_font). A versão em negrito sai do
+// nome do arquivo (Regular -> Bold). Fedora, Debian/Ubuntu, Arch, Noto, Mac e Android, nessa ordem.
+const array<string> VISUAL_FONT_FILES = {
+	"/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf",
+	"/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+	"/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+	"/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
+	"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+	"/usr/share/fonts/TTF/DejaVuSans.ttf",
+	"/usr/share/fonts/google-noto/NotoSans-Regular.ttf",
+	"/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+	"/System/Library/Fonts/Supplemental/Arial.ttf",
+	"/Library/Fonts/Arial.ttf",
+	"/system/fonts/Roboto-Regular.ttf"
+};
 
 // Uma tarefa visível em andamento, desenhada como anéis saindo do ponto (o exame, a arma).
 class visible_task_mark {
@@ -202,13 +217,13 @@ class visual_map {
 	// As fontes no tamanho REAL desta escala; trocar de escala refaz as fontes e esvazia o cache de texto.
 	private void fit_fonts() {
 		float alvo = float(int(k * 10.0 + 0.5)) / 10.0;
-		if (alvo == fonts_k && @font_body != null) return;
+		if (alvo == fonts_k) return;
 		fonts_k = alvo;
 		// Tamanho inteiro: fração de ponto deixava o espaçamento entre letras irregular.
-		@font_big = get_font("Arial", float(int(52 * alvo + 0.5)), FONT_STYLE_BOLD);
-		@font_title = get_font("Arial", float(int(22 * alvo + 0.5)), FONT_STYLE_BOLD);
-		@font_body = get_font("Arial", float(int(17 * alvo + 0.5)));
-		@font_small = get_font("Arial", float(int(13 * alvo + 0.5)));
+		@font_big = ui_font(float(int(52 * alvo + 0.5)), true);
+		@font_title = ui_font(float(int(22 * alvo + 0.5)), true);
+		@font_body = ui_font(float(int(17 * alvo + 0.5)), false);
+		@font_small = ui_font(float(int(13 * alvo + 0.5)), false);
 		// Sem o ajuste de pares de letras: com ele o "e" encostava sob o "T" e o resto da palavra não
 		// acompanhava - "Teclas" saía "Te clas" (desenho de texto do NVGT de 15/09/2026).
 		if (@font_big != null) font_big.kerning = false;
@@ -217,6 +232,25 @@ class visual_map {
 		if (@font_small != null) font_small.kerning = false;
 		text_cache.delete_all();
 		text_cache_count = 0;
+	}
+
+	// Uma fonte que CARREGOU, ou null. No Windows a "Arial" vem pelo nome; no Linux (e no Android) o
+	// get_font do NVGT só acha fonte pelo CAMINHO do arquivo - pelo nome ele devolve uma fonte vazia
+	// (tamanho 0), mesmo com o sistema dizendo que "Arial" é a Liberation Sans. E desenhar texto COM
+	// QUEBRA DE LINHA numa fonte vazia derruba o processo inteiro: era o "core dumped" do Fedora 44 (recado
+	// #280), já na pergunta do modo gráfico da primeira abertura. Por isso: o nome, depois os arquivos
+	// comuns de cada sistema; e, se nada carregar, null - a tela fica sem texto, mas o jogo não cai.
+	private text_font@ ui_font(float size, bool bold) {
+		text_font@ f = get_font("Arial", size, bold ? FONT_STYLE_BOLD : FONT_STYLE_NORMAL);
+		if (@f != null && f.size > 0) return f;
+		for (uint i = 0; i < VISUAL_FONT_FILES.length(); i++) {
+			string caminho = VISUAL_FONT_FILES[i];
+			if (bold) caminho = caminho.replace("Regular", "Bold").replace("DejaVuSans.ttf", "DejaVuSans-Bold.ttf")
+				.replace("Arial.ttf", "Arial Bold.ttf");
+			@f = get_font(caminho, size);
+			if (@f != null && f.size > 0) return f;
+		}
+		return null;
 	}
 
 	// --- Peças de desenho ---
@@ -267,7 +301,8 @@ class visual_map {
 
 	// Texto como textura, guardado pela combinação texto+fonte+cor+largura.
 	private graphics_texture@ text(const string&in t, text_font@ f, uint rgb, int wrap = 0) {
-		if (@f == null || t == "") return null;
+		// Fonte vazia nunca chega ao desenho: o texto com quebra de linha nela derruba o processo (ver ui_font).
+		if (@f == null || f.size <= 0 || t == "") return null;
 		string chave = t + "|" + f.size + "|" + rgb + "|" + wrap;
 		graphics_texture@ tex;
 		if (text_cache.get(chave, @tex)) return tex;
