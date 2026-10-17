@@ -6,6 +6,17 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.56.0
+
+**Modificadores na morte, como opção da sala:** no começo da tela de modificadores, a sala escolhe se a
+morte tira os modificadores (o padrão, desde a 0.55.1) ou se eles ficam, como antes. Quando ficam, o
+médico revive o casal junto; se o corpo do par já foi limpo, ele ouve que não adianta reviver.
+
+**Linux:** o jogo não fecha mais logo ao abrir.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.55.1
 
 **A morte tira os modificadores:** quem morre deixa de ser Flash, Gigante ou apaixonado. O médico agora

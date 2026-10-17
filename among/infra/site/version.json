@@ -1,8 +1,8 @@
 {
-	"version": "0.55.1",
+	"version": "0.56.0",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "A morte tira os modificadores: quem morre deixa de ser Flash, Gigante ou apaixonado. O médico agora revive a pessoa sozinha, na velocidade normal e sem par: o outro apaixonado continua morto, e o revivido não morre de amor de novo. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
-		"en_US": "Death removes modifiers: whoever dies stops being Flash, Giant or a lover. The doctor now revives the person alone, at normal speed and without a partner: the other lover stays dead, and the revived player does not die of love again. We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version. Found something? Send a message."
+		"pt_BR": "Modificadores na morte, como opção da sala: no começo da tela de modificadores, a sala escolhe se a morte tira os modificadores (o padrão, desde a 0.55.1) ou se eles ficam, como antes. Quando ficam, o médico revive o casal junto; se o corpo do par já foi limpo, ele ouve que não adianta reviver. Linux: o jogo não fecha mais logo ao abrir. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
+		"en_US": "Modifiers on death, as a room option: at the top of the modifiers screen, the room chooses whether death removes modifiers (the default since 0.55.1) or they stay, like before. When they stay, the doctor revives the couple together; if the partner's body was already cleaned, they hear that reviving is no use. Linux: the game no longer closes right after opening. We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version. Found something? Send a message."
 	}
 }

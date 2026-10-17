@@ -6,6 +6,18 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.56.0
+
+**Modifiers on death, as a room option:** at the top of the modifiers screen, the room chooses whether
+death removes modifiers (the default since 0.55.1) or they stay, like before. When they stay, the doctor
+revives the couple together; if the partner's body was already cleaned, they hear that reviving is no
+use.
+
+**Linux:** the game no longer closes right after opening.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.55.1
 
 **Death removes modifiers:** whoever dies stops being Flash, Giant or a lover. The doctor now revives
