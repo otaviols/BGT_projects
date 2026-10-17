@@ -6,6 +6,15 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.55.1
+
+**A morte tira os modificadores:** quem morre deixa de ser Flash, Gigante ou apaixonado. O médico agora
+revive a pessoa sozinha, na velocidade normal e sem par: o outro apaixonado continua morto, e o
+revivido não morre de amor de novo.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.55.0
 
 **Passar o anfitrião:** no Ctrl+K da sala de espera, ao escolher alguém, há a opção de passar o

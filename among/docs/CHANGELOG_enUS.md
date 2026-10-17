@@ -6,6 +6,15 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.55.1
+
+**Death removes modifiers:** whoever dies stops being Flash, Giant or a lover. The doctor now revives
+the person alone, at normal speed and without a partner: the other lover stays dead, and the revived
+player does not die of love again.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.55.0
 
 **Hand over host:** in the waiting room's Ctrl+K, after choosing someone, there's an option to make
