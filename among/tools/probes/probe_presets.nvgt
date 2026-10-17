@@ -38,6 +38,8 @@ void main() {
 	ov.role_chances.set(ROLE_SHERIFF, 40);
 	ov.role_values.set(ROLE_ENGINEER + "." + TUNABLE_COOLDOWN, 200.0);
 	ov.neutral_count = 2;
+	ov.death_modifiers = "keep";
+	ov.visible_tasks = "off";
 	lobby_preset_save("teste", "chaos", ov);
 
 	check("o nome aparece na lista", lobby_preset_names().find("teste") == 0, "na lista");
@@ -60,6 +62,8 @@ void main() {
 	lido.ov.role_values.get(ROLE_ENGINEER + "." + TUNABLE_COOLDOWN, v);
 	check("  tempo de papel sobrevive", v == 200.0, "200");
 	check("  vagas de neutro sobrevivem", lido.ov.neutral_count == 2, "2");
+	check("  modificadores na morte sobrevivem", lido.ov.death_modifiers == "keep", "keep");
+	check("  tarefas visiveis sobrevivem", lido.ov.visible_tasks == "off", "off");
 
 	println("--- a ultima usada convive com as nomeadas ---");
 	lobby_overrides outra;

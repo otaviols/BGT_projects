@@ -398,6 +398,16 @@ void main() {
 	confere("e o Ctrl+habilidade nao diz mais Flash nem o par", flash.speed_modifier_id == "" && flash.lover_name_spoken == ""
 		&& flash.current_role_text().find("ana") < 0);
 
+	// Regra antiga da sala: os modificadores ficam, e o cliente não pode tirar a velocidade sozinho.
+	match_session@ antigo = nova_partida(ROLE_CREWMATE, "ana", "flash");
+	antigo.death_removes_modifiers = false;
+	antigo.move_speed = antigo.room_move_speed * 1.5;
+	net_packet@ morte_antiga = net_packet(S_PLAYER_KILLED);
+	morte_antiga.set_uint64("peer_id", 1); morte_antiga.set_uint64("killer_peer", 2); morte_antiga.set_float("x", 0.0); morte_antiga.set_float("y", 0.0);
+	antigo.handle_packet(morte_antiga);
+	confere("regra antiga: morto, continua Flash e com o par", antigo.move_speed > antigo.room_move_speed
+		&& antigo.speed_modifier_id == "flash" && antigo.lover_name_spoken != "");
+
 	println("== recarga das portas ==");
 	// O F diz a recarga como a sabotagem: o cliente a recebe em cada S_DOORS_STATE (pedido do usuário).
 	match_session@ portas = nova_partida(ROLE_IMPOSTOR);

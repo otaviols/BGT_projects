@@ -690,6 +690,8 @@ mixin class server_match_part {
 		start.set_float("move_speed", lobby.config.move_speed() * p.speed_multiplier());
 		start.set_float("room_move_speed", lobby.config.move_speed());
 		start.set_string("speed_modifier", p.speed_modifier);
+		// O cliente tira par e velocidade na morte só se a sala manda (ver lose_modifiers).
+		start.set_bool("death_removes_modifiers", lobby.config.death_removes_modifiers);
 		if (p.lover != 0) {
 			game_player@ par = lobby.find_player(p.lover);
 			if (@par != null) start.set_string("lover_name", par.public_name());

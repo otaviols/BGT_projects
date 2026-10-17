@@ -142,6 +142,39 @@ void main() {
 	confere("sem par e sem Flash: velocidade normal", m.find_player(1).lover == 0 && m.find_player(1).speed_multiplier() == 1.0);
 	confere("e ninguem morre de amor de novo", m.take_heartbreaks().length() == 0 && m.find_player(1).alive);
 
+	println("== regra antiga: a morte nao tira (opcao da sala) ==");
+	// Pedida pelos jogadores (recados #282 e #283): o casal volta junto, e o médico é recusado quando o
+	// par já não tem corpo - reviver só para morrer de amor de novo pareceria defeito.
+	game_state@ k = mesa();
+	k.config.death_removes_modifiers = false;
+	k.find_player(5).set_role(ROLE_DOCTOR);
+	k.find_player(1).lover = 2; k.find_player(2).lover = 1;
+	k.find_player(1).speed_modifier = MOD_FLASH;
+	k.find_player(2).x = 0.5;
+	k.find_player(4).kill_cooldown_remaining = 0.0;
+	k.try_kill(4, 1, ev);
+	k.take_heartbreaks();
+	k.take_heartbreaks();
+	confere("os mortos ficam com par e Flash", k.find_player(1).lover == 2 && k.find_player(1).speed_modifier == MOD_FLASH);
+	uint64 kv, kp; float kx, ky; string kf;
+	confere("o medico revive um, e o par volta junto", k.try_revive(5, kv, kx, ky, kp, kf) && kp != 0
+		&& k.find_player(1).alive && k.find_player(2).alive && k.bodies.length() == 0);
+	confere("e ninguem morre de amor de novo", k.take_heartbreaks().length() == 0);
+
+	game_state@ sem = mesa();
+	sem.config.death_removes_modifiers = false;
+	sem.find_player(5).set_role(ROLE_DOCTOR);
+	sem.find_player(1).lover = 2; sem.find_player(2).lover = 1;
+	sem.find_player(2).x = 0.5;
+	sem.find_player(4).kill_cooldown_remaining = 0.0;
+	sem.try_kill(4, 1, ev);
+	sem.take_heartbreaks();
+	// O lixeiro limpou o corpo do par (o 2).
+	for (uint b = 0; b < sem.bodies.length(); b++) if (sem.bodies[b].victim_peer_id == 2) { sem.bodies.remove_at(b); break; }
+	uint64 sv, sp; float sx, sy; string sf;
+	confere("par sem corpo: o medico e recusado e sabe por que (" + sf + ")",
+		!sem.try_revive(5, sv, sx, sy, sp, sf) && sf == "role.revive_lover_gone" && !sem.find_player(1).alive);
+
 	println("== engolido nao perde nada ==");
 	// Na barriga do lobo nao se esta morto (pode voltar): os modificadores ficam.
 	game_state@ e = mesa();

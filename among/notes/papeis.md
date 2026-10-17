@@ -436,6 +436,12 @@ papéis e dos alvos, só entre humanos.
   vem de `lover_at_start`, que a morte não apaga. **O cliente acompanha** (`lose_modifiers`, em toda
   morte própria): o servidor passa a aceitar só a velocidade da sala, e um fantasma Flash andando mais
   rápido teria os passos recusados. Sondas: `probe_modifiers` e o caso do cliente em `probe_match_packets`.
+  **E a regra antiga voltou como OPÇÃO da sala** (`death_removes_modifiers`, ligada por padrão; recados
+  #282 e #283, decisão do usuário em 2026-10-17), no começo da tela de modificadores, valendo para os três
+  juntos. Desligada, nada sai na morte e o médico revive o casal junto - mas é RECUSADO
+  (`role.revive_lover_gone`) se o par morto não tem mais corpo, antes de gastar a recarga: reviver alguém
+  para morrer de amor no tick seguinte pareceria defeito. O cliente lê a regra no `S_GAME_START` (sem o
+  campo, servidor anterior, a morte tira).
 Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`

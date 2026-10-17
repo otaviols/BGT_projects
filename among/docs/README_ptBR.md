@@ -668,7 +668,10 @@ Quem recebe um ouve junto com o papel. Bots não recebem.
 
 **A morte tira os modificadores.** Quem morre deixa de ser Flash, Gigante ou apaixonado. Se o médico
 reviver alguém, a pessoa volta sozinha, na velocidade normal e sem par: o outro apaixonado continua
-morto, e o revivido não morre de amor de novo.
+morto, e o revivido não morre de amor de novo. Essa é a regra padrão; a sala pode escolher a antiga, no
+começo da tela de modificadores: aí ninguém perde nada na morte, e o médico revive o casal junto. Nessa
+regra, se o corpo do par já foi limpo ou levado, o médico ouve que não adianta reviver - a pessoa
+morreria de amor de novo.
 
 ## Sabotagem (impostor)
 

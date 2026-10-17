@@ -678,7 +678,10 @@ one hears it along with the role. Bots do not get them.
 
 **Death removes modifiers.** Whoever dies stops being Flash, Giant or a lover. If the doctor revives
 someone, they come back alone, at normal speed and without a partner: the other lover stays dead, and
-the revived player does not die of love again.
+the revived player does not die of love again. That is the default rule; the room can choose the old
+one, at the top of the modifiers screen: then nobody loses anything on death, and the doctor revives the
+couple together. Under that rule, if the partner's body was already cleaned or carried away, the doctor
+hears that reviving is no use - the person would die of love again.
 
 ## Sabotage (impostor)
 

@@ -10,6 +10,7 @@ mixin class match_net_death_part {
 	// passa a aceitar só a da sala, e um fantasma Flash andando mais rápido teria os passos recusados.
 	// Revivido pelo médico, volta assim, sem nada.
 	void lose_modifiers() {
+		if (!death_removes_modifiers) return; // a sala escolheu a regra antiga: os modificadores ficam
 		speed_modifier_id = "";
 		lover_name_spoken = "";
 		if (room_move_speed > 0.0) {

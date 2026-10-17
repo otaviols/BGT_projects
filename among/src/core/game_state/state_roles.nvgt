@@ -379,9 +379,19 @@ mixin class state_roles_part {
 	// --- Médico ---
 
 	// Traz de volta o morto ao alcance, se a morte foi há menos que a janela. Ele volta onde caiu, vivo,
-	// com as tarefas e o papel de antes, SEM os modificadores (que a morte tirou - ver
-	// strip_dead_modifiers); o corpo some. Volta sozinho: o par de apaixonados, se morreu, continua morto.
+	// com as tarefas e o papel de antes; o corpo some. Com a regra padrão (a morte tira os modificadores,
+	// ver strip_dead_modifiers) ele volta sozinho e sem nada.
 	bool try_revive(uint64 doctor_peer, uint64&out victim, float&out x, float&out y, string&out fail_key) {
+		uint64 par_ignorado;
+		return try_revive(doctor_peer, victim, x, y, par_ignorado, fail_key);
+	}
+
+	// `partner`: na regra antiga (a sala desligou death_removes_modifiers), o par de apaixonados volta
+	// junto - sem isso o revivido morreria de amor de novo no tick seguinte. E se o par já não tem CORPO
+	// (limpo pelo lixeiro, carregado, ou nunca deixou um), o médico é recusado ANTES de gastar a recarga:
+	// reviver alguém para cair morto no segundo seguinte pareceria defeito.
+	bool try_revive(uint64 doctor_peer, uint64&out victim, float&out x, float&out y, uint64&out partner, string&out fail_key) {
+		partner = 0;
 		game_player@ d = find_player(doctor_peer);
 		if (@d == null || !d.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
 		int i = body_index_near(d.x, d.y);
@@ -389,6 +399,14 @@ mixin class state_roles_part {
 		game_player@ morto = find_player(bodies[i].victim_peer_id);
 		if (@morto == null || morto.left_match) { fail_key = "role.no_body_near"; return false; }
 		if (elapsed_time - bodies[i].death_time > config.role_value(ROLE_DOCTOR, TUNABLE_WINDOW)) { fail_key = "role.revive_too_late"; return false; }
+		// Regra antiga: o par morto precisa ter corpo para voltar junto.
+		int corpo_do_par = -1;
+		game_player@ par = morto.lover != 0 ? find_player(morto.lover) : null;
+		bool par_morto = @par != null && !par.alive && !par.swallowed();
+		if (par_morto) {
+			for (uint b = 0; b < bodies.length(); b++) if (bodies[b].victim_peer_id == par.peer_id) corpo_do_par = int(b);
+			if (corpo_do_par < 0) { fail_key = "role.revive_lover_gone"; return false; }
+		}
 		victim = morto.peer_id;
 		x = bodies[i].x;
 		y = bodies[i].y;
@@ -396,7 +414,15 @@ mixin class state_roles_part {
 		morto.swallowed_by = 0;
 		morto.x = x;
 		morto.y = y;
-		bodies.remove_at(i);
+		if (par_morto) {
+			par.alive = true;
+			par.x = bodies[corpo_do_par].x;
+			par.y = bodies[corpo_do_par].y;
+			partner = par.peer_id;
+		}
+		// Os dois corpos saem; o de índice maior primeiro, para o outro índice continuar valendo.
+		if (corpo_do_par > i) { bodies.remove_at(corpo_do_par); bodies.remove_at(i); }
+		else { bodies.remove_at(i); if (corpo_do_par >= 0) bodies.remove_at(corpo_do_par); }
 		return true;
 	}
 
@@ -408,6 +434,7 @@ mixin class state_roles_part {
 	// take_heartbreaks: o par vivo ainda aponta para o morto e morre de amor nesse mesmo tick; o dele sai
 	// no seguinte.
 	void strip_dead_modifiers() {
+		if (!config.death_removes_modifiers) return; // a sala escolheu a regra antiga
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ p = players[i];
 			if (p.alive || p.swallowed()) continue;

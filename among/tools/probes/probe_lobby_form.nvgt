@@ -87,6 +87,14 @@ void main() {
 	confere("o botao de papeis abre a tela de PAPEIS", falou(tr("lobby.roles_title") + " Dialog"));
 	confere("e nao a de modificadores", !falou(tr("lobby.modifiers_title") + " Dialog"));
 
+	println("== tela de modificadores ==");
+	// O 10º controle é o botão de modificadores; a tela abre com a regra deles na morte (2026-10-17).
+	array<int> ate_mods = {KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_RETURN, KEY_ESCAPE, KEY_ESCAPE};
+	roda(ate_mods);
+	run_lobby_settings_form(c, null, true);
+	confere("o botao de modificadores abre a tela deles", falou(tr("lobby.modifiers_title") + " Dialog"));
+	confere("e ela comeca pela regra dos modificadores na morte", falou(tr("lobby.death_modifiers_field")));
+
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

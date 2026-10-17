@@ -143,12 +143,13 @@ mixin class server_abilities_part {
 			return true;
 		}
 		if (ability == ABILITY_REVIVE) {
-			uint64 voltou = 0;
+			uint64 voltou = 0, par = 0;
 			float rx = 0.0, ry = 0.0;
-			if (!lobby.try_revive(p.peer_id, voltou, rx, ry, message_key)) return false;
-			// O corpo sai do mapa e a pessoa volta - para todos, sem dizer quem reviveu. Sozinha: a morte
-			// tirou o par de apaixonados (ver strip_dead_modifiers).
+			if (!lobby.try_revive(p.peer_id, voltou, rx, ry, par, message_key)) return false;
+			// O corpo sai do mapa e a pessoa volta - para todos, sem dizer quem reviveu. Na regra antiga
+			// (a morte não tira os modificadores), o par de apaixonados volta junto, de onde ele caiu.
 			array<uint64> voltaram = {voltou};
+			if (par != 0) voltaram.insert_last(par);
 			for (uint v = 0; v < voltaram.length(); v++) {
 				game_player@ quem_voltou = lobby.find_player(voltaram[v]);
 				net_packet@ sumiu = net_packet(S_BODY_REMOVED);

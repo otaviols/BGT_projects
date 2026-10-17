@@ -49,6 +49,7 @@ class lobby_overrides {
 	string colors = ""; // "" = preset, "random" = sorteadas na partida, "choice" = cada um escolhe na sala
 	string color_mode = ""; // "" = preset, "on" = todo mundo é chamado pela COR, "off" = pelo nome
 	string visible_tasks = ""; // "" = preset, "on" = quem está perto ouve a tarefa visível, "off" = ninguém ouve
+	string death_modifiers = ""; // "" = preset, "remove" = a morte tira os modificadores, "keep" = ficam (o de antes)
 	// "" = não mexi; senão, o modo pedido. Só a EDIÇÃO de uma sala aberta usa: trocar de modo troca a
 	// base inteira das regras (ver on_update_lobby_config), e por isso não passa por apply_to. Na
 	// criação o modo vai como o próprio preset ("tag", "wolves").
@@ -110,6 +111,8 @@ class lobby_overrides {
 		else if (color_mode == "off") cfg.color_mode = false;
 		if (visible_tasks == "on") cfg.visible_tasks = true;
 		else if (visible_tasks == "off") cfg.visible_tasks = false;
+		if (death_modifiers == "remove") cfg.death_removes_modifiers = true;
+		else if (death_modifiers == "keep") cfg.death_removes_modifiers = false;
 	}
 
 	void write_to_packet(net_packet@ pkt) const {
@@ -133,6 +136,7 @@ class lobby_overrides {
 		pkt.set_string("colors", colors);
 		pkt.set_string("color_mode", color_mode);
 		pkt.set_string("visible_tasks", visible_tasks);
+		pkt.set_string("death_modifiers", death_modifiers);
 		pkt.set_string("game_mode", game_mode);
 		// Um objeto {id: quantos}, e não um campo por papel: assim um papel novo não muda o protocolo.
 		json_object@ roles = json_object();
@@ -211,6 +215,7 @@ class lobby_overrides {
 		colors = pkt.get_string("colors", "");
 		color_mode = pkt.get_string("color_mode", "");
 		visible_tasks = pkt.get_string("visible_tasks", "");
+		death_modifiers = pkt.get_string("death_modifiers", "");
 		game_mode = pkt.get_string("game_mode", "");
 	}
 }
@@ -276,6 +281,11 @@ class lobby_config {
 	// valendo igual - só ninguém ouve quem a faz (recado #275, decisão do usuário em 2026-10-14). Foi
 	// descartado o "desligado tira a tarefa da partida": o anfitrião quer cortar o álibi, não o minijogo.
 	bool visible_tasks = true;
+	// A MORTE TIRA OS MODIFICADORES (par, Flash, Gigante): ligado é a regra da 0.55.1, e o padrão. Desligado
+	// é a de antes, pedida pelos jogadores (recados #282 e #283) - o médico revive o casal junto, e não
+	// adianta reviver um apaixonado cujo par já não tem corpo (ver try_revive). Decisão do usuário,
+	// 2026-10-17: opção da sala, na tela de modificadores, valendo para os três juntos.
+	bool death_removes_modifiers = true;
 	string map_name = "the_hub";
 	string language = DEFAULT_LANGUAGE;
 	// O modo de jogo (GAME_MODE_*). Vem da predefinição escolhida ao criar a sala - não é um campo que se
@@ -507,6 +517,7 @@ class lobby_config {
 		o.set("color_choice", color_choice);
 		o.set("color_mode", color_mode);
 		o.set("visible_tasks", visible_tasks);
+		o.set("death_removes_modifiers", death_removes_modifiers);
 		o.set("game_mode", game_mode);
 		// Sempre presente, mesmo vazio: é como o cliente distingue "sala sem papéis" de "servidor
 		// antigo que nem sabe o que é papel".
