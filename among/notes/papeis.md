@@ -425,8 +425,17 @@ papéis e dos alvos, só entre humanos.
   pela reunião seguinte inteira). Engolido não é morto. Morrer de amor é mais uma SAÍDA do jogo: chama
   `release_belly` e `drop_carried_body` como as outras (até a 0.50.9 não chamava, e o lobo apaixonado
   morria com gente presa numa barriga que não existia mais). A vitória (`WINNER_LOVERS`, o casal e no
-  máximo mais um) vem ANTES da maioria do impostor. E o médico que revive um apaixonado traz o par
-  junto - sem isso o revivido morria de amor de novo no tick seguinte.
+  máximo mais um) vem ANTES da maioria do impostor.
+- **A morte tira os modificadores - par, Flash e Gigante** (`strip_dead_modifiers`, decisão do usuário
+  em 2026-10-17). Até ali o médico que revivia um apaixonado trazia o par junto (senão o revivido morria
+  de amor no tick seguinte), e o lixeiro que limpasse o corpo do par matava o revivido de novo. Agora o
+  revivido volta sozinho, sem par e na velocidade da sala: um nerf leve no médico, que em troca pode
+  reviver quem morreu só de coração partido e não sabe quem matou. A ordem importa: a limpeza roda no
+  começo de `take_heartbreaks`, então o par vivo ainda aponta para o morto e morre de amor naquele
+  tick; o dele sai no seguinte. O engolido não está morto e fica com os seus. O casal do fim da partida
+  vem de `lover_at_start`, que a morte não apaga. **O cliente acompanha** (`lose_modifiers`, em toda
+  morte própria): o servidor passa a aceitar só a velocidade da sala, e um fantasma Flash andando mais
+  rápido teria os passos recusados. Sondas: `probe_modifiers` e o caso do cliente em `probe_match_packets`.
 Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`

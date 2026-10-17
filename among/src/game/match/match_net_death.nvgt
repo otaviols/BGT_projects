@@ -5,6 +5,19 @@
 // servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
 
 mixin class match_net_death_part {
+	// Quem morre perde os modificadores: o par de apaixonados e a velocidade (decisão do usuário,
+	// 2026-10-17; ver strip_dead_modifiers no servidor). A velocidade TEM que cair aqui também: o servidor
+	// passa a aceitar só a da sala, e um fantasma Flash andando mais rápido teria os passos recusados.
+	// Revivido pelo médico, volta assim, sem nada.
+	void lose_modifiers() {
+		speed_modifier_id = "";
+		lover_name_spoken = "";
+		if (room_move_speed > 0.0) {
+			move_speed = room_move_speed;
+			footstep_interval = footstep_interval_for(move_speed);
+		}
+	}
+
 	void on_player_killed(net_packet@ pkt) {
 		mui.on_player_killed(pkt);
 		// O corpo entra na lista ANTES de apply_sabotage_effects, logo abaixo: ele refaz os marcadores a
@@ -15,6 +28,7 @@ mixin class match_net_death_part {
 		if (pkt.get_uint64("peer_id") == client.my_peer_id) {
 			alive = false;
 			mui.alive = false;
+			lose_modifiers(); // a morte tira par e velocidade, como no servidor (strip_dead_modifiers)
 			// Virou fantasma: sabotagem não atinge morto, então o que estava ligado sai agora.
 			apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 				my_role, alive, known_body_peers, known_body_positions);
@@ -101,6 +115,7 @@ mixin class match_net_death_part {
 	void on_heartbreak(net_packet@ pkt) {
 		alive = false;
 		mui.alive = false;
+		lose_modifiers(); // a morte tira par e velocidade, como no servidor (strip_dead_modifiers)
 		known_body_peers.insert_last(client.my_peer_id);
 		known_body_positions.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0.0));
 		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,

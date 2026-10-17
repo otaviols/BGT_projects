@@ -120,18 +120,36 @@ void main() {
 	w.tick(0.05);
 	confere("o casal e mais um: o casal vence (" + w.winner + ")", w.winner == WINNER_LOVERS);
 
-	println("== medico e o casal ==");
+	println("== a morte tira os modificadores ==");
+	// Decisão do usuário (2026-10-17): quem morre perde o par e a velocidade. O médico traz de volta
+	// SOZINHO e na velocidade normal - antes trazia o casal, e o lixeiro que limpasse o corpo do par
+	// matava o revivido de novo.
 	game_state@ m = mesa();
 	m.find_player(5).set_role(ROLE_DOCTOR);
 	m.find_player(1).lover = 2; m.find_player(2).lover = 1;
+	m.find_player(1).speed_modifier = MOD_FLASH;
 	m.find_player(2).x = 0.5;
 	m.find_player(4).kill_cooldown_remaining = 0.0;
 	m.try_kill(4, 1, ev);
+	array<uint64>@ amor_medico = m.take_heartbreaks();
+	confere("o par morre de amor no mesmo tick", amor_medico.length() == 1 && amor_medico[0] == 2 && !m.find_player(2).alive);
+	confere("o morto perdeu o par e o Flash", m.find_player(1).lover == 0 && m.find_player(1).speed_modifier == "");
 	m.take_heartbreaks();
-	uint64 voltou, par; float rx, ry; string falha;
-	confere("revivendo um, o par volta junto", m.try_revive(5, voltou, rx, ry, par, falha) && par != 0
-		&& m.find_player(1).alive && m.find_player(2).alive);
-	confere("e ninguem morre de amor de novo", m.take_heartbreaks().length() == 0);
+	confere("e o par, no tick seguinte, tambem perdeu o dele", m.find_player(2).lover == 0);
+	uint64 voltou; float rx, ry; string falha;
+	confere("o medico revive um, e ele volta SOZINHO", m.try_revive(5, voltou, rx, ry, falha) && voltou == 1
+		&& m.find_player(1).alive && !m.find_player(2).alive);
+	confere("sem par e sem Flash: velocidade normal", m.find_player(1).lover == 0 && m.find_player(1).speed_multiplier() == 1.0);
+	confere("e ninguem morre de amor de novo", m.take_heartbreaks().length() == 0 && m.find_player(1).alive);
+
+	println("== engolido nao perde nada ==");
+	// Na barriga do lobo nao se esta morto (pode voltar): os modificadores ficam.
+	game_state@ e = mesa();
+	e.find_player(3).lover = 1; e.find_player(1).lover = 3; e.find_player(3).speed_modifier = MOD_GIANT;
+	e.find_player(3).alive = false; e.find_player(3).swallowed_by = 2;
+	e.take_heartbreaks();
+	confere("engolido: par e Gigante continuam, e o par nao morre de amor",
+		e.find_player(3).lover == 1 && e.find_player(3).speed_modifier == MOD_GIANT && e.find_player(1).alive);
 
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

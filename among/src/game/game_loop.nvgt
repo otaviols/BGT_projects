@@ -93,6 +93,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	bool voice_room_allows;
 	bool voice_comms_affects_meeting;
 	float move_speed;
+	float room_move_speed; // a velocidade da SALA, sem modificador: a de quem morre (ver lose_modifiers)
 	float footstep_interval;
 	// A distância de um passo na velocidade da SALA: os passos dos outros soam a cada passo andado, e não
 	// a cada tanto tempo - é isso que faz o Flash soar apressado e o Gigante arrastado.
@@ -254,6 +255,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		move_speed = start_pkt.get_float("move_speed", 2.2);
 		footstep_interval = footstep_interval_for(move_speed);
 		float velocidade_da_sala = start_pkt.get_float("room_move_speed", move_speed);
+		room_move_speed = velocidade_da_sala;
 		step_length = velocidade_da_sala * footstep_interval_for(velocidade_da_sala);
 		room_allows_vents = start_pkt.get_bool("vents_enabled", true);
 		// Modo de jogo (pega-pega, todos lobos). No pega-pega, quanto o pegador fica parado no começo: a

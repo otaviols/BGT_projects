@@ -107,6 +107,9 @@ class game_player {
 	// de apaixonados (0 = nenhum).
 	string speed_modifier = "";
 	uint64 lover = 0;
+	// O par SORTEADO, que não muda: `lover` se apaga na morte (strip_dead_modifiers), e o fim da partida
+	// ainda revela o casal.
+	uint64 lover_at_start = 0;
 
 	float speed_multiplier() const {
 		if (speed_modifier == MOD_FLASH) return FLASH_SPEED_MULTIPLIER;
@@ -333,6 +336,7 @@ class game_player {
 		doused.resize(0);
 		speed_modifier = "";
 		lover = 0;
+		lover_at_start = 0;
 		radar_index = -1;
 		last_move_time = 0.0;
 		bot_has_target = false;

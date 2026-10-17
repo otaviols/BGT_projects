@@ -387,6 +387,17 @@ void main() {
 	simulate_key_up(tecla_norte);
 	confere("controle: sem a camera, a mesma tecla anda", cam.my_y < y_antes);
 
+	println("== a morte tira os modificadores (cliente) ==");
+	// O servidor passa a aceitar só a velocidade da sala de quem morre: o cliente tem que acompanhar.
+	match_session@ flash = nova_partida(ROLE_CREWMATE, "ana", "flash");
+	flash.move_speed = flash.room_move_speed * 1.5; // como o servidor manda para o Flash
+	net_packet@ morte_flash = net_packet(S_PLAYER_KILLED);
+	morte_flash.set_uint64("peer_id", 1); morte_flash.set_uint64("killer_peer", 2); morte_flash.set_float("x", 0.0); morte_flash.set_float("y", 0.0);
+	flash.handle_packet(morte_flash);
+	confere("morto: volta a velocidade da sala (" + flash.move_speed + ")", flash.move_speed == flash.room_move_speed);
+	confere("e o Ctrl+habilidade nao diz mais Flash nem o par", flash.speed_modifier_id == "" && flash.lover_name_spoken == ""
+		&& flash.current_role_text().find("ana") < 0);
+
 	println("== recarga das portas ==");
 	// O F diz a recarga como a sabotagem: o cliente a recebe em cada S_DOORS_STATE (pedido do usuário).
 	match_session@ portas = nova_partida(ROLE_IMPOSTOR);

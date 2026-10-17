@@ -598,7 +598,8 @@ Na mesa ninguém está protegido: o escudo do anjo cai quando a reunião começa
 
 **Médico** (tripulação). Perto de um corpo, a tecla H **traz a pessoa de volta**, viva, onde ela caiu
 — mas só se a morte foi há pouco (15 segundos por padrão; a sala ajusta). Quem volta já sabe quem o
-matou, e pode contar. A recarga entre um e outro é de 30 segundos.
+matou, e pode contar - menos quem morreu de amor, que não viu quem matou o par. A pessoa volta sem os
+modificadores (ver Modificadores). A recarga entre um e outro é de 30 segundos.
 
 **Prefeito** (tripulação). Na reunião, o voto dele **vale por dois**, e em segredo: ele vota como
 todo mundo, e quando a sala mostra os votos ele aparece uma vez só. Só a contagem sabe.
@@ -664,7 +665,10 @@ Quem recebe um ouve junto com o papel. Bots não recebem.
 - **Casal de apaixonados:** duas pessoas sorteadas, que sabem uma da outra (podem ser de times
   diferentes). Se uma morrer, a outra **morre junto**, onde estiver; se a morte foi na reunião, a outra
   cai quando a reunião acaba. Se sobrarem as duas e no máximo mais uma pessoa, o casal **vence junto**.
-  O médico que revive uma traz a outra de volta também.
+
+**A morte tira os modificadores.** Quem morre deixa de ser Flash, Gigante ou apaixonado. Se o médico
+reviver alguém, a pessoa volta sozinha, na velocidade normal e sem par: o outro apaixonado continua
+morto, e o revivido não morre de amor de novo.
 
 ## Sabotagem (impostor)
 

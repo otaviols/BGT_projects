@@ -379,16 +379,9 @@ mixin class state_roles_part {
 	// --- Médico ---
 
 	// Traz de volta o morto ao alcance, se a morte foi há menos que a janela. Ele volta onde caiu, vivo,
-	// com as tarefas e o papel de antes; o corpo some.
+	// com as tarefas e o papel de antes, SEM os modificadores (que a morte tirou - ver
+	// strip_dead_modifiers); o corpo some. Volta sozinho: o par de apaixonados, se morreu, continua morto.
 	bool try_revive(uint64 doctor_peer, uint64&out victim, float&out x, float&out y, string&out fail_key) {
-		uint64 par_ignorado;
-		return try_revive(doctor_peer, victim, x, y, par_ignorado, fail_key);
-	}
-
-	// `partner`: o par de apaixonados que volta junto (0 = nenhum). Sem isto, reviver um apaixonado
-	// não servia de nada - o par continuava morto, e no tick seguinte o revivido morria de amor de novo.
-	bool try_revive(uint64 doctor_peer, uint64&out victim, float&out x, float&out y, uint64&out partner, string&out fail_key) {
-		partner = 0;
 		game_player@ d = find_player(doctor_peer);
 		if (@d == null || !d.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
 		int i = body_index_near(d.x, d.y);
@@ -404,19 +397,23 @@ mixin class state_roles_part {
 		morto.x = x;
 		morto.y = y;
 		bodies.remove_at(i);
-		if (morto.lover != 0) {
-			game_player@ par = find_player(morto.lover);
-			for (uint b = 0; @par != null && !par.alive && !par.swallowed() && b < bodies.length(); b++) {
-				if (bodies[b].victim_peer_id != par.peer_id) continue;
-				par.alive = true;
-				par.x = bodies[b].x;
-				par.y = bodies[b].y;
-				bodies.remove_at(b);
-				partner = par.peer_id;
-				break;
-			}
-		}
 		return true;
+	}
+
+	// A morte tira os modificadores: o par de apaixonados e a velocidade (Flash, Gigante). Decisão do
+	// usuário, 2026-10-17. Antes o médico trazia o casal inteiro de volta, e o lixeiro que limpasse o corpo
+	// do par matava o revivido de novo; agora quem volta, volta sozinho e na velocidade normal - um nerf
+	// leve no médico, que em troca pode reviver quem só morreu de coração partido e não sabe quem matou.
+	// O engolido não está morto (pode voltar) e fica com os dele. Chamada a cada tick, ANTES de
+	// take_heartbreaks: o par vivo ainda aponta para o morto e morre de amor nesse mesmo tick; o dele sai
+	// no seguinte.
+	void strip_dead_modifiers() {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.alive || p.swallowed()) continue;
+			p.lover = 0;
+			p.speed_modifier = "";
+		}
 	}
 
 	// --- Modificadores ---
@@ -450,6 +447,8 @@ mixin class state_roles_part {
 			game_player@ pb = livres[random(0, livres.length() - 1)];
 			pa.lover = pb.peer_id;
 			pb.lover = pa.peer_id;
+			pa.lover_at_start = pb.peer_id;
+			pb.lover_at_start = pa.peer_id;
 		}
 	}
 
@@ -469,6 +468,7 @@ mixin class state_roles_part {
 	// mesa - um corpo deixado ali seria reportado pela reunião seguinte inteira. Cada um vira corpo onde
 	// está, e a lista volta para o servidor avisar.
 	array<uint64>@ take_heartbreaks() {
+		strip_dead_modifiers();
 		array<uint64> mortos;
 		if (state != "in_progress" || winner != "") return mortos;
 		for (uint i = 0; i < players.length(); i++) {

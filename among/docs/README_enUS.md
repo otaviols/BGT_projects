@@ -604,7 +604,8 @@ Nobody is protected at the table: the guardian's shield falls when the meeting b
 
 **Doctor** (crew). Near a body, the H key **brings the person back**, alive, where they fell — but only
 if they died a moment ago (15 seconds by default; the room can change it). Whoever comes back already
-knows who killed them, and can tell. The cooldown between revives is 30 seconds.
+knows who killed them, and can tell - except someone who died of love, who did not see who killed their
+partner. They come back without modifiers (see Modifiers). The cooldown between revives is 30 seconds.
 
 **Mayor** (crew). In a meeting their vote **counts as two**, secretly: they vote like everyone else,
 and when the room shows the votes they appear only once. Only the count knows.
@@ -673,8 +674,11 @@ one hears it along with the role. Bots do not get them.
   Footsteps sound the same; what changes is the pace, and that is how the others notice.
 - **Lovers:** two drawn people who know about each other (they can be on different teams). If one
   dies, the other **dies too**, wherever they are; if the death was in a meeting, the other falls when
-  the meeting ends. If the two of them and at most one more are left, the couple **wins together**. A
-  doctor who revives one brings the other back too.
+  the meeting ends. If the two of them and at most one more are left, the couple **wins together**.
+
+**Death removes modifiers.** Whoever dies stops being Flash, Giant or a lover. If the doctor revives
+someone, they come back alone, at normal speed and without a partner: the other lover stays dead, and
+the revived player does not die of love again.
 
 ## Sabotage (impostor)
 

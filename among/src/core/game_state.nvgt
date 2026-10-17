@@ -615,8 +615,9 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 			// O casal, revelado no fim como os neutros (e o vencedor, se foi ele).
 			json_array@ casais = json_array();
 			for (uint i = 0; i < players.length(); i++) {
-				if (players[i].lover == 0 || players[i].lover < players[i].peer_id) continue;
-				game_player@ par = find_player(players[i].lover);
+				// O par SORTEADO: a morte apaga o `lover` (strip_dead_modifiers), mas o casal é revelado igual.
+				if (players[i].lover_at_start == 0 || players[i].lover_at_start < players[i].peer_id) continue;
+				game_player@ par = find_player(players[i].lover_at_start);
 				if (@par == null) continue;
 				json_object@ c = json_object();
 				c.set("a", players[i].username);

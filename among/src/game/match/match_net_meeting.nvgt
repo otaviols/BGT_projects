@@ -84,6 +84,7 @@ mixin class match_net_meeting_part {
 		if (morto == client.my_peer_id) {
 			alive = false;
 			mui.alive = false;
+			lose_modifiers(); // a morte tira par e velocidade, como no servidor (strip_dead_modifiers)
 			apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 				my_role, alive, known_body_peers, known_body_positions);
 		}
@@ -103,6 +104,7 @@ mixin class match_net_meeting_part {
 		if (pkt.get_uint64("ejected_peer") == client.my_peer_id) {
 			alive = false;
 			mui.alive = false; // virou fantasma: sabotagem deixa de atingi-lo (ver apply_sabotage_effects)
+			lose_modifiers(); // a morte tira par e velocidade, como no servidor (strip_dead_modifiers)
 			apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 				my_role, alive, known_body_peers, known_body_positions);
 			}

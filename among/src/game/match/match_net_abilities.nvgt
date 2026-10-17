@@ -31,6 +31,7 @@ mixin class match_net_abilities_part {
 		wolf_peer = pkt.get_uint64("wolf_peer");
 		alive = false;
 		mui.alive = false;
+		lose_modifiers(); // a morte tira par e velocidade, como no servidor (strip_dead_modifiers)
 		is_vented = false;
 		// O som de engolir, no próprio ponto: é com ele.
 		audio.play_wolf_swallow(my_x, my_y);
