@@ -1,0 +1,58 @@
+// Sonda de abrir a roda d'água (Polus): girar em roda avança, a seta do quarto anterior volta, a do
+// outro lado não gira, e três voltas abrem. Com as teclas de DENTRO do laço do minijogo.
+//   nvgt tools/probes/probe_open_waterwheel.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/game/map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 30000) exit(1);
+	if (passo >= roteiro.length() || quadro < 300) return;
+	if (quadro % 60 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 60 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+
+void main() {
+	show_window("sonda: roda");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	println("== a manivela ==");
+	// Onze quartos com desvios no meio; se algum desvio contasse como avanço (ou o voltar não voltasse),
+	// a roda abriria antes do último toque ou nunca abriria.
+	array<int> rota = {
+		KEY_DOWN,                                   // do outro lado: nao gira
+		KEY_UP, KEY_UP,                             // 1; repetir onde esta: nada
+		KEY_RIGHT, KEY_DOWN, KEY_LEFT,              // 2, 3, 4
+		KEY_DOWN,                                   // volta: 3
+		KEY_LEFT,                                   // 4 de novo
+		KEY_RIGHT,                                  // do outro lado: nao gira
+		KEY_UP, KEY_RIGHT, KEY_DOWN, KEY_LEFT,      // 5 a 8
+		KEY_UP, KEY_RIGHT, KEY_DOWN, KEY_LEFT};     // 9 a 12: abre
+	roteiro = rota;
+	bool abriu = run_open_waterwheel_task(c, 0);
+	confere("abre so no ultimo quarto da terceira volta", abriu && passo >= rota.length() - 1);
+
+	println("== no mapa ==");
+	game_map@ polus = build_map(MAP_POLUS);
+	map_object@ ponto = polus.find_object("task_waterwheel_outside");
+	confere("um ponto, la fora", @ponto != null && polus.find_zone(ponto.room_id).floor_sound_prefix == "SnowTile");
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

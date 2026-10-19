@@ -1,0 +1,49 @@
+// open_waterwheel.nvgt
+// Abrir a roda d'água (Polus, a 1.0, lá fora). No original você agarra a manivela de uma roda e a gira em
+// círculo com o mouse até a água correr.
+//
+// Para o ouvido (maquete aprovada em 2026-10-19): girar com as setas EM RODA - cima, direita, baixo,
+// esquerda - e cada quarto de volta range onde a manivela está (no meio em cima, à direita, no meio e
+// abafado embaixo, à esquerda). É gesto, a mecânica que o jogo não tinha: nem tom, nem tempo, nem busca.
+// A seta do quarto ANTERIOR desfaz um quarto (o rangido mais grave): é girar para trás. Repetir a posição
+// em que a manivela está não faz nada, e a seta do outro lado da roda toca o erro. Três voltas abrem.
+// O emperrar (um ponto sorteado onde a roda trava e é preciso voltar um quarto) foi oferecido e ficou de
+// fora da primeira versão; cabe aqui se a roda pedir mais decisão.
+
+#include "task_common.nvgt"
+
+const array<int> WATERWHEEL_KEYS = {KEY_UP, KEY_RIGHT, KEY_DOWN, KEY_LEFT};
+const array<float> WATERWHEEL_PANS = {0.0, 0.8, 0.0, -0.8};
+const int WATERWHEEL_QUARTERS = 12; // três voltas
+const float WATERWHEEL_BACK_PITCH = 85.0;
+
+bool run_open_waterwheel_task(game_client@ client, uint phase) {
+	speak_hint("task.open_waterwheel.instructions");
+	if (!wait_for_task_sound(task_sound(SND_WATERWHEEL_OPEN), client)) return false;
+	int quartos = 0;
+	while (quartos < WATERWHEEL_QUARTERS) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		// Cada tecla lida UMA vez (ver CLAUDE.md); vale a primeira apertada no quadro.
+		int k = -1;
+		for (uint i = 0; i < WATERWHEEL_KEYS.length(); i++)
+			if (key_pressed(WATERWHEEL_KEYS[i]) && k < 0) k = int(i);
+		if (k < 0) continue;
+		int adiante = quartos % 4;
+		if (k == adiante) {
+			quartos++;
+			task_sound(k == 2 ? SND_WATERWHEEL_TURN_LOW : SND_WATERWHEEL_TURN, pan_from_linear(WATERWHEEL_PANS[k]));
+		} else if (quartos > 0 && k == (quartos + 3) % 4) {
+			continue; // é onde a manivela já está
+		} else if (quartos > 0 && k == (quartos + 2) % 4) {
+			quartos--;
+			task_sound(k == 2 ? SND_WATERWHEEL_TURN_LOW : SND_WATERWHEEL_TURN, pan_from_linear(WATERWHEEL_PANS[k]), WATERWHEEL_BACK_PITCH);
+		} else {
+			task_sound(SND_CARD_ERROR, pan_from_linear(WATERWHEEL_PANS[k]));
+		}
+	}
+	if (!task_wait(200, client)) return false;
+	wait_for_task_sound(task_sound(SND_WATERWHEEL_WATER), client);
+	return true;
+}

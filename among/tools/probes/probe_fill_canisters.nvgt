@@ -1,0 +1,60 @@
+// Sonda de encher os cilindros (Polus): Enter fora de ordem toca o erro e não muda nada, e as duas
+// rodadas - pegar, encaixar, tirar, devolver - terminam. Com as teclas de DENTRO do laço do minijogo.
+//   nvgt tools/probes/probe_fill_canisters.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/game/map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Espaçado: o encaixe, o gás e o soltar são esperados, e tecla apertada nessa espera se perde (ver
+// notes/sondas.md). O gás dura ~2,7 s.
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 50000) exit(1);
+	if (passo >= roteiro.length() || quadro < 300) return;
+	if (quadro % 450 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 450 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+
+void main() {
+	show_window("sonda: cilindros");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	println("== na maquina ==");
+	// Prateleira à esquerda, máquina à direita, como na maquete.
+	g_canister_shelf_side_next = 0;
+	array<int> rota = {
+		KEY_RETURN,                                     // no meio, Enter nao faz nada
+		KEY_RIGHT, KEY_RETURN,                          // maquina de maos vazias: erro
+		KEY_LEFT, KEY_RETURN, KEY_RETURN,               // pega; Enter de novo na prateleira com ele na mao: erro
+		KEY_RIGHT, KEY_RETURN, KEY_RETURN,              // encaixa e enche; tira
+		KEY_LEFT, KEY_RETURN,                           // devolve: fim da primeira rodada
+		KEY_RETURN, KEY_RIGHT, KEY_RETURN, KEY_RETURN, KEY_LEFT, KEY_RETURN}; // a segunda, sem erro
+	roteiro = rota;
+	bool encheu = run_fill_canisters_task(c, 0);
+	confere("as duas rodadas terminam a tarefa", encheu && passo >= rota.length() - 1);
+	confere("dois Enter fora de ordem (" + g_canister_last_misses + ")", g_canister_last_misses == 2);
+
+	println("== no mapa ==");
+	game_map@ polus = build_map(MAP_POLUS);
+	map_object@ ponto = polus.find_object("task_canisters_oxygen");
+	confere("um ponto, no O2", @ponto != null && ponto.room_id == "oxygen");
+	confere("e e longa", LONG_TASK_TYPES.find("fill_canisters") >= 0);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

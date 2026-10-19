@@ -268,6 +268,24 @@ const string SND_ARTIFACT_EGG = "tasks/artifact_egg.ogg";
 const string SND_ARTIFACT_BONE = "tasks/artifact_bone.ogg";
 const string SND_ARTIFACT_ROCK = "tasks/artifact_rock.ogg";
 const string SND_TASK_BEACON_STORE_ARTIFACTS = "sounds/beacons/specimen.ogg";
+// Encher os cilindros de O2 (Polus): o tinido do cilindro na prateleira, o zumbido da máquina (um pedaço
+// do ar dela), pegar, encaixar, o gás enchendo, soltar e devolver - tudo da leva do original. O marcador
+// é o encaixe seguido do gás.
+const string SND_CANISTER_SHELF = "tasks/canister_shelf.ogg";
+const string SND_CANISTER_MACHINE = "tasks/canister_machine.ogg";
+const string SND_CANISTER_GRAB = "tasks/canister_grab.ogg";
+const string SND_CANISTER_PLUGIN = "tasks/canister_plugin.ogg";
+const string SND_CANISTER_FILL = "tasks/canister_fill.ogg";
+const string SND_CANISTER_PLUGOUT = "tasks/canister_plugout.ogg";
+const string SND_CANISTER_DROP = "tasks/canister_drop.ogg";
+const string SND_TASK_BEACON_FILL_CANISTERS = "sounds/beacons/canisters.ogg";
+// Abrir a roda d'água (Polus): a roda destravando, o rangido de um quarto de volta (e o mesmo abafado,
+// para a manivela embaixo) e a água correndo. O marcador é o rangido, mais alto: fica lá fora, no vento.
+const string SND_WATERWHEEL_OPEN = "tasks/waterwheel_open.ogg";
+const string SND_WATERWHEEL_TURN = "tasks/waterwheel_turn.ogg";
+const string SND_WATERWHEEL_TURN_LOW = "tasks/waterwheel_turn_low.ogg";
+const string SND_WATERWHEEL_WATER = "tasks/waterwheel_water.ogg";
+const string SND_TASK_BEACON_OPEN_WATERWHEEL = "sounds/beacons/waterwheel.ogg";
 const string SND_ASTEROID_FIRE = "tasks/asteroid_fire.ogg"; // cada tiro na task de limpar asteroides
 const uint ASTEROID_HIT_VARIANT_COUNT = 3;                   // asteroid_hit1..3: o acerto, variado para não virar bipe
 string asteroid_hit_sound(int variant_1_based) {
@@ -616,6 +634,19 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_ARTIFACT_BONE);
 	list.insert_last("sounds/" + SND_ARTIFACT_ROCK);
 	list.insert_last(SND_TASK_BEACON_STORE_ARTIFACTS);
+	list.insert_last("sounds/" + SND_CANISTER_SHELF);
+	list.insert_last("sounds/" + SND_CANISTER_MACHINE);
+	list.insert_last("sounds/" + SND_CANISTER_GRAB);
+	list.insert_last("sounds/" + SND_CANISTER_PLUGIN);
+	list.insert_last("sounds/" + SND_CANISTER_FILL);
+	list.insert_last("sounds/" + SND_CANISTER_PLUGOUT);
+	list.insert_last("sounds/" + SND_CANISTER_DROP);
+	list.insert_last(SND_TASK_BEACON_FILL_CANISTERS);
+	list.insert_last("sounds/" + SND_WATERWHEEL_OPEN);
+	list.insert_last("sounds/" + SND_WATERWHEEL_TURN);
+	list.insert_last("sounds/" + SND_WATERWHEEL_TURN_LOW);
+	list.insert_last("sounds/" + SND_WATERWHEEL_WATER);
+	list.insert_last(SND_TASK_BEACON_OPEN_WATERWHEEL);
 	list.insert_last(SND_TASK_BEACON_REPLACE_WATER_JUG);
 	list.insert_last(SND_TASK_BEACON_PICK_WATER_JUG);
 	for (int i = 1; i <= int(ASTEROID_HIT_VARIANT_COUNT); i++) list.insert_last("sounds/" + asteroid_hit_sound(i));

@@ -1,0 +1,75 @@
+// fill_canisters.nvgt
+// Encher os cilindros de O2 (Polus, a 1.0, na sala do O2). No original você arrasta um cilindro vazio
+// para dentro da máquina, ela enche sozinha enquanto se olha o medidor, e você o arrasta de volta - duas
+// vezes. Não há decisão: é o caminho de ida e volta.
+//
+// Para o ouvido (desenho do usuário, maquete aprovada em 2026-10-19): a prateleira fica de um lado e a
+// máquina do outro, SORTEADOS a cada vez - é preciso ouvir antes de ir. As setas para os lados levam a
+// cada um, e chegar apresenta o lugar: a prateleira com o cilindro faz o tinido dele (sem, só o clique),
+// a máquina zumbe. Enter faz a coisa do lugar, na ordem: pega na prateleira, encaixa na máquina (e o gás
+// enche), tira da máquina, devolve na prateleira. Enter fora de ordem - na máquina de mãos vazias, por
+// exemplo - toca o erro e não muda nada. Duas rodadas, como no original: por isso é LONGA.
+
+#include "task_common.nvgt"
+
+const array<float> CANISTER_SIDE_PANS = {-0.7, 0.7};
+const int CANISTER_ROUNDS = 2;
+
+// De que lado fica a prateleira da próxima vez (0 = esquerda, 1 = direita; -1 = sortear). Só a sonda
+// preenche. E os Enter fora de ordem da última vez, para a sonda conferir.
+int g_canister_shelf_side_next = -1;
+int g_canister_last_misses = 0;
+
+bool run_fill_canisters_task(game_client@ client, uint phase) {
+	speak_hint("task.fill_canisters.instructions");
+	int prateleira = g_canister_shelf_side_next >= 0 ? g_canister_shelf_side_next : random(0, 1);
+	g_canister_shelf_side_next = -1;
+	g_canister_last_misses = 0;
+	int lado = -1; // começa no meio, diante dos dois
+
+	for (int rodada = 0; rodada < CANISTER_ROUNDS; rodada++) {
+		// 0 = o vazio na prateleira, 1 = na mão vazio, 2 = cheio na máquina, 3 = na mão cheio.
+		int estado = 0;
+		if (rodada > 0) {
+			// O cilindro seguinte aparece na prateleira: de onde se está, ouve-se ele chegar.
+			if (!task_wait(400, client)) return false;
+			task_sound(SND_CANISTER_SHELF, pan_from_linear(CANISTER_SIDE_PANS[prateleira]));
+		}
+		while (estado < 4) {
+			wait(5);
+			client.update();
+			if (task_tick(client)) return false;
+			// Cada tecla lida UMA vez (ver CLAUDE.md).
+			bool esq = key_pressed(KEY_LEFT), dir = key_pressed(KEY_RIGHT), enter = key_pressed(KEY_RETURN);
+			if (esq || dir) {
+				lado = dir ? 1 : 0;
+				float pan = pan_from_linear(CANISTER_SIDE_PANS[lado]);
+				if (lado != prateleira) task_sound(SND_CANISTER_MACHINE, pan);
+				else if (estado == 0) task_sound(SND_CANISTER_SHELF, pan);
+				else task_sound_path(SND_MENU_CLICK, pan);
+				continue;
+			}
+			if (!enter || lado < 0) continue;
+			float pan = pan_from_linear(CANISTER_SIDE_PANS[lado]);
+			bool na_prateleira = lado == prateleira;
+			if (na_prateleira && estado == 0) {
+				task_sound(SND_CANISTER_GRAB, pan);
+				estado = 1;
+			} else if (!na_prateleira && estado == 1) {
+				if (!wait_for_task_sound(task_sound(SND_CANISTER_PLUGIN, pan), client)) return false;
+				if (!wait_for_task_sound(task_sound(SND_CANISTER_FILL, pan), client)) return false;
+				estado = 2;
+			} else if (!na_prateleira && estado == 2) {
+				if (!wait_for_task_sound(task_sound(SND_CANISTER_PLUGOUT, pan), client)) return false;
+				estado = 3;
+			} else if (na_prateleira && estado == 3) {
+				if (!wait_for_task_sound(task_sound(SND_CANISTER_DROP, pan), client)) return false;
+				estado = 4;
+			} else {
+				g_canister_last_misses++;
+				task_sound(SND_CARD_ERROR, pan);
+			}
+		}
+	}
+	return true;
+}

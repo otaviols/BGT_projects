@@ -121,7 +121,11 @@ Falta, na ordem combinada:
   no mapa não sai), e **guardar os artefatos** (espécimes: as peças chegam uma a uma, cada uma com o seu
   som; cada buraco, ao se CHEGAR nele, toca o som da peça que encaixa ali, e Enter guarda - casar dois sons
   iguais, com só setas, Espaço (repete a peça da mão) e Enter. Desenho do usuário, que trocou no mesmo dia
-  duas versões minhas: tentar e lembrar quais buracos recusaram, e escutar o buraco com uma tecla à parte). As maquetes ficam na pasta de teste do usuário
+  duas versões minhas: tentar e lembrar quais buracos recusaram, e escutar o buraco com uma tecla à parte), **encher os cilindros de O2** (O2, desenho do usuário: prateleira
+  e máquina em lados SORTEADOS, chegar apresenta o lugar, Enter faz a coisa do lugar na ordem - pegar,
+  encaixar e o gás enche, tirar, devolver -; duas rodadas, longa) e **abrir a roda d'água** (lá fora, no
+  caminho do O2 à elétrica: girar com as setas em roda, cada quarto range onde a manivela está, o quarto
+  anterior volta; três voltas. O "emperrar" foi oferecido e ficou de fora). As maquetes ficam na pasta de teste do usuário
   (`C:\apto10\acer\documents\Among Us - teste do Polus`), junto do jogo de teste. As outras ainda são provisórias, as da nave que fazem
   sentido lá (fios, download, asteroides, filtro de O2);
 - **o sismógrafo** (a sabotagem crítica, dois painéis, duas pessoas) - até lá o Polus não tem crítica;

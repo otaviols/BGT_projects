@@ -106,4 +106,6 @@ Espaço) bombeando a rede, e o gancho da sonda continua apertando teclas nesse m
 seguinte já não as vê. Sintoma: a sonda não imprime NADA e sai com código 1 (o limite de quadros dela),
 porque o minijogo ficou esperando um Enter que já passou. Espace os toques (`probe_record_temperature`,
 `probe_weather_node`) e espere a apresentação inicial antes do primeiro. Com o jogador acontece o mesmo,
-mas só durante um som curto.
+mas só durante um som curto. E dê folga: com a máquina ocupada (logo depois de um `build_pack`) a
+`probe_fill_canisters`, a 350 quadros entre teclas, contou UMA vez um erro a mais que nas rodadas
+seguintes - a causa não foi achada; a 450 quadros não se repetiu.

@@ -148,6 +148,13 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	SND_TASK_BEACON_STORE_ARTIFACTS, "sounds/" + SND_SPECIMEN_OPEN, "sounds/" + SND_SPECIMEN_CLOSE,
 	"sounds/" + SND_SPECIMEN_PLACE, "sounds/" + SND_ARTIFACT_CRYSTAL, "sounds/" + SND_ARTIFACT_EGG,
 	"sounds/" + SND_ARTIFACT_BONE, "sounds/" + SND_ARTIFACT_ROCK,
+	// Os cilindros e a roda d'água: os marcadores são do Polus em construção, e o resto é de dentro dos
+	// minijogos.
+	SND_TASK_BEACON_FILL_CANISTERS, "sounds/" + SND_CANISTER_SHELF, "sounds/" + SND_CANISTER_MACHINE,
+	"sounds/" + SND_CANISTER_GRAB, "sounds/" + SND_CANISTER_PLUGIN, "sounds/" + SND_CANISTER_FILL,
+	"sounds/" + SND_CANISTER_PLUGOUT, "sounds/" + SND_CANISTER_DROP,
+	SND_TASK_BEACON_OPEN_WATERWHEEL, "sounds/" + SND_WATERWHEEL_OPEN, "sounds/" + SND_WATERWHEEL_TURN,
+	"sounds/" + SND_WATERWHEEL_TURN_LOW, "sounds/" + SND_WATERWHEEL_WATER,
 	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
 	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
 	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",

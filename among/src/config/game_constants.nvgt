@@ -387,7 +387,7 @@ const uint DEFAULT_LONG_TASK_COUNT = 2;
 // esquecer é tratá-la como curta, que é o padrão seguro.
 const array<string> LONG_TASK_TYPES = {"calibrate_distributor", "fuel_engines",
 	"clear_asteroids", "review_records", "submit_scan",
-	"fix_weather_node", "reboot_wifi", "replace_water_jug"};
+	"fix_weather_node", "reboot_wifi", "replace_water_jug", "fill_canisters"};
 
 // Tarefas COMUNS: iguais para todo tripulante, no mesmo ponto do mapa. São a ferramenta de dedução
 // mais barata do jogo - quem diz ter feito uma comum que você não tem está mentindo.
