@@ -1,0 +1,54 @@
+// Sonda de alinhar o telescópio (Polus): Enter fora do centro não trava, e mover a mira até o astro
+// ficar no centro (lado E tom) e apertar Enter trava - com as teclas de DENTRO do laço do minijogo.
+//   nvgt tools/probes/probe_align_telescope.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 8000) exit(1);
+	if (passo >= roteiro.length() || quadro < 500) return; // a referência (dois tiques e as pausas)
+	if (quadro % 40 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 40 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+void roda(array<int>@ teclas) { roteiro = teclas; passo = 0; quadro = 0; }
+
+void main() {
+	show_window("sonda: telescopio");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	// O astro à direita (3) e abaixo (-2), como na maquete: três para a direita, Enter cedo (erro, o lado
+	// certo mas o tom não), dois para baixo e Enter.
+	g_telescope_next_dx = 3; g_telescope_next_dy = -2; g_telescope_next_set = true;
+	array<int> rota = {KEY_RIGHT, KEY_RIGHT, KEY_RIGHT, KEY_RETURN, KEY_DOWN, KEY_DOWN, KEY_RETURN};
+	roda(rota);
+	bool ok = run_align_telescope_task(c);
+	// O Enter cedo (o 4º) não pode ter travado: se tivesse, o roteiro pararia ali, antes das setas para baixo.
+	confere("Enter so com o lado certo nao trava; lado e tom no centro travam", ok && passo >= rota.length() - 1);
+
+	// Na borda do céu a mira não passa: o astro bem à esquerda (-4); a seta para a direita o levaria para
+	// fora do céu, então não muda nada, e quatro para a esquerda o trazem ao centro.
+	g_telescope_next_dx = -4; g_telescope_next_dy = 0; g_telescope_next_set = true;
+	array<int> borda = {KEY_RIGHT, KEY_LEFT, KEY_LEFT, KEY_LEFT, KEY_LEFT, KEY_RETURN};
+	roda(borda);
+	bool ok2 = run_align_telescope_task(c);
+	confere("na borda a mira nao passa, e o astro volta ao centro pelo lado certo", ok2);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

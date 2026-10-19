@@ -666,6 +666,8 @@
   "task.align_engine.instructions": "A beep plays continuously. Use left and right arrows to bring the sound to the center (both ears equal). Press Enter once it's centered to lock in. ESC cancels.",
   "task.swipe_card.instructions": "Press Enter at the right moment, between the two beeps, to swipe the card at the correct rhythm. ESC cancels.",
   "task.unlock_manifolds.instructions": "Listen to the tone sequence and repeat it with keys 1 to 4. Each key has its own tone, from lowest (1) to highest (4). Ctrl with a number plays that key's tone without counting as an answer. Space plays the sequence again, and then you type it from the start. ESC cancels.",
+  "task.align_telescope.name": "Align the telescope",
+  "task.align_telescope.instructions": "The star blinks with a tick: the side tells whether it is left or right of the crosshair, and the pitch whether it is above (higher) or below (lower). First the tick plays twice centered, which is how it should sound. Move the crosshair with the arrow keys until the tick sounds in the middle and at the center pitch, and press Enter to lock it. Space repeats the center. ESC cancels.",
   "task.insert_keys.name": "Insert the keys",
   "task.insert_keys.instructions": "One of the five keyholes is lit: it blinks with a low beep, on its side. Move the key with the left and right arrows until its click sounds on the same side as the beep, and press Enter to insert it. Then the up arrow turns the key. ESC cancels.",
   "task.fix_weather_node.name": "Fix the weather node",

@@ -1,0 +1,104 @@
+// align_telescope.nvgt
+// Alinhar o telescópio (Polus, a 1.0), no laboratório. No original, a tela mostra um céu de estrelas e,
+// no canto, o astro a achar; arrasta-se a vista até ele ficar no centro da mira, e ela trava.
+//
+// Para o ouvido (maquete aprovada pelo usuário em 2026-10-19):
+//   - o astro PISCA: um tique a cada meio segundo, no LADO em que está em relação à mira e num TOM pela
+//     altura (acima = mais agudo, abaixo = mais grave, um tom inteiro por passo);
+//   - no começo, o tique toca duas vezes no centro e no tom do centro: é como soa o astro centralizado,
+//     a referência (o alvo do distribuidor);
+//   - as setas movem a MIRA, então o tique anda na direção oposta: seta para a direita traz para o meio
+//     o astro que estava à direita;
+//   - Enter trava, e só no centro exato - lado E tom; fora, toca o erro e só custa tempo.
+// Parece alinhar o motor, mas em duas dimensões e com comparação de tom - a decisão é julgar quando as
+// duas pistas chegaram ao centro ao mesmo tempo.
+
+#include "task_common.nvgt"
+
+const int TELESCOPE_RANGE = 4;          // passos da mira para cada lado
+const uint TELESCOPE_PULSE_MS = 500;
+const float TELESCOPE_SEMITONES_PER_STEP = 2.0;
+
+// O astro da próxima vez (dx, dy relativos à mira), no lugar do sorteio - só a sonda preenche
+// (probe_align_telescope). Usado uma vez e zerado.
+int g_telescope_next_dx = 0, g_telescope_next_dy = 0;
+bool g_telescope_next_set = false;
+
+sound@ telescope_tick(int dx, int dy) {
+	float pan = pan_from_linear(float(dx) / float(TELESCOPE_RANGE));
+	float pitch = 100.0 * pow(2.0, float(dy) * TELESCOPE_SEMITONES_PER_STEP / 12.0);
+	return task_sound(SND_TELESCOPE_TICK, pan, pitch);
+}
+
+bool telescope_reference(game_client@ client) {
+	for (int i = 0; i < 2; i++) {
+		if (!wait_for_task_sound(telescope_tick(0, 0), client)) return false;
+		if (!task_wait(350, client)) return false;
+	}
+	return true;
+}
+
+bool run_align_telescope_task(game_client@ client) {
+	speak_hint("task.align_telescope.instructions");
+	// Onde o astro está, em relação à mira. Nunca no centro: sem mexer, não haveria o que ouvir.
+	int dx, dy;
+	if (g_telescope_next_set) {
+		dx = g_telescope_next_dx;
+		dy = g_telescope_next_dy;
+		g_telescope_next_set = false;
+	} else {
+		do {
+			dx = random(-TELESCOPE_RANGE, TELESCOPE_RANGE);
+			dy = random(-TELESCOPE_RANGE, TELESCOPE_RANGE);
+		} while (dx == 0 && dy == 0);
+	}
+	if (!task_wait(700, client)) return false;
+	if (!telescope_reference(client)) return false;
+	if (!task_wait(400, client)) return false;
+
+	timer pulso;
+	bool tocar_ja = true;
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		if (tocar_ja || pulso.elapsed >= int(TELESCOPE_PULSE_MS)) {
+			tocar_ja = false;
+			pulso.restart();
+			telescope_tick(dx, dy);
+		}
+		// Cada tecla lida UMA vez (ver CLAUDE.md).
+		bool esq = key_pressed(KEY_LEFT), dir = key_pressed(KEY_RIGHT);
+		bool cima = key_pressed(KEY_UP), baixo = key_pressed(KEY_DOWN);
+		bool enter = key_pressed(KEY_RETURN), espaco = key_pressed(KEY_SPACE);
+		if (espaco) {
+			if (!telescope_reference(client)) return false;
+			tocar_ja = true;
+			continue;
+		}
+		// A mira anda; o astro, relativo a ela, anda ao contrário. Na borda do céu a mira não passa.
+		int ndx = dx + (esq ? 1 : 0) - (dir ? 1 : 0);
+		int ndy = dy + (baixo ? 1 : 0) - (cima ? 1 : 0);
+		if (ndx != dx || ndy != dy) {
+			if (telescope_abs(ndx) <= TELESCOPE_RANGE && telescope_abs(ndy) <= TELESCOPE_RANGE) { dx = ndx; dy = ndy; }
+			tocar_ja = true; // o tique novo sai na hora, sem esperar o próximo pulso
+			continue;
+		}
+		if (!enter) continue;
+		if (dx != 0 || dy != 0) {
+			task_sound(SND_CARD_ERROR);
+			continue;
+		}
+		// Travou: o tique acelera no centro.
+		array<int> pausas = {120, 100, 80, 60};
+		for (uint i = 0; i < pausas.length(); i++) {
+			telescope_tick(0, 0);
+			if (!task_wait(pausas[i], client)) return false;
+		}
+		wait_for_task_sound(telescope_tick(0, 0), client, 1000);
+		return true;
+	}
+	return false;
+}
+
+int telescope_abs(int v) { return v < 0 ? -v : v; }

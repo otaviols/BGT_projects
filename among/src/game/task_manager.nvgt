@@ -18,6 +18,7 @@
 #include "tasks/submit_scan.nvgt"
 #include "tasks/fix_weather_node.nvgt"
 #include "tasks/insert_keys.nvgt"
+#include "tasks/align_telescope.nvgt"
 #include "../audio/sound_catalog.nvgt"
 
 // Roda a minigame correspondente a task_type e retorna true em caso de sucesso, false se falhou
@@ -32,7 +33,7 @@
 // abre alguma coisa - um tipo sem minijogo compila, aparece no mapa, e o Enter nele não faz nada.
 const array<string> TASK_MINIGAME_TYPES = {"fix_wiring", "download_data", "empty_garbage", "align_engine",
 	"swipe_card", "unlock_manifolds", "fuel_engines", "clear_asteroids", "roll_dice", "water_plants",
-	"clean_o2_filter", "calibrate_distributor", "review_records", "submit_scan", "fix_weather_node", "insert_keys"};
+	"clean_o2_filter", "calibrate_distributor", "review_records", "submit_scan", "fix_weather_node", "insert_keys", "align_telescope"};
 bool task_minigame_exists(const string&in task_type) { return TASK_MINIGAME_TYPES.find(task_type) >= 0; }
 
 // `start_object`: o ponto onde a tarefa COMEÇOU (o primeiro da corrente). Só o nó do clima usa: a etapa
@@ -58,6 +59,7 @@ bool run_task_minigame(game_client@ client, const string&in task_type, uint phas
 	else if (task_type == "submit_scan") result = run_submit_scan_task(client);
 	else if (task_type == "fix_weather_node") result = run_fix_weather_node_task(client, phase, start_object);
 	else if (task_type == "insert_keys") result = run_insert_keys_task(client);
+	else if (task_type == "align_telescope") result = run_align_telescope_task(client);
 	// Fechou: terminada tem um som, fechada pela metade (ESC, reunião, erro) tem outro - o mesmo de
 	// abrir, porque "em andamento" é exatamente o estado em que ela fica.
 	ui_sound("sounds/" + (result ? SND_TASK_COMPLETE : SND_TASK_INPROGRESS));

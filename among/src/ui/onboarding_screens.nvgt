@@ -135,6 +135,8 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	// As chaves: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
 	SND_TASK_BEACON_INSERT_KEYS, "sounds/" + SND_KEY_GRAB, "sounds/" + SND_KEY_INSERT, "sounds/" + SND_KEY_TURN,
 	"sounds/" + SND_KEYS_OPEN,
+	// O telescópio: o marcador é do Polus em construção, e o tique é de dentro do minijogo.
+	SND_TASK_BEACON_ALIGN_TELESCOPE, "sounds/" + SND_TELESCOPE_TICK,
 	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
 	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
 	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",
