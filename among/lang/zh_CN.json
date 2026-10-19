@@ -641,7 +641,7 @@
   "task.submit_scan.name": "提交扫描",
   "task.submit_scan.instructions": "站在扫描仪上直至完成。附近的任何人都会听到扫描的声音。 ESC 取消。",
   "game.visible_task_scan": "{name} 正在进行医学扫描。",
-  "learn.medbay_scan": "Medbay 扫描仪（有人被扫描）",
+  "learn.medbay_scan": "医疗扫描仪（有人被扫描）",
   "task.water_plants.name": "给幼苗浇水",
   "task.review_records.name": "查看录音",
   "task.completed": "任务完成。",

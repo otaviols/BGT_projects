@@ -59,7 +59,9 @@ void main() {
 	game_map@ base = build_map(MAP_POLAR_BASE);
 	game_map@ nave = build_map(MAP_IDS[0]);
 	confere("a Base Polar tem painel; a nave de sempre nao", base.doors_have_panel && !nave.doors_have_panel);
-	confere("no Base Polar a porta fica mais tempo (20 s contra 12)", base.doors_closed_seconds() > nave.doors_closed_seconds());
+	confere("na Base Polar so sete salas tem porta (a nave de pouso nao)", base.room_can_be_locked("office") && !base.room_can_be_locked("dropship") && !base.room_can_be_locked("specimen"));
+	confere("na nave toda sala tem", nave.room_can_be_locked("cafeteria") && nave.room_can_be_locked("reactor"));
+	confere("na Base Polar a porta fica mais tempo (20 s contra 12)", base.doors_closed_seconds() > nave.doors_closed_seconds());
 	float px, py, fx, fy;
 	passagem(base, "laboratory", px, py, fx, fy);
 	confere("sala aberta: sem painel", base.door_panel_at(px, py) == "");

@@ -1,7 +1,7 @@
 // Sonda do menu "Aprender os sons do jogo": a lista não pode ficar para trás do catálogo.
 //   nvgt tools/probes/probe_learn_sounds.nvgt
 //
-// A lista é escrita à mão e envelheceu calada: na 0.50.7 faltavam 28 sons e dois pisos (relato do
+// A parte comum é escrita à mão e envelheceu calada: na 0.50.7 faltavam 28 sons e dois pisos (relato do
 // usuário: "ele não está sendo atualizado"). Confere:
 //   1. todo som do catálogo (all_sound_paths) está no menu, ou em LEARN_SOUNDS_LEFT_OUT com motivo,
 //      ou é som de DENTRO de minijogo (sounds/tasks/ que nenhum item do menu usa - eles se aprendem
@@ -18,17 +18,43 @@ void confere(const string&in o_que, bool ok) {
 	if (!ok) falhas++;
 }
 
+string valores(name_value_collection@ sfx) {
+	string r;
+	for (uint i = 0; i < sfx.size(); i++) r += sfx.value_at(i) + ";";
+	return r;
+}
+
 void main() {
 	if (!directory_exists("sounds")) chdir("..");
 	if (!directory_exists("sounds")) chdir("..");
 	g_i18n.load_language(DEFAULT_LANGUAGE);
 
-	name_value_collection@ sfx = learn_sounds_collection();
+	// O menu é por mapa: o catálogo tem que caber na UNIÃO dos menus de todos os mapas.
+	array<string> mapas = MAP_IDS;
+	for (uint i = 0; i < MAP_IDS_IN_TEST.length(); i++) mapas.insert_last(MAP_IDS_IN_TEST[i]);
 	array<string> no_menu;
-	for (uint i = 0; i < sfx.size(); i++) {
-		string[]@ partes = sfx.value_at(i).split(",");
-		for (uint k = 0; k < partes.length(); k++) no_menu.insert_last(partes[k]);
+	array<string> rotulos_crus;
+	for (uint m = 0; m < mapas.length(); m++) {
+		name_value_collection@ sfx = learn_sounds_collection(build_map(mapas[m]));
+		for (uint i = 0; i < sfx.size(); i++) {
+			// Rótulo que sai cru (a chave no lugar do texto, ou o nome do piso): chave faltando.
+			string nome = sfx.name_at(i);
+			if (nome.find("learn.") >= 0 || nome.find("task.") >= 0 || nome.find("room.") >= 0 || nome.find("Tile") >= 0)
+				rotulos_crus.insert_last(mapas[m] + ": " + nome);
+			string[]@ partes = sfx.value_at(i).split(",");
+			for (uint k = 0; k < partes.length(); k++) if (no_menu.find(partes[k]) < 0) no_menu.insert_last(partes[k]);
+		}
+		println("  " + mapas[m] + ": " + sfx.size() + " itens");
 	}
+	for (uint i = 0; i < rotulos_crus.length(); i++) println("     rotulo cru: " + rotulos_crus[i]);
+	confere("nenhum rotulo sai cru", rotulos_crus.length() == 0);
+
+	// Cada mapa mostra o que é dele: a nave não toca a neve, a Base Polar não toca a cafeteria.
+	string nave = valores(learn_sounds_collection(build_map(MAP_THE_HUB)));
+	string polar = valores(learn_sounds_collection(build_map(MAP_POLAR_BASE)));
+	confere("a nave nao tem a neve nem a camara", nave.find("SnowTile") < 0 && nave.find("decontamination") < 0);
+	confere("a Base Polar nao tem a cafeteria nem o zumbido da nave", polar.find(SND_AMBIENT_CAFETERIA) < 0 && polar.find(SND_SHIP_AMBIENCE) < 0);
+	confere("e tem a neve, a camara e o sismografo", polar.find("SnowTile") >= 0 && polar.find(SND_DECONTAMINATION_SPRAY) >= 0 && polar.find(SND_PANEL_BEACON_SEISMIC) >= 0);
 
 	array<string> sem_arquivo;
 	for (uint i = 0; i < no_menu.length(); i++) if (!file_exists(no_menu[i])) sem_arquivo.insert_last(no_menu[i]);

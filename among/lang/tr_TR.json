@@ -641,7 +641,7 @@
   "task.submit_scan.name": "Taramayı gönder",
   "task.submit_scan.instructions": "Tarayıcı bitene kadar üzerinde hareketsiz durun. Yakındaki herkes tarama sesini duyar. ESC iptal eder.",
   "game.visible_task_scan": "{name} tıbbi tarama yapıyor.",
-  "learn.medbay_scan": "Revir tarayıcısı (biri taranıyor)",
+  "learn.medbay_scan": "Tıbbi tarayıcı (biri taranıyor)",
   "task.water_plants.name": "Fideleri sula",
   "task.review_records.name": "Kayıtları incele",
   "task.completed": "Görev tamamlandı.",

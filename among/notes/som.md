@@ -159,7 +159,9 @@ números que já estavam no código (EarthTile, O2Tile) dentro de ~1,5 dB, e a d
 mesma: **a conta exagera e o ouvido puxa de volta** (o Tile pedia +17,6 e ficou em +15; o vidro pede
 +19,2 e ficou em +17). Aplique a conta, depois confira de ouvido.
 
-**Piso novo entra em DUAS tabelas, e esquecer uma falha calado.** `footstep_variant_count` tem um
+**Piso novo entra em DUAS tabelas, e esquecer uma falha calado** (e num terceiro lugar, que não cala:
+o rótulo dele no aprender os sons, `footstep_learn_key` - sem ele o piso aparece com o nome cru, e a
+`probe_learn_sounds` acusa). `footstep_variant_count` tem um
 fallback de 2 variantes: um piso com oito arquivos que não esteja na tabela toca sempre os dois
 mesmos passos, e nada acusa - o som existe, só soa repetitivo. `FOOTSTEP_FLOOR_PREFIXES` é a outra:
 sem ela os arquivos não entram no `sounds.dat` e o piso fica mudo no jogo compilado (funciona

@@ -106,7 +106,7 @@ como a nave de sempre, que é "A nave" e não "The Skeld" (decisão do usuário,
 "Among Us" é marca). A seção "Polus" mais acima fala do mapa ORIGINAL, da leva; a pasta de teste do usuário
 ainda se chama "teste do Polus".
 
-**Planta aprovada e montada** (`build_polar_base_map`): nave de pouso (começo, mesa e botão), escritório,
+**Planta aprovada e montada** (`build_polar_base_map`): nave de pouso (começo e as chaves), escritório (mesa e botão: a reunião),
 administração, comunicações, armas, O2, elétrica, depósito, sismógrafo, laboratório, descontaminação e a
 sala dos espécimes atrás dela - ligados por nove caminhos de NEVE (o lado de fora, `SnowTile` a +7,5 dB,
 com o vento `polar_base_outside` em cada caminho) e dois corredores internos. Duas redes de duto. Ambientes da
@@ -132,7 +132,7 @@ algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os
     a coisa do lugar na ordem; duas rodadas, longa);
   - **abrir a roda d'água** (lá fora: girar com as setas em roda; o "emperrar" foi oferecido e ficou de fora).
 - **Da nave, ficaram as que fazem sentido lá:** fios, download, asteroides (as armas do original têm) e o
-  filtro de O2 (DÚVIDA aberta: não se sabe se o Polus original tem essa tarefa). E o **exame médico**, a
+  filtro de O2 saiu (abaixo). E o **exame médico**, a
   tarefa visual, no laboratório como no original - o usuário: tarefa vai onde faz sentido, sala cheia não
   é problema, o sorteio já limita as visuais por partida.
 - **O sismógrafo**, a crítica: duas mãos juntas nos dois painéis da sala dele, 90 s (ver
@@ -141,21 +141,23 @@ algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os
   manual (a nave é o mapa publicado); falta só o changelog.
 - **Portas com painel:** a sala trancada fica 20 s (12 na nave), e na passagem Enter abre o minijogo de
   reflexo. Os sons do minijogo da leva foram RECUSADOS ("bem estranhos", feitos para animação): bipes
-  gerados e o interruptor que estava reservado. O impostor tranca qualquer sala menos a câmara (no
-  original, só sete salas têm porta - perguntado ao usuário em 2026-10-19).
+  gerados e o interruptor que estava reservado.
 - **A descontaminação:** quem entra TRANCA a câmara por 5 s, com o spray; quem chega depois espera a
   rodada dele (o usuário: ficar preso 1 s pela rodada de outro não faria sentido). Várias pessoas juntas,
   e pode matar lá dentro (escolha dele, como no original). Só funciona pelo servidor - o usuário dispensou
   simular no Conhecer o mapa.
 - **Câmeras** na administração (no original há sala de segurança própria). O painel de comunicações fica
   nas comunicações, como no original (estava na administração por engano da planta).
-- **As reuniões e o botão** ficam na nave de pouso, onde se começa (no original, no escritório) - a planta
-  aprovada.
+- **As reuniões e o botão** ficam no escritório, como no original; começa-se na nave de pouso, onde
+  também ficam as chaves (no original é ligar a nave em que se chegou). A planta primeira juntava começo
+  e reunião na nave de pouso, e o usuário as separou (2026-10-19).
+- **Sem o filtro de O2** (veio da nave e não se sabe se o original o tem; o usuário o tirou).
+- **Portas só em sete salas**, como no original (`lockable_rooms`): comunicações, elétrica, laboratório,
+  escritório, O2, depósito e armas.
 
 **Falta antes de lançar:**
-- liberar o mapa (`MAP_IDS_IN_TEST` -> `MAP_IDS`), e decidir o **aprender os sons por mapa** (proposta:
-  perguntar o mapa e mostrar os sons comuns mais os daquele mapa; hoje os da Base Polar ficam em
-  `LEARN_SOUNDS_LEFT_OUT`);
+- liberar o mapa (`MAP_IDS_IN_TEST` -> `MAP_IDS`). O aprender os sons JÁ é por mapa (pergunta o mapa,
+  e a parte do mapa sai do próprio mapa - `learn_sounds_collection`);
 - uma **partida de teste com gente**: sismógrafo, reator, portas e descontaminação só existem pelo servidor;
 - a seção da Base Polar no **manual** (`docs/README_*`), o **changelog** e a versão.
 
@@ -175,8 +177,8 @@ comete calada.
    `ship_ambience`, salas, corredores, objetos; uma linha em `build_map`; o id em `MAP_IDS_IN_TEST`
    enquanto se constrói e em `MAP_IDS` quando sair; `map.<id>.name` em pt_BR e en_US.
 2. `probe_maps` passando.
-3. Os sons do mapa no **aprender os sons**: hoje uma lista só, com os do mapa em teste fora dela
-   (`LEARN_SOUNDS_LEFT_OUT`); a proposta para a Base Polar está em "Falta antes de lançar", acima.
+3. O **aprender os sons** monta a parte do mapa a partir dele (pisos, ambientes, marcadores, câmara):
+   nada a fazer, a não ser o rótulo de um PISO novo (`footstep_learn_key`) - a sonda acusa rótulo cru.
 4. Os **bots** já rodam no mapa novo (a `probe_seismic` os põe nos painéis da Base Polar); o **modo
    gráfico** lê o mapa, mas só foi olhado na nave de sempre.
 ## O que o mapa novo exigiu do jogo (FEITO; fica como registro do porquê)
@@ -186,5 +188,6 @@ comete calada.
   antigo jogaria a nave errada.
 - **Tudo que assumia a nave de sempre** passou a perguntar ao mapa: Conhecer o mapa, o treino, os bots,
   o modo gráfico, as câmeras, a reunião (o ponto de encontro) e as sondas que montam o mapa. O aprender
-  os sons é o que falta (acima).
-- **Pisos novos** entram em DUAS tabelas (ver som.md: "piso novo entra em DUAS tabelas").
+  os sons também (2026-10-19).
+- **Pisos novos** entram em DUAS tabelas, e o rótulo no aprender os sons (ver som.md: "piso novo entra
+  em DUAS tabelas").

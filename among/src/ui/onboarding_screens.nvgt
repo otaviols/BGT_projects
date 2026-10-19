@@ -22,6 +22,8 @@
 #include "settings_screens.nvgt"
 #include "../core/touch_input.nvgt"
 #include "visual_map.nvgt"
+#include "map_choice.nvgt"
+#include "../game/map.nvgt"
 
 // A primeira vez num computador: jogar com o modo gráfico ou só com som? (recado #235, e o #236 chegou
 // ao mesmo problema: o modo nasce desligado, e quem enxerga e não usa leitor de tela não tinha como
@@ -116,56 +118,22 @@ void run_touch_help_screen() {
 // Fora de propósito: os sons de DENTRO dos minijogos (eles se aprendem fazendo a tarefa, no treino -
 // isolados, "o tique do distribuidor" não diz nada), e o que está reservado e nunca toca.
 const array<string> LEARN_SOUNDS_LEFT_OUT = {
-	// O painel da porta: só existe na Base Polar, que ainda não saiu.
-	SND_DOOR_SWITCH, "sounds/" + SND_DOOR_TARGET, "sounds/" + SND_DOOR_TARGET_MISS,
-	SND_DECONTAMINATION_CLOSE, SND_DECONTAMINATION_OPEN, SND_DECONTAMINATION_SPRAY,
+	// O interruptor do painel da porta (a Base Polar): de dentro do minijogo, como os de tarefa - os de
+	// sounds/tasks/ a sonda já reconhece sozinha; este mora em world/.
+	SND_DOOR_SWITCH,
 	// De dentro dos PAINÉIS DE REPARO (o teclado do código do oxigênio, o dial das comunicações): como
 	// os de minijogo de tarefa, aprendem-se consertando, no treino. Caminhos sem a pasta, como o
 	// catálogo os lista (ver all_sound_paths).
 	"sounds/" + SND_CODE_KEY, "sounds/" + SND_CODE_GOOD, "sounds/" + SND_CODE_BAD,
 	"sounds/" + SND_COMMS_PANEL_OPEN, "sounds/" + SND_COMMS_PANEL_CLOSE,
-	"sounds/" + SND_COMMS_DIAL_STEP, "sounds/" + SND_COMMS_RADIO_VOICE,
-	// Os ambientes da Base Polar, mapa EM CONSTRUÇÃO (notes/versao-1.0.md): entram quando ele sair - e talvez
-	// num menu por mapa, que o usuário quer decidir junto com os sons de lá.
-	SND_POLAR_BASE_DROPSHIP, SND_POLAR_BASE_OFFICE, SND_POLAR_BASE_ADMIN, SND_POLAR_BASE_COMMUNICATIONS, SND_POLAR_BASE_OXYGEN,
-	SND_POLAR_BASE_ELECTRICAL, SND_POLAR_BASE_STORAGE, SND_POLAR_BASE_LABORATORY, SND_POLAR_BASE_DECONTAMINATION,
-	SND_POLAR_BASE_SPECIMEN, SND_POLAR_BASE_SEISMIC, SND_POLAR_BASE_OUTSIDE,
-	// O nó do clima: o marcador é da Base Polar em construção; o clique, o nó ligando e o interruptor são de
-	// DENTRO do minijogo, e se aprendem no treino, como os das outras tarefas.
-	SND_TASK_BEACON_WEATHER_NODE, SND_TASK_BEACON_WEATHER_SWITCH, "sounds/" + SND_WEATHER_NODE_MOVE, "sounds/" + SND_WEATHER_NODE_START,
-	"sounds/" + SND_WEATHER_SWITCH,
-	// As chaves: o marcador é da Base Polar em construção, e o resto é de dentro do minijogo.
-	SND_TASK_BEACON_INSERT_KEYS, "sounds/" + SND_KEY_GRAB, "sounds/" + SND_KEY_INSERT, "sounds/" + SND_KEY_TURN,
-	"sounds/" + SND_KEYS_OPEN,
-	// O telescópio: o marcador é da Base Polar em construção, e o tique é de dentro do minijogo.
-	SND_TASK_BEACON_ALIGN_TELESCOPE, "sounds/" + SND_TELESCOPE_TICK,
-	// A temperatura: o marcador é da Base Polar em construção, e o botão é de dentro do minijogo.
-	SND_TASK_BEACON_RECORD_TEMPERATURE, "sounds/" + SND_TEMP_BUTTON,
-	// O Wi-Fi: o marcador é da Base Polar em construção, e o resto é de dentro do minijogo.
-	SND_TASK_BEACON_REBOOT_WIFI, "sounds/" + SND_WIFI_SLIDER, "sounds/" + SND_WIFI_CLOSE, "sounds/" + SND_WIFI_OPEN,
-	// O galão: o marcador é da Base Polar em construção, e o resto é de dentro do minijogo.
-	SND_TASK_BEACON_REPLACE_WATER_JUG, SND_TASK_BEACON_PICK_WATER_JUG, "sounds/" + SND_JUG_FULL, "sounds/" + SND_JUG_EMPTY, "sounds/" + SND_JUG_GRAB,
-	"sounds/" + SND_JUG_PLACE, "sounds/" + SND_JUG_WATER,
-	// Os artefatos: o marcador é da Base Polar em construção, e o resto é de dentro do minijogo.
-	SND_TASK_BEACON_STORE_ARTIFACTS, "sounds/" + SND_SPECIMEN_OPEN, "sounds/" + SND_SPECIMEN_CLOSE,
-	"sounds/" + SND_SPECIMEN_PLACE, "sounds/" + SND_ARTIFACT_CRYSTAL, "sounds/" + SND_ARTIFACT_EGG,
-	"sounds/" + SND_ARTIFACT_BONE, "sounds/" + SND_ARTIFACT_ROCK,
-	// Os cilindros e a roda d'água: os marcadores são da Base Polar em construção, e o resto é de dentro dos
-	// minijogos.
-	SND_TASK_BEACON_FILL_CANISTERS, "sounds/" + SND_CANISTER_SHELF, "sounds/" + SND_CANISTER_MACHINE,
-	"sounds/" + SND_CANISTER_GRAB, "sounds/" + SND_CANISTER_PLUGIN, "sounds/" + SND_CANISTER_FILL,
-	"sounds/" + SND_CANISTER_PLUGOUT, "sounds/" + SND_CANISTER_DROP,
-	SND_TASK_BEACON_OPEN_WATERWHEEL, "sounds/" + SND_WATERWHEEL_OPEN, "sounds/" + SND_WATERWHEEL_TURN,
-	"sounds/" + SND_WATERWHEEL_TURN_LOW, "sounds/" + SND_WATERWHEEL_WATER,
-	// O sismógrafo: o marcador é da Base Polar em construção, e o resto é de dentro do painel.
-	SND_PANEL_BEACON_SEISMIC, "sounds/" + SND_SEISMIC_HAND, "sounds/" + SND_SEISMIC_HAND_START, "sounds/" + SND_SEISMIC_FAIL,
-	// O passo na neve: só existe na Base Polar, que ainda não saiu. Entra no menu junto com o mapa.
-	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
-	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",
-	"sounds/steps/SnowTile7.ogg"
+	"sounds/" + SND_COMMS_DIAL_STEP, "sounds/" + SND_COMMS_RADIO_VOICE
 };
 
+// Pergunta o mapa (como o Conhecer o mapa e o treino) e mostra os sons comuns mais os DELE: quem escolhe
+// a nave não ouve a neve, e vice-versa (pedido do usuário, 2026-10-19). Com um mapa só, não pergunta.
 void run_learn_sounds_screen() {
+	string qual = choose_map("map.choose_learn");
+	if (qual == "") return;
 	menu_music_stop(); // o tema por baixo atrapalharia ouvir cada som
 	screen_menu m;
 	// Fica mesmo com as dicas desligadas: com o título vazio, o learn_game_sounds_menu do NVGT põe o dele,
@@ -176,11 +144,36 @@ void run_learn_sounds_screen() {
 	// andar (relato do usuário: "o som de interface não está funcionando lá").
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
-	learn_game_sounds_menu(learn_sounds_collection(), "", @m, tr("menu.back"));
+	learn_game_sounds_menu(learn_sounds_collection(build_map(qual)), "", @m, tr("menu.back"));
 }
 
-name_value_collection@ learn_sounds_collection() {
+// O rótulo dos passos de cada piso. Piso novo entra aqui também (ver som.md, "piso novo entra em DUAS
+// tabelas"); um piso sem rótulo aparece com o nome cru, e a sonda acusa.
+string footstep_learn_key(const string&in prefix) {
+	if (prefix == "Tile") return "learn.footstep_tile";
+	if (prefix == "MetalTile") return "learn.footstep_metal";
+	if (prefix == "EarthTile") return "learn.footstep_earth";
+	if (prefix == "WoodTile") return "learn.footstep_wood";
+	if (prefix == "MetalBeltTile") return "learn.footstep_belt";
+	if (prefix == "VentTile") return "learn.footstep_vent";
+	if (prefix == "O2Tile") return "learn.footstep_o2";
+	if (prefix == "ConcreteTile") return "learn.footstep_concrete";
+	if (prefix == "SnowTile") return "learn.footstep_snow";
+	return "";
+}
+
+bool map_has_task(game_map@ map, const string&in task_type) {
+	for (uint i = 0; i < map.objects.length(); i++)
+		if (map.objects[i].obj_type == OBJ_TASK_SPOT && map.objects[i].task_type == task_type) return true;
+	return false;
+}
+
+name_value_collection@ learn_sounds_collection(game_map@ map) {
 	name_value_collection@ sfx = name_value_collection();
+
+	// A parte do MAPA sai do próprio mapa, e não de uma lista à mão: a lista à mão envelhecia calada (na
+	// 0.50.7 faltavam 28 sons), e com dois mapas seriam duas para esquecer. O que é do mapa: os pisos das
+	// salas dele, os ambientes, os marcadores de tudo que tem lá, o som geral, o scanner e a câmara.
 
 	// Um piso por som: reconhecer o chão é como se sabe em que sala se está sem perguntar nada.
 	//
@@ -188,53 +181,58 @@ name_value_collection@ learn_sounds_collection() {
 	// abreviada "Tile{1...6}.ogg". A forma abreviada só existe em versões recentes do menu.nvgt; nas
 	// mais antigas o texto com chaves é entregue direto ao carregador de som, que procura um arquivo
 	// chamado "Tile{1...6}.ogg", não encontra, e fica mudo sem reclamar de nada.
-	sfx.add(tr("learn.footstep_tile"), footstep_variants_list("Tile"));
-	sfx.add(tr("learn.footstep_metal"), footstep_variants_list("MetalTile"));
-	sfx.add(tr("learn.footstep_earth"), footstep_variants_list("EarthTile"));
-	sfx.add(tr("learn.footstep_wood"), footstep_variants_list("WoodTile"));
-	sfx.add(tr("learn.footstep_belt"), footstep_variants_list("MetalBeltTile"));
-	sfx.add(tr("learn.footstep_vent"), footstep_variants_list("VentTile"));
-	sfx.add(tr("learn.footstep_o2"), footstep_variants_list("O2Tile"));
-	sfx.add(tr("learn.footstep_concrete"), footstep_variants_list("ConcreteTile"));
+	array<string> pisos;
+	for (uint i = 0; i < map.zones.length(); i++)
+		if (pisos.find(map.zones[i].floor_sound_prefix) < 0) pisos.insert_last(map.zones[i].floor_sound_prefix);
+	if (map.objects_by_type(OBJ_VENT).length() > 0) pisos.insert_last("VentTile"); // o passo dentro do duto
+	for (uint i = 0; i < pisos.length(); i++) {
+		string chave = footstep_learn_key(pisos[i]);
+		sfx.add(chave != "" ? tr(chave) : pisos[i], footstep_variants_list(pisos[i]));
+	}
 
-	sfx.add(tr("learn.ambient_prefix") + tr("room.cafeteria"), SND_AMBIENT_CAFETERIA);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.weapons"), SND_AMBIENT_WEAPONS);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.navigation"), SND_AMBIENT_NAVIGATION);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.admin"), SND_AMBIENT_ADMIN);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.medbay"), SND_AMBIENT_MEDBAY);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.storage"), SND_AMBIENT_STORAGE);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.electrical"), SND_AMBIENT_ELECTRICAL);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.reactor"), SND_AMBIENT_REACTOR);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.engine"), SND_AMBIENT_ENGINE);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.games"), SND_AMBIENT_GAMES);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.greenhouse"), SND_AMBIENT_GREENHOUSE);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.security"), SND_AMBIENT_SECURITY);
-	sfx.add(tr("learn.ambient_prefix") + tr("room.oxygen"), SND_AMBIENT_OXYGEN);
-	sfx.add(tr("learn.passage"), SND_PASSAGE);
+	// Os ambientes, na ordem do mapa, um por som (a passagem e o vento se repetem por corredor).
+	array<string> ja;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type != OBJ_DECORATION || o.sound_path == "" || ja.find(o.sound_path) >= 0) continue;
+		ja.insert_last(o.sound_path);
+		string nome;
+		if (o.name_key.starts_with("room.")) nome = tr("learn.ambient_prefix") + tr(o.name_key);
+		else if (o.sound_path == SND_PASSAGE) nome = tr("learn.passage");
+		else if (o.name_key == "outside") nome = tr("learn.outside");
+		else nome = tr(o.name_key);
+		sfx.add(nome, o.sound_path);
+	}
+	if (map.ship_ambience != "") sfx.add(tr("learn.ship_ambience"), map.ship_ambience);
 
-	sfx.add(tr("learn.button_beacon"), SND_BUTTON_BEACON);
-	sfx.add(tr("learn.panel_lights_beacon"), SND_PANEL_BEACON_LIGHTS);
-	sfx.add(tr("learn.panel_oxygen_beacon"), SND_PANEL_BEACON_OXYGEN);
-	sfx.add(tr("learn.panel_reactor_beacon"), SND_PANEL_BEACON_REACTOR);
-	sfx.add(tr("learn.panel_comms_beacon"), SND_PANEL_BEACON_COMMS);
-	sfx.add(tr("learn.vent_beacon"), SND_VENT_BEACON);
-	sfx.add(tr("learn.camera_beacon"), SND_CAMERA_BEACON);
-	sfx.add(tr("learn.task_beacon_grab_fuel"), SND_TASK_BEACON_GRAB_FUEL);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.fix_wiring.name"), SND_TASK_BEACON_FIX_WIRING);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.download_data.name"), SND_TASK_BEACON_DOWNLOAD_DATA);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.empty_garbage.name"), SND_TASK_BEACON_EMPTY_GARBAGE);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.align_engine.name"), SND_TASK_BEACON_ALIGN_ENGINE);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.swipe_card.name"), SND_TASK_BEACON_SWIPE_CARD);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.unlock_manifolds.name"), SND_TASK_BEACON_UNLOCK_MANIFOLDS);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.fuel_engines.name"), SND_TASK_BEACON_FUEL_ENGINES);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.clear_asteroids.name"), SND_TASK_BEACON_CLEAR_ASTEROIDS);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.roll_dice.name"), SND_TASK_BEACON_ROLL_DICE);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.water_plants.name"), SND_TASK_BEACON_WATER_PLANTS);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.review_records.name"), SND_TASK_BEACON_REVIEW_RECORDS);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.submit_scan.name"), SND_TASK_BEACON_SUBMIT_SCAN);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.clean_o2_filter.name"), SND_TASK_BEACON_CLEAN_O2_FILTER);
-	sfx.add(tr("learn.task_beacon_prefix") + tr("task.calibrate_distributor.name"), SND_TASK_BEACON_CALIBRATE_DISTRIBUTOR);
-	sfx.add(tr("learn.medbay_scan"), "sounds/" + SND_MEDBAY_SCAN);
+	// Os marcadores: o botão, os painéis, os dutos, as câmeras e cada tarefa - um por som, com o nome
+	// do ponto (o galão tem dois marcadores, e o nome de cada ponta diz qual é qual).
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.beacon_sound_path == "" || ja.find(o.beacon_sound_path) >= 0) continue;
+		string nome;
+		if (o.obj_type == OBJ_EMERGENCY_BUTTON) nome = tr("learn.button_beacon");
+		else if (o.obj_type == OBJ_SABOTAGE_PANEL) nome = tr("learn.panel_" + o.task_type + "_beacon");
+		else if (o.obj_type == OBJ_VENT) nome = tr("learn.vent_beacon");
+		else if (o.obj_type == OBJ_SECURITY_CAMERAS) nome = tr("learn.camera_beacon");
+		else if (o.obj_type == OBJ_TASK_SPOT) nome = tr("learn.task_beacon_prefix") + tr(o.name_key);
+		else continue;
+		ja.insert_last(o.beacon_sound_path);
+		sfx.add(nome, o.beacon_sound_path);
+	}
+	if (map_has_task(map, "submit_scan"))
+		sfx.add(tr("learn.medbay_scan"), "sounds/" + SND_MEDBAY_SCAN);
+	if (map.decontamination_zone != "") {
+		sfx.add(tr("learn.decontamination_close"), SND_DECONTAMINATION_CLOSE);
+		sfx.add(tr("learn.decontamination_spray"), SND_DECONTAMINATION_SPRAY);
+		sfx.add(tr("learn.decontamination_open"), SND_DECONTAMINATION_OPEN);
+	}
+	if (map.objects_by_type(OBJ_SECURITY_CAMERAS).length() > 0) {
+		sfx.add(tr("learn.camera_on"), SND_CAMERA_ON);
+		sfx.add(tr("learn.camera_switch"), SND_CAMERA_SWITCH);
+		sfx.add(tr("learn.camera_off"), SND_CAMERA_OFF);
+		sfx.add(tr("learn.camera_watching"), SND_CAMERA_WATCHING);
+	}
 
 	sfx.add(tr("learn.sabotage_alarm"), SND_SABOTAGE_ALARM);
 	sfx.add(tr("learn.body_on_floor"), SND_BODY_ON_FLOOR);
@@ -252,11 +250,6 @@ name_value_collection@ learn_sounds_collection() {
 	sfx.add(tr("learn.meeting_alarm"), SND_MEETING_ALARM);
 	sfx.add(tr("learn.target_in_range"), SND_TARGET_IN_RANGE);
 
-	// Câmeras de segurança.
-	sfx.add(tr("learn.camera_on"), SND_CAMERA_ON);
-	sfx.add(tr("learn.camera_switch"), SND_CAMERA_SWITCH);
-	sfx.add(tr("learn.camera_off"), SND_CAMERA_OFF);
-	sfx.add(tr("learn.camera_watching"), SND_CAMERA_WATCHING);
 
 	// Papéis e o que eles fazem soar.
 	sfx.add(tr("learn.shield_cast"), SND_SHIELD_CAST);
@@ -270,7 +263,6 @@ name_value_collection@ learn_sounds_collection() {
 	sfx.add(tr("learn.arsonist_fire"), SND_ARSONIST_FIRE);
 	sfx.add(tr("learn.heartbeat"), SND_HEARTBEAT);
 
-	sfx.add(tr("learn.ship_ambience"), SND_SHIP_AMBIENCE);
 	sfx.add(tr("learn.start_game"), SND_START_GAME);
 	sfx.add(tr("learn.victory_crew"), SND_VICTORY_CREW);
 	sfx.add(tr("learn.victory_impostor"), SND_VICTORY_IMPOSTOR);

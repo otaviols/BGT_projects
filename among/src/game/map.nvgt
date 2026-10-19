@@ -229,6 +229,9 @@ class game_map {
 	// A sala que é câmara de DESCONTAMINAÇÃO ("" = nenhuma): quem entra fica preso nela por
 	// DECONTAMINATION_SECONDS, com o spray (a Base Polar, entre o laboratório e os espécimes).
 	string decontamination_zone = "";
+	// As salas que TÊM porta (vazia = toda sala). Na nave toda sala tem; na Base Polar só sete, como no
+	// original - os prédios são outros, e uma porta em toda parte não faria sentido lá (o usuário).
+	array<string> lockable_rooms;
 
 	// As sabotagens que existem NESTE mapa: as que têm painel nele. Uma sabotagem sem painel não tem
 	// conserto - o impostor ganharia só por escolhê-la -, então o menu, o servidor, os bots e o treino
@@ -288,7 +291,8 @@ class game_map {
 	// a trancando misturaria as duas coisas (e a câmara não tem painel de porta para abrir).
 	bool room_can_be_locked(const string&in zone_id) const {
 		map_zone@ z = find_zone(zone_id);
-		return @z != null && !z.is_corridor && zone_id != decontamination_zone;
+		if (@z == null || z.is_corridor || zone_id == decontamination_zone) return false;
+		return lockable_rooms.length() == 0 || lockable_rooms.find(zone_id) >= 0;
 	}
 
 	// Quanto tempo uma sala fica trancada neste mapa.
@@ -899,10 +903,13 @@ game_map@ build_polar_base_map() {
 	m.name = MAP_POLAR_BASE;
 	m.start_room = "dropship";
 	m.spawn_x = 0; m.spawn_y = -50;
-	m.gather_x = 0; m.gather_y = -50;
+	// A reunião é no ESCRITÓRIO, em volta da mesa, como no original - e não na nave de pouso, onde se
+	// começa (decisão do usuário, 2026-10-19; a planta primeira juntava as duas coisas).
+	m.gather_x = 0; m.gather_y = -22;
 	m.ship_ambience = "";
 	m.doors_have_panel = true;
 	m.decontamination_zone = "decontamination";
+	m.lockable_rooms = {"communications", "electrical", "laboratory", "office", "oxygen", "storage", "weapons"};
 
 	// Prédios
 	m.zones.insert_last(map_zone("dropship", "room.dropship", 0, -50, 8, 6, "MetalTile"));
@@ -963,8 +970,6 @@ game_map@ build_polar_base_map() {
 	// Abrir a roda d'água, lá fora, no caminho de neve do O2 à elétrica (o único sem nó do clima por perto).
 	m.objects.insert_last(map_object("task_waterwheel_outside", "task.open_waterwheel.name", -39, 18, "corridor_oxygen_electrical",
 		OBJ_TASK_SPOT, "sounds/" + SND_WATERWHEEL_TURN, "open_waterwheel", "", SND_TASK_BEACON_OPEN_WATERWHEEL));
-	m.objects.insert_last(map_object("task_filter_oxygen", "task.clean_o2_filter.name", -36, 2, "oxygen",
-		OBJ_TASK_SPOT, SND_TASK_BEACON_CLEAN_O2_FILTER, "clean_o2_filter", "", SND_TASK_BEACON_CLEAN_O2_FILTER));
 	m.objects.insert_last(map_object("task_wiring_electrical", "task.fix_wiring.name", -44, 27, "electrical",
 		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
 	m.objects.insert_last(map_object("task_wiring_office", "task.fix_wiring.name", -5, -25, "office",
@@ -1048,8 +1053,8 @@ game_map@ build_polar_base_map() {
 	m.objects.insert_last(map_object("task_keys_dropship", "task.insert_keys.name", -5, -53, "dropship",
 		OBJ_TASK_SPOT, "sounds/" + SND_KEY_GRAB, "insert_keys", "", SND_TASK_BEACON_INSERT_KEYS));
 
-	// Botão de emergência, na nave de pouso, onde a reunião se junta.
-	m.objects.insert_last(map_object("emergency_button", "game.emergency_meeting_called", 0, -47, "dropship",
+	// Botão de emergência, na mesa do escritório, onde a reunião se junta.
+	m.objects.insert_last(map_object("emergency_button", "game.emergency_meeting_called", 0, -22, "office",
 		OBJ_EMERGENCY_BUTTON, "", "", "", SND_BUTTON_BEACON));
 
 	// Ambiente de cada prédio, no centro dele.

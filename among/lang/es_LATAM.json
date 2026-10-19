@@ -641,7 +641,7 @@
   "task.submit_scan.name": "Enviar escaneo",
   "task.submit_scan.instructions": "Quédese sobre el escáner hasta que termine. Cualquiera que esté cerca escuchará el proceso de escaneo. ESC cancela.",
   "game.visible_task_scan": "{name} está realizando el escaneo médico.",
-  "learn.medbay_scan": "Escáner de la enfermería (alguien está siendo escaneado)",
+  "learn.medbay_scan": "Escáner del examen médico (alguien está siendo escaneado)",
   "task.water_plants.name": "Regar los brotes",
   "task.review_records.name": "Revisar las grabaciones",
   "task.completed": "Tarea completada.",
