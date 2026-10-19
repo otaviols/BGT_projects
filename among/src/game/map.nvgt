@@ -283,6 +283,14 @@ class game_map {
 		}
 	}
 
+	// O impostor pode trancar esta sala? É a regra numa função só, que o menu do F e o servidor perguntam.
+	// Corredor não tem porta, e a câmara de descontaminação já tem as dela, que se trancam sozinhas: o F
+	// a trancando misturaria as duas coisas (e a câmara não tem painel de porta para abrir).
+	bool room_can_be_locked(const string&in zone_id) const {
+		map_zone@ z = find_zone(zone_id);
+		return @z != null && !z.is_corridor && zone_id != decontamination_zone;
+	}
+
 	// Quanto tempo uma sala fica trancada neste mapa.
 	float doors_closed_seconds() const {
 		return doors_have_panel ? DOORS_CLOSED_SECONDS_WITH_PANEL : DOORS_CLOSED_SECONDS;

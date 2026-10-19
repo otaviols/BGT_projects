@@ -40,7 +40,9 @@ void run_doors_menu(impostor_controller@ imp, game_map@ map) {
 	@m.background_callback = @pump_client_during_game_menu;
 
 	array<map_zone@>@ rooms = map.room_zones();
-	for (uint i = 0; i < rooms.length(); i++) m.add_item(tr(rooms[i].name_key), rooms[i].id);
+	for (uint i = 0; i < rooms.length(); i++) {
+		if (map.room_can_be_locked(rooms[i].id)) m.add_item(tr(rooms[i].name_key), rooms[i].id);
+	}
 
 	m.run();
 	string room_id = m.selected_item_id;

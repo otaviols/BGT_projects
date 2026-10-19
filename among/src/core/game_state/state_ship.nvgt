@@ -22,8 +22,7 @@ mixin class state_ship_part {
 		if (config.game_mode != GAME_MODE_CLASSIC) return false; // os modos não têm sabotagem, e trancar porta é uma delas
 		if (doors_cooldown_remaining > 0.0) return false;
 
-		map_zone@ room = map.find_zone(room_id);
-		if (@room == null || room.is_corridor) return false;
+		if (!map.room_can_be_locked(room_id)) return false;
 
 		closed_zones.insert_last(room_id);
 		map.close_doors(closed_zones, map.doors_closed_seconds());

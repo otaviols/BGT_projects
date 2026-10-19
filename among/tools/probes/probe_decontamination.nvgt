@@ -100,6 +100,7 @@ void main() {
 	sprays = roda(lobby, 0.5);
 	confere("fantasma nao aciona", sprays == 0 && !m.is_door_closed("decontamination"));
 	confere("a nave de sempre nao tem camara", build_map(MAP_IDS[0]).decontamination_zone == "");
+	confere("o impostor nao tranca a camara (ela tem portas proprias)", !m.room_can_be_locked("decontamination") && m.room_can_be_locked("laboratory"));
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }
