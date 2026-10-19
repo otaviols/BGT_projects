@@ -1,0 +1,67 @@
+// Sonda de trocar o galão (Polus): pegar um vazio não termina a etapa; andar até o cheio, bater e pegar,
+// termina; e no bebedouro Enter encaixa - com as teclas de DENTRO do laço do minijogo.
+//   nvgt tools/probes/probe_replace_water_jug.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/game/map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+array<string> falado;
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+bool falou(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return true;
+	return false;
+}
+
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 12000) exit(1);
+	if (passo >= roteiro.length() || quadro < 200) return;
+	if (quadro % 80 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 80 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+void roda(array<int>@ teclas) { roteiro = teclas; passo = 0; quadro = 0; falado.resize(0); }
+
+void main() {
+	show_window("sonda: galao");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	@tts_default_text_processing_callback = grava;
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	println("== no deposito ==");
+	// Como na maquete: o cheio é o segundo (1). Bate no primeiro, anda, bate, anda ao terceiro, pega o
+	// errado, volta, bate e pega o certo.
+	g_jug_full_next = 1;
+	array<int> rota = {KEY_SPACE, KEY_RIGHT, KEY_SPACE, KEY_RIGHT, KEY_RETURN, KEY_LEFT, KEY_SPACE, KEY_RETURN};
+	roda(rota);
+	bool pegou = run_replace_water_jug_task(c, 0);
+	confere("pegar o vazio nao termina; pegar o cheio termina", pegou && passo >= rota.length() - 1);
+	confere("e o vazio foi dito como vazio", falou(tr("task.replace_water_jug.empty_one")));
+
+	println("== no bebedouro ==");
+	array<int> encaixa = {KEY_RETURN};
+	roda(encaixa);
+	confere("Enter encaixa o galao", run_replace_water_jug_task(c, 1));
+
+	println("== no mapa ==");
+	game_map@ polus = build_map(MAP_POLUS);
+	confere("duas etapas, do deposito ao escritorio", polus.phase_count_of("replace_water_jug") == 2
+		&& polus.is_chain_start("task_jug_storage") && !polus.is_chain_start("task_jug_office"));
+	confere("o pegar fica no deposito e o encaixar no escritorio",
+		polus.find_object("task_jug_storage").room_id == "storage" && polus.find_object("task_jug_office").room_id == "office");
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

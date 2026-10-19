@@ -110,7 +110,9 @@ algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os
 
 Falta, na ordem combinada:
 - **as tarefas do Polus**, uma por vez pela receita (maquete ouvida antes de código). Feitas: **o nó do
-  clima** (2026-10-19, ver tarefas-novas.md) **reiniciar o Wi-Fi** (comunicações: desce a alavanca segurando a seta, sai, e volta depois de 45 s
+  clima** (2026-10-19, ver tarefas-novas.md) **trocar o galão** (depósito ao escritório: bater nos quatro galões e pegar o cheio pelo TIMBRE - o
+  baque surdo contra o oco -, e encaixar no bebedouro; a versão por tom, "manter a vazão", foi recusada:
+  o jogo não pode ter tom em tudo), **reiniciar o Wi-Fi** (comunicações: desce a alavanca segurando a seta, sai, e volta depois de 45 s
   para subir - a reunião não pausa a conta, como no original; DOIS pontos no mesmo lugar, porque a corrente
   não aceita o mesmo ponto duas vezes), **registrar a temperatura** (laboratório: a leitura é um tom; o registro sobe e desce um semitom por
   grau no MESMO bipe, e Enter só aceita no valor), **alinhar o telescópio** (laboratório: o astro pisca um tique, o lado e o tom dizem onde ele está em

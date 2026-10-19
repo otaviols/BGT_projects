@@ -906,6 +906,14 @@ game_map@ build_polus_map() {
 		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(3), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
 	m.objects.insert_last(map_object("task_download_storage", "task.download_data.name", -5, 5, "storage",
 		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
+	// Trocar o galão: pegar o cheio no depósito e levá-lo ao bebedouro do escritório. A primeira etapa tem
+	// nome próprio, como o abastecer ("pegar um galão cheio, no depósito" diz o que fazer).
+	m.objects.insert_last(map_object("task_jug_storage", "task.replace_water_jug.pick_name", 5, 11, "storage",
+		OBJ_TASK_SPOT, "sounds/" + SND_JUG_GRAB, "replace_water_jug", "", SND_TASK_BEACON_REPLACE_WATER_JUG));
+	m.objects.insert_last(map_object("task_jug_office", "task.replace_water_jug.name", -5, -17, "office",
+		OBJ_TASK_SPOT, "sounds/" + SND_JUG_PLACE, "replace_water_jug", "", SND_TASK_BEACON_REPLACE_WATER_JUG));
+	array<string> galao = {"task_jug_storage", "task_jug_office"};
+	m.chains.insert_last(task_chain("replace_water_jug", galao));
 	// Registrar a temperatura, no laboratório (no lugar de um download provisório: a sala já tem quatro
 	// pontos, e marcadores colados viram um borrão só).
 	m.objects.insert_last(map_object("task_temperature_laboratory", "task.record_temperature.name", 40, -25, "laboratory",

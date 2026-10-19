@@ -1,0 +1,79 @@
+// replace_water_jug.nvgt
+// Trocar o galão de água (Polus, a 1.0). No original são duas etapas de "segure o botão e veja o nível
+// subir" - sem decisão nenhuma; o que dá sentido é a travessia com o galão. Traduzir isso para "segure e
+// solte no tom" repetiria o abastecer, e "manter a vazão no tom" foi recusado pelo usuário em 2026-10-19:
+// "a mecânica do tom é boa mas não tem que ser em tudo... queremos um jogo diverso".
+//
+// O que ficou (maquete aprovada no mesmo dia):
+//   - etapa 1, no depósito: quatro galões na prateleira, da esquerda para a direita. As setas andam entre
+//     eles, Espaço BATE no galão da frente e Enter o pega. Só um está cheio: o cheio dá um baque SURDO, o
+//     vazio soa OCO. É classificar pelo TIMBRE - mecânica que o jogo não tinha. Os dois sons têm quase o
+//     mesmo volume, de propósito: a pista tem que ser o timbre, não o volume. Pegar um vazio só custa tempo;
+//   - etapa 2, no bebedouro do escritório: Enter encaixa, e a água desce. Curta como pegar o combustível:
+//     o peso é a travessia entre as duas.
+
+#include "task_common.nvgt"
+
+const array<float> JUG_PANS = {-0.9, -0.3, 0.3, 0.9};
+
+// O galão cheio da próxima vez, no lugar do sorteio (-1 = sortear). Só a sonda preenche.
+int g_jug_full_next = -1;
+
+bool run_replace_water_jug_task(game_client@ client, uint phase) {
+	if (phase == 0) return run_jug_pick(client);
+	return run_jug_place(client);
+}
+
+bool run_jug_pick(game_client@ client) {
+	speak_hint("task.replace_water_jug.pick_instructions");
+	int cheio = g_jug_full_next >= 0 ? g_jug_full_next : random(0, int(JUG_PANS.length()) - 1);
+	g_jug_full_next = -1;
+	int aqui = 0; // começa no primeiro, à esquerda
+	if (!task_wait(500, client)) return false;
+	task_sound_path(SND_MENU_CLICK, pan_from_linear(JUG_PANS[aqui]));
+
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		// Cada tecla lida UMA vez (ver CLAUDE.md).
+		bool esq = key_pressed(KEY_LEFT), dir = key_pressed(KEY_RIGHT);
+		bool bate = key_pressed(KEY_SPACE), pega = key_pressed(KEY_RETURN);
+		if (esq || dir) {
+			int novo = aqui + (dir ? 1 : -1);
+			if (novo >= 0 && novo < int(JUG_PANS.length())) aqui = novo;
+			// O clique de chegar diante do galão, no lado dele (na ponta, no mesmo lugar: não há mais).
+			task_sound_path(SND_MENU_CLICK, pan_from_linear(JUG_PANS[aqui]));
+			continue;
+		}
+		if (bate) {
+			task_sound(aqui == cheio ? SND_JUG_FULL : SND_JUG_EMPTY, pan_from_linear(JUG_PANS[aqui]));
+			continue;
+		}
+		if (!pega) continue;
+		task_sound(SND_JUG_GRAB, pan_from_linear(JUG_PANS[aqui]));
+		if (aqui != cheio) {
+			if (!task_wait(350, client)) return false;
+			task_sound(SND_CARD_ERROR);
+			speak(tr("task.replace_water_jug.empty_one"), false);
+			continue;
+		}
+		if (!task_wait(500, client)) return false;
+		return true;
+	}
+	return false;
+}
+
+bool run_jug_place(game_client@ client) {
+	speak_hint("task.replace_water_jug.place_instructions");
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		if (!key_pressed(KEY_RETURN)) continue;
+		if (!wait_for_task_sound(task_sound(SND_JUG_PLACE), client)) return false;
+		wait_for_task_sound(task_sound(SND_JUG_WATER), client, 2500);
+		return true;
+	}
+	return false;
+}
