@@ -42,9 +42,10 @@ string g_panel_being_fixed = "";
 // `panel_id` é o ponto do mapa que está sendo consertado; vazio no treino, que não tem mapa.
 // `other_pan` é de que lado está o OUTRO painel, para os de segurar (onde se ouve a mão do colega).
 //
-// Painel de segurar devolve false mesmo estabilizado: quem consertou foi o SERVIDOR, que viu as duas
-// mãos, e não há conserto a pedir depois (o pedido ia chegar com a sabotagem já acabada e voltar como
-// "não tem sabotagem"). O som de concluído toca aqui do mesmo jeito.
+// Painel de segurar devolve se estabilizou, mas na partida quem consertou foi o SERVIDOR, que viu as
+// duas mãos: lá não há conserto a pedir depois (ver match_frame_keys - o pedido chegaria com a
+// sabotagem já acabada e voltaria como "não tem sabotagem"). O treino usa o resultado para dizer
+// "concluído", e por isso ele é o verdadeiro.
 bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const string&in oxygen_code,
 		const string&in panel_id = "", float other_pan = 0.8) {
 	g_panel_being_fixed = panel_id;
@@ -65,7 +66,7 @@ bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const 
 	// O som de "concluído" é o mesmo das tasks, e toca num lugar só - cada painel toca só o que é
 	// dele (o estalo, o código aceito, o rádio fechando).
 	if (ok) task_sound(SND_TASK_COMPLETE);
-	return ok && !segurar;
+	return ok;
 }
 
 // --- Luzes: os disjuntores -----------------------------------------------------------------------

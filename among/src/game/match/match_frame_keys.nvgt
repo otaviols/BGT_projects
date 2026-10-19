@@ -205,7 +205,8 @@ mixin class match_frame_keys_part {
 						audio.stop_landmark_beacons(); // o mesmo da tarefa: o painel não toca o marcador dele por cima
 						bool consertou = run_sabotage_panel(client, active_sabotage_id, oxygen_code, obj.id, other_panel_pan(map, obj));
 						refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
-						if (consertou) imp.fix_sabotage_panel(obj.id);
+						// O de segurar o servidor já estabilizou sozinho (ver run_sabotage_panel).
+						if (consertou && !is_hold_sabotage(active_sabotage_id)) imp.fix_sabotage_panel(obj.id);
 					} else if (obj.obj_type == OBJ_SECURITY_CAMERAS) {
 						// Só pede; quem decide é o servidor (o posto é de um de cada vez).
 						client.send_camera_enter();

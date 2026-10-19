@@ -1,6 +1,6 @@
 // Sonda do painel do sismógrafo no TREINO (sem conexão): segurar Enter põe a mão, o colega de mentira
-// chega, e juntos pelo tempo todo estabiliza; soltar antes não estabiliza. E o painel de segurar não
-// pede conserto ao servidor depois (devolve false mesmo estabilizado).
+// chega, e juntos pelo tempo todo estabiliza; soltar antes não estabiliza. E, pelo painel inteiro,
+// estabilizar conta como concluído (o treino depende disso; a partida é que não pede conserto depois).
 //   nvgt tools/probes/probe_seismic_panel.nvgt
 #include "../../src/i18n.nvgt"
 #include "../../src/game/task_manager.nvgt"
@@ -60,7 +60,7 @@ void main() {
 	println("== pelo painel inteiro ==");
 	roda();
 	segura(KEY_RETURN, 50, 7000);
-	confere("o painel de segurar nao pede conserto ao servidor", !run_sabotage_panel(c, "seismic", "", "panel_seismic_west", 0.8));
+	confere("pelo painel inteiro, estabilizar conta como concluido (o treino diz 'concluido')", run_sabotage_panel(c, "seismic", "", "panel_seismic_west", 0.8));
 	simulate_key_up(KEY_RETURN);
 
 	println("== o lado do colega ==");

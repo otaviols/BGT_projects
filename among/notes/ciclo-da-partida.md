@@ -168,9 +168,11 @@ A sabotagem ainda tem a regra em dois lugares que precisam concordar:
 Duas pessoas, uma em cada painel, ao mesmo tempo por `SABOTAGE_HOLD_TOGETHER_SECONDS`. Quem decide que
 estabilizou é o `tick_sabotage_hold` (`state_ship`), que vê as duas mãos e solta o MESMO
 `S_SABOTAGE_FIXED` de sempre; e é ele, e só ele, quem solta quem não pode mais segurar (morreu, saiu,
-reunião, se afastou) - um lugar só para desfazer, a lição da câmera e do duto. Por isso o painel de
-segurar devolve false mesmo estabilizado: um `C_INTERACT` depois chegaria com a sabotagem acabada e
-voltaria como "não tem sabotagem". Quais sabotagens são de segurar mora em `is_hold_sabotage`
+reunião, se afastou) - um lugar só para desfazer, a lição da câmera e do duto. Por isso a partida não
+pede conserto depois de um painel de segurar (`match_frame_keys`): um `C_INTERACT` chegaria com a
+sabotagem acabada e voltaria como "não tem sabotagem". O painel em si devolve o resultado VERDADEIRO -
+a primeira versão devolvia false para poupar esse `if`, e o treino dizia "não concluído" a quem
+estabilizou. Quais sabotagens são de segurar mora em `is_hold_sabotage`
 (`core/sabotage_rules.nvgt`), que os dois lados perguntam. Os bots vão um a cada painel
 (`panel_taken_by_other`) e FICAM: o "cheguei" comum apagava o destino, o bot saía andando com a mão
 posta e o tick o soltava - nunca estabilizavam (pego pela `probe_seismic`). Sem conexão (treino,
