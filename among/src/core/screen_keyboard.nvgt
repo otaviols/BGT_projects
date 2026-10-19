@@ -18,6 +18,12 @@
 #include "platform.nvgt"
 #include "../config/game_settings.nvgt"
 
+// O desenho do formulário na tela, para quem enxerga (ui/visual_map.nvgt liga, na abertura do jogo). Mora
+// aqui porque é por aqui que TODO laço de formulário passa a cada quadro - pôr o desenho em cada tela seria
+// uma tela esquecida em branco. Um gancho, e não a chamada direta: o core não conhece a interface.
+funcdef void form_frame_draw(audio_form@ f);
+form_frame_draw@ g_form_frame_draw = null;
+
 class screen_keyboard_follower {
 	private bool opened = false;
 	// Ligado por fora só pela sonda (probe_screen_keyboard), que roda no PC - nenhum de nós tem aparelho.
@@ -32,6 +38,7 @@ class screen_keyboard_follower {
 			g_settings.keyboard_echo = audioform_keyboard_echo;
 			g_settings.save();
 		}
+		if (@g_form_frame_draw != null) g_form_frame_draw(f);
 		if (!enabled) return;
 		int foco = f.get_current_focus();
 		bool quer = foco >= 0 && f.get_control_type(foco) == ct_input;

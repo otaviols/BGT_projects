@@ -471,6 +471,11 @@ login_result run_login_screen(game_client@ client) {
 	// senha, que é o único campo que ainda precisa ser digitado.
 	int f_user = f.create_input_box(tr("login.username"), g_settings.last_username);
 	int f_pass = f.create_input_box(tr("login.password"), "", "*");
+	// Mostrar a senha (recado #288): o campo continua mascarado para o leitor (o NVGT não troca a máscara
+	// de um campo criado), mas ligada, a caixa fala a senha digitada até ali e a mostra na tela.
+	int f_show = f.create_checkbox(tr("login.show_password"), false);
+	g_visual_show_passwords = false;
+	bool mostrando = false;
 	// Marcado por padrão: quem joga todo dia não quer digitar senha todo dia. O que fica no disco é
 	// um token que o servidor emite e pode revogar - a senha em si nunca é gravada.
 	int f_remember = f.create_checkbox(tr("login.remember"), true);
@@ -486,7 +491,18 @@ login_result run_login_screen(game_client@ client) {
 		client.update();
 		f.monitor();
 		teclado_tela.follow(f);
-		if (f.is_pressed(f_cancel)) return result;
+		bool mostrar = f.is_checked(f_show);
+		if (mostrar != mostrando) {
+			mostrando = mostrar;
+			g_visual_show_passwords = mostrar;
+			string digitada = f.get_text(f_pass);
+			if (mostrar && digitada != "") {
+				dictionary@ p = dictionary();
+				p.set("password", digitada);
+				speak(tr("login.password_is", p), false);
+			}
+		}
+		if (f.is_pressed(f_cancel)) { g_visual_show_passwords = false; return result; }
 
 		bool wants_register = f.is_pressed(f_register);
 		if (f.is_pressed(f_login) || wants_register) {
@@ -499,6 +515,7 @@ login_result run_login_screen(game_client@ client) {
 			else client.send_login(username, password, remember);
 
 			if (!wait_for_auth_result(client, wants_register, username, password, result, false, remember)) continue;
+			g_visual_show_passwords = false;
 			return result;
 		}
 	}

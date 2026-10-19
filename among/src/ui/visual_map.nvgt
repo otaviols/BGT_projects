@@ -37,6 +37,8 @@
 #include "../config/game_constants.nvgt"
 #include "../config/game_settings.nvgt"
 #include "../i18n.nvgt"
+#include "../core/utf8.nvgt"
+#include "../core/screen_keyboard.nvgt"
 
 // Um passo ouvido mantém o jogador na tela por este tempo: o bastante para não piscar entre um passo e
 // outro (um passo a cada ~0,35 s), curto o bastante para quem parou sumir como some no som.
@@ -665,6 +667,57 @@ class visual_map {
 		finish();
 	}
 
+	// --- Formulários: cada campo numa linha, com o rótulo e o que está nele ---
+	// Antes o formulário não era desenhado: a tela mostrava só as legendas, e cada letra digitada (que o
+	// leitor fala) virava uma linha - o nome de usuário aparecia de cima para baixo, letra por letra
+	// (recado #288). Agora o rótulo e o valor ficam lado a lado, e o campo em foco destacado.
+	void draw_form(audio_form@ f) {
+		if (!ready()) return;
+		int w = 0, h = 0;
+		begin(VC_BG, w, h);
+		int foco = f.get_current_focus();
+		const float lh = 40;
+		float y = 20;
+		float limite = float(h) - 26.0 * float(captions.length()) - 50.0;
+		for (int i = 0; i < f.get_control_count(); i++) {
+			if (!f.is_visible(i)) continue;
+			if (y + lh > limite) { put_text("...", font_body, VC_TEXT_DIM, 28, y); break; }
+			bool em_foco = i == foco;
+			if (em_foco) {
+				panel(14, y, w - 28, lh - 4, VC_PANEL, VC_ACCENT);
+				color(VC_ACCENT);
+				r.fill_rect(14, y + 5, 4, lh - 14);
+			}
+			put_text(form_control_line(f, i, em_foco), font_body, em_foco ? VC_TEXT : VC_TEXT_DIM, 28, y + 7, w - 60);
+			y += lh;
+		}
+		caption_panel(w, h);
+		finish();
+	}
+
+	private string form_control_line(audio_form@ f, int i, bool em_foco) {
+		int tipo = f.get_control_type(i);
+		string rotulo = f.get_caption(i);
+		if (tipo == ct_input) {
+			string valor = f.get_text(i);
+			// A senha aparece mascarada, a não ser que a pessoa peça para mostrar (o login tem a caixa).
+			if (f.get_password_mask(i) != "" && !g_visual_show_passwords) {
+				string m;
+				for (uint k = 0; k < utf8_length(valor); k++) m += "*";
+				valor = m;
+			}
+			return rotulo + ":   " + valor + (em_foco ? "|" : ""); // o cursor, só no campo em foco
+		}
+		if (tipo == ct_checkbox) return (f.is_checked(i) ? "[x]  " : "[  ]  ") + rotulo;
+		if (tipo == ct_list) {
+			int p = f.get_list_position(i);
+			return rotulo + ":   " + (p >= 0 ? f.get_list_item(i, p) : "");
+		}
+		if (tipo == ct_slider) return rotulo + ":   " + f.get_slider_text_value(i, f.get_slider(i));
+		if (tipo == ct_button) return "[ " + rotulo + " ]";
+		return rotulo;
+	}
+
 	// --- O resto: só as legendas, em letra grande ---
 
 	// Tela parada: desenhada duas vezes, com uma apresentação no meio (ver present_static).
@@ -685,6 +738,16 @@ class visual_map {
 }
 
 visual_map g_visual_map;
+
+// A senha aparece em claro no desenho do formulário? Só o login a liga, com a caixa "mostrar a senha"
+// (recado #288), e a desliga ao sair.
+bool g_visual_show_passwords = false;
+
+// O gancho que todo formulário chama a cada quadro (ver screen_keyboard.nvgt). Só desenha com o modo
+// gráfico ligado.
+void visual_draw_form(audio_form@ f) {
+	if (g_visual_map.enabled()) g_visual_map.draw_form(f);
+}
 
 // O gancho de texto da speech.nvgt: toda fala do jogo passa por aqui. Devolve o texto INTACTO - o leitor
 // de tela fala o mesmo de sempre - e só guarda a legenda. Se ninguém desenhou há pouco (um formulário,

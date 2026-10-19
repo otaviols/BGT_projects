@@ -108,4 +108,6 @@ porque o minijogo ficou esperando um Enter que já passou. Espace os toques (`pr
 `probe_weather_node`) e espere a apresentação inicial antes do primeiro. Com o jogador acontece o mesmo,
 mas só durante um som curto. E dê folga: com a máquina ocupada (logo depois de um `build_pack`) a
 `probe_fill_canisters`, a 350 quadros entre teclas, contou UMA vez um erro a mais que nas rodadas
-seguintes - a causa não foi achada; a 450 quadros não se repetiu.
+seguintes - a causa não foi achada; a 450 quadros não se repetiu. A `probe_lobby_form` também falhou
+UMA vez em quatro (2026-10-19, "o botão de papéis abre a tela de PAPÉIS") e passou nas outras, com e sem
+a mudança da vez: falha isolada numa sonda de teclas simuladas é rodar de novo antes de investigar.

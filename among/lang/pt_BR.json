@@ -282,6 +282,8 @@
   "menu.quit_confirm": "Tem certeza que deseja sair?",
   "login.username": "Usuário",
   "login.password": "Senha",
+  "login.show_password": "Mostrar a senha",
+  "login.password_is": "A senha digitada é: {password}",
   "login.submit": "Entrar",
   "login.invalid_credentials": "Usuário ou senha inválidos.",
   "login.update_required": "Esta versão do jogo ficou velha demais para o servidor. Atualize o jogo para continuar. Vou abrir a página de download.",

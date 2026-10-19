@@ -95,6 +95,8 @@ void main() {
 	// Toda fala passa pelo gancho da tela para quem enxerga (ui/visual_map.nvgt): ele guarda a legenda e
 	// devolve o texto intacto. Com a opção desligada, só guarda - não desenha nada.
 	@tts_default_text_processing_callback = visual_on_speech;
+	// E todo formulário se desenha por ele (recado #288: antes a tela de um formulário era só legendas).
+	@g_form_frame_draw = visual_draw_form;
 
 	// Depois da janela, porque o diálogo de permissão do Android é do aplicativo, e antes de qualquer
 	// tela: perguntar pelo microfone no meio de uma partida seria interromper o jogo pela pergunta
