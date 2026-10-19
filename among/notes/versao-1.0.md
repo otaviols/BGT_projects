@@ -140,7 +140,9 @@ Falta, na ordem combinada:
   por perto ouvem; é a porta trancada de sempre (door_blocks), então dentro não sai e fora não entra. Quem
   chega depois espera a rodada dele - o usuário: entrar no meio e ficar preso 1 s pela rodada de outro não
   faria sentido. Várias pessoas juntas, e pode matar lá dentro (escolha dele, como no original);
-- **câmeras** - o Polus ainda não tem posto.
+- ~~câmeras~~ FEITO (2026-10-19): o posto fica na administração (escolha do usuário; no original é uma
+  sala de segurança). No mesmo dia o painel de comunicações saiu da administração para as comunicações,
+  onde o original o tem - estava errado na planta, e o usuário notou.
 
 **As sabotagens agora são do MAPA** (`game_map.sabotages()`, as que têm painel): o menu do impostor, o
 servidor (`trigger_sabotage`), os bots e o treino perguntam ao mapa. Sem isso o Polus ofereceria o

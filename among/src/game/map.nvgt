@@ -996,7 +996,7 @@ game_map@ build_polus_map() {
 		m.chains.insert_last(task_chain("fix_weather_node", corrente));
 	}
 
-	// Sabotagens: as luzes na elétrica, as comunicações na administração e o sismógrafo - a crítica do
+	// Sabotagens: as luzes na elétrica, as comunicações nas comunicações e o sismógrafo - a crítica do
 	// Polus, consertada a duas pessoas ao mesmo tempo, uma em cada painel, um de cada lado da sala. As
 	// portas com minijogo entram depois.
 	m.objects.insert_last(map_object("panel_seismic_west", "sabotage.seismic.name", -5, 34, "seismic",
@@ -1005,8 +1005,14 @@ game_map@ build_polus_map() {
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "seismic", "", SND_PANEL_BEACON_SEISMIC));
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -36, 27, "electrical",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights", "", SND_PANEL_BEACON_LIGHTS));
-	m.objects.insert_last(map_object("panel_comms_admin", "sabotage.comms.name", 27, -25, "admin",
+	// As comunicações se consertam NAS comunicações, como no original (até 2026-10-19 o painel estava na
+	// administração, um engano da planta que o usuário notou).
+	m.objects.insert_last(map_object("panel_comms_communications", "sabotage.comms.name", -43, -42, "communications",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "comms", "", SND_PANEL_BEACON_COMMS));
+	// O posto de câmeras fica na administração (no original é uma sala de segurança própria; aqui a
+	// administração, escolha do usuário). Observa qualquer sala, como o da nave.
+	m.objects.insert_last(map_object("security_cameras_admin", "object.security_cameras", 27, -25, "admin",
+		OBJ_SECURITY_CAMERAS, SND_CAMERA_ON, "", "", SND_CAMERA_BEACON));
 
 	// Alinhar o telescópio, no laboratório (longe da saída do duto e do painel do nó do clima).
 	m.objects.insert_last(map_object("task_telescope_laboratory", "task.align_telescope.name", 38, -17, "laboratory",
