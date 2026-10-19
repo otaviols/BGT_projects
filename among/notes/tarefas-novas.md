@@ -46,11 +46,18 @@ pegar a ORIGINAL e traduzi-la para o ouvido, em vez de perguntar que mecânica d
 O argumento que fechou a questão: **a fiação já era isso** - uma tarefa original traduzida - e é a
 melhor tarefa do jogo. Não havia por que procurar método novo quando o que funcionava já estava lá.
 
-A biblioteca de sons do usuário fica fora do repositório, na pasta de documentos dele (era
-`D:\documents\sons among us\sounds among` na máquina antiga - ele confirma o caminho quando precisar).
-Ela tem o conjunto COMPLETO de várias originais que ainda não
-existem aqui: calibrar o distribuidor, inserir as chaves, rodar diagnóstico, traçar a rota, ativar
-escudos, desviar energia, nó do clima, separar amostras.
+A biblioteca de sons do usuário fica fora do repositório, na pasta de documentos dele (hoje
+`C:\apto10\acer\documents\sons among us\sounds among`, com a leva dos outros mapas em `adicionais` - ele
+confirma o caminho quando precisar). Das originais que ela tem, ainda NÃO existem aqui: rodar
+diagnóstico, traçar a rota, ativar escudos, desviar energia, separar amostras.
+
+**As mecânicas que o jogo já tem** (2026-10-19) - olhe esta lista ANTES de propor, porque o usuário
+recusa repetição ("a mecânica do tom é boa mas não tem que ser em tudo... queremos um jogo diverso"):
+tom/altura (telescópio, temperatura, distribuidor, o labirinto do nó do clima), tempo (distribuidor),
+reflexo (o painel da porta da Base Polar), timbre (o galão), casar sons iguais (os artefatos), memória
+de sequência (coletores), busca por posição (filtro de O2, fios), segurar a tecla (Wi-Fi), gesto em
+roda (a roda d'água), ordem de passos num lugar (os cilindros), coordenação de duas pessoas (sismógrafo,
+reator). Explique a original ao usuário e ofereça caminhos - ele gosta de escolher e de trazer a ideia.
 
 ## Os dois casos que a receita produziu
 
@@ -178,7 +185,11 @@ dele, que é a única forma de mistura que este jogo suporta.
 Risco: a irregularidade tem que ser grosseira o bastante para quem não tem ouvido musical. Medir na
 maquete qual desvio é perceptível - começar por dobro/metade do intervalo, não por 10%.
 
-### 2. Encher o tanque / a roda d'água (`panel_waterwheel*`, `panel_waterfill`)
+### 2. Encher o tanque (`panel_waterfill`) - a roda d'água JÁ EXISTE, com outra mecânica
+
+A roda d'água entrou na Base Polar como GESTO (girar com as setas em roda), e o `panel_waterfill` foi
+para o galão. O que sobra desta ideia é só a mecânica de "parar no tom", e o usuário já recusou uma
+versão dela (o "manter a vazão" do galão): não proponha sem uma razão nova.
 
 A mecânica nova é **parar na hora certa de um movimento contínuo** - um alvo analógico, diferente do
 distribuidor, que tem posições discretas. É "quanto", não "quando".
@@ -232,6 +243,6 @@ vale se a maquete mostrar que "ligado" e "desligado" se distinguem na passagem, 
 - **`stabilize_lines`**: escrita e revertida (commit 53341d0 e a reversão atrás dele). Quatro zumbidos
   simultâneos, um por posição. O motivo está acima, em SOM CONTÍNUO - e o código está no histórico se
   um dia servir de peça.
-- **Inserir as chaves**: o conjunto de som existe e a tradução é óbvia (cada chave tem um tom, cada
-  fenda responde com um tom, casa os dois) - mas é a mecânica do `fix_wiring` outra vez. O usuário
-  marcou como "melhor colocarmos depois".
+- **Inserir as chaves POR TOM** (cada chave um tom, cada fenda um tom, casar os dois): é a mecânica do
+  `fix_wiring` outra vez, e o usuário a adiou. As chaves entraram depois, na Base Polar, com outra
+  tradução (achar a fechadura acesa pelo lado, enfiar e girar) - ver `insert_keys.nvgt`.

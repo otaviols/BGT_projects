@@ -114,46 +114,50 @@ leva convertidos no volume das salas. **Em construção:** fica em `MAP_IDS_IN_T
 aceita, e o Conhecer o mapa e o treino o oferecem quando a pasta do jogo tem o `mapas_em_teste.txt` (com
 algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os jogadores.
 
-Falta, na ordem combinada:
-- **as tarefas da Base Polar**, uma por vez pela receita (maquete ouvida antes de código). Feitas: **o nó do
-  clima** (2026-10-19, ver tarefas-novas.md) **trocar o galão** (depósito ao escritório: bater nos quatro galões e pegar o cheio pelo TIMBRE - o
-  baque surdo contra o oco -, e encaixar no bebedouro; a versão por tom, "manter a vazão", foi recusada:
-  o jogo não pode ter tom em tudo), **reiniciar o Wi-Fi** (comunicações: desce a alavanca segurando a seta, sai, e volta depois de 45 s
-  para subir - a reunião não pausa a conta, como no original; DOIS pontos no mesmo lugar, porque a corrente
-  não aceita o mesmo ponto duas vezes), **registrar a temperatura** (laboratório: a leitura é um tom; o registro sobe e desce um semitom por
-  grau no MESMO bipe, e Enter só aceita no valor), **alinhar o telescópio** (laboratório: o astro pisca um tique, o lado e o tom dizem onde ele está em
-  relação à mira, como o labirinto do nó; Enter só trava no centro exato) e **inserir as chaves**, a tarefa COMUM da Base Polar (um ponto
-  só, na nave de pouso, como o cartão na nave; `COMMON_TASK_TYPES` sorteia por tipo, e o tipo sem ponto
-  no mapa não sai), e **guardar os artefatos** (espécimes: as peças chegam uma a uma, cada uma com o seu
-  som; cada buraco, ao se CHEGAR nele, toca o som da peça que encaixa ali, e Enter guarda - casar dois sons
-  iguais, com só setas, Espaço (repete a peça da mão) e Enter. Desenho do usuário, que trocou no mesmo dia
-  duas versões minhas: tentar e lembrar quais buracos recusaram, e escutar o buraco com uma tecla à parte), **encher os cilindros de O2** (O2, desenho do usuário: prateleira
-  e máquina em lados SORTEADOS, chegar apresenta o lugar, Enter faz a coisa do lugar na ordem - pegar,
-  encaixar e o gás enche, tirar, devolver -; duas rodadas, longa) e **abrir a roda d'água** (lá fora, no
-  caminho do O2 à elétrica: girar com as setas em roda, cada quarto range onde a manivela está, o quarto
-  anterior volta; três voltas. O "emperrar" foi oferecido e ficou de fora). As maquetes ficam na pasta de teste do usuário
-  (`C:\apto10\acer\documents\Among Us - teste do Polus`), junto do jogo de teste. As outras ainda são provisórias, as da nave que fazem
-  sentido lá (fios, download, asteroides, filtro de O2);
-- ~~o sismógrafo~~ FEITO (2026-10-19): duas mãos juntas nos dois painéis da sala dele, 90 s, a mão do
-  colega se ouve do lado dele; ver ciclo-da-partida.md;
-- ~~o reator no mapa antigo~~ FEITO (2026-10-19): a mesma sabotagem de segurar, dois painéis na sala do
-  Reator. A nave aceita cliente antigo, então o servidor não a dispara com alguém abaixo de
-  `HOLD_SABOTAGE_PROTOCOL` na partida ("game.sabotage_needs_update"). Já está no manual (a nave é o mapa
-  publicado) - falta só o changelog, quando a versão sair;
-- ~~as portas com minijogo~~ FEITO (2026-10-19): na Base Polar a sala trancada fica 20 s (12 na nave), e na
-  passagem Enter abre o painel - reflexo: bipe agudo à esquerda, no meio ou à direita, a seta do lado
-  antes de sumir, cinco acertos abrem a sala para todos. Os sons do minijogo da leva foram RECUSADOS
-  ("bem estranhos", feitos para animação): bipes gerados e o interruptor que estava reservado;
-- ~~a descontaminação~~ FEITO (2026-10-19): quem entra TRANCA a câmara por 5 s, com o spray que todos
-  por perto ouvem; é a porta trancada de sempre (door_blocks), então dentro não sai e fora não entra. Quem
-  chega depois espera a rodada dele - o usuário: entrar no meio e ficar preso 1 s pela rodada de outro não
-  faria sentido. Várias pessoas juntas, e pode matar lá dentro (escolha dele, como no original);
-- **o exame médico** (a tarefa visual) no laboratório, onde o original o tem, junto dos asteroides das
-  armas (2026-10-19). O usuário: tarefa vai onde faz sentido, sala cheia não é problema - a nave tem a
-  navegação cheia, e o sorteio já limita as visuais por partida;
-- ~~câmeras~~ FEITO (2026-10-19): o posto fica na administração (escolha do usuário; no original é uma
-  sala de segurança). No mesmo dia o painel de comunicações saiu da administração para as comunicações,
-  onde o original o tem - estava errado na planta, e o usuário notou.
+**O que ela tem (tudo feito em 2026-10-19), e as decisões que alguém poderia querer desfazer:**
+- **Nove tarefas próprias**, uma por vez pela receita (maquete ouvida antes de código; as maquetes ficam
+  na pasta de teste do usuário, `C:\apto10\acer\documents\Among Us - teste do Polus`):
+  - **o nó do clima** (seis nós nos caminhos de neve + o painel no laboratório; ver tarefas-novas.md);
+  - **trocar o galão** (depósito ao escritório: bater nos galões e pegar o cheio pelo TIMBRE, encaixar no
+    bebedouro; a versão por tom, "manter a vazão", foi recusada: o jogo não pode ter tom em tudo);
+  - **reiniciar o Wi-Fi** (comunicações: desce a alavanca segurando a seta, sai, volta depois de 45 s - a
+    reunião não pausa a conta, como no original; DOIS pontos no mesmo lugar, porque a corrente não aceita
+    o mesmo ponto duas vezes);
+  - **registrar a temperatura** e **alinhar o telescópio** (laboratório, por tom e lado);
+  - **inserir as chaves**, a tarefa COMUM (um ponto só, na nave de pouso, como o cartão na nave;
+    `COMMON_TASK_TYPES` sorteia por tipo, e o tipo sem ponto no mapa não sai);
+  - **guardar os artefatos** (espécimes: cada buraco, ao se CHEGAR nele, toca a peça que encaixa ali;
+    desenho do usuário, que trocou no mesmo dia duas versões minhas);
+  - **encher os cilindros de O2** (desenho do usuário: prateleira e máquina em lados sorteados, Enter faz
+    a coisa do lugar na ordem; duas rodadas, longa);
+  - **abrir a roda d'água** (lá fora: girar com as setas em roda; o "emperrar" foi oferecido e ficou de fora).
+- **Da nave, ficaram as que fazem sentido lá:** fios, download, asteroides (as armas do original têm) e o
+  filtro de O2 (DÚVIDA aberta: não se sabe se o Polus original tem essa tarefa). E o **exame médico**, a
+  tarefa visual, no laboratório como no original - o usuário: tarefa vai onde faz sentido, sala cheia não
+  é problema, o sorteio já limita as visuais por partida.
+- **O sismógrafo**, a crítica: duas mãos juntas nos dois painéis da sala dele, 90 s (ver
+  ciclo-da-partida.md). **O reator** na nave de sempre, a mesma mecânica - a nave aceita cliente antigo,
+  então o servidor não o dispara com alguém abaixo de `HOLD_SABOTAGE_PROTOCOL` na partida. Já está no
+  manual (a nave é o mapa publicado); falta só o changelog.
+- **Portas com painel:** a sala trancada fica 20 s (12 na nave), e na passagem Enter abre o minijogo de
+  reflexo. Os sons do minijogo da leva foram RECUSADOS ("bem estranhos", feitos para animação): bipes
+  gerados e o interruptor que estava reservado. O impostor tranca qualquer sala menos a câmara (no
+  original, só sete salas têm porta - perguntado ao usuário em 2026-10-19).
+- **A descontaminação:** quem entra TRANCA a câmara por 5 s, com o spray; quem chega depois espera a
+  rodada dele (o usuário: ficar preso 1 s pela rodada de outro não faria sentido). Várias pessoas juntas,
+  e pode matar lá dentro (escolha dele, como no original). Só funciona pelo servidor - o usuário dispensou
+  simular no Conhecer o mapa.
+- **Câmeras** na administração (no original há sala de segurança própria). O painel de comunicações fica
+  nas comunicações, como no original (estava na administração por engano da planta).
+- **As reuniões e o botão** ficam na nave de pouso, onde se começa (no original, no escritório) - a planta
+  aprovada.
+
+**Falta antes de lançar:**
+- liberar o mapa (`MAP_IDS_IN_TEST` -> `MAP_IDS`), e decidir o **aprender os sons por mapa** (proposta:
+  perguntar o mapa e mostrar os sons comuns mais os daquele mapa; hoje os da Base Polar ficam em
+  `LEARN_SOUNDS_LEFT_OUT`);
+- uma **partida de teste com gente**: sismógrafo, reator, portas e descontaminação só existem pelo servidor;
+- a seção da Base Polar no **manual** (`docs/README_*`), o **changelog** e a versão.
 
 **As sabotagens agora são do MAPA** (`game_map.sabotages()`, as que têm painel): o menu do impostor, o
 servidor (`trigger_sabotage`), os bots e o treino perguntam ao mapa. Sem isso a Base Polar ofereceria o
@@ -171,17 +175,16 @@ comete calada.
    `ship_ambience`, salas, corredores, objetos; uma linha em `build_map`; o id em `MAP_IDS_IN_TEST`
    enquanto se constrói e em `MAP_IDS` quando sair; `map.<id>.name` em pt_BR e en_US.
 2. `probe_maps` passando.
-3. O que ainda falta resolver por mapa:
-   - **aprender os sons**, que talvez se divida por mapa (os ambientes e os marcadores de tarefa de cada
-     um) - pedido do usuário, a decidir junto com os sons de Polus;
-   - **os bots e o modo gráfico** já leem o mapa, mas só foram testados na nave de sempre.
-## O que o mapa novo exigia do jogo (feito acima, menos o que está em "Como um mapa novo entra")
+3. Os sons do mapa no **aprender os sons**: hoje uma lista só, com os do mapa em teste fora dela
+   (`LEARN_SOUNDS_LEFT_OUT`); a proposta para a Base Polar está em "Falta antes de lançar", acima.
+4. Os **bots** já rodam no mapa novo (a `probe_seismic` os põe nos painéis da Base Polar); o **modo
+   gráfico** lê o mapa, mas só foi olhado na nave de sempre.
+## O que o mapa novo exigiu do jogo (FEITO; fica como registro do porquê)
 
-- **Escolher o mapa na sala.** Hoje o mapa é um só, construído em código (`build_the_hub_map`), e
-  `map_name` já existe na configuração. Precisa: a lista de mapas, o campo no formulário, o servidor
-  construir o mapa da sala, o cliente o mesmo (está no `S_GAME_START`) - e protocolo novo, porque um
-  cliente antigo jogaria a nave errada.
-- **Tudo que hoje assume a nave atual:** "Conhecer o mapa", o treino de tarefas, o aprender os sons, os
-  bots (rotas), o modo gráfico, as câmeras (salas da nave), a reunião (o ponto de encontro) e as sondas
-  que montam o mapa.
+- **Escolher o mapa na sala:** a lista de mapas, o campo no formulário, o servidor montando o mapa da
+  sala e o cliente o mesmo (`S_GAME_START`) - com protocolo novo (`MAPS_PROTOCOL`), porque um cliente
+  antigo jogaria a nave errada.
+- **Tudo que assumia a nave de sempre** passou a perguntar ao mapa: Conhecer o mapa, o treino, os bots,
+  o modo gráfico, as câmeras, a reunião (o ponto de encontro) e as sondas que montam o mapa. O aprender
+  os sons é o que falta (acima).
 - **Pisos novos** entram em DUAS tabelas (ver som.md: "piso novo entra em DUAS tabelas").

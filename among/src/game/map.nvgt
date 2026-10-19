@@ -983,8 +983,7 @@ game_map@ build_polar_base_map() {
 		OBJ_TASK_SPOT, "sounds/" + SND_JUG_PLACE, "replace_water_jug", "", SND_TASK_BEACON_REPLACE_WATER_JUG));
 	array<string> galao = {"task_jug_storage", "task_jug_office"};
 	m.chains.insert_last(task_chain("replace_water_jug", galao));
-	// Registrar a temperatura, no laboratório (no lugar de um download provisório: a sala já tem quatro
-	// pontos, e marcadores colados viram um borrão só).
+	// Registrar a temperatura, no laboratório, onde o original a tem.
 	m.objects.insert_last(map_object("task_temperature_laboratory", "task.record_temperature.name", 40, -25, "laboratory",
 		OBJ_TASK_SPOT, "sounds/" + SND_TEMP_BUTTON, "record_temperature", "", SND_TASK_BEACON_RECORD_TEMPERATURE));
 	// Guardar os artefatos, na vitrine da sala dos espécimes (longe do duto e da fiação da mesma sala).
@@ -1010,9 +1009,9 @@ game_map@ build_polar_base_map() {
 		m.chains.insert_last(task_chain("fix_weather_node", corrente));
 	}
 
-	// Sabotagens: as luzes na elétrica, as comunicações nas comunicações e o sismógrafo - a crítica do
+	// Sabotagens: as luzes na elétrica, as comunicações nas comunicações e o sismógrafo - a crítica da
 	// Base Polar, consertada a duas pessoas ao mesmo tempo, uma em cada painel, um de cada lado da sala. As
-	// portas com minijogo entram depois.
+	// portas (com painel) são do mapa inteiro: ver doors_have_panel.
 	m.objects.insert_last(map_object("panel_seismic_west", "sabotage.seismic.name", -5, 34, "seismic",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "seismic", "", SND_PANEL_BEACON_SEISMIC));
 	m.objects.insert_last(map_object("panel_seismic_east", "sabotage.seismic.name", 5, 34, "seismic",
