@@ -27,6 +27,7 @@ perder é não ser lida.
 | escrever uma sonda | [notes/sondas.md](notes/sondas.md) |
 | publicar, servidor, VPS, Docker, banco | [notes/infra-e-deploy.md](notes/infra-e-deploy.md) |
 | idioma, `lang/`, envio de tradução | [notes/traducoes.md](notes/traducoes.md) |
+| **a 1.0: mapa novo**, a leva de sons dos outros mapas | [notes/versao-1.0.md](notes/versao-1.0.md) |
 
 As **Armadilhas do NVGT**, abaixo, valem para tudo: são coisas da linguagem e da engine que falham em
 silêncio, e é onde procurar quando algo "compilou e não funcionou".
