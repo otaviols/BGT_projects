@@ -685,7 +685,7 @@ hears that reviving is no use - the person would die of love again.
 
 ## Sabotage (impostor)
 
-Three sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one
+Four sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one
 cannot be repeated twice in a row.
 
 - **Lights** — bodies go silent, the radar only reaches whoever is right next to you, general
@@ -700,6 +700,13 @@ cannot be repeated twice in a row.
   a body. The game announces the time left every 30 seconds, and counts down one by one over the
   **last 10** — if you hear the countdown start, there is no time to switch panels: finish the one
   you began.
+- **Reactor** — critical sabotage, like oxygen: 90 seconds, or the crew loses. There are **two**
+  panels, one on each side of the Reactor room, and they need **two people at the same time**: hold
+  **Enter** at a panel to put your hand on the scanner and keep holding. You hear the hand of whoever
+  is at the other panel, on their side; when both stay together for a moment, the reactor is
+  stabilized. If the other one lets go too early, the failure sound plays and you have to hold again.
+  It cannot be fixed alone: agree by voice on who goes to each panel. As with oxygen, while it is
+  active nobody can call a meeting or report a body, and the time warnings are the same.
 - **Communications** — takes down the radar (both modes), the task list, your task beacons and the
   nearby-body warning. Lasts until someone **tunes the radio** at the panel in Navigation: turn the dial with the
   arrows until the voice is free of static and hold it there for a moment. It is the only repair done

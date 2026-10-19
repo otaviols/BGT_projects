@@ -185,6 +185,9 @@ const string SND_PANEL_BEACON_COMMS = "sounds/beacons/comunication_pannel.mp3";
 // O sismógrafo (Base Polar): o tremor dele, no painel. Dentro do painel, o leitor de mão do original (o
 // estalo ao pôr, o zumbido enquanto se segura) e a falha quando o colega solta cedo.
 const string SND_PANEL_BEACON_SEISMIC = "sounds/beacons/seismic_panel.ogg";
+// O reator da nave de sempre: o zumbido do leitor de mão do reator original, duas vezes, com um respiro.
+// Dentro do painel, os mesmos sons do sismógrafo (que vieram do reator original).
+const string SND_PANEL_BEACON_REACTOR = "sounds/beacons/reactor_panel.ogg";
 const string SND_SEISMIC_HAND = "tasks/seismic_hand.ogg";
 const string SND_SEISMIC_HAND_START = "tasks/seismic_hand_start.ogg";
 const string SND_SEISMIC_FAIL = "tasks/seismic_fail.ogg";
@@ -542,6 +545,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_PANEL_BEACON_LIGHTS);
 	list.insert_last(SND_PANEL_BEACON_OXYGEN);
 	list.insert_last(SND_PANEL_BEACON_SEISMIC);
+	list.insert_last(SND_PANEL_BEACON_REACTOR);
 	list.insert_last("sounds/" + SND_SEISMIC_HAND);
 	list.insert_last("sounds/" + SND_SEISMIC_HAND_START);
 	list.insert_last("sounds/" + SND_SEISMIC_FAIL);

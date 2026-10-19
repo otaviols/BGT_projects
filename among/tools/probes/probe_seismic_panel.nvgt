@@ -44,14 +44,14 @@ void main() {
 	segura(KEY_RETURN, 50, 120);
 	segura(KEY_ESCAPE, 400, 410);
 	uint64 antes = ticks();
-	bool so_um_instante = run_hold_panel(c, "panel_seismic_west", 0.8);
+	bool so_um_instante = run_hold_panel(c, "seismic", "panel_seismic_west", 0.8);
 	confere("soltar cedo e sair: nao estabiliza", !so_um_instante);
 
 	// Segura de vez: o colega de mentira chega em 1,5 a 3 s, e mais 1,5 s juntos.
 	roda();
 	segura(KEY_RETURN, 50, 7000);
 	antes = ticks();
-	bool firme = run_hold_panel(c, "panel_seismic_west", 0.8);
+	bool firme = run_hold_panel(c, "seismic", "panel_seismic_west", 0.8);
 	uint64 levou = ticks() - antes;
 	confere("segurando firme, estabiliza", firme);
 	confere("e so depois do colega chegar e do tempo juntos (" + levou + " ms)", levou >= 3000);

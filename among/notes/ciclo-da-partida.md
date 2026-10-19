@@ -176,9 +176,11 @@ estabilizou. Quais sabotagens são de segurar mora em `is_hold_sabotage`
 (`core/sabotage_rules.nvgt`), que os dois lados perguntam. Os bots vão um a cada painel
 (`panel_taken_by_other`) e FICAM: o "cheguei" comum apagava o destino, o bot saía andando com a mão
 posta e o tick o soltava - nunca estabilizavam (pego pela `probe_seismic`). Sem conexão (treino,
-Conhecer o mapa) um colega de mentira põe a mão 1,5 a 3 s depois (`probe_seismic_panel`). O reator do
-mapa antigo, decidido para a 1.0, entra em `is_hold_sabotage` - mas lá o mapa NÃO exige protocolo novo,
-então ele precisa de um portão de versão (o sismógrafo escapou disso por só existir na Base Polar).
+Conhecer o mapa) um colega de mentira põe a mão 1,5 a 3 s depois (`probe_seismic_panel`). O reator da
+nave de sempre usa a mesma mecânica (`is_hold_sabotage`), mas lá o mapa NÃO exige protocolo novo: o
+`trigger_sabotage` recusa sabotagem de segurar se algum jogador (não bot) estiver abaixo de
+`HOLD_SABOTAGE_PROTOCOL` - sem isso, quem tem versão antiga não teria como consertar e a partida seria
+derrota certa. Sonda: a seção 7 da `probe_seismic`.
 
 **Voz posicionada é só para quem está VIVO e andando.** `g_voice.spatial = alive && !movement_frozen`
 é decidido a cada quadro, e não em cada transição: são três (morrer, começar a reunião, acabar a

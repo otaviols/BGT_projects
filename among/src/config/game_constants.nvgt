@@ -239,6 +239,11 @@ const float SABOTAGE_OXYGEN_TIMER_SECONDS = 90.0;
 // painéis para estabilizar. Curto o bastante para não virar espera; longo o bastante para que soltar
 // cedo seja um erro que se ouve (a maquete aprovada usava 1,5 s).
 const float SABOTAGE_HOLD_TOGETHER_SECONDS = 1.5;
+// A sabotagem de segurar só existe a partir deste protocolo. No mapa novo isso já vem junto (ele exige
+// MAPS_PROTOCOL); o REATOR é da nave de sempre, que aceita qualquer cliente - e um cliente anterior não
+// saberia segurar o painel nem o que é a sabotagem. Por isso o servidor não a dispara numa partida com
+// alguém de versão anterior (ver trigger_sabotage).
+const int HOLD_SABOTAGE_PROTOCOL = 15;
 // De quanto em quanto tempo o servidor lembra quantos segundos faltam numa sabotagem crítica, e a
 // partir de quanto tempo restante ele passa a contar segundo a segundo. 30 é frequente o bastante
 // para orientar quem está correndo entre os dois painéis, e raro o bastante para não atrapalhar

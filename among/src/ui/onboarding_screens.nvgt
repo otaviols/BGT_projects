@@ -215,6 +215,7 @@ name_value_collection@ learn_sounds_collection() {
 	sfx.add(tr("learn.button_beacon"), SND_BUTTON_BEACON);
 	sfx.add(tr("learn.panel_lights_beacon"), SND_PANEL_BEACON_LIGHTS);
 	sfx.add(tr("learn.panel_oxygen_beacon"), SND_PANEL_BEACON_OXYGEN);
+	sfx.add(tr("learn.panel_reactor_beacon"), SND_PANEL_BEACON_REACTOR);
 	sfx.add(tr("learn.panel_comms_beacon"), SND_PANEL_BEACON_COMMS);
 	sfx.add(tr("learn.vent_beacon"), SND_VENT_BEACON);
 	sfx.add(tr("learn.camera_beacon"), SND_CAMERA_BEACON);

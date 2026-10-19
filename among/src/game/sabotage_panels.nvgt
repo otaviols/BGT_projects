@@ -6,6 +6,7 @@
 //   oxigênio      - um código de cinco dígitos, o MESMO nos dois painéis, dito ao abrir cada um.
 //   comunicações  - sintonizar: girar o dial até a voz do rádio ficar sem estática.
 //   sismógrafo    - segurar: duas pessoas com a mão nos dois painéis ao mesmo tempo (Base Polar).
+//   reator        - o mesmo segurar, na nave de sempre.
 //
 // O padrão é o das tasks (ver tasks/task_common.nvgt): laço bloqueante no cliente, ESC cancela,
 // reunião interrompe, e só o resultado vai ao servidor - que continua sendo quem decide se o painel
@@ -55,7 +56,7 @@ bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const 
 	if (sabotage_id == "lights") ok = run_lights_panel(client);
 	else if (sabotage_id == "oxygen") ok = run_oxygen_panel(client, oxygen_code);
 	else if (sabotage_id == "comms") ok = run_comms_panel(client);
-	else if (segurar) ok = run_hold_panel(client, panel_id, other_pan);
+	else if (segurar) ok = run_hold_panel(client, sabotage_id, panel_id, other_pan);
 	// O painel que ABRE com um som tem que FECHAR com um: sem isso a pessoa ouvia a tampa abrindo e
 	// a tela terminava em silêncio, sem marcar que acabou. Vale nos dois fins - concluído ou
 	// desistido - porque o som é da tampa, não do resultado.
@@ -318,8 +319,8 @@ bool door_opened_meanwhile(game_client@ client, int abertas) {
 // colega de mentira põe a mão alguns segundos depois de você e o painel conta o tempo sozinho.
 const float HOLD_OTHER_HAND_DB = -8.0;
 
-bool run_hold_panel(game_client@ client, const string&in panel_id, float other_pan) {
-	speak_hint("sabotage.seismic.panel_intro");
+bool run_hold_panel(game_client@ client, const string&in sabotage_id, const string&in panel_id, float other_pan) {
+	speak_hint("sabotage." + sabotage_id + ".panel_intro");
 	bool treino = !client.connected;
 	bool segurando = false, outra_antes = false;
 	sound@ mao = null;

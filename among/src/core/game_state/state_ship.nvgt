@@ -103,7 +103,7 @@ mixin class state_ship_part {
 	// Sabotagem crítica = tem relógio e é derrota dos tripulantes se o tempo acabar. As outras duram
 	// até alguém consertar o painel.
 	bool is_critical_sabotage(const string&in sabotage_id) const {
-		return sabotage_id == "oxygen" || sabotage_id == "seismic";
+		return sabotage_id == "oxygen" || is_hold_sabotage(sabotage_id);
 	}
 
 	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event, string&out fail_key) {
@@ -124,6 +124,12 @@ mixin class state_ship_part {
 		// Sem isto o impostor martelava a MESMA sabotagem a partida inteira, que é o jeito mais
 		// chato de jogar: a tripulação decora o caminho de um painel só e nada mais acontece.
 		if (sabotage_id == last_sabotage_id) { fail_key = "game.sabotage_repeat"; return false; }
+		// Sabotagem de segurar com alguém de versão anterior na partida: ele não saberia consertar.
+		if (is_hold_sabotage(sabotage_id)) {
+			for (uint i = 0; i < players.length(); i++) {
+				if (!players[i].is_bot && players[i].protocol_version < HOLD_SABOTAGE_PROTOCOL) { fail_key = "game.sabotage_needs_update"; return false; }
+			}
+		}
 
 		active_sabotage = sabotage_id;
 		last_sabotage_id = sabotage_id;
@@ -245,7 +251,7 @@ mixin class state_ship_part {
 		if (distance_2d(p.x, p.y, obj.x, obj.y) > PLAYER_INTERACT_RANGE * 2.0) { fail_key = "sabotage.too_far"; return false; }
 		uint64 dono = sabotage_hold_holder(object_id);
 		if (dono == peer_id) return false;
-		if (dono != 0) { fail_key = "sabotage.seismic.panel_busy"; return false; }
+		if (dono != 0) { fail_key = "sabotage.hold_panel_busy"; return false; }
 		// Uma mão por pessoa: segurar outro painel solta o anterior (não acontece andando, mas o pacote
 		// vem da máquina do jogador).
 		if (ja >= 0) { sabotage_hold_panels.remove_at(ja); sabotage_hold_peers.remove_at(ja); }

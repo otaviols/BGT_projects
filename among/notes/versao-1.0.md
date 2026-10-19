@@ -136,8 +136,10 @@ Falta, na ordem combinada:
   sentido lá (fios, download, asteroides, filtro de O2);
 - ~~o sismógrafo~~ FEITO (2026-10-19): duas mãos juntas nos dois painéis da sala dele, 90 s, a mão do
   colega se ouve do lado dele; ver ciclo-da-partida.md;
-- **o reator no mapa antigo** (decisão do usuário, 2026-10-19: novidade da 1.0 também para a nave de
-  sempre), reaproveitando a sabotagem de segurar - com portão de protocolo, ver ciclo-da-partida.md;
+- ~~o reator no mapa antigo~~ FEITO (2026-10-19): a mesma sabotagem de segurar, dois painéis na sala do
+  Reator. A nave aceita cliente antigo, então o servidor não a dispara com alguém abaixo de
+  `HOLD_SABOTAGE_PROTOCOL` na partida ("game.sabotage_needs_update"). Já está no manual (a nave é o mapa
+  publicado) - falta só o changelog, quando a versão sair;
 - ~~as portas com minijogo~~ FEITO (2026-10-19): na Base Polar a sala trancada fica 20 s (12 na nave), e na
   passagem Enter abre o painel - reflexo: bipe agudo à esquerda, no meio ou à direita, a seta do lado
   antes de sumir, cinco acertos abrem a sala para todos. Os sons do minijogo da leva foram RECUSADOS

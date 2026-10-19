@@ -517,7 +517,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 
 			if (sabotage_timer <= 0.0) {
 				winner = "impostors";
-				win_reason = active_sabotage == "seismic" ? "seismic_collapse" : "oxygen_depleted";
+				win_reason = active_sabotage == "seismic" ? "seismic_collapse" : active_sabotage == "reactor" ? "reactor_meltdown" : "oxygen_depleted";
 				active_sabotage = "";
 				sabotage_fixed_panels.resize(0);
 				sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;

@@ -675,7 +675,7 @@ morreria de amor de novo.
 
 ## Sabotagem (impostor)
 
-Três sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para
+Quatro sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para
 repetir a mesma duas vezes seguidas.
 
 - **Luzes** — os corpos ficam mudos, o radar só alcança quem estiver bem colado, o alcance de
@@ -690,6 +690,13 @@ repetir a mesma duas vezes seguidas.
   consegue chamar reunião nem reportar corpo. O jogo avisa quanto falta de 30 em 30 segundos, e nos
   **10 segundos finais** conta um a um — se você ouvir a contagem começar, já não dá tempo de trocar
   de painel: termine o que começou.
+- **Reator** — sabotagem crítica, como o oxigênio: 90 segundos, ou a tripulação perde. São **dois**
+  painéis, um de cada lado da sala do Reator, e eles precisam de **duas pessoas ao mesmo tempo**:
+  segure **Enter** no painel para pôr a mão no leitor e mantenha. Você ouve a mão de quem está no
+  outro painel, do lado dele; quando as duas ficam juntas por um instante, o reator se estabiliza. Se
+  o outro soltar cedo, toca a falha e é preciso segurar de novo. Sozinho não se conserta: combine pela
+  voz quem vai a cada painel. Como no oxigênio, enquanto ela estiver ativa ninguém chama reunião nem
+  reporta corpo, e os avisos de tempo são os mesmos.
 - **Comunicações** — derruba o radar (nos dois modos), a lista de tarefas, os marcadores das suas
   tarefas e o aviso de corpo por perto. Dura até alguém **sintonizar o rádio** no painel da Navegação: gire o dial com as
   setas até a voz ficar sem estática e segure ali um instante. É o único conserto que se faz de

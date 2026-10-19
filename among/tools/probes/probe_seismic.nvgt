@@ -7,7 +7,8 @@
 //   3. as duas juntas pelo tempo todo estabilizam, com o mesmo S_SABOTAGE_FIXED de sempre;
 //   4. quem se afasta (ou morre) com a mão posta é solto pelo tick, avisando a partida;
 //   5. o relógio acabando é derrota com o motivo do sismógrafo;
-//   6. dois bots vão um a cada painel e estabilizam sozinhos.
+//   6. dois bots vão um a cada painel e estabilizam sozinhos;
+//   7. o reator da nave de sempre: o mesmo segurar, e não dispara com alguém de versão anterior.
 #include "../../src/core/game_state.nvgt"
 #include "../../src/game/roles/role_traits.nvgt"
 
@@ -44,6 +45,8 @@ game_state@ partida() {
 
 bool sabota(game_state@ lobby) {
 	lobby.sabotage_cooldown_remaining = 0.0;
+	// Clientes atualizados: com alguém de versão anterior a sabotagem de segurar não dispara (seção 7).
+	for (uint i = 0; i < lobby.players.length(); i++) lobby.players[i].protocol_version = PROTOCOL_VERSION;
 	net_packet@ ev; string motivo;
 	return lobby.trigger_sabotage(1, "seismic", ev, motivo);
 }
@@ -149,6 +152,33 @@ void main() {
 		}
 		confere("um bot em cada painel (" + seguros.length() + ")", seguros.length() == 2);
 		confere("e estabilizaram sozinhos", estabilizou);
+	}
+
+	println("== 7. o reator, na nave de sempre ==");
+	{
+		game_state@ lobby = partida();
+		@lobby.map = build_map(MAP_THE_HUB);
+		lobby.players[1].x = -36; lobby.players[1].y = -75;
+		lobby.players[2].x = -24; lobby.players[2].y = -75;
+		for (uint i = 0; i < lobby.players.length(); i++) lobby.players[i].protocol_version = PROTOCOL_VERSION;
+		lobby.players[2].protocol_version = HOLD_SABOTAGE_PROTOCOL - 1; // alguem de versao anterior
+		lobby.sabotage_cooldown_remaining = 0.0;
+		net_packet@ ev; string motivo;
+		confere("a nave tem o reator, de segurar e critico", lobby.map.has_sabotage("reactor") && is_hold_sabotage("reactor") && lobby.is_critical_sabotage("reactor"));
+		confere("com alguem de versao anterior, nao dispara (e diz por que)",
+			!lobby.trigger_sabotage(1, "reactor", ev, motivo) && motivo == "game.sabotage_needs_update");
+		lobby.players[2].protocol_version = PROTOCOL_VERSION;
+		confere("com todos atualizados, dispara", lobby.trigger_sabotage(1, "reactor", ev, motivo));
+		segura(lobby, 2, "panel_reactor_west", true);
+		segura(lobby, 3, "panel_reactor_east", true);
+		roda(lobby, SABOTAGE_HOLD_TOGETHER_SECONDS + 0.2);
+		confere("as duas maos estabilizam o reator", lobby.active_sabotage == "");
+		lobby.sabotage_cooldown_remaining = 0.0;
+		lobby.last_sabotage_id = "";
+		lobby.trigger_sabotage(1, "reactor", ev, motivo);
+		lobby.sabotage_timer = 0.1;
+		roda(lobby, 0.2);
+		confere("o tempo acabando derrete o reator", lobby.winner == "impostors" && lobby.win_reason == "reactor_meltdown");
 	}
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

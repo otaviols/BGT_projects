@@ -39,18 +39,18 @@ bool lights_out_for(const string&in active, role_traits@ role, bool alive) {
 // discordarem que a regra desligada continuava calando a reunião (o servidor deixava a voz passar,
 // o cliente nem capturava).
 // Sabotagem que se conserta SEGURANDO: duas pessoas com a mão nos dois painéis AO MESMO TEMPO (o
-// sismógrafo da Base Polar; o reator do mapa antigo, decidido para a 1.0, entra aqui). Não há minijogo que
+// sismógrafo da Base Polar e o reator da nave de sempre, os dois da 1.0). Não há minijogo que
 // "termina" no cliente: o cliente só diz "pus a mão"/"tirei", e quem decide que estabilizou é o
 // servidor, que vê as duas mãos. Aqui, e não em cada lado, porque cliente (o painel) e servidor (o
 // conserto, os bots) têm que concordar sobre quais sabotagens funcionam assim.
 bool is_hold_sabotage(const string&in id) {
-	return id == "seismic";
+	return id == "seismic" || id == "reactor";
 }
 
 // A chave de um texto que muda com a sabotagem crítica ("oxigênio acabando" não serve ao sismógrafo).
 // A do oxigênio é a original, sem o id, e as outras levam o id no meio.
 string critical_sabotage_key(const string&in id, const string&in suffix) {
-	if (id == "seismic") return "sabotage.seismic." + suffix;
+	if (id == "seismic" || id == "reactor") return "sabotage." + id + "." + suffix;
 	return "sabotage." + suffix;
 }
 

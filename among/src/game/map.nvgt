@@ -790,6 +790,12 @@ game_map@ build_the_hub_map() {
 	// Sabotagens
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -27, -53, "electrical",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights", "", SND_PANEL_BEACON_LIGHTS));
+	// O reator (a 1.0): a crítica de duas mãos, como o sismógrafo da Base Polar - um painel de cada lado
+	// da sala do reator, segurados ao mesmo tempo.
+	m.objects.insert_last(map_object("panel_reactor_west", "sabotage.reactor.name", -36, -75, "reactor",
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "reactor", "", SND_PANEL_BEACON_REACTOR));
+	m.objects.insert_last(map_object("panel_reactor_east", "sabotage.reactor.name", -24, -75, "reactor",
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "reactor", "", SND_PANEL_BEACON_REACTOR));
 	m.objects.insert_last(map_object("panel_oxygen_admin", "sabotage.oxygen.name", 6, -20, "admin",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "oxygen", "", SND_PANEL_BEACON_OXYGEN));
 	m.objects.insert_last(map_object("panel_oxygen_o2room", "sabotage.oxygen.name", -16, -44, "oxygen",
