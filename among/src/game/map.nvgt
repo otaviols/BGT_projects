@@ -911,6 +911,23 @@ game_map@ build_polus_map() {
 	m.objects.insert_last(map_object("task_wiring_specimen", "task.fix_wiring.name", 48, 17, "specimen",
 		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
 
+	// O nó do clima: seis nós nos caminhos de neve (a tarefa leva lá para fora) e um painel de
+	// interruptores no laboratório, a segunda etapa. Uma corrente por nó, todas acabando no laboratório:
+	// quem recebe a tarefa sorteia o nó (ver on_start_game), e o painel é o mesmo para todos.
+	array<float> nx = {2, -21, -38, -21, 2, -20};
+	array<float> ny = {-36, -23, -7, 7, 22, 34};
+	array<string> nz = {"corridor_dropship_office", "corridor_office_weapons", "corridor_weapons_oxygen",
+		"corridor_oxygen_storage", "corridor_storage_seismic", "corridor_electrical_seismic"};
+	m.objects.insert_last(map_object("task_weather_switch", "task.fix_weather_node.switch_name", 48, -26, "laboratory",
+		OBJ_TASK_SPOT, "sounds/" + SND_WEATHER_SWITCH, "fix_weather_node", "", SND_TASK_BEACON_WEATHER_NODE));
+	for (uint i = 0; i < POLUS_WEATHER_NODES.length(); i++) {
+		string id = "task_weather_" + POLUS_WEATHER_NODES[i];
+		m.objects.insert_last(map_object(id, "task.fix_weather_node.name", nx[i], ny[i], nz[i],
+			OBJ_TASK_SPOT, "sounds/" + SND_WEATHER_NODE_MOVE, "fix_weather_node", "", SND_TASK_BEACON_WEATHER_NODE));
+		array<string> corrente = {id, "task_weather_switch"};
+		m.chains.insert_last(task_chain("fix_weather_node", corrente));
+	}
+
 	// Sabotagens: as luzes na elétrica e as comunicações na administração. O sismógrafo (a crítica do
 	// Polus, consertada a duas pessoas) e as portas com minijogo entram depois; até lá o Polus não tem
 	// sabotagem crítica.

@@ -127,7 +127,15 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	// num menu por mapa, que o usuário quer decidir junto com os sons de lá.
 	SND_POLUS_DROPSHIP, SND_POLUS_OFFICE, SND_POLUS_ADMIN, SND_POLUS_COMMUNICATIONS, SND_POLUS_OXYGEN,
 	SND_POLUS_ELECTRICAL, SND_POLUS_STORAGE, SND_POLUS_LABORATORY, SND_POLUS_DECONTAMINATION,
-	SND_POLUS_SPECIMEN, SND_POLUS_SEISMIC, SND_POLUS_OUTSIDE
+	SND_POLUS_SPECIMEN, SND_POLUS_SEISMIC, SND_POLUS_OUTSIDE,
+	// O nó do clima: o marcador é do Polus em construção; o clique, o nó ligando e o interruptor são de
+	// DENTRO do minijogo, e se aprendem no treino, como os das outras tarefas.
+	SND_TASK_BEACON_WEATHER_NODE, "sounds/" + SND_WEATHER_NODE_MOVE, "sounds/" + SND_WEATHER_NODE_START,
+	"sounds/" + SND_WEATHER_SWITCH,
+	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
+	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
+	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",
+	"sounds/steps/SnowTile7.ogg"
 };
 
 void run_learn_sounds_screen() {

@@ -215,6 +215,12 @@ const string SND_CARD_ERROR = "tasks/card_error.ogg";
 const string SND_CARD_COMPLETE = "tasks/card_complete.ogg"; // o leitor aceitou o cartão - só na task do cartão
 const string SND_GET_CARD = "tasks/get_card.ogg";
 const string SND_PULLING_GARBAGE_LEVER = "tasks/pulling_garbage_lever.ogg"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
+// Nó do clima (Polus): o clique de cada passo no labirinto, o nó ligando e o interruptor do laboratório,
+// da leva do jogo original. E o marcador do nó: o zumbido da máquina do clima, a -32 dB como os outros.
+const string SND_WEATHER_NODE_MOVE = "tasks/weather_node_move.ogg";
+const string SND_WEATHER_NODE_START = "tasks/weather_node_start.ogg";
+const string SND_WEATHER_SWITCH = "tasks/weather_switch.ogg";
+const string SND_TASK_BEACON_WEATHER_NODE = "sounds/beacons/weather_node.ogg";
 const string SND_ASTEROID_FIRE = "tasks/asteroid_fire.ogg"; // cada tiro na task de limpar asteroides
 const uint ASTEROID_HIT_VARIANT_COUNT = 3;                   // asteroid_hit1..3: o acerto, variado para não virar bipe
 string asteroid_hit_sound(int variant_1_based) {
@@ -532,6 +538,10 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_GET_CARD);
 	list.insert_last("sounds/" + SND_PULLING_GARBAGE_LEVER);
 	list.insert_last("sounds/" + SND_ASTEROID_FIRE);
+	list.insert_last("sounds/" + SND_WEATHER_NODE_MOVE);
+	list.insert_last("sounds/" + SND_WEATHER_NODE_START);
+	list.insert_last("sounds/" + SND_WEATHER_SWITCH);
+	list.insert_last(SND_TASK_BEACON_WEATHER_NODE);
 	for (int i = 1; i <= int(ASTEROID_HIT_VARIANT_COUNT); i++) list.insert_last("sounds/" + asteroid_hit_sound(i));
 	list.insert_last("sounds/" + SND_MEDBAY_SCAN);
 	list.insert_last(SND_TASK_BEACON_SUBMIT_SCAN);

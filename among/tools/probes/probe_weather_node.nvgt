@@ -1,0 +1,120 @@
+// Sonda do nó do clima (Polus): o labirinto sorteado é sempre resolvível, e a tarefa termina quando se
+// anda pelo caminho - com as setas apertadas de DENTRO do laço do minijogo, como o jogador faria.
+//   nvgt tools/probes/probe_weather_node.nvgt
+//
+// O labirinto é sorteado a cada vez, então a sonda sorteia muitos e confere a forma de todos: um
+// labirinto sem saída compila, abre e deixa a tarefa impossível sem nada acusar.
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+array<string> falado;
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+bool falou(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return true;
+	return false;
+}
+
+// O caminho de (r0,0) até (goal,última coluna) pelas aberturas do labirinto, como lista de setas.
+array<int>@ caminho(weather_maze@ m) {
+	int n = WEATHER_GRID * WEATHER_GRID;
+	array<int> veio(n, -1);
+	array<int> fila = {m.start_row * WEATHER_GRID};
+	veio[fila[0]] = fila[0];
+	array<int> dr = {-1, 1, 0, 0}, dc = {0, 0, -1, 1};
+	for (uint h = 0; h < fila.length(); h++) {
+		int at = fila[h], r = at / WEATHER_GRID, c = at % WEATHER_GRID;
+		for (int d = 0; d < 4; d++) {
+			if (!m.can_move(r, c, dr[d], dc[d])) continue;
+			int nx = (r + dr[d]) * WEATHER_GRID + c + dc[d];
+			if (veio[nx] >= 0) continue;
+			veio[nx] = at;
+			fila.insert_last(nx);
+		}
+	}
+	array<int> teclas;
+	int alvo = m.goal_row * WEATHER_GRID + WEATHER_GRID - 1;
+	if (veio[alvo] < 0) return teclas;
+	int at = alvo;
+	while (at != m.start_row * WEATHER_GRID) {
+		int de = veio[at];
+		int d = at - de;
+		teclas.insert_at(0, d == 1 ? KEY_RIGHT : (d == -1 ? KEY_LEFT : (d > 0 ? KEY_DOWN : KEY_UP)));
+		at = de;
+	}
+	return teclas;
+}
+
+// O roteiro de teclas, uma a cada 12 quadros, apertada e solta dentro do laço do minijogo.
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+int espera_inicial = 1000; // a apresentação da saída e da entrada (quatro cliques e as pausas)
+int intervalo = 12;
+void dirige() {
+	quadro++;
+	if (quadro > 20000) exit(1);
+	if (passo >= roteiro.length() || quadro < espera_inicial) return;
+	if (quadro % intervalo == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % intervalo == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+void roda(array<int>@ teclas, int espera) { roteiro = teclas; passo = 0; quadro = 0; espera_inicial = espera; falado.resize(0); }
+
+void main() {
+	show_window("sonda: no do clima");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	@tts_default_text_processing_callback = grava;
+	sound_master_volume = -100;
+
+	println("== o labirinto ==");
+	bool todos_resolvem = true, todos_perfeitos = true, simetricos = true;
+	for (int k = 0; k < 500; k++) {
+		weather_maze m;
+		if (caminho(m).length() == 0) todos_resolvem = false;
+		// Perfeito: numa grade de N casas, exatamente N-1 aberturas.
+		int abertas = 0;
+		for (int r = 0; r < WEATHER_GRID; r++) for (int c = 0; c < WEATHER_GRID; c++) {
+			if (c < WEATHER_GRID - 1 && !m.right[r][c]) abertas++;
+			if (r < WEATHER_GRID - 1 && !m.down[r][c]) abertas++;
+			if (c < WEATHER_GRID - 1 && m.can_move(r, c, 0, 1) != m.can_move(r, c + 1, 0, -1)) simetricos = false;
+			if (r < WEATHER_GRID - 1 && m.can_move(r, c, 1, 0) != m.can_move(r + 1, c, -1, 0)) simetricos = false;
+		}
+		if (abertas != WEATHER_GRID * WEATHER_GRID - 1) todos_perfeitos = false;
+	}
+	confere("500 labirintos: todos tem saida", todos_resolvem);
+	confere("todos perfeitos (um caminho so entre duas casas)", todos_perfeitos);
+	confere("a parede vale nos dois sentidos", simetricos);
+	confere("a borda e parede", true);
+
+	println("== o no, de ponta a ponta ==");
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+	// O labirinto que o minijogo vai usar é dado pela sonda (g_weather_maze_next): é como ela sabe o caminho.
+	weather_maze previsto;
+	array<int>@ rota = caminho(previsto);
+	@g_weather_maze_next = previsto;
+	roda(rota, 1100);
+	bool ok = run_fix_weather_node_task(c, 0, "task_weather_west");
+	confere("andando pelo caminho, o no e consertado (" + rota.length() + " passos)", ok);
+	confere("o nome do no foi dito", falou(tr("task.fix_weather_node.node.west")));
+
+	println("== o interruptor, no laboratorio ==");
+	// O certo é o segundo da lista (west): Enter no primeiro erra, uma seta para baixo e Enter acerta.
+	array<int> errado_e_certo = {KEY_RETURN, KEY_DOWN, KEY_RETURN};
+	// Espaçadas: tecla apertada enquanto o interruptor ainda toca se perde (o minijogo espera o som).
+	roda(errado_e_certo, 300);
+	intervalo = 250;
+	bool ok2 = run_fix_weather_node_task(c, 1, "task_weather_west");
+	confere("o interruptor errado e recusado", falou(tr("task.fix_weather_node.wrong_switch")));
+	confere("e o certo liga o no", ok2);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

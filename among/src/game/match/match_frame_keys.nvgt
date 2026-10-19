@@ -152,14 +152,16 @@ mixin class match_frame_keys_part {
 						uint task_phase = 0;
 						uint task_phases = 1;
 						string chained_next = "";
+						string task_start = obj.id; // onde a tarefa começou (o nó do clima pede)
 						for (uint ti = 0; ti < my_tasks.length(); ti++) {
 							if (my_tasks[ti].object_id != obj.id) continue;
 							task_phase = my_tasks[ti].phase;
 							task_phases = my_tasks[ti].phase_count;
 							chained_next = my_tasks[ti].chain_object(task_phase + 1);
+							if (my_tasks[ti].chain_object(0) != "") task_start = my_tasks[ti].chain_object(0);
 							break;
 						}
-						bool success = run_task_minigame(client, obj.task_type, task_phase);
+						bool success = run_task_minigame(client, obj.task_type, task_phase, task_start);
 						if (success) {
 							// Tarefa de várias fases: avança para o ponto seguinte em vez de terminar, e
 							// diz para onde ir. O marcador muda de lugar junto. O destino é o da corrente

@@ -109,8 +109,9 @@ aceita, e o Conhecer o mapa e o treino o oferecem quando a pasta do jogo tem o `
 algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os jogadores.
 
 Falta, na ordem combinada:
-- **as tarefas do Polus**, uma por vez pela receita (maquete ouvida antes de código) - as de hoje são
-  provisórias, as da nave que fazem sentido lá (fios, download, asteroides, filtro de O2);
+- **as tarefas do Polus**, uma por vez pela receita (maquete ouvida antes de código). Feita: **o nó do
+  clima** (2026-10-19, ver tarefas-novas.md). As outras ainda são provisórias, as da nave que fazem
+  sentido lá (fios, download, asteroides, filtro de O2);
 - **o sismógrafo** (a sabotagem crítica, dois painéis, duas pessoas) - até lá o Polus não tem crítica;
 - **as portas com minijogo** e **a descontaminação que prende quem passa** (decisão do usuário: fica);
 - **câmeras** - o Polus ainda não tem posto.

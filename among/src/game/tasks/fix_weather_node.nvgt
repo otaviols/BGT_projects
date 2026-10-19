@@ -1,0 +1,185 @@
+// fix_weather_node.nvgt
+// Consertar o nó do clima (Polus, a 1.0): a tarefa do original traduzida para o ouvido. Duas etapas,
+// como no original: no NÓ, lá fora na neve, traça-se um caminho por um labirinto pequeno até a saída;
+// no LABORATÓRIO, liga-se o interruptor daquele nó. A travessia da neve até o laboratório é parte da
+// tarefa - é ela que faz barulho e diz aos outros por onde se andou (a mesma ideia do abastecer).
+//
+// O labirinto (aprovado pelo usuário em 2026-10-19, pela maquete):
+//   - grade de 4 por 4, sorteada a cada vez (um labirinto PERFEITO: entre duas casas há um caminho só);
+//   - onde se está sai de DUAS pistas no clique do nó, como no distribuidor: a coluna é o lado (esquerda
+//     e direita) e a linha é o tom (agudo em cima, grave embaixo);
+//   - as paredes NÃO são ditas: bater numa toca o esbarrão e não sai do lugar. Descobrir batendo e
+//     lembrar é a decisão do jogador - é a mecânica que o jogo não tinha (memória de um caminho em duas
+//     dimensões);
+//   - a saída é apresentada no começo, no lado e no tom dela, como o alvo do distribuidor: sabe-se para
+//     ONDE ir, não por onde. Espaço repete a saída e onde se está.
+// Errar não custa nada além do tempo, como errar no distribuidor.
+
+#include "task_common.nvgt"
+
+const int WEATHER_GRID = 4;
+const array<float> WEATHER_COLUMN_PANS = {-0.9, -0.3, 0.3, 0.9};
+const array<float> WEATHER_ROW_PITCHES = {135.0, 115.0, 95.0, 78.0};
+
+// O labirinto: paredes entre casas vizinhas. right[r][c] = parede entre (r,c) e (r,c+1); down[r][c] =
+// parede entre (r,c) e (r+1,c). Começa tudo fechado e o sorteio abre um caminho por casa.
+class weather_maze {
+	array<array<bool>> right;
+	array<array<bool>> down;
+	int start_row, goal_row; // a entrada é na coluna 0, a saída na última
+
+	weather_maze() {
+		right.resize(WEATHER_GRID);
+		down.resize(WEATHER_GRID);
+		for (int r = 0; r < WEATHER_GRID; r++) {
+			right[r].resize(WEATHER_GRID);
+			down[r].resize(WEATHER_GRID);
+			for (int c = 0; c < WEATHER_GRID; c++) { right[r][c] = true; down[r][c] = true; }
+		}
+		// Busca em profundidade com vizinho sorteado: labirinto perfeito, todas as casas ligadas.
+		array<bool> visto(WEATHER_GRID * WEATHER_GRID, false);
+		array<int> pilha = {0};
+		visto[0] = true;
+		while (pilha.length() > 0) {
+			int atual = pilha[pilha.length() - 1];
+			int r = atual / WEATHER_GRID, c = atual % WEATHER_GRID;
+			array<int> livres;
+			if (r > 0 && !visto[atual - WEATHER_GRID]) livres.insert_last(atual - WEATHER_GRID);
+			if (r < WEATHER_GRID - 1 && !visto[atual + WEATHER_GRID]) livres.insert_last(atual + WEATHER_GRID);
+			if (c > 0 && !visto[atual - 1]) livres.insert_last(atual - 1);
+			if (c < WEATHER_GRID - 1 && !visto[atual + 1]) livres.insert_last(atual + 1);
+			if (livres.length() == 0) { pilha.remove_at(pilha.length() - 1); continue; }
+			int prox = livres[random(0, livres.length() - 1)];
+			open_between(atual, prox);
+			visto[prox] = true;
+			pilha.insert_last(prox);
+		}
+		start_row = random(0, WEATHER_GRID - 1);
+		goal_row = random(0, WEATHER_GRID - 1);
+	}
+
+	void open_between(int a, int b) {
+		if (a > b) { int t = a; a = b; b = t; }
+		int r = a / WEATHER_GRID, c = a % WEATHER_GRID;
+		if (b == a + 1) right[r][c] = false;
+		else down[r][c] = false;
+	}
+
+	// Dá para passar de (r,c) na direção (dr,dc)? Borda é parede.
+	bool can_move(int r, int c, int dr, int dc) const {
+		int nr = r + dr, nc = c + dc;
+		if (nr < 0 || nr >= WEATHER_GRID || nc < 0 || nc >= WEATHER_GRID) return false;
+		if (dc == 1) return !right[r][c];
+		if (dc == -1) return !right[r][nc];
+		if (dr == 1) return !down[r][c];
+		return !down[nr][c];
+	}
+}
+
+// O labirinto da próxima vez, no lugar do sorteio - só a sonda preenche (probe_weather_node): é como ela
+// conhece o caminho para andar por ele. Usado uma vez e esvaziado.
+weather_maze@ g_weather_maze_next = null;
+
+// O clique do nó no lugar de uma casa: o lado pela coluna, o tom pela linha.
+sound@ weather_click(int row, int col) {
+	return task_sound(SND_WEATHER_NODE_MOVE, pan_from_linear(WEATHER_COLUMN_PANS[col]), WEATHER_ROW_PITCHES[row]);
+}
+
+// Uma casa, duas vezes, esperando cada clique: é como a saída e a entrada se apresentam.
+bool weather_present(int row, int col, game_client@ client) {
+	for (int i = 0; i < 2; i++) {
+		if (!wait_for_task_sound(weather_click(row, col), client)) return false;
+		if (!task_wait(300, client)) return false;
+	}
+	return true;
+}
+
+// `start_object`: o ponto onde a tarefa começou (o nó). A etapa do laboratório precisa dele para saber
+// qual interruptor é o certo, e a do nó, para dizer qual nó é.
+bool run_fix_weather_node_task(game_client@ client, uint phase, const string&in start_object) {
+	string lugar = weather_node_place(start_object);
+	if (phase == 0) return run_weather_maze(client, lugar);
+	return run_weather_switch(client, lugar);
+}
+
+// "task_weather_<lugar>" -> "<lugar>". Vazio quando o ponto não é um nó (servidor antigo, treino sem
+// corrente): aí a etapa do laboratório aceita qualquer interruptor, em vez de prender a tarefa.
+string weather_node_place(const string&in object_id) {
+	const string prefixo = "task_weather_";
+	if (!object_id.starts_with(prefixo)) return "";
+	string lugar = object_id.substr(prefixo.length());
+	return POLUS_WEATHER_NODES.find(lugar) >= 0 ? lugar : "";
+}
+
+bool run_weather_maze(game_client@ client, const string&in lugar) {
+	if (lugar != "") speak(tr("task.fix_weather_node.node." + lugar), false);
+	speak_hint("task.fix_weather_node.instructions");
+	weather_maze@ lab = @g_weather_maze_next != null ? g_weather_maze_next : weather_maze();
+	@g_weather_maze_next = null;
+	int row = lab.start_row, col = 0;
+	if (!task_wait(700, client)) return false;
+	if (!weather_present(lab.goal_row, WEATHER_GRID - 1, client)) return false;
+	if (!task_wait(300, client)) return false;
+	if (!weather_present(row, col, client)) return false;
+
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		// Cada tecla lida UMA vez (ver CLAUDE.md: key_pressed é consumo).
+		bool cima = key_pressed(KEY_UP), baixo = key_pressed(KEY_DOWN);
+		bool esq = key_pressed(KEY_LEFT), dir = key_pressed(KEY_RIGHT);
+		if (key_pressed(KEY_SPACE)) {
+			if (!weather_present(lab.goal_row, WEATHER_GRID - 1, client)) return false;
+			if (!task_wait(300, client)) return false;
+			if (!wait_for_task_sound(weather_click(row, col), client)) return false;
+			continue;
+		}
+		int dr = cima ? -1 : (baixo ? 1 : 0);
+		int dc = esq ? -1 : (dir ? 1 : 0);
+		if (dr == 0 && dc == 0) continue;
+		if (dr != 0 && dc != 0) dc = 0; // duas setas no mesmo quadro: só a vertical
+		if (!lab.can_move(row, col, dr, dc)) {
+			task_sound_path(SND_WALL_BUMP, pan_from_linear(WEATHER_COLUMN_PANS[col]));
+			continue;
+		}
+		row += dr;
+		col += dc;
+		weather_click(row, col);
+		if (col == WEATHER_GRID - 1 && row == lab.goal_row) {
+			if (!task_wait(250, client)) return false;
+			wait_for_task_sound(task_sound(SND_WEATHER_NODE_START), client, 4000);
+			return true;
+		}
+	}
+	return false;
+}
+
+// O painel do laboratório: um interruptor por nó, com o nome do lugar dele. A decisão é lembrar QUAL nó
+// se consertou - o nome foi dito ao abrir o nó, lá fora.
+bool run_weather_switch(game_client@ client, const string&in lugar) {
+	speak_hint("task.fix_weather_node.switch_instructions");
+	int pos = 0;
+	speak(tr("task.fix_weather_node.node." + POLUS_WEATHER_NODES[pos]), false);
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		bool cima = key_pressed(KEY_UP), baixo = key_pressed(KEY_DOWN), enter = key_pressed(KEY_RETURN);
+		if (cima || baixo) {
+			int n = int(POLUS_WEATHER_NODES.length());
+			pos = (pos + (baixo ? 1 : n - 1)) % n;
+			speak(tr("task.fix_weather_node.node." + POLUS_WEATHER_NODES[pos]));
+			continue;
+		}
+		if (!enter) continue;
+		wait_for_task_sound(task_sound(SND_WEATHER_SWITCH), client, 2000);
+		if (lugar == "" || POLUS_WEATHER_NODES[pos] == lugar) {
+			wait_for_task_sound(task_sound(SND_WEATHER_NODE_START), client, 4000);
+			return true;
+		}
+		task_sound(SND_CARD_ERROR);
+		speak(tr("task.fix_weather_node.wrong_switch"));
+	}
+	return false;
+}

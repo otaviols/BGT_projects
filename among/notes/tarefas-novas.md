@@ -92,6 +92,20 @@ Errar não reinicia nada e o ponteiro não para: a punição é o tempo da volta
 no mesmo sentido, e vizinhas suficientemente separadas) - uma tabela de posições errada compila,
 roda, e só produz uma tarefa impossível de acertar sem sorte.
 
+`fix_weather_node` (Polus, a 1.0) é a terceira, e a primeira de um mapa novo. No original você traça um
+caminho num labirinto pequeno, no nó lá fora, e liga o nó num painel do laboratório. Para o ouvido: grade
+de 4 por 4, um labirinto PERFEITO sorteado a cada vez; onde se está sai das duas pistas do distribuidor
+(coluna = lado, linha = tom), a saída é apresentada no começo como o alvo dele, e as paredes NÃO são
+ditas - bater toca o esbarrão e não sai do lugar. Descobrir batendo e lembrar é a decisão. A maquete foi
+uma partida simulada (a saída, a entrada, três passos, um esbarrão, a chegada), e o usuário pediu antes
+para entender o original - explicar a tarefa original junto da maquete poupa a pergunta. A etapa do
+laboratório escolhe, numa lista, o interruptor do nó consertado, pelo nome do LUGAR dele (dito ao abrir
+o nó). Duas coisas que ela pediu e servem às próximas: o minijogo ganhou o ponto de COMEÇO da tarefa
+(`run_task_minigame(..., start_object)`, a primeira peça da corrente), porque a segunda etapa precisa
+saber qual nó foi; e a sonda (`probe_weather_node`) dá o labirinto ao minijogo (`g_weather_maze_next`)
+para saber o caminho e andar por ele - fixar a semente do sorteio não existe no NVGT. Tecla apertada
+enquanto o minijogo espera um som acabar se PERDE: a sonda espaça os toques nessa etapa.
+
 ## A maquete, e as duas armadilhas dela
 
 **MAQUETE ANTES DE CÓDIGO.** Monte a ideia com `ffmpeg` (um `.wav` com os sons nas posições e nos

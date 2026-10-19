@@ -104,8 +104,16 @@ void run_practice_screen() {
 			// não tem o que treinar - e a parte de ouvido nunca aparecia.
 			string tipo = id.substr(5);
 			uint fases = g_practice_map.phase_count_of(tipo);
+			// Tarefa de várias fases começa num ponto sorteado entre os começos dela (o nó do clima pergunta
+			// no laboratório QUAL nó se consertou - ver run_task_minigame).
+			string comeco = "";
+			array<string> comecos;
+			for (uint c = 0; c < g_practice_map.chains.length(); c++)
+				if (g_practice_map.chains[c].task_type == tipo && g_practice_map.chains[c].object_ids.length() > 0)
+					comecos.insert_last(g_practice_map.chains[c].object_ids[0]);
+			if (comecos.length() > 0) comeco = comecos[random(0, comecos.length() - 1)];
 			ok = true;
-			for (uint fase = 0; fase < fases && ok; fase++) ok = run_task_minigame(client, tipo, fase);
+			for (uint fase = 0; fase < fases && ok; fase++) ok = run_task_minigame(client, tipo, fase, comeco);
 		} else {
 			// O código do oxigênio vem do servidor na partida; aqui é sorteado na hora.
 			string code = "";
