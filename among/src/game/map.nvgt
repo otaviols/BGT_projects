@@ -906,8 +906,10 @@ game_map@ build_polus_map() {
 		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(3), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
 	m.objects.insert_last(map_object("task_download_storage", "task.download_data.name", -5, 5, "storage",
 		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
-	m.objects.insert_last(map_object("task_download_laboratory", "task.download_data.name", 40, -25, "laboratory",
-		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
+	// Registrar a temperatura, no laboratório (no lugar de um download provisório: a sala já tem quatro
+	// pontos, e marcadores colados viram um borrão só).
+	m.objects.insert_last(map_object("task_temperature_laboratory", "task.record_temperature.name", 40, -25, "laboratory",
+		OBJ_TASK_SPOT, "sounds/" + SND_TEMP_BUTTON, "record_temperature", "", SND_TASK_BEACON_RECORD_TEMPERATURE));
 	m.objects.insert_last(map_object("task_wiring_specimen", "task.fix_wiring.name", 48, 17, "specimen",
 		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
 

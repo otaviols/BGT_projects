@@ -100,4 +100,10 @@ sonda com `nvgt -c`, rode o `.exe` e grave o resultado num arquivo — o app com
 **Não confie em "compilou".** Compilar não prova que o som toca, que o pacote tem o arquivo novo, nem
 que o binário sobe.
 
-
+**Sonda que aperta teclas num minijogo: tecla apertada enquanto ele ESPERA um som se perde.** O minijogo
+espera o som acabar (`wait_for_task_sound`, a referência do começo, o interruptor, a leitura repetida pelo
+Espaço) bombeando a rede, e o gancho da sonda continua apertando teclas nesse meio-tempo - o `key_pressed`
+seguinte já não as vê. Sintoma: a sonda não imprime NADA e sai com código 1 (o limite de quadros dela),
+porque o minijogo ficou esperando um Enter que já passou. Espace os toques (`probe_record_temperature`,
+`probe_weather_node`) e espere a apresentação inicial antes do primeiro. Com o jogador acontece o mesmo,
+mas só durante um som curto.

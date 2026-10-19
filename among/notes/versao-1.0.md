@@ -110,7 +110,8 @@ algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os
 
 Falta, na ordem combinada:
 - **as tarefas do Polus**, uma por vez pela receita (maquete ouvida antes de código). Feitas: **o nó do
-  clima** (2026-10-19, ver tarefas-novas.md) **alinhar o telescópio** (laboratório: o astro pisca um tique, o lado e o tom dizem onde ele está em
+  clima** (2026-10-19, ver tarefas-novas.md) **registrar a temperatura** (laboratório: a leitura é um tom; o registro sobe e desce um semitom por
+  grau no MESMO bipe, e Enter só aceita no valor), **alinhar o telescópio** (laboratório: o astro pisca um tique, o lado e o tom dizem onde ele está em
   relação à mira, como o labirinto do nó; Enter só trava no centro exato) e **inserir as chaves**, a tarefa COMUM do Polus (um ponto
   só, na nave de pouso, como o cartão na nave; `COMMON_TASK_TYPES` sorteia por tipo, e o tipo sem ponto
   no mapa não sai). As maquetes ficam na pasta de teste do usuário

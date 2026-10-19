@@ -232,6 +232,10 @@ const string SND_TASK_BEACON_INSERT_KEYS = "sounds/beacons/keys.ogg";
 // o faz localizável. O marcador é o mesmo tique, repetido com um respiro.
 const string SND_TELESCOPE_TICK = "tasks/telescope_tick.ogg";
 const string SND_TASK_BEACON_ALIGN_TELESCOPE = "sounds/beacons/telescope.ogg";
+// Registrar a temperatura (Polus): o botão do registro, da leva do original. O tom da leitura e do
+// registro é o SND_BEEP da casa - os dois o mesmo, de propósito. O marcador é o botão com um respiro.
+const string SND_TEMP_BUTTON = "tasks/temp_button.ogg";
+const string SND_TASK_BEACON_RECORD_TEMPERATURE = "sounds/beacons/thermometer.ogg";
 const string SND_ASTEROID_FIRE = "tasks/asteroid_fire.ogg"; // cada tiro na task de limpar asteroides
 const uint ASTEROID_HIT_VARIANT_COUNT = 3;                   // asteroid_hit1..3: o acerto, variado para não virar bipe
 string asteroid_hit_sound(int variant_1_based) {
@@ -560,6 +564,8 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_TASK_BEACON_INSERT_KEYS);
 	list.insert_last("sounds/" + SND_TELESCOPE_TICK);
 	list.insert_last(SND_TASK_BEACON_ALIGN_TELESCOPE);
+	list.insert_last("sounds/" + SND_TEMP_BUTTON);
+	list.insert_last(SND_TASK_BEACON_RECORD_TEMPERATURE);
 	for (int i = 1; i <= int(ASTEROID_HIT_VARIANT_COUNT); i++) list.insert_last("sounds/" + asteroid_hit_sound(i));
 	list.insert_last("sounds/" + SND_MEDBAY_SCAN);
 	list.insert_last(SND_TASK_BEACON_SUBMIT_SCAN);

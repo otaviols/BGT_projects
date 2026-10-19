@@ -1,0 +1,51 @@
+// Sonda de registrar a temperatura (Polus): Enter fora do valor não registra; subir até a leitura e
+// apertar Enter registra - com as teclas de DENTRO do laço do minijogo.
+//   nvgt tools/probes/probe_record_temperature.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 20000) exit(1);
+	if (passo >= roteiro.length() || quadro < 500) return; // a leitura (dois bipes e as pausas)
+	if (quadro % 120 == 0) simulate_key_down(roteiro[passo]); // espaçado: tecla apertada enquanto a leitura toca se perde
+	if (quadro % 120 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+void roda(array<int>@ teclas) { roteiro = teclas; passo = 0; quadro = 0; }
+
+void main() {
+	show_window("sonda: temperatura");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	// Como na maquete: 4 graus abaixo; três para cima, Enter cedo (erro), mais um, Espaço e Enter.
+	g_temperature_next_offset = -4;
+	array<int> rota = {KEY_UP, KEY_UP, KEY_UP, KEY_RETURN, KEY_UP, KEY_SPACE, KEY_RETURN};
+	roda(rota);
+	bool ok = run_record_temperature_task(c);
+	// O Enter cedo (o 4º) não pode ter registrado: se tivesse, o roteiro pararia ali.
+	confere("Enter um grau fora nao registra; no valor, registra", ok && passo >= rota.length() - 1);
+
+	// Do outro lado: 3 graus acima, três para baixo e Enter.
+	g_temperature_next_offset = 3;
+	array<int> desce = {KEY_DOWN, KEY_DOWN, KEY_DOWN, KEY_RETURN};
+	roda(desce);
+	confere("acima da leitura, as setas para baixo chegam nela", run_record_temperature_task(c));
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

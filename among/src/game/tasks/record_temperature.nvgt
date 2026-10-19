@@ -1,0 +1,78 @@
+// record_temperature.nvgt
+// Registrar a temperatura (Polus, a 1.0), no laboratório. No original, um termômetro mostra a
+// temperatura de agora e o registro ao lado tem um número com setas; ajusta-se o número até bater.
+//
+// Para o ouvido (maquete aprovada pelo usuário em 2026-10-19):
+//   - a LEITURA é um tom, tocado duas vezes no começo; Espaço a repete;
+//   - o REGISTRO começa alguns graus fora; cada seta sobe ou desce um grau, e um grau é um SEMITOM: toca
+//     o clique do botão (da leva) e o tom do registro;
+//   - leitura e registro tocam o MESMO bipe: comparar alturas de timbres diferentes é difícil, e o
+//     abastecer só funciona porque compara o mesmo som (ver notes/tarefas-novas.md);
+//   - Enter registra; fora do valor, toca o erro e só custa tempo.
+// A leitura muda de altura a cada vez, senão decorar o tom resolveria a tarefa sem ouvir.
+
+#include "task_common.nvgt"
+
+const int TEMPERATURE_MAX_OFFSET = 8;   // o registro não sai mais longe que isto da leitura
+
+// O desvio inicial da próxima vez (graus), no lugar do sorteio - só a sonda preenche
+// (probe_record_temperature). 0 = sortear.
+int g_temperature_next_offset = 0;
+
+float temperature_pitch(float leitura, int graus) { return leitura * pow(2.0, float(graus) / 12.0); }
+
+bool record_temperature_reading(float leitura, game_client@ client) {
+	for (int i = 0; i < 2; i++) {
+		if (!wait_for_task_sound(task_sound(SND_BEEP, 0.0, leitura), client)) return false;
+		if (!task_wait(250, client)) return false;
+	}
+	return true;
+}
+
+bool run_record_temperature_task(game_client@ client) {
+	speak_hint("task.record_temperature.instructions");
+	float leitura = float(random(80, 125));
+	int fora = g_temperature_next_offset;
+	g_temperature_next_offset = 0;
+	if (fora == 0) {
+		fora = random(3, 6);
+		if (random(0, 1) == 0) fora = -fora;
+	}
+	if (!task_wait(600, client)) return false;
+	if (!record_temperature_reading(leitura, client)) return false;
+	if (!task_wait(400, client)) return false;
+	task_sound(SND_TEMP_BUTTON);
+	task_sound(SND_BEEP, 0.0, temperature_pitch(leitura, fora));
+
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		// Cada tecla lida UMA vez (ver CLAUDE.md).
+		bool cima = key_pressed(KEY_UP), baixo = key_pressed(KEY_DOWN);
+		bool enter = key_pressed(KEY_RETURN), espaco = key_pressed(KEY_SPACE);
+		if (espaco) {
+			if (!record_temperature_reading(leitura, client)) return false;
+			continue;
+		}
+		if (cima || baixo) {
+			int novo = fora + (cima ? 1 : -1);
+			if (novo >= -TEMPERATURE_MAX_OFFSET && novo <= TEMPERATURE_MAX_OFFSET) fora = novo;
+			task_sound(SND_TEMP_BUTTON);
+			task_sound(SND_BEEP, 0.0, temperature_pitch(leitura, fora));
+			continue;
+		}
+		if (!enter) continue;
+		task_sound(SND_TEMP_BUTTON);
+		if (fora != 0) {
+			if (!task_wait(120, client)) return false;
+			task_sound(SND_CARD_ERROR);
+			continue;
+		}
+		// Registrado: o bipe uma oitava acima, como na maquete.
+		if (!task_wait(120, client)) return false;
+		wait_for_task_sound(task_sound(SND_BEEP, 0.0, leitura * 2.0), client, 1500);
+		return true;
+	}
+	return false;
+}
