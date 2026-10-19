@@ -53,8 +53,8 @@ mixin class server_meeting_part {
 		for (uint i = 0; i < lobby.meeting_unvented_peers.length(); i++) {
 			net_packet@ vent_state = net_packet(S_VENT_STATE);
 			vent_state.set_bool("vented", false);
-			vent_state.set_float("x", MEETING_GATHER_X);
-			vent_state.set_float("y", MEETING_GATHER_Y);
+			vent_state.set_float("x", lobby.map.gather_x);
+			vent_state.set_float("y", lobby.map.gather_y);
 			send_to(lobby.meeting_unvented_peers[i], vent_state);
 		}
 		// E quem teve a fantasia desfeita pela reunião, pelo mesmo motivo: sem o aviso, o

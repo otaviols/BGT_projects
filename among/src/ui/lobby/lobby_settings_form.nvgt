@@ -136,6 +136,17 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 		if (preset_base == "quick") f.set_list_position(f_preset, 1);
 		else if (preset_base == "chaos") f.set_list_position(f_preset, 2);
 	}
+	// O mapa, logo depois do modo: é a primeira coisa que muda o jogo. Com um mapa só o campo não existe
+	// (seria uma pergunta de uma resposta, e um controle a menos no teto de 50 do audio_form).
+	int f_map = -1;
+	if (MAP_IDS.length() > 1) {
+		f_map = f.create_list(tr("lobby.map_field"));
+		string mapa_atual = @current != null && current.exists("map_name") ? string(current["map_name"]) : MAP_IDS[0];
+		for (uint i = 0; i < MAP_IDS.length(); i++) {
+			f.add_list_item(f_map, tr(map_name_key(MAP_IDS[i])), MAP_IDS[i]);
+			if (MAP_IDS[i] == mapa_atual) f.set_list_position(f_map, int(i));
+		}
+	}
 	// Ajustes finos sobre o preset. TODOS aceitam vazio, e vazio significa "usa o que o preset diz" -
 	// é o que mantém a tela utilizável para quem só quer criar uma sala e jogar, enquanto abre a
 	// porta para quem quer mexer. Um formulário que exigisse todos os campos transformaria a criação
@@ -287,6 +298,12 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			}
 			// -1 em número e "" em texto significam "não mexi nisto": é o servidor que decide o
 			// valor final. Mandar 0 no lugar seria pedir uma partida com zero tarefas por engano.
+			// O mapa vai SEMPRE que o campo existe: trocar de modo refaz a sala pela predefinição, e sem o
+			// campo o mapa voltaria ao padrão por baixo do que o anfitrião escolheu.
+			if (f_map >= 0) {
+				int mapa_pos = f.get_list_position(f_map);
+				r.ov.map = mapa_pos >= 0 ? f.get_list_item_id(f_map, mapa_pos) : "";
+			}
 			r.ov.kill_cooldown_seconds = text_to_float_or_default(visible_text(f, f_kill_cooldown));
 			r.ov.max_players = text_to_int_or_default(f.get_text(f_max_players));
 			r.ov.impostor_count = text_to_int_or_default(visible_text(f, f_impostors));

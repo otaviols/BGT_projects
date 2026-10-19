@@ -1,0 +1,73 @@
+// Sonda da lista de mapas (a 1.0, ver notes/versao-1.0.md): todo mapa que entra em MAP_IDS tem que ficar
+// de pé sozinho, e a sala não aceita mapa que não existe.
+//   nvgt tools/probes/probe_maps.nvgt
+//
+// É o portão do mapa novo: Polus entra na lista e esta sonda diz se ele nasceu inteiro - o nome falado,
+// a sala de começo, o ponto de nascer dentro dela, a mesa da reunião num lugar onde se pisa, e toda
+// tarefa com minijogo. Um mapa com o ponto de nascer fora de uma sala compila, abre e deixa todo mundo
+// preso numa parede.
+#include "../../src/i18n.nvgt"
+#include "../../src/game/map.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+
+	for (uint i = 0; i < MAP_IDS.length(); i++) {
+		string id = MAP_IDS[i];
+		println("== " + id + " ==");
+		game_map@ m = build_map(id);
+		confere("monta com o proprio nome", m.name == id);
+		string nome = tr(map_name_key(id));
+		confere("tem nome falado (" + nome + ")", nome != map_name_key(id));
+		map_zone@ comeco = m.find_zone(m.start_room);
+		confere("a sala de comeco existe (" + m.start_room + ")", @comeco != null && !comeco.is_corridor);
+		map_zone@ nasce = m.zone_at(m.spawn_x, m.spawn_y);
+		confere("o ponto de nascer fica dentro dela", @nasce != null && nasce.id == m.start_room);
+		// Nasce-se num raio de 3 em volta do ponto (ver on_start_game): os quatro cantos têm que ser chão.
+		bool cantos = true;
+		for (int cx = -1; cx <= 1; cx += 2) for (int cy = -1; cy <= 1; cy += 2)
+			if (@m.zone_at(m.spawn_x + 3.0 * cx, m.spawn_y + 3.0 * cy) == null) cantos = false;
+		confere("e o raio de nascer inteiro e chao", cantos);
+		confere("a mesa da reuniao fica onde se pisa", @m.zone_at(m.gather_x, m.gather_y) != null);
+		array<string> tipos;
+		for (uint o = 0; o < m.objects.length(); o++)
+			if (m.objects[o].obj_type == OBJ_TASK_SPOT && tipos.find(m.objects[o].task_type) < 0) tipos.insert_last(m.objects[o].task_type);
+		bool todas = true;
+		for (uint t = 0; t < tipos.length(); t++) {
+			if (!task_minigame_exists(tipos[t])) { todas = false; println("    sem minijogo: " + tipos[t]); }
+			if (tr("task." + tipos[t] + ".name") == "task." + tipos[t] + ".name") { todas = false; println("    sem nome: " + tipos[t]); }
+		}
+		confere("toda tarefa do mapa tem minijogo e nome (" + tipos.length() + " tipos)", todas);
+	}
+
+	println("== a sala ==");
+	lobby_config c;
+	confere("o padrao e o primeiro mapa da lista", c.map_name == MAP_IDS[0]);
+	c.map_name = "mapa_que_nao_existe";
+	bool mudou = c.validate();
+	confere("mapa que nao existe vira o padrao", mudou && c.map_name == MAP_THE_HUB);
+	confere("a nave de sempre nao exige protocolo novo", c.required_protocol() < MAPS_PROTOCOL);
+	lobby_overrides ov;
+	ov.map = MAP_THE_HUB;
+	net_packet@ pkt = net_packet("teste");
+	ov.write_to_packet(pkt);
+	lobby_overrides lido;
+	lido.read_from_packet(pkt);
+	confere("o mapa escolhido atravessa a rede", lido.map == MAP_THE_HUB);
+	lobby_config d;
+	lido.apply_to(d);
+	d.validate();
+	confere("e chega na sala", d.map_name == MAP_THE_HUB && d.to_json(1).exists("map_name"));
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

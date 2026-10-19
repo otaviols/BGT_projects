@@ -107,7 +107,7 @@ mixin class state_ship_part {
 		if (@p == null || !p.alive) return "camera.unavailable"; // fantasma não opera equipamento
 		if (camera_user_peer != 0 && camera_user_peer != peer_id) return "camera.busy";
 		camera_user_peer = peer_id;
-		if (camera_room_id == "") camera_room_id = "cafeteria"; // uma sala qualquer para começar
+		if (camera_room_id == "") camera_room_id = map.start_room; // a sala por onde o mapa começa
 		return "";
 	}
 

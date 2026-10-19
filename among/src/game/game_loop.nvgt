@@ -177,7 +177,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// Uma pausa longa da rede daqui até o laço começar é anotada como carga da partida (ver o
 		// diagnóstico em client.update) - é a suspeita do celular que cai quando a partida começa.
 		g_net_stall_context = "carregando a partida";
-		@map = build_the_hub_map();
+		@map = build_map(start_pkt.get_string("map_name", MAP_THE_HUB));
 		@audio = audio_manager();
 		@roster = client_roster();
 		@radar = radar_ui(client, audio);

@@ -50,6 +50,7 @@ class lobby_overrides {
 	string color_mode = ""; // "" = preset, "on" = todo mundo é chamado pela COR, "off" = pelo nome
 	string visible_tasks = ""; // "" = preset, "on" = quem está perto ouve a tarefa visível, "off" = ninguém ouve
 	string death_modifiers = ""; // "" = preset, "remove" = a morte tira os modificadores, "keep" = ficam (o de antes)
+	string map = ""; // "" = preset (o mapa padrão); senão, o id do mapa (MAP_IDS)
 	// "" = não mexi; senão, o modo pedido. Só a EDIÇÃO de uma sala aberta usa: trocar de modo troca a
 	// base inteira das regras (ver on_update_lobby_config), e por isso não passa por apply_to. Na
 	// criação o modo vai como o próprio preset ("tag", "wolves").
@@ -111,6 +112,7 @@ class lobby_overrides {
 		else if (color_mode == "off") cfg.color_mode = false;
 		if (visible_tasks == "on") cfg.visible_tasks = true;
 		else if (visible_tasks == "off") cfg.visible_tasks = false;
+		if (map != "") cfg.map_name = map;
 		if (death_modifiers == "remove") cfg.death_removes_modifiers = true;
 		else if (death_modifiers == "keep") cfg.death_removes_modifiers = false;
 	}
@@ -137,6 +139,7 @@ class lobby_overrides {
 		pkt.set_string("color_mode", color_mode);
 		pkt.set_string("visible_tasks", visible_tasks);
 		pkt.set_string("death_modifiers", death_modifiers);
+		pkt.set_string("map", map);
 		pkt.set_string("game_mode", game_mode);
 		// Um objeto {id: quantos}, e não um campo por papel: assim um papel novo não muda o protocolo.
 		json_object@ roles = json_object();
@@ -216,6 +219,7 @@ class lobby_overrides {
 		color_mode = pkt.get_string("color_mode", "");
 		visible_tasks = pkt.get_string("visible_tasks", "");
 		death_modifiers = pkt.get_string("death_modifiers", "");
+		map = pkt.get_string("map", "");
 		game_mode = pkt.get_string("game_mode", "");
 	}
 }
@@ -286,7 +290,7 @@ class lobby_config {
 	// adianta reviver um apaixonado cujo par já não tem corpo (ver try_revive). Decisão do usuário,
 	// 2026-10-17: opção da sala, na tela de modificadores, valendo para os três juntos.
 	bool death_removes_modifiers = true;
-	string map_name = "the_hub";
+	string map_name = MAP_THE_HUB;
 	string language = DEFAULT_LANGUAGE;
 	// O modo de jogo (GAME_MODE_*). Vem da predefinição escolhida ao criar a sala - não é um campo que se
 	// ajusta solto, porque cada modo é um pacote de regras que só faz sentido junto (ver validate()).
@@ -375,6 +379,8 @@ class lobby_config {
 		// um anterior falaria a marca crua ("#cor:3") no lugar de cada nome.
 		if (color_mode) maior = 5;
 		if (game_mode != GAME_MODE_CLASSIC && maior < MODES_PROTOCOL) maior = MODES_PROTOCOL;
+		// Outro mapa: o cliente anterior montaria a nave de sempre e andaria por paredes que não existem.
+		if (map_name != MAP_THE_HUB && maior < MAPS_PROTOCOL) maior = MAPS_PROTOCOL;
 		array<string>@ ids = role_counts.get_keys();
 		for (uint i = 0; i < ids.length(); i++) {
 			int n = 0;
@@ -391,6 +397,8 @@ class lobby_config {
 		// O modo manda em parte das regras, e é aqui que elas são AMARRADAS: o anfitrião pode mexer no
 		// formulário depois, e um pega-pega com duto ou com xerife deixaria de ser pega-pega.
 		if (game_mode != GAME_MODE_TAG && game_mode != GAME_MODE_WOLVES) game_mode = GAME_MODE_CLASSIC;
+		// O mapa vem da máquina do jogador: um id que não existe vira o padrão.
+		if (!map_exists(map_name)) { map_name = MAP_THE_HUB; changed = true; }
 		if (game_mode != GAME_MODE_CLASSIC) {
 			if (sabotages_enabled || vents_enabled) changed = true;
 			sabotages_enabled = false;
@@ -518,6 +526,7 @@ class lobby_config {
 		o.set("color_mode", color_mode);
 		o.set("visible_tasks", visible_tasks);
 		o.set("death_removes_modifiers", death_removes_modifiers);
+		o.set("map_name", map_name);
 		o.set("game_mode", game_mode);
 		// Sempre presente, mesmo vazio: é como o cliente distingue "sala sem papéis" de "servidor
 		// antigo que nem sabe o que é papel".

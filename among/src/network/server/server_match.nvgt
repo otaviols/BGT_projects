@@ -188,8 +188,8 @@ mixin class server_match_part {
 			p.radar_index = -1;
 			p.last_move_time = 0.0;
 			p.tasks.resize(0);
-			p.x = float(random(-30, 30)) / 10.0;
-			p.y = float(random(-30, 30)) / 10.0;
+			p.x = lobby.map.spawn_x + float(random(-30, 30)) / 10.0;
+			p.y = lobby.map.spawn_y + float(random(-30, 30)) / 10.0;
 
 			// Quem tem tarefas é quem as tem CONTANDO para o time (ver role_traits): o engenheiro faz
 			// tarefas como qualquer tripulante, e o impostor só finge fazê-las.

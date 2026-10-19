@@ -31,7 +31,7 @@ mixin class server_lobby_part {
 		lobby.config.validate();
 		lobby.join_code = codigo;
 		lobby.host_peer_id = peer_id;
-		@lobby.map = build_the_hub_map();
+		@lobby.map = build_map(lobby.config.map_name);
 
 		conn.lobby_id = lobby.lobby_id;
 		conn.chosen_color = -1; // escolha de outra sala não ocupa cor aqui; o cliente reenvia a preferência
@@ -169,6 +169,8 @@ mixin class server_lobby_part {
 		overrides.apply_to(lobby.config);
 		lobby.config.validate();
 		lobby.join_code = codigo;
+		// Trocou de mapa: a nave da sala é outra (a edição só existe na sala de espera, sem partida).
+		if (lobby.map.name != lobby.config.map_name) @lobby.map = build_map(lobby.config.map_name);
 
 		// Todo mundo recebe o retrato novo E um aviso falado: quem já ouviu as regras uma vez não
 		// vai apertar C de novo por conta própria, e uma partida com regras que mudaram em silêncio é

@@ -21,6 +21,7 @@
 #include "speech.nvgt"
 #include "../audio/menu_music.nvgt"
 #include "../core/hints.nvgt"
+#include "map_choice.nvgt"
 #include "../audio/audio_manager.nvgt"
 #include "../game/map.nvgt"
 #include "../config/keybindings.nvgt"
@@ -61,8 +62,10 @@ void explore_change_speed(int passo) {
 }
 
 void run_explore_map_screen() {
+	string qual = choose_map("map.choose_explore");
+	if (qual == "") return;
 	menu_music_stop();
-	game_map@ map = build_the_hub_map();
+	game_map@ map = build_map(qual);
 	audio_manager@ audio = audio_manager();
 
 	// Todos os pontos de task contam como "seus": o objetivo é saber que eles existem e onde ficam.
@@ -71,7 +74,7 @@ void run_explore_map_screen() {
 		if (map.objects[i].obj_type == OBJ_TASK_SPOT) all_task_ids.insert_last(map.objects[i].id);
 	}
 
-	float my_x = 0.0, my_y = 0.0; // centro da cafeteria, onde toda partida começa
+	float my_x = map.spawn_x, my_y = map.spawn_y; // onde toda partida neste mapa começa
 	audio.update_listener(my_x, my_y);
 	audio.start_ship_ambience();
 	audio.start_room_ambience(map);

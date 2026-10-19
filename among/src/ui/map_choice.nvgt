@@ -1,0 +1,20 @@
+// map_choice.nvgt
+// Qual mapa: a pergunta do treino e do Conhecer o mapa, fora da partida (na partida quem decide é a
+// sala). Com um mapa só, não pergunta nada - a resposta é ele.
+
+#include "visual_map.nvgt"
+#include "../config/game_constants.nvgt"
+#include "../i18n.nvgt"
+
+// O id escolhido, ou "" se a pessoa saiu com Esc.
+string choose_map(const string&in title_key) {
+	if (MAP_IDS.length() == 1) return MAP_IDS[0];
+	screen_menu m;
+	m.intro_text = tr(title_key);
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	for (uint i = 0; i < MAP_IDS.length(); i++) m.add_item(tr(map_name_key(MAP_IDS[i])), MAP_IDS[i]);
+	m.run();
+	return m.selected_item_id;
+}

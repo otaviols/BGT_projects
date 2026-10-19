@@ -258,8 +258,8 @@ mixin class server_rejoin_part {
 			net_packet@ reuniao = net_packet(S_MEETING_STARTED);
 			reuniao.set_uint64("caller_peer", lobby.meeting_caller);
 			reuniao.set_string("reason", lobby.meeting_reason);
-			reuniao.set_float("gather_x", MEETING_GATHER_X);
-			reuniao.set_float("gather_y", MEETING_GATHER_Y);
+			reuniao.set_float("gather_x", lobby.map.gather_x);
+			reuniao.set_float("gather_y", lobby.map.gather_y);
 			reuniao.set_float("discussion_time", lobby.voting_timer);
 			json_array@ ausentes = json_array();
 			for (uint i = 0; i < lobby.players.length(); i++) {

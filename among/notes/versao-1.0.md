@@ -79,7 +79,39 @@ versões alternativas do mesmo som.
 `eject_*` (a expulsão de cada mapa), `victory_*`, `report_*`, `HnS_*` (o modo esconde-esconde),
 `matchmaking_*`, `endgame_*`. Nada disso é pedido da 1.0.
 
-## O que o mapa novo exige do jogo (antes da primeira sala)
+## Vários mapas: o que já existe (2026-10-19)
+
+- **A lista é `MAP_IDS`** (`game_constants.nvgt`), e o primeiro é o padrão. **Quem monta é `build_map(id)`**
+  (`game/map.nvgt`); id desconhecido monta o padrão. A sala guarda `map_name`, o servidor recusa id fora
+  da lista (`lobby_config.validate`) e monta o da sala ao criar e ao editar. O cliente monta o que vem no
+  `S_GAME_START` e no `S_SPECTATE_START` (`map_name`).
+- **O mapa diz o que era constante da nave:** `spawn_x/spawn_y` (nasce-se num raio de 3 em volta),
+  `gather_x/gather_y` (a mesa da reunião - era `MEETING_GATHER_X/Y`, que não existe mais) e `start_room`
+  (a primeira sala das câmeras e por onde o Conhecer o mapa começa).
+- **Protocolo 15 (`MAPS_PROTOCOL`):** sala de outro mapa exige cliente novo (`required_protocol`); o antigo
+  montaria a nave de sempre e andaria por paredes que não existem.
+- **Telas:** o campo "Mapa" no formulário da sala e a linha "mapa:" nas regras só aparecem com MAIS DE UM
+  mapa na lista. O treino e o Conhecer o mapa perguntam o mapa (`choose_map`, `ui/map_choice.nvgt`) - com
+  um só, não perguntam. O treino lista as tarefas e os reparos que EXISTEM no mapa escolhido, na ordem do
+  manual (`practice_task_types`, `practice_sabotages`).
+- **Sonda-portão: `probe_maps.nvgt`.** Para todo mapa da lista: nome falado, sala de começo, ponto de
+  nascer dentro dela com o raio inteiro em chão, mesa num lugar onde se pisa, e toda tarefa com minijogo
+  (`TASK_MINIGAME_TYPES`, em `task_manager.nvgt` - tipo novo entra na lista E no `else if`).
+
+## Como um mapa novo entra
+
+1. `build_<mapa>_map()` em `game/map.nvgt` com `name`, `start_room`, `spawn_*`, `gather_*`, salas,
+   corredores, objetos; uma linha em `build_map`; o id em `MAP_IDS`; `map.<id>.name` em pt_BR e en_US.
+2. `probe_maps` passando.
+3. O que ainda é da nave de sempre e precisa virar do mapa quando Polus chegar:
+   - **o ambiente geral** (`audio.start_ship_ambience`, um som só para a nave inteira) - Polus tem o
+     exterior com vento e neve, que é outra coisa;
+   - **o texto `explore.intro`**, que diz "Você está na cafeteria" - vira `{room}`, e como é chave que
+     muda de texto, muda nos cinco idiomas (regra das traduções);
+   - **aprender os sons**, que talvez se divida por mapa (os ambientes e os marcadores de tarefa de cada
+     um) - pedido do usuário, a decidir junto com os sons de Polus;
+   - **os bots e o modo gráfico** já leem o mapa, mas só foram testados na nave de sempre.
+## O que o mapa novo exigia do jogo (feito acima, menos o que está em "Como um mapa novo entra")
 
 - **Escolher o mapa na sala.** Hoje o mapa é um só, construído em código (`build_the_hub_map`), e
   `map_name` já existe na configuração. Precisa: a lista de mapas, o campo no formulário, o servidor

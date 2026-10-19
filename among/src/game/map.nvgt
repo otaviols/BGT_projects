@@ -213,6 +213,12 @@ class game_map {
 	}
 
 	string name;
+	// Onde a partida começa (em volta deste ponto), onde a reunião junta todo mundo, e a sala que as
+	// câmeras e o Conhecer o mapa mostram primeiro. Eram constantes da nave de sempre (a cafeteria em
+	// 0,0); com mais de um mapa (a 1.0), cada um diz os seus.
+	float spawn_x = 0.0, spawn_y = 0.0;
+	float gather_x = 0.0, gather_y = 0.0;
+	string start_room = "";
 	array<map_zone@> zones;
 	array<map_object@> objects;
 
@@ -498,10 +504,20 @@ array<map_object@>@ interactables_in_room(game_map@ map, const string&in room_id
 	return result;
 }
 
+// O mapa de um id da lista (MAP_IDS). Um id desconhecido monta o padrão: o servidor já recusa mapa que
+// não existe (lobby_config.validate), e um cliente com o pacote de um servidor mais novo pelo menos anda
+// numa nave em vez de cair.
+game_map@ build_map(const string&in id) {
+	if (id == MAP_THE_HUB) return build_the_hub_map();
+	return build_the_hub_map();
+}
+
 // Mapa padrão do MVP: layout simplificado inspirado no Skeld clássico, 8 salas + corredores.
 game_map@ build_the_hub_map() {
 	game_map@ m = game_map();
-	m.name = "the_hub";
+	m.name = MAP_THE_HUB;
+	// Nasce-se, reúne-se e começa-se na cafeteria, no centro (0, 0).
+	m.start_room = "cafeteria";
 
 	// Salas
 	m.zones.insert_last(map_zone("cafeteria", "room.cafeteria", 0, 0, 12, 8, "WoodTile"));

@@ -14,6 +14,7 @@
 #include "menu.nvgt"
 #include "../audio/menu_music.nvgt"
 #include "../core/hints.nvgt"
+#include "map_choice.nvgt"
 #include "speech.nvgt"
 #include "../network/client.nvgt"
 #include "../game/task_manager.nvgt"
@@ -22,8 +23,9 @@
 #include "../i18n.nvgt"
 #include "visual_map.nvgt"
 
-// As tarefas que existem, na ordem em que aparecem no manual. Só o tipo: o nome vem da tradução
-// ("task.<tipo>.name"), a mesma que a partida usa.
+// A ORDEM das tarefas, a mesma do manual. Só o tipo: o nome vem da tradução ("task.<tipo>.name"), a
+// mesma que a partida usa. Quais aparecem é o mapa escolhido que diz (ver practice_task_types): uma
+// tarefa de outro mapa não entra, e uma do mapa que não está aqui entra no fim.
 const array<string> PRACTICE_TASKS = {
 	"fix_wiring", "download_data", "empty_garbage", "align_engine", "swipe_card", "unlock_manifolds",
 	"fuel_engines", "clear_asteroids", "roll_dice", "water_plants", "review_records", "submit_scan",
@@ -41,27 +43,58 @@ game_client@ make_offline_client() {
 	return c;
 }
 
-// O mapa serve só para saber quantas fases cada tarefa tem (ver task_chain em game/map.nvgt) - o
-// treino não usa nada do mundo, mas a tarefa tem que ser a mesma da partida.
+// O mapa diz quais tarefas e reparos existem nele, e quantas fases cada tarefa tem (ver task_chain em
+// game/map.nvgt) - o treino não usa nada do mundo, mas a tarefa tem que ser a mesma da partida.
 game_map@ g_practice_map;
 
+// As tarefas do mapa, na ordem do manual (PRACTICE_TASKS); as que a lista não conhece vêm no fim, na
+// ordem do mapa - uma tarefa nova não some do treino por esquecerem de pô-la na lista.
+array<string>@ practice_task_types(game_map@ map) {
+	array<string> do_mapa;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type == OBJ_TASK_SPOT && do_mapa.find(o.task_type) < 0) do_mapa.insert_last(o.task_type);
+	}
+	array<string> r;
+	for (uint i = 0; i < PRACTICE_TASKS.length(); i++) if (do_mapa.find(PRACTICE_TASKS[i]) >= 0) r.insert_last(PRACTICE_TASKS[i]);
+	for (uint i = 0; i < do_mapa.length(); i++) if (r.find(do_mapa[i]) < 0) r.insert_last(do_mapa[i]);
+	return r;
+}
+
+// Os reparos do mapa: as sabotagens que têm painel nele, na ordem de PRACTICE_SABOTAGES e depois as outras.
+array<string>@ practice_sabotages(game_map@ map) {
+	array<string> do_mapa;
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type == OBJ_SABOTAGE_PANEL && do_mapa.find(o.task_type) < 0) do_mapa.insert_last(o.task_type);
+	}
+	array<string> r;
+	for (uint i = 0; i < PRACTICE_SABOTAGES.length(); i++) if (do_mapa.find(PRACTICE_SABOTAGES[i]) >= 0) r.insert_last(PRACTICE_SABOTAGES[i]);
+	for (uint i = 0; i < do_mapa.length(); i++) if (r.find(do_mapa[i]) < 0) r.insert_last(do_mapa[i]);
+	return r;
+}
+
 void run_practice_screen() {
+	string qual = choose_map("map.choose_practice");
+	if (qual == "") return;
 	menu_music_stop(); // os minijogos são de ouvido: nada por baixo
 	game_client@ client = make_offline_client();
-	if (@g_practice_map == null) @g_practice_map = build_the_hub_map();
+	if (@g_practice_map == null || g_practice_map.name != qual) @g_practice_map = build_map(qual);
+	array<string>@ tarefas = practice_task_types(g_practice_map);
+	array<string>@ reparos = practice_sabotages(g_practice_map);
 	while (true) {
 		screen_menu m;
 		m.intro_text = hint_text("practice.hint");
 		m.click_sound = "ui/menu_click.ogg";
 		m.select_sound = "ui/menu_confirm.ogg";
 		m.sounds_prefix = "sounds/";
-		for (uint i = 0; i < PRACTICE_TASKS.length(); i++) {
-			m.add_item(tr("task." + PRACTICE_TASKS[i] + ".name"), "task:" + PRACTICE_TASKS[i]);
+		for (uint i = 0; i < tarefas.length(); i++) {
+			m.add_item(tr("task." + tarefas[i] + ".name"), "task:" + tarefas[i]);
 		}
-		for (uint i = 0; i < PRACTICE_SABOTAGES.length(); i++) {
+		for (uint i = 0; i < reparos.length(); i++) {
 			dictionary@ p = dictionary();
-			p.set("name", tr("sabotage." + PRACTICE_SABOTAGES[i] + ".name"));
-			m.add_item(tr("practice.repair_item", p), "sabotage:" + PRACTICE_SABOTAGES[i]);
+			p.set("name", tr("sabotage." + reparos[i] + ".name"));
+			m.add_item(tr("practice.repair_item", p), "sabotage:" + reparos[i]);
 		}
 		m.add_item(tr("menu.back"), "__back__");
 		m.run();

@@ -213,6 +213,12 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 	if (cfg.exists("color_mode") && bool(cfg["color_mode"])) partes.insert_last(tr("lobby.info.color_mode_on"));
 	// Tarefas visíveis, só quando desligadas: muda o que vale como álibi, e quem entra precisa saber.
 	if (cfg.exists("visible_tasks") && !bool(cfg["visible_tasks"])) partes.insert_last(tr("lobby.info.visible_tasks_off"));
+	// O mapa, só quando há mais de um: com um só, dizê-lo em toda leitura de regras é uma frase à toa.
+	if (MAP_IDS.length() > 1 && cfg.exists("map_name")) {
+		dictionary@ mp = dictionary();
+		mp.set("name", tr(map_name_key(string(cfg["map_name"]))));
+		partes.insert_last(tr("lobby.info.map", mp));
+	}
 	// A regra antiga dos modificadores, só quando escolhida: o padrão é a morte tirar.
 	if (cfg.exists("death_removes_modifiers") && !bool(cfg["death_removes_modifiers"])) partes.insert_last(tr("lobby.info.death_keeps_modifiers"));
 	if (cfg.exists("move_speed_percent") && int(cfg["move_speed_percent"]) != 100) {

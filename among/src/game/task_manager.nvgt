@@ -25,6 +25,14 @@
 // numa conexão que o servidor já tinha considerado inativa).
 // `phase` é a fase atual de uma tarefa de várias fases (ver task_chain em game/map.nvgt); zero
 // para as de uma fase só, que é o caso da maioria.
+// Os tipos que têm minijogo, um por `else if` de run_task_minigame, logo abaixo: tarefa nova entra NOS
+// DOIS. A lista existe para a sonda dos mapas (probe_maps) conferir que todo ponto de tarefa de todo mapa
+// abre alguma coisa - um tipo sem minijogo compila, aparece no mapa, e o Enter nele não faz nada.
+const array<string> TASK_MINIGAME_TYPES = {"fix_wiring", "download_data", "empty_garbage", "align_engine",
+	"swipe_card", "unlock_manifolds", "fuel_engines", "clear_asteroids", "roll_dice", "water_plants",
+	"clean_o2_filter", "calibrate_distributor", "review_records", "submit_scan"};
+bool task_minigame_exists(const string&in task_type) { return TASK_MINIGAME_TYPES.find(task_type) >= 0; }
+
 bool run_task_minigame(game_client@ client, const string&in task_type, uint phase = 0) {
 	// Reunião chamada no exato instante em que a task abriu: nem começa (ver task_cancel_requested).
 	if (task_cancel_requested(client)) return false;

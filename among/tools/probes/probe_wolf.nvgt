@@ -291,7 +291,7 @@ void main() {
 	confere("a partida continua (um impostor contra tres)", !acabou);
 
 	esvazia_caixa();
-	anda_ate(todos, todos[v], MEETING_GATHER_X, MEETING_GATHER_Y, MEETING_GATHER_X + 0.5, MEETING_GATHER_Y);
+	anda_ate(todos, todos[v], 0.0, 0.0, 0.5, 0.0); // a mesa da nave de sempre (game_map.gather_x/y)
 	bool andou = false;
 	for (uint k = 0; k < caixa[o1].length(); k++) {
 		if (caixa[o1][k].type == S_PLAYER_MOVED && caixa[o1][k].get_uint64("peer_id") == todos[v].my_peer_id) andou = true;

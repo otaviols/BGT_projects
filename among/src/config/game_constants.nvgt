@@ -32,7 +32,7 @@ const string GAME_VERSION = "0.56.1";
 // conhece e só é recusado em salas que ligaram o Atirador - a exigência passou a ser POR PAPEL (ver
 // role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
 // a barrar quem só queria jogar com engenheiro.
-const int PROTOCOL_VERSION = 14; // 14 = várias tarefas visíveis ao mesmo tempo, a arma dos asteroides entre elas (ver VISIBLE_TASKS_PROTOCOL); 13 = voltar à partida depois de cair (ver REJOIN_PROTOCOL); 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
+const int PROTOCOL_VERSION = 15; // 15 = a sala escolhe o mapa (ver MAPS_PROTOCOL); 14 = 14 = várias tarefas visíveis ao mesmo tempo, a arma dos asteroides entre elas (ver VISIBLE_TASKS_PROTOCOL); 13 = voltar à partida depois de cair (ver REJOIN_PROTOCOL); 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
 const int MIN_PROTOCOL_VERSION = 2;
 
 // Site de download. O updater lê o version.json daqui e, havendo novidade, manda o jogador para a
@@ -111,6 +111,16 @@ const string GAME_MODE_WOLVES = "wolves";
 const float TAG_HEAD_START_SECONDS = 10.0;
 // Os modos exigem o cliente que sabe deles (contagem do pegador, sem reunião, vitória própria).
 const int MODES_PROTOCOL = 9;
+// A sala escolhe o MAPA (a 1.0, ver notes/versao-1.0.md). Cliente anterior monta sempre a nave de sempre,
+// e numa sala de outro mapa andaria por paredes que não existem - a sala de outro mapa o recusa.
+const int MAPS_PROTOCOL = 15;
+
+// Os mapas que existem, na ordem em que a sala os oferece. O primeiro é o padrão. Quem constrói cada um
+// é build_map (game/map.nvgt); um id que não está aqui não existe para a sala (lobby_config.validate).
+const string MAP_THE_HUB = "the_hub";
+const array<string> MAP_IDS = {MAP_THE_HUB};
+bool map_exists(const string&in id) { return MAP_IDS.find(id) >= 0; }
+string map_name_key(const string&in id) { return "map." + id + ".name"; }
 float move_speed_for_percent(int percent) { return PLAYER_MOVE_SPEED * float(percent) / 100.0; }
 const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servidor (anti-cheat simples)
 // Tamanho mínimo de senha. Aqui, e não no banco, porque os DOIS lados a aplicam: o servidor no cadastro
@@ -207,9 +217,7 @@ const float FLASH_SPEED_MULTIPLIER = 1.5;
 const float GIANT_SPEED_MULTIPLIER = 0.5;
 // O vencedor quando o casal de apaixonados sobra (os dois e mais um).
 const string WINNER_LOVERS = "lovers";
-// Ponto onde todo mundo (vivo) é teleportado quando uma reunião começa - centro da cafeteria.
-const float MEETING_GATHER_X = 0.0;
-const float MEETING_GATHER_Y = 0.0;
+// O ponto da reunião é do MAPA (game_map.gather_x/gather_y): cada um tem a sua mesa.
 
 // Sabotagens
 // Só sabotagem CRÍTICA tem relógio (é derrota se o tempo acabar). Luzes e comunicações duram até

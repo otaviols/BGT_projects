@@ -74,8 +74,8 @@ mixin class state_meeting_part {
 		meeting_unvented_peers.resize(0);
 		for (uint i = 0; i < players.length(); i++) {
 			if (!players[i].alive) continue;
-			players[i].x = MEETING_GATHER_X;
-			players[i].y = MEETING_GATHER_Y;
+			players[i].x = map.gather_x;
+			players[i].y = map.gather_y;
 			// Reunião TIRA do vent quem estava escondido: o jogador é teleportado pra cafeteria de
 			// qualquer jeito, e deixar a flag ligada era uma armadilha sem saída. Quem continuasse
 			// "vented" não conseguia mais andar (try_move_player recusa quem está no vent) e só sairia
@@ -113,8 +113,8 @@ mixin class state_meeting_part {
 		@out_event = net_packet(S_MEETING_STARTED);
 		out_event.set_uint64("caller_peer", caller_peer);
 		out_event.set_string("reason", reason);
-		out_event.set_float("gather_x", MEETING_GATHER_X);
-		out_event.set_float("gather_y", MEETING_GATHER_Y);
+		out_event.set_float("gather_x", map.gather_x);
+		out_event.set_float("gather_y", map.gather_y);
 		// A duração da discussão vai junto para o cliente conseguir dizer quanto falta sem perguntar
 		// nada ao servidor (ver announce_time_remaining em ui/meeting_ui.nvgt). O protocolo já
 		// previa este campo desde o começo; ele simplesmente nunca chegou a ser preenchido, e o
@@ -244,7 +244,7 @@ mixin class state_meeting_part {
 			if (@ejected != null) {
 				ejected.alive = false;
 				// Expulsar o lobo devolve quem ele engoliu, e eles voltam para a mesa, onde todo mundo está.
-				release_belly(ejected, MEETING_GATHER_X, MEETING_GATHER_Y);
+				release_belly(ejected, map.gather_x, map.gather_y);
 				result.set_uint64("ejected_peer", ejected.peer_id);
 				result.set_string("ejected_name", ejected.public_name());
 				// Com a revelação desligada o papel NÃO viaja: o cliente é a máquina do jogador, e
