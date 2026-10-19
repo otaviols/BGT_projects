@@ -223,6 +223,9 @@ class game_map {
 	// zumbido da nave; no Polus não há um - o vento é do lado de fora, nos caminhos de neve, e dentro
 	// dos prédios cada sala tem o seu.
 	string ship_ambience = SND_SHIP_AMBIENCE;
+	// A porta trancada tem PAINEL: quem está na passagem abre a sala antes do tempo com um minijogo
+	// (o Polus, como no original). Na nave de sempre não tem - só esperar, como sempre foi.
+	bool doors_have_panel = false;
 
 	// As sabotagens que existem NESTE mapa: as que têm painel nele. Uma sabotagem sem painel não tem
 	// conserto - o impostor ganharia só por escolhê-la -, então o menu, o servidor, os bots e o treino
@@ -275,6 +278,31 @@ class game_map {
 			closed_door_zones.insert_last(zone_ids[i]);
 			closed_door_timers.insert_last(seconds);
 		}
+	}
+
+	// Quanto tempo uma sala fica trancada neste mapa.
+	float doors_closed_seconds() const {
+		return doors_have_panel ? DOORS_CLOSED_SECONDS_WITH_PANEL : DOORS_CLOSED_SECONDS;
+	}
+
+	// A sala trancada cujo painel de porta se alcança daqui ("" = nenhuma). É a regra de onde fica o
+	// painel, numa função só: o cliente pergunta para oferecer o minijogo no Enter, e o servidor para
+	// aceitar a abertura - escritas à parte, uma diria "tem painel aqui" e a outra recusaria. O painel é
+	// a passagem inteira, dos dois lados (quem está preso dentro e quem quer entrar), até `alcance` dela.
+	string door_panel_at(float x, float y, float alcance = DOOR_PANEL_RANGE) const {
+		if (!doors_have_panel) return "";
+		for (uint i = 0; i < closed_door_zones.length(); i++) {
+			array<zone_opening@>@ entradas = openings_of(closed_door_zones[i]);
+			for (uint j = 0; j < entradas.length(); j++) {
+				zone_opening@ e = entradas[j];
+				bool vertical = e.side == "east" || e.side == "west";
+				float ao_longo = vertical ? y : x;   // a coordenada ao longo da parede
+				float atraves = vertical ? x : y;    // a que atravessa a parede
+				if (ao_longo < e.span_min - alcance || ao_longo > e.span_max + alcance) continue;
+				if (abs(atraves - e.edge) <= alcance) return closed_door_zones[i];
+			}
+		}
+		return "";
 	}
 
 	// Abre TODAS as portas de uma vez e devolve quais estavam fechadas (pra avisar quem precisa).
@@ -854,6 +882,7 @@ game_map@ build_polus_map() {
 	m.spawn_x = 0; m.spawn_y = -50;
 	m.gather_x = 0; m.gather_y = -50;
 	m.ship_ambience = "";
+	m.doors_have_panel = true;
 
 	// Prédios
 	m.zones.insert_last(map_zone("dropship", "room.dropship", 0, -50, 8, 6, "MetalTile"));

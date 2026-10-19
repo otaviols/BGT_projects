@@ -235,6 +235,81 @@ bool run_comms_panel(game_client@ client) {
 	return false;
 }
 
+// --- A porta do Polus: o painel dela ----------------------------------------------------------------
+// Não é sabotagem (a porta trancada não é), mas é um painel e mora com eles. Reflexo, a mecânica que o
+// jogo não tinha (maquete aprovada em 2026-10-19): um bipe agudo acende à esquerda, no meio ou à
+// direita, e a seta daquele lado (esquerda, cima, direita) tem que vir antes de ele sumir. Acertou, o
+// interruptor estala; demorou ou errou o lado, o bipe grave, e acende outro. Errar só custa tempo.
+// Cinco acertos abrem. Se a porta abrir sozinha (ou por outro) no meio, o painel fecha avisando.
+const int DOOR_PANEL_HITS = 5;
+const int DOOR_PANEL_WINDOW_MS = 900;
+const array<int> DOOR_PANEL_KEYS = {KEY_LEFT, KEY_UP, KEY_RIGHT};
+const array<float> DOOR_PANEL_PANS = {-0.8, 0.0, 0.8};
+
+// Os lados que vão acender, no lugar do sorteio (vazio = sortear). Só a sonda preenche. E os erros da
+// última vez, para ela conferir.
+array<int> g_door_panel_sides_next;
+int g_door_panel_last_misses = 0;
+// O lado aceso AGORA (-1 = nenhum): é como a sonda aperta a seta enquanto o bipe está no ar.
+int g_door_panel_lit = -1;
+
+bool run_door_panel(game_client@ client) {
+	speak_hint("game.door_panel.intro");
+	int abertas = client.doors_opened_count;
+	array<int> lados = g_door_panel_sides_next;
+	g_door_panel_sides_next.resize(0);
+	g_door_panel_last_misses = 0;
+	if (!door_panel_pause(client, 700, abertas)) return false;
+	int acertos = 0;
+	uint n = 0;
+	while (acertos < DOOR_PANEL_HITS) {
+		int lado = n < lados.length() ? lados[n] : random(0, 2);
+		n++;
+		float pan = pan_from_linear(DOOR_PANEL_PANS[lado]);
+		task_sound(SND_DOOR_TARGET, pan);
+		g_door_panel_lit = lado;
+		int resposta = -1;
+		timer janela;
+		while (janela.elapsed < DOOR_PANEL_WINDOW_MS && resposta < 0) {
+			wait(5);
+			client.update();
+			if (task_tick(client) || door_opened_meanwhile(client, abertas)) { g_door_panel_lit = -1; return false; }
+			// Cada tecla lida UMA vez (ver CLAUDE.md); vale a primeira do quadro.
+			for (uint k = 0; k < DOOR_PANEL_KEYS.length(); k++)
+				if (key_pressed(DOOR_PANEL_KEYS[k]) && resposta < 0) resposta = int(k);
+		}
+		g_door_panel_lit = -1;
+		if (resposta == lado) {
+			acertos++;
+			task_sound_path(SND_DOOR_SWITCH, pan);
+		} else {
+			g_door_panel_last_misses++;
+			task_sound(SND_DOOR_TARGET_MISS, pan);
+		}
+		if (acertos < DOOR_PANEL_HITS && !door_panel_pause(client, random(300, 550), abertas)) return false;
+	}
+	return true;
+}
+
+// O respiro entre um bipe e o seguinte. As setas apertadas nele são JOGADAS FORA: senão uma seta
+// atrasada valeria como resposta ao bipe seguinte, antes de ele ser ouvido.
+bool door_panel_pause(game_client@ client, int ms, int abertas) {
+	timer t;
+	while (t.elapsed < ms) {
+		wait(5);
+		client.update();
+		if (task_tick(client) || door_opened_meanwhile(client, abertas)) return false;
+		for (uint k = 0; k < DOOR_PANEL_KEYS.length(); k++) key_pressed(DOOR_PANEL_KEYS[k]);
+	}
+	return true;
+}
+
+bool door_opened_meanwhile(game_client@ client, int abertas) {
+	if (client.doors_opened_count == abertas) return false;
+	speak(tr("game.door_panel.opened_meanwhile"));
+	return true;
+}
+
 // --- Sismógrafo: segurar junto --------------------------------------------------------------------
 // Segurar Enter põe a mão no leitor (o estalo, e o zumbido enquanto se segura); soltar a tira. A mão do
 // colega, no OUTRO painel, soa do lado dele e mais baixa: é o que diz que ele chegou - e se ela some com

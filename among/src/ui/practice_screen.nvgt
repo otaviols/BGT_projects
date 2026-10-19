@@ -92,13 +92,17 @@ void run_practice_screen() {
 			p.set("name", tr("sabotage." + reparos[i] + ".name"));
 			m.add_item(tr("practice.repair_item", p), "sabotage:" + reparos[i]);
 		}
+		// A porta trancada com painel não é sabotagem, mas é um painel que se treina.
+		if (g_practice_map.doors_have_panel) m.add_item(tr("practice.door_panel_item"), "door");
 		m.add_item(tr("menu.back"), "__back__");
 		m.run();
 		string id = m.selected_item_id;
 		if (id == "" || id == "__back__") return;
 
 		bool ok;
-		if (id.starts_with("task:")) {
+		if (id == "door") {
+			ok = run_door_panel(client);
+		} else if (id.starts_with("task:")) {
 			// Tarefa de várias fases treina INTEIRA, uma fase atrás da outra: é a tarefa que o jogador
 			// vai encontrar. Sem isto, treinar "abastecer motores" era só pegar o galão - a etapa que
 			// não tem o que treinar - e a parte de ouvido nunca aparecia.

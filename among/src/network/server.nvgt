@@ -541,6 +541,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		else if (t == C_RADAR_TRACK) on_radar_track(peer_id, pkt);
 		else if (t == C_TRIGGER_SABOTAGE) on_trigger_sabotage(peer_id, pkt);
 		else if (t == C_CLOSE_DOORS) on_close_doors(peer_id, pkt);
+		else if (t == C_OPEN_DOOR) on_open_door(peer_id, pkt);
 		else if (t == C_INTERACT) on_interact(peer_id, pkt);
 		else if (t == C_SABOTAGE_HOLD) on_sabotage_hold(peer_id, pkt);
 		else if (t == C_PING) on_ping(peer_id, pkt);

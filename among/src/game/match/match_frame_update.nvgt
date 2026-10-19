@@ -330,7 +330,9 @@ mixin class match_frame_update_part {
 					// pouco, e saber disso muda o que o jogador faz (esperar em vez de procurar outro
 					// caminho). Por isso a porta tem som próprio e ainda fala.
 					if (map.door_blocks(my_x, my_y, new_x, new_y)) {
-						speak(tr("game.door_closed"));
+						// Com painel (o Polus), o aviso diz que dá para abrir - senão a porta parece igual à de
+						// sempre e ninguém tenta.
+						speak(tr(map.doors_have_panel ? "game.door_closed_panel" : "game.door_closed"));
 						audio.play_door_bump(my_x, my_y);
 					} else {
 						audio.play_wall_bump(my_x, my_y);

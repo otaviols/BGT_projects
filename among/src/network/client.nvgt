@@ -85,6 +85,9 @@ class game_client {
 	// painel de quem segura ouve o colega chegar e soltar. Marcado aqui, ao receber, pela mesma razão do
 	// sabotage_ended: o painel é um laço bloqueante e não lê a fila.
 	array<string> sabotage_held_panels;
+	// Quantas vezes alguma porta ABRIU desde o começo: o painel da porta compara com o número de quando
+	// abriu, e fecha se a porta se abriu sozinha (ou por outro) no meio do minijogo.
+	int doors_opened_count = 0;
 
 	uint64 last_update_ticks = 0;
 
@@ -171,6 +174,7 @@ class game_client {
 		if (type == S_VOTE_RESULT) voting_ended = true;
 		if (type == S_SABOTAGE_PROGRESS) panel_fixed_id = pkt.get_string("object_id");
 		if (type == S_SABOTAGE_STARTED || type == S_SABOTAGE_FIXED) sabotage_held_panels.resize(0);
+		if (type == S_DOORS_STATE && !pkt.get_bool("closed")) doors_opened_count++;
 		if (type == S_SABOTAGE_HOLD) {
 			string painel = pkt.get_string("object_id");
 			int i = sabotage_held_panels.find(painel);
@@ -532,6 +536,12 @@ class game_client {
 		p.set_float("x", x);
 		p.set_float("y", y);
 		send(p, false); // canal não confiável: posição é enviada com frequência, perda ocasional é aceitável
+	}
+
+	void send_open_door(const string&in room_id) {
+		net_packet@ p = net_packet(C_OPEN_DOOR);
+		p.set_string("room_id", room_id);
+		send(p);
 	}
 
 	void send_sabotage_hold(const string&in object_id, bool holding) {

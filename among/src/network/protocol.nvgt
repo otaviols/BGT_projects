@@ -96,6 +96,7 @@ const string C_RADAR_SCAN = "c_radar_scan";       // {direction} (1 = próximo, 
 const string C_RADAR_TRACK = "c_radar_track";     // {peer_id}
 const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("lights" | "oxygen" | "comms"), só impostor
 const string C_CLOSE_DOORS = "c_close_doors";     // {room_id} - tranca aquela sala, só impostor (vivo ou morto)
+const string C_OPEN_DOOR = "c_open_door";         // {room_id} - abriu a porta trancada pelo painel dela (Polus), qualquer vivo
 const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
 const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
 // O jogador avisa se quer RECEBER voz. Sem isto o servidor mandaria 128 kbps de áudio para quem

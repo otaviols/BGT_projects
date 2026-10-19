@@ -254,6 +254,16 @@ mixin class server_ship_part {
 		broadcast_to_lobby(lobby, lobby.build_doors_packet(closed_zones, true));
 	}
 
+	// Abriu a porta pelo painel. Recusa CALADA: o caso comum é a porta ter aberto sozinha (ou por outro)
+	// enquanto o jogador fazia o minijogo, e aí ela já está aberta e o som dela já tocou para todos.
+	void on_open_door(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		array<string>@ opened;
+		if (!lobby.open_door_by_panel(peer_id, pkt.get_string("room_id"), opened)) return;
+		broadcast_to_lobby(lobby, lobby.build_doors_packet(opened, false));
+	}
+
 	// Fecha o posto de câmeras, seja quem for que esteja nele, e AVISA quem estava observando.
 	//
 	// O aviso é a parte que faltava: sem ele o cliente de quem observava continuava na câmera - sem

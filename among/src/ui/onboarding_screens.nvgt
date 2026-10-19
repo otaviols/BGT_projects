@@ -116,7 +116,8 @@ void run_touch_help_screen() {
 // Fora de propósito: os sons de DENTRO dos minijogos (eles se aprendem fazendo a tarefa, no treino -
 // isolados, "o tique do distribuidor" não diz nada), e o que está reservado e nunca toca.
 const array<string> LEARN_SOUNDS_LEFT_OUT = {
-	SND_DOOR_SWITCH, // reservado para um mapa futuro: nunca toca
+	// O painel da porta: só existe no Polus, que ainda não saiu.
+	SND_DOOR_SWITCH, "sounds/" + SND_DOOR_TARGET, "sounds/" + SND_DOOR_TARGET_MISS,
 	// De dentro dos PAINÉIS DE REPARO (o teclado do código do oxigênio, o dial das comunicações): como
 	// os de minijogo de tarefa, aprendem-se consertando, no treino. Caminhos sem a pasta, como o
 	// catálogo os lista (ver all_sound_paths).

@@ -132,7 +132,11 @@ Falta, na ordem combinada:
   colega se ouve do lado dele; ver ciclo-da-partida.md;
 - **o reator no mapa antigo** (decisão do usuário, 2026-10-19: novidade da 1.0 também para a nave de
   sempre), reaproveitando a sabotagem de segurar - com portão de protocolo, ver ciclo-da-partida.md;
-- **as portas com minijogo** e **a descontaminação que prende quem passa** (decisão do usuário: fica);
+- ~~as portas com minijogo~~ FEITO (2026-10-19): no Polus a sala trancada fica 20 s (12 na nave), e na
+  passagem Enter abre o painel - reflexo: bipe agudo à esquerda, no meio ou à direita, a seta do lado
+  antes de sumir, cinco acertos abrem a sala para todos. Os sons do minijogo da leva foram RECUSADOS
+  ("bem estranhos", feitos para animação): bipes gerados e o interruptor que estava reservado;
+- **a descontaminação que prende quem passa** (decisão do usuário: fica);
 - **câmeras** - o Polus ainda não tem posto.
 
 **As sabotagens agora são do MAPA** (`game_map.sabotages()`, as que têm painel): o menu do impostor, o

@@ -26,8 +26,24 @@ mixin class state_ship_part {
 		if (@room == null || room.is_corridor) return false;
 
 		closed_zones.insert_last(room_id);
-		map.close_doors(closed_zones, DOORS_CLOSED_SECONDS);
+		map.close_doors(closed_zones, map.doors_closed_seconds());
 		doors_cooldown_remaining = DOORS_COOLDOWN_SECONDS;
+		return true;
+	}
+
+	// Abrir uma sala trancada pelo painel da porta (o Polus). Quem pode: qualquer um VIVO e livre - o
+	// tripulante preso com o impostor foge, quem está fora entra, e o próprio impostor também abre (no
+	// original a porta não pergunta quem é). A distância tem folga, como a dos painéis de sabotagem: a
+	// posição que o servidor tem vive um pouco atrasada.
+	bool open_door_by_panel(uint64 peer_id, const string&in room_id, array<string>@&out opened) {
+		@opened = array<string>();
+		if (state != "in_progress" || !map.doors_have_panel) return false;
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive || p.swallowed()) return false;
+		if (!map.is_door_closed(room_id)) return false;
+		if (map.door_panel_at(p.x, p.y, DOOR_PANEL_RANGE * 2.0) != room_id) return false;
+		opened.insert_last(room_id);
+		map.open_doors(opened);
 		return true;
 	}
 

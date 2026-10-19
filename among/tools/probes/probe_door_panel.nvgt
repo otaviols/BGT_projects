@@ -1,0 +1,109 @@
+// Sonda do painel da porta (Polus): onde fica o painel (a passagem da sala trancada, dos dois lados, e
+// só no mapa que o tem), quem o servidor deixa abrir, e o minijogo - acertos abrem, demora e lado errado
+// só custam tempo -, com as teclas de DENTRO do laço do minijogo.
+//   nvgt tools/probes/probe_door_panel.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/game/sabotage_panels.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// A resposta a cada bipe, na ordem: a tecla a apertar (0 nada = deixar sumir).
+int quadro = 0;
+array<int> respostas;
+uint bipe = 0;
+int aceso_antes = -1;
+int apertar_em = -1;
+void dirige() {
+	quadro++;
+	if (quadro > 20000) exit(1);
+	if (g_door_panel_lit >= 0 && aceso_antes < 0) {
+		// Acendeu: responde daqui a pouco (o tempo de uma reação), dentro da janela.
+		apertar_em = quadro + 20;
+	}
+	if (apertar_em >= 0 && quadro == apertar_em && bipe < respostas.length()) {
+		if (respostas[bipe] != 0) simulate_key_down(respostas[bipe]);
+	}
+	if (apertar_em >= 0 && quadro == apertar_em + 3) {
+		if (bipe < respostas.length() && respostas[bipe] != 0) simulate_key_up(respostas[bipe]);
+		bipe++;
+	}
+	aceso_antes = g_door_panel_lit;
+}
+
+// O ponto do meio de uma das passagens da sala, e um passo para dentro ou para fora.
+void passagem(game_map@ m, const string&in sala, float&out x, float&out y, float&out fora_x, float&out fora_y) {
+	zone_opening@ e = m.openings_of(sala)[0];
+	float meio = (e.span_min + e.span_max) / 2.0;
+	bool vertical = e.side == "east" || e.side == "west";
+	x = vertical ? e.edge : meio;
+	y = vertical ? meio : e.edge;
+	float d = (e.side == "east" || e.side == "south") ? 1.0 : -1.0; // para fora da sala
+	fora_x = vertical ? x + d : x;
+	fora_y = vertical ? y : y + d;
+}
+
+void main() {
+	show_window("sonda: porta");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+
+	println("== onde fica o painel ==");
+	game_map@ polus = build_map(MAP_POLUS);
+	game_map@ nave = build_map(MAP_IDS[0]);
+	confere("o Polus tem painel; a nave de sempre nao", polus.doors_have_panel && !nave.doors_have_panel);
+	confere("no Polus a porta fica mais tempo (20 s contra 12)", polus.doors_closed_seconds() > nave.doors_closed_seconds());
+	float px, py, fx, fy;
+	passagem(polus, "laboratory", px, py, fx, fy);
+	confere("sala aberta: sem painel", polus.door_panel_at(px, py) == "");
+	array<string> lab = {"laboratory"};
+	polus.close_doors(lab, 20.0);
+	confere("trancada: o painel esta na passagem", polus.door_panel_at(px, py) == "laboratory");
+	confere("e alcanca-se dos dois lados", polus.door_panel_at(fx, fy) == "laboratory");
+	confere("longe dela, nao", polus.door_panel_at(px + 10, py + 10) == "");
+
+	println("== quem o servidor deixa abrir ==");
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_map(MAP_POLUS);
+	lobby.state = "in_progress";
+	game_player@ vivo = game_player(2, "vivo");
+	vivo.x = px; vivo.y = py;
+	lobby.players.insert_last(vivo);
+	game_player@ morto = game_player(3, "morto");
+	morto.x = px; morto.y = py; morto.alive = false;
+	lobby.players.insert_last(morto);
+	array<string>@ abertas;
+	confere("porta aberta: nada a abrir", !lobby.open_door_by_panel(2, "laboratory", abertas));
+	lobby.map.close_doors(lab, 20.0);
+	confere("fantasma nao opera o painel", !lobby.open_door_by_panel(3, "laboratory", abertas));
+	vivo.x = px + 15;
+	confere("longe da porta, nao", !lobby.open_door_by_panel(2, "laboratory", abertas));
+	vivo.x = px;
+	confere("vivo na passagem abre a sala", lobby.open_door_by_panel(2, "laboratory", abertas) && !lobby.map.is_door_closed("laboratory"));
+
+	println("== o minijogo ==");
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+	// Sete bipes: esquerda, meio, direita (deixa sumir), direita, esquerda (aperta o lado ERRADO, a
+	// direita), e mais dois certos. Cinco acertos, dois erros - e abre no quinto acerto, o sétimo bipe.
+	array<int> lados = {0, 1, 2, 2, 0, 0, 1};
+	g_door_panel_sides_next = lados;
+	array<int> teclas = {KEY_LEFT, KEY_UP, 0, KEY_RIGHT, KEY_RIGHT, KEY_LEFT, KEY_UP};
+	respostas = teclas;
+	bool abriu = run_door_panel(c);
+	// O último bipe não chega a ser contado pela sonda: a porta abre no aperto, e o painel sai.
+	confere("cinco acertos abrem, no setimo bipe", abriu && bipe == teclas.length() - 1);
+	confere("a demora e o lado errado contam como erro (" + g_door_panel_last_misses + ")", g_door_panel_last_misses == 2);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
