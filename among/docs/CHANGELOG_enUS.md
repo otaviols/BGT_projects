@@ -6,6 +6,14 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 0.56.1
+
+**Wolf:** whoever gets swallowed no longer loses their modifiers. Leaving the belly, they are still
+Flash, Giant or a lover, as they went in.
+
+We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version.
+Found something? Send a message.
+
 ## 0.56.0
 
 **Modifiers on death, as a room option:** at the top of the modifiers screen, the room chooses whether

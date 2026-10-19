@@ -1,8 +1,8 @@
 {
-	"version": "0.56.0",
+	"version": "0.56.1",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "Modificadores na morte, como opção da sala: no começo da tela de modificadores, a sala escolhe se a morte tira os modificadores (o padrão, desde a 0.55.1) ou se eles ficam, como antes. Quando ficam, o médico revive o casal junto; se o corpo do par já foi limpo, ele ouve que não adianta reviver. Linux: o jogo não fecha mais logo ao abrir. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
-		"en_US": "Modifiers on death, as a room option: at the top of the modifiers screen, the room chooses whether death removes modifiers (the default since 0.55.1) or they stay, like before. When they stay, the doctor revives the couple together; if the partner's body was already cleaned, they hear that reviving is no use. Linux: the game no longer closes right after opening. We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version. Found something? Send a message."
+		"pt_BR": "Lobo: quem é engolido não perde mais os modificadores. Ao sair da barriga, continua Flash, Gigante ou apaixonado, como entrou. Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão estável. Achou algo? Mande pelo recado.",
+		"en_US": "Wolf: whoever gets swallowed no longer loses their modifiers. Leaving the belly, they are still Flash, Giant or a lover, as they went in. We're still in pre-release: bugs may show up, and the goal is to fix them before the stable version. Found something? Send a message."
 	}
 }

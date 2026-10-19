@@ -6,6 +6,14 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 0.56.1
+
+**Lobo:** quem é engolido não perde mais os modificadores. Ao sair da barriga, continua Flash, Gigante
+ou apaixonado, como entrou.
+
+Ainda estamos no pré-lançamento: podem aparecer defeitos, e a ideia é resolvê-los antes da versão
+estável. Achou algo? Mande pelo recado.
+
 ## 0.56.0
 
 **Modificadores na morte, como opção da sala:** no começo da tela de modificadores, a sala escolhe se a
