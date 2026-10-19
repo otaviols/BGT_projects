@@ -672,7 +672,7 @@
   "task.replace_water_jug.place_instructions": "Enter fits the jug into the water cooler. ESC cancels.",
   "task.replace_water_jug.empty_one": "That one is empty.",
   "task.store_artifacts.name": "Store the artifacts",
-  "task.store_artifacts.instructions": "Four ancient pieces arrive one at a time, each with its own sound: a crystal, an egg, a bone and a rock. The display case has four slots, from left to right, and each piece fits only one. The arrows move between the slots, Enter tries to store the piece there and Space plays its sound again. On a taken slot, you hear the piece already in it, softly. ESC cancels.",
+  "task.store_artifacts.instructions": "Four ancient pieces arrive one at a time, each with its own sound: a crystal, an egg, a bone and a rock. The display case has four slots, from left to right, and each piece fits only one. The arrows move between the slots, and Space listens to the slot in front of you: it sounds like the piece that fits there. Once you find the sound of the piece in your hand, Enter stores it. Shift with Space plays the sound of the piece in your hand again. On a taken slot, you hear the piece already in it, softly. ESC cancels.",
   "task.reboot_wifi.name": "Reboot the Wi-Fi",
   "task.reboot_wifi.on_name": "Turn the Wi-Fi back on",
   "task.reboot_wifi.instructions_off": "Hold the down arrow until the lever locks at the bottom: the Wi-Fi turns off. Letting go early makes it slide back. Then come back here in 45 seconds to turn it back on. ESC cancels.",

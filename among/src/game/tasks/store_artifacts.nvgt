@@ -3,16 +3,17 @@
 // vitrine com quatro buracos, cada um no formato de uma peça; você arrasta cada peça até o buraco dela, e
 // a decisão é reconhecer o formato de olho.
 //
-// Para o ouvido (maquete aprovada em 2026-10-19), o formato vira TENTATIVA e MEMÓRIA:
+// Para o ouvido, o formato vira o SOM da peça:
 //   - as peças chegam uma de cada vez, e cada uma tem o SEU som ao ser pega (cristal, ovo, osso, pedra);
-//     Espaço repete o som da peça da mão;
+//     Shift+Espaço repete o som da peça da mão;
 //   - os quatro buracos ficam da esquerda para a direita, as setas andam entre eles com um clique no lado
-//     de cada um, e Enter tenta pôr a peça ali: encaixa ou toca o erro, e a peça continua na mão;
-//   - buraco OCUPADO não clica: toca baixinho o som da peça que está nele. É como se sabe que ali já tem o
-//     cristal e se passa direto - sem isso, a vitrine meio cheia viraria contar cliques de cabeça.
-// O que se decide é onde tentar: lembrar quais buracos já recusaram a peça da mão e onde estão as
-// guardadas. Errar só custa tempo, como o galão vazio. É a mecânica que o jogo não tinha (diversidade
-// pedida pelo usuário, ver a nota da 1.0): nem tom, nem tempo, nem timbre - memória de tentativas.
+//     de cada um, e Espaço "escuta" o buraco da frente: toca o som da peça que cabe nele. Achou o som da
+//     peça da mão, Enter a guarda; no buraco errado toca o erro, e a peça continua na mão;
+//   - buraco OCUPADO não clica: toca baixinho o som da peça que está nele, e se passa direto.
+// A primeira versão (maquete aprovada em 2026-10-19) não deixava escutar o buraco: era tentar e lembrar
+// quais tinham recusado. O usuário a trocou no mesmo dia por esta - "o espaço tem que fazer o mesmo
+// barulho que a peça, aí você vai e já dá Enter na certa": casar dois sons iguais, em vez de errar até
+// acertar. Errar ainda custa tempo, como o galão vazio.
 
 #include "task_common.nvgt"
 
@@ -56,7 +57,8 @@ bool run_store_artifacts_task(game_client@ client, uint phase) {
 			if (task_tick(client)) return false;
 			// Cada tecla lida UMA vez (ver CLAUDE.md).
 			bool esq = key_pressed(KEY_LEFT), dir = key_pressed(KEY_RIGHT);
-			bool repete = key_pressed(KEY_SPACE), tenta = key_pressed(KEY_RETURN);
+			bool espaco = key_pressed(KEY_SPACE), tenta = key_pressed(KEY_RETURN);
+			bool shift = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);
 			if (esq || dir) {
 				int novo = aqui + (dir ? 1 : -1);
 				if (novo >= 0 && novo < int(ARTIFACT_SLOT_PANS.length())) aqui = novo;
@@ -67,8 +69,17 @@ bool run_store_artifacts_task(game_client@ client, uint phase) {
 				else task_sound_path(SND_MENU_CLICK, pan);
 				continue;
 			}
-			if (repete) {
+			if (espaco && shift) {
 				task_sound(ARTIFACT_SOUNDS[peca]);
+				continue;
+			}
+			if (espaco) {
+				// A peça que cabe neste buraco, no lado dele. Ocupado, já se ouviu ao chegar: aqui também.
+				int dona = buraco_de.find(aqui);
+				float pan = pan_from_linear(ARTIFACT_SLOT_PANS[aqui]);
+				if (peca_no_buraco[aqui] >= 0)
+					task_sound_path("sounds/" + ARTIFACT_SOUNDS[peca_no_buraco[aqui]], pan, ARTIFACT_OCCUPIED_DB);
+				else task_sound(ARTIFACT_SOUNDS[dona], pan);
 				continue;
 			}
 			if (!tenta) continue;
