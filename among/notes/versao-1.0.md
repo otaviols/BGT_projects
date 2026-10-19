@@ -148,6 +148,9 @@ Falta, na ordem combinada:
   por perto ouvem; é a porta trancada de sempre (door_blocks), então dentro não sai e fora não entra. Quem
   chega depois espera a rodada dele - o usuário: entrar no meio e ficar preso 1 s pela rodada de outro não
   faria sentido. Várias pessoas juntas, e pode matar lá dentro (escolha dele, como no original);
+- **o exame médico** (a tarefa visual) no laboratório, onde o original o tem, junto dos asteroides das
+  armas (2026-10-19). O usuário: tarefa vai onde faz sentido, sala cheia não é problema - a nave tem a
+  navegação cheia, e o sorteio já limita as visuais por partida;
 - ~~câmeras~~ FEITO (2026-10-19): o posto fica na administração (escolha do usuário; no original é uma
   sala de segurança). No mesmo dia o painel de comunicações saiu da administração para as comunicações,
   onde o original o tem - estava errado na planta, e o usuário notou.

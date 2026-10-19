@@ -1021,6 +1021,10 @@ game_map@ build_polar_base_map() {
 		OBJ_SECURITY_CAMERAS, SND_CAMERA_ON, "", "", SND_CAMERA_BEACON));
 
 	// Alinhar o telescópio, no laboratório (longe da saída do duto e do painel do nó do clima).
+	// O exame médico, no laboratório, onde o original o tem: a tarefa VISUAL do mapa junto dos asteroides
+	// das armas. Sala cheia não é problema (decisão do usuário): o sorteio limita as visuais por partida.
+	m.objects.insert_last(map_object("task_scan_laboratory", "task.submit_scan.name", 52, -23, "laboratory",
+		OBJ_TASK_SPOT, "sounds/" + SND_MEDBAY_SCAN, "submit_scan", "", SND_TASK_BEACON_SUBMIT_SCAN));
 	m.objects.insert_last(map_object("task_telescope_laboratory", "task.align_telescope.name", 38, -17, "laboratory",
 		OBJ_TASK_SPOT, "sounds/" + SND_TELESCOPE_TICK, "align_telescope", "", SND_TASK_BEACON_ALIGN_TELESCOPE));
 
