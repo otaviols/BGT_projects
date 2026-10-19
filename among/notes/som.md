@@ -114,8 +114,11 @@ tarefas pelo time — cegá-lo não cria tensão, só torna tedioso o que ainda 
 
 **Todo som do jogo é `.ogg`** (Vorbis, qualidade 3), fora dois `.mp3` antigos. Foram 45 MB de wav
 virando 3,4 MB sem perda audível, e o download caiu de 60 MB para 29 MB. Som novo entra convertido:
-`D:\Program\winvox\ffmpeg.exe` (existe na máquina, mas **não está no PATH**) com
-`-c:a libvorbis -q:a 3`. Depois da conversão, o maior peso do zip passou a ser `lib/phonon.dll`
+`ffmpeg` (nesta máquina, instalado pelo winget e no PATH; na máquina antiga era
+`D:\Program\winvox\ffmpeg.exe`, fora do PATH) com `-c:a libvorbis -q:a 3`. Som vindo da leva do jogo
+original entra JÁ no volume certo: `-af volume=<ganho>dB` na conversão, com o ganho medido pelo
+`volumedetect` contra a média das salas (-33 dB) e limitado para o pico não passar de -3 dB - foi assim
+que entraram os ambientes do Polus. Depois da conversão, o maior peso do zip passou a ser `lib/phonon.dll`
 (17,9 MB comprimido), que é o motor de áudio posicionado e não sai.
 
 **Passo inaudível pode ser culpa do AMBIENTE, não do passo.** Recado #134: "os passos na sala do motor

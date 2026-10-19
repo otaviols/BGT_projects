@@ -314,7 +314,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		load_tasks_from_json(tasks_json, my_tasks, my_task_object_ids);
 
 		opening_sound_slot = audio.play_start_game();
-		audio.start_ship_ambience();
+		audio.start_ship_ambience(map.ship_ambience);
 		audio.start_room_ambience(map);
 		refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
 		// Papel + (pro impostor) quem mais é impostor, numa fala só: speak() interrompe a fala anterior

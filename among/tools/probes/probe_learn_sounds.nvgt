@@ -9,6 +9,7 @@
 //   2. todo arquivo que o menu toca existe no disco - um caminho errado fica mudo sem erro (foi a
 //      armadilha do "sounds/" a mais).
 // Cada item novo do catálogo que não for minijogo precisa entrar no menu ou na lista de fora.
+#include "../../src/i18n.nvgt" // primeiro: as globais do game_settings leem o idioma (ver CLAUDE.md, ordem das globais)
 #include "../../src/ui/onboarding_screens.nvgt"
 
 int falhas = 0;

@@ -219,6 +219,22 @@ class game_map {
 	float spawn_x = 0.0, spawn_y = 0.0;
 	float gather_x = 0.0, gather_y = 0.0;
 	string start_room = "";
+	// O som de fundo que toca no mapa inteiro, a partida toda ("" = nenhum). Na nave de sempre é o
+	// zumbido da nave; no Polus não há um - o vento é do lado de fora, nos caminhos de neve, e dentro
+	// dos prédios cada sala tem o seu.
+	string ship_ambience = SND_SHIP_AMBIENCE;
+
+	// As sabotagens que existem NESTE mapa: as que têm painel nele. Uma sabotagem sem painel não tem
+	// conserto - o impostor ganharia só por escolhê-la -, então o menu, o servidor, os bots e o treino
+	// perguntam aqui. Na ordem em que os painéis aparecem no mapa.
+	array<string>@ sabotages() const {
+		array<string> r;
+		for (uint i = 0; i < objects.length(); i++) {
+			if (objects[i].obj_type == OBJ_SABOTAGE_PANEL && r.find(objects[i].task_type) < 0) r.insert_last(objects[i].task_type);
+		}
+		return r;
+	}
+	bool has_sabotage(const string&in id) const { return sabotages().find(id) >= 0; }
 	array<map_zone@> zones;
 	array<map_object@> objects;
 
@@ -509,6 +525,7 @@ array<map_object@>@ interactables_in_room(game_map@ map, const string&in room_id
 // numa nave em vez de cair.
 game_map@ build_map(const string&in id) {
 	if (id == MAP_THE_HUB) return build_the_hub_map();
+	if (id == MAP_POLUS) return build_polus_map();
 	return build_the_hub_map();
 }
 
@@ -804,5 +821,132 @@ game_map@ build_the_hub_map() {
 	m.objects.insert_last(map_object("passage_admin_security", "corridor", 12.5, -25,
 		"corridor_admin_security", OBJ_DECORATION, SND_PASSAGE));
 
+	return m;
+}
+
+// Polus (a 1.0, EM CONSTRUÇÃO - ver notes/versao-1.0.md). A planta foi aprovada pelo usuário em
+// 2026-10-19: prédios ligados por caminhos de NEVE (o lado de fora, com vento), e o próprio passo diz se
+// se está dentro ou fora. As tarefas são PROVISÓRIAS - as que a nave já tem e fazem sentido aqui - até
+// as do Polus entrarem pela receita (maquete de som antes de código). Faltam também o sismógrafo, a
+// porta com minijogo e a descontaminação que prende quem passa.
+//
+// Três colunas: a oeste (comunicações, armas, O2, elétrica), o centro (nave de pouso, escritório,
+// depósito, sismógrafo) e o leste (administração, laboratório, descontaminação, espécimes). A sala dos
+// espécimes fica ATRÁS da descontaminação, como no original: entra-se só por ela.
+game_map@ build_polus_map() {
+	game_map@ m = game_map();
+	m.name = MAP_POLUS;
+	m.start_room = "dropship";
+	m.spawn_x = 0; m.spawn_y = -50;
+	m.gather_x = 0; m.gather_y = -50;
+	m.ship_ambience = "";
+
+	// Prédios
+	m.zones.insert_last(map_zone("dropship", "room.dropship", 0, -50, 8, 6, "MetalTile"));
+	m.zones.insert_last(map_zone("office", "room.office", 0, -22, 9, 7, "Tile"));
+	m.zones.insert_last(map_zone("admin", "room.admin", 24, -22, 7, 6, "Tile"));
+	m.zones.insert_last(map_zone("communications", "room.communications", -40, -45, 7, 6, "MetalTile"));
+	m.zones.insert_last(map_zone("weapons", "room.weapons", -40, -20, 7, 6, "MetalTile"));
+	m.zones.insert_last(map_zone("oxygen", "room.oxygen", -40, 5, 7, 6, "MetalTile"));
+	m.zones.insert_last(map_zone("electrical", "room.electrical", -40, 30, 7, 6, "MetalTile"));
+	m.zones.insert_last(map_zone("storage", "room.storage", 0, 8, 9, 7, "MetalBeltTile"));
+	m.zones.insert_last(map_zone("seismic", "room.seismic", 0, 34, 7, 5, "MetalTile"));
+	m.zones.insert_last(map_zone("laboratory", "room.laboratory", 44, -22, 9, 7, "Tile"));
+	// A descontaminação liga o laboratório aos espécimes de ponta a ponta (y -15 a 7), sem corredor: é
+	// uma sala de passagem, e é nela que um dia a porta vai prender quem passa.
+	m.zones.insert_last(map_zone("decontamination", "room.decontamination", 44, -4, 4, 11, "Tile"));
+	m.zones.insert_last(map_zone("specimen", "room.specimen", 44, 14, 8, 7, "Tile"));
+	// Salas encostadas sem corredor: a convenção do nome não as liga, e sem isto os bots não acham caminho
+	// (ver zone_link).
+	m.extra_links.insert_last(zone_link("laboratory", "decontamination"));
+	m.extra_links.insert_last(zone_link("decontamination", "specimen"));
+
+	// O lado de fora: caminhos de NEVE entre os prédios, com nome próprio (o lugar para onde levam).
+	m.zones.insert_last(map_zone("corridor_dropship_office", "outside.dropship", 0, -36.5, 3, 7.5, "SnowTile", true));
+	m.zones.insert_last(map_zone("corridor_office_weapons", "outside.west", -21, -21, 12, 3, "SnowTile", true));
+	m.zones.insert_last(map_zone("corridor_communications_weapons", "outside.communications", -40, -32.5, 3, 6.5, "SnowTile", true));
+	m.zones.insert_last(map_zone("corridor_weapons_oxygen", "outside.oxygen", -40, -7.5, 3, 6.5, "SnowTile", true));
+	m.zones.insert_last(map_zone("corridor_oxygen_electrical", "outside.electrical", -40, 17.5, 3, 6.5, "SnowTile", true));
+	m.zones.insert_last(map_zone("corridor_oxygen_storage", "outside.storage_west", -21, 5, 12, 3, "SnowTile", true));
+	m.zones.insert_last(map_zone("corridor_office_storage", "outside.storage", 0, -7, 3, 8, "SnowTile", true));
+	m.zones.insert_last(map_zone("corridor_storage_seismic", "outside.seismic", 0, 22, 3, 7, "SnowTile", true));
+	m.zones.insert_last(map_zone("corridor_electrical_seismic", "outside.south", -20, 32, 13, 3, "SnowTile", true));
+	// Por dentro: do escritório à administração e dela ao laboratório, sem sair na neve.
+	m.zones.insert_last(map_zone("corridor_office_admin", "corridor.admin", 13, -22, 4, 3, "Tile", true));
+	m.zones.insert_last(map_zone("corridor_admin_laboratory", "corridor.laboratory", 33, -22, 2, 3, "Tile", true));
+
+	// Dutos: duas redes, ligando lados do mapa que a pé ficam longe (a mesma ideia da nave de sempre).
+	m.objects.insert_last(map_object("vent_communications", "object.vent", -37, -42, "communications", OBJ_VENT,
+		SND_VENT_DOOR_1, "", "vent_electrical,vent_specimen", SND_VENT_BEACON));
+	m.objects.insert_last(map_object("vent_electrical", "object.vent", -44, 33, "electrical", OBJ_VENT,
+		SND_VENT_DOOR_2, "", "vent_communications,vent_specimen", SND_VENT_BEACON));
+	m.objects.insert_last(map_object("vent_specimen", "object.vent", 40, 11, "specimen", OBJ_VENT,
+		SND_VENT_DOOR_1, "", "vent_communications,vent_electrical", SND_VENT_BEACON));
+	m.objects.insert_last(map_object("vent_laboratory", "object.vent", 48, -19, "laboratory", OBJ_VENT,
+		SND_VENT_DOOR_2, "", "vent_oxygen", SND_VENT_BEACON));
+	m.objects.insert_last(map_object("vent_oxygen", "object.vent", -44, 8, "oxygen", OBJ_VENT,
+		SND_VENT_DOOR_1, "", "vent_laboratory", SND_VENT_BEACON));
+
+	// Tarefas PROVISÓRIAS (ver o comentário do topo).
+	m.objects.insert_last(map_object("task_download_communications", "task.download_data.name", -43, -48, "communications",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
+	m.objects.insert_last(map_object("task_asteroids_weapons", "task.clear_asteroids.name", -37, -23, "weapons",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "clear_asteroids", "", SND_TASK_BEACON_CLEAR_ASTEROIDS));
+	m.objects.insert_last(map_object("task_download_weapons", "task.download_data.name", -43, -17, "weapons",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
+	m.objects.insert_last(map_object("task_filter_oxygen", "task.clean_o2_filter.name", -36, 2, "oxygen",
+		OBJ_TASK_SPOT, SND_TASK_BEACON_CLEAN_O2_FILTER, "clean_o2_filter", "", SND_TASK_BEACON_CLEAN_O2_FILTER));
+	m.objects.insert_last(map_object("task_wiring_electrical", "task.fix_wiring.name", -44, 27, "electrical",
+		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
+	m.objects.insert_last(map_object("task_wiring_office", "task.fix_wiring.name", -5, -25, "office",
+		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(2), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
+	m.objects.insert_last(map_object("task_download_office", "task.download_data.name", 5, -19, "office",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
+	m.objects.insert_last(map_object("task_wiring_admin", "task.fix_wiring.name", 21, -19, "admin",
+		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(3), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
+	m.objects.insert_last(map_object("task_download_storage", "task.download_data.name", -5, 5, "storage",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
+	m.objects.insert_last(map_object("task_download_laboratory", "task.download_data.name", 40, -25, "laboratory",
+		OBJ_TASK_SPOT, "sounds/" + SND_BEEP, "download_data", "", SND_TASK_BEACON_DOWNLOAD_DATA));
+	m.objects.insert_last(map_object("task_wiring_specimen", "task.fix_wiring.name", 48, 17, "specimen",
+		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
+
+	// Sabotagens: as luzes na elétrica e as comunicações na administração. O sismógrafo (a crítica do
+	// Polus, consertada a duas pessoas) e as portas com minijogo entram depois; até lá o Polus não tem
+	// sabotagem crítica.
+	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -36, 27, "electrical",
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights", "", SND_PANEL_BEACON_LIGHTS));
+	m.objects.insert_last(map_object("panel_comms_admin", "sabotage.comms.name", 27, -25, "admin",
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "comms", "", SND_PANEL_BEACON_COMMS));
+
+	// Botão de emergência, na nave de pouso, onde a reunião se junta.
+	m.objects.insert_last(map_object("emergency_button", "game.emergency_meeting_called", 0, -47, "dropship",
+		OBJ_EMERGENCY_BUTTON, "", "", "", SND_BUTTON_BEACON));
+
+	// Ambiente de cada prédio, no centro dele.
+	m.objects.insert_last(map_object("ambient_dropship", "room.dropship", 0, -50, "dropship", OBJ_DECORATION, SND_POLUS_DROPSHIP));
+	m.objects.insert_last(map_object("ambient_office", "room.office", 0, -22, "office", OBJ_DECORATION, SND_POLUS_OFFICE));
+	m.objects.insert_last(map_object("ambient_admin", "room.admin", 24, -22, "admin", OBJ_DECORATION, SND_POLUS_ADMIN));
+	m.objects.insert_last(map_object("ambient_communications", "room.communications", -40, -45, "communications", OBJ_DECORATION, SND_POLUS_COMMUNICATIONS));
+	m.objects.insert_last(map_object("ambient_weapons", "room.weapons", -40, -20, "weapons", OBJ_DECORATION, SND_AMBIENT_WEAPONS));
+	m.objects.insert_last(map_object("ambient_oxygen", "room.oxygen", -40, 5, "oxygen", OBJ_DECORATION, SND_POLUS_OXYGEN));
+	m.objects.insert_last(map_object("ambient_electrical", "room.electrical", -40, 30, "electrical", OBJ_DECORATION, SND_POLUS_ELECTRICAL));
+	m.objects.insert_last(map_object("ambient_storage", "room.storage", 0, 8, "storage", OBJ_DECORATION, SND_POLUS_STORAGE));
+	m.objects.insert_last(map_object("ambient_seismic", "room.seismic", 0, 34, "seismic", OBJ_DECORATION, SND_POLUS_SEISMIC));
+	m.objects.insert_last(map_object("ambient_laboratory", "room.laboratory", 44, -22, "laboratory", OBJ_DECORATION, SND_POLUS_LABORATORY));
+	m.objects.insert_last(map_object("ambient_decontamination", "room.decontamination", 44, -4, "decontamination", OBJ_DECORATION, SND_POLUS_DECONTAMINATION));
+	m.objects.insert_last(map_object("ambient_specimen", "room.specimen", 44, 14, "specimen", OBJ_DECORATION, SND_POLUS_SPECIMEN));
+
+	// O vento, em cada caminho de neve: é ele, mais o passo na neve, que diz "você está do lado de fora".
+	array<string> fora = {"corridor_dropship_office", "corridor_office_weapons", "corridor_communications_weapons",
+		"corridor_weapons_oxygen", "corridor_oxygen_electrical", "corridor_oxygen_storage", "corridor_office_storage",
+		"corridor_storage_seismic", "corridor_electrical_seismic"};
+	for (uint i = 0; i < fora.length(); i++) {
+		map_zone@ z = m.find_zone(fora[i]);
+		m.objects.insert_last(map_object("outside_" + fora[i], "outside", z.center_x, z.center_y, fora[i], OBJ_DECORATION, SND_POLUS_OUTSIDE));
+	}
+	// Os corredores de dentro levam o som de passagem, como na nave.
+	m.objects.insert_last(map_object("passage_office_admin", "corridor", 13, -22, "corridor_office_admin", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_admin_laboratory", "corridor", 33, -22, "corridor_admin_laboratory", OBJ_DECORATION, SND_PASSAGE));
 	return m;
 }

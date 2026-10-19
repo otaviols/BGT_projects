@@ -118,7 +118,13 @@ const int MAPS_PROTOCOL = 15;
 // Os mapas que existem, na ordem em que a sala os oferece. O primeiro é o padrão. Quem constrói cada um
 // é build_map (game/map.nvgt); um id que não está aqui não existe para a sala (lobby_config.validate).
 const string MAP_THE_HUB = "the_hub";
+const string MAP_POLUS = "polus";
 const array<string> MAP_IDS = {MAP_THE_HUB};
+// Mapas EM CONSTRUÇÃO: o servidor não os aceita (map_exists olha só MAP_IDS), mas o Conhecer o mapa e o
+// treino os oferecem quando a pasta do jogo tem o arquivo MAPS_IN_TEST_FLAG (ver offered_map_ids). É
+// como o mapa novo é ouvido antes de existir para os jogadores. Pronto, o id passa para MAP_IDS.
+const array<string> MAP_IDS_IN_TEST = {MAP_POLUS};
+const string MAPS_IN_TEST_FLAG = "mapas_em_teste.txt";
 bool map_exists(const string&in id) { return MAP_IDS.find(id) >= 0; }
 string map_name_key(const string&in id) { return "map." + id + ".name"; }
 float move_speed_for_percent(int percent) { return PLAYER_MOVE_SPEED * float(percent) / 100.0; }

@@ -63,11 +63,7 @@ array<string>@ practice_task_types(game_map@ map) {
 
 // Os reparos do mapa: as sabotagens que têm painel nele, na ordem de PRACTICE_SABOTAGES e depois as outras.
 array<string>@ practice_sabotages(game_map@ map) {
-	array<string> do_mapa;
-	for (uint i = 0; i < map.objects.length(); i++) {
-		map_object@ o = map.objects[i];
-		if (o.obj_type == OBJ_SABOTAGE_PANEL && do_mapa.find(o.task_type) < 0) do_mapa.insert_last(o.task_type);
-	}
+	array<string>@ do_mapa = map.sabotages();
 	array<string> r;
 	for (uint i = 0; i < PRACTICE_SABOTAGES.length(); i++) if (do_mapa.find(PRACTICE_SABOTAGES[i]) >= 0) r.insert_last(PRACTICE_SABOTAGES[i]);
 	for (uint i = 0; i < do_mapa.length(); i++) if (r.find(do_mapa[i]) < 0) r.insert_last(do_mapa[i]);

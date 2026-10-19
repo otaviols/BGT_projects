@@ -61,7 +61,8 @@ mixin class state_ship_part {
 		// Morto sabota; engolido não - está preso, não livre pela nave (ver player_abilities).
 		if (impostor.swallowed()) return false;
 		if (!config.sabotages_enabled) return false; // preset "rápido" desliga sabotagem (ver config/presets.nvgt)
-		if (sabotage_id != "lights" && sabotage_id != "oxygen" && sabotage_id != "comms") return false;
+		// Só as que têm painel NESTE mapa: sem painel não há conserto, e o impostor ganharia só por escolher.
+		if (!map.has_sabotage(sabotage_id)) return false;
 		if (state != "in_progress") return false;
 		if (active_sabotage != "") return false;
 		if (sabotage_cooldown_remaining > 0.0) return false;

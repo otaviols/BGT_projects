@@ -335,7 +335,7 @@ mixin class match_frame_keys_part {
 						cd.set("seconds", "" + int(my_sabotage_cooldown_remaining + 0.5));
 						speak(tr("game.sabotage_cooldown_remaining", cd));
 					} else {
-						run_sabotage_menu(imp);
+						run_sabotage_menu(imp, map);
 					}
 				}
 			}

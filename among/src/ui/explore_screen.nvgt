@@ -76,12 +76,16 @@ void run_explore_map_screen() {
 
 	float my_x = map.spawn_x, my_y = map.spawn_y; // onde toda partida neste mapa começa
 	audio.update_listener(my_x, my_y);
-	audio.start_ship_ambience();
+	audio.start_ship_ambience(map.ship_ambience);
 	audio.start_room_ambience(map);
 	// Todos os painéis tocam: aqui não há sabotagem, e é onde se aprende onde cada um fica.
 	audio.start_landmark_beacons(map, all_task_ids, BEACON_ALL_PANELS);
 
-	speak_hint("explore.intro");
+	// O nome da sala de começo vem à parte, e sempre (é informação, não dica): o texto dizia "você está na
+	// cafeteria", e no Polus começa-se na nave de pouso.
+	map_zone@ comeco = map.find_zone(map.start_room);
+	string onde = @comeco != null ? tr(comeco.name_key) + ". " : "";
+	speak(onde + hint_text("explore.intro"));
 
 	string last_zone_id = "";
 	string last_object_id = "";

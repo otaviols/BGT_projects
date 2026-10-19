@@ -42,7 +42,7 @@
   "volume.voices": "Voces de otros jugadores",
   "volume.alarm": "Alarma de sabotaje (la que sigue sonando)",
   "menu.explore_map": "Explorar el mapa",
-  "explore.intro": "Estás en la cafetería, solo en la nave. Camina con las teclas de movimiento; el nombre de cada sala se dice al entrar en ella. Tab muestra lo que hay en la sala. Enter en un punto de tarea abre la tarea, en un panel de reparación abre la reparación, y en una alcantarilla entra en ella, para practicar el viaje; en los demás objetos, dice qué son. Más y menos cambian la velocidad, y ESC vuelve al menú.",
+  "explore.intro": "Estás solo, sin partida. Camina con las teclas de movimiento; el nombre de cada sala se dice al entrar en ella. Tab muestra lo que hay en la sala. Enter en un punto de tarea abre la tarea, en un panel de reparación abre la reparación, y en una alcantarilla entra en ella, para practicar el viaje; en los demás objetos, dice qué son. Más y menos cambian la velocidad, y ESC vuelve al menú.",
   "explore.speed": "Velocidad: {percent} por ciento.",
   "explore.object_hint": "En una partida real, presionar Enter aquí abriría esto.",
   "menu.back": "Volver",

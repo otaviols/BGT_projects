@@ -140,7 +140,12 @@ mixin class state_bots_part {
 		if (config.sabotages_enabled && active_sabotage == "" && sabotage_cooldown_remaining <= 0.0 &&
 				random_range(0.0, 1.0) < BOT_SABOTAGE_CHANCE_PER_SECOND * delta_seconds) {
 			// Nunca a mesma da vez passada (trigger_sabotage recusaria de qualquer jeito).
-			string sabotage_id = last_sabotage_id == "lights" ? "comms" : "lights";
+			// Entre as que não matam (o bot não arma a crítica) e que existem NESTE mapa.
+			array<string> leves;
+			array<string>@ do_mapa = map.sabotages();
+			for (uint s = 0; s < do_mapa.length(); s++)
+				if (!is_critical_sabotage(do_mapa[s]) && do_mapa[s] != last_sabotage_id) leves.insert_last(do_mapa[s]);
+			string sabotage_id = leves.length() > 0 ? leves[random(0, leves.length() - 1)] : "";
 			net_packet@ sabotage_event;
 			string fail_key;
 			if (trigger_sabotage(b.peer_id, sabotage_id, sabotage_event, fail_key)) events.insert_last(sabotage_event);

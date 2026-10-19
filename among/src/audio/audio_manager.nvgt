@@ -135,9 +135,11 @@ class audio_manager {
 	void play_message_received() { spatial.play_ui(SND_MESSAGE_RECEIVED, false, family_db(SOUND_FAMILY_UI)); }
 
 	// --- Ambiente da nave (toca durante toda a partida) ---
-	void start_ship_ambience() {
+	// O som de fundo do MAPA inteiro (game_map.ship_ambience); vazio = o mapa não tem um.
+	void start_ship_ambience(const string&in path = SND_SHIP_AMBIENCE) {
 		stop_ship_ambience();
-		ambient_ship_slot = spatial.play_ui(SND_SHIP_AMBIENCE, true, AMBIENCE_VOLUME_DB + family_db(SOUND_FAMILY_AMBIENCE));
+		if (path == "") return;
+		ambient_ship_slot = spatial.play_ui(path, true, AMBIENCE_VOLUME_DB + family_db(SOUND_FAMILY_AMBIENCE));
 	}
 
 	void stop_ship_ambience() {

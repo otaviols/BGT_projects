@@ -122,7 +122,12 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	// catálogo os lista (ver all_sound_paths).
 	"sounds/" + SND_CODE_KEY, "sounds/" + SND_CODE_GOOD, "sounds/" + SND_CODE_BAD,
 	"sounds/" + SND_COMMS_PANEL_OPEN, "sounds/" + SND_COMMS_PANEL_CLOSE,
-	"sounds/" + SND_COMMS_DIAL_STEP, "sounds/" + SND_COMMS_RADIO_VOICE
+	"sounds/" + SND_COMMS_DIAL_STEP, "sounds/" + SND_COMMS_RADIO_VOICE,
+	// Os ambientes do Polus, mapa EM CONSTRUÇÃO (notes/versao-1.0.md): entram quando ele sair - e talvez
+	// num menu por mapa, que o usuário quer decidir junto com os sons de lá.
+	SND_POLUS_DROPSHIP, SND_POLUS_OFFICE, SND_POLUS_ADMIN, SND_POLUS_COMMUNICATIONS, SND_POLUS_OXYGEN,
+	SND_POLUS_ELECTRICAL, SND_POLUS_STORAGE, SND_POLUS_LABORATORY, SND_POLUS_DECONTAMINATION,
+	SND_POLUS_SPECIMEN, SND_POLUS_SEISMIC, SND_POLUS_OUTSIDE
 };
 
 void run_learn_sounds_screen() {

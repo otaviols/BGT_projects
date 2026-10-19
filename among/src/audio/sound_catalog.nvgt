@@ -74,6 +74,21 @@ const string SND_AMBIENT_OXYGEN = "sounds/ambience/ambient_oxygen.ogg";
 // fazer notar, mas sem virar mascara - ambiencia alta demais esconderia passos e faria da sala um
 // esconderijo por acidente de mixagem, e nao por decisao de projeto.
 const string SND_AMBIENT_ENGINE = "sounds/ambience/ambient_engine.ogg";
+// Polus (a 1.0, ver notes/versao-1.0.md). Vêm da leva do jogo original, convertidos JÁ no volume das
+// salas da nave (média de -33 dB; os de sala calma em -35, o sismógrafo em -31 e o lado de fora, que
+// é vento, em -30) - medidos na conversão, e não corrigidos depois em ambience_correction_db.
+const string SND_POLUS_DROPSHIP = "sounds/ambience/polus_dropship.ogg";
+const string SND_POLUS_OFFICE = "sounds/ambience/polus_office.ogg";
+const string SND_POLUS_ADMIN = "sounds/ambience/polus_admin.ogg";
+const string SND_POLUS_COMMUNICATIONS = "sounds/ambience/polus_communications.ogg";
+const string SND_POLUS_OXYGEN = "sounds/ambience/polus_oxygen.ogg";
+const string SND_POLUS_ELECTRICAL = "sounds/ambience/polus_electrical.ogg";
+const string SND_POLUS_STORAGE = "sounds/ambience/polus_storage.ogg";
+const string SND_POLUS_LABORATORY = "sounds/ambience/polus_laboratory.ogg";
+const string SND_POLUS_DECONTAMINATION = "sounds/ambience/polus_decontamination.ogg";
+const string SND_POLUS_SPECIMEN = "sounds/ambience/polus_specimen.ogg";
+const string SND_POLUS_SEISMIC = "sounds/ambience/polus_seismic.ogg";
+const string SND_POLUS_OUTSIDE = "sounds/ambience/polus_outside.ogg";
 
 // --- Objetos do mapa (som de UMA VEZ ao usar - abrir painel, entrar/sair do vent) ---
 const string SND_VENT_DOOR_1 = "sounds/world/vent_door1.ogg";
@@ -273,6 +288,7 @@ int footstep_variant_count(const string&in floor_prefix) {
 	if (floor_prefix == "VentTile") return 4;
 	if (floor_prefix == "O2Tile") return 8;
 	if (floor_prefix == "ConcreteTile") return 6;
+	if (floor_prefix == "SnowTile") return 7;
 	// O fallback é baixo de propósito: piso sem entrada aqui toca só duas variantes e fica
 	// repetitivo rápido, que é como se percebe o esquecimento. Piso novo entra NAS DUAS listas -
 	// esta e FOOTSTEP_FLOOR_PREFIXES, logo abaixo -, senão os arquivos que sobram nunca são tocados
@@ -294,7 +310,10 @@ const array<string> FOOTSTEP_FLOOR_PREFIXES = {
 	// chão vale mais do que fidelidade temática. Era VIDRO, e saiu: os arquivos eram baixos demais para
 	// qualquer ganho salvar (o usuário apagou o vidro e o carpete pelo mesmo motivo e não achou vidro
 	// melhor). Concreto no lugar, que nada mais no mapa usa.
-	"ConcreteTile"
+	"ConcreteTile",
+	// O lado de fora do Polus (a 1.0): os caminhos de neve entre os prédios. É o passo que diz "estou
+	// fora" - os arquivos esperavam no repositório por uma sala de neve desde antes do Polus.
+	"SnowTile"
 };
 
 // Extensão do arquivo de passo de cada piso. Hoje são todos .ogg, mas a função continua existindo
@@ -320,6 +339,11 @@ string footstep_variant_extension(const string&in floor_prefix) {
 //
 // Nenhuma correção chega perto de estourar: o pico mais alto depois do ajuste fica em torno de -7 dB.
 float footstep_volume_db(const string&in floor_prefix) {
+	// Neve (o lado de fora do Polus): a medição pede +9,3 (corpo -38,0 dB contra -28,8 do MetalTile) e o
+	// ruído de fundo aguenta (-63 + 7,5 = -55,5 dBFS). +7,5, e não a conta inteira: a conta sempre
+	// exagerou (o Tile pedia +17,6 e ficou +15). A conferir de ouvido no Conhecer o mapa - lá fora toca o
+	// vento junto (polus_outside, a -30 dB, o ambiente mais alto do Polus).
+	if (floor_prefix == "SnowTile") return 7.5;
 	// O Tile NÃO leva correção: o arquivo dele é o antigo, de antes da troca de sons, e ele já nasce
 	// no nível dos outros (corpo -30,9 dB, contra -29,7 do MetalTile). Os +15 dB que existiram aqui
 	// eram muleta para o arquivo novo, que vinha 14 dB mais baixo - e o arquivo novo foi descartado
@@ -457,6 +481,18 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_DISTRIBUTOR_CORRECT);
 	list.insert_last("sounds/" + SND_DISTRIBUTOR_WRONG);
 	list.insert_last(SND_AMBIENT_GAMES);
+	list.insert_last(SND_POLUS_DROPSHIP);
+	list.insert_last(SND_POLUS_OFFICE);
+	list.insert_last(SND_POLUS_ADMIN);
+	list.insert_last(SND_POLUS_COMMUNICATIONS);
+	list.insert_last(SND_POLUS_OXYGEN);
+	list.insert_last(SND_POLUS_ELECTRICAL);
+	list.insert_last(SND_POLUS_STORAGE);
+	list.insert_last(SND_POLUS_LABORATORY);
+	list.insert_last(SND_POLUS_DECONTAMINATION);
+	list.insert_last(SND_POLUS_SPECIMEN);
+	list.insert_last(SND_POLUS_SEISMIC);
+	list.insert_last(SND_POLUS_OUTSIDE);
 	list.insert_last(SND_AMBIENT_GREENHOUSE);
 	list.insert_last(SND_AMBIENT_SECURITY);
 	list.insert_last(SND_AMBIENT_OXYGEN);

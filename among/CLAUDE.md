@@ -543,11 +543,6 @@ que o binário sobe.
   de recados copiada aqui envelhece e passa a ser lida como pendência depois de atendida (foi o que
   aconteceu: ela listava como abertos pedidos já resolvidos). Aqui só entra o que foi DECIDIDO e
   ainda não foi feito.
-- **Sons sem uso, de propósito** (o `check_sounds` os lista a cada execução; não são lixo):
-  `steps/SnowTile*` é piso que o mapa ainda não tem - quando houver uma sala de neve, ele entra em
-  `FOOTSTEP_FLOOR_PREFIXES` e na tabela de variantes
-  (ver "piso novo entra em DUAS tabelas"). É a única sobra hoje - o `nearbeep.wav` virou o
-  `ui/target_in_range.ogg` e está em uso.
 - **O som por COR nunca vai ser encontrado no jogo compilado.** `color_death_sound_path` e
   `color_kill_sound_path` (`config/colors.nvgt`) escolhem o arquivo específico da cor com
   `file_exists("sounds/colors/...")` - e no build distribuído os sons vivem dentro do `sounds.dat`,

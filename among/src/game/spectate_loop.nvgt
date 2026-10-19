@@ -124,7 +124,7 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 	float velocidade_da_sala = start_pkt.get_float("room_move_speed", 2.2);
 	float step_length = velocidade_da_sala * footstep_interval_for(velocidade_da_sala);
 
-	audio.start_ship_ambience();
+	audio.start_ship_ambience(map.ship_ambience);
 	audio.start_room_ambience(map);
 	string abertura = tr("spectate.start") + " " + spectate_where_text(map, roster.find(seguindo));
 	speak(abertura);

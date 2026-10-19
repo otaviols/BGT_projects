@@ -22,8 +22,12 @@ void main() {
 	if (!directory_exists("lang")) chdir("..");
 	g_i18n.load_language("pt_BR");
 
-	for (uint i = 0; i < MAP_IDS.length(); i++) {
-		string id = MAP_IDS[i];
+	// Os publicados E os em construção: um mapa em teste é ouvido pelo usuário no Conhecer o mapa, e tem
+	// que estar de pé antes disso.
+	array<string> todos = MAP_IDS;
+	for (uint i = 0; i < MAP_IDS_IN_TEST.length(); i++) todos.insert_last(MAP_IDS_IN_TEST[i]);
+	for (uint i = 0; i < todos.length(); i++) {
+		string id = todos[i];
 		println("== " + id + " ==");
 		game_map@ m = build_map(id);
 		confere("monta com o proprio nome", m.name == id);
@@ -48,6 +52,54 @@ void main() {
 			if (tr("task." + tipos[t] + ".name") == "task." + tipos[t] + ".name") { todas = false; println("    sem nome: " + tipos[t]); }
 		}
 		confere("toda tarefa do mapa tem minijogo e nome (" + tipos.length() + " tipos)", todas);
+
+		// Duas zonas sobrepostas fazem o jogo dizer a sala errada, conforme qual for achada primeiro.
+		uint sobre = 0;
+		for (uint a = 0; a < m.zones.length(); a++) for (uint b = a + 1; b < m.zones.length(); b++) {
+			map_zone@ za = m.zones[a];
+			map_zone@ zb = m.zones[b];
+			bool x = za.center_x + za.half_w > zb.center_x - zb.half_w && zb.center_x + zb.half_w > za.center_x - za.half_w;
+			bool y = za.center_y + za.half_h > zb.center_y - zb.half_h && zb.center_y + zb.half_h > za.center_y - za.half_h;
+			if (x && y) { sobre++; println("    sobrepostas: " + za.id + " e " + zb.id); }
+		}
+		confere("nenhuma zona sobre outra", sobre == 0);
+		// Todo nome de zona falado existe.
+		bool nomes = true;
+		for (uint z = 0; z < m.zones.length(); z++)
+			if (tr(m.zones[z].name_key) == m.zones[z].name_key) { nomes = false; println("    zona sem nome: " + m.zones[z].id); }
+		confere("toda zona tem nome falado", nomes);
+		// Todo objeto fica dentro da sala que diz ser a dele.
+		bool dentro = true;
+		for (uint o = 0; o < m.objects.length(); o++) {
+			map_object@ ob = m.objects[o];
+			map_zone@ z = m.find_zone(ob.room_id);
+			if (@z == null || !z.contains(ob.x, ob.y)) { dentro = false; println("    fora da sala: " + ob.id + " (" + ob.room_id + ")"); }
+		}
+		confere("todo objeto fica dentro da propria sala", dentro);
+		// Toda zona é alcançável a partir da sala de começo pelo grafo dos bots, e cada ligação do grafo é
+		// andável em linha reta de centro a centro - é assim que o bot anda (ver zone_path).
+		bool alcanca = true;
+		for (uint z = 0; z < m.zones.length(); z++) {
+			if (m.zones[z].id == m.start_room) continue;
+			if (m.zone_path(m.start_room, m.zones[z].id).length() == 0) { alcanca = false; println("    inalcancavel: " + m.zones[z].id); }
+		}
+		confere("toda zona e alcancavel a partir do comeco", alcanca);
+		bool retas = true;
+		for (uint z = 0; z < m.zones.length(); z++) {
+			map_zone@ za = m.zones[z];
+			array<string>@ viz = m.zone_neighbors(za.id);
+			for (uint v = 0; v < viz.length(); v++) {
+				map_zone@ zb = m.find_zone(viz[v]);
+				for (int passo = 0; passo <= 20; passo++) {
+					float t = float(passo) / 20.0;
+					float px = za.center_x + (zb.center_x - za.center_x) * t, py = za.center_y + (zb.center_y - za.center_y) * t;
+					if (@m.zone_at(px, py) == null) { retas = false; println("    buraco entre " + za.id + " e " + zb.id); break; }
+				}
+			}
+		}
+		confere("toda ligacao entre zonas e andavel em linha reta", retas);
+		// Toda sabotagem do mapa tem painel de conserto (é a lista que o impostor recebe).
+		confere("sabotagens do mapa: " + join(m.sabotages(), ", "), m.sabotages().length() > 0);
 	}
 
 	println("== a sala ==");
@@ -57,6 +109,11 @@ void main() {
 	bool mudou = c.validate();
 	confere("mapa que nao existe vira o padrao", mudou && c.map_name == MAP_THE_HUB);
 	confere("a nave de sempre nao exige protocolo novo", c.required_protocol() < MAPS_PROTOCOL);
+	// Mapa em construção não existe para a sala: só o Conhecer o mapa e o treino o oferecem.
+	lobby_config t;
+	t.map_name = MAP_POLUS;
+	t.validate();
+	confere("o servidor nao aceita mapa em construcao (" + t.map_name + ")", t.map_name == MAP_THE_HUB);
 	lobby_overrides ov;
 	ov.map = MAP_THE_HUB;
 	net_packet@ pkt = net_packet("teste");

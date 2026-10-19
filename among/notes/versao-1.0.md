@@ -98,16 +98,40 @@ versões alternativas do mesmo som.
   nascer dentro dela com o raio inteiro em chão, mesa num lugar onde se pisa, e toda tarefa com minijogo
   (`TASK_MINIGAME_TYPES`, em `task_manager.nvgt` - tipo novo entra na lista E no `else if`).
 
+## O Polus hoje (2026-10-19)
+
+**Planta aprovada e montada** (`build_polus_map`): nave de pouso (começo, mesa e botão), escritório,
+administração, comunicações, armas, O2, elétrica, depósito, sismógrafo, laboratório, descontaminação e a
+sala dos espécimes atrás dela - ligados por nove caminhos de NEVE (o lado de fora, `SnowTile` a +7,5 dB,
+com o vento `polus_outside` em cada caminho) e dois corredores internos. Duas redes de duto. Ambientes da
+leva convertidos no volume das salas. **Em construção:** fica em `MAP_IDS_IN_TEST` - o servidor não o
+aceita, e o Conhecer o mapa e o treino o oferecem quando a pasta do jogo tem o `mapas_em_teste.txt` (com
+algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os jogadores.
+
+Falta, na ordem combinada:
+- **as tarefas do Polus**, uma por vez pela receita (maquete ouvida antes de código) - as de hoje são
+  provisórias, as da nave que fazem sentido lá (fios, download, asteroides, filtro de O2);
+- **o sismógrafo** (a sabotagem crítica, dois painéis, duas pessoas) - até lá o Polus não tem crítica;
+- **as portas com minijogo** e **a descontaminação que prende quem passa** (decisão do usuário: fica);
+- **câmeras** - o Polus ainda não tem posto.
+
+**As sabotagens agora são do MAPA** (`game_map.sabotages()`, as que têm painel): o menu do impostor, o
+servidor (`trigger_sabotage`), os bots e o treino perguntam ao mapa. Sem isso o Polus ofereceria o
+oxigênio, que não tem painel lá - sabotagem sem conserto, vitória de graça. **O som geral também**
+(`game_map.ship_ambience`): o zumbido da nave é da nave; o Polus não tem um. **E a sala de começo** é
+dita à parte no Conhecer o mapa (o `explore.intro` deixou de dizer "cafeteria", nos cinco idiomas).
+
+`probe_maps` passa no Polus: além do que já conferia, agora pega zona sobre zona, objeto fora da sala
+dele, zona inalcançável pelos bots e ligação com buraco no meio - os quatro erros que uma planta nova
+comete calada.
+
 ## Como um mapa novo entra
 
-1. `build_<mapa>_map()` em `game/map.nvgt` com `name`, `start_room`, `spawn_*`, `gather_*`, salas,
-   corredores, objetos; uma linha em `build_map`; o id em `MAP_IDS`; `map.<id>.name` em pt_BR e en_US.
+1. `build_<mapa>_map()` em `game/map.nvgt` com `name`, `start_room`, `spawn_*`, `gather_*`,
+   `ship_ambience`, salas, corredores, objetos; uma linha em `build_map`; o id em `MAP_IDS_IN_TEST`
+   enquanto se constrói e em `MAP_IDS` quando sair; `map.<id>.name` em pt_BR e en_US.
 2. `probe_maps` passando.
-3. O que ainda é da nave de sempre e precisa virar do mapa quando Polus chegar:
-   - **o ambiente geral** (`audio.start_ship_ambience`, um som só para a nave inteira) - Polus tem o
-     exterior com vento e neve, que é outra coisa;
-   - **o texto `explore.intro`**, que diz "Você está na cafeteria" - vira `{room}`, e como é chave que
-     muda de texto, muda nos cinco idiomas (regra das traduções);
+3. O que ainda falta resolver por mapa:
    - **aprender os sons**, que talvez se divida por mapa (os ambientes e os marcadores de tarefa de cada
      um) - pedido do usuário, a decidir junto com os sons de Polus;
    - **os bots e o modo gráfico** já leem o mapa, mas só foram testados na nave de sempre.
