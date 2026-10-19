@@ -201,7 +201,10 @@ void run_explore_map_screen() {
 		if (action_pressed(ACTION_INTERACT)) {
 			map_object@ obj = nearest_object(map, my_x, my_y);
 			if (@obj != null && obj.obj_type == OBJ_TASK_SPOT && obj.task_type != "") {
+				// Os marcadores calam com a tarefa aberta, como na partida (ver action_keys).
+				audio.stop_landmark_beacons();
 				bool ok = run_task_minigame(offline, obj.task_type, explore_phase_of(map, obj));
+				audio.start_landmark_beacons(map, all_task_ids, BEACON_ALL_PANELS);
 				speak(tr(ok ? "practice.done" : "practice.not_done"));
 				frame_clock.tick(); // o tempo da minigame não vira um passo
 			} else if (@obj != null && obj.obj_type == OBJ_SABOTAGE_PANEL) {
@@ -209,7 +212,9 @@ void run_explore_map_screen() {
 				// oxigênio vem do servidor na partida; aqui é sorteado, como no treino de reparos.
 				string codigo = "";
 				for (uint i = 0; i < 5; i++) codigo += "" + random(0, 9);
+				audio.stop_landmark_beacons();
 				bool ok = run_sabotage_panel(offline, obj.task_type, codigo, obj.id);
+				audio.start_landmark_beacons(map, all_task_ids, BEACON_ALL_PANELS);
 				speak(tr(ok ? "practice.done" : "practice.not_done"));
 				frame_clock.tick();
 			} else if (@obj != null && obj.obj_type == OBJ_VENT) {
