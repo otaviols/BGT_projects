@@ -109,8 +109,11 @@ aceita, e o Conhecer o mapa e o treino o oferecem quando a pasta do jogo tem o `
 algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os jogadores.
 
 Falta, na ordem combinada:
-- **as tarefas do Polus**, uma por vez pela receita (maquete ouvida antes de código). Feita: **o nó do
-  clima** (2026-10-19, ver tarefas-novas.md). As outras ainda são provisórias, as da nave que fazem
+- **as tarefas do Polus**, uma por vez pela receita (maquete ouvida antes de código). Feitas: **o nó do
+  clima** (2026-10-19, ver tarefas-novas.md) e **inserir as chaves**, a tarefa COMUM do Polus (um ponto
+  só, na nave de pouso, como o cartão na nave; `COMMON_TASK_TYPES` sorteia por tipo, e o tipo sem ponto
+  no mapa não sai). As maquetes ficam na pasta de teste do usuário
+  (`C:\apto10\acer\documents\Among Us - teste do Polus`), junto do jogo de teste. As outras ainda são provisórias, as da nave que fazem
   sentido lá (fios, download, asteroides, filtro de O2);
 - **o sismógrafo** (a sabotagem crítica, dois painéis, duas pessoas) - até lá o Polus não tem crítica;
 - **as portas com minijogo** e **a descontaminação que prende quem passa** (decisão do usuário: fica);

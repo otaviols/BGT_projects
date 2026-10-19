@@ -391,7 +391,9 @@ const array<string> LONG_TASK_TYPES = {"calibrate_distributor", "fuel_engines",
 
 // Tarefas COMUNS: iguais para todo tripulante, no mesmo ponto do mapa. São a ferramenta de dedução
 // mais barata do jogo - quem diz ter feito uma comum que você não tem está mentindo.
-const array<string> COMMON_TASK_TYPES = {"swipe_card"};
+// Uma por mapa, cada uma num ponto só dele: o cartão na nave, as chaves no Polus. O sorteio é por tipo
+// (ver on_start_game), e um tipo sem ponto no mapa simplesmente não sai.
+const array<string> COMMON_TASK_TYPES = {"swipe_card", "insert_keys"};
 // Chance de CADA task comum entrar na partida. Não é 100% de propósito: a graça está justamente em
 // não saber de antemão, senão a desculpa nunca seria testável.
 const float COMMON_TASK_CHANCE = 0.5;

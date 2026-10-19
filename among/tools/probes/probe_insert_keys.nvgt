@@ -1,0 +1,64 @@
+// Sonda de inserir as chaves (Polus): Enter na fechadura errada não acaba a tarefa, e andar até a acesa,
+// enfiar e girar a termina - com as teclas apertadas de DENTRO do laço do minijogo.
+//   nvgt tools/probes/probe_insert_keys.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/game/map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 6000) exit(1);
+	if (passo >= roteiro.length() || quadro < 200) return;
+	if (quadro % 60 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 60 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+void roda(array<int>@ teclas) { roteiro = teclas; passo = 0; quadro = 0; }
+
+void main() {
+	show_window("sonda: chaves");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	println("== a tarefa ==");
+	// A acesa é a quarta (índice 3); a chave começa na do meio (2).
+	g_keyhole_next = 3;
+	array<int> errado_e_certo = {KEY_RETURN, KEY_RIGHT, KEY_RETURN, KEY_UP};
+	roda(errado_e_certo);
+	bool ok = run_insert_keys_task(c);
+	confere("Enter na errada nao acaba; andar, enfiar e girar termina", ok && passo == errado_e_certo.length());
+
+	// Girar antes de enfiar não faz nada: só a seta para cima, sozinha, não termina a tarefa.
+	g_keyhole_next = 1;
+	array<int> so_gira = {KEY_UP, KEY_UP, KEY_ESCAPE};
+	roda(so_gira);
+	bool ok2 = run_insert_keys_task(c);
+	confere("girar sem a chave enfiada nao abre", !ok2);
+
+	println("== no mapa ==");
+	confere("e tarefa comum", task_is_common("insert_keys"));
+	game_map@ polus = build_map(MAP_POLUS);
+	uint pontos = 0;
+	for (uint i = 0; i < polus.objects.length(); i++) if (polus.objects[i].task_type == "insert_keys") pontos++;
+	confere("um ponto so, no Polus (" + pontos + ")", pontos == 1);
+	game_map@ nave = build_map(MAP_THE_HUB);
+	uint na_nave = 0;
+	for (uint i = 0; i < nave.objects.length(); i++) if (nave.objects[i].task_type == "insert_keys") na_nave++;
+	confere("e nenhum na nave de sempre", na_nave == 0);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

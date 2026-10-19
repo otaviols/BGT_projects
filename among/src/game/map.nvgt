@@ -936,6 +936,10 @@ game_map@ build_polus_map() {
 	m.objects.insert_last(map_object("panel_comms_admin", "sabotage.comms.name", 27, -25, "admin",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "comms", "", SND_PANEL_BEACON_COMMS));
 
+	// Inserir as chaves: a tarefa COMUM do Polus, num ponto só, na nave de pouso (como o cartão na nave).
+	m.objects.insert_last(map_object("task_keys_dropship", "task.insert_keys.name", -5, -53, "dropship",
+		OBJ_TASK_SPOT, "sounds/" + SND_KEY_GRAB, "insert_keys", "", SND_TASK_BEACON_INSERT_KEYS));
+
 	// Botão de emergência, na nave de pouso, onde a reunião se junta.
 	m.objects.insert_last(map_object("emergency_button", "game.emergency_meeting_called", 0, -47, "dropship",
 		OBJ_EMERGENCY_BUTTON, "", "", "", SND_BUTTON_BEACON));

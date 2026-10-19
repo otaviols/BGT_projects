@@ -132,6 +132,9 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	// DENTRO do minijogo, e se aprendem no treino, como os das outras tarefas.
 	SND_TASK_BEACON_WEATHER_NODE, "sounds/" + SND_WEATHER_NODE_MOVE, "sounds/" + SND_WEATHER_NODE_START,
 	"sounds/" + SND_WEATHER_SWITCH,
+	// As chaves: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
+	SND_TASK_BEACON_INSERT_KEYS, "sounds/" + SND_KEY_GRAB, "sounds/" + SND_KEY_INSERT, "sounds/" + SND_KEY_TURN,
+	"sounds/" + SND_KEYS_OPEN,
 	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
 	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
 	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",

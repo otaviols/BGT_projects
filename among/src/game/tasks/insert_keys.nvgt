@@ -1,0 +1,79 @@
+// insert_keys.nvgt
+// Inserir as chaves (Polus, a 1.0): a tarefa COMUM do Polus, como o cartão é a da nave - um ponto só,
+// na nave de pouso, e quem a tem a faz no mesmo lugar (é o que a torna verificável na reunião).
+//
+// No original há uma fileira de fechaduras e uma delas está acesa: pega-se a chave, enfia-se na acesa e
+// gira-se. Para o ouvido (maquete aprovada pelo usuário em 2026-10-19):
+//   - cinco fechaduras, da esquerda para a direita;
+//   - a ACESA pisca: um bipe grave e curto, no lado dela, de tempos em tempos. Estalo, e não zumbido -
+//     som contínuo não se localiza (ver notes/tarefas-novas.md);
+//   - a chave começa no meio, e as setas para os lados a levam de fechadura em fechadura, com um clique
+//     no lado de onde ela está. A decisão é ouvir quando o lado da chave e o do bipe são o mesmo;
+//   - Enter enfia: na errada, a chave bate e toca o erro, e continua-se; na certa, o bipe para;
+//   - seta para cima gira, e a tranca abre.
+// Curta de propósito: tarefa comum tem que ser rápida, como o cartão.
+
+#include "task_common.nvgt"
+
+const array<float> KEYHOLE_PANS = {-0.9, -0.45, 0.0, 0.45, 0.9};
+const int KEY_START = 2; // a chave começa no meio
+const uint KEYHOLE_PULSE_MS = 800;
+
+// A fechadura acesa da próxima vez, no lugar do sorteio (-1 = sortear). Só a sonda preenche
+// (probe_insert_keys), para saber para onde andar. Usado uma vez e zerado.
+int g_keyhole_next = -1;
+
+bool run_insert_keys_task(game_client@ client) {
+	speak_hint("task.insert_keys.instructions");
+	// Nunca a do meio, onde a chave já está: sem andar não haveria o que ouvir.
+	int acesa = g_keyhole_next;
+	g_keyhole_next = -1;
+	if (acesa < 0) {
+		array<int> lados = {0, 1, 3, 4};
+		acesa = lados[random(0, 3)];
+	}
+	int chave = KEY_START;
+	if (!task_wait(600, client)) return false;
+	task_sound(SND_KEY_GRAB, pan_from_linear(KEYHOLE_PANS[chave]));
+	timer pulso;
+	bool primeiro = true;
+
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		if (primeiro || pulso.elapsed >= int(KEYHOLE_PULSE_MS)) {
+			primeiro = false;
+			pulso.restart();
+			task_sound(SND_BEEP, pan_from_linear(KEYHOLE_PANS[acesa]), 80.0);
+		}
+		// Cada tecla lida UMA vez (ver CLAUDE.md).
+		bool esq = key_pressed(KEY_LEFT), dir = key_pressed(KEY_RIGHT), enter = key_pressed(KEY_RETURN);
+		if (esq || dir) {
+			int nova = chave + (dir ? 1 : -1);
+			if (nova >= 0 && nova < int(KEYHOLE_PANS.length())) chave = nova;
+			task_sound(SND_KEY_GRAB, pan_from_linear(KEYHOLE_PANS[chave])); // na ponta, o clique no mesmo lugar diz que não há mais
+			continue;
+		}
+		if (!enter) continue;
+		task_sound(SND_KEY_INSERT, pan_from_linear(KEYHOLE_PANS[chave]));
+		if (chave != acesa) {
+			if (!task_wait(150, client)) return false;
+			task_sound(SND_CARD_ERROR);
+			continue;
+		}
+		break; // entrou: o bipe para
+	}
+
+	// Girar: a seta para cima. Qualquer outra tecla não faz nada - a chave já está no lugar.
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		if (!key_pressed(KEY_UP)) continue;
+		if (!wait_for_task_sound(task_sound(SND_KEY_TURN, pan_from_linear(KEYHOLE_PANS[acesa])), client)) return false;
+		wait_for_task_sound(task_sound(SND_KEYS_OPEN), client, 2000);
+		return true;
+	}
+	return false;
+}
