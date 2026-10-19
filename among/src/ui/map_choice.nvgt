@@ -10,9 +10,7 @@
 // jogo tiver o MAPS_IN_TEST_FLAG. Lido por file_get_contents, e não file_exists: no Android "existe?" e
 // "dá para ler?" discordam (ver CLAUDE.md) - um arquivo vazio também liga, então se escreve algo nele.
 array<string>@ offered_map_ids() {
-	array<string> r = MAP_IDS;
-	if (file_get_contents(MAPS_IN_TEST_FLAG) != "") for (uint i = 0; i < MAP_IDS_IN_TEST.length(); i++) r.insert_last(MAP_IDS_IN_TEST[i]);
-	return r;
+	return usable_map_ids();
 }
 
 // O id escolhido, ou "" se a pessoa saiu com Esc.

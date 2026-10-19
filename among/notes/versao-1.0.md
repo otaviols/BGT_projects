@@ -155,6 +155,15 @@ algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os
 - **Portas só em sete salas**, como no original (`lockable_rooms`): comunicações, elétrica, laboratório,
   escritório, O2, depósito e armas.
 
+**Como testar antes de lançar, sem publicar nada:** um servidor de TESTE com o arquivo
+`mapas_em_teste.txt` ao lado dele, que o faz aceitar os mapas em construção (`maps_in_test_enabled`; o
+oficial, sem o arquivo, continua recusando). O local está montado em
+`C:\apto10\acer\documents\Among Us - servidor de teste` (o servidor de Windows, `nvgt -c -pwindows
+server_main.nvgt`, com dois atalhos para ligar e desligar - ele roda sem janela, e o banco de contas é dele),
+e a pasta de teste do usuário aponta para ele com um `server.txt` ("127.0.0.1"; apagar volta ao oficial).
+Ali o usuário joga sozinho com bots, ou com dois jogos abertos. Para testar COM GENTE, a ideia combinada
+(2026-10-19) é um segundo servidor na VPS, numa porta separada, com o mesmo arquivo - ainda por montar.
+
 **Falta antes de lançar:**
 - liberar o mapa (`MAP_IDS_IN_TEST` -> `MAP_IDS`). O aprender os sons JÁ é por mapa (pergunta o mapa,
   e a parte do mapa sai do próprio mapa - `learn_sounds_collection`);

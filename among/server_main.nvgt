@@ -20,5 +20,7 @@ void main() {
 		return;
 	}
 	println("Servidor rodando na porta " + DEFAULT_SERVER_PORT + "...");
+	// Servidor de TESTE: com o arquivo de mapas em teste ao lado, ele aceita os mapas em construção.
+	if (maps_in_test_enabled()) println("Mapas em teste ACEITOS (" + MAPS_IN_TEST_FLAG + " presente): este nao e o servidor oficial.");
 	server.run();
 }

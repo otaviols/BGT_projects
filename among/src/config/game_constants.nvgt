@@ -120,7 +120,7 @@ const int MAPS_PROTOCOL = 15;
 const string MAP_THE_HUB = "the_hub";
 const string MAP_POLAR_BASE = "polar_base";
 const array<string> MAP_IDS = {MAP_THE_HUB};
-// Mapas EM CONSTRUÇÃO: o servidor não os aceita (map_exists olha só MAP_IDS), mas o Conhecer o mapa e o
+// Mapas EM CONSTRUÇÃO: o servidor oficial não os aceita (map_exists, sem o arquivo de teste), mas o Conhecer o mapa e o
 // treino os oferecem quando a pasta do jogo tem o arquivo MAPS_IN_TEST_FLAG (ver offered_map_ids). É
 // como o mapa novo é ouvido antes de existir para os jogadores. Pronto, o id passa para MAP_IDS.
 const array<string> MAP_IDS_IN_TEST = {MAP_POLAR_BASE};
@@ -129,7 +129,24 @@ const string MAPS_IN_TEST_FLAG = "mapas_em_teste.txt";
 // "task.fix_weather_node.node.<lugar>". O mapa e o minijogo leem a mesma lista - é ela que o painel do
 // laboratório mostra, um interruptor por nó (ver tasks/fix_weather_node.nvgt).
 const array<string> POLAR_BASE_WEATHER_NODES = {"dropship", "west", "oxygen", "storage_west", "seismic", "south"};
-bool map_exists(const string&in id) { return MAP_IDS.find(id) >= 0; }
+// O arquivo de mapas em teste está aqui (na pasta do jogo, ou ao lado do servidor)? No CLIENTE ele faz o
+// treino, o Conhecer o mapa e o formulário da sala oferecerem os mapas em construção; no SERVIDOR, faz
+// ele aceitá-los - é como se monta um servidor de TESTE (local, ou outro na VPS) sem que o oficial os
+// aceite. Lido por file_get_contents, e não file_exists (no Android eles discordam - ver CLAUDE.md); um
+// arquivo vazio não liga, então se escreve algo nele.
+bool maps_in_test_enabled() { return file_get_contents(MAPS_IN_TEST_FLAG) != ""; }
+
+// Os mapas que valem aqui: os publicados, e os em teste se o arquivo estiver presente.
+array<string>@ usable_map_ids() {
+	array<string> r = MAP_IDS;
+	if (maps_in_test_enabled()) for (uint i = 0; i < MAP_IDS_IN_TEST.length(); i++) r.insert_last(MAP_IDS_IN_TEST[i]);
+	return r;
+}
+
+bool map_exists(const string&in id) {
+	if (MAP_IDS.find(id) >= 0) return true;
+	return MAP_IDS_IN_TEST.find(id) >= 0 && maps_in_test_enabled();
+}
 string map_name_key(const string&in id) { return "map." + id + ".name"; }
 float move_speed_for_percent(int percent) { return PLAYER_MOVE_SPEED * float(percent) / 100.0; }
 const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servidor (anti-cheat simples)

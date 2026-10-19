@@ -139,12 +139,15 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	// O mapa, logo depois do modo: é a primeira coisa que muda o jogo. Com um mapa só o campo não existe
 	// (seria uma pergunta de uma resposta, e um controle a menos no teto de 50 do audio_form).
 	int f_map = -1;
-	if (MAP_IDS.length() > 1) {
+	// Os mapas em teste entram aqui com o arquivo de teste na pasta do jogo - é como se cria uma sala da
+	// Base Polar num servidor de teste (que também precisa do arquivo para aceitá-la).
+	array<string>@ mapas = usable_map_ids();
+	if (mapas.length() > 1) {
 		f_map = f.create_list(tr("lobby.map_field"));
-		string mapa_atual = @current != null && current.exists("map_name") ? string(current["map_name"]) : MAP_IDS[0];
-		for (uint i = 0; i < MAP_IDS.length(); i++) {
-			f.add_list_item(f_map, tr(map_name_key(MAP_IDS[i])), MAP_IDS[i]);
-			if (MAP_IDS[i] == mapa_atual) f.set_list_position(f_map, int(i));
+		string mapa_atual = @current != null && current.exists("map_name") ? string(current["map_name"]) : mapas[0];
+		for (uint i = 0; i < mapas.length(); i++) {
+			f.add_list_item(f_map, tr(map_name_key(mapas[i])), mapas[i]);
+			if (mapas[i] == mapa_atual) f.set_list_position(f_map, int(i));
 		}
 	}
 	// Ajustes finos sobre o preset. TODOS aceitam vazio, e vazio significa "usa o que o preset diz" -
