@@ -139,6 +139,8 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	SND_TASK_BEACON_ALIGN_TELESCOPE, "sounds/" + SND_TELESCOPE_TICK,
 	// A temperatura: o marcador é do Polus em construção, e o botão é de dentro do minijogo.
 	SND_TASK_BEACON_RECORD_TEMPERATURE, "sounds/" + SND_TEMP_BUTTON,
+	// O Wi-Fi: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
+	SND_TASK_BEACON_REBOOT_WIFI, "sounds/" + SND_WIFI_SLIDER, "sounds/" + SND_WIFI_CLOSE, "sounds/" + SND_WIFI_OPEN,
 	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
 	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
 	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",

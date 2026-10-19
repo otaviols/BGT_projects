@@ -69,9 +69,18 @@ void run_explore_map_screen() {
 	audio_manager@ audio = audio_manager();
 
 	// Todos os pontos de task contam como "seus": o objetivo é saber que eles existem e onde ficam.
+	// Um por LUGAR: as duas etapas do Wi-Fi do Polus são dois pontos no mesmo lugar, e os dois marcadores
+	// iguais tocando juntos soariam como um só mais alto e embolado.
 	array<string> all_task_ids;
+	array<map_object@> ja_tocam;
 	for (uint i = 0; i < map.objects.length(); i++) {
-		if (map.objects[i].obj_type == OBJ_TASK_SPOT) all_task_ids.insert_last(map.objects[i].id);
+		map_object@ o = map.objects[i];
+		if (o.obj_type != OBJ_TASK_SPOT) continue;
+		bool repetido = false;
+		for (uint j = 0; j < ja_tocam.length(); j++) if (ja_tocam[j].x == o.x && ja_tocam[j].y == o.y) repetido = true;
+		if (repetido) continue;
+		ja_tocam.insert_last(o);
+		all_task_ids.insert_last(o.id);
 	}
 
 	float my_x = map.spawn_x, my_y = map.spawn_y; // onde toda partida neste mapa começa

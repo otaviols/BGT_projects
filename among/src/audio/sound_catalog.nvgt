@@ -236,6 +236,12 @@ const string SND_TASK_BEACON_ALIGN_TELESCOPE = "sounds/beacons/telescope.ogg";
 // registro é o SND_BEEP da casa - os dois o mesmo, de propósito. O marcador é o botão com um respiro.
 const string SND_TEMP_BUTTON = "tasks/temp_button.ogg";
 const string SND_TASK_BEACON_RECORD_TEMPERATURE = "sounds/beacons/thermometer.ogg";
+// Reiniciar o Wi-Fi (Polus): o entalhe da alavanca, o painel fechando e o Wi-Fi conectando, da leva do
+// original. O marcador é o som de conectar, com um respiro.
+const string SND_WIFI_SLIDER = "tasks/wifi_slider.ogg";
+const string SND_WIFI_CLOSE = "tasks/wifi_close.ogg";
+const string SND_WIFI_OPEN = "tasks/wifi_open.ogg";
+const string SND_TASK_BEACON_REBOOT_WIFI = "sounds/beacons/wifi.ogg";
 const string SND_ASTEROID_FIRE = "tasks/asteroid_fire.ogg"; // cada tiro na task de limpar asteroides
 const uint ASTEROID_HIT_VARIANT_COUNT = 3;                   // asteroid_hit1..3: o acerto, variado para não virar bipe
 string asteroid_hit_sound(int variant_1_based) {
@@ -566,6 +572,10 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_TASK_BEACON_ALIGN_TELESCOPE);
 	list.insert_last("sounds/" + SND_TEMP_BUTTON);
 	list.insert_last(SND_TASK_BEACON_RECORD_TEMPERATURE);
+	list.insert_last("sounds/" + SND_WIFI_SLIDER);
+	list.insert_last("sounds/" + SND_WIFI_CLOSE);
+	list.insert_last("sounds/" + SND_WIFI_OPEN);
+	list.insert_last(SND_TASK_BEACON_REBOOT_WIFI);
 	for (int i = 1; i <= int(ASTEROID_HIT_VARIANT_COUNT); i++) list.insert_last("sounds/" + asteroid_hit_sound(i));
 	list.insert_last("sounds/" + SND_MEDBAY_SCAN);
 	list.insert_last(SND_TASK_BEACON_SUBMIT_SCAN);

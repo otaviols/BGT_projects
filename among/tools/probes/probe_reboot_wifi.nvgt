@@ -1,0 +1,74 @@
+// Sonda de reiniciar o Wi-Fi (Polus): a alavanca desce SEGURANDO a seta (soltar no meio a devolve), sobe
+// do mesmo jeito, e a espera entre as duas etapas é contada.
+//   nvgt tools/probes/probe_reboot_wifi.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/game/map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Um roteiro de SEGURAR: (tecla, quadro em que desce, quadro em que sobe). A tecla fica segurada entre
+// os dois - é o gesto da alavanca.
+int quadro = 0;
+array<int> teclas, desce, sobe;
+void dirige() {
+	quadro++;
+	if (quadro > 6000) exit(1);
+	for (uint i = 0; i < teclas.length(); i++) {
+		if (quadro == desce[i]) simulate_key_down(teclas[i]);
+		if (quadro == sobe[i]) simulate_key_up(teclas[i]);
+	}
+}
+void roda() { quadro = 0; teclas.resize(0); desce.resize(0); sobe.resize(0); }
+void segura(int tecla, int de, int ate) { teclas.insert_last(tecla); desce.insert_last(de); sobe.insert_last(ate); }
+
+void main() {
+	show_window("sonda: wifi");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	println("== a alavanca ==");
+	// Segura um pouco (uns três entalhes), solta - ela volta -, e segura de novo até travar.
+	roda();
+	segura(KEY_DOWN, 100, 220);
+	segura(KEY_DOWN, 600, 2500);
+	uint64 antes = ticks();
+	bool desceu = run_reboot_wifi_task(c, 0);
+	uint64 levou = ticks() - antes;
+	confere("soltar no meio a devolve, e segurar de novo a trava embaixo", desceu);
+	confere("e so travou depois da segunda vez (" + levou + " ms)", levou > 1500);
+	confere("a espera comecou a contar", wifi_wait_left_ms() > 40000);
+
+	roda();
+	segura(KEY_UP, 100, 2000);
+	confere("sem conexao (treino), a subida nao espera e trava em cima", run_reboot_wifi_task(c, 1));
+	confere("e a espera zera", wifi_wait_left_ms() == 0);
+
+	println("== a espera ==");
+	g_wifi_turned_off_at = ticks() - 10000; // desligado há 10 s
+	uint64 falta = wifi_wait_left_ms();
+	confere("10 s depois, faltam ~35 s (" + falta + " ms)", falta > 34000 && falta <= 35000);
+	g_wifi_turned_off_at = ticks() - 46000;
+	confere("passados 45 s, pode religar", wifi_wait_left_ms() == 0);
+	g_wifi_turned_off_at = 0;
+
+	println("== no mapa ==");
+	game_map@ polus = build_map(MAP_POLUS);
+	map_object@ off = polus.find_object("task_wifi_off");
+	map_object@ on = polus.find_object("task_wifi_on");
+	confere("as duas etapas no mesmo lugar", @off != null && @on != null && off.x == on.x && off.y == on.y);
+	confere("so a primeira entra no sorteio", polus.is_chain_start("task_wifi_off") && !polus.is_chain_start("task_wifi_on"));
+	confere("duas etapas", polus.phase_count_of("reboot_wifi") == 2);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

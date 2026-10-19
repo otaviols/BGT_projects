@@ -1,0 +1,98 @@
+// reboot_wifi.nvgt
+// Reiniciar o Wi-Fi (Polus, a 1.0), nas comunicações. No original, puxa-se uma alavanca para baixo e o
+// Wi-Fi desliga; a tarefa só termina VOLTANDO mais tarde e subindo a alavanca de novo. É a única tarefa
+// que obriga a sair e voltar ao mesmo lugar - e para a dedução é ótimo: quem a tem passa duas vezes pelas
+// comunicações, e "eu estava esperando o Wi-Fi" vira um álibi que se confere.
+//
+// Para o ouvido (maquete aprovada pelo usuário em 2026-10-19):
+//   - etapa 1: segura-se a seta para baixo e a alavanca desce em oito cliques, cada um mais grave, até
+//     travar embaixo; soltar antes faz ela voltar para cima;
+//   - a espera: WIFI_REBOOT_SECONDS. A reunião NÃO pausa a conta (como no original); abrir antes diz
+//     quanto falta. A conta é do cliente: o servidor não a confere, e burlar só adianta a própria tarefa;
+//   - etapa 2: de volta, a seta para cima sobe a alavanca em oito cliques mais agudos; no topo, o Wi-Fi
+//     conecta.
+// As duas etapas são DOIS pontos no mesmo lugar (task_wifi_off e task_wifi_on, ver o Polus em map.nvgt):
+// a corrente não aceita o mesmo ponto duas vezes - "o próximo ponto é este mesmo" seria lido como tarefa
+// concluída (ver on_task_result).
+
+#include "task_common.nvgt"
+
+const uint WIFI_REBOOT_SECONDS = 45;
+const int WIFI_NOTCHES = 8;
+const uint WIFI_NOTCH_MS = 180;
+const float WIFI_SEMITONES_PER_NOTCH = 1.5;
+
+// Quando a alavanca desceu (ticks), para a etapa 2 saber quanto falta. Só na memória: quem cai e volta
+// à partida encontra 0, e a espera conta como cumprida - melhor do que prender a tarefa.
+uint64 g_wifi_turned_off_at = 0;
+
+// Quanto falta da espera (ms), 0 = pode religar. Função à parte para a sonda conferir sem esperar.
+uint64 wifi_wait_left_ms() {
+	if (g_wifi_turned_off_at == 0) return 0;
+	uint64 passou = ticks() - g_wifi_turned_off_at;
+	uint64 total = uint64(WIFI_REBOOT_SECONDS) * 1000;
+	return passou >= total ? 0 : total - passou;
+}
+
+sound@ wifi_notch(int notch) {
+	// Entalhe 0 é o topo (mais agudo), WIFI_NOTCHES-1 é o fundo (mais grave).
+	return task_sound(SND_WIFI_SLIDER, 0.0, 100.0 * pow(2.0, -float(notch) * WIFI_SEMITONES_PER_NOTCH / 12.0));
+}
+
+// `offline`: treino e Conhecer o mapa não esperam - lá as duas etapas rodam seguidas.
+bool run_reboot_wifi_task(game_client@ client, uint phase) {
+	bool offline = @client == null || !client.connected;
+	if (phase == 0) {
+		speak_hint("task.reboot_wifi.instructions_off");
+		if (!wifi_move_lever(client, true)) return false;
+		g_wifi_turned_off_at = ticks();
+		wait_for_task_sound(task_sound(SND_WIFI_CLOSE), client, 1500);
+		return true;
+	}
+	uint64 falta = offline ? 0 : wifi_wait_left_ms();
+	if (falta > 0) {
+		dictionary@ p = dictionary();
+		p.set("seconds", "" + ((falta + 999) / 1000));
+		speak(tr("task.reboot_wifi.wait", p));
+		return false;
+	}
+	speak_hint("task.reboot_wifi.instructions_on");
+	if (!wifi_move_lever(client, false)) return false;
+	g_wifi_turned_off_at = 0;
+	wait_for_task_sound(task_sound(SND_WIFI_OPEN), client, 2000);
+	return true;
+}
+
+// Desce (ou sobe) a alavanca enquanto a seta estiver SEGURADA, um entalhe a cada WIFI_NOTCH_MS. Soltar no
+// meio do caminho a devolve ao começo, entalhe por entalhe, e é preciso segurar de novo.
+bool wifi_move_lever(game_client@ client, bool descer) {
+	int tecla = descer ? KEY_DOWN : KEY_UP;
+	int inicio = descer ? 0 : WIFI_NOTCHES - 1;
+	int fim = descer ? WIFI_NOTCHES - 1 : 0;
+	int passo = descer ? 1 : -1;
+	int pos = inicio;
+	timer t;
+	while (true) {
+		wait(5);
+		client.update();
+		if (task_tick(client)) return false;
+		if (key_down(tecla)) {
+			if (t.elapsed < int(WIFI_NOTCH_MS)) continue;
+			t.restart();
+			if (pos == fim) return true; // travou: o último entalhe já tocou
+			pos += passo;
+			wifi_notch(pos);
+			if (pos == fim) {
+				if (!task_wait(WIFI_NOTCH_MS, client)) return false;
+				return true;
+			}
+		} else if (pos != inicio) {
+			// Soltou no meio: a alavanca volta, ligeiro.
+			if (t.elapsed < int(WIFI_NOTCH_MS / 2)) continue;
+			t.restart();
+			pos -= passo;
+			wifi_notch(pos);
+		}
+	}
+	return false;
+}

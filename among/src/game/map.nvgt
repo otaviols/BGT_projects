@@ -942,6 +942,15 @@ game_map@ build_polus_map() {
 	m.objects.insert_last(map_object("task_telescope_laboratory", "task.align_telescope.name", 38, -17, "laboratory",
 		OBJ_TASK_SPOT, "sounds/" + SND_TELESCOPE_TICK, "align_telescope", "", SND_TASK_BEACON_ALIGN_TELESCOPE));
 
+	// Reiniciar o Wi-Fi, nas comunicações: desligar, sair, e voltar depois para religar. Dois pontos no
+	// MESMO lugar, um por etapa (a corrente não aceita o mesmo ponto duas vezes - ver reboot_wifi.nvgt).
+	m.objects.insert_last(map_object("task_wifi_off", "task.reboot_wifi.name", -37, -48, "communications",
+		OBJ_TASK_SPOT, "sounds/" + SND_WIFI_SLIDER, "reboot_wifi", "", SND_TASK_BEACON_REBOOT_WIFI));
+	m.objects.insert_last(map_object("task_wifi_on", "task.reboot_wifi.on_name", -37, -48, "communications",
+		OBJ_TASK_SPOT, "sounds/" + SND_WIFI_SLIDER, "reboot_wifi", "", SND_TASK_BEACON_REBOOT_WIFI));
+	array<string> wifi = {"task_wifi_off", "task_wifi_on"};
+	m.chains.insert_last(task_chain("reboot_wifi", wifi));
+
 	// Inserir as chaves: a tarefa COMUM do Polus, num ponto só, na nave de pouso (como o cartão na nave).
 	m.objects.insert_last(map_object("task_keys_dropship", "task.insert_keys.name", -5, -53, "dropship",
 		OBJ_TASK_SPOT, "sounds/" + SND_KEY_GRAB, "insert_keys", "", SND_TASK_BEACON_INSERT_KEYS));
