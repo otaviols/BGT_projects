@@ -146,7 +146,9 @@ include compila e a task nunca abre), o ponto no `map.nvgt` com beacon, `PRACTIC
 `probe_explore_tasks` acusa), o beacon em
 `ui/onboarding_screens.nvgt` ("Conhecer o mapa"), as constantes **e a lista do build_pack** em
 `audio/sound_catalog.nvgt` (sem a lista, o som não entra no `sounds.dat` e a task fica muda só no
-jogo compilado), as chaves nos DOIS idiomas, e a seção de tarefas dos dois `docs/README_*`. Decida
+jogo compilado), as chaves nos DOIS idiomas, e a seção de tarefas dos dois `docs/README_*`. Tarefa de DUAS etapas leva um marcador
+por ponta, diferentes (o galão e o nó do clima do Polus nasceram com o mesmo nas duas, e de longe não se
+sabia qual era qual - relato do usuário). Decida
 também se ela é longa (`LONG_TASK_TYPES`) - o padrão é curta. Longa é a que PRENDE o jogador por muito
 tempo, numa tela só ou em etapas pela nave (regra do usuário, ver mapa-e-tarefas.md). E se ela posiciona
 um som entre os dois ouvidos, use `pan_from_linear` (`tasks/task_common.nvgt`): o `pan` do NVGT é em

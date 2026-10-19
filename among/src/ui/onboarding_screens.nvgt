@@ -130,7 +130,7 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	SND_POLUS_SPECIMEN, SND_POLUS_SEISMIC, SND_POLUS_OUTSIDE,
 	// O nó do clima: o marcador é do Polus em construção; o clique, o nó ligando e o interruptor são de
 	// DENTRO do minijogo, e se aprendem no treino, como os das outras tarefas.
-	SND_TASK_BEACON_WEATHER_NODE, "sounds/" + SND_WEATHER_NODE_MOVE, "sounds/" + SND_WEATHER_NODE_START,
+	SND_TASK_BEACON_WEATHER_NODE, SND_TASK_BEACON_WEATHER_SWITCH, "sounds/" + SND_WEATHER_NODE_MOVE, "sounds/" + SND_WEATHER_NODE_START,
 	"sounds/" + SND_WEATHER_SWITCH,
 	// As chaves: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
 	SND_TASK_BEACON_INSERT_KEYS, "sounds/" + SND_KEY_GRAB, "sounds/" + SND_KEY_INSERT, "sounds/" + SND_KEY_TURN,
@@ -142,7 +142,7 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	// O Wi-Fi: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
 	SND_TASK_BEACON_REBOOT_WIFI, "sounds/" + SND_WIFI_SLIDER, "sounds/" + SND_WIFI_CLOSE, "sounds/" + SND_WIFI_OPEN,
 	// O galão: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
-	SND_TASK_BEACON_REPLACE_WATER_JUG, "sounds/" + SND_JUG_FULL, "sounds/" + SND_JUG_EMPTY, "sounds/" + SND_JUG_GRAB,
+	SND_TASK_BEACON_REPLACE_WATER_JUG, SND_TASK_BEACON_PICK_WATER_JUG, "sounds/" + SND_JUG_FULL, "sounds/" + SND_JUG_EMPTY, "sounds/" + SND_JUG_GRAB,
 	"sounds/" + SND_JUG_PLACE, "sounds/" + SND_JUG_WATER,
 	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
 	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",

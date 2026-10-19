@@ -909,7 +909,7 @@ game_map@ build_polus_map() {
 	// Trocar o galão: pegar o cheio no depósito e levá-lo ao bebedouro do escritório. A primeira etapa tem
 	// nome próprio, como o abastecer ("pegar um galão cheio, no depósito" diz o que fazer).
 	m.objects.insert_last(map_object("task_jug_storage", "task.replace_water_jug.pick_name", 5, 11, "storage",
-		OBJ_TASK_SPOT, "sounds/" + SND_JUG_GRAB, "replace_water_jug", "", SND_TASK_BEACON_REPLACE_WATER_JUG));
+		OBJ_TASK_SPOT, "sounds/" + SND_JUG_GRAB, "replace_water_jug", "", SND_TASK_BEACON_PICK_WATER_JUG));
 	m.objects.insert_last(map_object("task_jug_office", "task.replace_water_jug.name", -5, -17, "office",
 		OBJ_TASK_SPOT, "sounds/" + SND_JUG_PLACE, "replace_water_jug", "", SND_TASK_BEACON_REPLACE_WATER_JUG));
 	array<string> galao = {"task_jug_storage", "task_jug_office"};
@@ -929,7 +929,7 @@ game_map@ build_polus_map() {
 	array<string> nz = {"corridor_dropship_office", "corridor_office_weapons", "corridor_weapons_oxygen",
 		"corridor_oxygen_storage", "corridor_storage_seismic", "corridor_electrical_seismic"};
 	m.objects.insert_last(map_object("task_weather_switch", "task.fix_weather_node.switch_name", 48, -26, "laboratory",
-		OBJ_TASK_SPOT, "sounds/" + SND_WEATHER_SWITCH, "fix_weather_node", "", SND_TASK_BEACON_WEATHER_NODE));
+		OBJ_TASK_SPOT, "sounds/" + SND_WEATHER_SWITCH, "fix_weather_node", "", SND_TASK_BEACON_WEATHER_SWITCH));
 	for (uint i = 0; i < POLUS_WEATHER_NODES.length(); i++) {
 		string id = "task_weather_" + POLUS_WEATHER_NODES[i];
 		m.objects.insert_last(map_object(id, "task.fix_weather_node.name", nx[i], ny[i], nz[i],
