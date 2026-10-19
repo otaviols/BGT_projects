@@ -658,6 +658,7 @@
   "task.roll_dice.name": "Rolar o dado",
   "task.submit_scan.name": "Fazer o exame médico",
   "task.submit_scan.instructions": "Fique parado no scanner até ele terminar. Quem estiver por perto ouve o exame acontecendo. ESC cancela.",
+  "task.submit_scan.instructions_unheard": "Fique parado no scanner até ele terminar. Nesta sala as tarefas visíveis estão desligadas: ninguém ouve o exame. ESC cancela.",
   "game.visible_task_scan": "{name} está fazendo o exame médico.",
   "game.visible_task_asteroids": "{name} está atirando nos asteroides.",
   "learn.medbay_scan": "Scanner do exame médico (alguém fazendo o exame)",

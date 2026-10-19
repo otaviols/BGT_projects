@@ -260,6 +260,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		death_removes_modifiers = start_pkt.get_bool("death_removes_modifiers", true);
 		step_length = velocidade_da_sala * footstep_interval_for(velocidade_da_sala);
 		room_allows_vents = start_pkt.get_bool("vents_enabled", true);
+		g_room_visible_tasks = start_pkt.get_bool("visible_tasks", true);
 		// Modo de jogo (pega-pega, todos lobos). No pega-pega, quanto o pegador fica parado no começo: a
 		// contagem é feita aqui, e dita a todos - como o relógio da reunião.
 		game_mode = start_pkt.get_string("game_mode", GAME_MODE_CLASSIC);

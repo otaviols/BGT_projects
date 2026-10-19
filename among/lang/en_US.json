@@ -658,6 +658,7 @@
   "task.roll_dice.name": "Roll the dice",
   "task.submit_scan.name": "Submit scan",
   "task.submit_scan.instructions": "Stand still on the scanner until it finishes. Anyone nearby hears the scan happening. ESC cancels.",
+  "task.submit_scan.instructions_unheard": "Stand still at the scanner until it finishes. Visible tasks are off in this room: nobody hears the scan. ESC cancels.",
   "game.visible_task_scan": "{name} is doing the medical scan.",
   "game.visible_task_asteroids": "{name} is shooting asteroids.",
   "learn.medbay_scan": "Medical scanner (someone being scanned)",

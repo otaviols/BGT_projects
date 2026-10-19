@@ -25,7 +25,7 @@ json_object@ jogador(uint64 peer, const string&in nome, float x, float y) {
 }
 
 match_session@ nova_partida(const string&in papel, const string&in par = "", const string&in velocidade = "",
-		const string&in mapa = "", float x = 0.0, float y = 0.0) {
+		const string&in mapa = "", float x = 0.0, float y = 0.0, bool visiveis = true) {
 	game_client@ c = game_client();
 	@c.net = network();
 	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
@@ -36,6 +36,7 @@ match_session@ nova_partida(const string&in papel, const string&in par = "", con
 	inicio.set_float("your_x", x);
 	inicio.set_float("your_y", y);
 	if (mapa != "") inicio.set_string("map_name", mapa);
+	if (!visiveis) inicio.set_bool("visible_tasks", false);
 	inicio.set_float("kill_cooldown_seconds", 25.0);
 	inicio.set_float("sabotage_cooldown_seconds", 10.0);
 	json_array@ ps = json_array();
@@ -446,6 +447,14 @@ void main() {
 	abre.set_bool("closed", false); abre.set_array("zones", zc);
 	camara.handle_packet(abre);
 	confere("e abre pelo pacote de sempre", !camara.map.is_door_closed("decontamination"));
+
+	println("== tarefas visiveis da sala ==");
+	// O exame diz "quem estiver por perto ouve" só se a sala deixa (o S_GAME_START traz a regra).
+	nova_partida(ROLE_CREWMATE);
+	confere("por padrao, as tarefas visiveis estao ligadas", g_room_visible_tasks);
+	nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, false);
+	confere("desligadas na sala: o exame sabe", !g_room_visible_tasks);
+	g_room_visible_tasks = true;
 
 	println("== incendiario: quem falta ==");
 	match_session@ fogo = nova_partida(ROLE_ARSONIST);

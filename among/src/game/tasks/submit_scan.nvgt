@@ -17,8 +17,13 @@
 
 const float SCAN_SECONDS = 10.0;
 
+// A sala deixa os outros ouvirem as tarefas visíveis? O exame diz isso ao abrir, e com a regra
+// desligada dizer "quem estiver por perto ouve" seria mentira (o usuário notou). Fora da partida (o
+// treino) fica ligada, que é o padrão da sala.
+bool g_room_visible_tasks = true;
+
 bool run_submit_scan_task(game_client@ client) {
-	speak_hint("task.submit_scan.instructions");
+	speak_hint(g_room_visible_tasks ? "task.submit_scan.instructions" : "task.submit_scan.instructions_unheard");
 
 	sound@ scanner = task_sound(SND_MEDBAY_SCAN);
 	timer clock;

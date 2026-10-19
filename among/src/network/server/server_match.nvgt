@@ -708,6 +708,9 @@ mixin class server_match_part {
 			if (@par != null) start.set_string("lover_name", par.public_name());
 		}
 		start.set_bool("vents_enabled", lobby.config.vents_enabled);
+		// Se quem está perto ouve as tarefas visíveis: o exame avisa disso ao abrir, e com a regra
+		// desligada o aviso seria mentira.
+		start.set_bool("visible_tasks", lobby.config.visible_tasks);
 		// Modo cor: o cliente anuncia a cor do jogador junto do papel (os nomes já chegam como cor).
 		start.set_bool("color_mode", lobby.config.color_mode);
 		// O modo, e no pega-pega quanto o pegador fica parado: a contagem é feita por cada cliente.
