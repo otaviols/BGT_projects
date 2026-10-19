@@ -1,0 +1,89 @@
+// store_artifacts.nvgt
+// Guardar os artefatos (Polus, a 1.0, na sala dos espécimes). No original há quatro peças antigas e uma
+// vitrine com quatro buracos, cada um no formato de uma peça; você arrasta cada peça até o buraco dela, e
+// a decisão é reconhecer o formato de olho.
+//
+// Para o ouvido (maquete aprovada em 2026-10-19), o formato vira TENTATIVA e MEMÓRIA:
+//   - as peças chegam uma de cada vez, e cada uma tem o SEU som ao ser pega (cristal, ovo, osso, pedra);
+//     Espaço repete o som da peça da mão;
+//   - os quatro buracos ficam da esquerda para a direita, as setas andam entre eles com um clique no lado
+//     de cada um, e Enter tenta pôr a peça ali: encaixa ou toca o erro, e a peça continua na mão;
+//   - buraco OCUPADO não clica: toca baixinho o som da peça que está nele. É como se sabe que ali já tem o
+//     cristal e se passa direto - sem isso, a vitrine meio cheia viraria contar cliques de cabeça.
+// O que se decide é onde tentar: lembrar quais buracos já recusaram a peça da mão e onde estão as
+// guardadas. Errar só custa tempo, como o galão vazio. É a mecânica que o jogo não tinha (diversidade
+// pedida pelo usuário, ver a nota da 1.0): nem tom, nem tempo, nem timbre - memória de tentativas.
+
+#include "task_common.nvgt"
+
+const array<float> ARTIFACT_SLOT_PANS = {-0.9, -0.3, 0.3, 0.9};
+// O som de cada peça, na ordem dos índices (0 = cristal, 1 = ovo, 2 = osso, 3 = pedra).
+const array<string> ARTIFACT_SOUNDS = {SND_ARTIFACT_CRYSTAL, SND_ARTIFACT_EGG, SND_ARTIFACT_BONE, SND_ARTIFACT_ROCK};
+// A peça já guardada, ouvida ao passar pelo buraco dela: baixa o bastante para não ser confundida com a
+// peça da mão (medido na maquete, ~10 dB abaixo).
+const float ARTIFACT_OCCUPIED_DB = -9.0;
+
+// A ordem em que as peças chegam e o buraco de cada peça, no lugar do sorteio (vazios = sortear). Só a
+// sonda preenche. E as tentativas erradas da última vez, para a sonda conferir.
+array<int> g_artifact_order_next;
+array<int> g_artifact_slots_next;
+int g_artifact_last_misses = 0;
+
+bool run_store_artifacts_task(game_client@ client, uint phase) {
+	speak_hint("task.store_artifacts.instructions");
+	array<int> ordem = {0, 1, 2, 3};
+	array<int> buraco_de = {0, 1, 2, 3};
+	if (g_artifact_order_next.length() == ordem.length()) ordem = g_artifact_order_next;
+	else shuffle_int_list(ordem);
+	if (g_artifact_slots_next.length() == buraco_de.length()) buraco_de = g_artifact_slots_next;
+	else shuffle_int_list(buraco_de);
+	g_artifact_order_next.resize(0);
+	g_artifact_slots_next.resize(0);
+	g_artifact_last_misses = 0;
+
+	array<int> peca_no_buraco = {-1, -1, -1, -1};
+	int aqui = 0; // começa no primeiro buraco, à esquerda
+	if (!wait_for_task_sound(task_sound(SND_SPECIMEN_OPEN), client)) return false;
+
+	for (uint n = 0; n < ordem.length(); n++) {
+		int peca = ordem[n];
+		if (!task_wait(300, client)) return false;
+		if (!wait_for_task_sound(task_sound(ARTIFACT_SOUNDS[peca]), client)) return false;
+		bool guardou = false;
+		while (!guardou) {
+			wait(5);
+			client.update();
+			if (task_tick(client)) return false;
+			// Cada tecla lida UMA vez (ver CLAUDE.md).
+			bool esq = key_pressed(KEY_LEFT), dir = key_pressed(KEY_RIGHT);
+			bool repete = key_pressed(KEY_SPACE), tenta = key_pressed(KEY_RETURN);
+			if (esq || dir) {
+				int novo = aqui + (dir ? 1 : -1);
+				if (novo >= 0 && novo < int(ARTIFACT_SLOT_PANS.length())) aqui = novo;
+				// Na ponta, o mesmo som no mesmo lugar: não há mais buracos.
+				float pan = pan_from_linear(ARTIFACT_SLOT_PANS[aqui]);
+				if (peca_no_buraco[aqui] >= 0)
+					task_sound_path("sounds/" + ARTIFACT_SOUNDS[peca_no_buraco[aqui]], pan, ARTIFACT_OCCUPIED_DB);
+				else task_sound_path(SND_MENU_CLICK, pan);
+				continue;
+			}
+			if (repete) {
+				task_sound(ARTIFACT_SOUNDS[peca]);
+				continue;
+			}
+			if (!tenta) continue;
+			// Buraco ocupado também recusa: a peça de lá não sai.
+			if (peca_no_buraco[aqui] >= 0 || buraco_de[peca] != aqui) {
+				g_artifact_last_misses++;
+				task_sound(SND_CARD_ERROR, pan_from_linear(ARTIFACT_SLOT_PANS[aqui]));
+				continue;
+			}
+			peca_no_buraco[aqui] = peca;
+			if (!wait_for_task_sound(task_sound(SND_SPECIMEN_PLACE, pan_from_linear(ARTIFACT_SLOT_PANS[aqui])), client)) return false;
+			guardou = true;
+		}
+	}
+	if (!task_wait(300, client)) return false;
+	wait_for_task_sound(task_sound(SND_SPECIMEN_CLOSE), client);
+	return true;
+}

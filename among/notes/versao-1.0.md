@@ -118,7 +118,9 @@ Falta, na ordem combinada:
   grau no MESMO bipe, e Enter só aceita no valor), **alinhar o telescópio** (laboratório: o astro pisca um tique, o lado e o tom dizem onde ele está em
   relação à mira, como o labirinto do nó; Enter só trava no centro exato) e **inserir as chaves**, a tarefa COMUM do Polus (um ponto
   só, na nave de pouso, como o cartão na nave; `COMMON_TASK_TYPES` sorteia por tipo, e o tipo sem ponto
-  no mapa não sai). As maquetes ficam na pasta de teste do usuário
+  no mapa não sai), e **guardar os artefatos** (espécimes: as peças chegam uma a uma, cada uma com o seu
+  som; Enter tenta o buraco da frente e o errado recusa sem soltar a peça; buraco ocupado toca baixinho a
+  peça que está nele, em vez do clique - é MEMÓRIA de tentativas, nem tom nem tempo). As maquetes ficam na pasta de teste do usuário
   (`C:\apto10\acer\documents\Among Us - teste do Polus`), junto do jogo de teste. As outras ainda são provisórias, as da nave que fazem
   sentido lá (fios, download, asteroides, filtro de O2);
 - **o sismógrafo** (a sabotagem crítica, dois painéis, duas pessoas) - até lá o Polus não tem crítica;

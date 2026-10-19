@@ -22,6 +22,7 @@
 #include "tasks/record_temperature.nvgt"
 #include "tasks/reboot_wifi.nvgt"
 #include "tasks/replace_water_jug.nvgt"
+#include "tasks/store_artifacts.nvgt"
 #include "../audio/sound_catalog.nvgt"
 
 // Roda a minigame correspondente a task_type e retorna true em caso de sucesso, false se falhou
@@ -36,7 +37,7 @@
 // abre alguma coisa - um tipo sem minijogo compila, aparece no mapa, e o Enter nele não faz nada.
 const array<string> TASK_MINIGAME_TYPES = {"fix_wiring", "download_data", "empty_garbage", "align_engine",
 	"swipe_card", "unlock_manifolds", "fuel_engines", "clear_asteroids", "roll_dice", "water_plants",
-	"clean_o2_filter", "calibrate_distributor", "review_records", "submit_scan", "fix_weather_node", "insert_keys", "align_telescope", "record_temperature", "reboot_wifi", "replace_water_jug"};
+	"clean_o2_filter", "calibrate_distributor", "review_records", "submit_scan", "fix_weather_node", "insert_keys", "align_telescope", "record_temperature", "reboot_wifi", "replace_water_jug", "store_artifacts"};
 bool task_minigame_exists(const string&in task_type) { return TASK_MINIGAME_TYPES.find(task_type) >= 0; }
 
 // `start_object`: o ponto onde a tarefa COMEÇOU (o primeiro da corrente). Só o nó do clima usa: a etapa
@@ -66,6 +67,7 @@ bool run_task_minigame(game_client@ client, const string&in task_type, uint phas
 	else if (task_type == "record_temperature") result = run_record_temperature_task(client);
 	else if (task_type == "reboot_wifi") result = run_reboot_wifi_task(client, phase);
 	else if (task_type == "replace_water_jug") result = run_replace_water_jug_task(client, phase);
+	else if (task_type == "store_artifacts") result = run_store_artifacts_task(client, phase);
 	// Fechou: terminada tem um som, fechada pela metade (ESC, reunião, erro) tem outro - o mesmo de
 	// abrir, porque "em andamento" é exatamente o estado em que ela fica.
 	ui_sound("sounds/" + (result ? SND_TASK_COMPLETE : SND_TASK_INPROGRESS));

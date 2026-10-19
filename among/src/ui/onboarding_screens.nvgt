@@ -144,6 +144,10 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	// O galão: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
 	SND_TASK_BEACON_REPLACE_WATER_JUG, SND_TASK_BEACON_PICK_WATER_JUG, "sounds/" + SND_JUG_FULL, "sounds/" + SND_JUG_EMPTY, "sounds/" + SND_JUG_GRAB,
 	"sounds/" + SND_JUG_PLACE, "sounds/" + SND_JUG_WATER,
+	// Os artefatos: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
+	SND_TASK_BEACON_STORE_ARTIFACTS, "sounds/" + SND_SPECIMEN_OPEN, "sounds/" + SND_SPECIMEN_CLOSE,
+	"sounds/" + SND_SPECIMEN_PLACE, "sounds/" + SND_ARTIFACT_CRYSTAL, "sounds/" + SND_ARTIFACT_EGG,
+	"sounds/" + SND_ARTIFACT_BONE, "sounds/" + SND_ARTIFACT_ROCK,
 	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
 	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
 	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",

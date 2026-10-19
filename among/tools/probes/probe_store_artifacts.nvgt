@@ -1,0 +1,61 @@
+// Sonda de guardar os artefatos (Polus): o buraco errado e o ocupado recusam sem soltar a peça, o certo
+// guarda, e as quatro guardadas terminam - com as teclas de DENTRO do laço do minijogo.
+//   nvgt tools/probes/probe_store_artifacts.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/game/map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Espaçado de propósito: a tarefa espera o encaixe e o som da peça seguinte, e tecla apertada durante
+// essa espera se perde (ver notes/sondas.md).
+int quadro = 0;
+array<int> roteiro;
+uint passo = 0;
+void dirige() {
+	quadro++;
+	if (quadro > 30000) exit(1);
+	if (passo >= roteiro.length() || quadro < 300) return;
+	if (quadro % 150 == 0) simulate_key_down(roteiro[passo]);
+	if (quadro % 150 == 3) { simulate_key_up(roteiro[passo]); passo++; }
+}
+
+void main() {
+	show_window("sonda: artefatos");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	println("== na vitrine ==");
+	// Como na maquete: cristal no 3º buraco, ovo no 1º, osso no 4º, pedra no 2º; chegam nessa ordem.
+	array<int> ordem = {0, 1, 2, 3};
+	array<int> buracos = {2, 0, 3, 1};
+	g_artifact_order_next = ordem;
+	g_artifact_slots_next = buracos;
+	array<int> rota = {
+		KEY_RETURN, KEY_RIGHT, KEY_RETURN, KEY_RIGHT, KEY_RETURN, // cristal: erra o 1º e o 2º, guarda no 3º
+		KEY_LEFT, KEY_LEFT, KEY_RETURN,                            // ovo: no 1º
+		KEY_RIGHT, KEY_RETURN, KEY_RIGHT, KEY_RETURN, KEY_RIGHT, KEY_RETURN, // osso: erra o 2º, o 3º (ocupado), guarda no 4º
+		KEY_LEFT, KEY_LEFT, KEY_RETURN};                           // pedra: no 2º
+	roteiro = rota;
+	bool guardou = run_store_artifacts_task(c, 0);
+	confere("as quatro guardadas terminam a tarefa", guardou && passo >= rota.length() - 1);
+	confere("quatro recusas: tres buracos errados e um ocupado (" + g_artifact_last_misses + ")", g_artifact_last_misses == 4);
+
+	println("== no mapa ==");
+	game_map@ polus = build_map(MAP_POLUS);
+	map_object@ ponto = polus.find_object("task_artifacts_specimen");
+	confere("um ponto, na sala dos especimes", @ponto != null && ponto.room_id == "specimen");
+	confere("e so no Polus", @build_map(MAP_IDS[0]).find_object("task_artifacts_specimen") == null);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

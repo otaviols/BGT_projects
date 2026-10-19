@@ -257,6 +257,17 @@ const string SND_TASK_BEACON_REPLACE_WATER_JUG = "sounds/beacons/water_jug.ogg";
 // A primeira etapa (pegar no depósito) tem marcador PRÓPRIO, o galão sendo pego: com o mesmo da água, as
 // duas pontas da tarefa soavam iguais e não se sabia de longe qual era qual (relato do usuário).
 const string SND_TASK_BEACON_PICK_WATER_JUG = "sounds/beacons/water_jug_pickup.ogg";
+// Guardar os artefatos (Polus): a vitrine abrindo e fechando, o encaixe (o do original, bem baixo na
+// leva: vai +9 dB no arquivo) e o som de cada peça ao ser pega - cristal, ovo, osso e pedra, escolhidos
+// para soarem diferentes entre si, porque é por eles que se reconhece a peça. O marcador é o cristal.
+const string SND_SPECIMEN_OPEN = "tasks/specimen_open.ogg";
+const string SND_SPECIMEN_CLOSE = "tasks/specimen_close.ogg";
+const string SND_SPECIMEN_PLACE = "tasks/specimen_place.ogg";
+const string SND_ARTIFACT_CRYSTAL = "tasks/artifact_crystal.ogg";
+const string SND_ARTIFACT_EGG = "tasks/artifact_egg.ogg";
+const string SND_ARTIFACT_BONE = "tasks/artifact_bone.ogg";
+const string SND_ARTIFACT_ROCK = "tasks/artifact_rock.ogg";
+const string SND_TASK_BEACON_STORE_ARTIFACTS = "sounds/beacons/specimen.ogg";
 const string SND_ASTEROID_FIRE = "tasks/asteroid_fire.ogg"; // cada tiro na task de limpar asteroides
 const uint ASTEROID_HIT_VARIANT_COUNT = 3;                   // asteroid_hit1..3: o acerto, variado para não virar bipe
 string asteroid_hit_sound(int variant_1_based) {
@@ -597,6 +608,14 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_JUG_GRAB);
 	list.insert_last("sounds/" + SND_JUG_PLACE);
 	list.insert_last("sounds/" + SND_JUG_WATER);
+	list.insert_last("sounds/" + SND_SPECIMEN_OPEN);
+	list.insert_last("sounds/" + SND_SPECIMEN_CLOSE);
+	list.insert_last("sounds/" + SND_SPECIMEN_PLACE);
+	list.insert_last("sounds/" + SND_ARTIFACT_CRYSTAL);
+	list.insert_last("sounds/" + SND_ARTIFACT_EGG);
+	list.insert_last("sounds/" + SND_ARTIFACT_BONE);
+	list.insert_last("sounds/" + SND_ARTIFACT_ROCK);
+	list.insert_last(SND_TASK_BEACON_STORE_ARTIFACTS);
 	list.insert_last(SND_TASK_BEACON_REPLACE_WATER_JUG);
 	list.insert_last(SND_TASK_BEACON_PICK_WATER_JUG);
 	for (int i = 1; i <= int(ASTEROID_HIT_VARIANT_COUNT); i++) list.insert_last("sounds/" + asteroid_hit_sound(i));

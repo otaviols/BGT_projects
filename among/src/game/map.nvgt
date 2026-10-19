@@ -918,6 +918,9 @@ game_map@ build_polus_map() {
 	// pontos, e marcadores colados viram um borrão só).
 	m.objects.insert_last(map_object("task_temperature_laboratory", "task.record_temperature.name", 40, -25, "laboratory",
 		OBJ_TASK_SPOT, "sounds/" + SND_TEMP_BUTTON, "record_temperature", "", SND_TASK_BEACON_RECORD_TEMPERATURE));
+	// Guardar os artefatos, na vitrine da sala dos espécimes (longe do duto e da fiação da mesma sala).
+	m.objects.insert_last(map_object("task_artifacts_specimen", "task.store_artifacts.name", 41, 17, "specimen",
+		OBJ_TASK_SPOT, "sounds/" + SND_SPECIMEN_OPEN, "store_artifacts", "", SND_TASK_BEACON_STORE_ARTIFACTS));
 	m.objects.insert_last(map_object("task_wiring_specimen", "task.fix_wiring.name", 48, 17, "specimen",
 		OBJ_TASK_SPOT, "sounds/" + electrical_string_sound(1), "fix_wiring", "", SND_TASK_BEACON_FIX_WIRING));
 

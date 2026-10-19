@@ -676,6 +676,8 @@
   "task.replace_water_jug.pick_instructions": "Quatro galões na prateleira, da esquerda para a direita, e só um está cheio. As setas andam entre eles, Espaço bate no galão da frente e Enter o pega. O cheio dá um baque surdo; o vazio soa oco. Depois, leve-o ao bebedouro do escritório. ESC cancela.",
   "task.replace_water_jug.place_instructions": "Enter encaixa o galão no bebedouro. ESC cancela.",
   "task.replace_water_jug.empty_one": "Esse está vazio.",
+  "task.store_artifacts.name": "Guardar os artefatos",
+  "task.store_artifacts.instructions": "Quatro peças antigas chegam uma de cada vez, cada uma com o seu som: um cristal, um ovo, um osso e uma pedra. A vitrine tem quatro buracos, da esquerda para a direita, e cada peça cabe num só. As setas andam entre os buracos, Enter tenta guardar a peça ali e Espaço repete o som dela. Num buraco ocupado, você ouve baixinho a peça que já está nele. ESC cancela.",
   "task.reboot_wifi.name": "Reiniciar o Wi-Fi",
   "task.reboot_wifi.on_name": "Religar o Wi-Fi",
   "task.reboot_wifi.instructions_off": "Segure a seta para baixo até a alavanca travar embaixo: o Wi-Fi desliga. Soltar antes faz ela voltar. Depois, volte aqui em 45 segundos para religar. ESC cancela.",
