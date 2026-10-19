@@ -118,6 +118,7 @@ void run_touch_help_screen() {
 const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	// O painel da porta: só existe no Polus, que ainda não saiu.
 	SND_DOOR_SWITCH, "sounds/" + SND_DOOR_TARGET, "sounds/" + SND_DOOR_TARGET_MISS,
+	SND_DECONTAMINATION_CLOSE, SND_DECONTAMINATION_OPEN, SND_DECONTAMINATION_SPRAY,
 	// De dentro dos PAINÉIS DE REPARO (o teclado do código do oxigênio, o dial das comunicações): como
 	// os de minijogo de tarefa, aprendem-se consertando, no treino. Caminhos sem a pasta, como o
 	// catálogo os lista (ver all_sound_paths).

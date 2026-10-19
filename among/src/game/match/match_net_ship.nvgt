@@ -123,6 +123,15 @@ mixin class match_net_ship_part {
 		}
 		if (closing) map.close_doors(door_zones, 0.0);
 		else map.open_doors(door_zones);
+		// A câmara de descontaminação (o Polus): a porta dela e o spray, no meio dela - todos por perto
+		// ouvem alguém passando. Quem está DENTRO ouve que está preso, e por quê.
+		if (pkt.get_bool("decontamination") || (!closing && door_zones.find(map.decontamination_zone) >= 0 && map.decontamination_zone != "")) {
+			map_zone@ camara = map.find_zone(map.decontamination_zone);
+			if (@camara != null) audio.play_decontamination(camara.center_x, camara.center_y, closing);
+			if (closing && map.room_id_at(my_x, my_y) == map.decontamination_zone && alive) speak(tr("game.decontamination"));
+			if (pkt.get_bool("decontamination")) return;
+			if (door_zones.length() == 1) return;
+		}
 		// Uma porta em cada ENTRADA da sala, no meio da passagem: é ali que ela barra (ver
 		// game_map.door_blocks), e quem está no corredor ouve a porta que tem na frente.
 		for (uint i = 0; i < door_zones.length(); i++) {

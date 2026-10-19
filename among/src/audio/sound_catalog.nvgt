@@ -106,6 +106,10 @@ const string SND_DOOR_OPEN = "sounds/world/door_open.ogg";
 // os do original foram ouvidos e recusados ("os sons são bem estranhos" - feitos para uma animação).
 const string SND_DOOR_SWITCH = "sounds/world/door_switch.ogg";
 const string SND_DOOR_TARGET = "tasks/door_target.ogg";
+// A câmara de descontaminação do Polus: a porta dela e o spray, da leva do original.
+const string SND_DECONTAMINATION_CLOSE = "sounds/world/decontamination_close.ogg";
+const string SND_DECONTAMINATION_OPEN = "sounds/world/decontamination_open.ogg";
+const string SND_DECONTAMINATION_SPRAY = "sounds/world/decontamination_spray.ogg";
 const string SND_DOOR_TARGET_MISS = "tasks/door_target_miss.ogg";
 // Anjo da guarda lançando o escudo. Só o anjo ouve, e SEM posição: é a confirmação de que a
 // habilidade saiu, não um evento do mundo - se tocasse no ponto do protegido, quem estivesse por
@@ -672,6 +676,9 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_TASK_COMPLETE);
 	list.insert_last(SND_DOOR_SWITCH);
 	list.insert_last("sounds/" + SND_DOOR_TARGET);
+	list.insert_last(SND_DECONTAMINATION_CLOSE);
+	list.insert_last(SND_DECONTAMINATION_OPEN);
+	list.insert_last(SND_DECONTAMINATION_SPRAY);
 	list.insert_last("sounds/" + SND_DOOR_TARGET_MISS);
 	list.insert_last(SND_SHIELD_CAST);
 	list.insert_last(SND_SHAPE_SHIFT);

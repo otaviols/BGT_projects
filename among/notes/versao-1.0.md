@@ -136,7 +136,10 @@ Falta, na ordem combinada:
   passagem Enter abre o painel - reflexo: bipe agudo à esquerda, no meio ou à direita, a seta do lado
   antes de sumir, cinco acertos abrem a sala para todos. Os sons do minijogo da leva foram RECUSADOS
   ("bem estranhos", feitos para animação): bipes gerados e o interruptor que estava reservado;
-- **a descontaminação que prende quem passa** (decisão do usuário: fica);
+- ~~a descontaminação~~ FEITO (2026-10-19): quem entra TRANCA a câmara por 5 s, com o spray que todos
+  por perto ouvem; é a porta trancada de sempre (door_blocks), então dentro não sai e fora não entra. Quem
+  chega depois espera a rodada dele - o usuário: entrar no meio e ficar preso 1 s pela rodada de outro não
+  faria sentido. Várias pessoas juntas, e pode matar lá dentro (escolha dele, como no original);
 - **câmeras** - o Polus ainda não tem posto.
 
 **As sabotagens agora são do MAPA** (`game_map.sabotages()`, as que têm painel): o menu do impostor, o

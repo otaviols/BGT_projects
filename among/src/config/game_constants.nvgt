@@ -362,6 +362,8 @@ const float DOORS_CLOSED_SECONDS = 12.0;
 // No mapa em que a porta trancada tem PAINEL (o Polus, como no original) ela fica mais tempo fechada -
 // dá para abrir antes, com o minijogo, então a espera inteira só pesa em quem não tenta.
 const float DOORS_CLOSED_SECONDS_WITH_PANEL = 20.0;
+// A câmara de descontaminação (Polus): quanto tempo ela prende quem entrou, do fechar ao abrir.
+const float DECONTAMINATION_SECONDS = 5.0;
 // A que distância da passagem trancada se alcança o painel dela.
 const float DOOR_PANEL_RANGE = 2.0;
 const float DOORS_COOLDOWN_SECONDS = 25.0;

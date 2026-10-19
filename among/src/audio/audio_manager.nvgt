@@ -84,6 +84,16 @@ class audio_manager {
 		spatial.play_once(closing ? SND_DOOR_CLOSE : SND_DOOR_OPEN, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
+	// A câmara de descontaminação: a porta dela fechando seguida do spray, ou a porta abrindo.
+	void play_decontamination(float x, float y, bool closing) {
+		if (!closing) {
+			spatial.play_once(SND_DECONTAMINATION_OPEN, x, y, family_db(SOUND_FAMILY_EVENTS));
+			return;
+		}
+		spatial.play_once(SND_DECONTAMINATION_CLOSE, x, y, family_db(SOUND_FAMILY_EVENTS));
+		spatial.play_once(SND_DECONTAMINATION_SPRAY, x, y, family_db(SOUND_FAMILY_EVENTS));
+	}
+
 	int play_object_ambient(map_object@ obj) {
 		if (@obj == null || obj.sound_path == "") return -1;
 		return spatial.play_looping(obj.sound_path, obj.x, obj.y, true, family_db(SOUND_FAMILY_AMBIENCE));

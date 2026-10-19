@@ -856,6 +856,7 @@
   "game.doors_cooldown_remaining": "Doors on cooldown: {seconds} seconds.",
   "game.doors_closed": "Doors closing somewhere on the ship.",
   "game.door_closed": "Locked door.",
+  "game.decontamination": "Decontamination. Wait for the door to open.",
   "game.door_closed_panel": "Locked door. Enter opens its panel.",
   "game.door_panel.intro": "Door panel. A beep lights up on the left, in the middle or on the right: press the arrow for that side, left, up or right, before it goes out. Five hits open the door. ESC closes.",
   "game.door_panel.opened_meanwhile": "The door has already opened.",

@@ -226,6 +226,9 @@ class game_map {
 	// A porta trancada tem PAINEL: quem está na passagem abre a sala antes do tempo com um minijogo
 	// (o Polus, como no original). Na nave de sempre não tem - só esperar, como sempre foi.
 	bool doors_have_panel = false;
+	// A sala que é câmara de DESCONTAMINAÇÃO ("" = nenhuma): quem entra fica preso nela por
+	// DECONTAMINATION_SECONDS, com o spray (o Polus, entre o laboratório e os espécimes).
+	string decontamination_zone = "";
 
 	// As sabotagens que existem NESTE mapa: as que têm painel nele. Uma sabotagem sem painel não tem
 	// conserto - o impostor ganharia só por escolhê-la -, então o menu, o servidor, os bots e o treino
@@ -292,6 +295,8 @@ class game_map {
 	string door_panel_at(float x, float y, float alcance = DOOR_PANEL_RANGE) const {
 		if (!doors_have_panel) return "";
 		for (uint i = 0; i < closed_door_zones.length(); i++) {
+			// A câmara de descontaminação não tem painel: ela é uma espera, não uma porta trancada.
+			if (closed_door_zones[i] == decontamination_zone) continue;
 			array<zone_opening@>@ entradas = openings_of(closed_door_zones[i]);
 			for (uint j = 0; j < entradas.length(); j++) {
 				zone_opening@ e = entradas[j];
@@ -883,6 +888,7 @@ game_map@ build_polus_map() {
 	m.gather_x = 0; m.gather_y = -50;
 	m.ship_ambience = "";
 	m.doors_have_panel = true;
+	m.decontamination_zone = "decontamination";
 
 	// Prédios
 	m.zones.insert_last(map_zone("dropship", "room.dropship", 0, -50, 8, 6, "MetalTile"));

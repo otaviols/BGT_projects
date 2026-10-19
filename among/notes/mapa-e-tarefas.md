@@ -89,6 +89,15 @@ Abrir solta a sala inteira para todos, pelo mesmo `S_DOORS_STATE` do tempo acaba
 calado, porque o caso comum é a porta ter aberto sozinha durante o minijogo (o painel fecha avisando,
 pelo `doors_opened_count` do cliente). Sonda: `probe_door_panel`.
 
+**A câmara de descontaminação (`game_map.decontamination_zone`) é uma porta trancada que se tranca
+sozinha.** Quem entra vivo dispara `tick_decontamination` (`state_ship`), que fecha a sala por
+`DECONTAMINATION_SECONDS` com o pacote de portas de sempre, marcado `decontamination` (o cliente toca o
+spray e diz a quem está dentro por que está preso, em vez de "portas trancadas"). Não há regra de passo
+nova: é o `door_blocks`. Quem acabou de passar fica em `decontaminated_peers` até sair, para não ser preso
+de novo ao abrir - e rodada nova só começa com a câmara livre deles, senão quem entra atrás prenderia
+quem está saindo (quem entra nesse meio-tempo passa junto). A câmara não tem painel de porta
+(`door_panel_at` a pula). Sondas: `probe_decontamination` e o caso dela na `probe_match_packets`.
+
 **Um tipo pode ter VÁRIAS correntes, e a escolhida mora no JOGADOR.** O destino saía de
 `map.chain_object_at(tipo, fase)`, que é global: todo mundo com "abastecer os motores" ia ao mesmo
 lugar, e rota única é informação de graça para quem deduz - sabia-se de antemão por onde quem estava

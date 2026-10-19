@@ -1,0 +1,105 @@
+// Sonda da câmara de descontaminação (Polus), direto no estado da partida (sem rede), com o MESMO tick
+// do servidor.
+//   nvgt tools/probes/probe_decontamination.nvgt
+//
+// Confere:
+//   1. quem entra tranca a câmara: dentro não sai, fora não entra, e o pacote pede o spray;
+//   2. abre sozinha depois de DECONTAMINATION_SECONDS;
+//   3. quem acabou de passar não é preso de novo, nem por quem entra atrás dele;
+//   4. com a câmara livre, o próximo ganha a rodada inteira;
+//   5. fantasma não aciona, a câmara não tem painel de porta, e a nave de sempre não tem câmara.
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+const float DT = 0.05;
+// A câmara vai de y -15 (o laboratório) a 7 (os espécimes), em x 40 a 48.
+const float FORA_X = 44, FORA_Y = -18;   // no laboratório, diante da câmara
+const float DENTRO_X = 44, DENTRO_Y = -13;
+
+game_state@ partida() {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_map(MAP_POLUS);
+	lobby.state = "in_progress";
+	game_player@ imp = game_player(1, "imp");
+	imp.set_role(ROLE_IMPOSTOR);
+	imp.x = 0; imp.y = -50;
+	lobby.players.insert_last(imp);
+	// Com tarefa pendente: sem ela a partida acaba no primeiro tick, pela vitória por tarefas.
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	for (uint64 id = 2; id <= 4; id++) {
+		game_player@ h = game_player(id, "humano" + id);
+		player_task t;
+		t.object_id = spots[0].id;
+		t.task_type = spots[0].task_type;
+		h.tasks.insert_last(t);
+		h.x = FORA_X; h.y = FORA_Y;
+		lobby.players.insert_last(h);
+	}
+	return lobby;
+}
+
+// Roda o tick e devolve quantos pacotes de porta com o spray saíram.
+int roda(game_state@ lobby, float segundos) {
+	int n = 0;
+	for (float t = 0.0; t < segundos; t += DT) {
+		array<net_packet@>@ ev = lobby.tick(DT);
+		for (uint i = 0; i < ev.length(); i++)
+			if (ev[i].type == S_DOORS_STATE && ev[i].get_bool("closed") && ev[i].get_bool("decontamination")) n++;
+	}
+	return n;
+}
+
+void main() {
+	game_state@ lobby = partida();
+	game_map@ m = lobby.map;
+	game_player@ a = lobby.players[1];
+	game_player@ b = lobby.players[2];
+	game_player@ c = lobby.players[3];
+
+	println("== 1 e 2. a rodada ==");
+	confere("o Polus tem a camara", m.decontamination_zone == "decontamination" && m.room_id_at(DENTRO_X, DENTRO_Y) == "decontamination");
+	a.x = DENTRO_X; a.y = DENTRO_Y;
+	int sprays = roda(lobby, 0.2);
+	confere("entrou: a camara tranca, com o spray", sprays == 1 && m.is_door_closed("decontamination"));
+	confere("dentro nao sai", !m.can_move(DENTRO_X, -15.2, DENTRO_X, -14.8, true));
+	confere("fora nao entra", !m.can_move(FORA_X, -15.2, FORA_X, -14.8, true));
+	confere("a camara nao tem painel de porta", m.door_panel_at(FORA_X, -15.5) == "");
+	roda(lobby, DECONTAMINATION_SECONDS - 0.5);
+	confere("ainda trancada antes do tempo", m.is_door_closed("decontamination"));
+	roda(lobby, 0.6);
+	confere("abre sozinha no tempo", !m.is_door_closed("decontamination"));
+
+	println("== 3. quem acabou de passar ==");
+	sprays = roda(lobby, 1.0);
+	confere("parado la dentro depois de abrir: nao prende de novo", sprays == 0 && !m.is_door_closed("decontamination"));
+	b.x = DENTRO_X; b.y = DENTRO_Y + 1;
+	sprays = roda(lobby, 0.5);
+	confere("quem entra atras dele passa junto, sem prender ninguem", sprays == 0);
+
+	println("== 4. a camara livre ==");
+	a.x = 44; a.y = 12; // os dois saem para os especimes
+	b.x = 44; b.y = 12;
+	roda(lobby, 0.2);
+	c.x = DENTRO_X; c.y = DENTRO_Y;
+	sprays = roda(lobby, 0.2);
+	confere("o proximo ganha a rodada inteira", sprays == 1 && m.is_door_closed("decontamination"));
+	roda(lobby, DECONTAMINATION_SECONDS + 0.2);
+
+	println("== 5. fantasma e a nave de sempre ==");
+	c.x = 44; c.y = 12;
+	roda(lobby, 0.2);
+	b.alive = false;
+	b.x = DENTRO_X; b.y = DENTRO_Y;
+	sprays = roda(lobby, 0.5);
+	confere("fantasma nao aciona", sprays == 0 && !m.is_door_closed("decontamination"));
+	confere("a nave de sempre nao tem camara", build_map(MAP_IDS[0]).decontamination_zone == "");
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
