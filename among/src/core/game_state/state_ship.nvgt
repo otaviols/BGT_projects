@@ -48,7 +48,7 @@ mixin class state_ship_part {
 	// Sabotagem crítica = tem relógio e é derrota dos tripulantes se o tempo acabar. As outras duram
 	// até alguém consertar o painel.
 	bool is_critical_sabotage(const string&in sabotage_id) const {
-		return sabotage_id == "oxygen";
+		return sabotage_id == "oxygen" || sabotage_id == "seismic";
 	}
 
 	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event, string&out fail_key) {
@@ -73,6 +73,7 @@ mixin class state_ship_part {
 		active_sabotage = sabotage_id;
 		last_sabotage_id = sabotage_id;
 		sabotage_fixed_panels.resize(0);
+		clear_sabotage_holds();
 		sabotage_timer = is_critical_sabotage(sabotage_id) ? SABOTAGE_OXYGEN_TIMER_SECONDS : 0.0;
 		// Começa marcando o próprio total como "já anunciado", por dois motivos: a segunda sabotagem
 		// crítica da partida não herda o número da primeira (o que faria ela pular avisos até passar
@@ -138,7 +139,93 @@ mixin class state_ship_part {
 	}
 
 	int required_panels_for(const string&in sabotage_id) const {
-		return sabotage_id == "oxygen" ? 2 : 1;
+		return sabotage_id == "oxygen" || is_hold_sabotage(sabotage_id) ? 2 : 1;
+	}
+
+	// --- Sabotagem de segurar (o sismógrafo) ---
+	// Duas pessoas com a mão nos dois painéis ao mesmo tempo, por SABOTAGE_HOLD_TOGETHER_SECONDS. O
+	// cliente só diz "pus"/"tirei" (C_SABOTAGE_HOLD); quem decide que estabilizou é o tick daqui, que vê
+	// as duas mãos. E quem SOLTA quem não pode mais segurar (morreu, saiu, reunião, se afastou) também é
+	// o tick, e só ele: um lugar só para desfazer, em vez de um em cada caminho de saída - a lição da
+	// câmera e do duto (estado que existe nos dois lados).
+
+	void clear_sabotage_holds() {
+		sabotage_hold_panels.resize(0);
+		sabotage_hold_peers.resize(0);
+		sabotage_hold_together = 0.0;
+	}
+
+	// Quem segura este painel agora (0 = ninguém).
+	uint64 sabotage_hold_holder(const string&in object_id) const {
+		int i = sabotage_hold_panels.find(object_id);
+		return i < 0 ? 0 : sabotage_hold_peers[i];
+	}
+
+	private net_packet@ sabotage_hold_packet(const string&in object_id, bool holding, uint64 peer_id) {
+		net_packet@ pkt = net_packet(S_SABOTAGE_HOLD);
+		pkt.set_string("object_id", object_id);
+		pkt.set_bool("holding", holding);
+		pkt.set_uint64("peer_id", peer_id);
+		return pkt;
+	}
+
+	// Pôr (holding) ou tirar a mão. Devolve true se algo mudou, com o pacote para a partida inteira.
+	bool set_sabotage_hold(uint64 peer_id, const string&in object_id, bool holding, net_packet@&out out_event, string&out fail_key) {
+		fail_key = "";
+		int ja = sabotage_hold_peers.find(peer_id);
+		if (!holding) {
+			// Tirar não pede validação nenhuma: soltar sempre pode, e sem estar segurando não há o que fazer.
+			if (ja < 0 || sabotage_hold_panels[ja] != object_id) return false;
+			sabotage_hold_panels.remove_at(ja);
+			sabotage_hold_peers.remove_at(ja);
+			@out_event = sabotage_hold_packet(object_id, false, peer_id);
+			return true;
+		}
+		game_player@ p = find_player(peer_id);
+		if (@p == null || !p.alive) return false;
+		map_object@ obj = map.find_object(object_id);
+		if (@obj == null || obj.obj_type != OBJ_SABOTAGE_PANEL) return false;
+		if (active_sabotage == "") { fail_key = "sabotage.no_active"; return false; }
+		if (obj.task_type != active_sabotage || !is_hold_sabotage(active_sabotage)) { fail_key = "sabotage.wrong_panel"; return false; }
+		if (distance_2d(p.x, p.y, obj.x, obj.y) > PLAYER_INTERACT_RANGE * 2.0) { fail_key = "sabotage.too_far"; return false; }
+		uint64 dono = sabotage_hold_holder(object_id);
+		if (dono == peer_id) return false;
+		if (dono != 0) { fail_key = "sabotage.seismic.panel_busy"; return false; }
+		// Uma mão por pessoa: segurar outro painel solta o anterior (não acontece andando, mas o pacote
+		// vem da máquina do jogador).
+		if (ja >= 0) { sabotage_hold_panels.remove_at(ja); sabotage_hold_peers.remove_at(ja); }
+		sabotage_hold_panels.insert_last(object_id);
+		sabotage_hold_peers.insert_last(peer_id);
+		@out_event = sabotage_hold_packet(object_id, true, peer_id);
+		return true;
+	}
+
+	void tick_sabotage_hold(float delta_seconds, array<net_packet@>@ events) {
+		if (sabotage_hold_panels.length() == 0 && sabotage_hold_together == 0.0) return;
+		if (active_sabotage == "" || !is_hold_sabotage(active_sabotage)) { clear_sabotage_holds(); return; }
+		for (int i = int(sabotage_hold_panels.length()) - 1; i >= 0; i--) {
+			game_player@ p = find_player(sabotage_hold_peers[i]);
+			map_object@ obj = map.find_object(sabotage_hold_panels[i]);
+			bool fica = @p != null && p.alive && state == "in_progress" && @obj != null
+				&& distance_2d(p.x, p.y, obj.x, obj.y) <= PLAYER_INTERACT_RANGE * 2.0;
+			if (fica) continue;
+			events.insert_last(sabotage_hold_packet(sabotage_hold_panels[i], false, sabotage_hold_peers[i]));
+			// O bot que perdeu o painel (a reunião o levou embora) volta a reagir à sabotagem do zero.
+			if (@p != null && p.is_bot) { p.bot_fixing = false; p.bot_has_target = false; p.bot_action_timer = 0.0; }
+			sabotage_hold_panels.remove_at(i);
+			sabotage_hold_peers.remove_at(i);
+		}
+		if (int(sabotage_hold_panels.length()) < required_panels_for(active_sabotage)) { sabotage_hold_together = 0.0; return; }
+		sabotage_hold_together += delta_seconds;
+		if (sabotage_hold_together < SABOTAGE_HOLD_TOGETHER_SECONDS) return;
+		// Estabilizou: o mesmo fim de sabotagem do conserto por painel.
+		net_packet@ fim = net_packet(S_SABOTAGE_FIXED);
+		fim.set_string("sabotage_id", active_sabotage);
+		events.insert_last(fim);
+		active_sabotage = "";
+		sabotage_fixed_panels.resize(0);
+		clear_sabotage_holds();
+		sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 	}
 
 	// panels_fixed/panels_required saem preenchidos mesmo quando ainda falta painel (pra dar feedback
@@ -158,6 +245,8 @@ mixin class state_ship_part {
 		// quebrado (o cliente até tocava o som de abrir o painel e nada acontecia).
 		if (active_sabotage == "") { fail_key = "sabotage.no_active"; return false; }
 		if (obj.task_type != active_sabotage) { fail_key = "sabotage.wrong_panel"; return false; }
+		// Painel de SEGURAR não se conserta sozinho: é o tick que estabiliza, com as duas mãos.
+		if (is_hold_sabotage(active_sabotage)) return false;
 		// A posição que o servidor tem vem do canal não confiável e vive um pouco atrasada, então
 		// aqui a distância é conferida com folga - conferir com o valor exato fazia o conserto falhar
 		// de forma aleatória mesmo com o jogador colado no painel (mesmo motivo do botão de reunião).

@@ -520,6 +520,20 @@ array<map_object@>@ interactables_in_room(game_map@ map, const string&in room_id
 	return result;
 }
 
+// De que lado está o OUTRO painel da mesma sabotagem, visto deste (escala de pan_from_linear, -0,8 a
+// 0,8): é de lá que o painel de segurar faz ouvir a mão do colega. Sem outro painel, a direita.
+float other_panel_pan(game_map@ map, map_object@ obj) {
+	for (uint i = 0; i < map.objects.length(); i++) {
+		map_object@ o = map.objects[i];
+		if (o.obj_type != OBJ_SABOTAGE_PANEL || o.task_type != obj.task_type || o.id == obj.id) continue;
+		float lado = (o.x - obj.x) / 8.0;
+		if (lado > 0.8) lado = 0.8;
+		if (lado < -0.8) lado = -0.8;
+		return lado;
+	}
+	return 0.8;
+}
+
 // O mapa de um id da lista (MAP_IDS). Um id desconhecido monta o padrão: o servidor já recusa mapa que
 // não existe (lobby_config.validate), e um cliente com o pacote de um servidor mais novo pelo menos anda
 // numa nave em vez de cair.
@@ -947,9 +961,13 @@ game_map@ build_polus_map() {
 		m.chains.insert_last(task_chain("fix_weather_node", corrente));
 	}
 
-	// Sabotagens: as luzes na elétrica e as comunicações na administração. O sismógrafo (a crítica do
-	// Polus, consertada a duas pessoas) e as portas com minijogo entram depois; até lá o Polus não tem
-	// sabotagem crítica.
+	// Sabotagens: as luzes na elétrica, as comunicações na administração e o sismógrafo - a crítica do
+	// Polus, consertada a duas pessoas ao mesmo tempo, uma em cada painel, um de cada lado da sala. As
+	// portas com minijogo entram depois.
+	m.objects.insert_last(map_object("panel_seismic_west", "sabotage.seismic.name", -5, 34, "seismic",
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "seismic", "", SND_PANEL_BEACON_SEISMIC));
+	m.objects.insert_last(map_object("panel_seismic_east", "sabotage.seismic.name", 5, 34, "seismic",
+		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "seismic", "", SND_PANEL_BEACON_SEISMIC));
 	m.objects.insert_last(map_object("panel_lights_electrical", "sabotage.lights.name", -36, 27, "electrical",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "lights", "", SND_PANEL_BEACON_LIGHTS));
 	m.objects.insert_last(map_object("panel_comms_admin", "sabotage.comms.name", 27, -25, "admin",

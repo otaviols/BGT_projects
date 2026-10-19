@@ -214,10 +214,24 @@ mixin class state_bots_part {
 		for (uint i = 0; i < paineis.length(); i++) {
 			map_object@ o = paineis[i];
 			if (o.task_type != active_sabotage || sabotage_fixed_panels.find(o.id) != -1) continue;
+			// No de segurar, o painel com a mão de outro (ou com outro bot a caminho) não é deste: os
+			// dois bots indo ao MESMO painel nunca estabilizariam.
+			if (is_hold_sabotage(active_sabotage) && panel_taken_by_other(o.id, b)) continue;
 			float d = distance_2d(b.x, b.y, o.x, o.y);
 			if (@melhor == null || d < melhor_dist) { @melhor = o; melhor_dist = d; }
 		}
 		return melhor;
+	}
+
+	private bool panel_taken_by_other(const string&in object_id, game_player@ b) {
+		uint64 dono = sabotage_hold_holder(object_id);
+		if (dono != 0 && dono != b.peer_id) return true;
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ o = players[i];
+			if (o is b || !o.is_bot || !o.bot_fixing) continue;
+			if (o.bot_target_object_id == object_id) return true;
+		}
+		return false;
 	}
 
 	// O tripulante VIVO percebe o que acontece em volta: um corpo perto (reporta) e uma sabotagem
@@ -316,7 +330,17 @@ mixin class state_bots_part {
 			// Chegou no destino final: se era uma task, conclui (conta pra vitória dos tripulantes
 			// igual a de qualquer jogador) e descansa antes de escolher o próximo destino.
 			if (b.bot_path.length() == 0 && distance_2d(b.x, b.y, b.bot_target_x, b.bot_target_y) <= PLAYER_INTERACT_RANGE) {
-				if (b.bot_fixing) {
+				if (b.bot_fixing && is_hold_sabotage(active_sabotage)) {
+					// Painel de segurar: põe a mão e FICA, conferindo de meio em meio segundo. Se alguém
+					// tomou o painel antes, larga e reage de novo (o outro painel ainda falta).
+					uint64 dono = sabotage_hold_holder(b.bot_target_object_id);
+					if (dono == 0) bot_requests.insert_last(bot_request(BOT_REQUEST_HOLD_PANEL, b.peer_id, b.bot_target_object_id));
+					else if (dono != b.peer_id) { b.bot_fixing = false; b.bot_has_target = false; }
+					b.bot_action_timer = 0.5;
+					// Fica com o destino: o "chegou" comum, logo abaixo, o apagaria, e o bot sem destino
+					// escolhe outro e sai andando com a mão posta (e o tick o solta).
+					if (b.bot_fixing) continue;
+				} else if (b.bot_fixing) {
 					// No painel: pede o conserto pelo mesmo caminho do jogador. Se a sabotagem pedir
 					// outro painel, bot_crew_react o manda ao próximo no tick seguinte.
 					bot_requests.insert_last(bot_request(BOT_REQUEST_FIX_PANEL, b.peer_id, b.bot_target_object_id));

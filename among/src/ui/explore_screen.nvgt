@@ -222,7 +222,7 @@ void run_explore_map_screen() {
 				string codigo = "";
 				for (uint i = 0; i < 5; i++) codigo += "" + random(0, 9);
 				audio.stop_landmark_beacons();
-				bool ok = run_sabotage_panel(offline, obj.task_type, codigo, obj.id);
+				bool ok = run_sabotage_panel(offline, obj.task_type, codigo, obj.id, other_panel_pan(map, obj));
 				audio.start_landmark_beacons(map, all_task_ids, BEACON_ALL_PANELS);
 				speak(tr(ok ? "practice.done" : "practice.not_done"));
 				frame_clock.tick();

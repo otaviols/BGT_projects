@@ -284,6 +284,7 @@ string game_over_reason_text(const string&in reason) {
 	if (reason == "impostors_ejected") return tr("game.reason_impostors_ejected");
 	if (reason == "majority") return tr("game.reason_majority");
 	if (reason == "oxygen_depleted") return tr("game.reason_oxygen_depleted");
+	if (reason == "seismic_collapse") return tr("game.reason_seismic_collapse");
 	if (reason == "jester_ejected") return tr("game.reason_jester_ejected");
 	if (reason == "wolf_survived") return tr("game.reason_wolf_survived");
 	if (reason == "last_wolf") return tr("game.reason_last_wolf");

@@ -32,7 +32,7 @@ const array<string> PRACTICE_TASKS = {
 	"clean_o2_filter",
 	"calibrate_distributor"
 };
-const array<string> PRACTICE_SABOTAGES = {"lights", "oxygen", "comms"};
+const array<string> PRACTICE_SABOTAGES = {"lights", "oxygen", "comms", "seismic"};
 
 // Um cliente de rede que existe mas não está conectado a nada. update() sem conexão não faz nada,
 // e poll_message() devolve null - é tudo de que uma minigame precisa para rodar.

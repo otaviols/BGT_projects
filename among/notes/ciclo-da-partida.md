@@ -164,6 +164,20 @@ A sabotagem ainda tem a regra em dois lugares que precisam concordar:
 `player_abilities.can_sabotage()` (a tecla) e `game_state.trigger_sabotage` (que decide). A sonda
 `tools/probes/probe_ghost_sabotage.nvgt` cobre as duas.
 
+**Sabotagem de SEGURAR (o sismógrafo do Polus): o cliente não conserta, só diz "pus a mão"/"tirei".**
+Duas pessoas, uma em cada painel, ao mesmo tempo por `SABOTAGE_HOLD_TOGETHER_SECONDS`. Quem decide que
+estabilizou é o `tick_sabotage_hold` (`state_ship`), que vê as duas mãos e solta o MESMO
+`S_SABOTAGE_FIXED` de sempre; e é ele, e só ele, quem solta quem não pode mais segurar (morreu, saiu,
+reunião, se afastou) - um lugar só para desfazer, a lição da câmera e do duto. Por isso o painel de
+segurar devolve false mesmo estabilizado: um `C_INTERACT` depois chegaria com a sabotagem acabada e
+voltaria como "não tem sabotagem". Quais sabotagens são de segurar mora em `is_hold_sabotage`
+(`core/sabotage_rules.nvgt`), que os dois lados perguntam. Os bots vão um a cada painel
+(`panel_taken_by_other`) e FICAM: o "cheguei" comum apagava o destino, o bot saía andando com a mão
+posta e o tick o soltava - nunca estabilizavam (pego pela `probe_seismic`). Sem conexão (treino,
+Conhecer o mapa) um colega de mentira põe a mão 1,5 a 3 s depois (`probe_seismic_panel`). O reator do
+mapa antigo, decidido para a 1.0, entra em `is_hold_sabotage` - mas lá o mapa NÃO exige protocolo novo,
+então ele precisa de um portão de versão (o sismógrafo escapou disso por só existir no Polus).
+
 **Voz posicionada é só para quem está VIVO e andando.** `g_voice.spatial = alive && !movement_frozen`
 é decidido a cada quadro, e não em cada transição: são três (morrer, começar a reunião, acabar a
 votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na reunião todo mundo está

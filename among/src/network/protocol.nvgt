@@ -79,6 +79,7 @@ const string C_ADD_BOT = "c_add_bot";             // {} (só host, só na sala d
 const string C_REMOVE_BOT = "c_remove_bot";       // {} (só host, tira o último bot adicionado)
 const string C_MOVE = "c_move";                   // {x, y, seq}
 const string C_INTERACT = "c_interact";           // {object_id}
+const string C_SABOTAGE_HOLD = "c_sabotage_hold"; // {object_id, holding} - pôs/tirou a mão num painel de segurar (sismógrafo)
 const string C_START_TASK = "c_start_task";       // {task_id} - abriu a minigame; no scan, é o que faz o servidor avisar quem está perto
 const string C_TASK_INPUT = "c_task_input";       // {task_id, input}
 const string C_KILL = "c_kill";                   // {target_peer}
@@ -248,6 +249,9 @@ const string S_SABOTAGE_FIXED = "s_sabotage_fixed";       // {sabotage_id}
 // cliente saber QUAIS painéis já estão prontos: sem isso, quem chegasse no painel já resolvido
 // digitava o código inteiro para o servidor dizer no fim que não valia nada.
 const string S_SABOTAGE_PROGRESS = "s_sabotage_progress"; // {sabotage_id, object_id, fixed, required}
+// Alguém pôs ou tirou a mão de um painel de segurar. Vai à partida inteira: quem segura o outro painel
+// precisa OUVIR o colega chegar e soltar. Só existe no Polus, que já exige MAPS_PROTOCOL.
+const string S_SABOTAGE_HOLD = "s_sabotage_hold"; // {object_id, holding, peer_id}
 // Lembrete de quanto falta numa sabotagem crítica. Quem decide QUANDO avisar é o servidor (a cada
 // 30 segundos, e a cada segundo nos 10 finais), e não cada cliente com um relógio próprio: assim
 // todo mundo ouve o mesmo número no mesmo instante, que é o que permite combinar "vai você no de

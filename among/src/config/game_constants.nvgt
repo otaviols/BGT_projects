@@ -235,6 +235,10 @@ const string WINNER_LOVERS = "lovers";
 // 90s: os dois painéis de oxigênio ficam em salas opostas da nave (admin e elétrica), e só a
 // caminhada de uma até a outra já leva uns 25 segundos.
 const float SABOTAGE_OXYGEN_TIMER_SECONDS = 90.0;
+// Sabotagem de SEGURAR (o sismógrafo do Polus): quanto tempo as duas mãos têm que ficar JUNTAS nos dois
+// painéis para estabilizar. Curto o bastante para não virar espera; longo o bastante para que soltar
+// cedo seja um erro que se ouve (a maquete aprovada usava 1,5 s).
+const float SABOTAGE_HOLD_TOGETHER_SECONDS = 1.5;
 // De quanto em quanto tempo o servidor lembra quantos segundos faltam numa sabotagem crítica, e a
 // partir de quanto tempo restante ele passa a contar segundo a segundo. 30 é frequente o bastante
 // para orientar quem está correndo entre os dois painéis, e raro o bastante para não atrapalhar

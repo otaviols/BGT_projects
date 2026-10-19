@@ -155,6 +155,8 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	"sounds/" + SND_CANISTER_PLUGOUT, "sounds/" + SND_CANISTER_DROP,
 	SND_TASK_BEACON_OPEN_WATERWHEEL, "sounds/" + SND_WATERWHEEL_OPEN, "sounds/" + SND_WATERWHEEL_TURN,
 	"sounds/" + SND_WATERWHEEL_TURN_LOW, "sounds/" + SND_WATERWHEEL_WATER,
+	// O sismógrafo: o marcador é do Polus em construção, e o resto é de dentro do painel.
+	SND_PANEL_BEACON_SEISMIC, "sounds/" + SND_SEISMIC_HAND, "sounds/" + SND_SEISMIC_HAND_START, "sounds/" + SND_SEISMIC_FAIL,
 	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
 	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
 	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",

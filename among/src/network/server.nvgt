@@ -542,6 +542,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		else if (t == C_TRIGGER_SABOTAGE) on_trigger_sabotage(peer_id, pkt);
 		else if (t == C_CLOSE_DOORS) on_close_doors(peer_id, pkt);
 		else if (t == C_INTERACT) on_interact(peer_id, pkt);
+		else if (t == C_SABOTAGE_HOLD) on_sabotage_hold(peer_id, pkt);
 		else if (t == C_PING) on_ping(peer_id, pkt);
 		else if (t == C_CHAT_MESSAGE) on_chat_message(peer_id, pkt);
 		else if (t == C_VOICE_STATE) on_voice_state(peer_id, pkt);
@@ -718,6 +719,13 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 					continue;
 				}
 				if (lobby.state != "in_progress") continue; // o primeiro reporte já abriu a reunião
+				if (pedido.kind == BOT_REQUEST_HOLD_PANEL) {
+					net_packet@ mao = net_packet(C_SABOTAGE_HOLD);
+					mao.set_string("object_id", pedido.object_id);
+					mao.set_bool("holding", true);
+					on_sabotage_hold(pedido.peer_id, mao);
+					continue;
+				}
 				net_packet@ como_cliente = net_packet(pedido.kind == BOT_REQUEST_FIX_PANEL ? C_INTERACT : C_REPORT_BODY);
 				como_cliente.set_string("object_id", pedido.object_id);
 				if (pedido.kind == BOT_REQUEST_FIX_PANEL) on_interact(pedido.peer_id, como_cliente);

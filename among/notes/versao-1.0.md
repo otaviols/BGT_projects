@@ -128,7 +128,10 @@ Falta, na ordem combinada:
   anterior volta; três voltas. O "emperrar" foi oferecido e ficou de fora). As maquetes ficam na pasta de teste do usuário
   (`C:\apto10\acer\documents\Among Us - teste do Polus`), junto do jogo de teste. As outras ainda são provisórias, as da nave que fazem
   sentido lá (fios, download, asteroides, filtro de O2);
-- **o sismógrafo** (a sabotagem crítica, dois painéis, duas pessoas) - até lá o Polus não tem crítica;
+- ~~o sismógrafo~~ FEITO (2026-10-19): duas mãos juntas nos dois painéis da sala dele, 90 s, a mão do
+  colega se ouve do lado dele; ver ciclo-da-partida.md;
+- **o reator no mapa antigo** (decisão do usuário, 2026-10-19: novidade da 1.0 também para a nave de
+  sempre), reaproveitando a sabotagem de segurar - com portão de protocolo, ver ciclo-da-partida.md;
 - **as portas com minijogo** e **a descontaminação que prende quem passa** (decisão do usuário: fica);
 - **câmeras** - o Polus ainda não tem posto.
 

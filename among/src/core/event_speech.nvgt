@@ -19,6 +19,7 @@
 #include "../network/client.nvgt"
 #include "../network/protocol.nvgt"
 #include "../i18n.nvgt"
+#include "sabotage_rules.nvgt" // a chave do texto de cada sabotagem crítica
 #include "client_state.nvgt"
 #include "speech.nvgt"
 #include "../game/roles/role_traits.nvgt" // o nome do papel neutro no fim da partida
@@ -32,7 +33,7 @@ string sabotage_started_text(net_packet@ pkt) {
 	if (pkt.get_bool("critical")) {
 		dictionary@ p = dictionary();
 		p.set("seconds", "" + int(pkt.get_float("timer")));
-		text += " " + tr("sabotage.critical_warning", p);
+		text += " " + tr(critical_sabotage_key(sabotage_id, "critical_warning"), p);
 	}
 	return text;
 }
@@ -40,7 +41,8 @@ string sabotage_started_text(net_packet@ pkt) {
 string sabotage_countdown_text(net_packet@ pkt) {
 	dictionary@ p = dictionary();
 	p.set("seconds", "" + pkt.get_int("seconds"));
-	return tr(pkt.get_bool("final") ? "sabotage.countdown_final" : "sabotage.countdown_remaining", p);
+	if (pkt.get_bool("final")) return tr("sabotage.countdown_final", p);
+	return tr(critical_sabotage_key(pkt.get_string("sabotage_id"), "countdown_remaining"), p);
 }
 
 // Quem votou - e em quem, com os votos abertos (regra da sala). Aqui, e não só na reunião, porque o

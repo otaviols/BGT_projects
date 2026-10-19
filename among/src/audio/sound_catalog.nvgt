@@ -173,6 +173,12 @@ const string SND_BUTTON_BEACON = "sounds/beacons/button.ogg";
 const string SND_PANEL_BEACON_LIGHTS = "sounds/beacons/panel_lights.ogg";
 const string SND_PANEL_BEACON_OXYGEN = "sounds/beacons/panel_oxygen.ogg";
 const string SND_PANEL_BEACON_COMMS = "sounds/beacons/comunication_pannel.mp3";
+// O sismógrafo (Polus): o tremor dele, no painel. Dentro do painel, o leitor de mão do original (o
+// estalo ao pôr, o zumbido enquanto se segura) e a falha quando o colega solta cedo.
+const string SND_PANEL_BEACON_SEISMIC = "sounds/beacons/seismic_panel.ogg";
+const string SND_SEISMIC_HAND = "tasks/seismic_hand.ogg";
+const string SND_SEISMIC_HAND_START = "tasks/seismic_hand_start.ogg";
+const string SND_SEISMIC_FAIL = "tasks/seismic_fail.ogg";
 const string SND_VENT_BEACON = "sounds/beacons/vent.ogg";
 
 // Um beacon por TIPO de task (não por sala) - mesma lógica de cima.
@@ -526,6 +532,10 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_BUTTON_BEACON);
 	list.insert_last(SND_PANEL_BEACON_LIGHTS);
 	list.insert_last(SND_PANEL_BEACON_OXYGEN);
+	list.insert_last(SND_PANEL_BEACON_SEISMIC);
+	list.insert_last("sounds/" + SND_SEISMIC_HAND);
+	list.insert_last("sounds/" + SND_SEISMIC_HAND_START);
+	list.insert_last("sounds/" + SND_SEISMIC_FAIL);
 	list.insert_last(SND_VENT_BEACON);
 	list.insert_last(SND_TASK_BEACON_FIX_WIRING);
 	list.insert_last(SND_TASK_BEACON_DOWNLOAD_DATA);

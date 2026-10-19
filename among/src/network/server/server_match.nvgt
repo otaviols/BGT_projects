@@ -599,6 +599,17 @@ mixin class server_match_part {
 		}
 	}
 
+	// Pôs ou tirou a mão de um painel de segurar (o sismógrafo). Quem estabiliza é o tick do game_state.
+	void on_sabotage_hold(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null || lobby.state != "in_progress") return;
+		net_packet@ event;
+		string fail_key;
+		if (lobby.set_sabotage_hold(peer_id, pkt.get_string("object_id"), pkt.get_bool("holding"), event, fail_key))
+			broadcast_to_lobby(lobby, event);
+		else if (fail_key != "") send_error(peer_id, fail_key);
+	}
+
 	// As tarefas do jogador como viajam ao cliente: no começo da partida (S_GAME_START) e quando um
 	// papel novo as traz (S_ROLE_CHANGED do amnésico).
 	json_array@ tasks_json_of(game_player@ p) {

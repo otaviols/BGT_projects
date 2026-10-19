@@ -50,6 +50,7 @@ class vote_entry {
 // scanner) mora no servidor, e um segundo caminho só para bot esqueceria metade - foi exatamente o
 // que aconteceu com a morte por bot, que pulava câmera, scanner e o alarme do alarmista.
 const string BOT_REQUEST_FIX_PANEL = "fix_panel";
+const string BOT_REQUEST_HOLD_PANEL = "hold_panel"; // pôr a mão num painel de segurar (sismógrafo)
 const string BOT_REQUEST_REPORT = "report";
 const string BOT_REQUEST_VOTE = "vote";
 class bot_request {
@@ -119,7 +120,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	// novo no instante em que a votação terminava, com todo mundo ainda parado na cafeteria.
 	float meeting_cooldown_remaining = 0.0;
 	float doors_cooldown_remaining = 0.0; // recarga da ação de fechar portas (separada da sabotagem)
-	string active_sabotage = ""; // "" | "lights" | "oxygen" | "comms"
+	string active_sabotage = ""; // "" | "lights" | "oxygen" | "comms" | "seismic"
 	string last_sabotage_id = ""; // pra não deixar repetir a mesma sabotagem duas vezes seguidas
 	float sabotage_timer = 0.0;
 	// Último número já anunciado da contagem regressiva, para não repetir o mesmo segundo em ticks
@@ -127,6 +128,11 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	int last_sabotage_countdown = -1;
 	float sabotage_cooldown_remaining = 0.0;
 	array<string> sabotage_fixed_panels;
+	// Sabotagem de segurar: quem está com a mão em qual painel AGORA (pares, mesmo índice), e há quanto
+	// tempo todos os painéis estão seguros juntos. O dono é tick_sabotage_hold (ver state_ship).
+	array<string> sabotage_hold_panels;
+	array<uint64> sabotage_hold_peers;
+	float sabotage_hold_together = 0.0;
 
 	// --- Câmeras de segurança ---
 	// Quem está no posto agora (0 = livre) e para qual sala ele aponta.
@@ -421,6 +427,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		last_sabotage_countdown = -1;
 		sabotage_cooldown_remaining = 0.0;
 		sabotage_fixed_panels.resize(0);
+		clear_sabotage_holds();
 		oxygen_code = "";
 		camera_user_peer = 0;
 		camera_room_id = "";
@@ -473,6 +480,9 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		// uma reunião todo mundo está congelado na cafeteria e ninguém CONSEGUE chegar num painel.
 		// Luzes e comunicações não têm relógio nenhum - ficam de pé até alguém consertar, que é o que
 		// dá peso a elas (antes as luzes se resolviam sozinhas em 40s e viravam só um susto).
+		// As mãos nos painéis de segurar: soltar quem não pode mais segurar e conferir se estabilizou.
+		tick_sabotage_hold(delta_seconds, events);
+
 		if (active_sabotage != "" && is_critical_sabotage(active_sabotage) && state == "in_progress") {
 			sabotage_timer -= delta_seconds;
 
@@ -502,7 +512,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 
 			if (sabotage_timer <= 0.0) {
 				winner = "impostors";
-				win_reason = "oxygen_depleted";
+				win_reason = active_sabotage == "seismic" ? "seismic_collapse" : "oxygen_depleted";
 				active_sabotage = "";
 				sabotage_fixed_panels.resize(0);
 				sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;

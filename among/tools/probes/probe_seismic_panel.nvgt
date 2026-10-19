@@ -1,0 +1,74 @@
+// Sonda do painel do sismógrafo no TREINO (sem conexão): segurar Enter põe a mão, o colega de mentira
+// chega, e juntos pelo tempo todo estabiliza; soltar antes não estabiliza. E o painel de segurar não
+// pede conserto ao servidor depois (devolve false mesmo estabilizado).
+//   nvgt tools/probes/probe_seismic_panel.nvgt
+#include "../../src/i18n.nvgt"
+#include "../../src/game/task_manager.nvgt"
+#include "../../src/game/sabotage_panels.nvgt"
+#include "../../src/game/map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Um roteiro de SEGURAR: (tecla, quadro em que desce, quadro em que sobe).
+int quadro = 0;
+array<int> teclas, desce, sobe;
+void dirige() {
+	quadro++;
+	if (quadro > 8000) exit(1);
+	for (uint i = 0; i < teclas.length(); i++) {
+		if (quadro == desce[i]) simulate_key_down(teclas[i]);
+		if (quadro == sobe[i]) simulate_key_up(teclas[i]);
+	}
+}
+void roda() { quadro = 0; teclas.resize(0); desce.resize(0); sobe.resize(0); }
+void segura(int tecla, int de, int ate) { teclas.insert_last(tecla); desce.insert_last(de); sobe.insert_last(ate); }
+
+void main() {
+	show_window("sonda: sismografo");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	sound_master_volume = -100;
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	@g_client_frame_hook = dirige;
+
+	println("== no treino ==");
+	// Segura um instante e solta (o colega nem chega), depois ESC: não estabilizou.
+	roda();
+	segura(KEY_RETURN, 50, 120);
+	segura(KEY_ESCAPE, 400, 410);
+	uint64 antes = ticks();
+	bool so_um_instante = run_hold_panel(c, "panel_seismic_west", 0.8);
+	confere("soltar cedo e sair: nao estabiliza", !so_um_instante);
+
+	// Segura de vez: o colega de mentira chega em 1,5 a 3 s, e mais 1,5 s juntos.
+	roda();
+	segura(KEY_RETURN, 50, 7000);
+	antes = ticks();
+	bool firme = run_hold_panel(c, "panel_seismic_west", 0.8);
+	uint64 levou = ticks() - antes;
+	confere("segurando firme, estabiliza", firme);
+	confere("e so depois do colega chegar e do tempo juntos (" + levou + " ms)", levou >= 3000);
+	simulate_key_up(KEY_RETURN);
+
+	println("== pelo painel inteiro ==");
+	roda();
+	segura(KEY_RETURN, 50, 7000);
+	confere("o painel de segurar nao pede conserto ao servidor", !run_sabotage_panel(c, "seismic", "", "panel_seismic_west", 0.8));
+	simulate_key_up(KEY_RETURN);
+
+	println("== o lado do colega ==");
+	game_map@ polus = build_map(MAP_POLUS);
+	map_object@ oeste = polus.find_object("panel_seismic_west");
+	map_object@ leste = polus.find_object("panel_seismic_east");
+	confere("do oeste, o colega soa a direita", other_panel_pan(polus, oeste) > 0.5);
+	confere("do leste, a esquerda", other_panel_pan(polus, leste) < -0.5);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -5,6 +5,7 @@
 //   luzes         - os disjuntores da elétrica: cinco chaves, algumas desligadas; religar todas.
 //   oxigênio      - um código de cinco dígitos, o MESMO nos dois painéis, dito ao abrir cada um.
 //   comunicações  - sintonizar: girar o dial até a voz do rádio ficar sem estática.
+//   sismógrafo    - segurar: duas pessoas com a mão nos dois painéis ao mesmo tempo (Polus).
 //
 // O padrão é o das tasks (ver tasks/task_common.nvgt): laço bloqueante no cliente, ESC cancela,
 // reunião interrompe, e só o resultado vai ao servidor - que continua sendo quem decide se o painel
@@ -14,6 +15,8 @@
 #include "tasks/task_common.nvgt"
 #include "../audio/sound_catalog.nvgt"
 #include "../i18n.nvgt"
+#include "../core/sabotage_rules.nvgt"
+#include "../config/game_constants.nvgt"
 
 // Roda o conserto da sabotagem `sabotage_id`. Devolve true se o jogador terminou; false se desistiu
 // ou foi interrompido. `oxygen_code` é o código desta sabotagem, vindo do servidor.
@@ -37,14 +40,21 @@ bool panel_closed_by_others(game_client@ client, const string&in panel_id = "") 
 string g_panel_being_fixed = "";
 
 // `panel_id` é o ponto do mapa que está sendo consertado; vazio no treino, que não tem mapa.
+// `other_pan` é de que lado está o OUTRO painel, para os de segurar (onde se ouve a mão do colega).
+//
+// Painel de segurar devolve false mesmo estabilizado: quem consertou foi o SERVIDOR, que viu as duas
+// mãos, e não há conserto a pedir depois (o pedido ia chegar com a sabotagem já acabada e voltar como
+// "não tem sabotagem"). O som de concluído toca aqui do mesmo jeito.
 bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const string&in oxygen_code,
-		const string&in panel_id = "") {
+		const string&in panel_id = "", float other_pan = 0.8) {
 	g_panel_being_fixed = panel_id;
 	if (task_tick(client) || panel_closed_by_others(client, panel_id)) return false;
 	bool ok = false;
+	bool segurar = is_hold_sabotage(sabotage_id);
 	if (sabotage_id == "lights") ok = run_lights_panel(client);
 	else if (sabotage_id == "oxygen") ok = run_oxygen_panel(client, oxygen_code);
 	else if (sabotage_id == "comms") ok = run_comms_panel(client);
+	else if (segurar) ok = run_hold_panel(client, panel_id, other_pan);
 	// O painel que ABRE com um som tem que FECHAR com um: sem isso a pessoa ouvia a tampa abrindo e
 	// a tela terminava em silêncio, sem marcar que acabou. Vale nos dois fins - concluído ou
 	// desistido - porque o som é da tampa, não do resultado.
@@ -55,7 +65,7 @@ bool run_sabotage_panel(game_client@ client, const string&in sabotage_id, const 
 	// O som de "concluído" é o mesmo das tasks, e toca num lugar só - cada painel toca só o que é
 	// dele (o estalo, o código aceito, o rádio fechando).
 	if (ok) task_sound(SND_TASK_COMPLETE);
-	return ok;
+	return ok && !segurar;
 }
 
 // --- Luzes: os disjuntores -----------------------------------------------------------------------
@@ -222,6 +232,78 @@ bool run_comms_panel(game_client@ client) {
 		}
 	}
 	return false;
+}
+
+// --- Sismógrafo: segurar junto --------------------------------------------------------------------
+// Segurar Enter põe a mão no leitor (o estalo, e o zumbido enquanto se segura); soltar a tira. A mão do
+// colega, no OUTRO painel, soa do lado dele e mais baixa: é o que diz que ele chegou - e se ela some com
+// a sua ainda posta, toca a falha (soltou cedo). Estabiliza quando o servidor vê as duas mãos juntas por
+// SABOTAGE_HOLD_TOGETHER_SECONDS e manda o fim da sabotagem. Sem conexão (treino, Conhecer o mapa), um
+// colega de mentira põe a mão alguns segundos depois de você e o painel conta o tempo sozinho.
+const float HOLD_OTHER_HAND_DB = -8.0;
+
+bool run_hold_panel(game_client@ client, const string&in panel_id, float other_pan) {
+	speak_hint("sabotage.seismic.panel_intro");
+	bool treino = !client.connected;
+	bool segurando = false, outra_antes = false;
+	sound@ mao = null;
+	sound@ outra = null;
+	uint64 colega_em = 0;      // treino: quando o colega de mentira põe a mão
+	uint64 juntos_desde = 0;   // treino: desde quando as duas estão postas
+	while (true) {
+		wait(5);
+		client.update();
+		bool sai = task_tick(client);
+		// Estabilizou (o servidor mandou o fim): não é "alguém consertou antes", é o SEU conserto.
+		if (!treino && client.sabotage_ended) { stop_hands(mao, outra); return true; }
+		if (sai) {
+			if (segurando && !treino) client.send_sabotage_hold(panel_id, false);
+			stop_hands(mao, outra);
+			return false;
+		}
+		bool desce = key_down(KEY_RETURN);
+		if (desce && !segurando) {
+			segurando = true;
+			if (!treino) client.send_sabotage_hold(panel_id, true);
+			task_sound(SND_SEISMIC_HAND_START);
+			@mao = task_sound(SND_SEISMIC_HAND);
+			if (treino) colega_em = ticks() + uint64(random(1500, 3000));
+		} else if (!desce && segurando) {
+			segurando = false;
+			if (!treino) client.send_sabotage_hold(panel_id, false);
+			if (@mao != null) mao.stop();
+			@mao = null;
+		}
+		if (segurando && @mao != null && !mao.playing) mao.play();
+
+		bool outra_agora = false;
+		if (treino) outra_agora = segurando && ticks() >= colega_em;
+		else {
+			for (uint i = 0; i < client.sabotage_held_panels.length(); i++)
+				if (client.sabotage_held_panels[i] != panel_id) outra_agora = true;
+		}
+		if (outra_agora && !outra_antes) @outra = task_sound(SND_SEISMIC_HAND, pan_from_linear(other_pan), 100.0);
+		if (outra_agora && @outra != null) { outra.volume = g_settings.volume_db(SOUND_FAMILY_TASKS) + HOLD_OTHER_HAND_DB; if (!outra.playing) outra.play(); }
+		if (!outra_agora && outra_antes) {
+			if (@outra != null) outra.stop();
+			@outra = null;
+			if (segurando) task_sound(SND_SEISMIC_FAIL);
+		}
+		outra_antes = outra_agora;
+
+		if (treino) {
+			if (segurando && outra_agora) {
+				if (juntos_desde == 0) juntos_desde = ticks();
+				else if (ticks() - juntos_desde >= uint64(SABOTAGE_HOLD_TOGETHER_SECONDS * 1000)) { stop_hands(mao, outra); return true; }
+			} else juntos_desde = 0;
+		}
+	}
+	return false;
+}
+
+void stop_hands(sound@ mao, sound@ outra) {
+	if (@mao != null) mao.stop();
+	if (@outra != null) outra.stop();
 }
 
 void stop_radio(sound@ voice, sound@ noise) {

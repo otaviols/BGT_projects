@@ -1,0 +1,155 @@
+// Sonda do sismógrafo (Polus), direto no estado da partida (sem rede), com o MESMO tick do servidor.
+//   nvgt tools/probes/probe_seismic.nvgt
+//
+// Confere:
+//   1. é crítica, tem relógio e pede os dois painéis; o conserto por painel (C_INTERACT) não vale;
+//   2. uma mão só não estabiliza, nem as duas juntas por menos que SABOTAGE_HOLD_TOGETHER_SECONDS;
+//   3. as duas juntas pelo tempo todo estabilizam, com o mesmo S_SABOTAGE_FIXED de sempre;
+//   4. quem se afasta (ou morre) com a mão posta é solto pelo tick, avisando a partida;
+//   5. o relógio acabando é derrota com o motivo do sismógrafo;
+//   6. dois bots vão um a cada painel e estabilizam sozinhos.
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+const float DT = 0.05;
+
+// Polus parado: um impostor humano e dois tripulantes humanos, os dois já na sala do sismógrafo.
+game_state@ partida() {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_map(MAP_POLUS);
+	lobby.state = "in_progress";
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	game_player@ imp = game_player(1, "imp");
+	imp.set_role(ROLE_IMPOSTOR);
+	imp.x = 0; imp.y = -50;
+	lobby.players.insert_last(imp);
+	for (uint64 id = 2; id <= 3; id++) {
+		game_player@ h = game_player(id, "humano" + id);
+		player_task t;
+		t.object_id = spots[0].id;
+		t.task_type = spots[0].task_type;
+		h.tasks.insert_last(t);
+		h.x = id == 2 ? -5 : 5; h.y = 34;
+		lobby.players.insert_last(h);
+	}
+	return lobby;
+}
+
+bool sabota(game_state@ lobby) {
+	lobby.sabotage_cooldown_remaining = 0.0;
+	net_packet@ ev; string motivo;
+	return lobby.trigger_sabotage(1, "seismic", ev, motivo);
+}
+
+bool segura(game_state@ lobby, uint64 quem, const string&in painel, bool sim) {
+	net_packet@ ev; string motivo;
+	return lobby.set_sabotage_hold(quem, painel, sim, ev, motivo);
+}
+
+// Roda o tick por `segundos` e conta os pacotes de um tipo que ele soltou.
+int roda(game_state@ lobby, float segundos, const string&in tipo = "") {
+	int n = 0;
+	for (float t = 0.0; t < segundos; t += DT) {
+		array<net_packet@>@ ev = lobby.tick(DT);
+		for (uint i = 0; i < ev.length(); i++) if (ev[i].type == tipo) n++;
+	}
+	return n;
+}
+
+void main() {
+	println("== 1. a sabotagem ==");
+	{
+		game_state@ lobby = partida();
+		confere("o Polus tem o sismografo, e e de segurar", lobby.map.has_sabotage("seismic") && is_hold_sabotage("seismic"));
+		confere("o impostor a dispara", sabota(lobby) && lobby.active_sabotage == "seismic");
+		confere("critica, com relogio", lobby.is_critical_sabotage("seismic") && lobby.sabotage_timer > 60.0);
+		confere("pede os dois paineis", lobby.required_panels_for("seismic") == 2);
+		net_packet@ ev; int feitos, precisa; string motivo;
+		bool ok = lobby.try_fix_sabotage_panel(2, "panel_seismic_west", ev, feitos, precisa, motivo);
+		confere("o conserto por painel nao vale", !ok && lobby.active_sabotage == "seismic" && precisa == 0);
+	}
+
+	println("== 2 e 3. as maos ==");
+	{
+		game_state@ lobby = partida();
+		sabota(lobby);
+		confere("pos a mao no oeste", segura(lobby, 2, "panel_seismic_west", true));
+		confere("o mesmo painel nao aceita outra mao", !segura(lobby, 3, "panel_seismic_west", true));
+		roda(lobby, 3.0);
+		confere("uma mao so, 3 s: nada", lobby.active_sabotage == "seismic");
+		segura(lobby, 3, "panel_seismic_east", true);
+		roda(lobby, SABOTAGE_HOLD_TOGETHER_SECONDS - 0.5);
+		confere("juntas por menos que o tempo: ainda nao", lobby.active_sabotage == "seismic");
+		confere("soltar avisa", segura(lobby, 3, "panel_seismic_east", false));
+		roda(lobby, 0.2);
+		segura(lobby, 3, "panel_seismic_east", true);
+		roda(lobby, SABOTAGE_HOLD_TOGETHER_SECONDS - 0.5);
+		confere("soltar ZERA a conta: de novo, ainda nao", lobby.active_sabotage == "seismic");
+		int fim = roda(lobby, 1.0, S_SABOTAGE_FIXED);
+		confere("juntas pelo tempo todo: estabilizou, com o fim de sempre", lobby.active_sabotage == "" && fim == 1);
+		confere("e as maos foram limpas", lobby.sabotage_hold_panels.length() == 0);
+	}
+
+	println("== 4. quem nao pode mais segurar ==");
+	{
+		game_state@ lobby = partida();
+		sabota(lobby);
+		segura(lobby, 2, "panel_seismic_west", true);
+		lobby.players[1].x = -30; // humano 2 saiu andando
+		int soltas = roda(lobby, 0.2, S_SABOTAGE_HOLD);
+		confere("afastou-se: solto, e a partida fica sabendo", soltas == 1 && lobby.sabotage_hold_holder("panel_seismic_west") == 0);
+		segura(lobby, 3, "panel_seismic_east", true);
+		lobby.players[2].alive = false;
+		roda(lobby, 0.2);
+		confere("morreu: solto", lobby.sabotage_hold_holder("panel_seismic_east") == 0);
+		confere("e morto nao poe a mao", !segura(lobby, 3, "panel_seismic_east", true));
+	}
+
+	println("== 5. o relogio ==");
+	{
+		game_state@ lobby = partida();
+		sabota(lobby);
+		lobby.sabotage_timer = 0.1;
+		roda(lobby, 0.2);
+		confere("acabou: impostores, pelo sismografo", lobby.winner == "impostors" && lobby.win_reason == "seismic_collapse");
+	}
+
+	println("== 6. os bots ==");
+	{
+		game_state@ lobby = partida();
+		lobby.players[1].x = 0; lobby.players[1].y = -50; // os humanos longe, fora do caminho
+		lobby.players[2].x = 0; lobby.players[2].y = -50;
+		for (uint64 id = 10; id <= 11; id++) {
+			game_player@ b = game_player(id, "bot" + id);
+			b.is_bot = true;
+			b.set_role(ROLE_CREWMATE);
+			b.x = 0; b.y = 34;
+			lobby.players.insert_last(b);
+		}
+		sabota(lobby);
+		bool estabilizou = false;
+		array<string> seguros;
+		for (float t = 0.0; t < 60.0 && !estabilizou; t += DT) {
+			lobby.tick(DT);
+			// Os pedidos, como o servidor faria (on_sabotage_hold).
+			for (uint r = 0; r < lobby.bot_requests.length(); r++) {
+				bot_request@ p = lobby.bot_requests[r];
+				if (p.kind != BOT_REQUEST_HOLD_PANEL) continue;
+				if (segura(lobby, p.peer_id, p.object_id, true) && seguros.find(p.object_id) < 0) seguros.insert_last(p.object_id);
+			}
+			lobby.bot_requests.resize(0);
+			estabilizou = lobby.active_sabotage == "";
+		}
+		confere("um bot em cada painel (" + seguros.length() + ")", seguros.length() == 2);
+		confere("e estabilizaram sozinhos", estabilizou);
+	}
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
