@@ -441,7 +441,10 @@ papéis e dos alvos, só entre humanos.
   juntos. Desligada, nada sai na morte e o médico revive o casal junto - mas é RECUSADO
   (`role.revive_lover_gone`) se o par morto não tem mais corpo, antes de gastar a recarga: reviver alguém
   para morrer de amor no tick seguinte pareceria defeito. O cliente lê a regra no `S_GAME_START` (sem o
-  campo, servidor anterior, a morte tira).
+  campo, servidor anterior, a morte tira). **O "fui engolido" NÃO chama o `lose_modifiers`**, embora
+  também ponha `alive = false`: engolido não está morto e volta da barriga com tudo. Na 0.55.1 a chamada
+  entrou em toda linha `alive = false` do cliente, essa inclusive, e quem saía da barriga voltava sem
+  Flash, Gigante nem par (relato do usuário, 2026-10-18) - o servidor estava certo, o cliente não.
 Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`

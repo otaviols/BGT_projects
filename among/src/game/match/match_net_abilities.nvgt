@@ -31,7 +31,10 @@ mixin class match_net_abilities_part {
 		wolf_peer = pkt.get_uint64("wolf_peer");
 		alive = false;
 		mui.alive = false;
-		lose_modifiers(); // a morte tira par e velocidade, como no servidor (strip_dead_modifiers)
+		// SEM lose_modifiers: engolido não está morto - sai da barriga quando o lobo morre ou é expulso, e
+		// volta com par e velocidade (o servidor também os mantém, ver strip_dead_modifiers). Chamado aqui,
+		// quem saía da barriga voltava sem Flash nem Gigante, e o Ctrl+H esquecia o par (relato do usuário,
+		// 2026-10-18).
 		is_vented = false;
 		// O som de engolir, no próprio ponto: é com ele.
 		audio.play_wolf_swallow(my_x, my_y);

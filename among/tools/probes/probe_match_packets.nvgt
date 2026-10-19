@@ -192,7 +192,8 @@ void main() {
 	confere("fim da votacao rearma a recarga de kill", imp.my_kill_cooldown_remaining == 25.0);
 
 	println("== barriga do lobo ==");
-	match_session@ b = nova_partida(ROLE_CREWMATE);
+	match_session@ b = nova_partida(ROLE_CREWMATE, "ana", "flash");
+	b.move_speed = b.room_move_speed * 1.5; // como o servidor manda para o Flash
 	net_packet@ engole = net_packet(S_SWALLOWED);
 	engole.set_uint64("wolf_peer", 2);
 	b.handle_packet(engole);
@@ -204,6 +205,9 @@ void main() {
 	solta.set_array("peers", voltaram);
 	b.handle_packet(solta);
 	confere("solto: de volta, vivo, onde o lobo estava", !b.swallowed && b.wolf_peer == 0 && b.alive);
+	// Engolido não é morto: os modificadores ficam (relato do usuário, 2026-10-18 - saía sem eles).
+	confere("e com os modificadores: Flash e o par continuam", b.speed_modifier_id == "flash" && b.lover_name_spoken != ""
+		&& b.move_speed > b.room_move_speed);
 
 	println("== revivido pelo medico ==");
 	match_session@ rv = nova_partida(ROLE_CREWMATE);
