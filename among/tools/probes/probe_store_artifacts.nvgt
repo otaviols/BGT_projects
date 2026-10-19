@@ -42,8 +42,9 @@ void main() {
 	g_artifact_order_next = ordem;
 	g_artifact_slots_next = buracos;
 	array<int> rota = {
-		KEY_SPACE,                                                 // escutar o buraco nao conta como tentativa
-		KEY_RETURN, KEY_RIGHT, KEY_RETURN, KEY_RIGHT, KEY_RETURN, // cristal: erra o 1º e o 2º, guarda no 3º
+		KEY_RETURN,                                                // fora da vitrine, Enter nao faz nada
+		KEY_SPACE,                                                 // repetir a peca nao conta como tentativa
+		KEY_RIGHT, KEY_RETURN, KEY_RIGHT, KEY_RETURN, KEY_RIGHT, KEY_RETURN, // cristal: erra o 1º e o 2º, guarda no 3º
 		KEY_LEFT, KEY_LEFT, KEY_RETURN,                            // ovo: no 1º
 		KEY_RIGHT, KEY_RETURN, KEY_RIGHT, KEY_RETURN, KEY_RIGHT, KEY_RETURN, // osso: erra o 2º, o 3º (ocupado), guarda no 4º
 		KEY_LEFT, KEY_LEFT, KEY_RETURN};                           // pedra: no 2º

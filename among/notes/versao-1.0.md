@@ -119,9 +119,9 @@ Falta, na ordem combinada:
   relação à mira, como o labirinto do nó; Enter só trava no centro exato) e **inserir as chaves**, a tarefa COMUM do Polus (um ponto
   só, na nave de pouso, como o cartão na nave; `COMMON_TASK_TYPES` sorteia por tipo, e o tipo sem ponto
   no mapa não sai), e **guardar os artefatos** (espécimes: as peças chegam uma a uma, cada uma com o seu
-  som; Espaço escuta o buraco da frente, que soa como a peça que cabe nele, e Enter guarda - casar dois
-  sons iguais; buraco ocupado toca baixinho a peça que está nele, em vez do clique. A primeira versão,
-  tentar e lembrar quais buracos recusaram, foi trocada por esta pelo usuário no mesmo dia). As maquetes ficam na pasta de teste do usuário
+  som; cada buraco, ao se CHEGAR nele, toca o som da peça que encaixa ali, e Enter guarda - casar dois sons
+  iguais, com só setas, Espaço (repete a peça da mão) e Enter. Desenho do usuário, que trocou no mesmo dia
+  duas versões minhas: tentar e lembrar quais buracos recusaram, e escutar o buraco com uma tecla à parte). As maquetes ficam na pasta de teste do usuário
   (`C:\apto10\acer\documents\Among Us - teste do Polus`), junto do jogo de teste. As outras ainda são provisórias, as da nave que fazem
   sentido lá (fios, download, asteroides, filtro de O2);
 - **o sismógrafo** (a sabotagem crítica, dois painéis, duas pessoas) - até lá o Polus não tem crítica;

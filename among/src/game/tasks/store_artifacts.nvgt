@@ -3,17 +3,16 @@
 // vitrine com quatro buracos, cada um no formato de uma peça; você arrasta cada peça até o buraco dela, e
 // a decisão é reconhecer o formato de olho.
 //
-// Para o ouvido, o formato vira o SOM da peça:
+// Para o ouvido, o formato vira o SOM da peça (desenho do usuário, 2026-10-19):
 //   - as peças chegam uma de cada vez, e cada uma tem o SEU som ao ser pega (cristal, ovo, osso, pedra);
-//     Shift+Espaço repete o som da peça da mão;
-//   - os quatro buracos ficam da esquerda para a direita, as setas andam entre eles com um clique no lado
-//     de cada um, e Espaço "escuta" o buraco da frente: toca o som da peça que cabe nele. Achou o som da
-//     peça da mão, Enter a guarda; no buraco errado toca o erro, e a peça continua na mão;
-//   - buraco OCUPADO não clica: toca baixinho o som da peça que está nele, e se passa direto.
-// A primeira versão (maquete aprovada em 2026-10-19) não deixava escutar o buraco: era tentar e lembrar
-// quais tinham recusado. O usuário a trocou no mesmo dia por esta - "o espaço tem que fazer o mesmo
-// barulho que a peça, aí você vai e já dá Enter na certa": casar dois sons iguais, em vez de errar até
-// acertar. Errar ainda custa tempo, como o galão vazio.
+//     Espaço repete o som da peça da mão;
+//   - os quatro buracos ficam da esquerda para a direita, e ao CHEGAR num buraco ele toca, no lado dele,
+//     o som da peça que encaixa ali. Anda-se até o buraco que soa como a peça da mão, e Enter guarda; no
+//     errado toca o erro, e a peça continua na mão;
+//   - buraco ocupado toca o mesmo som, baixinho: a peça que já está nele.
+// Duas versões ficaram para trás no mesmo dia: tentar às cegas e lembrar quais buracos recusaram (a da
+// maquete), e escutar o buraco com uma tecla à parte. O usuário: "não precisa de tantos comandos" - o
+// buraco se apresenta sozinho, e as teclas são só setas, Espaço e Enter.
 
 #include "task_common.nvgt"
 
@@ -43,7 +42,9 @@ bool run_store_artifacts_task(game_client@ client, uint phase) {
 	g_artifact_last_misses = 0;
 
 	array<int> peca_no_buraco = {-1, -1, -1, -1};
-	int aqui = 0; // começa no primeiro buraco, à esquerda
+	// Começa FORA da vitrine: a primeira seta leva ao primeiro buraco, e ele se apresenta. Começando em
+	// cima dele, o primeiro buraco seria o único que nunca soou.
+	int aqui = -1;
 	if (!wait_for_task_sound(task_sound(SND_SPECIMEN_OPEN), client)) return false;
 
 	for (uint n = 0; n < ordem.length(); n++) {
@@ -57,32 +58,22 @@ bool run_store_artifacts_task(game_client@ client, uint phase) {
 			if (task_tick(client)) return false;
 			// Cada tecla lida UMA vez (ver CLAUDE.md).
 			bool esq = key_pressed(KEY_LEFT), dir = key_pressed(KEY_RIGHT);
-			bool espaco = key_pressed(KEY_SPACE), tenta = key_pressed(KEY_RETURN);
-			bool shift = key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT);
+			bool repete = key_pressed(KEY_SPACE), tenta = key_pressed(KEY_RETURN);
 			if (esq || dir) {
-				int novo = aqui + (dir ? 1 : -1);
+				int novo = aqui < 0 ? 0 : aqui + (dir ? 1 : -1);
 				if (novo >= 0 && novo < int(ARTIFACT_SLOT_PANS.length())) aqui = novo;
-				// Na ponta, o mesmo som no mesmo lugar: não há mais buracos.
+				// O buraco se apresenta: o som da peça que encaixa nele, no lado dele - baixinho se ela já está
+				// lá. Na ponta, o mesmo buraco de novo: não há mais.
 				float pan = pan_from_linear(ARTIFACT_SLOT_PANS[aqui]);
-				if (peca_no_buraco[aqui] >= 0)
-					task_sound_path("sounds/" + ARTIFACT_SOUNDS[peca_no_buraco[aqui]], pan, ARTIFACT_OCCUPIED_DB);
-				else task_sound_path(SND_MENU_CLICK, pan);
+				int dona = buraco_de.find(aqui);
+				task_sound_path("sounds/" + ARTIFACT_SOUNDS[dona], pan, peca_no_buraco[aqui] >= 0 ? ARTIFACT_OCCUPIED_DB : 0.0);
 				continue;
 			}
-			if (espaco && shift) {
+			if (repete) {
 				task_sound(ARTIFACT_SOUNDS[peca]);
 				continue;
 			}
-			if (espaco) {
-				// A peça que cabe neste buraco, no lado dele. Ocupado, já se ouviu ao chegar: aqui também.
-				int dona = buraco_de.find(aqui);
-				float pan = pan_from_linear(ARTIFACT_SLOT_PANS[aqui]);
-				if (peca_no_buraco[aqui] >= 0)
-					task_sound_path("sounds/" + ARTIFACT_SOUNDS[peca_no_buraco[aqui]], pan, ARTIFACT_OCCUPIED_DB);
-				else task_sound(ARTIFACT_SOUNDS[dona], pan);
-				continue;
-			}
-			if (!tenta) continue;
+			if (!tenta || aqui < 0) continue;
 			// Buraco ocupado também recusa: a peça de lá não sai.
 			if (peca_no_buraco[aqui] >= 0 || buraco_de[peca] != aqui) {
 				g_artifact_last_misses++;
