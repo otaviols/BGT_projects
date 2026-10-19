@@ -69,7 +69,7 @@ void run_explore_map_screen() {
 	audio_manager@ audio = audio_manager();
 
 	// Todos os pontos de task contam como "seus": o objetivo é saber que eles existem e onde ficam.
-	// Um por LUGAR: as duas etapas do Wi-Fi do Polus são dois pontos no mesmo lugar, e os dois marcadores
+	// Um por LUGAR: as duas etapas do Wi-Fi da Base Polar são dois pontos no mesmo lugar, e os dois marcadores
 	// iguais tocando juntos soariam como um só mais alto e embolado.
 	array<string> all_task_ids;
 	array<map_object@> ja_tocam;
@@ -91,7 +91,7 @@ void run_explore_map_screen() {
 	audio.start_landmark_beacons(map, all_task_ids, BEACON_ALL_PANELS);
 
 	// O nome da sala de começo vem à parte, e sempre (é informação, não dica): o texto dizia "você está na
-	// cafeteria", e no Polus começa-se na nave de pouso.
+	// cafeteria", e na Base Polar começa-se na nave de pouso.
 	map_zone@ comeco = map.find_zone(map.start_room);
 	string onde = @comeco != null ? tr(comeco.name_key) + ". " : "";
 	speak(onde + hint_text("explore.intro"));

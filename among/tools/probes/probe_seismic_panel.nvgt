@@ -64,11 +64,11 @@ void main() {
 	simulate_key_up(KEY_RETURN);
 
 	println("== o lado do colega ==");
-	game_map@ polus = build_map(MAP_POLUS);
-	map_object@ oeste = polus.find_object("panel_seismic_west");
-	map_object@ leste = polus.find_object("panel_seismic_east");
-	confere("do oeste, o colega soa a direita", other_panel_pan(polus, oeste) > 0.5);
-	confere("do leste, a esquerda", other_panel_pan(polus, leste) < -0.5);
+	game_map@ base = build_map(MAP_POLAR_BASE);
+	map_object@ oeste = base.find_object("panel_seismic_west");
+	map_object@ leste = base.find_object("panel_seismic_east");
+	confere("do oeste, o colega soa a direita", other_panel_pan(base, oeste) > 0.5);
+	confere("do leste, a esquerda", other_panel_pan(base, leste) < -0.5);
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

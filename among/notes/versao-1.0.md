@@ -98,25 +98,31 @@ versões alternativas do mesmo som.
   nascer dentro dela com o raio inteiro em chão, mesa num lugar onde se pisa, e toda tarefa com minijogo
   (`TASK_MINIGAME_TYPES`, em `task_manager.nvgt` - tipo novo entra na lista E no `else if`).
 
-## O Polus hoje (2026-10-19)
+## A Base Polar hoje (2026-10-19)
 
-**Planta aprovada e montada** (`build_polus_map`): nave de pouso (começo, mesa e botão), escritório,
+**Chamava-se Polus até 2026-10-19.** O nome é nosso, por dentro e por fora (`MAP_POLAR_BASE`,
+`"polar_base"`, os sons `polar_base_*`), porque o mapa é INSPIRADO no Polus do original e não uma cópia -
+como a nave de sempre, que é "A nave" e não "The Skeld" (decisão do usuário, que também lembrou que
+"Among Us" é marca). A seção "Polus" mais acima fala do mapa ORIGINAL, da leva; a pasta de teste do usuário
+ainda se chama "teste do Polus".
+
+**Planta aprovada e montada** (`build_polar_base_map`): nave de pouso (começo, mesa e botão), escritório,
 administração, comunicações, armas, O2, elétrica, depósito, sismógrafo, laboratório, descontaminação e a
 sala dos espécimes atrás dela - ligados por nove caminhos de NEVE (o lado de fora, `SnowTile` a +7,5 dB,
-com o vento `polus_outside` em cada caminho) e dois corredores internos. Duas redes de duto. Ambientes da
+com o vento `polar_base_outside` em cada caminho) e dois corredores internos. Duas redes de duto. Ambientes da
 leva convertidos no volume das salas. **Em construção:** fica em `MAP_IDS_IN_TEST` - o servidor não o
 aceita, e o Conhecer o mapa e o treino o oferecem quando a pasta do jogo tem o `mapas_em_teste.txt` (com
 algum texto dentro). É como o usuário ouve o mapa antes de ele existir para os jogadores.
 
 Falta, na ordem combinada:
-- **as tarefas do Polus**, uma por vez pela receita (maquete ouvida antes de código). Feitas: **o nó do
+- **as tarefas da Base Polar**, uma por vez pela receita (maquete ouvida antes de código). Feitas: **o nó do
   clima** (2026-10-19, ver tarefas-novas.md) **trocar o galão** (depósito ao escritório: bater nos quatro galões e pegar o cheio pelo TIMBRE - o
   baque surdo contra o oco -, e encaixar no bebedouro; a versão por tom, "manter a vazão", foi recusada:
   o jogo não pode ter tom em tudo), **reiniciar o Wi-Fi** (comunicações: desce a alavanca segurando a seta, sai, e volta depois de 45 s
   para subir - a reunião não pausa a conta, como no original; DOIS pontos no mesmo lugar, porque a corrente
   não aceita o mesmo ponto duas vezes), **registrar a temperatura** (laboratório: a leitura é um tom; o registro sobe e desce um semitom por
   grau no MESMO bipe, e Enter só aceita no valor), **alinhar o telescópio** (laboratório: o astro pisca um tique, o lado e o tom dizem onde ele está em
-  relação à mira, como o labirinto do nó; Enter só trava no centro exato) e **inserir as chaves**, a tarefa COMUM do Polus (um ponto
+  relação à mira, como o labirinto do nó; Enter só trava no centro exato) e **inserir as chaves**, a tarefa COMUM da Base Polar (um ponto
   só, na nave de pouso, como o cartão na nave; `COMMON_TASK_TYPES` sorteia por tipo, e o tipo sem ponto
   no mapa não sai), e **guardar os artefatos** (espécimes: as peças chegam uma a uma, cada uma com o seu
   som; cada buraco, ao se CHEGAR nele, toca o som da peça que encaixa ali, e Enter guarda - casar dois sons
@@ -132,7 +138,7 @@ Falta, na ordem combinada:
   colega se ouve do lado dele; ver ciclo-da-partida.md;
 - **o reator no mapa antigo** (decisão do usuário, 2026-10-19: novidade da 1.0 também para a nave de
   sempre), reaproveitando a sabotagem de segurar - com portão de protocolo, ver ciclo-da-partida.md;
-- ~~as portas com minijogo~~ FEITO (2026-10-19): no Polus a sala trancada fica 20 s (12 na nave), e na
+- ~~as portas com minijogo~~ FEITO (2026-10-19): na Base Polar a sala trancada fica 20 s (12 na nave), e na
   passagem Enter abre o painel - reflexo: bipe agudo à esquerda, no meio ou à direita, a seta do lado
   antes de sumir, cinco acertos abrem a sala para todos. Os sons do minijogo da leva foram RECUSADOS
   ("bem estranhos", feitos para animação): bipes gerados e o interruptor que estava reservado;
@@ -145,12 +151,12 @@ Falta, na ordem combinada:
   onde o original o tem - estava errado na planta, e o usuário notou.
 
 **As sabotagens agora são do MAPA** (`game_map.sabotages()`, as que têm painel): o menu do impostor, o
-servidor (`trigger_sabotage`), os bots e o treino perguntam ao mapa. Sem isso o Polus ofereceria o
+servidor (`trigger_sabotage`), os bots e o treino perguntam ao mapa. Sem isso a Base Polar ofereceria o
 oxigênio, que não tem painel lá - sabotagem sem conserto, vitória de graça. **O som geral também**
-(`game_map.ship_ambience`): o zumbido da nave é da nave; o Polus não tem um. **E a sala de começo** é
+(`game_map.ship_ambience`): o zumbido da nave é da nave; a Base Polar não tem um. **E a sala de começo** é
 dita à parte no Conhecer o mapa (o `explore.intro` deixou de dizer "cafeteria", nos cinco idiomas).
 
-`probe_maps` passa no Polus: além do que já conferia, agora pega zona sobre zona, objeto fora da sala
+`probe_maps` passa na Base Polar: além do que já conferia, agora pega zona sobre zona, objeto fora da sala
 dele, zona inalcançável pelos bots e ligação com buraco no meio - os quatro erros que uma planta nova
 comete calada.
 

@@ -1,5 +1,5 @@
 // align_telescope.nvgt
-// Alinhar o telescópio (Polus, a 1.0), no laboratório. No original, a tela mostra um céu de estrelas e,
+// Alinhar o telescópio (Base Polar, a 1.0), no laboratório. No original, a tela mostra um céu de estrelas e,
 // no canto, o astro a achar; arrasta-se a vista até ele ficar no centro da mira, e ela trava.
 //
 // Para o ouvido (maquete aprovada pelo usuário em 2026-10-19):

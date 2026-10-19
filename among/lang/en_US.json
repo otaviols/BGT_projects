@@ -28,7 +28,7 @@
   "menu.practice": "Practice tasks and repairs",
   "practice.hint": "Choose a task or a repair to practice, with no match. ESC in the middle cancels.",
   "map.the_hub.name": "The ship",
-  "map.polus.name": "Polus",
+  "map.polar_base.name": "Polar Base",
   "map.choose_explore": "Which map do you want to explore?",
   "map.choose_practice": "Which map do you want to practice on?",
   "practice.repair_item": "Repair: {name}",

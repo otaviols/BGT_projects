@@ -1,4 +1,4 @@
-// Sonda do sismógrafo (Polus), direto no estado da partida (sem rede), com o MESMO tick do servidor.
+// Sonda do sismógrafo (Base Polar), direto no estado da partida (sem rede), com o MESMO tick do servidor.
 //   nvgt tools/probes/probe_seismic.nvgt
 //
 // Confere:
@@ -19,11 +19,11 @@ void confere(const string&in o_que, bool ok) {
 
 const float DT = 0.05;
 
-// Polus parado: um impostor humano e dois tripulantes humanos, os dois já na sala do sismógrafo.
+// Base Polar parada: um impostor humano e dois tripulantes humanos, os dois já na sala do sismógrafo.
 game_state@ partida() {
 	game_state@ lobby = game_state();
 	@lobby.config = lobby_config();
-	@lobby.map = build_map(MAP_POLUS);
+	@lobby.map = build_map(MAP_POLAR_BASE);
 	lobby.state = "in_progress";
 	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
 	game_player@ imp = game_player(1, "imp");
@@ -67,7 +67,7 @@ void main() {
 	println("== 1. a sabotagem ==");
 	{
 		game_state@ lobby = partida();
-		confere("o Polus tem o sismografo, e e de segurar", lobby.map.has_sabotage("seismic") && is_hold_sabotage("seismic"));
+		confere("a Base Polar tem o sismografo, e e de segurar", lobby.map.has_sabotage("seismic") && is_hold_sabotage("seismic"));
 		confere("o impostor a dispara", sabota(lobby) && lobby.active_sabotage == "seismic");
 		confere("critica, com relogio", lobby.is_critical_sabotage("seismic") && lobby.sabotage_timer > 60.0);
 		confere("pede os dois paineis", lobby.required_panels_for("seismic") == 2);

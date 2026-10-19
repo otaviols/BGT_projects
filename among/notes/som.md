@@ -97,7 +97,7 @@ tema em vez de tocar uma segunda cópia por cima. Sonda: `probe_menu_music.nvgt`
 **Com uma tarefa ou um painel de conserto aberto, os marcadores do mapa CALAM** (`stop_landmark_beacons`
 antes do minijogo, `refresh_landmark_beacons` depois, na partida; o mesmo no Conhecer o mapa). O marcador
 da própria tarefa tocava ao lado, por cima dos sons de dentro dela - inofensivo enquanto as tarefas eram
-de tom e de ritmo, e confuso nas do Polus, feitas de tiques e cliques do mesmo tipo (relato do usuário,
+de tom e de ritmo, e confuso nas da Base Polar, feitas de tiques e cliques do mesmo tipo (relato do usuário,
 2026-10-19). Volta pela função de sempre, então respeita a sabotagem em curso e o fantasma.
 
 **"Task concluída" é UM som, tocado num lugar só.** `SND_TASK_COMPLETE` sai do `task_manager` ao
@@ -124,11 +124,11 @@ virando 3,4 MB sem perda audível, e o download caiu de 60 MB para 29 MB. Som no
 `D:\Program\winvox\ffmpeg.exe`, fora do PATH) com `-c:a libvorbis -q:a 3`. Som vindo da leva do jogo
 original entra JÁ no volume certo: `-af volume=<ganho>dB` na conversão, com o ganho medido pelo
 `volumedetect` contra a média das salas (-33 dB) e limitado para o pico não passar de -3 dB - foi assim
-que entraram os ambientes do Polus. **Marcador feito de clique curto precisa de um respiro de silêncio
+que entraram os ambientes da Base Polar. **Marcador feito de clique curto precisa de um respiro de silêncio
 no arquivo** (ele toca em laço): `apad` logo depois de um `amix` NÃO estica nada - o arquivo sai com o
 tamanho do clique e, em laço, vira metralhadora. Faça em duas etapas: o `amix` num `.wav`, e depois
 `-af apad -t <segundos>` na conversão para `.ogg`. E clique isolado de 0,1 s some no ambiente: o
-termômetro e o telescópio do Polus viraram dois e três cliques seguidos, a cada segundo. Depois da conversão, o maior peso do zip passou a ser `lib/phonon.dll`
+termômetro e o telescópio da Base Polar viraram dois e três cliques seguidos, a cada segundo. Depois da conversão, o maior peso do zip passou a ser `lib/phonon.dll`
 (17,9 MB comprimido), que é o motor de áudio posicionado e não sai.
 
 **Passo inaudível pode ser culpa do AMBIENTE, não do passo.** Recado #134: "os passos na sala do motor

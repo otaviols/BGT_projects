@@ -28,7 +28,7 @@
   "menu.practice": "Praticar tarefas e reparos",
   "practice.hint": "Escolha uma tarefa ou um reparo para praticar, sem partida. ESC no meio cancela.",
   "map.the_hub.name": "A nave",
-  "map.polus.name": "Polus",
+  "map.polar_base.name": "Base Polar",
   "map.choose_explore": "Qual mapa você quer conhecer?",
   "map.choose_practice": "Em qual mapa você quer praticar?",
   "practice.repair_item": "Reparo: {name}",

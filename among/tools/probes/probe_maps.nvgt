@@ -2,7 +2,7 @@
 // de pé sozinho, e a sala não aceita mapa que não existe.
 //   nvgt tools/probes/probe_maps.nvgt
 //
-// É o portão do mapa novo: Polus entra na lista e esta sonda diz se ele nasceu inteiro - o nome falado,
+// É o portão do mapa novo: Base Polar entra na lista e esta sonda diz se ele nasceu inteiro - o nome falado,
 // a sala de começo, o ponto de nascer dentro dela, a mesa da reunião num lugar onde se pisa, e toda
 // tarefa com minijogo. Um mapa com o ponto de nascer fora de uma sala compila, abre e deixa todo mundo
 // preso numa parede.
@@ -111,7 +111,7 @@ void main() {
 	confere("a nave de sempre nao exige protocolo novo", c.required_protocol() < MAPS_PROTOCOL);
 	// Mapa em construção não existe para a sala: só o Conhecer o mapa e o treino o oferecem.
 	lobby_config t;
-	t.map_name = MAP_POLUS;
+	t.map_name = MAP_POLAR_BASE;
 	t.validate();
 	confere("o servidor nao aceita mapa em construcao (" + t.map_name + ")", t.map_name == MAP_THE_HUB);
 	lobby_overrides ov;

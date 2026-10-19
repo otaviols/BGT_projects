@@ -74,21 +74,21 @@ const string SND_AMBIENT_OXYGEN = "sounds/ambience/ambient_oxygen.ogg";
 // fazer notar, mas sem virar mascara - ambiencia alta demais esconderia passos e faria da sala um
 // esconderijo por acidente de mixagem, e nao por decisao de projeto.
 const string SND_AMBIENT_ENGINE = "sounds/ambience/ambient_engine.ogg";
-// Polus (a 1.0, ver notes/versao-1.0.md). Vêm da leva do jogo original, convertidos JÁ no volume das
+// Base Polar (a 1.0, ver notes/versao-1.0.md). Vêm da leva do jogo original, convertidos JÁ no volume das
 // salas da nave (média de -33 dB; os de sala calma em -35, o sismógrafo em -31 e o lado de fora, que
 // é vento, em -30) - medidos na conversão, e não corrigidos depois em ambience_correction_db.
-const string SND_POLUS_DROPSHIP = "sounds/ambience/polus_dropship.ogg";
-const string SND_POLUS_OFFICE = "sounds/ambience/polus_office.ogg";
-const string SND_POLUS_ADMIN = "sounds/ambience/polus_admin.ogg";
-const string SND_POLUS_COMMUNICATIONS = "sounds/ambience/polus_communications.ogg";
-const string SND_POLUS_OXYGEN = "sounds/ambience/polus_oxygen.ogg";
-const string SND_POLUS_ELECTRICAL = "sounds/ambience/polus_electrical.ogg";
-const string SND_POLUS_STORAGE = "sounds/ambience/polus_storage.ogg";
-const string SND_POLUS_LABORATORY = "sounds/ambience/polus_laboratory.ogg";
-const string SND_POLUS_DECONTAMINATION = "sounds/ambience/polus_decontamination.ogg";
-const string SND_POLUS_SPECIMEN = "sounds/ambience/polus_specimen.ogg";
-const string SND_POLUS_SEISMIC = "sounds/ambience/polus_seismic.ogg";
-const string SND_POLUS_OUTSIDE = "sounds/ambience/polus_outside.ogg";
+const string SND_POLAR_BASE_DROPSHIP = "sounds/ambience/polar_base_dropship.ogg";
+const string SND_POLAR_BASE_OFFICE = "sounds/ambience/polar_base_office.ogg";
+const string SND_POLAR_BASE_ADMIN = "sounds/ambience/polar_base_admin.ogg";
+const string SND_POLAR_BASE_COMMUNICATIONS = "sounds/ambience/polar_base_communications.ogg";
+const string SND_POLAR_BASE_OXYGEN = "sounds/ambience/polar_base_oxygen.ogg";
+const string SND_POLAR_BASE_ELECTRICAL = "sounds/ambience/polar_base_electrical.ogg";
+const string SND_POLAR_BASE_STORAGE = "sounds/ambience/polar_base_storage.ogg";
+const string SND_POLAR_BASE_LABORATORY = "sounds/ambience/polar_base_laboratory.ogg";
+const string SND_POLAR_BASE_DECONTAMINATION = "sounds/ambience/polar_base_decontamination.ogg";
+const string SND_POLAR_BASE_SPECIMEN = "sounds/ambience/polar_base_specimen.ogg";
+const string SND_POLAR_BASE_SEISMIC = "sounds/ambience/polar_base_seismic.ogg";
+const string SND_POLAR_BASE_OUTSIDE = "sounds/ambience/polar_base_outside.ogg";
 
 // --- Objetos do mapa (som de UMA VEZ ao usar - abrir painel, entrar/sair do vent) ---
 const string SND_VENT_DOOR_1 = "sounds/world/vent_door1.ogg";
@@ -101,12 +101,12 @@ const string SND_PANEL_CLOSE = "sounds/world/panel_close.ogg";
 // exatamente qual passagem foi trancada.
 const string SND_DOOR_CLOSE = "sounds/world/door_close.ogg";
 const string SND_DOOR_OPEN = "sounds/world/door_open.ogg";
-// O golpe certo no painel da porta do Polus: o interruptor que estava reservado para "reabrir porta
+// O golpe certo no painel da porta da Base Polar: o interruptor que estava reservado para "reabrir porta
 // trancada num mapa futuro". Os dois bipes do mesmo painel (acender e sumir) são gerados, e não da leva:
 // os do original foram ouvidos e recusados ("os sons são bem estranhos" - feitos para uma animação).
 const string SND_DOOR_SWITCH = "sounds/world/door_switch.ogg";
 const string SND_DOOR_TARGET = "tasks/door_target.ogg";
-// A câmara de descontaminação do Polus: a porta dela e o spray, da leva do original.
+// A câmara de descontaminação da Base Polar: a porta dela e o spray, da leva do original.
 const string SND_DECONTAMINATION_CLOSE = "sounds/world/decontamination_close.ogg";
 const string SND_DECONTAMINATION_OPEN = "sounds/world/decontamination_open.ogg";
 const string SND_DECONTAMINATION_SPRAY = "sounds/world/decontamination_spray.ogg";
@@ -182,7 +182,7 @@ const string SND_BUTTON_BEACON = "sounds/beacons/button.ogg";
 const string SND_PANEL_BEACON_LIGHTS = "sounds/beacons/panel_lights.ogg";
 const string SND_PANEL_BEACON_OXYGEN = "sounds/beacons/panel_oxygen.ogg";
 const string SND_PANEL_BEACON_COMMS = "sounds/beacons/comunication_pannel.mp3";
-// O sismógrafo (Polus): o tremor dele, no painel. Dentro do painel, o leitor de mão do original (o
+// O sismógrafo (Base Polar): o tremor dele, no painel. Dentro do painel, o leitor de mão do original (o
 // estalo ao pôr, o zumbido enquanto se segura) e a falha quando o colega solta cedo.
 const string SND_PANEL_BEACON_SEISMIC = "sounds/beacons/seismic_panel.ogg";
 const string SND_SEISMIC_HAND = "tasks/seismic_hand.ogg";
@@ -230,7 +230,7 @@ const string SND_CARD_ERROR = "tasks/card_error.ogg";
 const string SND_CARD_COMPLETE = "tasks/card_complete.ogg"; // o leitor aceitou o cartão - só na task do cartão
 const string SND_GET_CARD = "tasks/get_card.ogg";
 const string SND_PULLING_GARBAGE_LEVER = "tasks/pulling_garbage_lever.ogg"; // toca 1x ao COMEÇAR a segurar Enter na task de lixo
-// Nó do clima (Polus): o clique de cada passo no labirinto, o nó ligando e o interruptor do laboratório,
+// Nó do clima (Base Polar): o clique de cada passo no labirinto, o nó ligando e o interruptor do laboratório,
 // da leva do jogo original. E o marcador do nó: o zumbido da máquina do clima, a -32 dB como os outros.
 const string SND_WEATHER_NODE_MOVE = "tasks/weather_node_move.ogg";
 const string SND_WEATHER_NODE_START = "tasks/weather_node_start.ogg";
@@ -239,28 +239,28 @@ const string SND_TASK_BEACON_WEATHER_NODE = "sounds/beacons/weather_node.ogg";
 // O painel do laboratório (a segunda etapa) tem marcador próprio, o interruptor: com o mesmo zumbido dos
 // nós, as duas pontas da tarefa soavam iguais.
 const string SND_TASK_BEACON_WEATHER_SWITCH = "sounds/beacons/weather_switch.ogg";
-// Inserir as chaves (Polus): pegar/passar a chave, enfiar, girar e a tranca abrindo, da leva do original.
+// Inserir as chaves (Base Polar): pegar/passar a chave, enfiar, girar e a tranca abrindo, da leva do original.
 // O marcador é a tranca abrindo com um respiro de silêncio, repetido - um molho de chaves de longe.
 const string SND_KEY_GRAB = "tasks/key_grab.ogg";
 const string SND_KEY_INSERT = "tasks/key_insert.ogg";
 const string SND_KEY_TURN = "tasks/key_turn.ogg";
 const string SND_KEYS_OPEN = "tasks/keys_open.ogg";
 const string SND_TASK_BEACON_INSERT_KEYS = "sounds/beacons/keys.ogg";
-// Alinhar o telescópio (Polus): o tique do telescópio, da leva do original - 0,02 s, ataque puro, o que
+// Alinhar o telescópio (Base Polar): o tique do telescópio, da leva do original - 0,02 s, ataque puro, o que
 // o faz localizável. O marcador é o mesmo tique, repetido com um respiro.
 const string SND_TELESCOPE_TICK = "tasks/telescope_tick.ogg";
 const string SND_TASK_BEACON_ALIGN_TELESCOPE = "sounds/beacons/telescope.ogg";
-// Registrar a temperatura (Polus): o botão do registro, da leva do original. O tom da leitura e do
+// Registrar a temperatura (Base Polar): o botão do registro, da leva do original. O tom da leitura e do
 // registro é o SND_BEEP da casa - os dois o mesmo, de propósito. O marcador é o botão com um respiro.
 const string SND_TEMP_BUTTON = "tasks/temp_button.ogg";
 const string SND_TASK_BEACON_RECORD_TEMPERATURE = "sounds/beacons/thermometer.ogg";
-// Reiniciar o Wi-Fi (Polus): o entalhe da alavanca, o painel fechando e o Wi-Fi conectando, da leva do
+// Reiniciar o Wi-Fi (Base Polar): o entalhe da alavanca, o painel fechando e o Wi-Fi conectando, da leva do
 // original. O marcador é o som de conectar, com um respiro.
 const string SND_WIFI_SLIDER = "tasks/wifi_slider.ogg";
 const string SND_WIFI_CLOSE = "tasks/wifi_close.ogg";
 const string SND_WIFI_OPEN = "tasks/wifi_open.ogg";
 const string SND_TASK_BEACON_REBOOT_WIFI = "sounds/beacons/wifi.ogg";
-// Trocar o galão (Polus): o baque SURDO do cheio (o Thud da leva, abafado) e o OCO do vazio (a lata da
+// Trocar o galão (Base Polar): o baque SURDO do cheio (o Thud da leva, abafado) e o OCO do vazio (a lata da
 // leva), quase no mesmo volume de propósito - a pista é o timbre. Pegar, encaixar e a água descendo. O
 // marcador é a água descendo, com um respiro.
 const string SND_JUG_FULL = "tasks/jug_full.ogg";
@@ -272,7 +272,7 @@ const string SND_TASK_BEACON_REPLACE_WATER_JUG = "sounds/beacons/water_jug.ogg";
 // A primeira etapa (pegar no depósito) tem marcador PRÓPRIO, o galão sendo pego: com o mesmo da água, as
 // duas pontas da tarefa soavam iguais e não se sabia de longe qual era qual (relato do usuário).
 const string SND_TASK_BEACON_PICK_WATER_JUG = "sounds/beacons/water_jug_pickup.ogg";
-// Guardar os artefatos (Polus): a vitrine abrindo e fechando, o encaixe (o do original, bem baixo na
+// Guardar os artefatos (Base Polar): a vitrine abrindo e fechando, o encaixe (o do original, bem baixo na
 // leva: vai +9 dB no arquivo) e o som de cada peça ao ser pega - cristal, ovo, osso e pedra, escolhidos
 // para soarem diferentes entre si, porque é por eles que se reconhece a peça. O marcador é o cristal.
 const string SND_SPECIMEN_OPEN = "tasks/specimen_open.ogg";
@@ -283,7 +283,7 @@ const string SND_ARTIFACT_EGG = "tasks/artifact_egg.ogg";
 const string SND_ARTIFACT_BONE = "tasks/artifact_bone.ogg";
 const string SND_ARTIFACT_ROCK = "tasks/artifact_rock.ogg";
 const string SND_TASK_BEACON_STORE_ARTIFACTS = "sounds/beacons/specimen.ogg";
-// Encher os cilindros de O2 (Polus): o tinido do cilindro na prateleira, o zumbido da máquina (um pedaço
+// Encher os cilindros de O2 (Base Polar): o tinido do cilindro na prateleira, o zumbido da máquina (um pedaço
 // do ar dela), pegar, encaixar, o gás enchendo, soltar e devolver - tudo da leva do original. O marcador
 // é o encaixe seguido do gás.
 const string SND_CANISTER_SHELF = "tasks/canister_shelf.ogg";
@@ -294,7 +294,7 @@ const string SND_CANISTER_FILL = "tasks/canister_fill.ogg";
 const string SND_CANISTER_PLUGOUT = "tasks/canister_plugout.ogg";
 const string SND_CANISTER_DROP = "tasks/canister_drop.ogg";
 const string SND_TASK_BEACON_FILL_CANISTERS = "sounds/beacons/canisters.ogg";
-// Abrir a roda d'água (Polus): a roda destravando, o rangido de um quarto de volta (e o mesmo abafado,
+// Abrir a roda d'água (Base Polar): a roda destravando, o rangido de um quarto de volta (e o mesmo abafado,
 // para a manivela embaixo) e a água correndo. O marcador é o rangido, mais alto: fica lá fora, no vento.
 const string SND_WATERWHEEL_OPEN = "tasks/waterwheel_open.ogg";
 const string SND_WATERWHEEL_TURN = "tasks/waterwheel_turn.ogg";
@@ -397,8 +397,8 @@ const array<string> FOOTSTEP_FLOOR_PREFIXES = {
 	// qualquer ganho salvar (o usuário apagou o vidro e o carpete pelo mesmo motivo e não achou vidro
 	// melhor). Concreto no lugar, que nada mais no mapa usa.
 	"ConcreteTile",
-	// O lado de fora do Polus (a 1.0): os caminhos de neve entre os prédios. É o passo que diz "estou
-	// fora" - os arquivos esperavam no repositório por uma sala de neve desde antes do Polus.
+	// O lado de fora da Base Polar (a 1.0): os caminhos de neve entre os prédios. É o passo que diz "estou
+	// fora" - os arquivos esperavam no repositório por uma sala de neve desde antes da Base Polar.
 	"SnowTile"
 };
 
@@ -425,10 +425,10 @@ string footstep_variant_extension(const string&in floor_prefix) {
 //
 // Nenhuma correção chega perto de estourar: o pico mais alto depois do ajuste fica em torno de -7 dB.
 float footstep_volume_db(const string&in floor_prefix) {
-	// Neve (o lado de fora do Polus): a medição pede +9,3 (corpo -38,0 dB contra -28,8 do MetalTile) e o
+	// Neve (o lado de fora da Base Polar): a medição pede +9,3 (corpo -38,0 dB contra -28,8 do MetalTile) e o
 	// ruído de fundo aguenta (-63 + 7,5 = -55,5 dBFS). +7,5, e não a conta inteira: a conta sempre
 	// exagerou (o Tile pedia +17,6 e ficou +15). A conferir de ouvido no Conhecer o mapa - lá fora toca o
-	// vento junto (polus_outside, a -30 dB, o ambiente mais alto do Polus).
+	// vento junto (polar_base_outside, a -30 dB, o ambiente mais alto da Base Polar).
 	if (floor_prefix == "SnowTile") return 7.5;
 	// O Tile NÃO leva correção: o arquivo dele é o antigo, de antes da troca de sons, e ele já nasce
 	// no nível dos outros (corpo -30,9 dB, contra -29,7 do MetalTile). Os +15 dB que existiram aqui
@@ -571,18 +571,18 @@ array<string>@ all_sound_paths() {
 	list.insert_last("sounds/" + SND_DISTRIBUTOR_CORRECT);
 	list.insert_last("sounds/" + SND_DISTRIBUTOR_WRONG);
 	list.insert_last(SND_AMBIENT_GAMES);
-	list.insert_last(SND_POLUS_DROPSHIP);
-	list.insert_last(SND_POLUS_OFFICE);
-	list.insert_last(SND_POLUS_ADMIN);
-	list.insert_last(SND_POLUS_COMMUNICATIONS);
-	list.insert_last(SND_POLUS_OXYGEN);
-	list.insert_last(SND_POLUS_ELECTRICAL);
-	list.insert_last(SND_POLUS_STORAGE);
-	list.insert_last(SND_POLUS_LABORATORY);
-	list.insert_last(SND_POLUS_DECONTAMINATION);
-	list.insert_last(SND_POLUS_SPECIMEN);
-	list.insert_last(SND_POLUS_SEISMIC);
-	list.insert_last(SND_POLUS_OUTSIDE);
+	list.insert_last(SND_POLAR_BASE_DROPSHIP);
+	list.insert_last(SND_POLAR_BASE_OFFICE);
+	list.insert_last(SND_POLAR_BASE_ADMIN);
+	list.insert_last(SND_POLAR_BASE_COMMUNICATIONS);
+	list.insert_last(SND_POLAR_BASE_OXYGEN);
+	list.insert_last(SND_POLAR_BASE_ELECTRICAL);
+	list.insert_last(SND_POLAR_BASE_STORAGE);
+	list.insert_last(SND_POLAR_BASE_LABORATORY);
+	list.insert_last(SND_POLAR_BASE_DECONTAMINATION);
+	list.insert_last(SND_POLAR_BASE_SPECIMEN);
+	list.insert_last(SND_POLAR_BASE_SEISMIC);
+	list.insert_last(SND_POLAR_BASE_OUTSIDE);
 	list.insert_last(SND_AMBIENT_GREENHOUSE);
 	list.insert_last(SND_AMBIENT_SECURITY);
 	list.insert_last(SND_AMBIENT_OXYGEN);

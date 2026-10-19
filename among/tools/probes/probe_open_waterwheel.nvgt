@@ -1,4 +1,4 @@
-// Sonda de abrir a roda d'água (Polus): girar em roda avança, a seta do quarto anterior volta, a do
+// Sonda de abrir a roda d'água (Base Polar): girar em roda avança, a seta do quarto anterior volta, a do
 // outro lado não gira, e três voltas abrem. Com as teclas de DENTRO do laço do minijogo.
 //   nvgt tools/probes/probe_open_waterwheel.nvgt
 #include "../../src/i18n.nvgt"
@@ -50,9 +50,9 @@ void main() {
 	confere("abre so no ultimo quarto da terceira volta", abriu && passo >= rota.length() - 1);
 
 	println("== no mapa ==");
-	game_map@ polus = build_map(MAP_POLUS);
-	map_object@ ponto = polus.find_object("task_waterwheel_outside");
-	confere("um ponto, la fora", @ponto != null && polus.find_zone(ponto.room_id).floor_sound_prefix == "SnowTile");
+	game_map@ base = build_map(MAP_POLAR_BASE);
+	map_object@ ponto = base.find_object("task_waterwheel_outside");
+	confere("um ponto, la fora", @ponto != null && base.find_zone(ponto.room_id).floor_sound_prefix == "SnowTile");
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

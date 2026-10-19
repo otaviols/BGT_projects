@@ -5,7 +5,7 @@
 //   luzes         - os disjuntores da elétrica: cinco chaves, algumas desligadas; religar todas.
 //   oxigênio      - um código de cinco dígitos, o MESMO nos dois painéis, dito ao abrir cada um.
 //   comunicações  - sintonizar: girar o dial até a voz do rádio ficar sem estática.
-//   sismógrafo    - segurar: duas pessoas com a mão nos dois painéis ao mesmo tempo (Polus).
+//   sismógrafo    - segurar: duas pessoas com a mão nos dois painéis ao mesmo tempo (Base Polar).
 //
 // O padrão é o das tasks (ver tasks/task_common.nvgt): laço bloqueante no cliente, ESC cancela,
 // reunião interrompe, e só o resultado vai ao servidor - que continua sendo quem decide se o painel
@@ -235,7 +235,7 @@ bool run_comms_panel(game_client@ client) {
 	return false;
 }
 
-// --- A porta do Polus: o painel dela ----------------------------------------------------------------
+// --- A porta da Base Polar: o painel dela ----------------------------------------------------------------
 // Não é sabotagem (a porta trancada não é), mas é um painel e mora com eles. Reflexo, a mecânica que o
 // jogo não tinha (maquete aprovada em 2026-10-19): um bipe agudo acende à esquerda, no meio ou à
 // direita, e a seta daquele lado (esquerda, cima, direita) tem que vir antes de ele sumir. Acertou, o

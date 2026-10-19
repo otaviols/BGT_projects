@@ -1,4 +1,4 @@
-// Sonda do painel da porta (Polus): onde fica o painel (a passagem da sala trancada, dos dois lados, e
+// Sonda do painel da porta (Base Polar): onde fica o painel (a passagem da sala trancada, dos dois lados, e
 // só no mapa que o tem), quem o servidor deixa abrir, e o minijogo - acertos abrem, demora e lado errado
 // só custam tempo -, com as teclas de DENTRO do laço do minijogo.
 //   nvgt tools/probes/probe_door_panel.nvgt
@@ -56,23 +56,23 @@ void main() {
 	sound_master_volume = -100;
 
 	println("== onde fica o painel ==");
-	game_map@ polus = build_map(MAP_POLUS);
+	game_map@ base = build_map(MAP_POLAR_BASE);
 	game_map@ nave = build_map(MAP_IDS[0]);
-	confere("o Polus tem painel; a nave de sempre nao", polus.doors_have_panel && !nave.doors_have_panel);
-	confere("no Polus a porta fica mais tempo (20 s contra 12)", polus.doors_closed_seconds() > nave.doors_closed_seconds());
+	confere("a Base Polar tem painel; a nave de sempre nao", base.doors_have_panel && !nave.doors_have_panel);
+	confere("no Base Polar a porta fica mais tempo (20 s contra 12)", base.doors_closed_seconds() > nave.doors_closed_seconds());
 	float px, py, fx, fy;
-	passagem(polus, "laboratory", px, py, fx, fy);
-	confere("sala aberta: sem painel", polus.door_panel_at(px, py) == "");
+	passagem(base, "laboratory", px, py, fx, fy);
+	confere("sala aberta: sem painel", base.door_panel_at(px, py) == "");
 	array<string> lab = {"laboratory"};
-	polus.close_doors(lab, 20.0);
-	confere("trancada: o painel esta na passagem", polus.door_panel_at(px, py) == "laboratory");
-	confere("e alcanca-se dos dois lados", polus.door_panel_at(fx, fy) == "laboratory");
-	confere("longe dela, nao", polus.door_panel_at(px + 10, py + 10) == "");
+	base.close_doors(lab, 20.0);
+	confere("trancada: o painel esta na passagem", base.door_panel_at(px, py) == "laboratory");
+	confere("e alcanca-se dos dois lados", base.door_panel_at(fx, fy) == "laboratory");
+	confere("longe dela, nao", base.door_panel_at(px + 10, py + 10) == "");
 
 	println("== quem o servidor deixa abrir ==");
 	game_state@ lobby = game_state();
 	@lobby.config = lobby_config();
-	@lobby.map = build_map(MAP_POLUS);
+	@lobby.map = build_map(MAP_POLAR_BASE);
 	lobby.state = "in_progress";
 	game_player@ vivo = game_player(2, "vivo");
 	vivo.x = px; vivo.y = py;

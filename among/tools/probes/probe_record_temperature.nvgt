@@ -1,4 +1,4 @@
-// Sonda de registrar a temperatura (Polus): Enter fora do valor não registra; subir até a leitura e
+// Sonda de registrar a temperatura (Base Polar): Enter fora do valor não registra; subir até a leitura e
 // apertar Enter registra - com as teclas de DENTRO do laço do minijogo.
 //   nvgt tools/probes/probe_record_temperature.nvgt
 #include "../../src/i18n.nvgt"

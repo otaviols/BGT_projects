@@ -1,4 +1,4 @@
-// Sonda de reiniciar o Wi-Fi (Polus): a alavanca desce SEGURANDO a seta (soltar no meio a devolve), sobe
+// Sonda de reiniciar o Wi-Fi (Base Polar): a alavanca desce SEGURANDO a seta (soltar no meio a devolve), sobe
 // do mesmo jeito, e a espera entre as duas etapas é contada.
 //   nvgt tools/probes/probe_reboot_wifi.nvgt
 #include "../../src/i18n.nvgt"
@@ -63,12 +63,12 @@ void main() {
 	g_wifi_turned_off_at = 0;
 
 	println("== no mapa ==");
-	game_map@ polus = build_map(MAP_POLUS);
-	map_object@ off = polus.find_object("task_wifi_off");
-	map_object@ on = polus.find_object("task_wifi_on");
+	game_map@ base = build_map(MAP_POLAR_BASE);
+	map_object@ off = base.find_object("task_wifi_off");
+	map_object@ on = base.find_object("task_wifi_on");
 	confere("as duas etapas no mesmo lugar", @off != null && @on != null && off.x == on.x && off.y == on.y);
-	confere("so a primeira entra no sorteio", polus.is_chain_start("task_wifi_off") && !polus.is_chain_start("task_wifi_on"));
-	confere("duas etapas", polus.phase_count_of("reboot_wifi") == 2);
+	confere("so a primeira entra no sorteio", base.is_chain_start("task_wifi_off") && !base.is_chain_start("task_wifi_on"));
+	confere("duas etapas", base.phase_count_of("reboot_wifi") == 2);
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

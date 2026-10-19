@@ -1,5 +1,5 @@
 // record_temperature.nvgt
-// Registrar a temperatura (Polus, a 1.0), no laboratório. No original, um termômetro mostra a
+// Registrar a temperatura (Base Polar, a 1.0), no laboratório. No original, um termômetro mostra a
 // temperatura de agora e o registro ao lado tem um número com setas; ajusta-se o número até bater.
 //
 // Para o ouvido (maquete aprovada pelo usuário em 2026-10-19):

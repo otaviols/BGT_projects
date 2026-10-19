@@ -116,7 +116,7 @@ void run_touch_help_screen() {
 // Fora de propósito: os sons de DENTRO dos minijogos (eles se aprendem fazendo a tarefa, no treino -
 // isolados, "o tique do distribuidor" não diz nada), e o que está reservado e nunca toca.
 const array<string> LEARN_SOUNDS_LEFT_OUT = {
-	// O painel da porta: só existe no Polus, que ainda não saiu.
+	// O painel da porta: só existe na Base Polar, que ainda não saiu.
 	SND_DOOR_SWITCH, "sounds/" + SND_DOOR_TARGET, "sounds/" + SND_DOOR_TARGET_MISS,
 	SND_DECONTAMINATION_CLOSE, SND_DECONTAMINATION_OPEN, SND_DECONTAMINATION_SPRAY,
 	// De dentro dos PAINÉIS DE REPARO (o teclado do código do oxigênio, o dial das comunicações): como
@@ -125,41 +125,41 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 	"sounds/" + SND_CODE_KEY, "sounds/" + SND_CODE_GOOD, "sounds/" + SND_CODE_BAD,
 	"sounds/" + SND_COMMS_PANEL_OPEN, "sounds/" + SND_COMMS_PANEL_CLOSE,
 	"sounds/" + SND_COMMS_DIAL_STEP, "sounds/" + SND_COMMS_RADIO_VOICE,
-	// Os ambientes do Polus, mapa EM CONSTRUÇÃO (notes/versao-1.0.md): entram quando ele sair - e talvez
+	// Os ambientes da Base Polar, mapa EM CONSTRUÇÃO (notes/versao-1.0.md): entram quando ele sair - e talvez
 	// num menu por mapa, que o usuário quer decidir junto com os sons de lá.
-	SND_POLUS_DROPSHIP, SND_POLUS_OFFICE, SND_POLUS_ADMIN, SND_POLUS_COMMUNICATIONS, SND_POLUS_OXYGEN,
-	SND_POLUS_ELECTRICAL, SND_POLUS_STORAGE, SND_POLUS_LABORATORY, SND_POLUS_DECONTAMINATION,
-	SND_POLUS_SPECIMEN, SND_POLUS_SEISMIC, SND_POLUS_OUTSIDE,
-	// O nó do clima: o marcador é do Polus em construção; o clique, o nó ligando e o interruptor são de
+	SND_POLAR_BASE_DROPSHIP, SND_POLAR_BASE_OFFICE, SND_POLAR_BASE_ADMIN, SND_POLAR_BASE_COMMUNICATIONS, SND_POLAR_BASE_OXYGEN,
+	SND_POLAR_BASE_ELECTRICAL, SND_POLAR_BASE_STORAGE, SND_POLAR_BASE_LABORATORY, SND_POLAR_BASE_DECONTAMINATION,
+	SND_POLAR_BASE_SPECIMEN, SND_POLAR_BASE_SEISMIC, SND_POLAR_BASE_OUTSIDE,
+	// O nó do clima: o marcador é da Base Polar em construção; o clique, o nó ligando e o interruptor são de
 	// DENTRO do minijogo, e se aprendem no treino, como os das outras tarefas.
 	SND_TASK_BEACON_WEATHER_NODE, SND_TASK_BEACON_WEATHER_SWITCH, "sounds/" + SND_WEATHER_NODE_MOVE, "sounds/" + SND_WEATHER_NODE_START,
 	"sounds/" + SND_WEATHER_SWITCH,
-	// As chaves: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
+	// As chaves: o marcador é da Base Polar em construção, e o resto é de dentro do minijogo.
 	SND_TASK_BEACON_INSERT_KEYS, "sounds/" + SND_KEY_GRAB, "sounds/" + SND_KEY_INSERT, "sounds/" + SND_KEY_TURN,
 	"sounds/" + SND_KEYS_OPEN,
-	// O telescópio: o marcador é do Polus em construção, e o tique é de dentro do minijogo.
+	// O telescópio: o marcador é da Base Polar em construção, e o tique é de dentro do minijogo.
 	SND_TASK_BEACON_ALIGN_TELESCOPE, "sounds/" + SND_TELESCOPE_TICK,
-	// A temperatura: o marcador é do Polus em construção, e o botão é de dentro do minijogo.
+	// A temperatura: o marcador é da Base Polar em construção, e o botão é de dentro do minijogo.
 	SND_TASK_BEACON_RECORD_TEMPERATURE, "sounds/" + SND_TEMP_BUTTON,
-	// O Wi-Fi: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
+	// O Wi-Fi: o marcador é da Base Polar em construção, e o resto é de dentro do minijogo.
 	SND_TASK_BEACON_REBOOT_WIFI, "sounds/" + SND_WIFI_SLIDER, "sounds/" + SND_WIFI_CLOSE, "sounds/" + SND_WIFI_OPEN,
-	// O galão: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
+	// O galão: o marcador é da Base Polar em construção, e o resto é de dentro do minijogo.
 	SND_TASK_BEACON_REPLACE_WATER_JUG, SND_TASK_BEACON_PICK_WATER_JUG, "sounds/" + SND_JUG_FULL, "sounds/" + SND_JUG_EMPTY, "sounds/" + SND_JUG_GRAB,
 	"sounds/" + SND_JUG_PLACE, "sounds/" + SND_JUG_WATER,
-	// Os artefatos: o marcador é do Polus em construção, e o resto é de dentro do minijogo.
+	// Os artefatos: o marcador é da Base Polar em construção, e o resto é de dentro do minijogo.
 	SND_TASK_BEACON_STORE_ARTIFACTS, "sounds/" + SND_SPECIMEN_OPEN, "sounds/" + SND_SPECIMEN_CLOSE,
 	"sounds/" + SND_SPECIMEN_PLACE, "sounds/" + SND_ARTIFACT_CRYSTAL, "sounds/" + SND_ARTIFACT_EGG,
 	"sounds/" + SND_ARTIFACT_BONE, "sounds/" + SND_ARTIFACT_ROCK,
-	// Os cilindros e a roda d'água: os marcadores são do Polus em construção, e o resto é de dentro dos
+	// Os cilindros e a roda d'água: os marcadores são da Base Polar em construção, e o resto é de dentro dos
 	// minijogos.
 	SND_TASK_BEACON_FILL_CANISTERS, "sounds/" + SND_CANISTER_SHELF, "sounds/" + SND_CANISTER_MACHINE,
 	"sounds/" + SND_CANISTER_GRAB, "sounds/" + SND_CANISTER_PLUGIN, "sounds/" + SND_CANISTER_FILL,
 	"sounds/" + SND_CANISTER_PLUGOUT, "sounds/" + SND_CANISTER_DROP,
 	SND_TASK_BEACON_OPEN_WATERWHEEL, "sounds/" + SND_WATERWHEEL_OPEN, "sounds/" + SND_WATERWHEEL_TURN,
 	"sounds/" + SND_WATERWHEEL_TURN_LOW, "sounds/" + SND_WATERWHEEL_WATER,
-	// O sismógrafo: o marcador é do Polus em construção, e o resto é de dentro do painel.
+	// O sismógrafo: o marcador é da Base Polar em construção, e o resto é de dentro do painel.
 	SND_PANEL_BEACON_SEISMIC, "sounds/" + SND_SEISMIC_HAND, "sounds/" + SND_SEISMIC_HAND_START, "sounds/" + SND_SEISMIC_FAIL,
-	// O passo na neve: só existe no Polus, que ainda não saiu. Entra no menu junto com o mapa.
+	// O passo na neve: só existe na Base Polar, que ainda não saiu. Entra no menu junto com o mapa.
 	"sounds/steps/SnowTile1.ogg", "sounds/steps/SnowTile2.ogg", "sounds/steps/SnowTile3.ogg",
 	"sounds/steps/SnowTile4.ogg", "sounds/steps/SnowTile5.ogg", "sounds/steps/SnowTile6.ogg",
 	"sounds/steps/SnowTile7.ogg"

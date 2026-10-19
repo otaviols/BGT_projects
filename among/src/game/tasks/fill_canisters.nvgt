@@ -1,5 +1,5 @@
 // fill_canisters.nvgt
-// Encher os cilindros de O2 (Polus, a 1.0, na sala do O2). No original você arrasta um cilindro vazio
+// Encher os cilindros de O2 (Base Polar, a 1.0, na sala do O2). No original você arrasta um cilindro vazio
 // para dentro da máquina, ela enche sozinha enquanto se olha o medidor, e você o arrasta de volta - duas
 // vezes. Não há decisão: é o caminho de ida e volta.
 //

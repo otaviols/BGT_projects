@@ -1,4 +1,4 @@
-// Sonda de inserir as chaves (Polus): Enter na fechadura errada não acaba a tarefa, e andar até a acesa,
+// Sonda de inserir as chaves (Base Polar): Enter na fechadura errada não acaba a tarefa, e andar até a acesa,
 // enfiar e girar a termina - com as teclas apertadas de DENTRO do laço do minijogo.
 //   nvgt tools/probes/probe_insert_keys.nvgt
 #include "../../src/i18n.nvgt"
@@ -51,10 +51,10 @@ void main() {
 
 	println("== no mapa ==");
 	confere("e tarefa comum", task_is_common("insert_keys"));
-	game_map@ polus = build_map(MAP_POLUS);
+	game_map@ base = build_map(MAP_POLAR_BASE);
 	uint pontos = 0;
-	for (uint i = 0; i < polus.objects.length(); i++) if (polus.objects[i].task_type == "insert_keys") pontos++;
-	confere("um ponto so, no Polus (" + pontos + ")", pontos == 1);
+	for (uint i = 0; i < base.objects.length(); i++) if (base.objects[i].task_type == "insert_keys") pontos++;
+	confere("um ponto so, na Base Polar (" + pontos + ")", pontos == 1);
 	game_map@ nave = build_map(MAP_THE_HUB);
 	uint na_nave = 0;
 	for (uint i = 0; i < nave.objects.length(); i++) if (nave.objects[i].task_type == "insert_keys") na_nave++;

@@ -1,4 +1,4 @@
-// Sonda de guardar os artefatos (Polus): o buraco errado e o ocupado recusam sem soltar a peça, o certo
+// Sonda de guardar os artefatos (Base Polar): o buraco errado e o ocupado recusam sem soltar a peça, o certo
 // guarda, e as quatro guardadas terminam - com as teclas de DENTRO do laço do minijogo.
 //   nvgt tools/probes/probe_store_artifacts.nvgt
 #include "../../src/i18n.nvgt"
@@ -54,10 +54,10 @@ void main() {
 	confere("quatro recusas: tres buracos errados e um ocupado (" + g_artifact_last_misses + ")", g_artifact_last_misses == 4);
 
 	println("== no mapa ==");
-	game_map@ polus = build_map(MAP_POLUS);
-	map_object@ ponto = polus.find_object("task_artifacts_specimen");
+	game_map@ base = build_map(MAP_POLAR_BASE);
+	map_object@ ponto = base.find_object("task_artifacts_specimen");
 	confere("um ponto, na sala dos especimes", @ponto != null && ponto.room_id == "specimen");
-	confere("e so no Polus", @build_map(MAP_IDS[0]).find_object("task_artifacts_specimen") == null);
+	confere("e so na Base Polar", @build_map(MAP_IDS[0]).find_object("task_artifacts_specimen") == null);
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

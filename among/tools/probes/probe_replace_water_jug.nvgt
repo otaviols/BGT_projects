@@ -1,4 +1,4 @@
-// Sonda de trocar o galão (Polus): pegar um vazio não termina a etapa; andar até o cheio, bater e pegar,
+// Sonda de trocar o galão (Base Polar): pegar um vazio não termina a etapa; andar até o cheio, bater e pegar,
 // termina; e no bebedouro Enter encaixa - com as teclas de DENTRO do laço do minijogo.
 //   nvgt tools/probes/probe_replace_water_jug.nvgt
 #include "../../src/i18n.nvgt"
@@ -57,11 +57,11 @@ void main() {
 	confere("Enter encaixa o galao", run_replace_water_jug_task(c, 1));
 
 	println("== no mapa ==");
-	game_map@ polus = build_map(MAP_POLUS);
-	confere("duas etapas, do deposito ao escritorio", polus.phase_count_of("replace_water_jug") == 2
-		&& polus.is_chain_start("task_jug_storage") && !polus.is_chain_start("task_jug_office"));
+	game_map@ base = build_map(MAP_POLAR_BASE);
+	confere("duas etapas, do deposito ao escritorio", base.phase_count_of("replace_water_jug") == 2
+		&& base.is_chain_start("task_jug_storage") && !base.is_chain_start("task_jug_office"));
 	confere("o pegar fica no deposito e o encaixar no escritorio",
-		polus.find_object("task_jug_storage").room_id == "storage" && polus.find_object("task_jug_office").room_id == "office");
+		base.find_object("task_jug_storage").room_id == "storage" && base.find_object("task_jug_office").room_id == "office");
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

@@ -96,7 +96,7 @@ const string C_RADAR_SCAN = "c_radar_scan";       // {direction} (1 = próximo, 
 const string C_RADAR_TRACK = "c_radar_track";     // {peer_id}
 const string C_TRIGGER_SABOTAGE = "c_trigger_sabotage"; // {sabotage_id} ("lights" | "oxygen" | "comms"), só impostor
 const string C_CLOSE_DOORS = "c_close_doors";     // {room_id} - tranca aquela sala, só impostor (vivo ou morto)
-const string C_OPEN_DOOR = "c_open_door";         // {room_id} - abriu a porta trancada pelo painel dela (Polus), qualquer vivo
+const string C_OPEN_DOOR = "c_open_door";         // {room_id} - abriu a porta trancada pelo painel dela (Base Polar), qualquer vivo
 const string C_PING = "c_ping";                   // {} - servidor responde na hora com S_PONG
 const string C_CHAT_MESSAGE = "c_chat_message";   // {text}
 // O jogador avisa se quer RECEBER voz. Sem isto o servidor mandaria 128 kbps de áudio para quem
@@ -251,7 +251,7 @@ const string S_SABOTAGE_FIXED = "s_sabotage_fixed";       // {sabotage_id}
 // digitava o código inteiro para o servidor dizer no fim que não valia nada.
 const string S_SABOTAGE_PROGRESS = "s_sabotage_progress"; // {sabotage_id, object_id, fixed, required}
 // Alguém pôs ou tirou a mão de um painel de segurar. Vai à partida inteira: quem segura o outro painel
-// precisa OUVIR o colega chegar e soltar. Só existe no Polus, que já exige MAPS_PROTOCOL.
+// precisa OUVIR o colega chegar e soltar. Só existe na Base Polar, que já exige MAPS_PROTOCOL.
 const string S_SABOTAGE_HOLD = "s_sabotage_hold"; // {object_id, holding, peer_id}
 // Lembrete de quanto falta numa sabotagem crítica. Quem decide QUANDO avisar é o servidor (a cada
 // 30 segundos, e a cada segundo nos 10 finais), e não cada cliente com um relógio próprio: assim

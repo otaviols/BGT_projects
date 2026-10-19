@@ -162,7 +162,7 @@ mixin class match_frame_keys_part {
 							break;
 						}
 						// Os marcadores calam enquanto a tarefa está aberta: o da própria tarefa tocava ao lado,
-						// por cima dos sons de dentro dela - e as do Polus são feitas de tiques e cliques que se
+						// por cima dos sons de dentro dela - e as da Base Polar são feitas de tiques e cliques que se
 						// confundem com ele (relato do usuário, 2026-10-19). Voltam ao fechar, pela mesma regra
 						// de sempre (sabotagem em curso, fantasma).
 						audio.stop_landmark_beacons();
@@ -214,7 +214,7 @@ mixin class match_frame_keys_part {
 						crew.call_emergency_meeting();
 					}
 				} else if (alive && map.door_panel_at(my_x, my_y) != "") {
-					// Na passagem de uma sala trancada que tem painel (o Polus): o minijogo, e só o
+					// Na passagem de uma sala trancada que tem painel (a Base Polar): o minijogo, e só o
 					// resultado vai ao servidor, que confere de novo e abre a sala para todos.
 					string porta = map.door_panel_at(my_x, my_y);
 					audio.stop_landmark_beacons();

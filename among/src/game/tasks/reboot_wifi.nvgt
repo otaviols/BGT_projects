@@ -1,5 +1,5 @@
 // reboot_wifi.nvgt
-// Reiniciar o Wi-Fi (Polus, a 1.0), nas comunicações. No original, puxa-se uma alavanca para baixo e o
+// Reiniciar o Wi-Fi (Base Polar, a 1.0), nas comunicações. No original, puxa-se uma alavanca para baixo e o
 // Wi-Fi desliga; a tarefa só termina VOLTANDO mais tarde e subindo a alavanca de novo. É a única tarefa
 // que obriga a sair e voltar ao mesmo lugar - e para a dedução é ótimo: quem a tem passa duas vezes pelas
 // comunicações, e "eu estava esperando o Wi-Fi" vira um álibi que se confere.
@@ -11,7 +11,7 @@
 //     quanto falta. A conta é do cliente: o servidor não a confere, e burlar só adianta a própria tarefa;
 //   - etapa 2: de volta, a seta para cima sobe a alavanca em oito cliques mais agudos; no topo, o Wi-Fi
 //     conecta.
-// As duas etapas são DOIS pontos no mesmo lugar (task_wifi_off e task_wifi_on, ver o Polus em map.nvgt):
+// As duas etapas são DOIS pontos no mesmo lugar (task_wifi_off e task_wifi_on, ver a Base Polar em map.nvgt):
 // a corrente não aceita o mesmo ponto duas vezes - "o próximo ponto é este mesmo" seria lido como tarefa
 // concluída (ver on_task_result).
 

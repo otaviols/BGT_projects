@@ -123,7 +123,7 @@ mixin class match_net_ship_part {
 		}
 		if (closing) map.close_doors(door_zones, 0.0);
 		else map.open_doors(door_zones);
-		// A câmara de descontaminação (o Polus): a porta dela e o spray, no meio dela - todos por perto
+		// A câmara de descontaminação (a Base Polar): a porta dela e o spray, no meio dela - todos por perto
 		// ouvem alguém passando. Quem está DENTRO ouve que está preso, e por quê.
 		if (pkt.get_bool("decontamination") || (!closing && door_zones.find(map.decontamination_zone) >= 0 && map.decontamination_zone != "")) {
 			map_zone@ camara = map.find_zone(map.decontamination_zone);

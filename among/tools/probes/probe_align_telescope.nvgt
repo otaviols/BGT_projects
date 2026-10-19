@@ -1,4 +1,4 @@
-// Sonda de alinhar o telescópio (Polus): Enter fora do centro não trava, e mover a mira até o astro
+// Sonda de alinhar o telescópio (Base Polar): Enter fora do centro não trava, e mover a mira até o astro
 // ficar no centro (lado E tom) e apertar Enter trava - com as teclas de DENTRO do laço do minijogo.
 //   nvgt tools/probes/probe_align_telescope.nvgt
 #include "../../src/i18n.nvgt"

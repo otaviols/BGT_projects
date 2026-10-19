@@ -12,7 +12,7 @@ void main() {
 	if (!directory_exists("lang")) chdir("..");
 	if (!directory_exists("lang")) chdir("..");
 	g_i18n.load_language("pt_BR");
-	// Todo mapa, o em teste também: o Polus ganhou posto de câmeras na administração.
+	// Todo mapa, o em teste também: a Base Polar ganhou posto de câmeras na administração.
 	array<string> mapas = MAP_IDS;
 	for (uint i = 0; i < MAP_IDS_IN_TEST.length(); i++) mapas.insert_last(MAP_IDS_IN_TEST[i]);
 	bool ok = true;

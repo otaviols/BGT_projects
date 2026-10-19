@@ -81,7 +81,7 @@ matar quem estava do outro lado da porta trancada. No cliente o `nearest_alive` 
 tecla e o bip de alvo não oferecerem quem o servidor vai recusar. O escudo do anjo atravessa (não é
 ataque). Ataque novo de contato: ponha a porta nos dois lados.
 
-**Porta com PAINEL (o Polus, `game_map.doors_have_panel`).** A sala trancada fica
+**Porta com PAINEL (a Base Polar, `game_map.doors_have_panel`).** A sala trancada fica
 `DOORS_CLOSED_SECONDS_WITH_PANEL` e se abre antes pelo minijogo da passagem (`run_door_panel`, em
 `sabotage_panels.nvgt`). ONDE fica o painel é `game_map.door_panel_at`, que o cliente pergunta para
 oferecer o Enter e o servidor (`open_door_by_panel`, com o dobro da folga) para aceitar - uma regra só.

@@ -31,7 +31,7 @@ mixin class state_ship_part {
 		return true;
 	}
 
-	// Abrir uma sala trancada pelo painel da porta (o Polus). Quem pode: qualquer um VIVO e livre - o
+	// Abrir uma sala trancada pelo painel da porta (a Base Polar). Quem pode: qualquer um VIVO e livre - o
 	// tripulante preso com o impostor foge, quem está fora entra, e o próprio impostor também abre (no
 	// original a porta não pergunta quem é). A distância tem folga, como a dos painéis de sabotagem: a
 	// posição que o servidor tem vive um pouco atrasada.
@@ -47,7 +47,7 @@ mixin class state_ship_part {
 		return true;
 	}
 
-	// --- A câmara de descontaminação (o Polus) ---
+	// --- A câmara de descontaminação (a Base Polar) ---
 	// Quem entra fica preso: a câmara se TRANCA por DECONTAMINATION_SECONDS, como uma porta trancada pelo
 	// impostor - quem está dentro não sai, quem está fora não entra, e abre sozinha. É a mesma porta, e
 	// por isso a mesma regra de passo (door_blocks) nos dois lados, sem nada novo no movimento. Quem chega

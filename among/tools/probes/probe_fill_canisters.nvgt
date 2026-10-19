@@ -1,4 +1,4 @@
-// Sonda de encher os cilindros (Polus): Enter fora de ordem toca o erro e não muda nada, e as duas
+// Sonda de encher os cilindros (Base Polar): Enter fora de ordem toca o erro e não muda nada, e as duas
 // rodadas - pegar, encaixar, tirar, devolver - terminam. Com as teclas de DENTRO do laço do minijogo.
 //   nvgt tools/probes/probe_fill_canisters.nvgt
 #include "../../src/i18n.nvgt"
@@ -51,8 +51,8 @@ void main() {
 	confere("dois Enter fora de ordem (" + g_canister_last_misses + ")", g_canister_last_misses == 2);
 
 	println("== no mapa ==");
-	game_map@ polus = build_map(MAP_POLUS);
-	map_object@ ponto = polus.find_object("task_canisters_oxygen");
+	game_map@ base = build_map(MAP_POLAR_BASE);
+	map_object@ ponto = base.find_object("task_canisters_oxygen");
 	confere("um ponto, no O2", @ponto != null && ponto.room_id == "oxygen");
 	confere("e e longa", LONG_TASK_TYPES.find("fill_canisters") >= 0);
 

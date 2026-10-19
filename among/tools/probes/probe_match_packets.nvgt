@@ -428,10 +428,10 @@ void main() {
 	portas.tick_timers(0.1);
 	confere("e desconta com o tempo", portas.my_doors_cooldown_remaining < 25.0 && portas.my_doors_cooldown_remaining > 24.0);
 
-	println("== a camara de descontaminacao (Polus) ==");
+	println("== a camara de descontaminacao (Base Polar) ==");
 	// Dentro da câmara quando ela tranca: o jogo diz POR QUE está preso (e não "portas trancadas", que
 	// faria pensar no impostor), e ela abre pelo pacote de sempre.
-	match_session@ camara = nova_partida(ROLE_CREWMATE, "", "", MAP_POLUS, 44.0, -13.0);
+	match_session@ camara = nova_partida(ROLE_CREWMATE, "", "", MAP_POLAR_BASE, 44.0, -13.0);
 	net_packet@ tranca = net_packet(S_DOORS_STATE);
 	json_array@ zc = json_array(); zc.add("decontamination");
 	tranca.set_bool("closed", true); tranca.set_array("zones", zc); tranca.set_bool("decontamination", true);

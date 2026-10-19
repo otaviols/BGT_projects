@@ -1,5 +1,5 @@
 // replace_water_jug.nvgt
-// Trocar o galão de água (Polus, a 1.0). No original são duas etapas de "segure o botão e veja o nível
+// Trocar o galão de água (Base Polar, a 1.0). No original são duas etapas de "segure o botão e veja o nível
 // subir" - sem decisão nenhuma; o que dá sentido é a travessia com o galão. Traduzir isso para "segure e
 // solte no tom" repetiria o abastecer, e "manter a vazão no tom" foi recusado pelo usuário em 2026-10-19:
 // "a mecânica do tom é boa mas não tem que ser em tudo... queremos um jogo diverso".

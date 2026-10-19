@@ -39,7 +39,7 @@ bool lights_out_for(const string&in active, role_traits@ role, bool alive) {
 // discordarem que a regra desligada continuava calando a reunião (o servidor deixava a voz passar,
 // o cliente nem capturava).
 // Sabotagem que se conserta SEGURANDO: duas pessoas com a mão nos dois painéis AO MESMO TEMPO (o
-// sismógrafo do Polus; o reator do mapa antigo, decidido para a 1.0, entra aqui). Não há minijogo que
+// sismógrafo da Base Polar; o reator do mapa antigo, decidido para a 1.0, entra aqui). Não há minijogo que
 // "termina" no cliente: o cliente só diz "pus a mão"/"tirei", e quem decide que estabilizou é o
 // servidor, que vê as duas mãos. Aqui, e não em cada lado, porque cliente (o painel) e servidor (o
 // conserto, os bots) têm que concordar sobre quais sabotagens funcionam assim.

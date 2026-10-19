@@ -118,17 +118,17 @@ const int MAPS_PROTOCOL = 15;
 // Os mapas que existem, na ordem em que a sala os oferece. O primeiro é o padrão. Quem constrói cada um
 // é build_map (game/map.nvgt); um id que não está aqui não existe para a sala (lobby_config.validate).
 const string MAP_THE_HUB = "the_hub";
-const string MAP_POLUS = "polus";
+const string MAP_POLAR_BASE = "polar_base";
 const array<string> MAP_IDS = {MAP_THE_HUB};
 // Mapas EM CONSTRUÇÃO: o servidor não os aceita (map_exists olha só MAP_IDS), mas o Conhecer o mapa e o
 // treino os oferecem quando a pasta do jogo tem o arquivo MAPS_IN_TEST_FLAG (ver offered_map_ids). É
 // como o mapa novo é ouvido antes de existir para os jogadores. Pronto, o id passa para MAP_IDS.
-const array<string> MAP_IDS_IN_TEST = {MAP_POLUS};
+const array<string> MAP_IDS_IN_TEST = {MAP_POLAR_BASE};
 const string MAPS_IN_TEST_FLAG = "mapas_em_teste.txt";
-// Os nós do clima do Polus, pelo LUGAR: o ponto no mapa é "task_weather_<lugar>", e o nome falado,
+// Os nós do clima da Base Polar, pelo LUGAR: o ponto no mapa é "task_weather_<lugar>", e o nome falado,
 // "task.fix_weather_node.node.<lugar>". O mapa e o minijogo leem a mesma lista - é ela que o painel do
 // laboratório mostra, um interruptor por nó (ver tasks/fix_weather_node.nvgt).
-const array<string> POLUS_WEATHER_NODES = {"dropship", "west", "oxygen", "storage_west", "seismic", "south"};
+const array<string> POLAR_BASE_WEATHER_NODES = {"dropship", "west", "oxygen", "storage_west", "seismic", "south"};
 bool map_exists(const string&in id) { return MAP_IDS.find(id) >= 0; }
 string map_name_key(const string&in id) { return "map." + id + ".name"; }
 float move_speed_for_percent(int percent) { return PLAYER_MOVE_SPEED * float(percent) / 100.0; }
@@ -235,7 +235,7 @@ const string WINNER_LOVERS = "lovers";
 // 90s: os dois painéis de oxigênio ficam em salas opostas da nave (admin e elétrica), e só a
 // caminhada de uma até a outra já leva uns 25 segundos.
 const float SABOTAGE_OXYGEN_TIMER_SECONDS = 90.0;
-// Sabotagem de SEGURAR (o sismógrafo do Polus): quanto tempo as duas mãos têm que ficar JUNTAS nos dois
+// Sabotagem de SEGURAR (o sismógrafo da Base Polar): quanto tempo as duas mãos têm que ficar JUNTAS nos dois
 // painéis para estabilizar. Curto o bastante para não virar espera; longo o bastante para que soltar
 // cedo seja um erro que se ouve (a maquete aprovada usava 1,5 s).
 const float SABOTAGE_HOLD_TOGETHER_SECONDS = 1.5;
@@ -359,10 +359,10 @@ const float BOT_SABOTAGE_CHANCE_PER_SECOND = 0.02;
 // Portas (ação de impostor, com recarga própria - não é "sabotagem", não ocupa o slot de sabotagem
 // ativa e não pode ser consertada: as portas reabrem sozinhas quando o tempo acaba).
 const float DOORS_CLOSED_SECONDS = 12.0;
-// No mapa em que a porta trancada tem PAINEL (o Polus, como no original) ela fica mais tempo fechada -
+// No mapa em que a porta trancada tem PAINEL (a Base Polar, como no original) ela fica mais tempo fechada -
 // dá para abrir antes, com o minijogo, então a espera inteira só pesa em quem não tenta.
 const float DOORS_CLOSED_SECONDS_WITH_PANEL = 20.0;
-// A câmara de descontaminação (Polus): quanto tempo ela prende quem entrou, do fechar ao abrir.
+// A câmara de descontaminação (Base Polar): quanto tempo ela prende quem entrou, do fechar ao abrir.
 const float DECONTAMINATION_SECONDS = 5.0;
 // A que distância da passagem trancada se alcança o painel dela.
 const float DOOR_PANEL_RANGE = 2.0;
@@ -402,7 +402,7 @@ const array<string> LONG_TASK_TYPES = {"calibrate_distributor", "fuel_engines",
 
 // Tarefas COMUNS: iguais para todo tripulante, no mesmo ponto do mapa. São a ferramenta de dedução
 // mais barata do jogo - quem diz ter feito uma comum que você não tem está mentindo.
-// Uma por mapa, cada uma num ponto só dele: o cartão na nave, as chaves no Polus. O sorteio é por tipo
+// Uma por mapa, cada uma num ponto só dele: o cartão na nave, as chaves na Base Polar. O sorteio é por tipo
 // (ver on_start_game), e um tipo sem ponto no mapa simplesmente não sai.
 const array<string> COMMON_TASK_TYPES = {"swipe_card", "insert_keys"};
 // Chance de CADA task comum entrar na partida. Não é 100% de propósito: a graça está justamente em

@@ -1,4 +1,4 @@
-// Sonda do nó do clima (Polus): o labirinto sorteado é sempre resolvível, e a tarefa termina quando se
+// Sonda do nó do clima (Base Polar): o labirinto sorteado é sempre resolvível, e a tarefa termina quando se
 // anda pelo caminho - com as setas apertadas de DENTRO do laço do minijogo, como o jogador faria.
 //   nvgt tools/probes/probe_weather_node.nvgt
 //

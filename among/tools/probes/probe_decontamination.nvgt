@@ -1,4 +1,4 @@
-// Sonda da câmara de descontaminação (Polus), direto no estado da partida (sem rede), com o MESMO tick
+// Sonda da câmara de descontaminação (Base Polar), direto no estado da partida (sem rede), com o MESMO tick
 // do servidor.
 //   nvgt tools/probes/probe_decontamination.nvgt
 //
@@ -25,7 +25,7 @@ const float DENTRO_X = 44, DENTRO_Y = -13;
 game_state@ partida() {
 	game_state@ lobby = game_state();
 	@lobby.config = lobby_config();
-	@lobby.map = build_map(MAP_POLUS);
+	@lobby.map = build_map(MAP_POLAR_BASE);
 	lobby.state = "in_progress";
 	game_player@ imp = game_player(1, "imp");
 	imp.set_role(ROLE_IMPOSTOR);
@@ -64,7 +64,7 @@ void main() {
 	game_player@ c = lobby.players[3];
 
 	println("== 1 e 2. a rodada ==");
-	confere("o Polus tem a camara", m.decontamination_zone == "decontamination" && m.room_id_at(DENTRO_X, DENTRO_Y) == "decontamination");
+	confere("a Base Polar tem a camara", m.decontamination_zone == "decontamination" && m.room_id_at(DENTRO_X, DENTRO_Y) == "decontamination");
 	a.x = DENTRO_X; a.y = DENTRO_Y;
 	int sprays = roda(lobby, 0.2);
 	confere("entrou: a camara tranca, com o spray", sprays == 1 && m.is_door_closed("decontamination"));

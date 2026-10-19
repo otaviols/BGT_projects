@@ -1,5 +1,5 @@
 // fix_weather_node.nvgt
-// Consertar o nó do clima (Polus, a 1.0): a tarefa do original traduzida para o ouvido. Duas etapas,
+// Consertar o nó do clima (Base Polar, a 1.0): a tarefa do original traduzida para o ouvido. Duas etapas,
 // como no original: no NÓ, lá fora na neve, traça-se um caminho por um labirinto pequeno até a saída;
 // no LABORATÓRIO, liga-se o interruptor daquele nó. A travessia da neve até o laboratório é parte da
 // tarefa - é ela que faz barulho e diz aos outros por onde se andou (a mesma ideia do abastecer).
@@ -108,7 +108,7 @@ string weather_node_place(const string&in object_id) {
 	const string prefixo = "task_weather_";
 	if (!object_id.starts_with(prefixo)) return "";
 	string lugar = object_id.substr(prefixo.length());
-	return POLUS_WEATHER_NODES.find(lugar) >= 0 ? lugar : "";
+	return POLAR_BASE_WEATHER_NODES.find(lugar) >= 0 ? lugar : "";
 }
 
 bool run_weather_maze(game_client@ client, const string&in lugar) {
@@ -160,21 +160,21 @@ bool run_weather_maze(game_client@ client, const string&in lugar) {
 bool run_weather_switch(game_client@ client, const string&in lugar) {
 	speak_hint("task.fix_weather_node.switch_instructions");
 	int pos = 0;
-	speak(tr("task.fix_weather_node.node." + POLUS_WEATHER_NODES[pos]), false);
+	speak(tr("task.fix_weather_node.node." + POLAR_BASE_WEATHER_NODES[pos]), false);
 	while (true) {
 		wait(5);
 		client.update();
 		if (task_tick(client)) return false;
 		bool cima = key_pressed(KEY_UP), baixo = key_pressed(KEY_DOWN), enter = key_pressed(KEY_RETURN);
 		if (cima || baixo) {
-			int n = int(POLUS_WEATHER_NODES.length());
+			int n = int(POLAR_BASE_WEATHER_NODES.length());
 			pos = (pos + (baixo ? 1 : n - 1)) % n;
-			speak(tr("task.fix_weather_node.node." + POLUS_WEATHER_NODES[pos]));
+			speak(tr("task.fix_weather_node.node." + POLAR_BASE_WEATHER_NODES[pos]));
 			continue;
 		}
 		if (!enter) continue;
 		wait_for_task_sound(task_sound(SND_WEATHER_SWITCH), client, 2000);
-		if (lugar == "" || POLUS_WEATHER_NODES[pos] == lugar) {
+		if (lugar == "" || POLAR_BASE_WEATHER_NODES[pos] == lugar) {
 			wait_for_task_sound(task_sound(SND_WEATHER_NODE_START), client, 4000);
 			return true;
 		}

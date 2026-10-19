@@ -220,14 +220,14 @@ class game_map {
 	float gather_x = 0.0, gather_y = 0.0;
 	string start_room = "";
 	// O som de fundo que toca no mapa inteiro, a partida toda ("" = nenhum). Na nave de sempre é o
-	// zumbido da nave; no Polus não há um - o vento é do lado de fora, nos caminhos de neve, e dentro
+	// zumbido da nave; na Base Polar não há um - o vento é do lado de fora, nos caminhos de neve, e dentro
 	// dos prédios cada sala tem o seu.
 	string ship_ambience = SND_SHIP_AMBIENCE;
 	// A porta trancada tem PAINEL: quem está na passagem abre a sala antes do tempo com um minijogo
-	// (o Polus, como no original). Na nave de sempre não tem - só esperar, como sempre foi.
+	// (a Base Polar, como no original). Na nave de sempre não tem - só esperar, como sempre foi.
 	bool doors_have_panel = false;
 	// A sala que é câmara de DESCONTAMINAÇÃO ("" = nenhuma): quem entra fica preso nela por
-	// DECONTAMINATION_SECONDS, com o spray (o Polus, entre o laboratório e os espécimes).
+	// DECONTAMINATION_SECONDS, com o spray (a Base Polar, entre o laboratório e os espécimes).
 	string decontamination_zone = "";
 
 	// As sabotagens que existem NESTE mapa: as que têm painel nele. Uma sabotagem sem painel não tem
@@ -572,7 +572,7 @@ float other_panel_pan(game_map@ map, map_object@ obj) {
 // numa nave em vez de cair.
 game_map@ build_map(const string&in id) {
 	if (id == MAP_THE_HUB) return build_the_hub_map();
-	if (id == MAP_POLUS) return build_polus_map();
+	if (id == MAP_POLAR_BASE) return build_polar_base_map();
 	return build_the_hub_map();
 }
 
@@ -871,18 +871,18 @@ game_map@ build_the_hub_map() {
 	return m;
 }
 
-// Polus (a 1.0, EM CONSTRUÇÃO - ver notes/versao-1.0.md). A planta foi aprovada pelo usuário em
+// Base Polar (a 1.0, EM CONSTRUÇÃO - ver notes/versao-1.0.md). A planta foi aprovada pelo usuário em
 // 2026-10-19: prédios ligados por caminhos de NEVE (o lado de fora, com vento), e o próprio passo diz se
 // se está dentro ou fora. As tarefas são PROVISÓRIAS - as que a nave já tem e fazem sentido aqui - até
-// as do Polus entrarem pela receita (maquete de som antes de código). Faltam também o sismógrafo, a
+// as da Base Polar entrarem pela receita (maquete de som antes de código). Faltam também o sismógrafo, a
 // porta com minijogo e a descontaminação que prende quem passa.
 //
 // Três colunas: a oeste (comunicações, armas, O2, elétrica), o centro (nave de pouso, escritório,
 // depósito, sismógrafo) e o leste (administração, laboratório, descontaminação, espécimes). A sala dos
 // espécimes fica ATRÁS da descontaminação, como no original: entra-se só por ela.
-game_map@ build_polus_map() {
+game_map@ build_polar_base_map() {
 	game_map@ m = game_map();
-	m.name = MAP_POLUS;
+	m.name = MAP_POLAR_BASE;
 	m.start_room = "dropship";
 	m.spawn_x = 0; m.spawn_y = -50;
 	m.gather_x = 0; m.gather_y = -50;
@@ -988,8 +988,8 @@ game_map@ build_polus_map() {
 		"corridor_oxygen_storage", "corridor_storage_seismic", "corridor_electrical_seismic"};
 	m.objects.insert_last(map_object("task_weather_switch", "task.fix_weather_node.switch_name", 48, -26, "laboratory",
 		OBJ_TASK_SPOT, "sounds/" + SND_WEATHER_SWITCH, "fix_weather_node", "", SND_TASK_BEACON_WEATHER_SWITCH));
-	for (uint i = 0; i < POLUS_WEATHER_NODES.length(); i++) {
-		string id = "task_weather_" + POLUS_WEATHER_NODES[i];
+	for (uint i = 0; i < POLAR_BASE_WEATHER_NODES.length(); i++) {
+		string id = "task_weather_" + POLAR_BASE_WEATHER_NODES[i];
 		m.objects.insert_last(map_object(id, "task.fix_weather_node.name", nx[i], ny[i], nz[i],
 			OBJ_TASK_SPOT, "sounds/" + SND_WEATHER_NODE_MOVE, "fix_weather_node", "", SND_TASK_BEACON_WEATHER_NODE));
 		array<string> corrente = {id, "task_weather_switch"};
@@ -997,7 +997,7 @@ game_map@ build_polus_map() {
 	}
 
 	// Sabotagens: as luzes na elétrica, as comunicações nas comunicações e o sismógrafo - a crítica do
-	// Polus, consertada a duas pessoas ao mesmo tempo, uma em cada painel, um de cada lado da sala. As
+	// Base Polar, consertada a duas pessoas ao mesmo tempo, uma em cada painel, um de cada lado da sala. As
 	// portas com minijogo entram depois.
 	m.objects.insert_last(map_object("panel_seismic_west", "sabotage.seismic.name", -5, 34, "seismic",
 		OBJ_SABOTAGE_PANEL, SND_OPEN_PANEL, "seismic", "", SND_PANEL_BEACON_SEISMIC));
@@ -1027,7 +1027,7 @@ game_map@ build_polus_map() {
 	array<string> wifi = {"task_wifi_off", "task_wifi_on"};
 	m.chains.insert_last(task_chain("reboot_wifi", wifi));
 
-	// Inserir as chaves: a tarefa COMUM do Polus, num ponto só, na nave de pouso (como o cartão na nave).
+	// Inserir as chaves: a tarefa COMUM da Base Polar, num ponto só, na nave de pouso (como o cartão na nave).
 	m.objects.insert_last(map_object("task_keys_dropship", "task.insert_keys.name", -5, -53, "dropship",
 		OBJ_TASK_SPOT, "sounds/" + SND_KEY_GRAB, "insert_keys", "", SND_TASK_BEACON_INSERT_KEYS));
 
@@ -1036,18 +1036,18 @@ game_map@ build_polus_map() {
 		OBJ_EMERGENCY_BUTTON, "", "", "", SND_BUTTON_BEACON));
 
 	// Ambiente de cada prédio, no centro dele.
-	m.objects.insert_last(map_object("ambient_dropship", "room.dropship", 0, -50, "dropship", OBJ_DECORATION, SND_POLUS_DROPSHIP));
-	m.objects.insert_last(map_object("ambient_office", "room.office", 0, -22, "office", OBJ_DECORATION, SND_POLUS_OFFICE));
-	m.objects.insert_last(map_object("ambient_admin", "room.admin", 24, -22, "admin", OBJ_DECORATION, SND_POLUS_ADMIN));
-	m.objects.insert_last(map_object("ambient_communications", "room.communications", -40, -45, "communications", OBJ_DECORATION, SND_POLUS_COMMUNICATIONS));
+	m.objects.insert_last(map_object("ambient_dropship", "room.dropship", 0, -50, "dropship", OBJ_DECORATION, SND_POLAR_BASE_DROPSHIP));
+	m.objects.insert_last(map_object("ambient_office", "room.office", 0, -22, "office", OBJ_DECORATION, SND_POLAR_BASE_OFFICE));
+	m.objects.insert_last(map_object("ambient_admin", "room.admin", 24, -22, "admin", OBJ_DECORATION, SND_POLAR_BASE_ADMIN));
+	m.objects.insert_last(map_object("ambient_communications", "room.communications", -40, -45, "communications", OBJ_DECORATION, SND_POLAR_BASE_COMMUNICATIONS));
 	m.objects.insert_last(map_object("ambient_weapons", "room.weapons", -40, -20, "weapons", OBJ_DECORATION, SND_AMBIENT_WEAPONS));
-	m.objects.insert_last(map_object("ambient_oxygen", "room.oxygen", -40, 5, "oxygen", OBJ_DECORATION, SND_POLUS_OXYGEN));
-	m.objects.insert_last(map_object("ambient_electrical", "room.electrical", -40, 30, "electrical", OBJ_DECORATION, SND_POLUS_ELECTRICAL));
-	m.objects.insert_last(map_object("ambient_storage", "room.storage", 0, 8, "storage", OBJ_DECORATION, SND_POLUS_STORAGE));
-	m.objects.insert_last(map_object("ambient_seismic", "room.seismic", 0, 34, "seismic", OBJ_DECORATION, SND_POLUS_SEISMIC));
-	m.objects.insert_last(map_object("ambient_laboratory", "room.laboratory", 44, -22, "laboratory", OBJ_DECORATION, SND_POLUS_LABORATORY));
-	m.objects.insert_last(map_object("ambient_decontamination", "room.decontamination", 44, -4, "decontamination", OBJ_DECORATION, SND_POLUS_DECONTAMINATION));
-	m.objects.insert_last(map_object("ambient_specimen", "room.specimen", 44, 14, "specimen", OBJ_DECORATION, SND_POLUS_SPECIMEN));
+	m.objects.insert_last(map_object("ambient_oxygen", "room.oxygen", -40, 5, "oxygen", OBJ_DECORATION, SND_POLAR_BASE_OXYGEN));
+	m.objects.insert_last(map_object("ambient_electrical", "room.electrical", -40, 30, "electrical", OBJ_DECORATION, SND_POLAR_BASE_ELECTRICAL));
+	m.objects.insert_last(map_object("ambient_storage", "room.storage", 0, 8, "storage", OBJ_DECORATION, SND_POLAR_BASE_STORAGE));
+	m.objects.insert_last(map_object("ambient_seismic", "room.seismic", 0, 34, "seismic", OBJ_DECORATION, SND_POLAR_BASE_SEISMIC));
+	m.objects.insert_last(map_object("ambient_laboratory", "room.laboratory", 44, -22, "laboratory", OBJ_DECORATION, SND_POLAR_BASE_LABORATORY));
+	m.objects.insert_last(map_object("ambient_decontamination", "room.decontamination", 44, -4, "decontamination", OBJ_DECORATION, SND_POLAR_BASE_DECONTAMINATION));
+	m.objects.insert_last(map_object("ambient_specimen", "room.specimen", 44, 14, "specimen", OBJ_DECORATION, SND_POLAR_BASE_SPECIMEN));
 
 	// O vento, em cada caminho de neve: é ele, mais o passo na neve, que diz "você está do lado de fora".
 	array<string> fora = {"corridor_dropship_office", "corridor_office_weapons", "corridor_communications_weapons",
@@ -1055,7 +1055,7 @@ game_map@ build_polus_map() {
 		"corridor_storage_seismic", "corridor_electrical_seismic"};
 	for (uint i = 0; i < fora.length(); i++) {
 		map_zone@ z = m.find_zone(fora[i]);
-		m.objects.insert_last(map_object("outside_" + fora[i], "outside", z.center_x, z.center_y, fora[i], OBJ_DECORATION, SND_POLUS_OUTSIDE));
+		m.objects.insert_last(map_object("outside_" + fora[i], "outside", z.center_x, z.center_y, fora[i], OBJ_DECORATION, SND_POLAR_BASE_OUTSIDE));
 	}
 	// Os corredores de dentro levam o som de passagem, como na nave.
 	m.objects.insert_last(map_object("passage_office_admin", "corridor", 13, -22, "corridor_office_admin", OBJ_DECORATION, SND_PASSAGE));
