@@ -392,6 +392,10 @@ void run_language_screen() {
 // A reescrita trouxe de graça o que faltava: a tela de lá é em inglês fixo, e esta fala o idioma do
 // jogador. Os valores continuam saindo e entrando pelo mesmo tts_dump_config/tts_load_config, então
 // nada do que já estava salvo se perde.
+// Quanto a amostra da voz espera depois da última mexida: o nome da opção termina de ser dito, e descer a
+// lista depressa não fala uma amostra a cada passo.
+const uint64 VOICE_SAMPLE_DELAY_MS = 900;
+
 void run_voice_screen() {
 	audio_form f;
 	screen_keyboard_follower teclado_tela;
@@ -422,6 +426,12 @@ void run_voice_screen() {
 	int orig_rate = tts.rate;
 	int orig_volume = tts.volume;
 	int last_voice = tts.voice, last_rate = tts.rate, last_volume = tts.volume;
+	// A amostra da voz espera um instante depois da ÚLTIMA mexida, e sai pela própria voz do jogo. Antes
+	// ela saía na hora, pelo speak() - que interrompia o nome da voz que a lista acabava de dizer, e quem
+	// descia a lista só ouvia "Assim." a cada passo, sem saber qual voz era (relato do usuário, 2026-10-19).
+	// E pelo speak() ela saía no leitor de tela quando ele está ligado - amostra de uma voz que não era a
+	// escolhida.
+	uint64 amostra_em = 0;
 
 	while (true) {
 		wait(5);
@@ -431,11 +441,12 @@ void run_voice_screen() {
 
 		use_sr = f.is_checked(f_use_sr);
 		int voice = f.get_list_position(f_voices);
-		if (voice != last_voice && voice > -1) { last_voice = voice; tts.set_voice(voice); speak(tr("settings.voice_sample")); }
+		if (voice != last_voice && voice > -1) { last_voice = voice; tts.set_voice(voice); amostra_em = ticks() + VOICE_SAMPLE_DELAY_MS; }
 		int rate = int(f.get_slider(f_rate));
-		if (rate != last_rate) { last_rate = rate; tts.set_rate(rate); speak(tr("settings.voice_sample")); }
+		if (rate != last_rate) { last_rate = rate; tts.set_rate(rate); amostra_em = ticks() + VOICE_SAMPLE_DELAY_MS; }
 		int volume = int(f.get_slider(f_volume));
-		if (volume != last_volume) { last_volume = volume; tts.set_volume(volume); speak(tr("settings.voice_sample")); }
+		if (volume != last_volume) { last_volume = volume; tts.set_volume(volume); amostra_em = ticks() + VOICE_SAMPLE_DELAY_MS; }
+		if (amostra_em != 0 && ticks() >= amostra_em) { amostra_em = 0; tts.speak(tr("settings.voice_sample"), true); }
 
 		if (f.is_pressed(f_cancel)) {
 			use_sr = orig_use_sr;
