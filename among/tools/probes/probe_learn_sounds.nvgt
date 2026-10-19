@@ -47,6 +47,16 @@ void main() {
 		println("  " + mapas[m] + ": " + sfx.size() + " itens");
 	}
 	for (uint i = 0; i < rotulos_crus.length(); i++) println("     rotulo cru: " + rotulos_crus[i]);
+	// As categorias (recado #287): todas com som, e com nome traduzido.
+	array<learn_category@>@ cats = learn_sound_categories(build_map(MAP_THE_HUB));
+	string nomes;
+	bool cats_ok = cats.length() == 6;
+	for (uint i = 0; i < cats.length(); i++) {
+		nomes += tr(cats[i].name_key) + " (" + cats[i].sfx.size() + "); ";
+		if (cats[i].sfx.size() == 0 || tr(cats[i].name_key).find("learn.") >= 0) cats_ok = false;
+	}
+	println("     " + nomes);
+	confere("seis categorias, nenhuma vazia, todas com nome", cats_ok);
 	confere("nenhum rotulo sai cru", rotulos_crus.length() == 0);
 
 	// Cada mapa mostra o que é dele: a nave não toca a neve, a Base Polar não toca a cafeteria.

@@ -131,20 +131,55 @@ const array<string> LEARN_SOUNDS_LEFT_OUT = {
 
 // Pergunta o mapa (como o Conhecer o mapa e o treino) e mostra os sons comuns mais os DELE: quem escolhe
 // a nave não ouve a neve, e vice-versa (pedido do usuário, 2026-10-19). Com um mapa só, não pergunta.
+// Depois, a CATEGORIA (recado #287): são quase cem sons, e numa lista só achar "o som da porta" era
+// descer por todos os passos e ambientes antes.
 void run_learn_sounds_screen() {
 	string qual = choose_map("map.choose_learn");
 	if (qual == "") return;
 	menu_music_stop(); // o tema por baixo atrapalharia ouvir cada som
-	screen_menu m;
-	// Fica mesmo com as dicas desligadas: com o título vazio, o learn_game_sounds_menu do NVGT põe o dele,
-	// em inglês.
-	m.intro_text = tr("learn.menu_hint");
-	m.sounds_prefix = "sounds/";
-	// Os sons de navegar e confirmar, como todo menu do jogo. Sem eles esta era a única lista muda ao
-	// andar (relato do usuário: "o som de interface não está funcionando lá").
-	m.click_sound = "ui/menu_click.ogg";
-	m.select_sound = "ui/menu_confirm.ogg";
-	learn_game_sounds_menu(learn_sounds_collection(build_map(qual)), "", @m, tr("menu.back"));
+	array<learn_category@>@ categorias = learn_sound_categories(build_map(qual));
+	while (true) {
+		screen_menu c;
+		c.intro_text = tr("learn.categories_hint");
+		c.click_sound = "ui/menu_click.ogg";
+		c.select_sound = "ui/menu_confirm.ogg";
+		c.sounds_prefix = "sounds/";
+		for (uint i = 0; i < categorias.length(); i++) {
+			dictionary@ d = dictionary();
+			d.set("name", tr(categorias[i].name_key));
+			d.set("count", "" + categorias[i].sfx.size());
+			c.add_item(tr("learn.category_item", d), "" + i);
+		}
+		c.add_item(tr("menu.back"), "__back__");
+		c.run();
+		string id = c.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		screen_menu m;
+		// Fica mesmo com as dicas desligadas: com o título vazio, o learn_game_sounds_menu do NVGT põe o
+		// dele, em inglês.
+		m.intro_text = tr("learn.menu_hint");
+		m.sounds_prefix = "sounds/";
+		// Os sons de navegar e confirmar, como todo menu do jogo. Sem eles esta era a única lista muda ao
+		// andar (relato do usuário: "o som de interface não está funcionando lá").
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		learn_game_sounds_menu(categorias[parse_int(id)].sfx, "", @m, tr("menu.back"));
+	}
+}
+
+class learn_category {
+	string name_key;
+	name_value_collection@ sfx = name_value_collection();
+	learn_category(const string&in name_key) { this.name_key = name_key; }
+}
+
+// Todos os sons do mapa numa lista só, na ordem das categorias: é o que a sonda compara com o catálogo.
+name_value_collection@ learn_sounds_collection(game_map@ map) {
+	name_value_collection@ todos = name_value_collection();
+	array<learn_category@>@ categorias = learn_sound_categories(map);
+	for (uint c = 0; c < categorias.length(); c++)
+		for (uint i = 0; i < categorias[c].sfx.size(); i++) todos.add(categorias[c].sfx.name_at(i), categorias[c].sfx.value_at(i));
+	return todos;
 }
 
 // O rótulo dos passos de cada piso. Piso novo entra aqui também (ver som.md, "piso novo entra em DUAS
@@ -168,8 +203,11 @@ bool map_has_task(game_map@ map, const string&in task_type) {
 	return false;
 }
 
-name_value_collection@ learn_sounds_collection(game_map@ map) {
-	name_value_collection@ sfx = name_value_collection();
+array<learn_category@>@ learn_sound_categories(game_map@ map) {
+	learn_category passos("learn.cat_steps"), lugares("learn.cat_places"), marcadores("learn.cat_markers"),
+		partida("learn.cat_match"), papeis("learn.cat_roles"), menus("learn.cat_interface");
+	// `sfx` aponta para a categoria do trecho: cada bloco abaixo troca a categoria antes de somar.
+	name_value_collection@ sfx = passos.sfx;
 
 	// A parte do MAPA sai do próprio mapa, e não de uma lista à mão: a lista à mão envelhecia calada (na
 	// 0.50.7 faltavam 28 sons), e com dois mapas seriam duas para esquecer. O que é do mapa: os pisos das
@@ -190,6 +228,7 @@ name_value_collection@ learn_sounds_collection(game_map@ map) {
 		sfx.add(chave != "" ? tr(chave) : pisos[i], footstep_variants_list(pisos[i]));
 	}
 
+	@sfx = lugares.sfx;
 	// Os ambientes, na ordem do mapa, um por som (a passagem e o vento se repetem por corredor).
 	array<string> ja;
 	for (uint i = 0; i < map.objects.length(); i++) {
@@ -205,6 +244,7 @@ name_value_collection@ learn_sounds_collection(game_map@ map) {
 	}
 	if (map.ship_ambience != "") sfx.add(tr("learn.ship_ambience"), map.ship_ambience);
 
+	@sfx = marcadores.sfx;
 	// Os marcadores: o botão, os painéis, os dutos, as câmeras e cada tarefa - um por som, com o nome
 	// do ponto (o galão tem dois marcadores, e o nome de cada ponta diz qual é qual).
 	for (uint i = 0; i < map.objects.length(); i++) {
@@ -220,6 +260,7 @@ name_value_collection@ learn_sounds_collection(game_map@ map) {
 		ja.insert_last(o.beacon_sound_path);
 		sfx.add(nome, o.beacon_sound_path);
 	}
+	@sfx = partida.sfx;
 	if (map_has_task(map, "submit_scan"))
 		sfx.add(tr("learn.medbay_scan"), "sounds/" + SND_MEDBAY_SCAN);
 	if (map.decontamination_zone != "") {
@@ -251,6 +292,7 @@ name_value_collection@ learn_sounds_collection(game_map@ map) {
 	sfx.add(tr("learn.target_in_range"), SND_TARGET_IN_RANGE);
 
 
+	@sfx = papeis.sfx;
 	// Papéis e o que eles fazem soar.
 	sfx.add(tr("learn.shield_cast"), SND_SHIELD_CAST);
 	sfx.add(tr("learn.shape_shift"), SND_SHAPE_SHIFT);
@@ -263,10 +305,12 @@ name_value_collection@ learn_sounds_collection(game_map@ map) {
 	sfx.add(tr("learn.arsonist_fire"), SND_ARSONIST_FIRE);
 	sfx.add(tr("learn.heartbeat"), SND_HEARTBEAT);
 
+	@sfx = partida.sfx;
 	sfx.add(tr("learn.start_game"), SND_START_GAME);
 	sfx.add(tr("learn.victory_crew"), SND_VICTORY_CREW);
 	sfx.add(tr("learn.victory_impostor"), SND_VICTORY_IMPOSTOR);
 	sfx.add(tr("learn.victory_neutral"), SND_VICTORY_DISCONNECT);
+	@sfx = menus.sfx;
 	sfx.add(tr("learn.player_enter"), SND_PLAYER_ENTER);
 	sfx.add(tr("learn.player_leave"), SND_PLAYER_LEAVE);
 	sfx.add(tr("learn.hall_room_open"), SND_HALL_ROOM_OPEN);
@@ -277,6 +321,7 @@ name_value_collection@ learn_sounds_collection(game_map@ map) {
 	sfx.add(tr("learn.message_received"), SND_MESSAGE_RECEIVED);
 	sfx.add(tr("learn.dialog_open"), SND_DIALOG_OPEN);
 	sfx.add(tr("learn.dialog_close"), SND_DIALOG_CLOSE);
+	@sfx = partida.sfx;
 	sfx.add(tr("learn.radar_beep"), SND_RADAR_BEEP);
 	sfx.add(tr("learn.vote_select"), SND_VOTE_SELECT);
 	sfx.add(tr("learn.vote_confirm"), SND_VOTE_CONFIRM);
@@ -287,8 +332,12 @@ name_value_collection@ learn_sounds_collection(game_map@ map) {
 	sfx.add(tr("learn.breaker_switch"), "sounds/" + SND_BREAKER_SWITCH);
 	sfx.add(tr("learn.comms_static"), "sounds/" + SND_COMMS_STATIC);
 	sfx.add(tr("learn.meeting_result"), SND_MEETING_RESULT);
+	@sfx = menus.sfx;
 	sfx.add(tr("learn.intro"), SND_INTRO);
-	return sfx;
+
+	array<learn_category@> r = {passos, lugares, marcadores, partida, papeis, menus};
+	for (int i = int(r.length()) - 1; i >= 0; i--) if (r[i].sfx.size() == 0) r.remove_at(i);
+	return r;
 }
 
 // Conecta ao servidor e retorna true se a conexão foi estabelecida.
