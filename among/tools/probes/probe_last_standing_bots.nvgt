@@ -1,0 +1,58 @@
+// Sonda dos bots no último sobrevivente: só bots, espalhados pelo mapa de verdade, com o MESMO tick do
+// servidor. Eles têm de se caçar até sobrar um - e não ficar fingindo tarefa para sempre.
+//   nvgt tools/probes/probe_last_standing_bots.nvgt
+#include "../../src/core/game_state.nvgt"
+#include "../../src/config/presets.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Quantos segundos de partida até sobrar um (ou -1 se não acabou no prazo).
+float partida(const string&in mapa, uint bots, float prazo) {
+	game_state@ lobby = game_state();
+	@lobby.config = get_preset("last_standing");
+	lobby.config.map_name = mapa;
+	lobby.config.validate();
+	@lobby.map = build_map(mapa);
+	lobby.state = "in_progress";
+	array<map_object@>@ pontos = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	for (uint i = 0; i < bots; i++) {
+		game_player@ b = game_player(i + 1, "bot" + i);
+		b.is_bot = true;
+		b.set_role(ROLE_IMPOSTOR);
+		// Longe uns dos outros: cada um num ponto de tarefa diferente.
+		map_object@ o = pontos[(i * pontos.length()) / bots];
+		b.x = o.x; b.y = o.y;
+		b.kill_cooldown_remaining = lobby.config.kill_cooldown_seconds;
+		lobby.players.insert_last(b);
+	}
+	float t = 0;
+	while (t < prazo && lobby.winner == "") {
+		lobby.tick(0.05);
+		t += 0.05;
+	}
+	if (lobby.winner == "") {
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ b = lobby.players[i];
+			if (!b.alive) continue;
+			println("    vivo: " + b.username + " em " + lobby.map.room_id_at(b.x, b.y) + " caçando=" + b.bot_hunting
+				+ " presa=" + b.bot_prey_peer + " recarga=" + b.kill_cooldown_remaining);
+		}
+		return -1;
+	}
+	return t;
+}
+
+void main() {
+	for (uint m = 0; m < MAP_IDS.length(); m++) {
+		for (uint n = 2; n <= 5; n += 3) {
+			float t = partida(MAP_IDS[m], n, 600.0);
+			confere(MAP_IDS[m] + ", " + n + " bots: sobra um (" + t + " s)", t > 0);
+		}
+	}
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

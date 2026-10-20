@@ -89,7 +89,11 @@ mixin class state_bots_part {
 	private bool prey_taken_by_other(game_player@ hunter, uint64 prey_peer) const {
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ o = players[i];
-			if (o.peer_id == hunter.peer_id || !o.is_bot || !o.is_impostor || !o.bot_hunting) continue;
+			// Bot MORTO não caça: o tick pula os mortos, e a caça dele fica congelada como estava na hora da
+			// morte. Sem o `alive`, a presa de um bot morto ficava "tomada" para sempre e ninguém mais ia
+			// atrás dela - no último sobrevivente, os dois últimos bots ficavam fingindo tarefa eternamente
+			// (relato do usuário, 2026-10-20). No clássico, o mesmo com o impostor bot expulso caçando alguém.
+			if (o.peer_id == hunter.peer_id || !o.alive || !o.is_bot || !o.is_impostor || !o.bot_hunting) continue;
 			if (o.bot_prey_peer == prey_peer) return true;
 		}
 		return false;
