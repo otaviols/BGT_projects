@@ -100,6 +100,13 @@ sonda com `nvgt -c`, rode o `.exe` e grave o resultado num arquivo — o app com
 **Não confie em "compilou".** Compilar não prova que o som toca, que o pacote tem o arquivo novo, nem
 que o binário sobe.
 
+**Sondas que NÃO COMPILAM (pendência, achada na bateria da 1.0, 2026-10-20):** `probe_background_events`,
+`probe_detective`, `probe_noisemaker`, `probe_shapeshifter` ("No matching symbol 'speak_chat'", em
+event_speech.nvgt) e `probe_chat_review`, `probe_first_run_graphics`, `probe_water_order` ("Failed to
+initialize global variable 'g_settings'" - a armadilha das globais do CLAUDE.md: o i18n tem que vir
+antes). Já não compilavam na 0.56.1, então não é regressão; na bateria elas aparecem como "falhas=N" sem
+RESULTADO. Consertar é pôr os #include que faltam (e o i18n primeiro) em cada uma.
+
 **Sonda que aperta teclas num minijogo: tecla apertada enquanto ele ESPERA um som se perde.** O minijogo
 espera o som acabar (`wait_for_task_sound`, a referência do começo, o interruptor, a leitura repetida pelo
 Espaço) bombeando a rede, e o gancho da sonda continua apertando teclas nesse meio-tempo - o `key_pressed`

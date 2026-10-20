@@ -34,6 +34,10 @@ $tokenAntes = $env:AMONGUS_ADMIN_TOKEN
 $hostAntes = $env:AMONGUS_SERVER_HOST
 $env:AMONGUS_ADMIN_TOKEN = "teste-local"
 $env:AMONGUS_SERVER_HOST = "127.0.0.1"
+# O prazo de volta encurtado (ver server_rejoin.nvgt): a probe_rejoin confere que quem cai e não volta sai
+# da partida, e com o prazo de verdade ela desistia antes. Sem isto ela falhava em toda bateria.
+$prazoAntes = $env:AMONGUS_REJOIN_GRACE_MS
+$env:AMONGUS_REJOIN_GRACE_MS = "4000"
 Get-Process nvgt -ErrorAction SilentlyContinue | Stop-Process -Force
 # Banco novo a cada rodada: contas e recados de uma rodada não podem mudar o resultado da outra.
 Remove-Item (Join-Path $Raiz "among_users.db") -ErrorAction SilentlyContinue
@@ -61,5 +65,6 @@ finally {
 	Stop-Process $servidor -Force -ErrorAction SilentlyContinue
 	$env:AMONGUS_ADMIN_TOKEN = $tokenAntes
 	$env:AMONGUS_SERVER_HOST = $hostAntes
+	$env:AMONGUS_REJOIN_GRACE_MS = $prazoAntes
 }
 if ($Saida -ne "") { $linhas | Out-File -FilePath $Saida -Encoding utf8; Write-Host "Resumo em $Saida" }

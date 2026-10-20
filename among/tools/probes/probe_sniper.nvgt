@@ -188,6 +188,17 @@ void main() {
 			lg.set_int("protocol", SNIPER_MIN_PROTOCOL - 1);
 			velho.net.send_reliable(velho.local_peer_id, lg.to_wire(), CHANNEL_RELIABLE);
 			net_packet@ lr2 = wf(velho, S_LOGIN_RESULT, 5000);
+			// Desde a 1.0 o mínimo do servidor (MIN_PROTOCOL_VERSION = 15) passou da exigência do Atirador:
+			// um cliente assim nem entra, e ouve que precisa atualizar. O resto (a sala recusando) só vale
+			// enquanto o mínimo do servidor ficar abaixo dela.
+			if (SNIPER_MIN_PROTOCOL - 1 < MIN_PROTOCOL_VERSION) {
+				check("o cliente da versao anterior e recusado no login, com o motivo",
+					@lr2 != null && !lr2.get_bool("ok") && lr2.get_string("message") == "login.update_required",
+					"ok=false, login.update_required");
+				velho.disconnect();
+				bombeia(todos, 400);
+				esvazia_caixa();
+			} else {
 			check("o cliente da versao anterior ainda ENTRA no servidor", @lr2 != null && lr2.get_bool("ok"),
 				"ok=true - o minimo nao subiu, so a exigencia da sala");
 
@@ -211,6 +222,7 @@ void main() {
 			velho.disconnect();
 			bombeia(todos, 400);
 			esvazia_caixa();
+			}
 		}
 	}
 

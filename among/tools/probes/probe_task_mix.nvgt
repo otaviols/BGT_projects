@@ -41,7 +41,9 @@ uint mede(int total, int longas) {
 	println("pedido: " + total + " no total (" + longas + " longas) -> recebido: " + n_longas + " longas, "
 		+ n_curtas + " curtas, " + n_comuns + " comuns (total " + (n_longas + n_curtas + n_comuns) + ")");
 	c.disconnect();
-	return n_longas + n_curtas + n_comuns;
+	// Só as PESSOAIS: a comum (o cartão) sai em metade das partidas, e contá-la fazia a conta de baixo
+	// passar numa rodada e falhar na outra (21 ou 22 - visto na 0.56.1 e na 1.0, 2026-10-20).
+	return n_longas + n_curtas;
 }
 
 void main() {
@@ -51,7 +53,8 @@ void main() {
 	mede(4, 4);
 	// Mais tarefas do que a nave tem (recado #241): recebe TODAS as que existem. As curtas acabavam e a
 	// sobra só ia para as longas se coubesse INTEIRA - senão se perdia, e 30 pedidas davam 18 ou 19 num
-	// mapa de 24. 22 deixa folga para o scanner, que pode ter saído para outro (teto de tarefas visíveis).
+	// mapa de 24. Contando só as pessoais, 21 deixa folga para o scanner, que pode ter saído para outro
+	// (teto de tarefas visíveis).
 	uint muitas = mede(30, 2);
-	println((muitas >= 22 ? "ok     " : "FALHA  ") + "30 pedidas: recebe todas as que a nave tem (" + muitas + ", esperado >= 22)");
+	println((muitas >= 21 ? "ok     " : "FALHA  ") + "30 pedidas: recebe todas as pessoais que a nave tem (" + muitas + ", esperado >= 21)");
 }
