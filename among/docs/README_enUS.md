@@ -147,8 +147,17 @@ changing the password, the email, forgetting this computer and deleting the acco
 
 **My stats** (in My account) shows matches played, wins (as crewmate, impostor and neutral role), the
 win rate (what percent of your matches you won), task steps completed and kills, and your **ranking
-position**. Enter on a line copies it, and **Copy all stats** copies everything. **See the ranking** shows
-the top 10 by win rate: it includes whoever has at least 20 matches and keeps their stats visible.
+position**, and your win rate by team (in classic mode) and by game mode. Enter on a line copies it, and
+**Copy all stats** copies everything.
+
+**See the ranking** opens the list of rankings, each with the top 10 by win rate and your position:
+- **Overall**, with every match: it includes whoever has at least 20;
+- by team: **crewmate**, **impostor** and **neutral**, counting only classic mode (in the other modes the
+  team comes from the rules, not from the draw);
+- by mode: **classic**, **tag**, **all wolves** and **last man standing**.
+
+The team and mode rankings include whoever has at least 10 matches of that team or mode. All of them
+include only those who keep their stats visible.
 
 **Show my stats to others** (in My account) starts on. Turned off, nobody sees yours in the room, and you
 leave the ranking. Others never see your kills or your tasks: only matches, wins and the side you win

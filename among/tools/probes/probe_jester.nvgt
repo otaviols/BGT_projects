@@ -112,7 +112,23 @@ void main() {
 		// 3. A tarefa, gravada no fim junto com o resto: 1 para quem fez, 0 para os outros (o controle).
 		int esperado = int(i) == tarefeiro ? 1 : 0;
 		confere("jogador " + i + ": tarefas = " + esperado + " (" + s.get_int("tasks_completed") + ")", s.get_int("tasks_completed") == esperado);
+		// 4. O recorte por modo e time (1.0): uma partida de clássico, e uma do time de quem jogou - o Bobo
+		// como neutro, vencida.
+		json_array@ cortes = s.get_array("splits");
+		int classico = -1, neutro = -1, neutro_v = -1;
+		for (uint k = 0; @cortes != null && k < cortes.length(); k++) {
+			json_object@ c = cortes.get_object(k);
+			if (string(c["kind"]) == "mode_classic") classico = int(c["games"]);
+			if (string(c["kind"]) == "team_neutral") { neutro = int(c["games"]); neutro_v = int(c["wins"]); }
+		}
+		confere("jogador " + i + ": 1 partida de classico no recorte", classico == 1);
+		if (e_bobo) confere("Bobo: 1 partida de neutro, vencida", neutro == 1 && neutro_v == 1);
+		else confere("jogador " + i + ": nenhuma de neutro", neutro == -1);
 	}
+	todos[bobo].send_get_ranking("team_neutral");
+	net_packet@ rk = wf(todos[bobo], S_RANKING, 5000);
+	confere("o ranking de neutro responde pelo tipo, com o minimo dos recortes",
+		@rk != null && rk.get_string("kind") == "team_neutral" && rk.get_int("min_games") == RANKING_MIN_GAMES_SPLIT);
 	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

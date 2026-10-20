@@ -38,7 +38,9 @@ papéis e menus).
 - As opções da conta (estatísticas, senha, e-mail, esquecer este computador e apagar a conta) ficam
   juntas em **Minha conta**, na lista de partidas. As estatísticas mostram o aproveitamento e podem ser
   copiadas.
-- **Ranking:** os 10 melhores por aproveitamento, a partir de 20 partidas, em Minhas estatísticas. E na
+- **Rankings:** os 10 melhores por aproveitamento, em Minhas estatísticas: o geral, um por time
+  (tripulante, impostor e neutro) e um por modo de jogo. As estatísticas também mostram o seu
+  aproveitamento em cada um. E na
   sala de espera, **Shift+P** mostra as estatísticas de quem está nela. Quem preferir pode esconder as
   suas em Minha conta.
 - No modo gráfico, os formulários aparecem na tela com cada campo numa linha, e o login ganhou **Mostrar

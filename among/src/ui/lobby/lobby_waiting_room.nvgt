@@ -191,6 +191,18 @@ void run_stats_screen(game_client@ client) {
 			linhas.insert_last(tr("stats.win_rate", pc));
 		}
 	}
+	// Depois dos números de sempre, o aproveitamento por time (no clássico) e por modo - na ordem dos
+	// rankings, e só o que a pessoa já jogou.
+	json_array@ cortes = s.get_array("splits");
+	for (uint i = 0; @cortes != null && i < cortes.length(); i++) {
+		json_object@ c = cortes.get_object(i);
+		if (@c == null) continue;
+		dictionary@ p = dictionary();
+		p.set("name", tr("ranking." + string(c["kind"])));
+		p.set("percent", percent_text(int(c["wins"]), int(c["games"])));
+		p.set("games", "" + int(c["games"]));
+		linhas.insert_last(tr("stats.split_line", p));
+	}
 	while (true) {
 		screen_menu m;
 		m.intro_text = tr("stats.title");
@@ -208,7 +220,7 @@ void run_stats_screen(game_client@ client) {
 		m.run();
 		string id = m.selected_item_id;
 		if (id == "" || id == "__back__") return;
-		if (id == "__ranking__") { run_ranking_screen(client); continue; }
+		if (id == "__ranking__") { run_ranking_menu(client); continue; }
 		string texto = id == "__copy__" ? join(linhas, "\n") : linhas[parse_int(id.substr(6))];
 		speak(tr(copy_to_clipboard(texto) ? "stats.copied" : "stats.copy_failed"));
 	}
@@ -237,9 +249,29 @@ string percent_text(int wins, int games) {
 	return games > 0 ? "" + int(float(wins) * 100.0 / float(games) + 0.5) : "0";
 }
 
-// O ranking: os primeiros, e a posição de quem pediu. Lista de leitura, como as regras da sala.
-void run_ranking_screen(game_client@ client) {
-	client.send_get_ranking();
+// Qual ranking ver (1.0, pedido do usuário): o geral, por time e por modo - RANKING_KINDS, na ordem.
+void run_ranking_menu(game_client@ client) {
+	while (true) {
+		screen_menu m;
+		m.intro_text = tr("stats.ranking_menu_title");
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		m.focus_first_item = true;
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
+		for (uint i = 0; i < RANKING_KINDS.length(); i++) m.add_item(tr("ranking." + RANKING_KINDS[i]), RANKING_KINDS[i]);
+		m.add_item(tr("menu.back"), "__back__");
+		m.run();
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		run_ranking_screen(client, id);
+	}
+}
+
+// Um ranking: os primeiros, e a posição de quem pediu. Lista de leitura, como as regras da sala.
+void run_ranking_screen(game_client@ client, const string&in kind = "general") {
+	client.send_get_ranking(kind);
 	net_packet@ r = wait_reply_pumping(client, S_RANKING);
 	if (@r == null) { speak(tr("stats.no_answer")); return; }
 	array<string> linhas;
@@ -259,7 +291,9 @@ void run_ranking_screen(game_client@ client) {
 	if (linhas.length() == 0) linhas.insert_last(tr("stats.ranking_empty", mp));
 	linhas.insert_last(tr(r.get_int("my_rank") > 0 ? "stats.my_rank" : "stats.my_rank_none", mp));
 	screen_menu m;
-	m.intro_text = tr("stats.ranking_title");
+	dictionary@ tp = dictionary();
+	tp.set("name", tr("ranking." + kind));
+	m.intro_text = kind == "general" ? tr("stats.ranking_title") : tr("stats.ranking_title_kind", tp);
 	m.click_sound = "ui/menu_click.ogg";
 	m.select_sound = "ui/menu_confirm.ogg";
 	m.sounds_prefix = "sounds/";

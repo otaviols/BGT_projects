@@ -38,7 +38,8 @@ and menus).
 **Also:**
 - The account options (stats, password, email, forget this computer and delete the account) are
   together in **My account**, in the match list. Stats show your win rate and can be copied.
-- **Ranking:** the top 10 by win rate, from 20 matches, in My stats. And in the waiting room,
+- **Rankings:** the top 10 by win rate, in My stats: overall, one per team (crewmate, impostor and
+  neutral) and one per game mode. Your stats also show your win rate in each. And in the waiting room,
   **Shift+P** shows the stats of whoever is in it. Anyone who prefers can hide theirs in My account.
 - In graphics mode, forms appear on screen with each field on its own line, and the login has **Show
   password**.

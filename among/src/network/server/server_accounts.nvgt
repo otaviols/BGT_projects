@@ -205,6 +205,33 @@ mixin class server_accounts_part {
 		r.set_bool("visible", g_user_db.stats_visible(conn.username));
 		r.set_int("rank", ranking_position(g_user_db.ranking(), conn.username));
 		r.set_int("rank_min_games", RANKING_MIN_GAMES);
+		// Por time (só o clássico, como os rankings) e por modo - ver RANKING_KINDS.
+		// Contadores por posição em RANKING_KINDS, e não num dictionary: a primeira versão somava num
+		// dictionary (get num `int`, set da soma) e devolveu lixo - 731 partidas numa conta com uma. A causa
+		// exata não foi isolada; arrays de int não têm o que dar errado.
+		array<match_split@>@ cortes = g_user_db.match_breakdown(conn.username);
+		array<int> jogos(RANKING_KINDS.length(), 0);
+		array<int> vitorias(RANKING_KINDS.length(), 0);
+		for (uint i = 0; i < cortes.length(); i++) {
+			array<string> chaves = {"mode_" + cortes[i].mode};
+			if (cortes[i].mode == GAME_MODE_CLASSIC) chaves.insert_last("team_" + cortes[i].team);
+			for (uint k = 0; k < chaves.length(); k++) {
+				int at = RANKING_KINDS.find(chaves[k]);
+				if (at < 0) continue;
+				jogos[at] += cortes[i].games;
+				vitorias[at] += cortes[i].wins;
+			}
+		}
+		json_array@ por = json_array();
+		for (uint i = 0; i < RANKING_KINDS.length(); i++) {
+			if (jogos[i] == 0) continue;
+			json_object@ e = json_object();
+			e.set("kind", RANKING_KINDS[i]);
+			e.set("games", jogos[i]);
+			e.set("wins", vitorias[i]);
+			por.add(e);
+		}
+		r.set_array("splits", por);
 		send_to(peer_id, r);
 	}
 
@@ -213,11 +240,14 @@ mixin class server_accounts_part {
 		return 0;
 	}
 
-	void on_get_ranking(uint64 peer_id) {
+	void on_get_ranking(uint64 peer_id, net_packet@ pkt) {
 		game_player@ conn = find_connection(peer_id);
 		if (@conn == null || !conn.authenticated) return;
-		array<ranking_entry@>@ lista = g_user_db.ranking();
+		string tipo = pkt.get_string("kind", "general");
+		if (RANKING_KINDS.find(tipo) < 0) tipo = "general";
+		array<ranking_entry@>@ lista = g_user_db.ranking(tipo);
 		net_packet@ r = net_packet(S_RANKING);
+		r.set_string("kind", tipo);
 		json_array@ primeiros = json_array();
 		for (uint i = 0; i < lista.length() && int(i) < RANKING_TOP; i++) {
 			json_object@ e = json_object();
@@ -228,7 +258,7 @@ mixin class server_accounts_part {
 		}
 		r.set_array("entries", primeiros);
 		r.set_int("my_rank", ranking_position(lista, conn.username));
-		r.set_int("min_games", RANKING_MIN_GAMES);
+		r.set_int("min_games", tipo == "general" ? RANKING_MIN_GAMES : RANKING_MIN_GAMES_SPLIT);
 		send_to(peer_id, r);
 	}
 
@@ -285,13 +315,16 @@ mixin class server_accounts_part {
 			game_player@ p = lobby.players[i];
 			if (p.is_bot || p.username == "") continue;
 			g_user_db.increment_stat(p.username, "games_played", 1);
-			if (p.left_match) continue;
 			role_traits@ r = p.role();
+			// Quem saiu no meio também ganha a linha, como derrota: é uma partida jogada, como no games_played.
+			if (p.left_match) { g_user_db.record_match_result(p.username, lobby.config.game_mode, r.team, false); continue; }
 			string coluna = "";
 			if (lobby.winner == "crewmates" && r.wins_with_crew) coluna = "crewmate_wins";
 			else if (lobby.winner == "impostors" && r.team == TEAM_IMPOSTOR) coluna = "impostor_wins";
 			else if (lobby.winner == WINNER_NEUTRAL && p.peer_id == lobby.neutral_winner_peer) coluna = "neutral_wins";
 			else if (lobby.winner == WINNER_LOVERS && p.lover != 0 && p.alive) coluna = "neutral_wins";
+			// A linha do match_results vai para toda partida, vencida ou não (é dela que sai o aproveitamento).
+			g_user_db.record_match_result(p.username, lobby.config.game_mode, r.team, coluna != "");
 			if (coluna == "") continue;
 			g_user_db.increment_stat(p.username, "games_won", 1);
 			g_user_db.increment_stat(p.username, coluna, 1);

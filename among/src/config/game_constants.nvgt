@@ -161,6 +161,14 @@ const uint MIN_PASSWORD_LENGTH = 6;
 // O ranking (1.0): só entra quem tem este mínimo de partidas - senão quem venceu 1 de 1 seria o primeiro.
 const int RANKING_MIN_GAMES = 20;
 const int RANKING_TOP = 10;
+// Os rankings por time e por modo (1.0, pedido do usuário). Mínimo menor que o geral: ninguém joga 20
+// partidas de cada time tão cedo, e sem mínimo quem venceu uma de uma ficava em primeiro com 100%.
+const int RANKING_MIN_GAMES_SPLIT = 10;
+// Os rankings, na ordem da tela. "general" sai do user_stats; os outros, do match_results. Os por TIME
+// contam só o clássico: no último sobrevivente todos são impostores, e no pega-pega o pegador é
+// impostor por regra - misturados, o ranking de impostor mediria o modo, e não o jogador.
+const array<string> RANKING_KINDS = {"general", "team_crew", "team_impostor", "team_neutral",
+	"mode_classic", "mode_tag", "mode_wolves", "mode_last_standing"};
 const float PLAYER_INTERACT_RANGE = 1.4; // distância máxima para usar objetos/tasks/vents
 const float PLAYER_KILL_RANGE = 1.2;
 const float PLAYER_REPORT_RANGE = 2.0;

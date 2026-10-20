@@ -179,8 +179,17 @@ rede, então esperar o evento deixaria a sessão velha pendurada na sala. Sonda:
 estando dentro de uma sala, com o anfitrião passando para quem ficou.
 
 
+**Rankings (1.0): o geral sai do `user_stats`; os por time e por modo, da tabela `match_results`** - uma
+linha por pessoa por partida (modo, time no FIM da partida, venceu), gravada em `record_match_stats`,
+inclusive para quem saiu no meio (derrota). O `user_stats` só tinha vitórias por time, e sem as PARTIDAS de
+cada time não há aproveitamento; a tabela deixa o próximo recorte (mapa, mês) sem mexer no banco. Os por
+time contam só o clássico (no último sobrevivente todos são impostores; no pega-pega o pegador é impostor
+por regra), com mínimo `RANKING_MIN_GAMES_SPLIT` (10) contra os 20 do geral. Os tipos e a ordem da tela
+são `RANKING_KINDS`. Decisões do usuário, 2026-10-20; sondas: `probe_ranking` (o banco) e `probe_jester`
+(a partida gravando e o `S_STATS` com os recortes).
+
 **Apagar a conta apaga TUDO dela, numa transação** (`user_db.delete_account`): conta,
-estatísticas, sessões, recados com as respostas e traduções ainda na caixa. Decisão do usuário (LGPD,
+estatísticas, resultados por partida, sessões, recados com as respostas e traduções ainda na caixa. Decisão do usuário (LGPD,
 e é o que a pessoa espera); o preço é o histórico de bugs dela. Três detalhes: pede a SENHA mesmo a
 quem entrou por token (token lembrado em computador emprestado não pode bastar); só do saguão, fora
 de sala; e depois derruba as outras sessões da conta e desautentica esta, senão um segundo

@@ -99,6 +99,20 @@ class user_database {
 		// Se os outros podem ver as estatísticas desta conta (na sala e no ranking). Ligado por padrão;
 		// quem não quer aparecer desliga em Minha conta.
 		db.execute("ALTER TABLE users ADD COLUMN show_stats INTEGER DEFAULT 1");
+		// Uma linha por pessoa por partida (1.0): o modo, o time no FIM da partida (o Amnésico que virou
+		// impostor conta como impostor) e se venceu. É daqui que saem os rankings por time e por modo -
+		// o user_stats só tem as vitórias por time, e sem as PARTIDAS de cada time não há aproveitamento.
+		// Uma tabela em vez de mais colunas: o próximo recorte (por mapa, por mês) sai daqui sem mexer no
+		// banco. O usuário fica como texto, como nos recados; apagar a conta apaga as linhas.
+		db.execute(
+			"CREATE TABLE IF NOT EXISTS match_results (" +
+			"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+			"username TEXT NOT NULL, " +
+			"mode TEXT NOT NULL, " +
+			"team TEXT NOT NULL, " +
+			"won INTEGER NOT NULL, " +
+			"played_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+		db.execute("CREATE INDEX IF NOT EXISTS idx_match_results_user ON match_results(username)");
 
 		// Respostas de quem faz o jogo aos recados. Fecham o ciclo com quem está testando: sem isto o
 		// jogador manda um recado e nunca fica sabendo se alguém leu, e quem oferece ajuda (uma
@@ -298,6 +312,7 @@ class user_database {
 			"DELETE FROM translations WHERE username = ?",
 			"DELETE FROM sessions WHERE username = ?",
 			"DELETE FROM client_logins WHERE username = ?",
+			"DELETE FROM match_results WHERE username = ?",
 			"DELETE FROM users WHERE username = ?"
 		};
 		db.execute("BEGIN");
@@ -580,6 +595,62 @@ class user_database {
 			e.games = st.column_int(1);
 			e.wins = st.column_int(2);
 			r.insert_last(e);
+		}
+		return r;
+	}
+
+	bool record_match_result(const string&in username, const string&in mode, const string&in team, bool won) {
+		if (@db == null) return false;
+		sqlite3statement@ st = db.prepare("INSERT INTO match_results (username, mode, team, won) VALUES (?, ?, ?, ?)");
+		if (@st == null) return false;
+		st.bind_text(1, username, false);
+		st.bind_text(2, mode, false);
+		st.bind_text(3, team, false);
+		st.bind_int(4, won ? 1 : 0);
+		return st.step() == SQLITE_DONE;
+	}
+
+	// Um ranking por tipo (RANKING_KINDS): "general" é o de sempre; "team_<time>" e "mode_<modo>" contam
+	// as linhas do match_results. Tipo desconhecido vira o geral - o pedido vem do cliente.
+	array<ranking_entry@>@ ranking(const string&in kind) {
+		if (kind == "general" || RANKING_KINDS.find(kind) < 0) return ranking();
+		array<ranking_entry@> r;
+		if (@db == null) return r;
+		bool por_time = kind.substr(0, 5) == "team_";
+		string valor = kind.substr(5); // depois de "team_" ou "mode_"
+		string filtro = por_time ? "m.mode = '" + GAME_MODE_CLASSIC + "' AND m.team = ?" : "m.mode = ?";
+		sqlite3statement@ st = db.prepare(
+			"SELECT m.username, COUNT(*), SUM(m.won) FROM match_results m JOIN users u ON u.username = m.username " +
+			"WHERE COALESCE(u.show_stats, 1) = 1 AND " + filtro + " GROUP BY m.username HAVING COUNT(*) >= ? " +
+			"ORDER BY CAST(SUM(m.won) AS REAL) / COUNT(*) DESC, COUNT(*) DESC, m.username");
+		if (@st == null) return r;
+		st.bind_text(1, valor, false);
+		st.bind_int(2, RANKING_MIN_GAMES_SPLIT);
+		while (st.step() == SQLITE_ROW) {
+			ranking_entry e;
+			e.username = st.column_text(0);
+			e.games = st.column_int(1);
+			e.wins = st.column_int(2);
+			r.insert_last(e);
+		}
+		return r;
+	}
+
+	// As partidas e vitórias de uma pessoa por modo e time, para Minhas estatísticas.
+	array<match_split@>@ match_breakdown(const string&in username) {
+		array<match_split@> r;
+		if (@db == null) return r;
+		sqlite3statement@ st = db.prepare(
+			"SELECT mode, team, COUNT(*), SUM(won) FROM match_results WHERE username = ? GROUP BY mode, team");
+		if (@st == null) return r;
+		st.bind_text(1, username, false);
+		while (st.step() == SQLITE_ROW) {
+			match_split s;
+			s.mode = st.column_text(0);
+			s.team = st.column_text(1);
+			s.games = st.column_int(2);
+			s.wins = st.column_int(3);
+			r.insert_last(s);
 		}
 		return r;
 	}

@@ -280,7 +280,11 @@ class game_client {
 	}
 
 	void send_get_stats() { send(net_packet(C_GET_STATS)); }
-	void send_get_ranking() { send(net_packet(C_GET_RANKING)); }
+	void send_get_ranking(const string&in kind = "general") {
+		net_packet@ p = net_packet(C_GET_RANKING);
+		p.set_string("kind", kind);
+		send(p);
+	}
 	void send_get_room_stats() { send(net_packet(C_GET_ROOM_STATS)); }
 	void send_set_stats_visible(bool visible) {
 		net_packet@ p = net_packet(C_SET_STATS_VISIBLE);

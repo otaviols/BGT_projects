@@ -144,9 +144,17 @@ trocar a senha, o e-mail, esquecer este computador e apagar a conta.
 
 **Minhas estatísticas** (em Minha conta) mostra partidas jogadas, vitórias (como tripulante, impostor e
 papel neutro), o aproveitamento (quantos por cento das partidas você venceu), etapas de tarefa
-concluídas e assassinatos, e a sua **posição no ranking**. Enter numa linha a copia, e **Copiar todas as
-estatísticas** copia tudo. **Ver o ranking** mostra os 10 melhores por aproveitamento: entra quem tem pelo
-menos 20 partidas e deixa as estatísticas à mostra.
+concluídas e assassinatos, a sua **posição no ranking**, e o aproveitamento por time (no modo clássico) e
+por modo de jogo. Enter numa linha a copia, e **Copiar todas as estatísticas** copia tudo.
+
+**Ver o ranking** abre a lista de rankings, cada um com os 10 melhores por aproveitamento e a sua posição:
+- **Geral**, com todas as partidas: entra quem tem pelo menos 20;
+- por time: **tripulante**, **impostor** e **neutro**, contando só o modo clássico (nos outros modos o
+  time vem da regra, e não do sorteio);
+- por modo: **clássico**, **pega-pega**, **todos lobos** e **último sobrevivente**.
+
+Nos rankings por time e por modo entra quem tem pelo menos 10 partidas daquele time ou modo. Em todos, só
+quem deixa as estatísticas à mostra.
 
 **Mostrar minhas estatísticas aos outros** (em Minha conta) vem ligado. Desligado, ninguém vê as suas na
 sala, e você sai do ranking. Os outros nunca veem os seus assassinatos nem as suas tarefas: só partidas,

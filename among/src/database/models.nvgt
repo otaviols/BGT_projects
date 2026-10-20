@@ -13,6 +13,14 @@ class user_stats {
 }
 
 // Uma linha do ranking: quem, quantas partidas e quantas vitórias.
+// Partidas e vitórias de uma pessoa num recorte (um time, um modo) - ver user_db.match_breakdown.
+class match_split {
+	string mode;
+	string team;
+	int games;
+	int wins;
+}
+
 class ranking_entry {
 	string username;
 	int games = 0;

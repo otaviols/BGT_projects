@@ -41,6 +41,30 @@ void main() {
 	confere("quem escondeu fica fora", ordem.find("escondido") < 0);
 	db.set_stats_visible("escondido", true);
 	confere("e volta ao mostrar de novo (em primeiro)", db.ranking()[0].username == "escondido");
+
+	println("== por time e por modo (match_results) ==");
+	// "imp": 10 de impostor no clássico, 7 vencidas; e 10 de último sobrevivente (impostor por regra), 10 vencidas.
+	for (int i = 0; i < 10; i++) db.record_match_result("metade", GAME_MODE_CLASSIC, "impostor", i < 7);
+	for (int i = 0; i < 10; i++) db.record_match_result("metade", GAME_MODE_LAST_STANDING, "impostor", true);
+	// "muito": 10 de impostor no clássico, 5 vencidas; e só 9 de tripulante (abaixo do mínimo).
+	for (int i = 0; i < 10; i++) db.record_match_result("muito", GAME_MODE_CLASSIC, "impostor", i < 5);
+	for (int i = 0; i < 9; i++) db.record_match_result("muito", GAME_MODE_CLASSIC, "crew", true);
+	array<ranking_entry@>@ imp = db.ranking("team_impostor");
+	confere("impostor: 70% na frente de 50%, e o ultimo sobrevivente NAO entra (" + imp.length() + ")",
+		imp.length() == 2 && imp[0].username == "metade" && imp[0].games == 10 && imp[0].wins == 7 && imp[1].username == "muito");
+	confere("tripulante: 9 partidas ainda nao entram", db.ranking("team_crew").length() == 0);
+	array<ranking_entry@>@ ls = db.ranking("mode_last_standing");
+	confere("ultimo sobrevivente: o modo tem ranking proprio", ls.length() == 1 && ls[0].username == "metade" && ls[0].wins == 10);
+	array<ranking_entry@>@ cl = db.ranking("mode_classic");
+	confere("classico: conta os dois times (muito: 19 partidas, 14 vitorias)", cl.length() == 2 && cl[0].username == "muito"
+		&& cl[0].games == 19 && cl[0].wins == 14);
+	db.set_stats_visible("metade", false);
+	confere("quem escondeu sai tambem destes", db.ranking("team_impostor").length() == 1);
+	confere("tipo desconhecido vira o geral", db.ranking("qualquer").length() == db.ranking().length());
+	array<match_split@>@ meu = db.match_breakdown("muito");
+	confere("o detalhe da pessoa sai por modo e time (" + meu.length() + ")", meu.length() == 2);
+	db.delete_account("muito");
+	confere("apagar a conta apaga as linhas", db.match_breakdown("muito").length() == 0);
 	file_delete(arquivo);
 	file_delete(arquivo + "-wal");
 	file_delete(arquivo + "-shm");

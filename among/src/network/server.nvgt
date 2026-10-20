@@ -530,7 +530,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		else if (t == C_CHANGE_PASSWORD) on_change_password(peer_id, pkt);
 		else if (t == C_CHOOSE_COLOR) on_choose_color(peer_id, pkt);
 		else if (t == C_GET_STATS) on_get_stats(peer_id);
-		else if (t == C_GET_RANKING) on_get_ranking(peer_id);
+		else if (t == C_GET_RANKING) on_get_ranking(peer_id, pkt);
 		else if (t == C_GET_ROOM_STATS) on_get_room_stats(peer_id);
 		else if (t == C_SET_STATS_VISIBLE) on_set_stats_visible(peer_id, pkt);
 		else if (t == C_REGISTER) on_register(peer_id, pkt);
