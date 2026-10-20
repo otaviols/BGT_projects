@@ -42,6 +42,9 @@ class email_settings {
 	bool load(const string&in path) {
 		string conteudo = file_get_contents(path);
 		if (conteudo == "") return false;
+		// A marca de UTF-8 (BOM) que o Bloco de Notas e o PowerShell 5.1 gravam no começo: o parse_json a
+		// recusa, e o e-mail ficaria desligado por um caractere invisível.
+		if (conteudo.length() >= 3 && conteudo.substr(0, 3) == "\xEF\xBB\xBF") conteudo = conteudo.substr(3);
 		json_object@ o = null;
 		try {
 			var@ lido = parse_json(conteudo);

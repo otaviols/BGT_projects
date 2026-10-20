@@ -89,7 +89,9 @@ if (Test-Path $EmailJson) {
 	$cfg = Get-Content $EmailJson -Raw | ConvertFrom-Json
 	$cfg.required = $false
 	$tmp = Join-Path $env:TEMP "email-teste.json"
-	$cfg | ConvertTo-Json | Set-Content -Path $tmp -Encoding utf8
+	# Sem BOM: o Set-Content -Encoding utf8 do PowerShell 5.1 grava a marca no começo, e o parse_json do
+	# NVGT recusa o arquivo ("nao e um JSON valido" no log, e o e-mail fica desligado).
+	[System.IO.File]::WriteAllText($tmp, ($cfg | ConvertTo-Json), (New-Object System.Text.UTF8Encoding $false))
 	try {
 		$a = Vps-SshArgs
 		scp -q @a $tmp "root@${script:VpsHost}:$TestData/email.json"
