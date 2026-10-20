@@ -1,0 +1,265 @@
+// email_screens.nvgt
+// O e-mail da conta, do lado do jogador (1.0; o servidor está em network/server/server_email.nvgt):
+// o cadastro (com o código de confirmação), o "esqueci a senha" do login, e o e-mail da conta na lista
+// de partidas.
+//
+// Tudo por código de seis dígitos que chega ao e-mail. O formulário do código tem "reenviar", porque
+// e-mail atrasa e cai no spam - sem ele, quem não recebeu teria de recomeçar do zero.
+
+#include "form.nvgt"
+#include "../core/screen_keyboard.nvgt"
+#include "speech.nvgt"
+#include "../core/hints.nvgt"
+#include "../network/client.nvgt"
+#include "../network/protocol.nvgt"
+#include "../i18n.nvgt"
+#include "../config/game_constants.nvgt"
+#include "../config/game_settings.nvgt"
+#include "visual_map.nvgt"
+#include "../database/models.nvgt"
+#include "onboarding_screens.nvgt" // wait_for_auth_result: o cadastro termina entrando, pelo mesmo caminho do login
+
+// O e-mail (confirmado) da conta logada, como o login o trouxe. "" = sem e-mail.
+string g_account_email = "";
+
+// A resposta de um tipo, ou null se não chegou em `ms`. Só retira da fila o pacote que espera: o resto
+// (saguão, respostas a recados) é de quem vier depois.
+net_packet@ take_packet(game_client@ client, const string&in type, uint ms = 12000) {
+	timer clock;
+	while (clock.elapsed < ms) {
+		wait(5);
+		client.update();
+		for (uint i = 0; i < client.incoming.length(); i++) {
+			if (client.incoming[i].type != type) continue;
+			net_packet@ r = client.incoming[i];
+			client.incoming.remove_at(i);
+			return r;
+		}
+	}
+	return null;
+}
+
+const string CODE_RESEND = "__resend__";
+
+// Pede o código. Devolve os dígitos, CODE_RESEND, ou "" se a pessoa desistiu.
+string ask_email_code(game_client@ client, const string&in prompt) {
+	audio_form f;
+	screen_keyboard_follower teclado_tela;
+	f.create_window(tr("email.code_title"), false);
+	int f_code = f.create_input_box(tr("email.code_field"), "");
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_resend = f.create_button(tr("email.resend"));
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_code);
+	speak(prompt, false);
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		teclado_tela.follow(f);
+		if (f.is_pressed(f_cancel)) return "";
+		if (f.is_pressed(f_resend)) return CODE_RESEND;
+		if (!f.is_pressed(f_ok)) continue;
+		string code = f.get_text(f_code).trim_whitespace();
+		if (code == "") { speak(tr("email.code_empty")); continue; }
+		return code;
+	}
+	return "";
+}
+
+string email_prompt(const string&in key, const string&in email) {
+	dictionary@ p = dictionary();
+	p.set("email", email);
+	return tr(key, p);
+}
+
+// --- Cadastro ---------------------------------------------------------------------------------------
+// Aberta pelo "Cadastrar" do login, com o que já estava digitado. Devolve true se a conta nasceu E o
+// login deu certo (o resultado vai em `result`).
+bool run_register_screen(game_client@ client, const string&in user0, const string&in pass0, login_result@ result, bool remember) {
+	audio_form f;
+	screen_keyboard_follower teclado_tela;
+	f.create_window(tr("register.title"), false);
+	int f_user = f.create_input_box(tr("login.username"), user0);
+	int f_pass = f.create_input_box(tr("login.password"), pass0, "*");
+	// A senha duas vezes, como na troca: de ouvido não há como conferir o que se digitou num campo de senha.
+	int f_repeat = f.create_input_box(tr("account.password_repeat"), "", "*");
+	int f_email = f.create_input_box(tr("register.email"), "");
+	int f_show = f.create_checkbox(tr("login.show_password"), false);
+	int f_ok = f.create_button(tr("menu.register"), true);
+	int f_cancel = f.create_button(tr("menu.back"), false, true);
+	f.focus(user0 == "" ? f_user : f_repeat);
+	speak_hint("register.hint");
+	bool mostrando = false;
+	g_visual_show_passwords = false;
+
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		teclado_tela.follow(f);
+		bool mostrar = f.is_checked(f_show);
+		if (mostrar != mostrando) {
+			mostrando = mostrar;
+			g_visual_show_passwords = mostrar;
+			dictionary@ p = dictionary();
+			p.set("password", f.get_text(f_pass));
+			if (mostrar && f.get_text(f_pass) != "") speak(tr("login.password_is", p), false);
+		}
+		if (f.is_pressed(f_cancel)) { g_visual_show_passwords = false; return false; }
+		if (!f.is_pressed(f_ok)) continue;
+
+		string u = f.get_text(f_user).trim_whitespace();
+		string p = f.get_text(f_pass);
+		string email = f.get_text(f_email).trim_whitespace();
+		if (u == "" || p == "") { speak(tr("register.fill_name_password")); f.focus(u == "" ? f_user : f_pass); continue; }
+		if (p != f.get_text(f_repeat)) { speak(tr("account.password_mismatch")); f.focus(f_repeat); continue; }
+
+		client.send_register(u, p, email, g_settings.language);
+		net_packet@ r = take_packet(client, S_REGISTER_RESULT);
+		if (@r == null) { speak(tr("account.delete_no_answer")); continue; }
+		// Com e-mail: o código foi mandado, e a conta só nasce quando ele voltar.
+		while (@r != null && !r.get_bool("ok") && r.get_bool("pending")) {
+			string code = ask_email_code(client, email_prompt("email.code_prompt", email));
+			if (code == "") { @r = null; break; }
+			if (code == CODE_RESEND) {
+				client.send_register(u, p, email, g_settings.language);
+				@r = take_packet(client, S_REGISTER_RESULT);
+				if (@r != null && !r.get_bool("pending")) { speak(tr(r.get_string("message"))); @r = null; }
+				continue;
+			}
+			client.send_register_confirm(u, code);
+			@r = take_packet(client, S_REGISTER_RESULT);
+			if (@r != null && !r.get_bool("ok")) speak(tr(r.get_string("message")));
+		}
+		if (@r == null) continue;
+		if (!r.get_bool("ok")) {
+			speak(tr(r.get_string("message")));
+			if (r.get_bool("email_required") || r.get_string("message").starts_with("email.")) f.focus(f_email);
+			continue;
+		}
+		// A conta nasceu: entra com ela, como o cadastro sempre fez.
+		speak(tr("login.register_success"));
+		g_visual_show_passwords = false;
+		client.send_login(u, p, remember);
+		if (wait_for_auth_result(client, false, u, p, result, false, remember)) return true;
+	}
+	return false;
+}
+
+// --- Esqueci a senha --------------------------------------------------------------------------------
+void run_forgot_password_screen(game_client@ client, const string&in user0) {
+	audio_form f;
+	screen_keyboard_follower teclado_tela;
+	f.create_window(tr("forgot.title"), false);
+	int f_user = f.create_input_box(tr("login.username"), user0);
+	int f_ok = f.create_button(tr("forgot.send_code"), true);
+	int f_cancel = f.create_button(tr("menu.back"), false, true);
+	f.focus(f_user);
+	speak_hint("forgot.hint");
+	string u;
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		teclado_tela.follow(f);
+		if (f.is_pressed(f_cancel)) return;
+		if (!f.is_pressed(f_ok)) continue;
+		u = f.get_text(f_user).trim_whitespace();
+		if (u == "") { speak(tr("forgot.name_empty")); continue; }
+		client.send_password_reset_request(u, g_settings.language);
+		net_packet@ r = take_packet(client, S_PASSWORD_RESET_RESULT);
+		if (@r == null) { speak(tr("account.delete_no_answer")); continue; }
+		speak(tr(r.get_string("message")));
+		if (r.get_bool("ok")) break;
+	}
+	run_reset_code_screen(client, u);
+}
+
+// O código e a senha nova. Fica aberta até trocar ou desistir.
+void run_reset_code_screen(game_client@ client, const string&in u) {
+	audio_form f;
+	screen_keyboard_follower teclado_tela;
+	f.create_window(tr("forgot.code_title"), false);
+	int f_code = f.create_input_box(tr("email.code_field"), "");
+	int f_new = f.create_input_box(tr("account.password_new"), "", "*");
+	int f_repeat = f.create_input_box(tr("account.password_repeat"), "", "*");
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_resend = f.create_button(tr("email.resend"));
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_code);
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		teclado_tela.follow(f);
+		if (f.is_pressed(f_cancel)) return;
+		if (f.is_pressed(f_resend)) {
+			client.send_password_reset_request(u, g_settings.language);
+			net_packet@ r = take_packet(client, S_PASSWORD_RESET_RESULT);
+			speak(@r == null ? tr("account.delete_no_answer") : tr(r.get_string("message")));
+			continue;
+		}
+		if (!f.is_pressed(f_ok)) continue;
+		string code = f.get_text(f_code).trim_whitespace();
+		string nova = f.get_text(f_new);
+		if (code == "") { speak(tr("email.code_empty")); f.focus(f_code); continue; }
+		if (nova != f.get_text(f_repeat)) { speak(tr("account.password_mismatch")); f.focus(f_new); continue; }
+		if (nova.length() < MIN_PASSWORD_LENGTH) { speak(tr("account.password_too_short")); f.focus(f_new); continue; }
+		client.send_password_reset_confirm(u, code, nova);
+		net_packet@ r = take_packet(client, S_PASSWORD_RESET_RESULT);
+		if (@r == null) { speak(tr("account.delete_no_answer")); continue; }
+		speak(tr(r.get_string("message")));
+		if (r.get_bool("done")) return;
+	}
+}
+
+// --- O e-mail da conta (na lista de partidas) -------------------------------------------------------
+void run_email_screen(game_client@ client) {
+	audio_form f;
+	screen_keyboard_follower teclado_tela;
+	f.create_window(tr("email.screen_title"), false);
+	int f_pass = f.create_input_box(tr("account.password_current"), "", "*");
+	int f_email = f.create_input_box(tr("email.new_field"), "");
+	int f_ok = f.create_button(tr("menu.confirm"), true);
+	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
+	f.focus(f_pass);
+	// O e-mail de agora (ou a falta dele) é dito sempre, e não só como dica: é a informação da tela.
+	speak(g_account_email != "" ? email_prompt("email.current", g_account_email) : tr("email.none"), false);
+	speak_hint("email.screen_hint");
+	while (true) {
+		wait(5);
+		client.update();
+		f.monitor();
+		teclado_tela.follow(f);
+		if (f.is_pressed(f_cancel)) return;
+		if (!f.is_pressed(f_ok)) continue;
+		string senha = f.get_text(f_pass);
+		string email = f.get_text(f_email).trim_whitespace();
+		if (senha == "") { speak(tr("account.delete_password_empty")); f.focus(f_pass); continue; }
+		if (email == "") { speak(tr("email.invalid")); f.focus(f_email); continue; }
+		client.send_email_set(senha, email, g_settings.language);
+		net_packet@ r = take_packet(client, S_EMAIL_RESULT);
+		if (@r == null) { speak(tr("account.delete_no_answer")); continue; }
+		if (!r.get_bool("pending")) { speak(tr(r.get_string("message"))); continue; }
+		while (@r != null && r.get_bool("pending")) {
+			string code = ask_email_code(client, email_prompt("email.code_prompt", email));
+			if (code == "") { @r = null; break; }
+			if (code == CODE_RESEND) {
+				client.send_email_set(senha, email, g_settings.language);
+				@r = take_packet(client, S_EMAIL_RESULT);
+				if (@r != null) speak(tr(r.get_string("message")));
+				continue;
+			}
+			client.send_email_confirm(code);
+			@r = take_packet(client, S_EMAIL_RESULT);
+			if (@r == null) break;
+			if (r.get_bool("ok")) {
+				g_account_email = r.get_string("email");
+				speak(tr(r.get_string("message")));
+				return;
+			}
+			speak(tr(r.get_string("message")));
+		}
+	}
+}

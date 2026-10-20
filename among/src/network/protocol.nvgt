@@ -62,7 +62,19 @@ const string C_CHOOSE_COLOR = "c_choose_color"; // {color}
 // As estatísticas da própria conta (tela "Minhas estatísticas" na lista de partidas).
 const string C_GET_STATS = "c_get_stats";         // {}
 const string S_STATS = "s_stats";                 // {games_played, games_won, crewmate_wins, impostor_wins, neutral_wins, tasks_completed, kills}
-const string C_REGISTER = "c_register";           // {username, password}
+const string C_REGISTER = "c_register";           // {username, password, email?, language?}
+// --- E-mail da conta (1.0; ver server/server_email.nvgt) ---
+// Cadastro COM e-mail: o S_REGISTER_RESULT volta com `pending` (o código foi mandado), e a conta só nasce
+// quando o código chega aqui. Assim não existe e-mail não confirmado no banco.
+const string C_REGISTER_CONFIRM = "c_register_confirm"; // {username, code}
+// Esqueci a senha: pedir o código (responde igual exista a conta ou não), e trocar com ele.
+const string C_PASSWORD_RESET_REQUEST = "c_password_reset_request"; // {username, language}
+const string C_PASSWORD_RESET_CONFIRM = "c_password_reset_confirm"; // {username, code, new_password}
+const string S_PASSWORD_RESET_RESULT = "s_password_reset_result";   // {ok, message, done}
+// Pôr ou trocar o e-mail de quem está conectado: a senha atual e o e-mail novo; o código vai ao novo.
+const string C_EMAIL_SET = "c_email_set";         // {password, email, language}
+const string C_EMAIL_CONFIRM = "c_email_confirm"; // {code}
+const string S_EMAIL_RESULT = "s_email_result";   // {ok, message, pending, email}
 const string C_LIST_LOBBIES = "c_list_lobbies";   // {}
 // join_code (opcional) torna a partida PRIVADA: ela some da lista e só entra quem souber o código.
 // Foi o pedido mais repetido do beta - jogar só com os amigos, como no jogo original.
@@ -166,7 +178,7 @@ const string C_ADMIN_SET_PASSWORD = "c_admin_set_password"; // {token, username,
 
 // Servidor -> Cliente
 const string S_LOGIN_RESULT = "s_login_result";           // {ok, message, username, peer_id, session_token?} - peer_id = como o SERVIDOR me identifica
-const string S_REGISTER_RESULT = "s_register_result";     // {ok, message}
+const string S_REGISTER_RESULT = "s_register_result";     // {ok, message, pending?, email_required?}
 const string S_LOBBY_LIST = "s_lobby_list";               // {lobbies: [{id, name, current, max, config, host, in_progress}]} - in_progress só a partir do protocolo 9
 const string S_LOBBY_STATE = "s_lobby_state";             // {lobby_id, players: [...], config}
 const string S_JOIN_RESULT = "s_join_result";             // {ok, message}

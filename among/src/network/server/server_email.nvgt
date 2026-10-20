@@ -1,0 +1,319 @@
+// server_email.nvgt
+// O e-mail da conta (1.0): confirmar no cadastro, pôr ou trocar depois, e recuperar a senha - sempre por
+// um código de seis dígitos mandado ao e-mail.
+//
+// Parte do game_server (src/network/server.nvgt), como `mixin class` (ver server_accounts.nvgt). As
+// classes e as funções soltas daqui (a configuração, o envio) são do arquivo, fora do mixin.
+//
+// Três decisões que alguém poderia querer desfazer:
+//   - NÃO existe e-mail não confirmado no banco. O cadastro com e-mail espera o código NA MEMÓRIA
+//     (pending_registrations) e só cria a conta quando ele chega; trocar o e-mail grava o novo só depois
+//     do código. Sem isso, um erro de digitação viraria uma conta impossível de recuperar.
+//   - "Esqueci a senha" responde IGUAL exista a conta ou não, tenha e-mail ou não: senão o formulário
+//     viraria um jeito de descobrir quais nomes existem e quais têm e-mail.
+//   - O envio roda em outra linha de execução (async): falar com o servidor de e-mail leva um ou dois
+//     segundos, e o laço do servidor parado esse tempo congelaria todas as partidas.
+//
+// A configuração mora em email.json, AO LADO do servidor, fora do repositório (a senha da caixa de
+// e-mail nunca entra no código). Sem o arquivo, o e-mail fica desligado: o cadastro sem e-mail continua
+// funcionando, e os pedidos de código respondem que o e-mail não está disponível.
+
+const string EMAIL_CONFIG_FILE = "email.json";
+const int EMAIL_CODE_MINUTES = 15;        // quanto tempo um código vale
+const int EMAIL_CODE_MAX_ATTEMPTS = 5;    // tentativas erradas antes de o código morrer
+const int EMAIL_MAX_SENDS = 3;            // envios por pessoa e propósito...
+const int EMAIL_SEND_WINDOW_MINUTES = 15; // ...nesta janela
+const int EMAIL_MIN_SECONDS_BETWEEN = 30; // e o intervalo mínimo entre dois
+
+class email_settings {
+	string host, user, password, from, from_name, test_to;
+	// 587, e NÃO 465: o smtp_client do NVGT conversa em texto e pede a criptografia no meio (STARTTLS),
+	// que é o jeito da 587. Na 465 o servidor de e-mail espera a criptografia desde o primeiro byte, e os
+	// dois ficam esperando um ao outro - o connect() TRAVA, sem erro e sem respeitar o timeout (achado
+	// testando com a Hostinger, 2026-10-19). `ssl` ligado = STARTTLS.
+	int port = 587;
+	bool ssl = true;
+	// Obrigatório no cadastro: desligado para os testes com amigos, ligado no lançamento (decisão do
+	// usuário, 2026-10-19) - uma chave do arquivo, sem mudar código.
+	bool required = false;
+
+	bool enabled() const { return host != "" && password != "" && from != ""; }
+
+	bool load(const string&in path) {
+		string conteudo = file_get_contents(path);
+		if (conteudo == "") return false;
+		json_object@ o = null;
+		try {
+			var@ lido = parse_json(conteudo);
+			if (@lido != null) @o = cast<json_object@>(lido);
+		} catch {
+			println("[email] " + path + " nao e um JSON valido; e-mail desligado.");
+			return false;
+		}
+		if (@o == null) return false;
+		if (o.exists("host")) host = string(o["host"]);
+		if (o.exists("port")) port = int(o["port"]);
+		if (o.exists("ssl")) ssl = bool(o["ssl"]);
+		if (o.exists("user")) user = string(o["user"]);
+		if (o.exists("password")) password = string(o["password"]);
+		if (o.exists("from")) from = string(o["from"]);
+		if (o.exists("from_name")) from_name = string(o["from_name"]);
+		if (o.exists("required")) required = bool(o["required"]);
+		if (o.exists("test_to")) test_to = string(o["test_to"]);
+		return true;
+	}
+}
+
+// Lida pela linha de execução do envio, e só lida depois da abertura: não precisa de trava.
+email_settings g_email;
+
+// Manda UM e-mail, do começo ao fim. Roda FORA do laço do servidor (ver queue_email). Devolve "" se
+// mandou, ou o motivo.
+string send_email_now(const string&in to, const string&in subject, const string&in body) {
+	smtp_client c;
+	c.host = g_email.host;
+	c.port = g_email.port;
+	c.use_ssl = g_email.ssl;
+	c.timeout = 20000;
+	if (!c.connect()) return "nao conectou a " + g_email.host + ":" + g_email.port;
+	if (!c.login(g_email.user, g_email.password)) return "o servidor de e-mail recusou o login";
+	mail_message m;
+	m.set_sender(g_email.from_name != "" ? g_email.from_name + " <" + g_email.from + ">" : g_email.from);
+	m.add_recipient(to);
+	m.set_subject(subject);
+	m.set_content(body, "text/plain; charset=utf-8");
+	if (!c.send_message(m)) return "o envio falhou: " + m.last_error;
+	return "";
+}
+
+class email_job {
+	string to;
+	string what; // para o log: "cadastro", "senha", "troca"
+	async<string>@ result;
+}
+
+// Um código mandado e ainda não usado. A chave em pending_codes é "<propósito>:<nome em minúsculas>".
+class email_code {
+	string code;
+	string email;      // para onde foi (no cadastro e na troca, o e-mail que será gravado)
+	string password;   // só no cadastro: a senha escolhida, até o código chegar (na memória, nunca no banco)
+	string username;   // o nome como a pessoa o escreveu
+	uint64 expires_at = 0;
+	int attempts = 0;
+	array<uint64> sends; // quando cada envio da janela aconteceu
+}
+
+string new_email_code() {
+	string c;
+	for (int i = 0; i < 6; i++) c += "" + random(0, 9);
+	return c;
+}
+
+mixin class server_email_part {
+	// O texto do e-mail no idioma de quem pediu. Um i18n por idioma, carregado na primeira vez: o g_i18n
+	// do servidor é um só, no idioma padrão.
+	private string email_text(const string&in language, const string&in key, dictionary@ params) {
+		string lingua = language;
+		if (lingua == "" || lingua.find("/") >= 0 || lingua.find(".") >= 0) lingua = language_default();
+		i18n@ textos = null;
+		if (!email_texts.get(lingua, @textos)) {
+			@textos = i18n();
+			if (!textos.load_language(lingua)) textos.load_language(language_default());
+			email_texts.set(lingua, @textos);
+		}
+		return textos.get_formatted(key, params);
+	}
+
+	private void queue_email(const string&in to, const string&in what, const string&in subject, const string&in body) {
+		email_job j;
+		j.to = to;
+		j.what = what;
+		@j.result = async<string>(send_email_now, to, subject, body);
+		email_jobs.insert_last(j);
+	}
+
+	// No laço do servidor: só confere quem terminou e anota no log. O endereço não vai inteiro para o
+	// log - é dado pessoal, e o log é lido para outras coisas.
+	void tick_email() {
+		for (int i = int(email_jobs.length()) - 1; i >= 0; i--) {
+			if (!email_jobs[i].result.complete) continue;
+			string erro = email_jobs[i].result.value;
+			println("[email] " + email_jobs[i].what + " para " + mask_email(email_jobs[i].to) + ": " + (erro == "" ? "enviado" : "FALHOU (" + erro + ")"));
+			email_jobs.remove_at(i);
+		}
+	}
+
+	private string mask_email(const string&in e) {
+		int arroba = e.find("@");
+		if (arroba <= 1) return "***" + (arroba >= 0 ? e.substr(arroba) : "");
+		return e.substr(0, 1) + "***" + e.substr(arroba);
+	}
+
+	// Gera (ou reaproveita) o código de um propósito e manda. Devolve "" se mandou, ou a chave do motivo.
+	private string send_code(const string&in purpose, const string&in username, const string&in email,
+			const string&in language, const string&in password = "") {
+		if (!g_email.enabled()) return "email.unavailable";
+		string chave = purpose + ":" + username.lower();
+		email_code@ c = null;
+		if (!pending_codes.get(chave, @c)) {
+			@c = email_code();
+			pending_codes.set(chave, @c);
+		}
+		uint64 agora = ticks();
+		for (int i = int(c.sends.length()) - 1; i >= 0; i--)
+			if (agora - c.sends[i] > uint64(EMAIL_SEND_WINDOW_MINUTES) * 60000) c.sends.remove_at(i);
+		if (c.sends.length() > 0 && agora - c.sends[c.sends.length() - 1] < uint64(EMAIL_MIN_SECONDS_BETWEEN) * 1000) return "email.wait_before_resend";
+		if (int(c.sends.length()) >= EMAIL_MAX_SENDS) return "email.too_many_codes";
+		// Um código novo a cada envio (o anterior deixa de valer) e o prazo recomeça.
+		c.code = new_email_code();
+		c.email = email;
+		c.username = username;
+		if (password != "") c.password = password;
+		c.expires_at = agora + uint64(EMAIL_CODE_MINUTES) * 60000;
+		c.attempts = 0;
+		c.sends.insert_last(agora);
+		dictionary@ p = dictionary();
+		p.set("code", c.code);
+		p.set("username", username);
+		p.set("minutes", "" + EMAIL_CODE_MINUTES);
+		queue_email(email, purpose, email_text(language, "email." + purpose + ".subject", p), email_text(language, "email." + purpose + ".body", p));
+		// Só a SONDA (probe_email): com AMONGUS_EMAIL_CODE_LOG definida, o código vai também para esse
+		// arquivo - é como ela confere o fluxo inteiro sem ler a caixa de e-mail. O servidor oficial não
+		// tem a variável.
+		string log_codigos = read_environment_variable("AMONGUS_EMAIL_CODE_LOG", "");
+		if (log_codigos != "") {
+			file f;
+			if (f.open(log_codigos, "ab")) { f.write(purpose + " " + username.lower() + " " + c.code + "\n"); f.close(); }
+		}
+		return "";
+	}
+
+	// Confere um código. Devolve o registro se bateu (e o apaga), ou null com a chave do motivo.
+	private email_code@ take_code(const string&in purpose, const string&in username, const string&in code, string&out fail_key) {
+		fail_key = "email.code_wrong";
+		string chave = purpose + ":" + username.lower();
+		email_code@ c = null;
+		if (!pending_codes.get(chave, @c) || c.code == "") { fail_key = "email.code_missing"; return null; }
+		if (ticks() > c.expires_at) { c.code = ""; fail_key = "email.code_expired"; return null; }
+		if (code.trim_whitespace() != c.code) {
+			c.attempts++;
+			if (c.attempts >= EMAIL_CODE_MAX_ATTEMPTS) { c.code = ""; fail_key = "email.code_too_many_attempts"; }
+			return null;
+		}
+		fail_key = "";
+		pending_codes.delete(chave);
+		return c;
+	}
+
+	private bool valid_email(const string&in e) {
+		return utf8_length(e) <= 120 && e.find("@") > 0 && validate_email_address(e);
+	}
+
+	// --- Cadastro com e-mail ---
+
+	// Chamado por on_register quando veio e-mail: confere tudo o que o create_user conferiria (para não
+	// mandar código a um cadastro que vai falhar) e manda o código. A conta nasce em on_register_confirm.
+	void register_with_email(uint64 peer_id, const string&in username, const string&in password, const string&in email, const string&in language) {
+		net_packet@ result = net_packet(S_REGISTER_RESULT);
+		string fail = "";
+		if (!valid_email(email)) fail = "email.invalid";
+		else if (username.length() < MIN_USERNAME_LENGTH || username.length() > MAX_USERNAME_LENGTH) fail = "login.invalid_username_length";
+		else if (password.length() < MIN_PASSWORD_LENGTH) fail = "login.invalid_password_length";
+		else if (g_user_db.user_exists(username)) fail = "login.username_taken";
+		if (fail == "") fail = send_code("register", username, email, language, password);
+		result.set_bool("ok", false);
+		result.set_bool("pending", fail == "");
+		result.set_string("message", fail == "" ? "email.code_sent" : fail);
+		send_to(peer_id, result);
+	}
+
+	void on_register_confirm(uint64 peer_id, net_packet@ pkt) {
+		string username = pkt.get_string("username");
+		net_packet@ result = net_packet(S_REGISTER_RESULT);
+		string fail;
+		email_code@ c = take_code("register", username, pkt.get_string("code"), fail);
+		bool ok = false;
+		if (@c != null) {
+			string err;
+			// O nome pode ter sido tomado enquanto o código viajava: o create_user confere de novo.
+			ok = g_user_db.create_user(c.username, c.password, err, c.email);
+			if (!ok) fail = "login." + err;
+		}
+		result.set_bool("ok", ok);
+		result.set_bool("pending", !ok && (fail == "email.code_wrong"));
+		result.set_string("message", ok ? "login.register_success" : fail);
+		send_to(peer_id, result);
+		if (ok) println("[conta] cadastrada com e-mail confirmado: " + username);
+	}
+
+	// --- Esqueci a senha ---
+
+	void on_password_reset_request(uint64 peer_id, net_packet@ pkt) {
+		string username = g_user_db.find_username(pkt.get_string("username"));
+		net_packet@ result = net_packet(S_PASSWORD_RESET_RESULT);
+		string fail = "";
+		if (!g_email.enabled()) fail = "email.unavailable";
+		else if (username != "") {
+			string email = g_user_db.get_email(username);
+			if (email != "") {
+				string motivo = send_code("reset", username, email, pkt.get_string("language"));
+				// O limite de envios pode ser dito: ele não revela nada que o pedido anterior já não tenha.
+				if (motivo == "email.wait_before_resend" || motivo == "email.too_many_codes") fail = motivo;
+			}
+		}
+		result.set_bool("ok", fail == "");
+		result.set_bool("done", false);
+		result.set_string("message", fail == "" ? "email.reset_code_sent_if" : fail);
+		send_to(peer_id, result);
+	}
+
+	void on_password_reset_confirm(uint64 peer_id, net_packet@ pkt) {
+		string username = g_user_db.find_username(pkt.get_string("username"));
+		net_packet@ result = net_packet(S_PASSWORD_RESET_RESULT);
+		string fail = "email.code_wrong";
+		if (username != "") {
+			email_code@ c = take_code("reset", username, pkt.get_string("code"), fail);
+			if (@c != null) fail = g_user_db.change_password(username, pkt.get_string("new_password"));
+		}
+		result.set_bool("ok", fail == "");
+		result.set_bool("done", fail == "");
+		result.set_string("message", fail == "" ? "email.reset_done" : fail);
+		send_to(peer_id, result);
+		if (fail != "") return;
+		println("[conta] senha trocada pelo e-mail: " + username);
+		// Quem recupera a senha está, quase sempre, tirando alguém da conta: as outras conexões caem.
+		drop_other_sessions(peer_id, username);
+	}
+
+	// --- Pôr ou trocar o e-mail ---
+
+	void on_email_set(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		net_packet@ result = net_packet(S_EMAIL_RESULT);
+		string email = pkt.get_string("email").trim_whitespace();
+		string fail = "";
+		if (@conn == null || !conn.authenticated) fail = "account.delete_not_logged_in";
+		else if (!g_user_db.verify_login(conn.username, pkt.get_string("password"))) fail = "account.password_wrong_current";
+		else if (!valid_email(email)) fail = "email.invalid";
+		if (fail == "") fail = send_code("change", conn.username, email, pkt.get_string("language"));
+		result.set_bool("ok", fail == "");
+		result.set_bool("pending", fail == "");
+		result.set_string("message", fail == "" ? "email.code_sent" : fail);
+		send_to(peer_id, result);
+	}
+
+	void on_email_confirm(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		net_packet@ result = net_packet(S_EMAIL_RESULT);
+		string fail = "account.delete_not_logged_in";
+		email_code@ c = null;
+		if (@conn != null && conn.authenticated) @c = take_code("change", conn.username, pkt.get_string("code"), fail);
+		if (@c != null) fail = g_user_db.set_email(conn.username, c.email) ? "" : "email.save_failed";
+		result.set_bool("ok", fail == "");
+		result.set_bool("pending", fail == "email.code_wrong");
+		result.set_string("message", fail == "" ? "email.saved" : fail);
+		if (fail == "") result.set_string("email", c.email);
+		send_to(peer_id, result);
+		if (fail == "") println("[conta] e-mail confirmado: " + conn.username);
+	}
+}

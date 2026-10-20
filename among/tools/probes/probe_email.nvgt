@@ -1,0 +1,105 @@
+// Sonda do e-mail da conta, pela rede, contra um servidor de TESTE com e-mail ligado (email.json ao lado
+// dele) e com AMONGUS_EMAIL_CODE_LOG apontando para o mesmo arquivo que esta sonda lê - é por ele que ela
+// fica sabendo dos códigos sem ler a caixa de e-mail. Os e-mails saem DE VERDADE (para o endereço de
+// AMONGUS_EMAIL_PROBE_TO; sem ele, a sonda não roda).
+//   AMONGUS_SERVER_HOST=127.0.0.1 AMONGUS_EMAIL_CODE_LOG=<arquivo> AMONGUS_EMAIL_PROBE_TO=<e-mail> nvgt tools/probes/probe_email.nvgt
+//
+// Confere: o cadastro com e-mail não cria a conta antes do código; código errado recusa sem gastar o
+// pedido; o certo cria; o login devolve o e-mail; "esqueci a senha" responde igual para conta que não
+// existe; o código troca a senha; e a troca de e-mail pede a senha atual e só grava com o código.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms = 15000) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+string log_path;
+// O último código anotado para (propósito, nome).
+string codigo(const string&in purpose, const string&in nome) {
+	string achado = "";
+	string[]@ linhas = file_get_contents(log_path).split("\n");
+	for (uint i = 0; i < linhas.length(); i++) {
+		string[]@ partes = linhas[i].split(" ");
+		if (partes.length() == 3 && partes[0] == purpose && partes[1] == nome.lower()) achado = partes[2];
+	}
+	return achado;
+}
+
+game_client@ conecta() {
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	if (!c.connected) return null;
+	return c;
+}
+
+void main() {
+	log_path = read_environment_variable("AMONGUS_EMAIL_CODE_LOG", "");
+	string para = read_environment_variable("AMONGUS_EMAIL_PROBE_TO", "");
+	if (log_path == "" || para == "") { println("defina AMONGUS_EMAIL_CODE_LOG e AMONGUS_EMAIL_PROBE_TO"); return; }
+	string nome = "mail" + random(10000, 99999);
+
+	println("== cadastro com e-mail ==");
+	game_client@ c = conecta();
+	if (@c == null) { println("sem conexao"); return; }
+	c.send_register(nome, "senha123", para, "pt_BR");
+	net_packet@ r = wf(c, S_REGISTER_RESULT);
+	confere("o cadastro com e-mail espera o codigo (nao cria a conta ainda)", @r != null && !r.get_bool("ok") && r.get_bool("pending"));
+	c.send_login(nome, "senha123");
+	r = wf(c, S_LOGIN_RESULT);
+	confere("antes do codigo, a conta nao existe", @r != null && !r.get_bool("ok"));
+	c.send_register_confirm(nome, "000000");
+	r = wf(c, S_REGISTER_RESULT);
+	confere("codigo errado recusa, e continua esperando", @r != null && !r.get_bool("ok") && r.get_bool("pending"));
+	string cod = codigo("register", nome);
+	confere("o servidor anotou o codigo (" + cod.length() + " digitos)", cod.length() == 6);
+	c.send_register_confirm(nome, cod);
+	r = wf(c, S_REGISTER_RESULT);
+	confere("codigo certo cria a conta", @r != null && r.get_bool("ok"));
+	c.send_login(nome, "senha123");
+	r = wf(c, S_LOGIN_RESULT);
+	confere("o login devolve o e-mail da conta", @r != null && r.get_bool("ok") && r.get_string("email") == para);
+
+	println("== troca de e-mail ==");
+	c.send_email_set("errada", para, "pt_BR");
+	r = wf(c, S_EMAIL_RESULT);
+	confere("sem a senha atual certa, nao manda codigo", @r != null && !r.get_bool("pending"));
+	c.send_email_set("senha123", para, "pt_BR");
+	r = wf(c, S_EMAIL_RESULT);
+	confere("com a senha certa, manda o codigo", @r != null && r.get_bool("pending"));
+	c.send_email_confirm(codigo("change", nome));
+	r = wf(c, S_EMAIL_RESULT);
+	confere("o codigo confirma e grava", @r != null && r.get_bool("ok") && r.get_string("email") == para);
+
+	println("== esqueci a senha ==");
+	game_client@ d = conecta();
+	d.send_password_reset_request("ninguem" + random(10000, 99999), "pt_BR");
+	net_packet@ fantasma = wf(d, S_PASSWORD_RESET_RESULT);
+	d.send_password_reset_request(nome, "pt_BR");
+	net_packet@ real = wf(d, S_PASSWORD_RESET_RESULT);
+	confere("conta que nao existe e conta real recebem a MESMA resposta",
+		@fantasma != null && @real != null && fantasma.get_string("message") == real.get_string("message") && real.get_bool("ok"));
+	d.send_password_reset_confirm(nome, "000000", "novasenha1");
+	r = wf(d, S_PASSWORD_RESET_RESULT);
+	confere("codigo errado nao troca", @r != null && !r.get_bool("done"));
+	d.send_password_reset_confirm(nome, codigo("reset", nome), "novasenha1");
+	r = wf(d, S_PASSWORD_RESET_RESULT);
+	confere("codigo certo troca a senha", @r != null && r.get_bool("done"));
+	game_client@ e = conecta();
+	e.send_login(nome, "novasenha1");
+	r = wf(e, S_LOGIN_RESULT);
+	confere("e a senha nova entra", @r != null && r.get_bool("ok"));
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -27,6 +27,7 @@
 #include "server/server_talk.nvgt"
 #include "server/server_admin.nvgt"
 #include "server/server_rejoin.nvgt"
+#include "server/server_email.nvgt"
 
 uint g_lobby_counter = 0;
 // Ids de bot vivem bem longe da faixa que o ENet usa pra peers de verdade (que vão de 0 até o
@@ -87,7 +88,7 @@ void pick_task_spots(array<map_object@>@ pool, uint want, dictionary@ per_room,
 	}
 }
 
-class game_server : server_accounts_part, server_hall_part, server_lobby_part, server_match_part, server_abilities_part, server_meeting_part, server_ship_part, server_talk_part, server_admin_part, server_rejoin_part {
+class game_server : server_accounts_part, server_hall_part, server_lobby_part, server_match_part, server_abilities_part, server_meeting_part, server_ship_part, server_talk_part, server_admin_part, server_rejoin_part, server_email_part {
 	network@ net;
 	array<game_player@> connections;
 	array<game_state@> lobbies;
@@ -109,6 +110,11 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 	// cada retrato do saguão, e no BANCO para sobreviver ao reinício do contêiner - um recado que
 	// some no próximo deploy não serve para avisar de nada.
 	string server_notice = "";
+	// O e-mail da conta (ver server/server_email.nvgt): os envios em andamento, os códigos à espera e o
+	// texto dos e-mails por idioma.
+	array<email_job@> email_jobs;
+	dictionary pending_codes;
+	dictionary email_texts;
 
 	bool draining() const {
 		return @drain_clock != null && float(drain_clock.elapsed) / 1000.0 < drain_seconds;
@@ -159,6 +165,10 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		if (server_notice != "") println("Recado do saguão no ar: " + server_notice);
 
 		g_i18n.load_language(language_default());
+		// O e-mail é opcional para o servidor subir: sem o arquivo, só não há código a mandar.
+		if (g_email.load(EMAIL_CONFIG_FILE) && g_email.enabled())
+			println("E-mail ligado: " + g_email.from + " por " + g_email.host + ":" + g_email.port + (g_email.required ? " (obrigatorio no cadastro)" : " (opcional no cadastro)"));
+		else println("E-mail desligado (sem " + EMAIL_CONFIG_FILE + " completo ao lado do servidor).");
 		return true;
 	}
 
@@ -195,6 +205,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			uint64 fim_salas = ticks();
 			tick_hall(delta);
 			tick_holds();
+			tick_email();
 
 			// Diagnóstico das levas de queda. Uma volta deste laço leva milissegundos. Mais que isso e o
 			// socket não é lido: o buffer do kernel (uns 200 KB, menos de meio segundo de voz de uma sala
@@ -520,6 +531,11 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		else if (t == C_CHOOSE_COLOR) on_choose_color(peer_id, pkt);
 		else if (t == C_GET_STATS) on_get_stats(peer_id);
 		else if (t == C_REGISTER) on_register(peer_id, pkt);
+		else if (t == C_REGISTER_CONFIRM) on_register_confirm(peer_id, pkt);
+		else if (t == C_PASSWORD_RESET_REQUEST) on_password_reset_request(peer_id, pkt);
+		else if (t == C_PASSWORD_RESET_CONFIRM) on_password_reset_confirm(peer_id, pkt);
+		else if (t == C_EMAIL_SET) on_email_set(peer_id, pkt);
+		else if (t == C_EMAIL_CONFIRM) on_email_confirm(peer_id, pkt);
 		else if (t == C_LIST_LOBBIES) on_list_lobbies(peer_id, pkt);
 		else if (t == C_CREATE_LOBBY) on_create_lobby(peer_id, pkt);
 		else if (t == C_JOIN_LOBBY) on_join_lobby(peer_id, pkt);

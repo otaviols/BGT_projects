@@ -92,6 +92,10 @@ class user_database {
 		// Vitórias como neutro (0.41.0). Mesma razão do resolved_at: o banco em produção já tem a tabela,
 		// e o CREATE lá em cima nunca mais roda. Erro ignorado de propósito (a coluna já existe).
 		db.execute("ALTER TABLE user_stats ADD COLUMN neutral_wins INTEGER DEFAULT 0");
+		// O e-mail da conta (1.0), para recuperar a senha. Só entra JÁ CONFIRMADO, por código (ver
+		// server_email.nvgt): não existe e-mail não confirmado aqui, então não há coluna de "confirmado".
+		// Mesma razão do resolved_at para ser um ALTER à parte; erro ignorado de propósito.
+		db.execute("ALTER TABLE users ADD COLUMN email TEXT");
 
 		// Respostas de quem faz o jogo aos recados. Fecham o ciclo com quem está testando: sem isto o
 		// jogador manda um recado e nunca fica sabendo se alguém leu, e quem oferece ajuda (uma
@@ -500,7 +504,7 @@ class user_database {
 	}
 
 	// Cria um novo usuário. Retorna mensagem de erro vazia em caso de sucesso.
-	bool create_user(const string&in username, const string&in password, string&out error_message) {
+	bool create_user(const string&in username, const string&in password, string&out error_message, const string&in email = "") {
 		error_message = "";
 		if (username.length() < MIN_USERNAME_LENGTH || username.length() > MAX_USERNAME_LENGTH) {
 			error_message = "invalid_username_length";
@@ -518,7 +522,7 @@ class user_database {
 		string salt = string_base64_encode(random_bytes(16));
 		string hash = hash_password(password, salt);
 
-		sqlite3statement@ stmt = db.prepare("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)");
+		sqlite3statement@ stmt = db.prepare("INSERT INTO users (username, password_hash, salt, email) VALUES (?, ?, ?, ?)");
 		if (@stmt == null) {
 			error_message = "db_error";
 			return false;
@@ -526,6 +530,7 @@ class user_database {
 		stmt.bind_text(1, username, false);
 		stmt.bind_text(2, hash, false);
 		stmt.bind_text(3, salt, false);
+		stmt.bind_text(4, email, false);
 		bool ok = stmt.step() == SQLITE_DONE;
 
 		if (!ok) {
@@ -536,6 +541,24 @@ class user_database {
 		int user_id = get_user_id(username);
 		if (user_id > 0) create_stats_row(user_id);
 		return true;
+	}
+
+	// O e-mail (confirmado) da conta, ou "".
+	string get_email(const string&in username) {
+		if (@db == null) return "";
+		sqlite3statement@ st = db.prepare("SELECT email FROM users WHERE username = ?");
+		if (@st == null) return "";
+		st.bind_text(1, username, false);
+		return st.step() == SQLITE_ROW ? st.column_text(0) : "";
+	}
+
+	bool set_email(const string&in username, const string&in email) {
+		if (@db == null) return false;
+		sqlite3statement@ st = db.prepare("UPDATE users SET email = ? WHERE username = ?");
+		if (@st == null) return false;
+		st.bind_text(1, email, false);
+		st.bind_text(2, username, false);
+		return st.step() == SQLITE_DONE;
 	}
 
 	bool user_exists(const string&in username) {

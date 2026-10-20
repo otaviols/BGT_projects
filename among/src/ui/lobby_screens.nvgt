@@ -17,6 +17,7 @@
 #include "feedback_screen.nvgt"
 #include "delete_account_screen.nvgt"
 #include "change_password_screen.nvgt"
+#include "email_screens.nvgt"
 #include "feedback_replies_screen.nvgt"
 #include "translation_screen.nvgt"
 #include "lobby_info.nvgt"

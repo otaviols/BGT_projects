@@ -62,6 +62,8 @@ mixin class server_accounts_part {
 			result.set_bool("ok", true);
 			result.set_string("message", "login.success");
 			result.set_string("username", username);
+			// O e-mail da conta, para a tela de configurações dizer qual é (ou que não há).
+			result.set_string("email", g_user_db.get_email(username));
 			// Pediu para lembrar: sai um token novo; o cliente guarda o token, nunca a senha.
 			if (token == "" && rejoin_token == "" && pkt.get_bool("remember")) result.set_string("session_token", g_user_db.create_session(username));
 			// O cliente não tem como descobrir sozinho com que id o servidor o identifica (o id que
@@ -246,6 +248,18 @@ mixin class server_accounts_part {
 	void on_register(uint64 peer_id, net_packet@ pkt) {
 		string username = pkt.get_string("username");
 		string password = pkt.get_string("password");
+		// Com e-mail, a conta só nasce quando o código chegar (ver server_email.nvgt).
+		string email = pkt.get_string("email").trim_whitespace();
+		if (email != "") { register_with_email(peer_id, username, password, email, pkt.get_string("language")); return; }
+		// No lançamento o e-mail é obrigatório (email.json, "required"); nos testes, não.
+		if (g_email.required) {
+			net_packet@ recusa = net_packet(S_REGISTER_RESULT);
+			recusa.set_bool("ok", false);
+			recusa.set_bool("email_required", true);
+			recusa.set_string("message", "email.required");
+			send_to(peer_id, recusa);
+			return;
+		}
 		string err;
 		bool ok = g_user_db.create_user(username, password, err);
 

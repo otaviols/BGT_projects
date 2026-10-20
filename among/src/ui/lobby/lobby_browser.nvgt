@@ -111,6 +111,7 @@ void fill_browser_menu(menu@ m, json_array@ lobbies, uint reply_count) {
 	if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
 	m.add_item(tr("stats.menu_item"), "__stats__");
 	m.add_item(tr("account.password_menu_item"), "__change_password__");
+	m.add_item(tr("email.menu_item"), "__email__");
 	m.add_item(tr("account.delete_menu_item"), "__delete_account__");
 	m.add_item(tr("menu.back"), "__back__");
 }
@@ -197,6 +198,10 @@ lobby_browser_result run_lobby_browser_inner(game_client@ client) {
 		}
 		if (id == "__change_password__") {
 			run_change_password_screen(client);
+			continue;
+		}
+		if (id == "__email__") {
+			run_email_screen(client);
 			continue;
 		}
 		if (id == "__delete_account__") {

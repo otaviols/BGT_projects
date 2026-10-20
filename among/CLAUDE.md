@@ -462,6 +462,12 @@ processo. Sintoma (recado #280): "core dumped" no Fedora 44 logo ao abrir, porqu
 gráfico da primeira abertura desenha texto com quebra de linha. A fonte é sempre conferida (`size > 0`)
 e, sem a Arial, procurada por caminho (`ui_font` e `VISUAL_FONT_FILES` em `visual_map.nvgt`).
 
+**SMTP do NVGT (`smtp_client`): porta 587, nunca 465.** Ele conversa em texto e pede a criptografia no
+meio (STARTTLS, com `use_ssl`); a 465 espera criptografia desde o primeiro byte, e o `connect()` TRAVA
+para sempre, sem erro e sem respeitar o `timeout`. Sintoma: o envio de e-mail "não volta", e o `async`
+dele nunca completa. E mande sempre pelo `async` - o envio leva 1 a 2 s, e o laço do servidor parado esse
+tempo congela todas as partidas (ver `server/server_email.nvgt`).
+
 **Uma compilação do NVGT pode sair defeituosa.** Aconteceu: mesmo código-fonte, um build gerou binário
 com segfault na inicialização e o seguinte saiu bom. Compilar com sucesso **não** é o mesmo que o
 binário funcionar. Por isso o `deploy.ps1` testa a imagem antes de publicar; se algo assim aparecer de

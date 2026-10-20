@@ -128,6 +128,25 @@ e entrando por `tts_dump_config`/`tts_load_config`, então nada do que estava sa
 
 ## Rede, protocolo e sessão
 
+**O e-mail da conta (1.0) - `server/server_email.nvgt` e `ui/email_screens.nvgt`.** Código de seis
+dígitos para três coisas: o cadastro com e-mail, pôr ou trocar o e-mail (na lista de partidas, "E-mail da
+conta") e o "esqueci a senha" do login. Decisões que alguém poderia querer desfazer:
+- **Não existe e-mail não confirmado no banco.** O cadastro com e-mail espera o código NA MEMÓRIA do
+  servidor (a senha também, até o código chegar) e só então cria a conta; a troca grava o e-mail novo só
+  depois do código. Por isso a coluna `users.email` não tem um "confirmado" ao lado.
+- **"Esqueci a senha" responde igual** exista a conta ou não, tenha e-mail ou não - senão o formulário
+  diria quais nomes existem. O limite de envios (3 a cada 15 min, 30 s entre dois) PODE ser dito: não
+  revela nada que o pedido anterior já não tenha revelado.
+- **Obrigatório só no lançamento:** a chave `required` do `email.json`. Ligada, cadastro sem e-mail
+  volta com `email_required`. Nos testes com amigos fica desligada (decisão do usuário, 2026-10-19).
+- **A configuração (com a senha da caixa) mora no `email.json` AO LADO do servidor**, fora do
+  repositório; sem ele o e-mail fica desligado e o resto funciona. Na VPS é `/opt/amongus/data` (o
+  servidor roda de dentro do volume - ver o `docker-entrypoint.sh`), dono 10001, `chmod 600`.
+- O texto do e-mail sai no idioma de quem pediu (o pacote leva `language`; o servidor carrega um `i18n`
+  por idioma, porque o `g_i18n` dele é um só).
+Sonda: `probe_email`, contra um servidor de teste com e-mail ligado - os e-mails saem de verdade, e os
+códigos chegam à sonda por `AMONGUS_EMAIL_CODE_LOG` (só existe se a variável estiver definida).
+
 **Versão de PROTOCOLO é separada da versão do jogo, e o corte se faz em UM número.**
 `PROTOCOL_VERSION` (o que o cliente manda no `C_LOGIN`) e `MIN_PROTOCOL_VERSION` (o que o servidor
 aceita), em `config/game_constants.nvgt`. Hoje os dois estão em **2**: quem está abaixo da 0.30.0

@@ -20,6 +20,7 @@
 #include "../config/server_address.nvgt"
 #include "../audio/sound_catalog.nvgt"
 #include "settings_screens.nvgt"
+#include "email_screens.nvgt"
 #include "../core/touch_input.nvgt"
 #include "visual_map.nvgt"
 #include "map_choice.nvgt"
@@ -481,6 +482,7 @@ login_result run_login_screen(game_client@ client) {
 	int f_remember = f.create_checkbox(tr("login.remember"), true);
 	int f_login = f.create_button(tr("menu.login"), true);
 	int f_register = f.create_button(tr("menu.register"));
+	int f_forgot = f.create_button(tr("forgot.button"));
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 	// Sempre focar algo: um audio_form nasce sem foco, e sem isto quem entra pela primeira vez (sem
 	// usuário salvo) digitava no vazio até apertar Tab.
@@ -503,18 +505,25 @@ login_result run_login_screen(game_client@ client) {
 			}
 		}
 		if (f.is_pressed(f_cancel)) { g_visual_show_passwords = false; return result; }
+		// O cadastro tem tela própria (1.0): a senha duas vezes e o e-mail, que pede um código.
+		if (f.is_pressed(f_register)) {
+			if (run_register_screen(client, f.get_text(f_user), f.get_text(f_pass), result, f.is_checked(f_remember))) {
+				g_visual_show_passwords = false;
+				return result;
+			}
+			continue;
+		}
+		if (f.is_pressed(f_forgot)) { run_forgot_password_screen(client, f.get_text(f_user)); continue; }
 
-		bool wants_register = f.is_pressed(f_register);
-		if (f.is_pressed(f_login) || wants_register) {
+		if (f.is_pressed(f_login)) {
 			string username = f.get_text(f_user);
 			string password = f.get_text(f_pass);
 			if (username.empty() || password.empty()) continue;
 
 			bool remember = f.is_checked(f_remember);
-			if (wants_register) client.send_register(username, password);
-			else client.send_login(username, password, remember);
+			client.send_login(username, password, remember);
 
-			if (!wait_for_auth_result(client, wants_register, username, password, result, false, remember)) continue;
+			if (!wait_for_auth_result(client, false, username, password, result, false, remember)) continue;
 			g_visual_show_passwords = false;
 			return result;
 		}
@@ -575,6 +584,7 @@ bool wait_for_auth_result(game_client@ client, bool was_register, const string&i
 				result.rejoin = pkt.get_bool("rejoin", false);
 				result.ok = true;
 				result.username = pkt.get_string("username", username);
+				g_account_email = pkt.get_string("email", "");
 				// Guarda pra próxima vez. Só depois do login DAR CERTO: gravar antes deixaria um nome
 				// errado esperando o jogador na abertura seguinte.
 				g_settings.last_username = result.username;

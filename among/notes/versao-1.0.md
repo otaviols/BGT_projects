@@ -168,7 +168,12 @@ Ali o usuário joga sozinho com bots, ou com dois jogos abertos. Para testar COM
 - liberar o mapa (`MAP_IDS_IN_TEST` -> `MAP_IDS`). O aprender os sons JÁ é por mapa (pergunta o mapa,
   e a parte do mapa sai do próprio mapa - `learn_sounds_collection`);
 - uma **partida de teste com gente**: sismógrafo, reator, portas e descontaminação só existem pelo servidor;
-- a seção da Base Polar no **manual** (`docs/README_*`), o **changelog** e a versão.
+- a seção da Base Polar no **manual** (`docs/README_*`), o **changelog** e a versão;
+- **o e-mail na VPS:** o `email.json` em `/opt/amongus/data` com `"required": true` (ver rede-e-telas.md),
+  e o manual dizendo do e-mail no cadastro e do "esqueci a senha";
+- **recomeçar o banco** (decisão do usuário: a 1.0 é a primeira release de verdade) - só com o "pode"
+  dele, e com cópia de segurança fora do repositório antes. Em aberto: os recados, as respostas e as
+  traduções enviadas zeram junto?
 
 **As sabotagens agora são do MAPA** (`game_map.sabotages()`, as que têm painel): o menu do impostor, o
 servidor (`trigger_sabotage`), os bots e o treino perguntam ao mapa. Sem isso a Base Polar ofereceria o

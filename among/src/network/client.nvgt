@@ -297,10 +297,45 @@ class game_client {
 		send(p);
 	}
 
-	void send_register(const string&in username, const string&in password) {
+	void send_register(const string&in username, const string&in password, const string&in email = "", const string&in language = "") {
 		net_packet@ p = net_packet(C_REGISTER);
 		p.set_string("username", username);
 		p.set_string("password", password);
+		if (email != "") p.set_string("email", email);
+		if (language != "") p.set_string("language", language);
+		send(p);
+	}
+
+	// --- E-mail da conta (ver ui/email_screens.nvgt) ---
+	void send_register_confirm(const string&in username, const string&in code) {
+		net_packet@ p = net_packet(C_REGISTER_CONFIRM);
+		p.set_string("username", username);
+		p.set_string("code", code);
+		send(p);
+	}
+	void send_password_reset_request(const string&in username, const string&in language) {
+		net_packet@ p = net_packet(C_PASSWORD_RESET_REQUEST);
+		p.set_string("username", username);
+		p.set_string("language", language);
+		send(p);
+	}
+	void send_password_reset_confirm(const string&in username, const string&in code, const string&in new_password) {
+		net_packet@ p = net_packet(C_PASSWORD_RESET_CONFIRM);
+		p.set_string("username", username);
+		p.set_string("code", code);
+		p.set_string("new_password", new_password);
+		send(p);
+	}
+	void send_email_set(const string&in password, const string&in email, const string&in language) {
+		net_packet@ p = net_packet(C_EMAIL_SET);
+		p.set_string("password", password);
+		p.set_string("email", email);
+		p.set_string("language", language);
+		send(p);
+	}
+	void send_email_confirm(const string&in code) {
+		net_packet@ p = net_packet(C_EMAIL_CONFIRM);
+		p.set_string("code", code);
 		send(p);
 	}
 
