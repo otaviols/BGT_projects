@@ -206,6 +206,17 @@ parágrafo (é o título dele); depois de gerar, confira que o `version.json` n�
 
 ## Infra — o que não é óbvio
 
+**Servidor de TESTE na VPS (2026-10-19): `infra	est_server.ps1 subir|status|desligar`.** Um segundo
+contêiner (`amongus-test`), porta UDP **8935**, banco PRÓPRIO em `/opt/amongus/test-data` - as contas de
+lá não são as do jogo, e o oficial (`amongus-server`, 8934) não é tocado. Aceita os mapas em construção (o
+`mapas_em_teste.txt` que o script põe lá) e manda e-mail com o `email.json` do servidor de teste local,
+enviado direto à VPS com `"required": false`. O jogo de teste aponta para ele com um `server.txt`
+("amongus.blindtabern.com:8935"); o pacote para os amigos do usuário fica em
+`Documents\Among Us - teste com amigos.zip`, com o `server.txt` e o `mapas_em_teste.txt` dentro. Imagem
+pelo commit, como no deploy, e com o mesmo teste de "sobe?". Armadilha que ele já pegou: o
+`Set-Content -Encoding utf8` do PowerShell 5.1 grava o BOM, e o `parse_json` do NVGT recusa - o e-mail
+subiu desligado ("nao e um JSON valido" no log). O script grava sem BOM, e o servidor ignora a marca.
+
 **Desde 2026-10-09 o servidor e o site moram na VPS da Hostinger** (ver "VPS na Hostinger", abaixo), e
 o que fala com ela está em `infra/vps.ps1`. **O Azure foi apagado pelo usuário no mesmo dia**: o
 storage do site antigo e os grupos de recursos, cluster incluído (o activity log mostra os
