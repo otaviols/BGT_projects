@@ -240,8 +240,10 @@ bool run_comms_panel(game_client@ client) {
 // Não é sabotagem (a porta trancada não é), mas é um painel e mora com eles. Reflexo, a mecânica que o
 // jogo não tinha (maquete aprovada em 2026-10-19): um bipe agudo acende à esquerda, no meio ou à
 // direita, e a seta daquele lado (esquerda, cima, direita) tem que vir antes de ele sumir. Acertou, o
-// interruptor estala; demorou ou errou o lado, o bipe grave, e acende outro. Errar só custa tempo.
-// Cinco acertos abrem. Se a porta abrir sozinha (ou por outro) no meio, o painel fecha avisando.
+// interruptor estala; demorou ou errou o lado, o bipe grave, e o progresso ZERA: são cinco acertos
+// SEGUIDOS (no teste com amigos, 2026-10-20, errar só custava o passo, e o usuário pediu que voltasse ao
+// começo). Se a porta abrir sozinha (ou por outro) no meio, o painel fecha avisando - como o painel de
+// sabotagem: quem termina primeiro fecha o dos outros.
 const int DOOR_PANEL_HITS = 5;
 const int DOOR_PANEL_WINDOW_MS = 900;
 const array<int> DOOR_PANEL_KEYS = {KEY_LEFT, KEY_UP, KEY_RIGHT};
@@ -285,6 +287,7 @@ bool run_door_panel(game_client@ client) {
 			task_sound_path(SND_DOOR_SWITCH, pan);
 		} else {
 			g_door_panel_last_misses++;
+			acertos = 0;
 			task_sound(SND_DOOR_TARGET_MISS, pan);
 		}
 		if (acertos < DOOR_PANEL_HITS && !door_panel_pause(client, random(300, 550), abertas)) return false;

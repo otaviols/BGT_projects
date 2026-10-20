@@ -917,9 +917,11 @@ game_map@ build_polar_base_map() {
 	m.zones.insert_last(map_zone("admin", "room.admin", 24, -22, 7, 6, "Tile"));
 	m.zones.insert_last(map_zone("communications", "room.communications", -40, -45, 7, 6, "MetalTile"));
 	m.zones.insert_last(map_zone("weapons", "room.weapons", -40, -20, 7, 6, "MetalTile"));
-	m.zones.insert_last(map_zone("oxygen", "room.oxygen", -40, 5, 7, 6, "MetalTile"));
+	// Nomes PRÓPRIOS para o depósito e o O2 (a chave da nave dizia "Armazém" e "Sala do oxigênio"): o galão
+	// diz "no depósito", e duas salas com o nome da outra nave confundiam (teste com amigos, 2026-10-20).
+	m.zones.insert_last(map_zone("oxygen", "room.polar_o2", -40, 5, 7, 6, "MetalTile"));
 	m.zones.insert_last(map_zone("electrical", "room.electrical", -40, 30, 7, 6, "MetalTile"));
-	m.zones.insert_last(map_zone("storage", "room.storage", 0, 8, 9, 7, "MetalBeltTile"));
+	m.zones.insert_last(map_zone("storage", "room.polar_storage", 0, 8, 9, 7, "MetalBeltTile"));
 	m.zones.insert_last(map_zone("seismic", "room.seismic", 0, 34, 7, 5, "MetalTile"));
 	m.zones.insert_last(map_zone("laboratory", "room.laboratory", 44, -22, 9, 7, "Tile"));
 	// A descontaminação liga o laboratório aos espécimes de ponta a ponta (y -15 a 7), sem corredor: é
@@ -1063,9 +1065,9 @@ game_map@ build_polar_base_map() {
 	m.objects.insert_last(map_object("ambient_admin", "room.admin", 24, -22, "admin", OBJ_DECORATION, SND_POLAR_BASE_ADMIN));
 	m.objects.insert_last(map_object("ambient_communications", "room.communications", -40, -45, "communications", OBJ_DECORATION, SND_POLAR_BASE_COMMUNICATIONS));
 	m.objects.insert_last(map_object("ambient_weapons", "room.weapons", -40, -20, "weapons", OBJ_DECORATION, SND_AMBIENT_WEAPONS));
-	m.objects.insert_last(map_object("ambient_oxygen", "room.oxygen", -40, 5, "oxygen", OBJ_DECORATION, SND_POLAR_BASE_OXYGEN));
+	m.objects.insert_last(map_object("ambient_oxygen", "room.polar_o2", -40, 5, "oxygen", OBJ_DECORATION, SND_POLAR_BASE_OXYGEN));
 	m.objects.insert_last(map_object("ambient_electrical", "room.electrical", -40, 30, "electrical", OBJ_DECORATION, SND_POLAR_BASE_ELECTRICAL));
-	m.objects.insert_last(map_object("ambient_storage", "room.storage", 0, 8, "storage", OBJ_DECORATION, SND_POLAR_BASE_STORAGE));
+	m.objects.insert_last(map_object("ambient_storage", "room.polar_storage", 0, 8, "storage", OBJ_DECORATION, SND_POLAR_BASE_STORAGE));
 	m.objects.insert_last(map_object("ambient_seismic", "room.seismic", 0, 34, "seismic", OBJ_DECORATION, SND_POLAR_BASE_SEISMIC));
 	m.objects.insert_last(map_object("ambient_laboratory", "room.laboratory", 44, -22, "laboratory", OBJ_DECORATION, SND_POLAR_BASE_LABORATORY));
 	m.objects.insert_last(map_object("ambient_decontamination", "room.decontamination", 44, -4, "decontamination", OBJ_DECORATION, SND_POLAR_BASE_DECONTAMINATION));

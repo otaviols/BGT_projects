@@ -8,7 +8,9 @@
 //   - no começo, o tique toca duas vezes no centro e no tom do centro: é como soa o astro centralizado,
 //     a referência (o alvo do distribuidor);
 //   - as setas movem a MIRA, então o tique anda na direção oposta: seta para a direita traz para o meio
-//     o astro que estava à direita;
+//     o astro que estava à direita. É DE PROPÓSITO ("aperte para o lado em que ouve"), e no teste com
+//     amigos (2026-10-20) pareceu espelhado - o conserto foi a instrução dizer isso com todas as letras,
+//     e não inverter as setas;
 //   - Enter trava, e só no centro exato - lado E tom; fora, toca o erro e só custa tempo.
 // Parece alinhar o motor, mas em duas dimensões e com comparação de tom - a decisão é julgar quando as
 // duas pistas chegaram ao centro ao mesmo tempo.

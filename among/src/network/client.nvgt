@@ -163,6 +163,10 @@ class game_client {
 	}
 
 	// Põe o pacote na fila, anotando se ele interrompe uma minigame e mantendo a fila dentro do teto.
+	// Só as SONDAS: entrega um pacote como se tivesse chegado pela rede, pelo mesmo caminho (as marcas que o
+	// enqueue anota - sabotagem acabou, porta abriu - valem igual).
+	void deliver_for_probe(net_packet@ pkt) { enqueue(pkt); }
+
 	private void enqueue(net_packet@ pkt) {
 		string type = pkt.type;
 		if (type == S_CHAT_MESSAGE && @g_chat_muted != null) {

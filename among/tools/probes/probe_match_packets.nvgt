@@ -25,7 +25,7 @@ json_object@ jogador(uint64 peer, const string&in nome, float x, float y) {
 }
 
 match_session@ nova_partida(const string&in papel, const string&in par = "", const string&in velocidade = "",
-		const string&in mapa = "", float x = 0.0, float y = 0.0, bool visiveis = true) {
+		const string&in mapa = "", float x = 0.0, float y = 0.0, bool visiveis = true, json_array@ tarefas = null) {
 	game_client@ c = game_client();
 	@c.net = network();
 	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
@@ -37,6 +37,7 @@ match_session@ nova_partida(const string&in papel, const string&in par = "", con
 	inicio.set_float("your_y", y);
 	if (mapa != "") inicio.set_string("map_name", mapa);
 	if (!visiveis) inicio.set_bool("visible_tasks", false);
+	if (@tarefas != null) inicio.set_array("tasks", tarefas);
 	inicio.set_float("kill_cooldown_seconds", 25.0);
 	inicio.set_float("sabotage_cooldown_seconds", 10.0);
 	json_array@ ps = json_array();
@@ -455,6 +456,35 @@ void main() {
 	nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, false);
 	confere("desligadas na sala: o exame sabe", !g_room_visible_tasks);
 	g_room_visible_tasks = true;
+
+	println("== dois nos do clima, um painel ==");
+	// Duas correntes do nó do clima acabam no MESMO painel do laboratório. Concluir uma não pode marcar as
+	// duas (teste com amigos, 2026-10-20: a segunda ficava impossível de fazer).
+	json_array@ duas = json_array();
+	for (int n = 0; n < 2; n++) {
+		json_object@ t = json_object();
+		t.set("object_id", "task_weather_switch");
+		t.set("task_type", "fix_weather_node");
+		t.set("phase", 1);
+		t.set("phase_count", 2);
+		t.set("completed", false);
+		json_array@ corrente = json_array();
+		corrente.add(n == 0 ? "task_weather_dropship" : "task_weather_west");
+		corrente.add("task_weather_switch");
+		t.set("chain", corrente);
+		duas.add(t);
+	}
+	match_session@ clima = nova_partida(ROLE_CREWMATE, "", "", MAP_POLAR_BASE, 48.0, -26.0, true, duas);
+	mark_task_completed_locally(clima.map, clima.audio, clima.my_tasks, clima.my_task_object_ids, "task_weather_switch",
+		clima.active_sabotage_id, clima.my_role, clima.alive);
+	int pendentes = 0;
+	for (uint i = 0; i < clima.my_tasks.length(); i++) if (!clima.my_tasks[i].completed) pendentes++;
+	confere("concluir uma no painel deixa a outra pendente (" + pendentes + ")", pendentes == 1);
+	mark_task_completed_locally(clima.map, clima.audio, clima.my_tasks, clima.my_task_object_ids, "task_weather_switch",
+		clima.active_sabotage_id, clima.my_role, clima.alive);
+	pendentes = 0;
+	for (uint i = 0; i < clima.my_tasks.length(); i++) if (!clima.my_tasks[i].completed) pendentes++;
+	confere("e a segunda conclui a outra", pendentes == 0);
 
 	println("== incendiario: quem falta ==");
 	match_session@ fogo = nova_partida(ROLE_ARSONIST);

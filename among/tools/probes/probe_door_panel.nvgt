@@ -34,7 +34,18 @@ void dirige() {
 		bipe++;
 	}
 	aceso_antes = g_door_panel_lit;
+	// Simula alguém terminando o painel da mesma porta: o S_DOORS_STATE de porta aberta chega pela rede.
+	if (abrir_no_bipe >= 0 && int(bipe) == abrir_no_bipe && @g_cliente != null) {
+		abrir_no_bipe = -1;
+		net_packet@ abriu = net_packet(S_DOORS_STATE);
+		json_array@ z = json_array(); z.add("laboratory");
+		abriu.set_bool("closed", false);
+		abriu.set_array("zones", z);
+		g_cliente.deliver_for_probe(abriu);
+	}
 }
+int abrir_no_bipe = -1;
+game_client@ g_cliente = null;
 
 // O ponto do meio de uma das passagens da sala, e um passo para dentro ou para fora.
 void passagem(game_map@ m, const string&in sala, float&out x, float&out y, float&out fora_x, float&out fora_y) {
@@ -96,16 +107,28 @@ void main() {
 	@c.net = network();
 	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
 	@g_client_frame_hook = dirige;
-	// Sete bipes: esquerda, meio, direita (deixa sumir), direita, esquerda (aperta o lado ERRADO, a
-	// direita), e mais dois certos. Cinco acertos, dois erros - e abre no quinto acerto, o sétimo bipe.
-	array<int> lados = {0, 1, 2, 2, 0, 0, 1};
+	@g_cliente = c;
+	// Dois acertos, uma demora (ZERA), e então cinco certos seguidos: abre no oitavo bipe. Se errar só
+	// custasse o passo, abriria no sexto.
+	array<int> lados = {0, 1, 2, 2, 0, 0, 1, 2};
 	g_door_panel_sides_next = lados;
-	array<int> teclas = {KEY_LEFT, KEY_UP, 0, KEY_RIGHT, KEY_RIGHT, KEY_LEFT, KEY_UP};
+	array<int> teclas = {KEY_LEFT, KEY_UP, 0, KEY_RIGHT, KEY_LEFT, KEY_LEFT, KEY_UP, KEY_RIGHT};
 	respostas = teclas;
 	bool abriu = run_door_panel(c);
 	// O último bipe não chega a ser contado pela sonda: a porta abre no aperto, e o painel sai.
-	confere("cinco acertos abrem, no setimo bipe", abriu && bipe == teclas.length() - 1);
-	confere("a demora e o lado errado contam como erro (" + g_door_panel_last_misses + ")", g_door_panel_last_misses == 2);
+	confere("errar zera: cinco SEGUIDOS abrem, no oitavo bipe (" + bipe + ")", abriu && bipe == teclas.length() - 1);
+	confere("a demora contou como erro (" + g_door_panel_last_misses + ")", g_door_panel_last_misses == 1);
+
+	println("== quem termina primeiro fecha o dos outros ==");
+	// No meio do minijogo chega a porta aberta (alguém terminou antes): o painel fecha, sem abrir.
+	array<int> lados2 = {0, 1, 2, 0, 1};
+	g_door_panel_sides_next = lados2;
+	array<int> teclas2 = {KEY_LEFT, KEY_UP, KEY_RIGHT, KEY_LEFT, KEY_UP};
+	respostas = teclas2;
+	bipe = 0;
+	abrir_no_bipe = 2;
+	bool abriu2 = run_door_panel(c);
+	confere("a porta abriu por outro: o painel fecha sem contar como aberto", !abriu2 && bipe <= 3);
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

@@ -148,52 +148,63 @@ mixin class match_frame_keys_part {
 						// Avisa que abriu: para o scan, é isto que faz o servidor contar a quem está
 						// perto - depois de conferir que a task é mesmo deste jogador.
 						client.send_start_task(obj.id);
-						// A fase decide QUAL etapa da tarefa roda (pegar o galão ou abastecer).
-						uint task_phase = 0;
-						uint task_phases = 1;
-						string chained_next = "";
-						string task_start = obj.id; // onde a tarefa começou (o nó do clima pede)
-						for (uint ti = 0; ti < my_tasks.length(); ti++) {
-							if (my_tasks[ti].object_id != obj.id) continue;
-							task_phase = my_tasks[ti].phase;
-							task_phases = my_tasks[ti].phase_count;
-							chained_next = my_tasks[ti].chain_object(task_phase + 1);
-							if (my_tasks[ti].chain_object(0) != "") task_start = my_tasks[ti].chain_object(0);
-							break;
-						}
+						// As tarefas DESTE ponto, na ordem em que o servidor as avança (a primeira não concluída).
+						// Normalmente uma; mais de uma quando duas correntes terminam no mesmo lugar - dois nós do
+						// clima acabam no MESMO painel do laboratório. Antes só a primeira rodava e o fim marcava
+						// todas como feitas, enquanto o servidor contava uma: a segunda ficava impossível de
+						// fazer (teste com amigos, 2026-10-20). Agora roda cada uma, seguidas.
+						array<int> deste_ponto;
+						for (uint ti = 0; ti < my_tasks.length(); ti++)
+							if (my_tasks[ti].object_id == obj.id && !my_tasks[ti].completed) deste_ponto.insert_last(int(ti));
 						// Os marcadores calam enquanto a tarefa está aberta: o da própria tarefa tocava ao lado,
 						// por cima dos sons de dentro dela - e as da Base Polar são feitas de tiques e cliques que se
 						// confundem com ele (relato do usuário, 2026-10-19). Voltam ao fechar, pela mesma regra
 						// de sempre (sabotagem em curso, fantasma).
 						audio.stop_landmark_beacons();
-						bool success = run_task_minigame(client, obj.task_type, task_phase, task_start);
-						refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
-						if (success) {
-							// Tarefa de várias fases: avança para o ponto seguinte em vez de terminar, e
-							// diz para onde ir. O marcador muda de lugar junto. O destino é o da corrente
-							// que o servidor sorteou para ESTE jogador; o mapa só responde por servidor
-							// antigo, que não manda a corrente.
-							string next_object_id = "";
-							if (task_phase + 1 < task_phases)
-								next_object_id = chained_next != "" ? chained_next : map.chain_object_at(obj.task_type, task_phase + 1);
-							if (next_object_id != "") {
-								advance_task_locally(map, audio, my_tasks, my_task_object_ids, obj.id,
-									next_object_id, active_sabotage_id, my_role, alive);
-								string proxima = next_phase_text(map, next_object_id);
-								if (proxima != "") {
-									speak(proxima);
-									events_log.add("", proxima);
-								}
-							} else {
-								// Marca como feita já aqui, sem esperar o servidor confirmar - senão, se o
-								// jogador apertar Enter de novo rápido, a task ainda apareceria "aberta"
-								// (find_interactable só ignora task já com completed=true) até o round-trip
-								// da rede voltar, dando pra abrir ela de novo por engano.
-								mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id, my_role, alive);
-								if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
+						for (uint k = 0; k < deste_ponto.length() || (k == 0 && deste_ponto.length() == 0); k++) {
+							// A fase decide QUAL etapa da tarefa roda (pegar o galão ou abastecer).
+							uint task_phase = 0;
+							uint task_phases = 1;
+							string chained_next = "";
+							string task_start = obj.id; // onde a tarefa começou (o nó do clima pede)
+							if (k < deste_ponto.length()) {
+								player_task@ t = my_tasks[deste_ponto[k]];
+								task_phase = t.phase;
+								task_phases = t.phase_count;
+								chained_next = t.chain_object(task_phase + 1);
+								if (t.chain_object(0) != "") task_start = t.chain_object(0);
 							}
+							if (k > 0) speak(tr("task.another_here"));
+							bool success = run_task_minigame(client, obj.task_type, task_phase, task_start);
+							if (success) {
+								// Tarefa de várias fases: avança para o ponto seguinte em vez de terminar, e
+								// diz para onde ir. O marcador muda de lugar junto. O destino é o da corrente
+								// que o servidor sorteou para ESTE jogador; o mapa só responde por servidor
+								// antigo, que não manda a corrente.
+								string next_object_id = "";
+								if (task_phase + 1 < task_phases)
+									next_object_id = chained_next != "" ? chained_next : map.chain_object_at(obj.task_type, task_phase + 1);
+								if (next_object_id != "") {
+									advance_task_locally(map, audio, my_tasks, my_task_object_ids, obj.id,
+										next_object_id, active_sabotage_id, my_role, alive);
+									string proxima = next_phase_text(map, next_object_id);
+									if (proxima != "") {
+										speak(proxima);
+										events_log.add("", proxima);
+									}
+								} else {
+									// Marca como feita já aqui, sem esperar o servidor confirmar - senão, se o
+									// jogador apertar Enter de novo rápido, a task ainda apareceria "aberta"
+									// (find_interactable só ignora task já com completed=true) até o round-trip
+									// da rede voltar, dando pra abrir ela de novo por engano.
+									mark_task_completed_locally(map, audio, my_tasks, my_task_object_ids, obj.id, active_sabotage_id, my_role, alive);
+									if (my_tasks_all_completed(my_tasks)) speak(tr("task.all_completed"));
+								}
+							}
+							client.send_task_input(obj.id, success);
+							if (!success) break;
 						}
-						client.send_task_input(obj.id, success);
+						refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
 					} else if (obj.obj_type == OBJ_VENT) {
 						audio.play_object_interact(obj);
 						imp.use_vent(obj.id);

@@ -17,7 +17,9 @@ enum player_color {
 	COLOR_BLACK,
 	COLOR_WHITE,
 	COLOR_PURPLE,
-	COLOR_BROWN,
+	// Era o marrom até a 1.0: trocado por lilás a pedido do usuário (teste com amigos, 2026-10-20). O
+	// número ficou o mesmo, como na troca da 0.38.0 (abaixo).
+	COLOR_LILAC,
 	COLOR_CYAN,
 	// As quatro últimas trocaram na 0.38.0: saíram lima, bordô, cinza e bege - cores "sem graça" ou
 	// subjetivas demais para quem só as ouve - e entraram coral, turquesa, prata e dourado. O
@@ -49,7 +51,7 @@ string color_key(int color_id) {
 		case COLOR_BLACK: return "black";
 		case COLOR_WHITE: return "white";
 		case COLOR_PURPLE: return "purple";
-		case COLOR_BROWN: return "brown";
+		case COLOR_LILAC: return "lilac";
 		case COLOR_CYAN: return "cyan";
 		case COLOR_CORAL: return "coral";
 		case COLOR_TURQUOISE: return "turquoise";

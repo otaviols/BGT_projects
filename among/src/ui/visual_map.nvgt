@@ -81,7 +81,7 @@ const uint VISUAL_TEXT_CACHE_MAX = 400;
 // A cor de cada jogador na tela, na ordem do enum player_color (config/colors.nvgt).
 const array<uint> VISUAL_COLOR_RGB = {
 	0xD62828, 0x1D4ED8, 0x15803D, 0xF472B6, 0xF97316, 0xFACC15, 0x3F3F46, 0xF5F5F5,
-	0x7E22CE, 0x7C4A1E, 0x22D3EE, 0xFB7185, 0x14B8A6, 0xA8A29E, 0xD4A017
+	0x7E22CE, 0xC4A1F2, 0x22D3EE, 0xFB7185, 0x14B8A6, 0xA8A29E, 0xD4A017
 };
 
 // A paleta, num lugar só.

@@ -53,7 +53,7 @@ void advance_task_locally(game_map@ map, audio_manager@ audio, array<player_task
 		array<string>@ my_task_object_ids, const string&in object_id, const string&in next_object_id,
 		const string&in active_sabotage_id, role_traits@ my_role, bool alive) {
 	for (uint i = 0; i < my_tasks.length(); i++) {
-		if (my_tasks[i].object_id != object_id) continue;
+		if (my_tasks[i].object_id != object_id || my_tasks[i].completed) continue;
 		my_tasks[i].phase++;
 		my_tasks[i].object_id = next_object_id;
 		break;
@@ -81,8 +81,13 @@ string next_phase_text(game_map@ map, const string&in next_object_id) {
 void mark_task_completed_locally(game_map@ map, audio_manager@ audio, array<player_task>@ my_tasks,
 		array<string>@ my_task_object_ids, const string&in object_id, const string&in active_sabotage_id,
 		role_traits@ my_role, bool alive) {
+	// UMA tarefa, a primeira não concluída deste ponto - a mesma que o servidor conclui (advance_task).
+	// Marcar todas as do ponto deixava a segunda de duas correntes que acabam no mesmo lugar (dois nós do
+	// clima, um painel no laboratório) feita para o cliente e pendente para o servidor.
 	for (uint i = 0; i < my_tasks.length(); i++) {
-		if (my_tasks[i].object_id == object_id) my_tasks[i].completed = true;
+		if (my_tasks[i].object_id != object_id || my_tasks[i].completed) continue;
+		my_tasks[i].completed = true;
+		break;
 	}
 	for (uint i = 0; i < my_task_object_ids.length(); i++) {
 		if (my_task_object_ids[i] == object_id) { my_task_object_ids.remove_at(i); break; }
