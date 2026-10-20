@@ -206,7 +206,7 @@ parágrafo (é o título dele); depois de gerar, confira que o `version.json` n�
 
 ## Infra — o que não é óbvio
 
-**Servidor de TESTE na VPS (2026-10-19): `infra	est_server.ps1 subir|status|desligar`.** Um segundo
+**Servidor de TESTE na VPS (2026-10-19): `infra\test_server.ps1 subir|status|desligar`.** Um segundo
 contêiner (`amongus-test`), porta UDP **8935**, banco PRÓPRIO em `/opt/amongus/test-data` - as contas de
 lá não são as do jogo, e o oficial (`amongus-server`, 8934) não é tocado. Aceita os mapas em construção (o
 `mapas_em_teste.txt` que o script põe lá) e manda e-mail com o `email.json` do servidor de teste local,
