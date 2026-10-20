@@ -137,6 +137,11 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	// quem acabou de passar pode sair sem ser preso de novo.
 	bool decontamination_running = false;
 	float decontamination_exit_left = 0.0;
+	// Quem estava na câmara quando a rodada fechou: sara quando ela abre (ver tick_decontamination).
+	array<uint64> decontamination_cycle_peers;
+	// A contaminação (ver tick_contamination): quem está contaminado, e quanto falta para cada um tossir.
+	array<uint64> contaminated_peers;
+	array<float> cough_timers;
 
 	// --- Câmeras de segurança ---
 	// Quem está no posto agora (0 = livre) e para qual sala ele aponta.
@@ -434,6 +439,9 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		clear_sabotage_holds();
 		decontamination_running = false;
 		decontamination_exit_left = 0.0;
+		decontamination_cycle_peers.resize(0);
+		contaminated_peers.resize(0);
+		cough_timers.resize(0);
 		oxygen_code = "";
 		camera_user_peer = 0;
 		camera_room_id = "";
@@ -472,6 +480,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 			array<string>@ reopened = map.tick_doors(delta_seconds);
 			if (reopened.length() > 0) events.insert_last(build_doors_packet(reopened, false));
 			tick_decontamination(delta_seconds, events);
+			tick_contamination(delta_seconds, events);
 		}
 
 		if (sabotage_cooldown_remaining > 0.0) {
@@ -519,7 +528,8 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 
 			if (sabotage_timer <= 0.0) {
 				winner = "impostors";
-				win_reason = active_sabotage == "seismic" ? "seismic_collapse" : active_sabotage == "reactor" ? "reactor_meltdown" : "oxygen_depleted";
+				win_reason = active_sabotage == "seismic" ? "seismic_collapse" : active_sabotage == "reactor" ? "reactor_meltdown"
+					: active_sabotage == "contamination" ? "contamination" : "oxygen_depleted";
 				active_sabotage = "";
 				sabotage_fixed_panels.resize(0);
 				sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;

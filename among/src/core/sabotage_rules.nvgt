@@ -50,7 +50,7 @@ bool is_hold_sabotage(const string&in id) {
 // A chave de um texto que muda com a sabotagem crítica ("oxigênio acabando" não serve ao sismógrafo).
 // A do oxigênio é a original, sem o id, e as outras levam o id no meio.
 string critical_sabotage_key(const string&in id, const string&in suffix) {
-	if (id == "seismic" || id == "reactor") return "sabotage." + id + "." + suffix;
+	if (id == "seismic" || id == "reactor" || id == "contamination") return "sabotage." + id + "." + suffix;
 	return "sabotage." + suffix;
 }
 

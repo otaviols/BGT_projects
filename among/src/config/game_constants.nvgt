@@ -252,6 +252,13 @@ const string WINNER_LOVERS = "lovers";
 // 90s: os dois painéis de oxigênio ficam em salas opostas da nave (admin e elétrica), e só a
 // caminhada de uma até a outra já leva uns 25 segundos.
 const float SABOTAGE_OXYGEN_TIMER_SECONDS = 90.0;
+// A contaminação (Base Polar) pede o time INTEIRO atravessando o mapa até a câmara: mais tempo que as de
+// painel, onde bastam duas pessoas.
+const float SABOTAGE_CONTAMINATION_SECONDS = 120.0;
+// De quanto em quanto tempo quem está contaminado tosse (sorteado entre os dois): o bastante para se ouvir
+// quem está onde, sem virar um coro sem fim.
+const float COUGH_MIN_SECONDS = 7.0;
+const float COUGH_MAX_SECONDS = 13.0;
 // Sabotagem de SEGURAR (o sismógrafo da Base Polar): quanto tempo as duas mãos têm que ficar JUNTAS nos dois
 // painéis para estabilizar. Curto o bastante para não virar espera; longo o bastante para que soltar
 // cedo seja um erro que se ouve (a maquete aprovada usava 1,5 s).

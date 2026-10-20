@@ -111,6 +111,22 @@ mixin class match_net_ship_part {
 		if (@used_vent != null) audio.play_object_interact(used_vent);
 	}
 
+	// A contaminação: a tosse sai onde a pessoa está (a própria também, no lugar de quem ouve).
+	void on_cough(net_packet@ pkt) {
+		audio.play_cough(pkt.get_float("x"), pkt.get_float("y"));
+	}
+
+	// Alguém sarou na câmara: a própria pessoa ouve que sarou; todos ouvem quantos da tripulação faltam.
+	void on_decontaminated(net_packet@ pkt) {
+		dictionary@ p = dictionary();
+		p.set("count", "" + pkt.get_int("left"));
+		string texto = pkt.get_uint64("peer_id") == client.my_peer_id ? tr("contamination.you_cured") + " " : "";
+		if (pkt.get_int("left") > 0) texto += tr("contamination.left", p);
+		if (texto == "") return;
+		speak(texto, false);
+		events_log.add("", texto);
+	}
+
 	// O servidor é quem manda: aqui as portas fecham e abrem SÓ por pacote (sem relógio
 	// local), então cliente e servidor nunca discordam sobre uma porta estar aberta.
 	void on_doors_state(net_packet@ pkt) {

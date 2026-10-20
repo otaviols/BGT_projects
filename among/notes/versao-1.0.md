@@ -164,6 +164,10 @@ e a pasta de teste do usuário aponta para ele com um `server.txt` ("127.0.0.1";
 Ali o usuário joga sozinho com bots, ou com dois jogos abertos. Para testar COM GENTE, a ideia combinada
 (2026-10-19) é um segundo servidor na VPS, numa porta separada, com o mesmo arquivo - ainda por montar.
 
+**A contaminação** (2026-10-20, ideia do usuário depois do teste com amigos): a segunda crítica da Base
+Polar, como a nave tem o oxigênio e o reator - a tripulação inteira passa pela câmara antes do tempo; quem
+está contaminado tosse. Ver ciclo-da-partida.md.
+
 **Falta antes de lançar:**
 - liberar o mapa (`MAP_IDS_IN_TEST` -> `MAP_IDS`). O aprender os sons JÁ é por mapa (pergunta o mapa,
   e a parte do mapa sai do próprio mapa - `learn_sounds_collection`);

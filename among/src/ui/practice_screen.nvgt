@@ -63,7 +63,10 @@ array<string>@ practice_task_types(game_map@ map) {
 
 // Os reparos do mapa: as sabotagens que têm painel nele, na ordem de PRACTICE_SABOTAGES e depois as outras.
 array<string>@ practice_sabotages(game_map@ map) {
-	array<string>@ do_mapa = map.sabotages();
+	// Só as que têm painel: a contaminação se conserta andando até a câmara, e não há minijogo a treinar.
+	array<string> do_mapa;
+	array<string>@ todas = map.sabotages();
+	for (uint i = 0; i < todas.length(); i++) if (map.sabotage_has_panel(todas[i])) do_mapa.insert_last(todas[i]);
 	array<string> r;
 	for (uint i = 0; i < PRACTICE_SABOTAGES.length(); i++) if (do_mapa.find(PRACTICE_SABOTAGES[i]) >= 0) r.insert_last(PRACTICE_SABOTAGES[i]);
 	for (uint i = 0; i < do_mapa.length(); i++) if (r.find(do_mapa[i]) < 0) r.insert_last(do_mapa[i]);

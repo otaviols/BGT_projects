@@ -65,6 +65,9 @@ mixin class state_ship_part {
 		if (decontamination_running && !fechada) {
 			decontamination_running = false;
 			decontamination_exit_left = DECONTAMINATION_EXIT_SECONDS;
+			// A rodada terminou: quem passou por ela inteira está descontaminado.
+			for (uint i = 0; i < decontamination_cycle_peers.length(); i++) cure_contamination(decontamination_cycle_peers[i], events);
+			decontamination_cycle_peers.resize(0);
 		}
 		if (fechada) return; // rodando (ou trancada pelo impostor)
 		// Quem acabou de passar está saindo. No tempo da PARTIDA, como o resto do servidor.
@@ -79,11 +82,94 @@ mixin class state_ship_part {
 		}
 		if (!alguem) return;
 		decontamination_running = true;
+		// Quem está dentro agora sara quando ela abrir (a contaminação).
+		decontamination_cycle_peers.resize(0);
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.alive && !p.vented && !p.swallowed() && map.room_id_at(p.x, p.y) == camara) decontamination_cycle_peers.insert_last(p.peer_id);
+		}
 		array<string> zonas = {camara};
 		map.close_doors(zonas, DECONTAMINATION_SECONDS);
 		net_packet@ pkt = build_doors_packet(zonas, true);
 		pkt.set_bool("decontamination", true); // o cliente toca o spray em vez do "portas trancadas"
 		events.insert_last(pkt);
+	}
+
+	// --- A contaminação (Base Polar) ---
+	// A segunda crítica do mapa (decisão do usuário, 2026-10-20). Todos os vivos ficam contaminados - o
+	// impostor também - e quem está contaminado TOSSE de vez em quando, onde está: dá para ouvir quem está
+	// onde. Sara quem passa por uma rodada inteira da câmara de descontaminação. O conserto é a TRIPULAÇÃO
+	// inteira sarar antes do tempo: o impostor não conta (senão bastaria a ele não ir), mas tosse até passar
+	// pela câmara - quem não vai se entrega pela tosse. Os neutros também não contam: uma sabotagem que um
+	// neutro pudesse fazer perder não seria do impostor. Fantasma não tosse.
+	private void contaminate_everyone() {
+		contaminated_peers.resize(0);
+		cough_timers.resize(0);
+		for (uint i = 0; i < players.length(); i++) {
+			if (!players[i].alive) continue;
+			contaminated_peers.insert_last(players[i].peer_id);
+			// A primeira tosse cedo, e espalhada: todos tossindo juntos no primeiro segundo seria um coro.
+			cough_timers.insert_last(random_range(1.0, 5.0));
+		}
+	}
+
+	private bool counts_for_contamination(game_player@ p) const {
+		return @p != null && p.alive && !p.is_impostor && p.role().team == TEAM_CREW;
+	}
+
+	// Quantos da tripulação viva ainda estão contaminados.
+	int contaminated_crew_left() const {
+		int n = 0;
+		for (uint i = 0; i < contaminated_peers.length(); i++)
+			if (counts_for_contamination(find_player(contaminated_peers[i]))) n++;
+		return n;
+	}
+
+	void cure_contamination(uint64 peer_id, array<net_packet@>@ events) {
+		if (active_sabotage != "contamination") return;
+		int i = contaminated_peers.find(peer_id);
+		if (i < 0) return;
+		contaminated_peers.remove_at(i);
+		cough_timers.remove_at(i);
+		game_player@ p = find_player(peer_id);
+		// O bot que veio sarar volta ao que fazia.
+		if (@p != null && p.is_bot) { p.bot_fixing = false; p.bot_has_target = false; p.bot_action_timer = 0.0; }
+		net_packet@ pkt = net_packet(S_DECONTAMINATED);
+		pkt.set_uint64("peer_id", peer_id);
+		pkt.set_int("left", contaminated_crew_left());
+		events.insert_last(pkt);
+	}
+
+	void tick_contamination(float delta_seconds, array<net_packet@>@ events) {
+		if (active_sabotage != "contamination") {
+			if (contaminated_peers.length() > 0) { contaminated_peers.resize(0); cough_timers.resize(0); }
+			return;
+		}
+		for (int i = int(contaminated_peers.length()) - 1; i >= 0; i--) {
+			game_player@ p = find_player(contaminated_peers[i]);
+			// Morto não tosse e não conta mais.
+			if (@p == null || !p.alive) { contaminated_peers.remove_at(i); cough_timers.remove_at(i); continue; }
+			cough_timers[i] -= delta_seconds;
+			if (cough_timers[i] > 0.0) continue;
+			cough_timers[i] = random_range(COUGH_MIN_SECONDS, COUGH_MAX_SECONDS);
+			// No duto ou na barriga do lobo, não se ouve ninguém tossir.
+			if (p.vented || p.swallowed()) continue;
+			net_packet@ tosse = net_packet(S_COUGH);
+			tosse.set_uint64("peer_id", p.peer_id);
+			tosse.set_float("x", p.x);
+			tosse.set_float("y", p.y);
+			events.insert_last(tosse);
+		}
+		if (contaminated_crew_left() > 0) return;
+		// A tripulação inteira sarou: o mesmo fim de sabotagem de sempre.
+		net_packet@ fim = net_packet(S_SABOTAGE_FIXED);
+		fim.set_string("sabotage_id", active_sabotage);
+		events.insert_last(fim);
+		active_sabotage = "";
+		sabotage_fixed_panels.resize(0);
+		contaminated_peers.resize(0);
+		cough_timers.resize(0);
+		sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 	}
 
 	net_packet@ build_doors_packet(array<string>@ zones, bool closed) const {
@@ -103,7 +189,11 @@ mixin class state_ship_part {
 	// Sabotagem crítica = tem relógio e é derrota dos tripulantes se o tempo acabar. As outras duram
 	// até alguém consertar o painel.
 	bool is_critical_sabotage(const string&in sabotage_id) const {
-		return sabotage_id == "oxygen" || is_hold_sabotage(sabotage_id);
+		return sabotage_id == "oxygen" || is_hold_sabotage(sabotage_id) || sabotage_id == "contamination";
+	}
+
+	float critical_sabotage_seconds(const string&in sabotage_id) const {
+		return sabotage_id == "contamination" ? SABOTAGE_CONTAMINATION_SECONDS : SABOTAGE_OXYGEN_TIMER_SECONDS;
 	}
 
 	bool trigger_sabotage(uint64 impostor_peer, const string&in sabotage_id, net_packet@&out out_event, string&out fail_key) {
@@ -135,7 +225,8 @@ mixin class state_ship_part {
 		last_sabotage_id = sabotage_id;
 		sabotage_fixed_panels.resize(0);
 		clear_sabotage_holds();
-		sabotage_timer = is_critical_sabotage(sabotage_id) ? SABOTAGE_OXYGEN_TIMER_SECONDS : 0.0;
+		sabotage_timer = is_critical_sabotage(sabotage_id) ? critical_sabotage_seconds(sabotage_id) : 0.0;
+		if (sabotage_id == "contamination") contaminate_everyone();
 		// Começa marcando o próprio total como "já anunciado", por dois motivos: a segunda sabotagem
 		// crítica da partida não herda o número da primeira (o que faria ela pular avisos até passar
 		// por baixo dele), e o total não é repetido logo de cara - o aviso de sabotagem iniciada já

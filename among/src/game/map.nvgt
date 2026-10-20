@@ -241,7 +241,17 @@ class game_map {
 		for (uint i = 0; i < objects.length(); i++) {
 			if (objects[i].obj_type == OBJ_SABOTAGE_PANEL && r.find(objects[i].task_type) < 0) r.insert_last(objects[i].task_type);
 		}
+		for (uint i = 0; i < sabotages_without_panel.length(); i++)
+			if (r.find(sabotages_without_panel[i]) < 0) r.insert_last(sabotages_without_panel[i]);
 		return r;
+	}
+	// Sabotagens que se consertam SEM painel (a contaminação da Base Polar: passa-se pela câmara). Declaradas
+	// à parte porque a lista de cima sai dos painéis - e uma sabotagem fora dela não existiria no mapa.
+	array<string> sabotages_without_panel;
+	bool sabotage_has_panel(const string&in id) const {
+		for (uint i = 0; i < objects.length(); i++)
+			if (objects[i].obj_type == OBJ_SABOTAGE_PANEL && objects[i].task_type == id) return true;
+		return false;
 	}
 	bool has_sabotage(const string&in id) const { return sabotages().find(id) >= 0; }
 	array<map_zone@> zones;
@@ -909,6 +919,8 @@ game_map@ build_polar_base_map() {
 	m.ship_ambience = "";
 	m.doors_have_panel = true;
 	m.decontamination_zone = "decontamination";
+	// A contaminação: a segunda crítica, ao lado do sismógrafo (como a nave tem o oxigênio e o reator).
+	m.sabotages_without_panel.insert_last("contamination");
 	m.lockable_rooms = {"communications", "electrical", "laboratory", "office", "oxygen", "storage", "weapons"};
 
 	// Prédios

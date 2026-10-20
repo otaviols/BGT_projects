@@ -588,6 +588,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_VENT_STATE) on_vent_state(pkt);
 		else if (t == S_VENT_SOUND) on_vent_sound(pkt);
 		else if (t == S_DOORS_STATE) on_doors_state(pkt);
+		else if (t == S_COUGH) on_cough(pkt);
+		else if (t == S_DECONTAMINATED) on_decontaminated(pkt);
 		else if (t == S_TASK_VISIBLE) on_task_visible(pkt);
 		else if (t == S_TASK_PROGRESS) on_task_progress(pkt);
 		else if (t == S_RADAR_RESULT) on_radar_result(pkt);

@@ -168,6 +168,8 @@ void refresh_landmark_beacons(audio_manager@ audio, game_map@ map, array<string>
 // mandar alguém atravessar a nave para um painel que já saiu do caminho é o que o
 // S_SABOTAGE_PROGRESS existe para evitar. Devolve "" se não há painel a listar.
 string sabotage_fix_hint_text(game_map@ map, const string&in sabotage_id, array<string>@ fixed_panel_ids) {
+	// A contaminação não tem painel: o lugar é a câmara.
+	if (sabotage_id == "contamination") return tr("sabotage.contamination.fix_hint");
 	array<string> fix_room_names;
 	for (uint i = 0; i < map.objects.length(); i++) {
 		map_object@ o = map.objects[i];

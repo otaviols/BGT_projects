@@ -269,6 +269,7 @@ array<learn_category@>@ learn_sound_categories(game_map@ map) {
 		sfx.add(tr("learn.decontamination_spray"), SND_DECONTAMINATION_SPRAY);
 		sfx.add(tr("learn.decontamination_open"), SND_DECONTAMINATION_OPEN);
 	}
+	if (map.has_sabotage("contamination")) sfx.add(tr("learn.cough"), SND_COUGH);
 	if (map.objects_by_type(OBJ_SECURITY_CAMERAS).length() > 0) {
 		sfx.add(tr("learn.camera_on"), SND_CAMERA_ON);
 		sfx.add(tr("learn.camera_switch"), SND_CAMERA_SWITCH);

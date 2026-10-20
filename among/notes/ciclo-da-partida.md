@@ -182,6 +182,16 @@ nave de sempre usa a mesma mecânica (`is_hold_sabotage`), mas lá o mapa NÃO e
 `HOLD_SABOTAGE_PROTOCOL` - sem isso, quem tem versão antiga não teria como consertar e a partida seria
 derrota certa. Sonda: a seção 7 da `probe_seismic`.
 
+**A contaminação (Base Polar, 2026-10-20) é a primeira sabotagem SEM painel.** O mapa a declara em
+`sabotages_without_panel` (a lista normal sai dos painéis, e sem isso ela não existiria no mapa), e o treino
+pula as que não têm painel (`sabotage_has_panel`). Crítica, `SABOTAGE_CONTAMINATION_SECONDS` (120: o time
+inteiro atravessa o mapa). Todos os vivos ficam contaminados, o impostor também, e quem está contaminado
+TOSSE (`S_COUGH`, posicionado) de vez em quando - quem não vai à câmara se entrega pela tosse. Sara quem
+estava DENTRO quando a rodada da câmara fechou, no instante em que ela abre (`decontamination_cycle_peers`).
+Conserta quando a TRIPULAÇÃO viva inteira sarou (`contaminated_crew_left`): o impostor não conta, senão
+bastaria a ele não ir; os neutros também não, senão um neutro decidiria a partida pelos impostores. A tosse
+é do usuário (`sounds/events/cough.ogg`, convertida para mono). Sonda: `probe_contamination`.
+
 **Voz posicionada é só para quem está VIVO e andando.** `g_voice.spatial = alive && !movement_frozen`
 é decidido a cada quadro, e não em cada transição: são três (morrer, começar a reunião, acabar a
 votação) e esquecer uma deixa o jogador num estado que nada mais corrige. Na reunião todo mundo está

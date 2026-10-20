@@ -265,6 +265,10 @@ const string S_SABOTAGE_PROGRESS = "s_sabotage_progress"; // {sabotage_id, objec
 // Alguém pôs ou tirou a mão de um painel de segurar. Vai à partida inteira: quem segura o outro painel
 // precisa OUVIR o colega chegar e soltar. Só existe na Base Polar, que já exige MAPS_PROTOCOL.
 const string S_SABOTAGE_HOLD = "s_sabotage_hold"; // {object_id, holding, peer_id}
+// A contaminação (Base Polar): alguém contaminado tossiu, ali. Vai à partida inteira, e o som posicionado
+// faz o resto (só quem está perto ouve). E alguém passou pela câmara e sarou, com quantos ainda faltam.
+const string S_COUGH = "s_cough";                 // {peer_id, x, y}
+const string S_DECONTAMINATED = "s_decontaminated"; // {peer_id, left}
 // Lembrete de quanto falta numa sabotagem crítica. Quem decide QUANDO avisar é o servidor (a cada
 // 30 segundos, e a cada segundo nos 10 finais), e não cada cliente com um relógio próprio: assim
 // todo mundo ouve o mesmo número no mesmo instante, que é o que permite combinar "vai você no de

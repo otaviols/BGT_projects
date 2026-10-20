@@ -264,6 +264,19 @@ mixin class state_bots_part {
 		if (b.bot_sabotage_reaction < 0.0) { b.bot_sabotage_reaction = random_range(BOT_SABOTAGE_REACTION_MIN, BOT_SABOTAGE_REACTION_MAX); return; }
 		b.bot_sabotage_reaction -= delta_seconds;
 		if (b.bot_sabotage_reaction > 0.0) return;
+		// A contaminação não tem painel: o bot contaminado vai para DENTRO da câmara e espera a rodada.
+		if (active_sabotage == "contamination") {
+			map_zone@ camara = map.find_zone(map.decontamination_zone);
+			if (@camara == null || contaminated_peers.find(b.peer_id) < 0) return;
+			b.bot_fixing = true;
+			b.bot_action_timer = 0.0;
+			b.bot_target_object_id = "";
+			b.bot_target_x = camara.center_x;
+			b.bot_target_y = camara.center_y;
+			b.bot_has_target = true;
+			set_bot_path_to(b, camara.center_x, camara.center_y);
+			return;
+		}
 		map_object@ painel = nearest_unfixed_panel(b);
 		if (@painel == null) return; // todos os painéis já têm alguém resolvendo, ou esta sabotagem não tem painel
 		b.bot_fixing = true;
@@ -330,7 +343,11 @@ mixin class state_bots_part {
 			// Chegou no destino final: se era uma task, conclui (conta pra vitória dos tripulantes
 			// igual a de qualquer jogador) e descansa antes de escolher o próximo destino.
 			if (b.bot_path.length() == 0 && distance_2d(b.x, b.y, b.bot_target_x, b.bot_target_y) <= PLAYER_INTERACT_RANGE) {
-				if (b.bot_fixing && is_hold_sabotage(active_sabotage)) {
+				if (b.bot_fixing && active_sabotage == "contamination") {
+					// Dentro da câmara: espera ela fechar e abrir (cure_contamination o libera).
+					b.bot_action_timer = 0.5;
+					continue;
+				} else if (b.bot_fixing && is_hold_sabotage(active_sabotage)) {
 					// Painel de segurar: põe a mão e FICA, conferindo de meio em meio segundo. Se alguém
 					// tomou o painel antes, larga e reage de novo (o outro painel ainda falta).
 					uint64 dono = sabotage_hold_holder(b.bot_target_object_id);

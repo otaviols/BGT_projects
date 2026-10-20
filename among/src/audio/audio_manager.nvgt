@@ -84,6 +84,11 @@ class audio_manager {
 		spatial.play_once(closing ? SND_DOOR_CLOSE : SND_DOOR_OPEN, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
+	// Alguém contaminado tossiu (a contaminação). Ouvido de perto, como um passo.
+	void play_cough(float x, float y) {
+		spatial.play_once(SND_COUGH, x, y, family_db(SOUND_FAMILY_EVENTS));
+	}
+
 	// A câmara de descontaminação: a porta dela fechando seguida do spray, ou a porta abrindo.
 	void play_decontamination(float x, float y, bool closing) {
 		if (!closing) {

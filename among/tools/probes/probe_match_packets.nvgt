@@ -457,6 +457,29 @@ void main() {
 	confere("desligadas na sala: o exame sabe", !g_room_visible_tasks);
 	g_room_visible_tasks = true;
 
+	println("== contaminacao ==");
+	// Quem sarou ouve que sarou; e todos ouvem quantos da tripulação faltam.
+	match_session@ contam_sessao = nova_partida(ROLE_CREWMATE, "", "", MAP_POLAR_BASE, 44.0, -4.5);
+	net_packet@ contam_cura = net_packet(S_DECONTAMINATED);
+	contam_cura.set_uint64("peer_id", 1);
+	contam_cura.set_int("left", 2);
+	falado.resize(0);
+	gravando = true;
+	contam_sessao.handle_packet(contam_cura);
+	net_packet@ contam_outro = net_packet(S_DECONTAMINATED);
+	contam_outro.set_uint64("peer_id", 2);
+	contam_outro.set_int("left", 1);
+	contam_sessao.handle_packet(contam_outro);
+	gravando = false;
+	dictionary@ faltam_dois = dictionary(); faltam_dois.set("count", "2");
+	dictionary@ faltam_um = dictionary(); faltam_um.set("count", "1");
+	confere("quem sarou ouve que sarou, e quantos faltam", falado.length() >= 1 && falado[0].find(tr("contamination.you_cured")) >= 0 && falado[0].find(tr("contamination.left", faltam_dois)) >= 0);
+	confere("os outros ouvem so quantos faltam", falado.length() >= 2 && falado[1] == tr("contamination.left", faltam_um));
+	net_packet@ contam_tosse = net_packet(S_COUGH);
+	contam_tosse.set_uint64("peer_id", 2); contam_tosse.set_float("x", 40.0); contam_tosse.set_float("y", -4.0);
+	contam_sessao.handle_packet(contam_tosse);
+	confere("a tosse chega sem excecao", true);
+
 	println("== dois nos do clima, um painel ==");
 	// Duas correntes do nó do clima acabam no MESMO painel do laboratório. Concluir uma não pode marcar as
 	// duas (teste com amigos, 2026-10-20: a segunda ficava impossível de fazer).

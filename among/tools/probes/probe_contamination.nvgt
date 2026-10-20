@@ -1,0 +1,123 @@
+// Sonda da contaminação (Base Polar), direto no estado da partida (sem rede), com o MESMO tick do servidor.
+//   nvgt tools/probes/probe_contamination.nvgt
+//
+// Confere:
+//   1. é crítica, sem painel, com o tempo dela, e todos os vivos ficam contaminados (o impostor também);
+//   2. quem está contaminado tosse, de vez em quando, onde está; fantasma não;
+//   3. sara quem passa por uma rodada inteira da câmara - e a partida fica sabendo quantos faltam;
+//   4. o impostor não conta: com a tripulação sarada, a sabotagem acaba, mesmo com ele contaminado;
+//   5. o tempo acabando é derrota pela contaminação;
+//   6. um bot contaminado vai à câmara e sara sozinho.
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+const float DT = 0.05;
+const float DENTRO_X = 44, DENTRO_Y = -4.5;  // a câmara
+const float LONGE_X = 44, LONGE_Y = 5;       // o corredor dos espécimes
+
+game_state@ partida() {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_map(MAP_POLAR_BASE);
+	lobby.state = "in_progress";
+	game_player@ imp = game_player(1, "imp");
+	imp.set_role(ROLE_IMPOSTOR);
+	imp.x = 0; imp.y = -22;
+	lobby.players.insert_last(imp);
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	for (uint64 id = 2; id <= 4; id++) {
+		game_player@ h = game_player(id, "humano" + id);
+		h.set_role(ROLE_CREWMATE);
+		player_task t;
+		t.object_id = spots[0].id;
+		t.task_type = spots[0].task_type;
+		h.tasks.insert_last(t);
+		h.x = 0; h.y = -22;
+		lobby.players.insert_last(h);
+	}
+	return lobby;
+}
+
+bool sabota(game_state@ lobby) {
+	lobby.sabotage_cooldown_remaining = 0.0;
+	net_packet@ ev; string motivo;
+	return lobby.trigger_sabotage(1, "contamination", ev, motivo);
+}
+
+// Roda o tick; conta tosses e curas, e guarda o último "faltam".
+int tosses = 0, curas = 0, ultimo_faltam = -1;
+void roda(game_state@ lobby, float segundos) {
+	for (float t = 0.0; t < segundos; t += DT) {
+		array<net_packet@>@ ev = lobby.tick(DT);
+		for (uint i = 0; i < ev.length(); i++) {
+			if (ev[i].type == S_COUGH) tosses++;
+			if (ev[i].type == S_DECONTAMINATED) { curas++; ultimo_faltam = ev[i].get_int("left"); }
+		}
+	}
+}
+
+// Leva um jogador pela câmara: entra, espera a rodada fechar e abrir, sai.
+void passa(game_state@ lobby, game_player@ p) {
+	p.x = DENTRO_X; p.y = DENTRO_Y;
+	roda(lobby, 0.3);
+	roda(lobby, DECONTAMINATION_SECONDS + 0.3);
+	p.x = LONGE_X; p.y = LONGE_Y;
+	roda(lobby, DECONTAMINATION_EXIT_SECONDS + 0.3);
+}
+
+void main() {
+	println("== 1. a sabotagem ==");
+	game_state@ lobby = partida();
+	confere("a Base Polar tem a contaminacao, sem painel", lobby.map.has_sabotage("contamination") && !lobby.map.sabotage_has_panel("contamination"));
+	confere("o impostor a dispara", sabota(lobby) && lobby.active_sabotage == "contamination");
+	confere("critica, com o tempo dela (" + lobby.sabotage_timer + " s)", lobby.is_critical_sabotage("contamination") && lobby.sabotage_timer == SABOTAGE_CONTAMINATION_SECONDS);
+	confere("todos os vivos contaminados, o impostor tambem", lobby.contaminated_peers.length() == 4);
+	confere("a tripulacao que falta: tres", lobby.contaminated_crew_left() == 3);
+
+	println("== 2. a tosse ==");
+	roda(lobby, COUGH_MAX_SECONDS + 1.0);
+	confere("todos tossiram ao menos uma vez (" + tosses + ")", tosses >= 4);
+	lobby.players[3].alive = false; // humano 4 morreu
+	roda(lobby, 0.1);
+	tosses = 0;
+	roda(lobby, COUGH_MAX_SECONDS * 2.0);
+	confere("morto nao tosse nem conta", lobby.contaminated_crew_left() == 2 && lobby.contaminated_peers.find(4) < 0);
+
+	println("== 3 e 4. a camara ==");
+	passa(lobby, lobby.players[1]);
+	confere("quem passou pela rodada sarou, e a partida soube quantos faltam", curas == 1 && ultimo_faltam == 1 && lobby.contaminated_peers.find(2) < 0);
+	passa(lobby, lobby.players[2]);
+	confere("a tripulacao inteira sarou: acabou, com o impostor ainda contaminado", lobby.active_sabotage == "" && lobby.winner == "");
+
+	println("== 5. o tempo ==");
+	game_state@ outra = partida();
+	sabota(outra);
+	outra.sabotage_timer = 0.1;
+	roda(outra, 0.2);
+	confere("acabou o tempo: impostores, pela contaminacao", outra.winner == "impostors" && outra.win_reason == "contamination");
+
+	println("== 6. o bot ==");
+	game_state@ comum = partida();
+	for (uint i = 1; i < comum.players.length(); i++) { comum.players[i].x = 0; comum.players[i].y = -50; }
+	game_player@ b = game_player(10, "bot10");
+	b.is_bot = true;
+	b.set_role(ROLE_CREWMATE);
+	b.x = 44; b.y = -22; // no laboratorio, perto da camara
+	comum.players.insert_last(b);
+	sabota(comum);
+	// Os humanos ficam contaminados (longe); o bot tem que sarar sozinho.
+	bool sarou = false;
+	for (float t = 0.0; t < 60.0 && !sarou; t += DT) {
+		comum.tick(DT);
+		sarou = comum.contaminated_peers.find(10) < 0;
+	}
+	confere("o bot contaminado foi a camara e sarou", sarou);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
