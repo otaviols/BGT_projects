@@ -292,6 +292,7 @@ string game_over_reason_text(const string&in reason) {
 	if (reason == "jester_ejected") return tr("game.reason_jester_ejected");
 	if (reason == "wolf_survived") return tr("game.reason_wolf_survived");
 	if (reason == "last_wolf") return tr("game.reason_last_wolf");
+	if (reason == "last_standing") return tr("game.reason_last_standing");
 	if (reason == "all_caught") return tr("game.reason_all_caught");
 	if (reason == "executioner_won") return tr("game.reason_executioner_won");
 	if (reason == "arsonist_ignited") return tr("game.reason_arsonist_ignited");
@@ -319,15 +320,18 @@ void run_game_over_screen(game_client@ client, net_packet@ pkt) {
 	string reason_text = game_over_reason_text(pkt.get_string("reason"));
 	if (reason_text != "") m.add_item(reason_text, "reason");
 
-	dictionary@ p = dictionary();
-	p.set("c_alive", "" + pkt.get_int("crewmates_alive"));
-	p.set("c_total", "" + pkt.get_int("crewmates_total"));
-	m.add_item(tr("game.crewmates_survived", p), "crew");
+	// O placar de times não diz nada no último sobrevivente (todos eram impostores, um sobrou).
+	if (pkt.get_string("reason") != "last_standing") {
+		dictionary@ p = dictionary();
+		p.set("c_alive", "" + pkt.get_int("crewmates_alive"));
+		p.set("c_total", "" + pkt.get_int("crewmates_total"));
+		m.add_item(tr("game.crewmates_survived", p), "crew");
 
-	dictionary@ ip = dictionary();
-	ip.set("i_alive", "" + pkt.get_int("impostors_alive"));
-	ip.set("i_total", "" + pkt.get_int("impostors_total"));
-	m.add_item(tr("game.impostors_survived", ip), "imp");
+		dictionary@ ip = dictionary();
+		ip.set("i_alive", "" + pkt.get_int("impostors_alive"));
+		ip.set("i_total", "" + pkt.get_int("impostors_total"));
+		m.add_item(tr("game.impostors_survived", ip), "imp");
+	}
 
 	// Quem eram os impostores. É o fechamento da partida: sem isso, quem passou a rodada inteira
 	// desconfiando da pessoa errada nunca fica sabendo que estava errado.

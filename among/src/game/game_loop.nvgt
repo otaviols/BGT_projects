@@ -326,7 +326,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// A ORDEM do anúncio: cor (no modo cor), depois quantos impostores há / quem são os parceiros, e
 		// só então a descrição do papel. Era a descrição primeiro, e o recado #124 pediu o contrário - com
 		// razão: a descrição é longa, e o que se precisa guardar da abertura é contra quem se está jogando.
-		role_desc = role_intro_text(my_role);
+		// No último sobrevivente a descrição do impostor (time, sabotagem, fingir tarefa) não vale: quem
+		// explica a partida é o texto do modo, mais abaixo.
+		role_desc = game_mode == GAME_MODE_LAST_STANDING ? "" : role_intro_text(my_role);
 		role_text = "";
 		// Modo cor: a cor é a identidade do jogador nesta partida - é por ela que os outros vão chamá-lo.
 		// Vem ANTES do papel, porque é o que ele precisa guardar primeiro.
@@ -336,7 +338,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 			role_text = tr("color_mode.you_are", cp) + " " + role_text;
 		}
 		// Peers dos parceiros de impostor: usados pra nunca mirar um deles ao matar (ver KEY_KILL).
-		if (my_role.knows_teammates) {
+		if (my_role.knows_teammates && game_mode != GAME_MODE_LAST_STANDING) {
 			array<string> partner_names;
 			json_array@ partners_json = start_pkt.get_array("impostor_partners");
 			if (@partners_json != null) {
@@ -363,7 +365,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 			dictionary@ tp = dictionary();
 			tp.set("name", spoken_name(start_pkt.get_string("tagger_name", "")));
 			role_text += " " + tr("tag.tagger_is", tp);
-		} else {
+		} else if (game_mode != GAME_MODE_LAST_STANDING) {
 			// Quantos impostores estão a bordo. O tripulante não sabe QUEM são, mas saber se procura um
 			// ou três muda toda a leitura de uma reunião - sem isso a discussão começa no chute.
 			int impostor_count = start_pkt.get_int("impostor_count", 1);
@@ -410,6 +412,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// O modo vem por último: ele muda a regra de tudo o que veio antes ("aqui não há reunião").
 		if (game_mode == GAME_MODE_TAG) role_text = with_hint(role_text, "mode.tag_intro");
 		else if (game_mode == GAME_MODE_WOLVES) role_text = with_hint(role_text, "mode.wolves_intro");
+		else if (game_mode == GAME_MODE_LAST_STANDING) role_text = with_hint(role_text, "mode.last_standing_intro");
 		while (role_text.substr(0, 1) == " ") role_text = role_text.substr(1); // as partes entram com espaço na frente
 		// De volta depois de cair: primeiro ONDE se está (de volta, e se ainda vivo), depois o papel - quem
 		// caiu pode ter passado um minuto fora, e a partida pode ter mudado inteira nesse tempo.

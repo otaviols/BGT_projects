@@ -69,9 +69,25 @@ lobby_config@ preset_wolves() {
 	return cfg;
 }
 
+// Último sobrevivente (1.0): todos são impostores e matam qualquer um; vence o último vivo. Sem reunião,
+// tarefa, sabotagem nem papel. Duto ligado (a sala pode desligar) e kill a cada 15 segundos: com todo
+// mundo armado, os 25 do clássico deixavam a partida parada (decisão do usuário).
+lobby_config@ preset_last_standing() {
+	lobby_config cfg;
+	cfg.lobby_name = "Último sobrevivente";
+	cfg.max_players = 10;
+	cfg.impostor_count = 1; // ignorado: no modo, todos são impostores
+	cfg.kill_cooldown_seconds = 15.0;
+	cfg.sabotages_enabled = false;
+	cfg.vents_enabled = true;
+	cfg.game_mode = GAME_MODE_LAST_STANDING;
+	return cfg;
+}
+
 lobby_config@ get_preset(const string&in name) {
 	if (name == "tag") return preset_tag();
 	if (name == "wolves") return preset_wolves();
+	if (name == "last_standing") return preset_last_standing();
 	if (name == "classic") return preset_classic();
 	if (name == "quick") return preset_quick();
 	if (name == "chaos") return preset_chaos();
@@ -79,6 +95,6 @@ lobby_config@ get_preset(const string&in name) {
 }
 
 array<string>@ preset_names() {
-	array<string> names = {"classic", "quick", "chaos", "tag", "wolves"};
+	array<string> names = {"classic", "quick", "chaos", "tag", "wolves", "last_standing"};
 	return names;
 }

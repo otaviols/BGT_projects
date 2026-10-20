@@ -28,6 +28,9 @@ prédios. Ao criar a partida, escolha o mapa. Ela traz:
 
 **Na nave de sempre, o reator:** uma sabotagem crítica nova, consertada por duas pessoas ao mesmo tempo.
 
+**Um modo novo, o último sobrevivente:** todo mundo é impostor e pode matar qualquer um, sem reunião nem
+tarefas. Use os dutos para fugir: vence o último vivo. Funciona nos dois mapas.
+
 **Aprender os sons do jogo:** agora por mapa e por categoria (passos, ambientes, marcadores, a partida,
 papéis e menus).
 

@@ -845,17 +845,21 @@ continua dizendo quem é bot.
 | Rápido | até 6 | 1 | 3 cada | 15 s | desligada |
 | Caos | até 10 | 3 | 4 cada | 12 s | ligada |
 
-**Modos de jogo.** Ao criar a sala, o campo **Modo de jogo** escolhe entre o clássico e dois modos
+**Modos de jogo.** Ao criar a sala, o campo **Modo de jogo** escolhe entre o clássico e três modos
 que mudam a regra do jogo, e não só os números. O anfitrião pode trocar de modo com a sala aberta, na
 mesma tela de editar as regras: a tela passa a mostrar só o que vale para o modo escolhido, os campos
-voltam ao padrão dele, e todos na sala ouvem que o modo mudou. Nos dois modos não há reunião, nem corpo
-reportado, duto, sabotagem ou papéis:
+voltam ao padrão dele, e todos na sala ouvem que o modo mudou. Em nenhum deles há reunião, corpo
+reportado, sabotagem ou papéis, e o duto só existe no último sobrevivente:
 
 - **Pega-pega:** um pegador fica parado nos primeiros 10 segundos, com contagem para todos; depois ele
   pega a cada 5 segundos, e todo mundo anda na velocidade máxima. A tripulação vence completando as
   tarefas - quem já foi pego continua fazendo as dele, como fantasma -, e o pegador, pegando todo mundo.
 - **Todos lobos:** todo jogador é Lobo Mau, e todos se engolem. Quem é engolido volta se quem o engoliu
   for engolido por outro. Vence o último de pé.
+- **Último sobrevivente:** todo mundo é impostor, e qualquer um pode matar qualquer um. Não há tarefas
+  nem parceiros: é matar antes de ser morto, e usar os dutos para fugir. Quem morre vira fantasma e
+  assiste. Vence o último vivo. O kill recarrega em 15 segundos, e a sala pode mudar isso e desligar os
+  dutos.
 
 Os presets abaixo são o ponto de partida; o teto de uma partida é **15 jogadores**.
 

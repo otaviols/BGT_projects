@@ -106,9 +106,12 @@ const int MOVE_SPEED_MAX_PERCENT = 200;
 //   tag    - pega-pega: um pegador (impostor) parado no começo, kill rápido, velocidade máxima; a
 //            tripulação vence completando as tarefas, o pegador pegando todo mundo.
 //   wolves - todos são lobos: todos se engolem, e vence o último de pé.
+//   last_standing - último sobrevivente (1.0): todos são impostores e matam qualquer um; vence o último
+//            vivo. É o único modo COM duto (a sala pode desligar): fugir por ele é metade do jogo.
 const string GAME_MODE_CLASSIC = "classic";
 const string GAME_MODE_TAG = "tag";
 const string GAME_MODE_WOLVES = "wolves";
+const string GAME_MODE_LAST_STANDING = "last_standing";
 // No pega-pega, o pegador fica PARADO este tempo no começo, com contagem para todos (decisão do usuário).
 const float TAG_HEAD_START_SECONDS = 10.0;
 // Os modos exigem o cliente que sabe deles (contagem do pegador, sem reunião, vitória própria).

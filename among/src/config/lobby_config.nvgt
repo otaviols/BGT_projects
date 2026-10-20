@@ -59,7 +59,7 @@ class lobby_overrides {
 	string map = ""; // "" = preset (o mapa padrão); senão, o id do mapa (MAP_IDS)
 	// "" = não mexi; senão, o modo pedido. Só a EDIÇÃO de uma sala aberta usa: trocar de modo troca a
 	// base inteira das regras (ver on_update_lobby_config), e por isso não passa por apply_to. Na
-	// criação o modo vai como o próprio preset ("tag", "wolves").
+	// criação o modo vai como o próprio preset ("tag", "wolves", "last_standing").
 	string game_mode = "";
 	// Papéis especiais: id -> quantos. Só entra aqui o que o anfitrião preencheu; o que ficou em
 	// branco não é tocado, como todo o resto. -1 nunca aparece: um papel ausente do dicionário É o
@@ -410,13 +410,16 @@ class lobby_config {
 		bool changed = false;
 		// O modo manda em parte das regras, e é aqui que elas são AMARRADAS: o anfitrião pode mexer no
 		// formulário depois, e um pega-pega com duto ou com xerife deixaria de ser pega-pega.
-		if (game_mode != GAME_MODE_TAG && game_mode != GAME_MODE_WOLVES) game_mode = GAME_MODE_CLASSIC;
+		if (game_mode != GAME_MODE_TAG && game_mode != GAME_MODE_WOLVES && game_mode != GAME_MODE_LAST_STANDING)
+			game_mode = GAME_MODE_CLASSIC;
 		// O mapa vem da máquina do jogador: um id que não existe vira o padrão.
 		if (!map_exists(map_name)) { map_name = MAP_THE_HUB; changed = true; }
 		if (game_mode != GAME_MODE_CLASSIC) {
-			if (sabotages_enabled || vents_enabled) changed = true;
+			// O último sobrevivente é o único modo que deixa o duto à escolha da sala (decisão do usuário).
+			bool duto_no_modo = game_mode == GAME_MODE_LAST_STANDING;
+			if (sabotages_enabled || (vents_enabled && !duto_no_modo)) changed = true;
 			sabotages_enabled = false;
-			vents_enabled = false;
+			if (!duto_no_modo) vents_enabled = false;
 			if (role_counts.get_keys().length() > 0) changed = true;
 			role_counts.delete_all();
 			role_chances.delete_all();
@@ -567,4 +570,15 @@ class lobby_config {
 		o.set("role_values", valores);
 		return o;
 	}
+}
+
+// Qual regra cada modo tem - a mesma pergunta do formulário e da tela de regras (lobby_config_lines).
+//   "vents" - o duto é escolha da sala; "kill" - a recarga de kill vale; "tasks" - há tarefas;
+//   "meetings" - reunião, papel e sabotagem (só o clássico).
+bool mode_has_rule(const string&in modo, const string&in regra) {
+	if (regra == "vents") return modo == GAME_MODE_CLASSIC || modo == GAME_MODE_LAST_STANDING;
+	if (regra == "kill") return modo != GAME_MODE_WOLVES;
+	if (regra == "tasks") return modo == GAME_MODE_CLASSIC || modo == GAME_MODE_TAG;
+	if (regra == "meetings") return modo == GAME_MODE_CLASSIC;
+	return true;
 }

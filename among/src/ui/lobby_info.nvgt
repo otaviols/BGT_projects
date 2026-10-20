@@ -152,68 +152,81 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 	array<string> partes;
 	if (@cfg == null) { partes.insert_last(tr("lobby.info.unavailable")); return partes; }
 
-	dictionary@ ip = dictionary();
-	ip.set("count", "" + int(cfg["impostor_count"]));
-	string impostores = tr(int(cfg["impostor_count"]) == 1 ? "lobby.info.impostors_one" : "lobby.info.impostors_many", ip);
-	// "automático" explica por que o número pode mudar até a partida começar: ele depende de quanta
-	// gente estiver na sala na hora do início.
-	if (bool(cfg["impostors_automatic"])) impostores += " " + tr("lobby.info.impostors_automatic");
-	partes.insert_last(impostores);
-	// Logo depois dos impostores, porque é a mesma pergunta: "contra o que estou jogando?".
-	// Sem papéis, não diz nada - a sala de sempre não ganhou uma frase nova para ouvir.
-	string papeis = roles_in_play_text(cfg.get_object("role_counts"), cfg.get_object("role_chances"));
-	if (papeis != "") {
-		partes.insert_last(papeis);
-		// As vagas de neutro mudam a leitura da linha de cima: com elas, os neutros listados são os que
-		// PODEM sair, e não os que vão sair (ver lobby_config.neutral_count).
-		if (cfg.exists("neutral_count") && int(cfg["neutral_count"]) == 0) partes.insert_last(tr("lobby.info.no_neutrals"));
-		if (cfg.exists("neutral_count") && int(cfg["neutral_count"]) > 0) {
-			dictionary@ np = dictionary();
-			np.set("count", "" + int(cfg["neutral_count"]));
-			partes.insert_last(tr("lobby.info.neutral_count", np));
+	// Fora do clássico, o modo vem primeiro e as regras que ele não tem ficam de fora (mode_has_rule):
+	// até a 1.0 a tela dizia "1 impostor, 4 tarefas, 120 segundos de reunião" numa sala de todos lobos.
+	string modo = cfg.exists("game_mode") ? string(cfg["game_mode"]) : GAME_MODE_CLASSIC;
+	if (modo != GAME_MODE_CLASSIC) partes.insert_last(tr("lobby.preset." + modo + "_desc"));
+	bool classico = mode_has_rule(modo, "meetings");
+	if (classico) {
+		dictionary@ ip = dictionary();
+		ip.set("count", "" + int(cfg["impostor_count"]));
+		string impostores = tr(int(cfg["impostor_count"]) == 1 ? "lobby.info.impostors_one" : "lobby.info.impostors_many", ip);
+		// "automático" explica por que o número pode mudar até a partida começar: ele depende de quanta
+		// gente estiver na sala na hora do início.
+		if (bool(cfg["impostors_automatic"])) impostores += " " + tr("lobby.info.impostors_automatic");
+		partes.insert_last(impostores);
+		// Logo depois dos impostores, porque é a mesma pergunta: "contra o que estou jogando?".
+		// Sem papéis, não diz nada - a sala de sempre não ganhou uma frase nova para ouvir.
+		string papeis = roles_in_play_text(cfg.get_object("role_counts"), cfg.get_object("role_chances"));
+		if (papeis != "") {
+			partes.insert_last(papeis);
+			// As vagas de neutro mudam a leitura da linha de cima: com elas, os neutros listados são os que
+			// PODEM sair, e não os que vão sair (ver lobby_config.neutral_count).
+			if (cfg.exists("neutral_count") && int(cfg["neutral_count"]) == 0) partes.insert_last(tr("lobby.info.no_neutrals"));
+			if (cfg.exists("neutral_count") && int(cfg["neutral_count"]) > 0) {
+				dictionary@ np = dictionary();
+				np.set("count", "" + int(cfg["neutral_count"]));
+				partes.insert_last(tr("lobby.info.neutral_count", np));
+			}
+			// E os tempos de cada um. Eles mudam o jogo tanto quanto o número de vagas - um metamorfo
+			// com 10 segundos de fantasia e outro com 120 são papéis diferentes -, então quem entra
+			// numa sala alheia precisa poder ouvir isso antes de a partida começar.
+			array<string>@ tempos = role_tunables_lines(cfg.get_object("role_counts"), cfg.get_object("role_values"));
+			for (uint i = 0; i < tempos.length(); i++) partes.insert_last(tempos[i]);
 		}
-		// E os tempos de cada um. Eles mudam o jogo tanto quanto o número de vagas - um metamorfo
-		// com 10 segundos de fantasia e outro com 120 são papéis diferentes -, então quem entra
-		// numa sala alheia precisa poder ouvir isso antes de a partida começar.
-		array<string>@ tempos = role_tunables_lines(cfg.get_object("role_counts"), cfg.get_object("role_values"));
-		for (uint i = 0; i < tempos.length(); i++) partes.insert_last(tempos[i]);
 	}
 
 	dictionary@ mp = dictionary();
 	mp.set("count", "" + int(cfg["max_players"]));
 	partes.insert_last(tr("lobby.info.max_players", mp));
 
-	dictionary@ tp = dictionary();
-	tp.set("count", "" + int(cfg["task_count_per_crewmate"]));
-	partes.insert_last(tr("lobby.info.tasks", tp));
-	if (cfg.exists("long_task_count")) {
+	if (mode_has_rule(modo, "tasks")) {
+		dictionary@ tp = dictionary();
+		tp.set("count", "" + int(cfg["task_count_per_crewmate"]));
+		partes.insert_last(tr("lobby.info.tasks", tp));
+	}
+	if (mode_has_rule(modo, "tasks") && cfg.exists("long_task_count")) {
 		dictionary@ lp = dictionary();
 		lp.set("count", "" + int(cfg["long_task_count"]));
 		partes.insert_last(tr("lobby.info.long_tasks", lp));
 	}
 
-	dictionary@ kp = dictionary();
-	kp.set("seconds", seconds_text(float(cfg["kill_cooldown_seconds"])));
-	partes.insert_last(tr("lobby.info.kill_cooldown", kp));
+	if (mode_has_rule(modo, "kill")) {
+		dictionary@ kp = dictionary();
+		kp.set("seconds", seconds_text(float(cfg["kill_cooldown_seconds"])));
+		partes.insert_last(tr("lobby.info.kill_cooldown", kp));
+	}
 
-	dictionary@ reuniao_p = dictionary();
-	reuniao_p.set("seconds", seconds_text(float(cfg["meeting_time_seconds"])));
-	partes.insert_last(tr("lobby.info.meeting_time", reuniao_p));
+	if (classico) {
+		dictionary@ reuniao_p = dictionary();
+		reuniao_p.set("seconds", seconds_text(float(cfg["meeting_time_seconds"])));
+		partes.insert_last(tr("lobby.info.meeting_time", reuniao_p));
 
-	dictionary@ ep = dictionary();
-	ep.set("count", "" + int(cfg["emergency_meetings_per_player"]));
-	partes.insert_last(tr("lobby.info.emergency_meetings", ep));
+		dictionary@ ep = dictionary();
+		ep.set("count", "" + int(cfg["emergency_meetings_per_player"]));
+		partes.insert_last(tr("lobby.info.emergency_meetings", ep));
 
-	partes.insert_last(tr(bool(cfg["sabotages_enabled"]) ? "lobby.info.sabotage_on" : "lobby.info.sabotage_off"));
+		partes.insert_last(tr(bool(cfg["sabotages_enabled"]) ? "lobby.info.sabotage_on" : "lobby.info.sabotage_off"));
+	}
 	// Dutos e velocidade só são ditos quando fogem do padrão: é o que muda o jogo, e "dutos
 	// liberados, velocidade 100%" em toda leitura de regras seria mais uma frase para ouvir à toa.
-	if (cfg.exists("vents_enabled") && !bool(cfg["vents_enabled"])) partes.insert_last(tr("lobby.info.vents_off"));
+	if (mode_has_rule(modo, "vents") && cfg.exists("vents_enabled") && !bool(cfg["vents_enabled"])) partes.insert_last(tr("lobby.info.vents_off"));
 	// Cores e modo cor, também só quando fogem do padrão (sorteadas, pelo nome).
 	// "Escolhidas" é o padrão desde a 0.40.0; só o contrário é dito.
 	if (cfg.exists("color_choice") && !bool(cfg["color_choice"])) partes.insert_last(tr("lobby.info.colors_random"));
 	if (cfg.exists("color_mode") && bool(cfg["color_mode"])) partes.insert_last(tr("lobby.info.color_mode_on"));
 	// Tarefas visíveis, só quando desligadas: muda o que vale como álibi, e quem entra precisa saber.
-	if (cfg.exists("visible_tasks") && !bool(cfg["visible_tasks"])) partes.insert_last(tr("lobby.info.visible_tasks_off"));
+	if (mode_has_rule(modo, "tasks") && cfg.exists("visible_tasks") && !bool(cfg["visible_tasks"])) partes.insert_last(tr("lobby.info.visible_tasks_off"));
 	// O mapa, só quando há mais de um: com um só, dizê-lo em toda leitura de regras é uma frase à toa.
 	if (usable_map_ids().length() > 1 && cfg.exists("map_name")) {
 		dictionary@ mp = dictionary();
@@ -228,18 +241,18 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 		partes.insert_last(tr("lobby.info.move_speed", sp));
 	}
 	// Servidor antigo não manda o campo: nele a revelação era sempre ligada.
-	if (cfg.exists("reveal_ejected_role")) {
+	if (classico && cfg.exists("reveal_ejected_role")) {
 		partes.insert_last(tr(bool(cfg["reveal_ejected_role"]) ? "lobby.info.reveal_on" : "lobby.info.reveal_off"));
 	}
-	if (cfg.exists("show_votes")) {
+	if (classico && cfg.exists("show_votes")) {
 		partes.insert_last(tr(bool(cfg["show_votes"]) ? "lobby.info.votes_on" : "lobby.info.votes_off"));
 	}
-	if (cfg.exists("emergency_cooldown_seconds")) {
+	if (classico && cfg.exists("emergency_cooldown_seconds")) {
 		dictionary@ ec = dictionary();
 		ec.set("seconds", seconds_text(float(cfg["emergency_cooldown_seconds"])));
 		partes.insert_last(tr("lobby.info.emergency_cooldown", ec));
 	}
-	if (cfg.exists("comms_affects_meeting")) {
+	if (classico && cfg.exists("comms_affects_meeting")) {
 		partes.insert_last(tr(bool(cfg["comms_affects_meeting"]) ? "lobby.info.comms_meeting_on" : "lobby.info.comms_meeting_off"));
 	}
 	if (cfg.exists("voice_chat")) {

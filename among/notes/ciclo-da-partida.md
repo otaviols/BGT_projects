@@ -243,6 +243,18 @@ de terminar a contagem". **O pegador é revelado a todos** (`tagger_name` no `S_
 abertura no lugar da contagem de impostores; decisão do usuário, como no original). Decisões do usuário; sonda: `probe_game_modes.nvgt` (sem rede,
 com os controles de cada regra) e `probe_game_modes_net.nvgt`.
 
+**O último sobrevivente (`GAME_MODE_LAST_STANDING`, 1.0)** é o todos lobos com a faca: TODOS são
+impostores (bots também, e o bot impostor caça qualquer um, sem temer testemunha, como no pega-pega) e
+vence o último vivo, como neutro sozinho (`win_reason "last_standing"`, o nome em `survivor` no fim, e a
+lista de impostores vai vazia - seria a sala inteira). Três regras que supunham "impostor não mata
+impostor" tiveram de abrir exceção para o modo: o `try_kill`, a presa do bot (`prey_for`) e a lista de
+parceiros do `S_GAME_START` - com ela, o cliente diria "seus parceiros são..." de todo mundo e NUNCA
+miraria neles (a mira pula os `impostor_partner_peers`). É o único modo com duto, e à escolha da sala:
+`validate()` não o desliga ali. Portas ficam de fora como em todo modo. O que cada modo mostra no
+formulário e diz na tela de regras sai de UMA função, `mode_has_rule` (lobby_config) - até a 1.0 a tela
+de regras dizia "1 impostor, 120 s de reunião" numa sala de todos lobos. Sem portas e kill de 15 s:
+decisões do usuário (2026-10-20).
+
 **O menu de votação SEGURA o laço da partida: o que ele não disser, ninguém ouve até ele fechar.** Ele
 fala o que chega pela mesma via das telas bloqueantes (`announce_background_events`, com o texto em
 `background_event_text`), e os VOTOS ficaram de fora até 2026-10-16: quem estava escolhendo em quem votar

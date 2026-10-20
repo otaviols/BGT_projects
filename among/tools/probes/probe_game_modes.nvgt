@@ -91,6 +91,70 @@ void main() {
 			lobby.winner == WINNER_NEUTRAL && lobby.win_reason == "last_wolf" && lobby.neutral_winner_peer == 1);
 	}
 
+	println("== ultimo sobrevivente ==");
+	{
+		lobby_config@ ls = get_preset("last_standing");
+		ls.sabotages_enabled = true; ls.set_role_count(ROLE_SHERIFF, 1);
+		ls.validate();
+		confere("amarra: sem sabotagem, sem papel, sem reuniao; duto ligado e kill de 15 s",
+			!ls.sabotages_enabled && ls.role_count(ROLE_SHERIFF) == 0 && !ls.meetings_allowed() && ls.vents_enabled
+			&& ls.kill_cooldown_seconds == 15.0);
+		ls.vents_enabled = false;
+		ls.validate();
+		confere("a sala pode desligar o duto", !ls.vents_enabled);
+		lobby_config@ volta = get_preset("wolves");
+		volta.vents_enabled = true;
+		volta.validate();
+		confere("controle: nos outros modos o duto continua desligado a forca", !volta.vents_enabled);
+		confere("o formulario mostra duto e kill, e esconde tarefas",
+			mode_has_rule(GAME_MODE_LAST_STANDING, "vents") && mode_has_rule(GAME_MODE_LAST_STANDING, "kill")
+			&& !mode_has_rule(GAME_MODE_LAST_STANDING, "tasks") && !mode_has_rule(GAME_MODE_LAST_STANDING, "meetings"));
+	}
+	{
+		game_state@ lobby = mesa("last_standing");
+		game_player@ a = jogador(lobby, 1, ROLE_IMPOSTOR);
+		game_player@ b = jogador(lobby, 2, ROLE_IMPOSTOR);
+		game_player@ c = jogador(lobby, 3, ROLE_IMPOSTOR);
+		a.x = 0; a.y = 0; b.x = 0.5; b.y = 0; c.x = 40; c.y = 40;
+		lobby.tick(0.05);
+		confere("tres vivos: ninguem venceu", lobby.winner == "");
+		net_packet@ ev;
+		net_packet@ reuniao;
+		confere("nao ha reuniao", !lobby.start_meeting(1, "button", reuniao));
+		confere("impostor MATA impostor", lobby.try_kill(1, 2, ev) && !b.alive);
+		lobby.tick(0.05);
+		confere("dois vivos ainda nao acaba (" + lobby.winner + ")", lobby.winner == "");
+		c.alive = false;
+		array<net_packet@>@ fim = lobby.tick(0.05);
+		confere("o ultimo vivo vence (" + lobby.winner + "/" + lobby.win_reason + ", " + lobby.neutral_winner_peer + ")",
+			lobby.winner == WINNER_NEUTRAL && lobby.win_reason == "last_standing" && lobby.neutral_winner_peer == 1);
+		net_packet@ go = null;
+		for (uint i = 0; i < fim.length(); i++) if (fim[i].type == S_GAME_OVER) @go = fim[i];
+		json_array@ imps = @go != null ? go.get_array("impostors") : null;
+		confere("o fim diz quem sobrou, e nao a lista de 'impostores'", @go != null && go.get_string("survivor") == "j1"
+			&& @imps != null && imps.length() == 0);
+	}
+	{
+		// Controle: no clássico, impostor continua não matando impostor.
+		game_state@ lobby = mesa("classic");
+		jogador(lobby, 1, ROLE_IMPOSTOR);
+		game_player@ b = jogador(lobby, 2, ROLE_IMPOSTOR);
+		jogador(lobby, 3, ROLE_CREWMATE, true);
+		net_packet@ ev;
+		confere("controle: no classico impostor nao mata impostor", !lobby.try_kill(1, 2, ev) && b.alive);
+	}
+	{
+		// O bot caça qualquer um: dois bots impostores lado a lado, um mata o outro.
+		game_state@ lobby = mesa("last_standing");
+		game_player@ a = jogador(lobby, 1, ROLE_IMPOSTOR);
+		game_player@ b = jogador(lobby, 2, ROLE_IMPOSTOR);
+		game_player@ c = jogador(lobby, 3, ROLE_IMPOSTOR);
+		a.is_bot = true; b.is_bot = true;
+		a.x = 0; a.y = 0; b.x = 0.5; b.y = 0; c.x = 40; c.y = 40;
+		for (int i = 0; i < 20; i++) lobby.tick(0.05);
+		confere("bot impostor mata outro impostor (vivos: " + lobby.alive_count() + ")", lobby.alive_count() == 2);
+	}
+
 	println("== saindo da barriga ==");
 	{
 		// Lá dentro o relógio andava, e todo mundo saía com o engolir pronto: devoração em cadeia.

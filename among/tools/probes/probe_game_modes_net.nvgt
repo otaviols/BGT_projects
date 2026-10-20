@@ -79,6 +79,23 @@ void main() {
 	for (uint i = 0; i < todos.length(); i++) todos[i].send_leave_lobby();
 	bombeia(800);
 
+	println("== ultimo sobrevivente ==");
+	array<net_packet@>@ u = comeca("last_standing", "ultimo" + sfx);
+	bool todos_impostores = true;
+	bool sem_parceiros = true;
+	for (uint i = 0; i < u.length(); i++) {
+		if (@u[i] == null || u[i].get_string("your_role") != ROLE_IMPOSTOR) todos_impostores = false;
+		json_array@ par = @u[i] != null ? u[i].get_array("impostor_partners") : null;
+		if (@par != null && par.length() > 0) sem_parceiros = false;
+	}
+	confere("todo mundo e impostor", todos_impostores);
+	confere("e ninguem ouve 'seus parceiros'", sem_parceiros);
+	confere("o inicio diz o modo, com duto e kill de 15 s", @u[0] != null && u[0].get_string("game_mode") == GAME_MODE_LAST_STANDING
+		&& u[0].get_float("kill_cooldown_seconds") == 15.0);
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].send_leave_lobby();
+	bombeia(800);
+
 	println("== trocar de modo com a sala aberta ==");
 	lobby_overrides cria;
 	todos[0].send_create_lobby("troca" + sfx, "classic", cria);

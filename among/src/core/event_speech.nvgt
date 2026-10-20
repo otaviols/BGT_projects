@@ -109,6 +109,14 @@ string game_winner_text(net_packet@ pkt) {
 	string winner = pkt.get_string("winner");
 	if (winner == "crewmates") return tr("game.crewmates_win");
 	if (winner == "impostors") return tr("game.impostors_win");
+	// Último sobrevivente: quem sobrou vem pelo nome (não há papel neutro para anunciar).
+	if (pkt.get_string("reason") == "last_standing") {
+		string vivo = pkt.get_string("survivor", "");
+		if (vivo == "") return tr("game.last_standing_nobody");
+		dictionary@ sp = dictionary();
+		sp.set("name", vivo);
+		return tr("game.last_standing_win", sp);
+	}
 	if (winner == WINNER_LOVERS) {
 		json_array@ casais = pkt.get_array("lovers");
 		if (@casais != null && casais.length() > 0) {

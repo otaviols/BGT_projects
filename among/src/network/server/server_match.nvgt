@@ -104,6 +104,8 @@ mixin class server_match_part {
 		int impostor_count = lobby.config.resolved_impostor_count(shuffled.length());
 		// Todos lobos: ninguém é impostor - cada jogador vira lobo, mais abaixo.
 		if (lobby.config.game_mode == GAME_MODE_WOLVES) impostor_count = 0;
+		// Último sobrevivente: todos são impostores, bots inclusive (o bot impostor caça qualquer um).
+		if (lobby.config.game_mode == GAME_MODE_LAST_STANDING) impostor_count = int(shuffled.length());
 		array<int>@ color_ids = all_color_ids();
 		shuffle_int_array(color_ids);
 		// Sala que deixa escolher: quem escolheu fica com a cor dele (a unicidade já foi garantida na
@@ -732,7 +734,9 @@ mixin class server_match_part {
 		// justamente pra nunca sair daqui pra um tripulante.
 		// Vai peer_id junto com o nome porque o cliente usa os ids pra nunca mirar um parceiro na
 		// hora de matar (ver a tecla de kill em game/game_loop.nvgt).
-		if (p.is_impostor) {
+		// No último sobrevivente não há time: a lista seria a sala inteira, e o cliente diria "seus
+		// parceiros são..." de quem ele tem que matar (e nunca miraria neles).
+		if (p.is_impostor && lobby.config.game_mode != GAME_MODE_LAST_STANDING) {
 			json_array@ partners = json_array();
 			for (uint j = 0; j < lobby.players.length(); j++) {
 				game_player@ other = lobby.players[j];

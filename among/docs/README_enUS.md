@@ -848,17 +848,21 @@ ones are bots.
 
 ## Match presets
 
-**Game modes.** When creating the room, the **Game mode** field picks between classic and two modes
+**Game modes.** When creating the room, the **Game mode** field picks between classic and three modes
 that change the game's rules, not just the numbers. The host can switch modes with the room open, on
 the same screen used to edit the rules: the screen then shows only what applies to the chosen mode, the
-fields go back to its defaults, and everyone in the room hears that the mode changed. Neither mode has
-meetings, reported bodies, vents, sabotage or roles:
+fields go back to its defaults, and everyone in the room hears that the mode changed. None of them has
+meetings, reported bodies, sabotage or roles, and only last man standing has vents:
 
 - **Tag:** one tagger stands still for the first 10 seconds, with a countdown for everyone; after that
   they catch every 5 seconds, and everyone walks at top speed. The crew wins by finishing the tasks -
   whoever was caught keeps doing theirs as a ghost -, and the tagger by catching everyone.
 - **All wolves:** every player is a Big Bad Wolf, and everyone swallows everyone. Whoever is swallowed
   comes back if their swallower gets swallowed by someone else. The last one standing wins.
+- **Last man standing:** everyone is an impostor, and anyone can kill anyone. There are no tasks and
+  no partners: kill before you are killed, and use the vents to escape. Whoever dies becomes a ghost and
+  watches. The last one alive wins. The kill recharges in 15 seconds, and the room can change that and
+  turn the vents off.
 
 | Preset | Players | Impostors | Tasks | Kill cooldown | Sabotage |
 |---|---|---|---|---|---|

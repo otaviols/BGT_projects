@@ -164,7 +164,8 @@ mixin class server_lobby_part {
 		// formulário zera os campos ao trocar de modo, então o que vier preenchido foi escolhido.
 		string modo_antes = lobby.config.game_mode;
 		bool troca_modo = (overrides.game_mode == GAME_MODE_CLASSIC || overrides.game_mode == GAME_MODE_TAG
-			|| overrides.game_mode == GAME_MODE_WOLVES) && overrides.game_mode != modo_antes;
+			|| overrides.game_mode == GAME_MODE_WOLVES || overrides.game_mode == GAME_MODE_LAST_STANDING)
+			&& overrides.game_mode != modo_antes;
 		if (troca_modo) @lobby.config = get_preset(overrides.game_mode);
 		overrides.apply_to(lobby.config);
 		lobby.config.validate();

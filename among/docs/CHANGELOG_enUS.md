@@ -29,6 +29,9 @@ buildings. When creating a match, choose the map. It brings:
 
 **On the usual ship, the reactor:** a new critical sabotage, fixed by two people at the same time.
 
+**A new mode, last man standing:** everyone is an impostor and can kill anyone, with no meetings or
+tasks. Use the vents to escape: the last one alive wins. It works on both maps.
+
 **Learn the game sounds:** now by map and by category (footsteps, ambience, markers, the match, roles
 and menus).
 

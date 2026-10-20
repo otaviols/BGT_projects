@@ -553,7 +553,15 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		for (uint i = 0; i < pending_events.length(); i++) events.insert_last(pending_events[i]);
 		pending_events.resize(0);
 
-		if (winner == "" && config.game_mode == GAME_MODE_WOLVES) {
+		if (winner == "" && config.game_mode == GAME_MODE_LAST_STANDING) {
+			// Último sobrevivente: todos são impostores, e vence quem sobrar - a mesma regra do todos lobos,
+			// com a faca no lugar da barriga. O vencedor vai como neutro sozinho: não há time que vença.
+			if (alive_count() <= 1) {
+				winner = WINNER_NEUTRAL;
+				win_reason = "last_standing";
+				for (uint i = 0; i < players.length(); i++) if (players[i].alive) neutral_winner_peer = players[i].peer_id;
+			}
+		} else if (winner == "" && config.game_mode == GAME_MODE_WOLVES) {
 			// Todos lobos: vence o ÚLTIMO de pé (decisão do usuário). Sem tarefa, sem maioria - só sobrar.
 			if (alive_count() <= 1) {
 				winner = WINNER_NEUTRAL;
@@ -626,6 +634,14 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 				impostor_names.add(players[i].named_by_color
 					? players[i].username + " (" + players[i].public_name() + ")"
 					: players[i].username);
+			}
+			// No último sobrevivente todos eram impostores: a lista seria a sala inteira. No lugar dela vai o
+			// nome de quem sobrou, que é o que o fim tem a dizer.
+			if (config.game_mode == GAME_MODE_LAST_STANDING) {
+				@impostor_names = json_array();
+				game_player@ vivo = find_player(neutral_winner_peer);
+				if (@vivo != null && neutral_winner_peer != 0) go.set_string("survivor", vivo.named_by_color
+					? vivo.username + " (" + vivo.public_name() + ")" : vivo.username);
 			}
 			go.set_array("impostors", impostor_names);
 			// E quem era NEUTRO, com o papel: o mesmo fechamento da história. Um Bobo que ninguém soube

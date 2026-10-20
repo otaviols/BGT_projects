@@ -67,7 +67,8 @@ mixin class state_kill_part {
 		// Impostor não mata impostor. Além de não fazer sentido (são do mesmo time e se conhecem
 		// desde o começo da partida), um mata-mata entre parceiros por engano entregava a rodada
 		// inteira: some um impostor e a tripulação ganha de graça.
-		if (killer_is_impostor && target.is_impostor) return false;
+		// No último sobrevivente é o contrário: todos são impostores, e matar qualquer um é o jogo.
+		if (killer_is_impostor && target.is_impostor && config.game_mode != GAME_MODE_LAST_STANDING) return false;
 
 		// Quem atira pela TRIPULAÇÃO e acerta um TRIPULANTE morre no lugar dele. É o que faz o xerife ser
 		// uma aposta e não uma arma: matar o inocente custa a própria vida, e a tripulação perde duas
