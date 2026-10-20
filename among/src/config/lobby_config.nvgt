@@ -27,13 +27,19 @@ int default_impostor_count(uint player_count) {
 // nisto": um lobby_config tem sempre um valor em cada campo, então não haveria como distinguir
 // "quero 10 jogadores" de "deixa como o preset manda". Aqui -1 (e "" para a sabotagem) é justamente
 // essa ausência, e é o servidor que resolve o valor final.
+// O campo "quantos neutros" VAZIO: cada neutro entra pelas próprias vagas (ver lobby_overrides.neutral_count).
+const int NEUTRALS_BY_ROLE = -2;
+
 class lobby_overrides {
 	int max_players = -1;
 	int impostor_count = -1;
 	int task_count_per_crewmate = -1;
 	int long_task_count = -1;
 	// Quantas vagas de NEUTRO a partida tem, sorteadas entre os neutros ligados (ver draw_special_roles).
-	// -1 = não mexi; 0 = o jeito de antes (cada neutro pelas próprias vagas).
+	// -1 = não mexi; NEUTRALS_BY_ROLE = o campo vazio (cada neutro pelas próprias vagas); 0 = NENHUM neutro;
+	// N = N vagas. Até 2026-10-20 o 0 era "o jeito de antes", e quem digitava 0 para não ter neutros os
+	// via sair do mesmo jeito (relato do usuário) - por isso o valor viaja numa chave nova, `neutrals`:
+	// o `neutral_count` = 0 de um preset salvo ou de um cliente anterior continua querendo dizer "vazio".
 	int neutral_count = -1;
 	float kill_cooldown_seconds = -1.0;
 	float meeting_time_seconds = -1.0;
@@ -88,7 +94,8 @@ class lobby_overrides {
 		if (impostor_count > 0) cfg.impostor_count = impostor_count;
 		if (task_count_per_crewmate > 0) cfg.task_count_per_crewmate = uint(task_count_per_crewmate);
 		if (long_task_count >= 0) cfg.long_task_count = uint(long_task_count);
-		if (neutral_count >= 0) cfg.neutral_count = uint(neutral_count);
+		if (neutral_count >= 0) cfg.neutral_count = neutral_count;
+		else if (neutral_count == NEUTRALS_BY_ROLE) cfg.neutral_count = -1;
 		if (kill_cooldown_seconds > 0.0) cfg.kill_cooldown_seconds = kill_cooldown_seconds;
 		if (meeting_time_seconds > 0.0) cfg.meeting_time_seconds = meeting_time_seconds;
 		if (emergency_meetings_per_player > 0) cfg.emergency_meetings_per_player = uint(emergency_meetings_per_player);
@@ -123,7 +130,9 @@ class lobby_overrides {
 		pkt.set_int("impostor_count", impostor_count);
 		pkt.set_int("task_count_per_crewmate", task_count_per_crewmate);
 		pkt.set_int("long_task_count", long_task_count);
-		pkt.set_int("neutral_count", neutral_count);
+		pkt.set_int("neutrals", neutral_count);
+		// O nome antigo, para servidor anterior: ele só entende N > 0 (o resto, para ele, é "vazio").
+		pkt.set_int("neutral_count", neutral_count > 0 ? neutral_count : 0);
 		pkt.set_float("kill_cooldown_override", kill_cooldown_seconds);
 		pkt.set_float("meeting_time_seconds", meeting_time_seconds);
 		pkt.set_int("emergency_meetings_per_player", emergency_meetings_per_player);
@@ -196,7 +205,12 @@ class lobby_overrides {
 		impostor_count = pkt.get_int("impostor_count", -1);
 		task_count_per_crewmate = pkt.get_int("task_count_per_crewmate", -1);
 		long_task_count = pkt.get_int("long_task_count", -1);
-		neutral_count = pkt.get_int("neutral_count", -1);
+		if (pkt.exists("neutrals")) neutral_count = pkt.get_int("neutrals", -1);
+		else {
+			// Preset salvo ou cliente de antes de 2026-10-20: 0 era "vazio".
+			int antigo = pkt.get_int("neutral_count", -1);
+			neutral_count = antigo > 0 ? antigo : (antigo == 0 ? NEUTRALS_BY_ROLE : -1);
+		}
 		kill_cooldown_seconds = pkt.get_float("kill_cooldown_override", -1.0);
 		meeting_time_seconds = pkt.get_float("meeting_time_seconds", -1.0);
 		// Configuração salva antes da 0.47 (e cliente anterior) manda os dois tempos de antes: a soma é
@@ -234,8 +248,8 @@ class lobby_config {
 	uint long_task_count = DEFAULT_LONG_TASK_COUNT;
 	// Quantas vagas de NEUTRO a partida tem (pedido do usuário, 2026-10-14). Cada vaga sorteia um dos neutros
 	// ligados, e o "quantos" de cada um vira o máximo dele - assim o anfitrião liga vários e a partida varia,
-	// sem configurar papel por papel. Zero = o jeito de antes: cada neutro entra pelas próprias vagas.
-	uint neutral_count = 0;
+	// sem configurar papel por papel. -1 = o jeito de antes (cada neutro pelas próprias vagas); 0 = nenhum.
+	int neutral_count = -1;
 	float kill_cooldown_seconds = KILL_COOLDOWN_SECONDS;
 	float meeting_time_seconds = MEETING_TIME_SECONDS;
 	uint emergency_meetings_per_player = DEFAULT_EMERGENCY_MEETINGS_PER_PLAYER;
@@ -406,7 +420,7 @@ class lobby_config {
 			if (role_counts.get_keys().length() > 0) changed = true;
 			role_counts.delete_all();
 			role_chances.delete_all();
-			neutral_count = 0;
+			neutral_count = -1;
 		}
 		if (game_mode == GAME_MODE_TAG && impostor_count != 1) { impostor_count = 1; changed = true; }
 		if (max_players < MIN_PLAYERS) { max_players = MIN_PLAYERS; changed = true; }
@@ -420,7 +434,8 @@ class lobby_config {
 		// menos tarefas do que o anfitrião pediu sem explicar por quê.
 		if (long_task_count > task_count_per_crewmate) { long_task_count = task_count_per_crewmate; changed = true; }
 		// Mais vagas de neutro do que gente cabe na sala é engano de digitação, como nos papéis (abaixo).
-		if (neutral_count > max_players) { neutral_count = max_players; changed = true; }
+		if (neutral_count > int(max_players)) { neutral_count = int(max_players); changed = true; }
+		if (neutral_count < -1) { neutral_count = -1; changed = true; }
 		if (kill_cooldown_seconds < 5.0) { kill_cooldown_seconds = 5.0; changed = true; }
 		if (meeting_time_seconds < 10.0) { meeting_time_seconds = 10.0; changed = true; }
 		if (emergency_cooldown_seconds < 0.0) { emergency_cooldown_seconds = 0.0; changed = true; }
@@ -507,7 +522,7 @@ class lobby_config {
 		o.set("impostors_automatic", impostor_count == -1);
 		o.set("task_count_per_crewmate", int(task_count_per_crewmate));
 		o.set("long_task_count", int(long_task_count));
-		o.set("neutral_count", int(neutral_count));
+		o.set("neutral_count", neutral_count);
 		o.set("kill_cooldown_seconds", kill_cooldown_seconds);
 		o.set("meeting_time_seconds", meeting_time_seconds);
 		// Para clientes anteriores à 0.47, que leem os dois campos na tela de regras.

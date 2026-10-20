@@ -166,6 +166,7 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 		partes.insert_last(papeis);
 		// As vagas de neutro mudam a leitura da linha de cima: com elas, os neutros listados são os que
 		// PODEM sair, e não os que vão sair (ver lobby_config.neutral_count).
+		if (cfg.exists("neutral_count") && int(cfg["neutral_count"]) == 0) partes.insert_last(tr("lobby.info.no_neutrals"));
 		if (cfg.exists("neutral_count") && int(cfg["neutral_count"]) > 0) {
 			dictionary@ np = dictionary();
 			np.set("count", "" + int(cfg["neutral_count"]));
@@ -214,7 +215,7 @@ array<string>@ lobby_config_lines(json_object@ cfg) {
 	// Tarefas visíveis, só quando desligadas: muda o que vale como álibi, e quem entra precisa saber.
 	if (cfg.exists("visible_tasks") && !bool(cfg["visible_tasks"])) partes.insert_last(tr("lobby.info.visible_tasks_off"));
 	// O mapa, só quando há mais de um: com um só, dizê-lo em toda leitura de regras é uma frase à toa.
-	if (MAP_IDS.length() > 1 && cfg.exists("map_name")) {
+	if (usable_map_ids().length() > 1 && cfg.exists("map_name")) {
 		dictionary@ mp = dictionary();
 		mp.set("name", tr(map_name_key(string(cfg["map_name"]))));
 		partes.insert_last(tr("lobby.info.map", mp));

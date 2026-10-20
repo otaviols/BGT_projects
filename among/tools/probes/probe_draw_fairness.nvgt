@@ -132,10 +132,16 @@ void main() {
 		// Cada um dos 4 sai em metade das partidas (2 vagas de 4).
 		confere(ids_neutros[i] + ": " + c + " (esperado ~" + (R_NEUTROS / 2) + ")", perto(c, float(R_NEUTROS) / 2.0));
 	}
-	array<string> controle = draw_special_roles(10, 1, dez_sem_bots, neutros, chances, 0);
+	// -1 é o campo VAZIO: cada neutro pelas próprias vagas, como antes.
+	array<string> controle = draw_special_roles(10, 1, dez_sem_bots, neutros, chances, -1);
 	int no_controle = 0;
 	for (uint i = 0; i < controle.length(); i++) if (controle[i] != "" && role_for(controle[i]).team == TEAM_NEUTRAL) no_controle++;
-	confere("controle: sem vagas, os 4 neutros saem como antes (" + no_controle + ")", no_controle == 4);
+	confere("controle: campo vazio, os 4 neutros saem como antes (" + no_controle + ")", no_controle == 4);
+	// 0 é NENHUM neutro (relato do usuário, 2026-10-20: o 0 deixava sair os neutros ligados).
+	array<string> zero = draw_special_roles(10, 1, dez_sem_bots, neutros, chances, 0);
+	int no_zero = 0;
+	for (uint i = 0; i < zero.length(); i++) if (zero[i] != "" && role_for(zero[i]).team == TEAM_NEUTRAL) no_zero++;
+	confere("0 vagas: nenhum neutro (" + no_zero + ")", no_zero == 0);
 	dictionary so_bobo;
 	so_bobo.set(ROLE_JESTER, 1);
 	array<string> poucos = draw_special_roles(10, 1, dez_sem_bots, so_bobo, chances, 3);

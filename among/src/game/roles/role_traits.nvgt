@@ -750,11 +750,12 @@ void shuffle_player_order(array<int>@ ordem) {
 //      chance dele. O "quantos" de cada neutro vira o máximo dele; o que se esgota sai do sorteio. Zero
 //      é o jeito de antes, e é o que toda sala e configuração salva anterior tem.
 array<string> draw_special_roles(uint player_count, uint impostor_count, const array<bool>&in is_bot,
-		const dictionary&in role_counts, const dictionary&in role_chances, uint neutral_slots = 0) {
+		const dictionary&in role_counts, const dictionary&in role_chances, int neutral_slots = -1) {
 	array<string> vagas_sorteadas;
 	for (uint r = 0; r < CONFIGURABLE_ROLE_IDS.length(); r++) {
 		string rid = CONFIGURABLE_ROLE_IDS[r];
-		if (neutral_slots > 0 && role_for(rid).team == TEAM_NEUTRAL) continue; // entram pelas vagas de neutro
+		// Com as vagas de neutro definidas (0 inclusive: "nenhum"), os neutros só entram por elas.
+		if (neutral_slots >= 0 && role_for(rid).team == TEAM_NEUTRAL) continue;
 		int vagas = 0;
 		if (!role_counts.get(rid, vagas) || vagas <= 0) continue;
 		int chance = 100;
@@ -775,7 +776,7 @@ array<string> draw_special_roles(uint player_count, uint impostor_count, const a
 			neutros.insert_last(rid);
 			restam.insert_last(vagas);
 		}
-		for (uint s = 0; s < neutral_slots; s++) {
+		for (int s = 0; s < neutral_slots; s++) {
 			array<int> candidatos;
 			for (uint k = 0; k < neutros.length(); k++) if (restam[k] > 0) candidatos.insert_last(int(k));
 			if (candidatos.length() == 0) break; // todos esgotados: as vagas que sobram não saem

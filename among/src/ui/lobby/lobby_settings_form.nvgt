@@ -161,8 +161,8 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	// Quantos neutros, ao lado dos impostores: é a mesma pergunta - contra quem se joga (pedido do usuário,
 	// 2026-10-14; ficou um dia na tela de papéis, e lá a tela misturava "quais" com "quantos"). Zero não é
 	// mostrado: vazio é o jeito de antes, cada neutro pelos próprios campos.
-	int vagas_neutro = @current != null && current.exists("neutral_count") ? int(current["neutral_count"]) : 0;
-	int f_neutrals = f.create_input_box(tr("lobby.neutral_count_field"), vagas_neutro > 0 ? "" + vagas_neutro : "");
+	int vagas_neutro = @current != null && current.exists("neutral_count") ? int(current["neutral_count"]) : -1;
+	int f_neutrals = f.create_input_box(tr("lobby.neutral_count_field"), vagas_neutro >= 0 ? "" + vagas_neutro : "");
 	// Papéis especiais e modificadores numa tela À PARTE cada um, aberta por um botão logo depois dos
 	// impostores (é a mesma pergunta: quem joga contra quem). Eram dois campos por papel aqui mesmo, e com
 	// a leva de papéis da 0.50.0 o formulário passou dos 50 controles que o audio_form aceita: os campos
@@ -322,9 +322,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 					r.ov.role_chances.set(ids_da_sala[i], escolha.chance(ids_da_sala[i]));
 				}
 				r.ov.death_modifiers = escolha.death_modifiers;
-				// Sempre mandado, com 0 quando vazio, pela mesma razão dos papéis: é como se desliga.
-				int vagas = text_to_int_or_default(f.get_text(f_neutrals));
-				r.ov.neutral_count = vagas > 0 ? vagas : 0;
+				// Sempre mandado, pela mesma razão dos papéis: é como se desliga. Vazio = cada neutro pelas
+				// próprias vagas; 0 = nenhum neutro (o que o 0 parece dizer, e até 2026-10-20 não dizia).
+				string texto_vagas = f.get_text(f_neutrals).trim_whitespace();
+				int vagas = text_to_int_or_default(texto_vagas);
+				r.ov.neutral_count = texto_vagas == "" || vagas < 0 ? NEUTRALS_BY_ROLE : vagas;
 			}
 			r.ov.task_count_per_crewmate = text_to_int_or_default(visible_text(f, f_tasks));
 			r.ov.long_task_count = text_to_int_or_default(visible_text(f, f_long_tasks));
