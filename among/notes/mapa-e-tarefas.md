@@ -93,9 +93,14 @@ pelo `doors_opened_count` do cliente). Sonda: `probe_door_panel`.
 sozinha.** Quem entra vivo dispara `tick_decontamination` (`state_ship`), que fecha a sala por
 `DECONTAMINATION_SECONDS` com o pacote de portas de sempre, marcado `decontamination` (o cliente toca o
 spray e diz a quem está dentro por que está preso, em vez de "portas trancadas"). Não há regra de passo
-nova: é o `door_blocks`. Quem acabou de passar fica em `decontaminated_peers` até sair, para não ser preso
-de novo ao abrir - e rodada nova só começa com a câmara livre deles, senão quem entra atrás prenderia
-quem está saindo (quem entra nesse meio-tempo passa junto). A câmara não tem painel de porta
+nova: é o `door_blocks`. O que acontece ao abrir está logo abaixo.
+
+**A câmara é curta (5) e a saída tem prazo (`DECONTAMINATION_EXIT_SECONDS`).** A primeira versão tinha 22 de
+comprimento e isentava quem acabava de passar ATÉ ELE SAIR: quem vinha atrás passava junto sem ser preso, e
+alguém parado lá dentro deixava a câmara aberta para todo mundo (teste com amigos, 2026-10-20). Agora há um
+corredor de cada lado, a câmara tem 5, e ao abrir quem estava dentro tem 3 s para sair; depois, quem estiver
+lá começa uma rodada nova. O prazo conta no tempo da PARTIDA (delta), não no relógio - a sonda roda no tempo
+dela. E esbarrar na câmara diz "em uso, espere", não o "Enter abre o painel" das portas. A câmara não tem painel de porta
 (`door_panel_at` a pula). Sondas: `probe_decontamination` e o caso dela na `probe_match_packets`.
 
 **Um tipo pode ter VÁRIAS correntes, e a escolhida mora no JOGADOR.** O destino saía de

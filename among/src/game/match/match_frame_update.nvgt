@@ -127,6 +127,13 @@ mixin class match_frame_update_part {
 
 	void tick_timers(float delta) {
 		mui.tick_vote_timer();
+		// A espera do Wi-Fi acabou: avisa, com o som dele conectando, que dá para voltar e religar.
+		if (wifi_ready_notice_due()) {
+			ui_sound(SND_TASK_BEACON_REBOOT_WIFI);
+			string pronto = tr("task.reboot_wifi.ready");
+			speak(pronto, false);
+			events_log.add("", pronto);
+		}
 		// A voz só é posicionada para quem está VIVO e andando pela nave. Decidido a cada quadro, e
 		// não em cada transição, porque são três transições (morrer, começar reunião, acabar
 		// votação) e esquecer uma deixa o jogador num estado que nada mais corrige: na reunião todos
@@ -332,7 +339,10 @@ mixin class match_frame_update_part {
 					if (map.door_blocks(my_x, my_y, new_x, new_y)) {
 						// Com painel (a Base Polar), o aviso diz que dá para abrir - senão a porta parece igual à de
 						// sempre e ninguém tenta.
-						speak(tr(map.doors_have_panel ? "game.door_closed_panel" : "game.door_closed"));
+						// A câmara de descontaminação não tem painel: é esperar a rodada de quem está lá.
+						bool camara = map.decontamination_zone != "" && map.is_door_closed(map.decontamination_zone)
+							&& (map.room_id_at(my_x, my_y) == map.decontamination_zone || map.room_id_at(new_x, new_y) == map.decontamination_zone);
+						speak(tr(camara ? "game.decontamination_busy" : map.doors_have_panel ? "game.door_closed_panel" : "game.door_closed"));
 						audio.play_door_bump(my_x, my_y);
 					} else {
 						audio.play_wall_bump(my_x, my_y);

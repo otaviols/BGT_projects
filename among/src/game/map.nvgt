@@ -926,12 +926,15 @@ game_map@ build_polar_base_map() {
 	m.zones.insert_last(map_zone("laboratory", "room.laboratory", 44, -22, 9, 7, "Tile"));
 	// A descontaminação liga o laboratório aos espécimes de ponta a ponta (y -15 a 7), sem corredor: é
 	// uma sala de passagem, e é nela que um dia a porta vai prender quem passa.
-	m.zones.insert_last(map_zone("decontamination", "room.decontamination", 44, -4, 4, 11, "Tile"));
+	// A câmara é CURTA (5 de comprimento), com um corredor de cada lado: com 22, como era, quem acabava de
+	// passar levava uns 10 s para sair, e nesse tempo quem entrava atrás passava junto sem ser preso (teste
+	// com amigos, 2026-10-20). Os corredores seguem a convenção dos nomes, que é o que os bots seguem.
+	m.zones.insert_last(map_zone("corridor_laboratory_decontamination", "corridor.decontamination", 44, -11, 2, 4, "Tile", true));
+	m.zones.insert_last(map_zone("decontamination", "room.decontamination", 44, -4.5, 3, 2.5, "Tile"));
+	m.zones.insert_last(map_zone("corridor_decontamination_specimen", "corridor.decontamination", 44, 2.5, 2, 4.5, "Tile", true));
 	m.zones.insert_last(map_zone("specimen", "room.specimen", 44, 14, 8, 7, "Tile"));
 	// Salas encostadas sem corredor: a convenção do nome não as liga, e sem isto os bots não acham caminho
 	// (ver zone_link).
-	m.extra_links.insert_last(zone_link("laboratory", "decontamination"));
-	m.extra_links.insert_last(zone_link("decontamination", "specimen"));
 
 	// O lado de fora: caminhos de NEVE entre os prédios, com nome próprio (o lugar para onde levam).
 	m.zones.insert_last(map_zone("corridor_dropship_office", "outside.dropship", 0, -36.5, 3, 7.5, "SnowTile", true));
@@ -1070,7 +1073,7 @@ game_map@ build_polar_base_map() {
 	m.objects.insert_last(map_object("ambient_storage", "room.polar_storage", 0, 8, "storage", OBJ_DECORATION, SND_POLAR_BASE_STORAGE));
 	m.objects.insert_last(map_object("ambient_seismic", "room.seismic", 0, 34, "seismic", OBJ_DECORATION, SND_POLAR_BASE_SEISMIC));
 	m.objects.insert_last(map_object("ambient_laboratory", "room.laboratory", 44, -22, "laboratory", OBJ_DECORATION, SND_POLAR_BASE_LABORATORY));
-	m.objects.insert_last(map_object("ambient_decontamination", "room.decontamination", 44, -4, "decontamination", OBJ_DECORATION, SND_POLAR_BASE_DECONTAMINATION));
+	m.objects.insert_last(map_object("ambient_decontamination", "room.decontamination", 44, -4.5, "decontamination", OBJ_DECORATION, SND_POLAR_BASE_DECONTAMINATION));
 	m.objects.insert_last(map_object("ambient_specimen", "room.specimen", 44, 14, "specimen", OBJ_DECORATION, SND_POLAR_BASE_SPECIMEN));
 
 	// O vento, em cada caminho de neve: é ele, mais o passo na neve, que diz "você está do lado de fora".
@@ -1084,5 +1087,7 @@ game_map@ build_polar_base_map() {
 	// Os corredores de dentro levam o som de passagem, como na nave.
 	m.objects.insert_last(map_object("passage_office_admin", "corridor", 13, -22, "corridor_office_admin", OBJ_DECORATION, SND_PASSAGE));
 	m.objects.insert_last(map_object("passage_admin_laboratory", "corridor", 33, -22, "corridor_admin_laboratory", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_laboratory_decontamination", "corridor", 44, -11, "corridor_laboratory_decontamination", OBJ_DECORATION, SND_PASSAGE));
+	m.objects.insert_last(map_object("passage_decontamination_specimen", "corridor", 44, 2.5, "corridor_decontamination_specimen", OBJ_DECORATION, SND_PASSAGE));
 	return m;
 }

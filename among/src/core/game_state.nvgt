@@ -133,9 +133,10 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	array<string> sabotage_hold_panels;
 	array<uint64> sabotage_hold_peers;
 	float sabotage_hold_together = 0.0;
-	// Quem já passou pela rodada da câmara de descontaminação e ainda está dentro dela: ao abrir, essa
-	// gente sai andando, e não pode ser presa de novo por quem entra atrás (ver tick_decontamination).
-	array<uint64> decontaminated_peers;
+	// A câmara de descontaminação (ver tick_decontamination): se a rodada está trancada agora, e até quando
+	// quem acabou de passar pode sair sem ser preso de novo.
+	bool decontamination_running = false;
+	float decontamination_exit_left = 0.0;
 
 	// --- Câmeras de segurança ---
 	// Quem está no posto agora (0 = livre) e para qual sala ele aponta.
@@ -431,7 +432,8 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		sabotage_cooldown_remaining = 0.0;
 		sabotage_fixed_panels.resize(0);
 		clear_sabotage_holds();
-		decontaminated_peers.resize(0);
+		decontamination_running = false;
+		decontamination_exit_left = 0.0;
 		oxygen_code = "";
 		camera_user_peer = 0;
 		camera_room_id = "";
@@ -469,7 +471,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		if (state == "in_progress") {
 			array<string>@ reopened = map.tick_doors(delta_seconds);
 			if (reopened.length() > 0) events.insert_last(build_doors_packet(reopened, false));
-			tick_decontamination(events);
+			tick_decontamination(delta_seconds, events);
 		}
 
 		if (sabotage_cooldown_remaining > 0.0) {

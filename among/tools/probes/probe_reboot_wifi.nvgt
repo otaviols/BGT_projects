@@ -62,6 +62,15 @@ void main() {
 	confere("passados 45 s, pode religar", wifi_wait_left_ms() == 0);
 	g_wifi_turned_off_at = 0;
 
+	println("== o aviso de pronto ==");
+	g_wifi_turned_off_at = ticks() - 10000;
+	g_wifi_ready_announced = false;
+	confere("no meio da espera, nao avisa", !wifi_ready_notice_due());
+	g_wifi_turned_off_at = ticks() - 46000;
+	confere("acabou a espera: avisa", wifi_ready_notice_due());
+	confere("e so uma vez", !wifi_ready_notice_due());
+	reset_wifi_wait();
+
 	println("== no mapa ==");
 	game_map@ base = build_map(MAP_POLAR_BASE);
 	map_object@ off = base.find_object("task_wifi_off");

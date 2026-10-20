@@ -386,6 +386,10 @@ const float DOORS_CLOSED_SECONDS = 12.0;
 const float DOORS_CLOSED_SECONDS_WITH_PANEL = 20.0;
 // A câmara de descontaminação (Base Polar): quanto tempo ela prende quem entrou, do fechar ao abrir.
 const float DECONTAMINATION_SECONDS = 5.0;
+// Depois que a câmara abre, quanto tempo quem estava dentro tem para sair sem ser preso de novo - e quem
+// entra nesse meio-tempo passa junto. Passado isso, quem estiver dentro (parado ou entrando) começa uma
+// rodada nova: antes, alguém parado lá dentro deixava a câmara aberta para todo mundo.
+const float DECONTAMINATION_EXIT_SECONDS = 3.0;
 // A que distância da passagem trancada se alcança o painel dela.
 const float DOOR_PANEL_RANGE = 2.0;
 const float DOORS_COOLDOWN_SECONDS = 25.0;

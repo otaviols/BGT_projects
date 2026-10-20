@@ -433,7 +433,7 @@ void main() {
 	println("== a camara de descontaminacao (Base Polar) ==");
 	// Dentro da câmara quando ela tranca: o jogo diz POR QUE está preso (e não "portas trancadas", que
 	// faria pensar no impostor), e ela abre pelo pacote de sempre.
-	match_session@ camara = nova_partida(ROLE_CREWMATE, "", "", MAP_POLAR_BASE, 44.0, -13.0);
+	match_session@ camara = nova_partida(ROLE_CREWMATE, "", "", MAP_POLAR_BASE, 44.0, -4.5);
 	net_packet@ tranca = net_packet(S_DOORS_STATE);
 	json_array@ zc = json_array(); zc.add("decontamination");
 	tranca.set_bool("closed", true); tranca.set_array("zones", zc); tranca.set_bool("decontamination", true);

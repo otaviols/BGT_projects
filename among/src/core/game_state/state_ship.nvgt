@@ -53,31 +53,32 @@ mixin class state_ship_part {
 	// durante a rodada espera do lado de fora e ganha a rodada inteira dele depois: entrar no meio e ficar
 	// preso um segundo só, pela rodada de outro, não faria sentido (o usuário, 2026-10-19). Quem entra
 	// junto divide a rodada - e fica preso junto, inclusive com o impostor.
-	void tick_decontamination(array<net_packet@>@ events) {
+	//
+	// Ao abrir, quem estava dentro tem DECONTAMINATION_EXIT_SECONDS para sair sem ser preso de novo (e quem
+	// entra nesse meio-tempo passa junto). Depois, qualquer um lá dentro começa a rodada seguinte. A
+	// primeira versão isentava quem tinha passado ATÉ ELE SAIR: numa câmara comprida, ou com alguém parado
+	// dentro, a câmara ficava aberta para todo mundo (teste com amigos, 2026-10-20).
+	void tick_decontamination(float delta_seconds, array<net_packet@>@ events) {
 		string camara = map.decontamination_zone;
 		if (camara == "") return;
-		// Quem já passou deixa de ser "já passou" ao sair da câmara (ou morrer, ou sumir).
-		for (int i = int(decontaminated_peers.length()) - 1; i >= 0; i--) {
-			game_player@ p = find_player(decontaminated_peers[i]);
-			if (@p == null || !p.alive || map.room_id_at(p.x, p.y) != camara) decontaminated_peers.remove_at(i);
+		bool fechada = map.is_door_closed(camara);
+		if (decontamination_running && !fechada) {
+			decontamination_running = false;
+			decontamination_exit_left = DECONTAMINATION_EXIT_SECONDS;
 		}
-		if (map.is_door_closed(camara)) return; // rodando (ou trancada pelo impostor)
-		array<uint64> dentro;
-		bool alguem_novo = false;
+		if (fechada) return; // rodando (ou trancada pelo impostor)
+		// Quem acabou de passar está saindo. No tempo da PARTIDA, como o resto do servidor.
+		if (decontamination_exit_left > 0.0) { decontamination_exit_left -= delta_seconds; return; }
+		bool alguem = false;
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ p = players[i];
 			// Fantasma não é preso (atravessa porta), e quem está no duto não está na sala.
 			if (!p.alive || p.vented || p.swallowed() || map.room_id_at(p.x, p.y) != camara) continue;
-			dentro.insert_last(p.peer_id);
-			if (decontaminated_peers.find(p.peer_id) < 0) alguem_novo = true;
+			alguem = true;
+			break;
 		}
-		// Só começa rodada nova com a câmara livre de quem acabou de passar: senão quem entra atrás
-		// prenderia de novo quem ainda está saindo. Quem entrar nesse meio-tempo passa junto com eles.
-		bool saindo = false;
-		for (uint i = 0; i < dentro.length(); i++) if (decontaminated_peers.find(dentro[i]) >= 0) saindo = true;
-		if (!alguem_novo) return;
-		for (uint i = 0; i < dentro.length(); i++) if (decontaminated_peers.find(dentro[i]) < 0) decontaminated_peers.insert_last(dentro[i]);
-		if (saindo) return;
+		if (!alguem) return;
+		decontamination_running = true;
 		array<string> zonas = {camara};
 		map.close_doors(zonas, DECONTAMINATION_SECONDS);
 		net_packet@ pkt = build_doors_packet(zonas, true);

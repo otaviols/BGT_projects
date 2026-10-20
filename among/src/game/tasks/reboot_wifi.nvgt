@@ -34,6 +34,23 @@ uint64 wifi_wait_left_ms() {
 	return passou >= total ? 0 : total - passou;
 }
 
+// O aviso de "já dá para religar" (teste com amigos, 2026-10-20: sem ele, a pessoa tinha que voltar às
+// comunicações para descobrir se os 45 s tinham passado). Dito UMA vez, no quadro em que a espera acaba.
+bool g_wifi_ready_announced = true;
+
+// Chamado a cada quadro da partida (match_session.tick_timers). True no quadro em que avisar.
+bool wifi_ready_notice_due() {
+	if (g_wifi_ready_announced || g_wifi_turned_off_at == 0 || wifi_wait_left_ms() > 0) return false;
+	g_wifi_ready_announced = true;
+	return true;
+}
+
+// Começo de partida: a espera de uma partida anterior não vale nesta.
+void reset_wifi_wait() {
+	g_wifi_turned_off_at = 0;
+	g_wifi_ready_announced = true;
+}
+
 sound@ wifi_notch(int notch) {
 	// Entalhe 0 é o topo (mais agudo), WIFI_NOTCHES-1 é o fundo (mais grave).
 	return task_sound(SND_WIFI_SLIDER, 0.0, 100.0 * pow(2.0, -float(notch) * WIFI_SEMITONES_PER_NOTCH / 12.0));
@@ -46,6 +63,8 @@ bool run_reboot_wifi_task(game_client@ client, uint phase) {
 		speak_hint("task.reboot_wifi.instructions_off");
 		if (!wifi_move_lever(client, true)) return false;
 		g_wifi_turned_off_at = ticks();
+		// Sem conexão (treino) as duas etapas rodam seguidas: não há espera a avisar.
+		g_wifi_ready_announced = offline;
 		wait_for_task_sound(task_sound(SND_WIFI_CLOSE), client, 1500);
 		return true;
 	}
@@ -59,6 +78,7 @@ bool run_reboot_wifi_task(game_client@ client, uint phase) {
 	speak_hint("task.reboot_wifi.instructions_on");
 	if (!wifi_move_lever(client, false)) return false;
 	g_wifi_turned_off_at = 0;
+	g_wifi_ready_announced = true;
 	wait_for_task_sound(task_sound(SND_WIFI_OPEN), client, 2000);
 	return true;
 }

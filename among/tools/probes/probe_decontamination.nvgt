@@ -5,9 +5,11 @@
 // Confere:
 //   1. quem entra tranca a câmara: dentro não sai, fora não entra, e o pacote pede o spray;
 //   2. abre sozinha depois de DECONTAMINATION_SECONDS;
-//   3. quem acabou de passar não é preso de novo, nem por quem entra atrás dele;
+//   3. ao abrir, quem estava dentro tem DECONTAMINATION_EXIT_SECONDS para sair - e quem entra nesse tempo
+//      passa junto; passado isso, quem ficou lá dentro começa a rodada seguinte (antes, alguém parado lá
+//      dentro deixava a câmara aberta para todo mundo - teste com amigos, 2026-10-20);
 //   4. com a câmara livre, o próximo ganha a rodada inteira;
-//   5. fantasma não aciona, a câmara não tem painel de porta, e a nave de sempre não tem câmara.
+//   5. fantasma não aciona, a câmara não tem painel nem se tranca pelo F, e a nave de sempre não tem câmara.
 #include "../../src/core/game_state.nvgt"
 #include "../../src/game/roles/role_traits.nvgt"
 
@@ -18,9 +20,11 @@ void confere(const string&in o_que, bool ok) {
 }
 
 const float DT = 0.05;
-// A câmara vai de y -15 (o laboratório) a 7 (os espécimes), em x 40 a 48.
-const float FORA_X = 44, FORA_Y = -18;   // no laboratório, diante da câmara
-const float DENTRO_X = 44, DENTRO_Y = -13;
+// A câmara vai de y -7 a -2 (x 41 a 47), com um corredor de cada lado: do laboratório (y -15 a -7) e dos
+// espécimes (y -2 a 7).
+const float FORA_X = 44, FORA_Y = -9;    // no corredor do laboratório, diante da câmara
+const float DENTRO_X = 44, DENTRO_Y = -4.5;
+const float LONGE_X = 44, LONGE_Y = 5;   // no corredor dos espécimes, já do outro lado
 
 game_state@ partida() {
 	game_state@ lobby = game_state();
@@ -64,37 +68,41 @@ void main() {
 	game_player@ c = lobby.players[3];
 
 	println("== 1 e 2. a rodada ==");
-	confere("a Base Polar tem a camara", m.decontamination_zone == "decontamination" && m.room_id_at(DENTRO_X, DENTRO_Y) == "decontamination");
+	confere("a Base Polar tem a camara, curta, entre dois corredores", m.decontamination_zone == "decontamination"
+		&& m.room_id_at(DENTRO_X, DENTRO_Y) == "decontamination" && m.room_id_at(FORA_X, FORA_Y) == "corridor_laboratory_decontamination");
 	a.x = DENTRO_X; a.y = DENTRO_Y;
 	int sprays = roda(lobby, 0.2);
 	confere("entrou: a camara tranca, com o spray", sprays == 1 && m.is_door_closed("decontamination"));
-	confere("dentro nao sai", !m.can_move(DENTRO_X, -15.2, DENTRO_X, -14.8, true));
-	confere("fora nao entra", !m.can_move(FORA_X, -15.2, FORA_X, -14.8, true));
-	confere("a camara nao tem painel de porta", m.door_panel_at(FORA_X, -15.5) == "");
+	confere("dentro nao sai", !m.can_move(DENTRO_X, -6.8, DENTRO_X, -7.2, true));
+	confere("fora nao entra", !m.can_move(FORA_X, -7.2, FORA_X, -6.8, true));
+	confere("a camara nao tem painel de porta", m.door_panel_at(FORA_X, -7.5) == "");
 	roda(lobby, DECONTAMINATION_SECONDS - 0.5);
 	confere("ainda trancada antes do tempo", m.is_door_closed("decontamination"));
 	roda(lobby, 0.6);
 	confere("abre sozinha no tempo", !m.is_door_closed("decontamination"));
 
-	println("== 3. quem acabou de passar ==");
-	sprays = roda(lobby, 1.0);
-	confere("parado la dentro depois de abrir: nao prende de novo", sprays == 0 && !m.is_door_closed("decontamination"));
+	println("== 3. a saida ==");
+	sprays = roda(lobby, DECONTAMINATION_EXIT_SECONDS - 1.0);
+	confere("parado la dentro, durante a saida: nao prende de novo", sprays == 0 && !m.is_door_closed("decontamination"));
 	b.x = DENTRO_X; b.y = DENTRO_Y + 1;
 	sprays = roda(lobby, 0.5);
-	confere("quem entra atras dele passa junto, sem prender ninguem", sprays == 0);
+	confere("quem entra durante a saida passa junto", sprays == 0);
+	b.x = LONGE_X; b.y = LONGE_Y; // b saiu; a ficou parado la dentro
+	sprays = roda(lobby, 1.0);
+	confere("passada a saida, quem ficou la dentro comeca a rodada seguinte", sprays == 1 && m.is_door_closed("decontamination"));
+	roda(lobby, DECONTAMINATION_SECONDS + 0.2);
+	a.x = LONGE_X; a.y = LONGE_Y;
+	roda(lobby, DECONTAMINATION_EXIT_SECONDS + 0.2);
 
 	println("== 4. a camara livre ==");
-	a.x = 44; a.y = 12; // os dois saem para os especimes
-	b.x = 44; b.y = 12;
-	roda(lobby, 0.2);
 	c.x = DENTRO_X; c.y = DENTRO_Y;
 	sprays = roda(lobby, 0.2);
 	confere("o proximo ganha a rodada inteira", sprays == 1 && m.is_door_closed("decontamination"));
 	roda(lobby, DECONTAMINATION_SECONDS + 0.2);
+	c.x = LONGE_X; c.y = LONGE_Y;
+	roda(lobby, DECONTAMINATION_EXIT_SECONDS + 0.2);
 
-	println("== 5. fantasma e a nave de sempre ==");
-	c.x = 44; c.y = 12;
-	roda(lobby, 0.2);
+	println("== 5. fantasma, portas e a nave de sempre ==");
 	b.alive = false;
 	b.x = DENTRO_X; b.y = DENTRO_Y;
 	sprays = roda(lobby, 0.5);

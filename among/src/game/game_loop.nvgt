@@ -313,6 +313,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		}
 		@tasks_json = start_pkt.get_array("tasks");
 		load_tasks_from_json(tasks_json, my_tasks, my_task_object_ids);
+		reset_wifi_wait();
 
 		opening_sound_slot = audio.play_start_game();
 		audio.start_ship_ambience(map.ship_ambience);
