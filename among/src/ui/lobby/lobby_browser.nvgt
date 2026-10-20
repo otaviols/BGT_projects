@@ -108,12 +108,48 @@ void fill_browser_menu(menu@ m, json_array@ lobbies, uint reply_count) {
 	rp.set("count", "" + reply_count);
 	m.add_item(tr(reply_count > 0 ? "feedback.history_menu_item_new" : "feedback.history_menu_item", rp), "__replies__");
 	m.add_item(tr("translation.menu_item"), "__translation__");
-	if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
-	m.add_item(tr("stats.menu_item"), "__stats__");
-	m.add_item(tr("account.password_menu_item"), "__change_password__");
-	m.add_item(tr("email.menu_item"), "__email__");
-	m.add_item(tr("account.delete_menu_item"), "__delete_account__");
+	// As opções da CONTA num submenu (pedido do usuário, 2026-10-20): eram cinco itens soltos no fim da
+	// lista de partidas, e a lista ficava longa de percorrer para o que se usa todo dia.
+	m.add_item(tr("account.menu_item"), "__account__");
 	m.add_item(tr("menu.back"), "__back__");
+}
+
+// O submenu "Minha conta": estatísticas, senha, e-mail, esquecer este computador e apagar a conta.
+// Devolve true se a conta foi apagada (a sessão acabou, e o jogo volta ao menu inicial).
+bool run_account_menu(game_client@ client) {
+	while (true) {
+		screen_menu m;
+		m.intro_text = tr("account.menu_title");
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		m.focus_first_item = true;
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
+		m.add_item(tr("stats.menu_item"), "__stats__");
+		m.add_item(tr("account.password_menu_item"), "__change_password__");
+		m.add_item(tr("email.menu_item"), "__email__");
+		if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
+		m.add_item(tr("account.delete_menu_item"), "__delete_account__");
+		m.add_item(tr("menu.back"), "__back__");
+		m.run();
+		string id = m.selected_item_id;
+		g_net_stall_context = "conta: " + id;
+		if (id == "" || id == "__back__") return false;
+		if (id == "__stats__") run_stats_screen(client);
+		else if (id == "__change_password__") run_change_password_screen(client);
+		else if (id == "__email__") run_email_screen(client);
+		else if (id == "__forget__") {
+			// Esquece este computador: o servidor invalida o token e o próximo login pede a senha.
+			client.send_logout(g_settings.session_token);
+			g_settings.session_token = "";
+			g_settings.save();
+			speak(tr("login.forgotten"));
+		} else if (id == "__delete_account__") {
+			if (run_delete_account_screen(client)) return true;
+		}
+	}
+	return false;
 }
 
 // Roda o menu da lista de partidas. Devolve true se o jogador pediu F5.
@@ -184,29 +220,9 @@ lobby_browser_result run_lobby_browser_inner(game_client@ client) {
 		string id = m.selected_item_id;
 		g_net_stall_context = "lista de partidas: " + id; // a tela aberta daqui ("__stats__", "__feedback__"...)
 
-		if (id == "__forget__") {
-			// Esquece este computador: o servidor invalida o token e o próximo login pede a senha.
-			client.send_logout(g_settings.session_token);
-			g_settings.session_token = "";
-			g_settings.save();
-			speak(tr("login.forgotten"));
-			continue;
-		}
-		if (id == "__stats__") {
-			run_stats_screen(client);
-			continue;
-		}
-		if (id == "__change_password__") {
-			run_change_password_screen(client);
-			continue;
-		}
-		if (id == "__email__") {
-			run_email_screen(client);
-			continue;
-		}
-		if (id == "__delete_account__") {
+		if (id == "__account__") {
 			// Apagada, a conexão deixou de estar logada: a sessão acaba e o jogo volta ao menu inicial.
-			if (run_delete_account_screen(client)) { result.go_back = true; return result; }
+			if (run_account_menu(client)) { result.go_back = true; return result; }
 			continue;
 		}
 		if (id == "" || id == "__back__") {

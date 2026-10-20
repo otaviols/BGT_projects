@@ -33,6 +33,8 @@ buildings. When creating a match, choose the map. It brings:
 and menus).
 
 **Also:**
+- The account options (stats, password, email, forget this computer and delete the account) are
+  together in **My account**, in the match list. Stats show your win rate and can be copied.
 - In graphics mode, forms appear on screen with each field on its own line, and the login has **Show
   password**.
 - The brown color became **lilac**.

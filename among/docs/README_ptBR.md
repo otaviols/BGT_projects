@@ -139,14 +139,18 @@ nova. Enter abre um recado: ele e cada resposta são uma linha, que você relê 
 vezes quiser, e Enter numa linha a copia. Nada some depois de lido. Não precisa de email nem de nada
 fora do jogo — e se quiser continuar a conversa, é só mandar outro recado.
 
-**Minhas estatísticas.** Na lista de partidas, a opção **Minhas estatísticas** mostra partidas jogadas,
-vitórias (como tripulante, impostor e papel neutro), etapas de tarefa concluídas e assassinatos.
+**Minha conta.** Na lista de partidas, **Minha conta** reúne o que é da sua conta: as estatísticas,
+trocar a senha, o e-mail, esquecer este computador e apagar a conta.
 
-**E-mail da conta.** Na lista de partidas, **E-mail da conta** diz qual é o e-mail da sua conta e
+**Minhas estatísticas** (em Minha conta) mostra partidas jogadas, vitórias (como tripulante, impostor e
+papel neutro), o aproveitamento (quantos por cento das partidas você venceu), etapas de tarefa
+concluídas e assassinatos. Enter numa linha a copia, e **Copiar todas as estatísticas** copia tudo.
+
+**E-mail da conta** (em Minha conta) diz qual é o e-mail da sua conta e
 deixa trocá-lo: digite a senha atual e o e-mail novo, e o jogo manda um código para o novo — ele só
 passa a valer depois do código.
 
-**Apagar a conta.** Na lista de partidas há a opção **Apagar minha conta**. Ela pede a sua senha e
+**Apagar a conta.** Em Minha conta há a opção **Apagar minha conta**. Ela pede a sua senha e
 apaga para sempre a conta, as estatísticas, os recados que você mandou (com as respostas) e as
 traduções que ainda não tinham sido recolhidas. Não tem volta.
 

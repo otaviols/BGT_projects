@@ -171,13 +171,38 @@ void run_stats_screen(game_client@ client) {
 	@g_lobby_pump_client = client;
 	@m.background_callback = @pump_client_during_menu;
 	array<string> campos = {"games_played", "games_won", "crewmate_wins", "impostor_wins", "neutral_wins", "tasks_completed", "kills"};
+	array<string> linhas;
 	for (uint i = 0; i < campos.length(); i++) {
 		dictionary@ p = dictionary();
 		p.set("count", "" + s.get_int(campos[i]));
-		m.add_item(tr("stats." + campos[i], p), campos[i]);
+		linhas.insert_last(tr("stats." + campos[i], p));
+		// O aproveitamento logo depois das vitórias (pedido do usuário, 2026-10-20): o número sozinho não
+		// diz se é muito ou pouco. Arredondado para o inteiro - décimos não dizem nada de ouvido.
+		if (campos[i] == "games_won" && s.get_int("games_played") > 0) {
+			dictionary@ pc = dictionary();
+			pc.set("percent", "" + int(float(s.get_int("games_won")) * 100.0 / float(s.get_int("games_played")) + 0.5));
+			linhas.insert_last(tr("stats.win_rate", pc));
+		}
 	}
-	m.add_item(tr("menu.back"), "__back__");
-	m.run();
+	while (true) {
+		screen_menu m;
+		m.intro_text = tr("stats.title");
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		m.focus_first_item = true;
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
+		for (uint i = 0; i < linhas.length(); i++) m.add_item(linhas[i], "linha:" + i);
+		// Copiar: para colar num grupo ou guardar. Enter numa linha copia só ela; o item copia todas.
+		m.add_item(tr("stats.copy_all"), "__copy__");
+		m.add_item(tr("menu.back"), "__back__");
+		m.run();
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		string texto = id == "__copy__" ? join(linhas, "\n") : linhas[parse_int(id.substr(6))];
+		speak(tr(copy_to_clipboard(texto) ? "stats.copied" : "stats.copy_failed"));
+	}
 }
 
 bool lobby_color_choice(json_object@ config) {

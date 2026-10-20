@@ -32,6 +32,9 @@ prédios. Ao criar a partida, escolha o mapa. Ela traz:
 papéis e menus).
 
 **Também:**
+- As opções da conta (estatísticas, senha, e-mail, esquecer este computador e apagar a conta) ficam
+  juntas em **Minha conta**, na lista de partidas. As estatísticas mostram o aproveitamento e podem ser
+  copiadas.
 - No modo gráfico, os formulários aparecem na tela com cada campo numa linha, e o login ganhou **Mostrar
   a senha**.
 - A cor marrom virou **lilás**.

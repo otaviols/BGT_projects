@@ -142,14 +142,18 @@ Enter opens a message: it and each reply are a line you can read again with the 
 as you like, and Enter on a line copies it. Nothing disappears after you read it. No email, nothing
 outside the game — and to keep the conversation going, just send another message.
 
-**My stats.** The match list has a **My stats** option showing matches played, wins (as crewmate,
-impostor and neutral role), task steps completed and kills.
+**My account.** In the match list, **My account** gathers what belongs to your account: stats,
+changing the password, the email, forgetting this computer and deleting the account.
 
-**Account email.** In the match list, **Account email** says which email your account has and lets
+**My stats** (in My account) shows matches played, wins (as crewmate, impostor and neutral role), the
+win rate (what percent of your matches you won), task steps completed and kills. Enter on a line copies
+it, and **Copy all stats** copies everything.
+
+**Account email** (in My account) says which email your account has and lets
 you change it: type your current password and the new email, and the game sends a code to the new
 one — it only takes effect after the code.
 
-**Deleting your account.** The match list has a **Delete my account** option. It asks for your
+**Deleting your account.** My account has a **Delete my account** option. It asks for your
 password and permanently deletes the account, your stats, the messages you sent (with their
 replies), and any translations not yet collected. There is no undo.
 
