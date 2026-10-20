@@ -679,6 +679,7 @@
   "account.menu_title": "Minha conta: estatísticas, senha, e-mail, esquecer este computador e apagar a conta.",
   "stats.win_rate": "Aproveitamento: {percent}% das partidas vencidas.",
   "stats.copy_all": "Copiar todas as estatísticas",
+  "stats.copy_list": "Copiar a lista",
   "stats.copied": "Copiado.",
   "stats.copy_failed": "Não consegui copiar.",
   "stats.title": "Minhas estatísticas. Setas percorrem, Esc volta.",

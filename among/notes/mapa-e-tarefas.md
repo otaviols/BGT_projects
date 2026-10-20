@@ -98,8 +98,10 @@ nova: é o `door_blocks`. O que acontece ao abrir está logo abaixo.
 **A câmara é curta (5) e a saída tem prazo (`DECONTAMINATION_EXIT_SECONDS`).** A primeira versão tinha 22 de
 comprimento e isentava quem acabava de passar ATÉ ELE SAIR: quem vinha atrás passava junto sem ser preso, e
 alguém parado lá dentro deixava a câmara aberta para todo mundo (teste com amigos, 2026-10-20). Agora há um
-corredor de cada lado, a câmara tem 5, e ao abrir quem estava dentro tem 3 s para sair; depois, quem estiver
-lá começa uma rodada nova. O prazo conta no tempo da PARTIDA (delta), não no relógio - a sonda roda no tempo
+corredor de cada lado, a câmara tem 5, e ao abrir quem estava dentro tem 3 s para sair - só ELES
+(`decontamination_exiting`): quem entra nesse prazo começa a rodada na hora, e quem não saiu fica preso
+junto (antes, quem entrava no prazo passava correndo sem ser preso - teste com amigos, mesmo dia). Depois
+do prazo, quem estiver lá começa uma rodada nova. O prazo conta no tempo da PARTIDA (delta), não no relógio - a sonda roda no tempo
 dela. E esbarrar na câmara diz "em uso, espere", não o "Enter abre o painel" das portas. A câmara não tem painel de porta
 (`door_panel_at` a pula). Sondas: `probe_decontamination` e o caso dela na `probe_match_packets`.
 

@@ -267,9 +267,21 @@ void run_ranking_screen(game_client@ client) {
 	@g_lobby_pump_client = client;
 	@m.background_callback = @pump_client_during_menu;
 	for (uint i = 0; i < linhas.length(); i++) m.add_item(linhas[i], "rule");
-	m.add_item(tr("lobby.rules_copy_all"), "__copy_all__");
+	m.add_item(tr("stats.copy_list"), "__copy_all__");
 	m.add_item(tr("menu.back"), "__back__");
-	run_menu_until_next_match(m, client, @rules_screen_action);
+	run_menu_until_next_match(m, client, @stats_list_action);
+}
+
+// O copiar e o Enter das listas de estatísticas (o ranking, a sala): como os da tela de regras, mas com
+// as palavras delas - "copiar todas as regras" numa lista de jogadores não dizia o que fazia.
+bool stats_list_action(menu@ m, const string&in item_id) {
+	if (item_id == "__copy_all__") {
+		array<string> pular = {"__copy_all__", "__back__"};
+		speak(tr(copy_to_clipboard(menu_items_as_text(m, pular)) ? "stats.copied" : "stats.copy_failed"));
+		return true;
+	}
+	// Enter numa linha não fecha a lista: quem aperta Enter numa lista de leitura quer continuar lendo.
+	return item_id == "rule";
 }
 
 // Shift+P na sala de espera: quem está na sala, com o resumo de quem deixa mostrar (pedido do usuário,
@@ -289,9 +301,9 @@ void run_room_stats_screen(game_client@ client) {
 	@m.background_callback = @pump_client_during_menu;
 	json_array@ quem = r.get_array("players");
 	for (uint i = 0; @quem != null && i < quem.length(); i++) m.add_item(room_stats_line(quem.get_object(i)), "rule");
-	m.add_item(tr("lobby.rules_copy_all"), "__copy_all__");
+	m.add_item(tr("stats.copy_list"), "__copy_all__");
 	m.add_item(tr("menu.back"), "__back__");
-	run_menu_until_next_match(m, client, @rules_screen_action);
+	run_menu_until_next_match(m, client, @stats_list_action);
 }
 
 string room_stats_line(json_object@ e) {

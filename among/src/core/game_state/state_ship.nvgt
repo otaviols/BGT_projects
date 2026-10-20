@@ -54,10 +54,12 @@ mixin class state_ship_part {
 	// preso um segundo só, pela rodada de outro, não faria sentido (o usuário, 2026-10-19). Quem entra
 	// junto divide a rodada - e fica preso junto, inclusive com o impostor.
 	//
-	// Ao abrir, quem estava dentro tem DECONTAMINATION_EXIT_SECONDS para sair sem ser preso de novo (e quem
-	// entra nesse meio-tempo passa junto). Depois, qualquer um lá dentro começa a rodada seguinte. A
-	// primeira versão isentava quem tinha passado ATÉ ELE SAIR: numa câmara comprida, ou com alguém parado
-	// dentro, a câmara ficava aberta para todo mundo (teste com amigos, 2026-10-20).
+	// Ao abrir, quem estava dentro tem DECONTAMINATION_EXIT_SECONDS para sair sem ser preso de novo - só
+	// ELES. Quem entra nesse meio-tempo começa uma rodada na hora, e quem ainda não saiu fica preso junto
+	// (como no original, a câmara roda com quem estiver nela). Depois do prazo, qualquer um lá dentro começa
+	// a rodada seguinte. Duas versões ficaram para trás no mesmo dia: isentar quem passou ATÉ ELE SAIR
+	// (alguém parado dentro deixava a câmara aberta para todo mundo) e deixar quem entrava durante o prazo
+	// passar junto (dava para atravessar correndo sem ser preso - teste com amigos, 2026-10-20).
 	void tick_decontamination(float delta_seconds, array<net_packet@>@ events) {
 		string camara = map.decontamination_zone;
 		if (camara == "") return;
@@ -65,22 +67,29 @@ mixin class state_ship_part {
 		if (decontamination_running && !fechada) {
 			decontamination_running = false;
 			decontamination_exit_left = DECONTAMINATION_EXIT_SECONDS;
-			// A rodada terminou: quem passou por ela inteira está descontaminado.
+			// A rodada terminou: quem passou por ela inteira está descontaminado, e tem o prazo para sair.
 			for (uint i = 0; i < decontamination_cycle_peers.length(); i++) cure_contamination(decontamination_cycle_peers[i], events);
+			decontamination_exiting = decontamination_cycle_peers;
 			decontamination_cycle_peers.resize(0);
 		}
 		if (fechada) return; // rodando (ou trancada pelo impostor)
-		// Quem acabou de passar está saindo. No tempo da PARTIDA, como o resto do servidor.
-		if (decontamination_exit_left > 0.0) { decontamination_exit_left -= delta_seconds; return; }
-		bool alguem = false;
+		// O prazo de saída de quem acabou de passar, no tempo da PARTIDA, como o resto do servidor.
+		bool saindo = decontamination_exit_left > 0.0;
+		if (saindo) decontamination_exit_left -= delta_seconds;
+		else decontamination_exiting.resize(0);
+		bool comeca = false;
 		for (uint i = 0; i < players.length(); i++) {
 			game_player@ p = players[i];
 			// Fantasma não é preso (atravessa porta), e quem está no duto não está na sala.
 			if (!p.alive || p.vented || p.swallowed() || map.room_id_at(p.x, p.y) != camara) continue;
-			alguem = true;
+			// Durante o prazo, quem está saindo não começa rodada; qualquer outro começa.
+			if (saindo && decontamination_exiting.find(p.peer_id) >= 0) continue;
+			comeca = true;
 			break;
 		}
-		if (!alguem) return;
+		if (!comeca) return;
+		decontamination_exit_left = 0.0;
+		decontamination_exiting.resize(0);
 		decontamination_running = true;
 		// Quem está dentro agora sara quando ela abrir (a contaminação).
 		decontamination_cycle_peers.resize(0);

@@ -9,7 +9,10 @@
 //
 // Três regras que qualquer tela assim precisa seguir, e que moram aqui para não serem esquecidas:
 //   1. a rede continua sendo servida - quem chama liga o `background_callback` do menu a um pump;
-//   2. o S_GAME_START NÃO é consumido: ele fica na fila para o laço de quem chamou tratá-lo;
+//   2. o S_GAME_START NÃO é consumido: ele fica na fila para o laço de quem chamou tratá-lo - e o
+//      S_SPECTATE_START também, que é o começo de partida de quem ASSISTE. Até 2026-10-20 só o primeiro
+//      fechava a tela: quem assistia ficava preso na tela de resultado com a partida seguinte rolando, e
+//      ao sair recebia de uma vez todos os sons atrasados (relato do usuário);
 //   3. a fila é examinada a partir de um cursor que só cresce - varrê-la inteira por quadro já
 //      travou o jogo (ver MAX_INCOMING_PACKETS).
 
@@ -21,7 +24,7 @@
 // resultado). Devolve true se tratou o item; false fecha a tela, como um menu comum.
 funcdef bool menu_action_handler(menu@ m, const string&in item_id);
 
-// Devolve true se fechou porque a partida começou (o S_GAME_START está na fila, intacto).
+// Devolve true se fechou porque a partida começou (o S_GAME_START ou o S_SPECTATE_START está na fila, intacto).
 bool run_menu_until_next_match(menu@ m, game_client@ client, menu_action_handler@ on_action = null) {
 	uint conferidos = 0;
 	while (true) {
@@ -33,7 +36,7 @@ bool run_menu_until_next_match(menu@ m, game_client@ client, menu_action_handler
 		if (@client == null) continue;
 		if (!client.connected) return false;
 		while (conferidos < client.incoming.length()) {
-			if (client.incoming[conferidos].type == S_GAME_START) return true;
+			if (client.incoming[conferidos].type == S_GAME_START || client.incoming[conferidos].type == S_SPECTATE_START) return true;
 			conferidos++;
 		}
 	}

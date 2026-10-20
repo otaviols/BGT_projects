@@ -679,6 +679,7 @@
   "account.menu_title": "My account: stats, password, email, forget this computer and delete the account.",
   "stats.win_rate": "Win rate: {percent}% of matches won.",
   "stats.copy_all": "Copy all stats",
+  "stats.copy_list": "Copy the list",
   "stats.copied": "Copied.",
   "stats.copy_failed": "I could not copy it.",
   "stats.title": "My stats. Arrows browse, Escape goes back.",

@@ -1,0 +1,38 @@
+// Sonda da tela que fecha sozinha quando a partida começa (match_aware_menu): fecha com o começo de quem
+// JOGA e com o de quem ASSISTE, e deixa o pacote na fila para a sala de espera tratar.
+//   nvgt tools/probes/probe_match_aware.nvgt
+//
+// Até 2026-10-20 só o começo de quem joga fechava a tela: quem assistia ficava preso na tela de resultado
+// com a partida seguinte rolando, e ao sair recebia de uma vez todos os sons atrasados (relato do usuário).
+#include "../../src/i18n.nvgt"
+#include "../../src/ui/match_aware_menu.nvgt"
+#include "../../src/ui/visual_map.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+bool fecha_com(const string&in tipo) {
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	c.connected = true; // a tela desiste com a conexão caída
+	c.deliver_for_probe(net_packet(tipo));
+	screen_menu m;
+	m.add_item("um item", "x");
+	bool fechou = run_menu_until_next_match(m, c);
+	bool ficou = c.incoming.length() == 1 && c.incoming[0].type == tipo;
+	return fechou && ficou;
+}
+
+void main() {
+	show_window("sonda: tela que fecha");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	confere("fecha com o comeco de quem joga, e o pacote fica na fila", fecha_com(S_GAME_START));
+	confere("fecha com o comeco de quem ASSISTE, e o pacote fica na fila", fecha_com(S_SPECTATE_START));
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

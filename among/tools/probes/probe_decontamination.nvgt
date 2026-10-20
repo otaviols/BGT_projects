@@ -5,9 +5,9 @@
 // Confere:
 //   1. quem entra tranca a câmara: dentro não sai, fora não entra, e o pacote pede o spray;
 //   2. abre sozinha depois de DECONTAMINATION_SECONDS;
-//   3. ao abrir, quem estava dentro tem DECONTAMINATION_EXIT_SECONDS para sair - e quem entra nesse tempo
-//      passa junto; passado isso, quem ficou lá dentro começa a rodada seguinte (antes, alguém parado lá
-//      dentro deixava a câmara aberta para todo mundo - teste com amigos, 2026-10-20);
+//   3. ao abrir, quem estava dentro tem DECONTAMINATION_EXIT_SECONDS para sair; quem entra nesse tempo
+//      começa a rodada na hora (não passa correndo); passado o prazo, quem ficou lá dentro começa a
+//      seguinte (teste com amigos, 2026-10-20);
 //   4. com a câmara livre, o próximo ganha a rodada inteira;
 //   5. fantasma não aciona, a câmara não tem painel nem se tranca pelo F, e a nave de sempre não tem câmara.
 #include "../../src/core/game_state.nvgt"
@@ -84,11 +84,14 @@ void main() {
 	println("== 3. a saida ==");
 	sprays = roda(lobby, DECONTAMINATION_EXIT_SECONDS - 1.0);
 	confere("parado la dentro, durante a saida: nao prende de novo", sprays == 0 && !m.is_door_closed("decontamination"));
+	// Quem entra durante a saída dos outros NÃO passa correndo: começa a rodada na hora, e quem ainda não
+	// saiu fica preso junto (teste com amigos, 2026-10-20: dava para atravessar sem ser preso).
 	b.x = DENTRO_X; b.y = DENTRO_Y + 1;
-	sprays = roda(lobby, 0.5);
-	confere("quem entra durante a saida passa junto", sprays == 0);
+	sprays = roda(lobby, 0.3);
+	confere("quem entra durante a saida comeca uma rodada na hora", sprays == 1 && m.is_door_closed("decontamination"));
+	roda(lobby, DECONTAMINATION_SECONDS + 0.2);
 	b.x = LONGE_X; b.y = LONGE_Y; // b saiu; a ficou parado la dentro
-	sprays = roda(lobby, 1.0);
+	sprays = roda(lobby, DECONTAMINATION_EXIT_SECONDS + 1.0);
 	confere("passada a saida, quem ficou la dentro comeca a rodada seguinte", sprays == 1 && m.is_door_closed("decontamination"));
 	roda(lobby, DECONTAMINATION_SECONDS + 0.2);
 	a.x = LONGE_X; a.y = LONGE_Y;

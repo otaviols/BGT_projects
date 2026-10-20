@@ -84,6 +84,11 @@ existia, a contagem de pular saía com um número qualquer e ganhava a apuraçã
 pulando a chave existia e funcionava - sintoma que parece regra de jogo, não bug. Sempre
 `exists()` antes de `get()`, ou use o retorno booleano de `get()`.
 
+**Tela que fecha quando a partida começa (`run_menu_until_next_match`) olha os DOIS começos:** o
+`S_GAME_START` de quem joga e o `S_SPECTATE_START` de quem assiste. Só com o primeiro, quem assistia
+ficava preso na tela de resultado com a partida seguinte rolando, e ao sair recebia todos os sons
+atrasados de uma vez (2026-10-20). Sonda: `probe_match_aware`.
+
 **Tela bloqueante ANUNCIA sem consumir.** Enquanto uma minigame (ou o painel de reparo, ou a caixa
 de mensagem) está aberta, o laço principal não roda e nada do que chega é dito - o jogador ficava
 surdo ao chat e à contagem do oxigênio até fechar a tela. `announce_background_events`

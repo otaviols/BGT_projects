@@ -139,6 +139,8 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	float decontamination_exit_left = 0.0;
 	// Quem estava na câmara quando a rodada fechou: sara quando ela abre (ver tick_decontamination).
 	array<uint64> decontamination_cycle_peers;
+	// Quem acabou de passar pela rodada: só ELES têm o prazo de saída (decontamination_exit_left).
+	array<uint64> decontamination_exiting;
 	// A contaminação (ver tick_contamination): quem está contaminado, e quanto falta para cada um tossir.
 	array<uint64> contaminated_peers;
 	array<float> cough_timers;
@@ -440,6 +442,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		decontamination_running = false;
 		decontamination_exit_left = 0.0;
 		decontamination_cycle_peers.resize(0);
+		decontamination_exiting.resize(0);
 		contaminated_peers.resize(0);
 		cough_timers.resize(0);
 		oxygen_code = "";
