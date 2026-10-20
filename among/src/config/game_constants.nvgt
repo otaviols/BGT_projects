@@ -155,6 +155,9 @@ const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servi
 // Tamanho mínimo de senha. Aqui, e não no banco, porque os DOIS lados a aplicam: o servidor no cadastro
 // e na troca, e a tela de trocar a senha antes de mandar (recado #239).
 const uint MIN_PASSWORD_LENGTH = 6;
+// O ranking (1.0): só entra quem tem este mínimo de partidas - senão quem venceu 1 de 1 seria o primeiro.
+const int RANKING_MIN_GAMES = 20;
+const int RANKING_TOP = 10;
 const float PLAYER_INTERACT_RANGE = 1.4; // distância máxima para usar objetos/tasks/vents
 const float PLAYER_KILL_RANGE = 1.2;
 const float PLAYER_REPORT_RANGE = 2.0;

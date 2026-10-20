@@ -129,6 +129,8 @@ bool run_account_menu(game_client@ client) {
 		m.add_item(tr("stats.menu_item"), "__stats__");
 		m.add_item(tr("account.password_menu_item"), "__change_password__");
 		m.add_item(tr("email.menu_item"), "__email__");
+		// Mostrar ou esconder as estatísticas dos outros: o item diz o estado, e Enter troca.
+		m.add_item(tr(g_account_stats_visible ? "stats.visible_item_on" : "stats.visible_item_off"), "__stats_visible__");
 		if (g_settings.session_token != "") m.add_item(tr("login.forget"), "__forget__");
 		m.add_item(tr("account.delete_menu_item"), "__delete_account__");
 		m.add_item(tr("menu.back"), "__back__");
@@ -139,6 +141,11 @@ bool run_account_menu(game_client@ client) {
 		if (id == "__stats__") run_stats_screen(client);
 		else if (id == "__change_password__") run_change_password_screen(client);
 		else if (id == "__email__") run_email_screen(client);
+		else if (id == "__stats_visible__") {
+			g_account_stats_visible = !g_account_stats_visible;
+			client.send_set_stats_visible(g_account_stats_visible);
+			speak(tr(g_account_stats_visible ? "stats.visible_now_on" : "stats.visible_now_off"));
+		}
 		else if (id == "__forget__") {
 			// Esquece este computador: o servidor invalida o token e o próximo login pede a senha.
 			client.send_logout(g_settings.session_token);

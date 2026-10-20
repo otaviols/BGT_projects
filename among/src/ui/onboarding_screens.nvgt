@@ -586,6 +586,7 @@ bool wait_for_auth_result(game_client@ client, bool was_register, const string&i
 				result.ok = true;
 				result.username = pkt.get_string("username", username);
 				g_account_email = pkt.get_string("email", "");
+				g_account_stats_visible = pkt.get_bool("stats_visible", true);
 				// Guarda pra próxima vez. Só depois do login DAR CERTO: gravar antes deixaria um nome
 				// errado esperando o jogador na abertura seguinte.
 				g_settings.last_username = result.username;

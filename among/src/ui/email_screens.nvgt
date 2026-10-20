@@ -21,6 +21,8 @@
 
 // O e-mail (confirmado) da conta logada, como o login o trouxe. "" = sem e-mail.
 string g_account_email = "";
+// Se a conta deixa os outros verem as estatísticas dela (na sala e no ranking). Vem do login.
+bool g_account_stats_visible = true;
 
 // A resposta de um tipo, ou null se não chegou em `ms`. Só retira da fila o pacote que espera: o resto
 // (saguão, respostas a recados) é de quem vier depois.

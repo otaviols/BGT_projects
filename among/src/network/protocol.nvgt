@@ -61,7 +61,16 @@ const string C_CHANGE_PASSWORD = "c_change_password"; // {password, new_password
 const string C_CHOOSE_COLOR = "c_choose_color"; // {color}
 // As estatísticas da própria conta (tela "Minhas estatísticas" na lista de partidas).
 const string C_GET_STATS = "c_get_stats";         // {}
-const string S_STATS = "s_stats";                 // {games_played, games_won, crewmate_wins, impostor_wins, neutral_wins, tasks_completed, kills}
+const string S_STATS = "s_stats";                 // {games_played, games_won, crewmate_wins, impostor_wins, neutral_wins, tasks_completed, kills, rank, visible, rank_min_games}
+// --- Estatísticas dos outros e o ranking (1.0) ---
+// O ranking: os primeiros (quem deixa mostrar e tem o mínimo de partidas), e a posição de quem pediu.
+const string C_GET_RANKING = "c_get_ranking";     // {}
+const string S_RANKING = "s_ranking";             // {entries: [{name, games, wins}], my_rank, min_games}
+// Quem está na sala de espera, com as estatísticas de quem deixa mostrar (Shift+P na sala).
+const string C_GET_ROOM_STATS = "c_get_room_stats"; // {}
+const string S_ROOM_STATS = "s_room_stats";       // {players: [{name, bot, visible, games, wins, best, rank}]}
+// Mostrar ou esconder as próprias estatísticas dos outros.
+const string C_SET_STATS_VISIBLE = "c_set_stats_visible"; // {visible}
 const string C_REGISTER = "c_register";           // {username, password, email?, language?}
 // --- E-mail da conta (1.0; ver server/server_email.nvgt) ---
 // Cadastro COM e-mail: o S_REGISTER_RESULT volta com `pending` (o código foi mandado), e a conta só nasce

@@ -1,0 +1,85 @@
+// Sonda das estatísticas dos outros e do ranking (1.0), pela rede:
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_room_stats.nvgt
+//
+// Confere: a sala diz quem está nela, com o resumo de quem deixa mostrar; quem esconde aparece como
+// escondido (e o servidor nem manda os números dele); o bot aparece como bot; o login diz se a conta
+// mostra; o ranking responde, e quem tem menos que o mínimo de partidas fica fora dele.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+net_packet@ wf(game_client@ c, const string&in t, int ms = 5000) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+
+game_client@ entra(const string&in nome, net_packet@&out login) {
+	server_address addr = resolve_server_address();
+	game_client@ c = game_client();
+	if (!c.connect_to(addr.host, addr.port)) return null;
+	timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+	c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+	c.send_login(nome, "probe123");
+	@login = wf(c, S_LOGIN_RESULT);
+	return c;
+}
+
+json_object@ de(json_array@ quem, const string&in nome) {
+	for (uint i = 0; @quem != null && i < quem.length(); i++)
+		if (string(quem.get_object(i)["name"]) == nome) return quem.get_object(i);
+	return null;
+}
+
+void main() {
+	string sfx = "" + random(1000, 9999);
+	string na = "ra" + sfx, nb = "rb" + sfx;
+	net_packet@ la, lb;
+	game_client@ a = entra(na, la);
+	game_client@ b = entra(nb, lb);
+	if (@a == null || @b == null) { println("sem conexao"); return; }
+	confere("o login diz que a conta mostra as estatisticas (o padrao)", @la != null && la.get_bool("stats_visible", false));
+
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	a.send_create_lobby("stats" + sfx, "classic", ov);
+	net_packet@ st = wf(a, S_LOBBY_STATE);
+	if (@st == null) { println("sem sala"); return; }
+	b.send_join_lobby(st.get_string("lobby_id"));
+	wf(b, S_JOIN_RESULT);
+	a.send_add_bot();
+	timer espera; while (espera.elapsed < 500) { a.update(); b.update(); wait(5); }
+
+	println("== a sala ==");
+	b.send_set_stats_visible(false);
+	timer e2; while (e2.elapsed < 300) { a.update(); b.update(); wait(5); }
+	a.send_get_room_stats();
+	net_packet@ rs = wf(a, S_ROOM_STATS);
+	json_array@ quem = @rs != null ? rs.get_array("players") : null;
+	json_object@ ea = de(quem, na);
+	json_object@ eb = de(quem, nb);
+	confere("a sala lista quem esta nela (" + (@quem != null ? quem.length() : 0) + ")", @quem != null && quem.length() == 3);
+	confere("quem mostra vem com os numeros", @ea != null && bool(ea["visible"]) && ea.exists("games"));
+	confere("quem esconde vem escondido, sem os numeros", @eb != null && !bool(eb["visible"]) && !eb.exists("games"));
+	bool tem_bot = false;
+	for (uint i = 0; @quem != null && i < quem.length(); i++) if (bool(quem.get_object(i)["bot"])) tem_bot = true;
+	confere("o bot aparece como bot", tem_bot);
+
+	println("== o ranking ==");
+	a.send_get_ranking();
+	net_packet@ rk = wf(a, S_RANKING);
+	confere("o ranking responde, com o minimo de partidas", @rk != null && rk.get_int("min_games") == RANKING_MIN_GAMES);
+	confere("conta sem partidas fica fora dele", @rk != null && rk.get_int("my_rank") == 0);
+	b.send_get_stats();
+	net_packet@ sb = wf(b, S_STATS);
+	confere("as estatisticas de quem escondeu dizem que esta escondido", @sb != null && !sb.get_bool("visible", true) && sb.get_int("rank") == 0);
+
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -144,7 +144,13 @@ trocar a senha, o e-mail, esquecer este computador e apagar a conta.
 
 **Minhas estatísticas** (em Minha conta) mostra partidas jogadas, vitórias (como tripulante, impostor e
 papel neutro), o aproveitamento (quantos por cento das partidas você venceu), etapas de tarefa
-concluídas e assassinatos. Enter numa linha a copia, e **Copiar todas as estatísticas** copia tudo.
+concluídas e assassinatos, e a sua **posição no ranking**. Enter numa linha a copia, e **Copiar todas as
+estatísticas** copia tudo. **Ver o ranking** mostra os 10 melhores por aproveitamento: entra quem tem pelo
+menos 20 partidas e deixa as estatísticas à mostra.
+
+**Mostrar minhas estatísticas aos outros** (em Minha conta) vem ligado. Desligado, ninguém vê as suas na
+sala, e você sai do ranking. Os outros nunca veem os seus assassinatos nem as suas tarefas: só partidas,
+vitórias e o lado em que você mais vence.
 
 **E-mail da conta** (em Minha conta) diz qual é o e-mail da sua conta e
 deixa trocá-lo: digite a senha atual e o e-mail novo, e o jogo manda um código para o novo — ele só
@@ -254,6 +260,7 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 |---|---|
 | Enter | iniciar a partida (só o anfitrião) |
 | P | quem está na sala (com o total e quais são bots) |
+| Shift+P | a lista de quem está na sala com as estatísticas de cada um: partidas, aproveitamento, posição no ranking e o lado em que mais vence (de quem deixa mostrar). A conversa continua chegando e as teclas de ler o chat funcionam |
 | C | abre as regras desta partida como lista: setas percorrem uma regra por vez, e há itens para copiar o código (sala privada) e todas as regras. Se a partida começar com ela aberta, ela fecha sozinha |
 | O | mudar as regras (só o anfitrião): os campos vêm com os valores atuais, e o que ficar em branco continua como está. Todo mundo é avisado. |
 | E | escolher a sua cor. Cor já tomada vem com o nome de quem a pegou. A escolha fica guardada e vai sozinha para as próximas salas; ela só vale nas salas que deixam escolher (nas outras, a cor é sorteada) |

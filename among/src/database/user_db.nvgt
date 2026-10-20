@@ -96,6 +96,9 @@ class user_database {
 		// server_email.nvgt): não existe e-mail não confirmado aqui, então não há coluna de "confirmado".
 		// Mesma razão do resolved_at para ser um ALTER à parte; erro ignorado de propósito.
 		db.execute("ALTER TABLE users ADD COLUMN email TEXT");
+		// Se os outros podem ver as estatísticas desta conta (na sala e no ranking). Ligado por padrão;
+		// quem não quer aparecer desliga em Minha conta.
+		db.execute("ALTER TABLE users ADD COLUMN show_stats INTEGER DEFAULT 1");
 
 		// Respostas de quem faz o jogo aos recados. Fecham o ciclo com quem está testando: sem isto o
 		// jogador manda um recado e nunca fica sabendo se alguém leu, e quem oferece ajuda (uma
@@ -541,6 +544,44 @@ class user_database {
 		int user_id = get_user_id(username);
 		if (user_id > 0) create_stats_row(user_id);
 		return true;
+	}
+
+	bool stats_visible(const string&in username) {
+		if (@db == null) return true;
+		sqlite3statement@ st = db.prepare("SELECT show_stats FROM users WHERE username = ?");
+		if (@st == null) return true;
+		st.bind_text(1, username, false);
+		return st.step() != SQLITE_ROW || st.column_int(0) != 0;
+	}
+
+	bool set_stats_visible(const string&in username, bool visible) {
+		if (@db == null) return false;
+		sqlite3statement@ st = db.prepare("UPDATE users SET show_stats = ? WHERE username = ?");
+		if (@st == null) return false;
+		st.bind_int(1, visible ? 1 : 0);
+		st.bind_text(2, username, false);
+		return st.step() == SQLITE_DONE;
+	}
+
+	// O ranking inteiro: quem deixa mostrar e tem o mínimo de partidas, por aproveitamento (e, no empate,
+	// por quem jogou mais). Inteiro, e não só o topo, porque a posição de cada um sai daqui também.
+	array<ranking_entry@>@ ranking() {
+		array<ranking_entry@> r;
+		if (@db == null) return r;
+		sqlite3statement@ st = db.prepare(
+			"SELECT u.username, s.games_played, s.games_won FROM users u JOIN user_stats s ON s.user_id = u.id " +
+			"WHERE COALESCE(u.show_stats, 1) = 1 AND s.games_played >= ? " +
+			"ORDER BY CAST(s.games_won AS REAL) / s.games_played DESC, s.games_played DESC, u.username");
+		if (@st == null) return r;
+		st.bind_int(1, RANKING_MIN_GAMES);
+		while (st.step() == SQLITE_ROW) {
+			ranking_entry e;
+			e.username = st.column_text(0);
+			e.games = st.column_int(1);
+			e.wins = st.column_int(2);
+			r.insert_last(e);
+		}
+		return r;
 	}
 
 	// O e-mail (confirmado) da conta, ou "".

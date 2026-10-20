@@ -1,0 +1,48 @@
+// Sonda da ORDEM do ranking (1.0), direto no banco, num arquivo temporário: por aproveitamento, o empate
+// por quem jogou mais, o mínimo de partidas, e quem escondeu as estatísticas fica de fora.
+//   nvgt tools/probes/probe_ranking.nvgt
+#include "../../src/database/user_db.nvgt"
+#include "../../src/config/game_constants.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+void cria(user_database@ db, const string&in nome, int jogos, int vitorias) {
+	string err;
+	db.create_user(nome, "senha123", err);
+	db.increment_stat(nome, "games_played", jogos);
+	db.increment_stat(nome, "games_won", vitorias);
+}
+
+void main() {
+	string arquivo = DIRECTORY_TEMP + "probe_ranking.db";
+	file_delete(arquivo);
+	user_database db;
+	if (!db.open(arquivo)) { println("sem banco"); return; }
+	cria(db, "metade", 40, 20);       // 50%
+	cria(db, "muito", 30, 24);        // 80%
+	cria(db, "empate_mais", 50, 40);  // 80%, jogou mais: na frente do "muito"
+	cria(db, "poucas", RANKING_MIN_GAMES - 1, RANKING_MIN_GAMES - 1); // 100%, mas abaixo do mínimo
+	cria(db, "escondido", 60, 59);    // quase 100%, mas escondeu
+	db.set_stats_visible("escondido", false);
+
+	array<ranking_entry@>@ r = db.ranking();
+	string ordem;
+	for (uint i = 0; i < r.length(); i++) ordem += r[i].username + " ";
+	println("     ordem: " + ordem);
+	confere("tres no ranking", r.length() == 3);
+	confere("primeiro: 80% com mais partidas", r.length() > 0 && r[0].username == "empate_mais");
+	confere("segundo: 80% com menos", r.length() > 1 && r[1].username == "muito");
+	confere("terceiro: 50%", r.length() > 2 && r[2].username == "metade");
+	confere("abaixo do minimo de partidas fica fora", ordem.find("poucas") < 0);
+	confere("quem escondeu fica fora", ordem.find("escondido") < 0);
+	db.set_stats_visible("escondido", true);
+	confere("e volta ao mostrar de novo (em primeiro)", db.ranking()[0].username == "escondido");
+	file_delete(arquivo);
+	file_delete(arquivo + "-wal");
+	file_delete(arquivo + "-shm");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

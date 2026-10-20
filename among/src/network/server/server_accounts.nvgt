@@ -64,6 +64,7 @@ mixin class server_accounts_part {
 			result.set_string("username", username);
 			// O e-mail da conta, para a tela de configurações dizer qual é (ou que não há).
 			result.set_string("email", g_user_db.get_email(username));
+			result.set_bool("stats_visible", g_user_db.stats_visible(username));
 			// Pediu para lembrar: sai um token novo; o cliente guarda o token, nunca a senha.
 			if (token == "" && rejoin_token == "" && pkt.get_bool("remember")) result.set_string("session_token", g_user_db.create_session(username));
 			// O cliente não tem como descobrir sozinho com que id o servidor o identifica (o id que
@@ -200,7 +201,75 @@ mixin class server_accounts_part {
 		r.set_int("neutral_wins", s.neutral_wins);
 		r.set_int("tasks_completed", s.tasks_completed);
 		r.set_int("kills", s.kills);
+		// A posição no ranking (0 = fora dele), e por que pode estar fora: escondido, ou poucas partidas.
+		r.set_bool("visible", g_user_db.stats_visible(conn.username));
+		r.set_int("rank", ranking_position(g_user_db.ranking(), conn.username));
+		r.set_int("rank_min_games", RANKING_MIN_GAMES);
 		send_to(peer_id, r);
+	}
+
+	int ranking_position(array<ranking_entry@>@ lista, const string&in username) {
+		for (uint i = 0; i < lista.length(); i++) if (lista[i].username == username) return int(i) + 1;
+		return 0;
+	}
+
+	void on_get_ranking(uint64 peer_id) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+		array<ranking_entry@>@ lista = g_user_db.ranking();
+		net_packet@ r = net_packet(S_RANKING);
+		json_array@ primeiros = json_array();
+		for (uint i = 0; i < lista.length() && int(i) < RANKING_TOP; i++) {
+			json_object@ e = json_object();
+			e.set("name", lista[i].username);
+			e.set("games", lista[i].games);
+			e.set("wins", lista[i].wins);
+			primeiros.add(e);
+		}
+		r.set_array("entries", primeiros);
+		r.set_int("my_rank", ranking_position(lista, conn.username));
+		r.set_int("min_games", RANKING_MIN_GAMES);
+		send_to(peer_id, r);
+	}
+
+	// Quem está na sala, com o resumo de quem deixa mostrar. Só partidas, vitórias, o lado em que mais
+	// vence e a posição: assassinatos e tarefas ficam só para o dono - "matou trezentos" seria um rótulo
+	// de impostor antes de a partida começar.
+	void on_get_room_stats(uint64 peer_id) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		array<ranking_entry@>@ lista = g_user_db.ranking();
+		net_packet@ r = net_packet(S_ROOM_STATS);
+		json_array@ quem = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			json_object@ e = json_object();
+			e.set("name", p.username);
+			e.set("bot", p.is_bot);
+			bool visivel = !p.is_bot && g_user_db.stats_visible(p.username);
+			e.set("visible", visivel);
+			if (visivel) {
+				user_stats@ s = g_user_db.get_stats(p.username);
+				e.set("games", s.games_played);
+				e.set("wins", s.games_won);
+				string melhor = "";
+				int mais = 0;
+				if (s.crewmate_wins > mais) { mais = s.crewmate_wins; melhor = "crew"; }
+				if (s.impostor_wins > mais) { mais = s.impostor_wins; melhor = "impostor"; }
+				if (s.neutral_wins > mais) { mais = s.neutral_wins; melhor = "neutral"; }
+				e.set("best", melhor);
+				e.set("rank", ranking_position(lista, p.username));
+			}
+			quem.add(e);
+		}
+		r.set_array("players", quem);
+		send_to(peer_id, r);
+	}
+
+	void on_set_stats_visible(uint64 peer_id, net_packet@ pkt) {
+		game_player@ conn = find_connection(peer_id);
+		if (@conn == null || !conn.authenticated) return;
+		g_user_db.set_stats_visible(conn.username, pkt.get_bool("visible"));
 	}
 
 	// Estatísticas da partida que acabou, para cada PESSOA (bot não tem conta). Mora aqui, e não no

@@ -172,6 +172,13 @@ void run_stats_screen(game_client@ client) {
 	@m.background_callback = @pump_client_during_menu;
 	array<string> campos = {"games_played", "games_won", "crewmate_wins", "impostor_wins", "neutral_wins", "tasks_completed", "kills"};
 	array<string> linhas;
+	// A posição no ranking primeiro: é o que se procura nesta tela desde que ele existe (1.0).
+	dictionary@ rk = dictionary();
+	rk.set("rank", "" + s.get_int("rank"));
+	rk.set("min", "" + s.get_int("rank_min_games", RANKING_MIN_GAMES));
+	if (s.get_int("rank") > 0) linhas.insert_last(tr("stats.my_rank", rk));
+	else if (!s.get_bool("visible", true)) linhas.insert_last(tr("stats.my_rank_hidden"));
+	else linhas.insert_last(tr("stats.my_rank_none", rk));
 	for (uint i = 0; i < campos.length(); i++) {
 		dictionary@ p = dictionary();
 		p.set("count", "" + s.get_int(campos[i]));
@@ -194,15 +201,117 @@ void run_stats_screen(game_client@ client) {
 		@g_lobby_pump_client = client;
 		@m.background_callback = @pump_client_during_menu;
 		for (uint i = 0; i < linhas.length(); i++) m.add_item(linhas[i], "linha:" + i);
+		m.add_item(tr("stats.ranking_item"), "__ranking__");
 		// Copiar: para colar num grupo ou guardar. Enter numa linha copia só ela; o item copia todas.
 		m.add_item(tr("stats.copy_all"), "__copy__");
 		m.add_item(tr("menu.back"), "__back__");
 		m.run();
 		string id = m.selected_item_id;
 		if (id == "" || id == "__back__") return;
+		if (id == "__ranking__") { run_ranking_screen(client); continue; }
 		string texto = id == "__copy__" ? join(linhas, "\n") : linhas[parse_int(id.substr(6))];
 		speak(tr(copy_to_clipboard(texto) ? "stats.copied" : "stats.copy_failed"));
 	}
+}
+
+// Espera uma resposta do servidor SEM ficar surdo: serve a rede, diz o que chegar e deixa as teclas de
+// ler o chat funcionarem, como os menus da sala (pump_client_during_menu). Só retira da fila a resposta.
+net_packet@ wait_reply_pumping(game_client@ client, const string&in type, uint ms = 8000) {
+	@g_lobby_pump_client = client;
+	timer espera;
+	while (espera.elapsed < ms) {
+		wait(5);
+		pump_client_during_menu(null, "");
+		if (!client.connected) return null;
+		for (uint i = 0; i < client.incoming.length(); i++) {
+			if (client.incoming[i].type != type) continue;
+			net_packet@ r = client.incoming[i];
+			client.incoming.remove_at(i);
+			return r;
+		}
+	}
+	return null;
+}
+
+string percent_text(int wins, int games) {
+	return games > 0 ? "" + int(float(wins) * 100.0 / float(games) + 0.5) : "0";
+}
+
+// O ranking: os primeiros, e a posição de quem pediu. Lista de leitura, como as regras da sala.
+void run_ranking_screen(game_client@ client) {
+	client.send_get_ranking();
+	net_packet@ r = wait_reply_pumping(client, S_RANKING);
+	if (@r == null) { speak(tr("stats.no_answer")); return; }
+	array<string> linhas;
+	json_array@ lista = r.get_array("entries");
+	for (uint i = 0; @lista != null && i < lista.length(); i++) {
+		json_object@ e = lista.get_object(i);
+		dictionary@ p = dictionary();
+		p.set("rank", "" + (i + 1));
+		p.set("name", string(e["name"]));
+		p.set("percent", percent_text(int(e["wins"]), int(e["games"])));
+		p.set("games", "" + int(e["games"]));
+		linhas.insert_last(tr("stats.ranking_line", p));
+	}
+	dictionary@ mp = dictionary();
+	mp.set("rank", "" + r.get_int("my_rank"));
+	mp.set("min", "" + r.get_int("min_games", RANKING_MIN_GAMES));
+	if (linhas.length() == 0) linhas.insert_last(tr("stats.ranking_empty", mp));
+	linhas.insert_last(tr(r.get_int("my_rank") > 0 ? "stats.my_rank" : "stats.my_rank_none", mp));
+	screen_menu m;
+	m.intro_text = tr("stats.ranking_title");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+	for (uint i = 0; i < linhas.length(); i++) m.add_item(linhas[i], "rule");
+	m.add_item(tr("lobby.rules_copy_all"), "__copy_all__");
+	m.add_item(tr("menu.back"), "__back__");
+	run_menu_until_next_match(m, client, @rules_screen_action);
+}
+
+// Shift+P na sala de espera: quem está na sala, com o resumo de quem deixa mostrar (pedido do usuário,
+// 2026-10-20). Como a tela de regras: a rede continua servida, o que chega é dito, o chat se lê, e ela
+// fecha sozinha se a partida começar.
+void run_room_stats_screen(game_client@ client) {
+	client.send_get_room_stats();
+	net_packet@ r = wait_reply_pumping(client, S_ROOM_STATS);
+	if (@r == null) { speak(tr("stats.no_answer")); return; }
+	screen_menu m;
+	m.intro_text = tr("stats.room_title");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+	json_array@ quem = r.get_array("players");
+	for (uint i = 0; @quem != null && i < quem.length(); i++) m.add_item(room_stats_line(quem.get_object(i)), "rule");
+	m.add_item(tr("lobby.rules_copy_all"), "__copy_all__");
+	m.add_item(tr("menu.back"), "__back__");
+	run_menu_until_next_match(m, client, @rules_screen_action);
+}
+
+string room_stats_line(json_object@ e) {
+	dictionary@ p = dictionary();
+	p.set("name", string(e["name"]));
+	if (bool(e["bot"])) return tr("stats.room_bot", p);
+	if (!bool(e["visible"])) return tr("stats.room_hidden", p);
+	int jogos = int(e["games"]);
+	if (jogos == 0) return tr("stats.room_new", p);
+	p.set("games", "" + jogos);
+	p.set("percent", percent_text(int(e["wins"]), jogos));
+	string linha = tr("stats.room_line", p);
+	if (int(e["rank"]) > 0) {
+		dictionary@ rp = dictionary();
+		rp.set("rank", "" + int(e["rank"]));
+		linha += tr("stats.room_rank", rp);
+	}
+	string melhor = string(e["best"]);
+	if (melhor != "") linha += tr("stats.room_best_" + melhor);
+	return linha + ".";
 }
 
 bool lobby_color_choice(json_object@ config) {
@@ -481,7 +590,11 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 			run_settings_menu(client);
 			speak(tr("lobby.back_from_settings"));
 		}
-		if (key_pressed(KEY_P)) speak(lobby_players_text(snapshot.players, snapshot.max_players, lobby_color_choice(snapshot.config)));
+		// P diz quem está na sala; Shift+P abre a lista com as estatísticas de quem deixa mostrar.
+		if (key_pressed(KEY_P)) {
+			if (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)) run_room_stats_screen(client);
+			else speak(lobby_players_text(snapshot.players, snapshot.max_players, lobby_color_choice(snapshot.config)));
+		}
 		// F2: assistir a próxima partida em vez de jogar (ou voltar a jogar). O estado vem do retrato da
 		// sala, que o servidor reenvia a todos na hora - é por ele que a tecla sabe o que alternar. Era o A
 		// até a 0.53.1 (pedido do usuário, 2026-10-14).

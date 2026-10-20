@@ -12,6 +12,13 @@ class user_stats {
 	int kills = 0;
 }
 
+// Uma linha do ranking: quem, quantas partidas e quantas vitórias.
+class ranking_entry {
+	string username;
+	int games = 0;
+	int wins = 0;
+}
+
 class login_result {
 	bool ok = false;
 	string message = "";

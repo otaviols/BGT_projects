@@ -146,8 +146,13 @@ outside the game — and to keep the conversation going, just send another messa
 changing the password, the email, forgetting this computer and deleting the account.
 
 **My stats** (in My account) shows matches played, wins (as crewmate, impostor and neutral role), the
-win rate (what percent of your matches you won), task steps completed and kills. Enter on a line copies
-it, and **Copy all stats** copies everything.
+win rate (what percent of your matches you won), task steps completed and kills, and your **ranking
+position**. Enter on a line copies it, and **Copy all stats** copies everything. **See the ranking** shows
+the top 10 by win rate: it includes whoever has at least 20 matches and keeps their stats visible.
+
+**Show my stats to others** (in My account) starts on. Turned off, nobody sees yours in the room, and you
+leave the ranking. Others never see your kills or your tasks: only matches, wins and the side you win
+most as.
 
 **Account email** (in My account) says which email your account has and lets
 you change it: type your current password and the new email, and the game sends a code to the new
@@ -256,6 +261,7 @@ your file and English — worth sending a message about it.
 |---|---|
 | Enter | start the match (host only) |
 | P | who is in the lobby (with the count, and which are bots) |
+| Shift+P | the list of who is in the room with each one's stats: matches, win rate, ranking position and the side they win most as (for those who allow it). Chat keeps arriving and the chat reading keys work |
 | C | opens this match's rules as a list: arrows go through one rule at a time, with items to copy the code (private match) and all the rules. If the match starts while it is open, it closes by itself |
 | O | change the rules (host only): the fields come with the current values, and anything left blank stays as it is. Everyone is told. |
 | E | pick your color. A color already taken is read with the name of whoever took it. Your pick is saved and sent to the next lobbies by itself; it only counts in lobbies that let players choose (in the others, colors are drawn) |
