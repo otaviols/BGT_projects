@@ -16,7 +16,7 @@
 param(
 	[Parameter(Mandatory = $true, Position = 0)][ValidateSet("subir", "status", "desligar")][string]$Acao,
 	# De onde vem o email.json (a senha da caixa de e-mail nunca entra no repositório).
-	[string]$EmailJson = "C:\apto10\acer\documents\Among Us - servidor de teste\email.json"
+	[string]$EmailJson = (Join-Path $env:USERPROFILE ".amongus\email.json")
 )
 
 $ErrorActionPreference = "Stop"

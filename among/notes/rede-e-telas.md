@@ -140,7 +140,8 @@ conta") e o "esqueci a senha" do login. Decisões que alguém poderia querer des
 - **Obrigatório só no lançamento:** a chave `required` do `email.json`. Ligada, cadastro sem e-mail
   volta com `email_required`. Nos testes com amigos fica desligada (decisão do usuário, 2026-10-19).
 - **A configuração (com a senha da caixa) mora no `email.json` AO LADO do servidor**, fora do
-  repositório; sem ele o e-mail fica desligado e o resto funciona. Na VPS é `/opt/amongus/data` (o
+  repositório. A cópia-mestra fica nesta máquina, em `%USERPROFILE%\.amongus\email.json` (é de lá que o
+  `test_server.ps1` e o lançamento a mandam à VPS); sem ele o e-mail fica desligado e o resto funciona. Na VPS é `/opt/amongus/data` (o
   servidor roda de dentro do volume - ver o `docker-entrypoint.sh`), dono 10001, `chmod 600`.
 - O texto do e-mail sai no idioma de quem pediu (o pacote leva `language`; o servidor carrega um `i18n`
   por idioma, porque o `g_i18n` dele é um só).
