@@ -6,6 +6,42 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 1.0.0
+
+**Version 1.0 is here — the launch!** Thank you to everyone who played, tested and sent feedback
+during the beta.
+
+**New accounts:** the server started over from scratch, so you need to create a new account.
+Registering now asks for an **email**, confirmed by a six-digit code, and it is only used to recover
+your password: at login, **Forgot my password** sends a code to the email. In the match list, **Account
+email** shows and changes your email.
+
+**A new map, the Polar Base:** a research base on the ice, with snow paths and wind between the
+buildings. When creating a match, choose the map. It brings:
+- ten tasks of its own: insert the keys, the weather node, align the telescope, record the temperature,
+  reboot the Wi-Fi, replace the water jug, store the artifacts, fill the O2 canisters, open the
+  waterwheel and the medical scan;
+- two critical sabotages: the **seismic stabilizers**, fixed by two people holding both panels at the
+  same time, and **contamination**, where everyone coughs and the whole crew must go through the
+  decontamination chamber;
+- the decontamination chamber, which holds whoever passes through it for a few seconds;
+- doors with a panel: a locked door can be opened early with a reflex minigame.
+
+**On the usual ship, the reactor:** a new critical sabotage, fixed by two people at the same time.
+
+**Learn the game sounds:** now by map and by category (footsteps, ambience, markers, the match, roles
+and menus).
+
+**Also:**
+- In graphics mode, forms appear on screen with each field on its own line, and the login has **Show
+  password**.
+- The brown color became **lilac**.
+- In the room's neutral field, **0** now means no neutrals.
+- On the voice screen, the voice sample waits for your choice and no longer talks over its name.
+- The medical scan tells you when the room turned visible tasks off.
+
+Found something odd? Send it as feedback.
+
 ## 0.56.1
 
 **Wolf:** whoever gets swallowed no longer loses their modifiers. Leaving the belly, they are still

@@ -6,6 +6,41 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 1.0.0
+
+**Chegou a versão 1.0, o lançamento!** Obrigado a todo mundo que jogou, testou e mandou recado na beta.
+
+**Contas novas:** o servidor recomeçou do zero, então é preciso criar uma conta nova. O cadastro agora
+pede um **e-mail**, confirmado por um código de seis dígitos, e ele serve só para recuperar a senha: no
+login, **Esqueci a senha** manda um código para o e-mail. Na lista de partidas, **E-mail da conta** mostra
+e troca o seu e-mail.
+
+**Um mapa novo, a Base Polar:** uma base de pesquisa no gelo, com caminhos de neve e vento entre os
+prédios. Ao criar a partida, escolha o mapa. Ela traz:
+- dez tarefas próprias: inserir as chaves, o nó do clima, alinhar o telescópio, registrar a temperatura,
+  reiniciar o Wi-Fi, trocar o galão de água, guardar os artefatos, encher os cilindros de O2, abrir a
+  roda d'água e o exame médico;
+- duas sabotagens críticas: o **sismógrafo**, consertado por duas pessoas segurando os dois painéis ao
+  mesmo tempo, e a **contaminação**, em que todos tossem e a tripulação inteira precisa passar pela
+  câmara de descontaminação;
+- a câmara de descontaminação, que prende quem passa por alguns segundos;
+- portas com painel: a porta trancada se abre antes do tempo com um minijogo de reflexo.
+
+**Na nave de sempre, o reator:** uma sabotagem crítica nova, consertada por duas pessoas ao mesmo tempo.
+
+**Aprender os sons do jogo:** agora por mapa e por categoria (passos, ambientes, marcadores, a partida,
+papéis e menus).
+
+**Também:**
+- No modo gráfico, os formulários aparecem na tela com cada campo numa linha, e o login ganhou **Mostrar
+  a senha**.
+- A cor marrom virou **lilás**.
+- No campo de neutros da sala, **0** agora quer dizer nenhum neutro.
+- Na tela de voz, a amostra da voz espera você escolher e não fala mais por cima do nome dela.
+- O exame médico avisa quando a sala desligou as tarefas visíveis.
+
+Achou algo estranho? Mande pelo recado.
+
 ## 0.56.1
 
 **Lobo:** quem é engolido não perde mais os modificadores. Ao sair da barriga, continua Flash, Gigante

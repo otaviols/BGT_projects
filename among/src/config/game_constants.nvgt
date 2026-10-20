@@ -9,7 +9,7 @@
 // (ver core/updater.nvgt), então PRECISA ser incrementada a cada versão distribuída - se ficar para
 // trás, o jogo anuncia uma atualização que ele mesmo já é; se ficar à frente, nunca anuncia nada.
 // O formato é "maior.menor.correção", comparado número a número.
-const string GAME_VERSION = "0.56.1";
+const string GAME_VERSION = "1.0.0";
 
 // Versão do PROTOCOLO de rede, separada da versão do jogo de propósito: a maioria das versões não
 // muda o que viaja pela rede, e as que mudam de um jeito incompatível são raras e precisam de um
@@ -33,7 +33,9 @@ const string GAME_VERSION = "0.56.1";
 // role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
 // a barrar quem só queria jogar com engenheiro.
 const int PROTOCOL_VERSION = 15; // 15 = a sala escolhe o mapa (ver MAPS_PROTOCOL); 14 = 14 = várias tarefas visíveis ao mesmo tempo, a arma dos asteroides entre elas (ver VISIBLE_TASKS_PROTOCOL); 13 = voltar à partida depois de cair (ver REJOIN_PROTOCOL); 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
-const int MIN_PROTOCOL_VERSION = 2;
+// A 1.0 recomeça o banco, e o cadastro passa a exigir e-mail: um cliente anterior não tem como se cadastrar
+// (nem conhece a Base Polar). Ele é recusado no login com o motivo, e o atualizador faz o resto.
+const int MIN_PROTOCOL_VERSION = 15;
 
 // Site de download. O updater lê o version.json daqui e, havendo novidade, manda o jogador para a
 // página. Desde a 0.51.1 é um nome no domínio do usuário, na VPS da Hostinger (ver
@@ -119,11 +121,11 @@ const int MAPS_PROTOCOL = 15;
 // é build_map (game/map.nvgt); um id que não está aqui não existe para a sala (lobby_config.validate).
 const string MAP_THE_HUB = "the_hub";
 const string MAP_POLAR_BASE = "polar_base";
-const array<string> MAP_IDS = {MAP_THE_HUB};
+const array<string> MAP_IDS = {MAP_THE_HUB, MAP_POLAR_BASE}; // a Base Polar saiu na 1.0
 // Mapas EM CONSTRUÇÃO: o servidor oficial não os aceita (map_exists, sem o arquivo de teste), mas o Conhecer o mapa e o
 // treino os oferecem quando a pasta do jogo tem o arquivo MAPS_IN_TEST_FLAG (ver offered_map_ids). É
 // como o mapa novo é ouvido antes de existir para os jogadores. Pronto, o id passa para MAP_IDS.
-const array<string> MAP_IDS_IN_TEST = {MAP_POLAR_BASE};
+const array<string> MAP_IDS_IN_TEST = {}; // vazia na 1.0: a Base Polar passou para MAP_IDS
 const string MAPS_IN_TEST_FLAG = "mapas_em_teste.txt";
 // Os nós do clima da Base Polar, pelo LUGAR: o ponto no mapa é "task_weather_<lugar>", e o nome falado,
 // "task.fix_weather_node.node.<lugar>". O mapa e o minijogo leem a mesma lista - é ela que o painel do

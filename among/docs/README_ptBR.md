@@ -8,15 +8,18 @@ pessoa, cada objeto e cada corpo só pelo som.
 
 *This manual is also available in English: README.md, in this same folder.*
 
-> **Versão beta.** O jogo é jogável do começo ao fim, mas ainda está em testes. Se algo quebrar, o
-> arquivo `crash.log` na pasta do jogo guarda o que aconteceu — ele ajuda muito a consertar.
+> **Se algo quebrar,** o arquivo `crash.log` na pasta do jogo guarda o que aconteceu, e um recado
+> mandado pelo jogo o leva junto — ele ajuda muito a consertar.
 
 ## Como começar
 
 1. Abra o jogo e escolha **Conectar** no menu inicial. Ele já sabe o endereço do servidor; não há
    nada para digitar.
-2. Crie uma conta (usuário e senha) ou entre com uma que já tenha. O jogo lembra o último usuário
-   que entrou nesta máquina e já deixa o cursor na senha.
+2. Crie uma conta ou entre com uma que já tenha. O cadastro pede usuário, senha (duas vezes) e
+   **e-mail**: o jogo manda para ele um código de seis dígitos, e a conta nasce quando você o digita.
+   O e-mail serve só para recuperar a senha: no login, **Esqueci a senha** manda um código para ele, e
+   com o código você escolhe outra. O jogo lembra o último usuário que entrou nesta máquina e já deixa
+   o cursor na senha; **Mostrar a senha** fala o que você digitou.
 3. Escolha uma partida na lista, ou crie a sua.
 4. Na sala de espera, o anfitrião aperta Enter para começar. São necessários pelo menos 3 jogadores;
    o máximo é 15.
@@ -39,14 +42,15 @@ muda. Já o nome da última sala que você criou volta preenchido na próxima; p
 escreva.
 
 **Praticar:** o menu inicial tem **Praticar tarefas e reparos**: qualquer tarefa ou reparo de
-sabotagem, sozinho, sem partida — para aprender cada uma com calma antes de valer.
+sabotagem, sozinho, sem partida — para aprender cada uma com calma antes de valer. Primeiro o jogo
+pergunta em qual mapa.
 
 **Apoiar o jogo:** o jogo é gratuito. Quem quiser ajudar a manter o servidor encontra no menu inicial
 a opção **Apoiar o jogo**: **Pix** copia a chave aleatória (9f901a0c-85de-478a-b3d3-6fd08c8fa864) para você colar no app do
 banco, e **cartão, de qualquer país** abre a página do Ko-fi (ko-fi.com/otaviols).
 
-**Conhecer o mapa:** o menu inicial tem a opção **Conhecer o mapa**, que deixa você andar pela nave
-sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela, Tab lista o que há na
+**Conhecer o mapa:** o menu inicial tem a opção **Conhecer o mapa**, que deixa você andar pelo mapa
+que escolher (a nave ou a Base Polar) sozinho, sem servidor e sem pressão. O nome de cada sala é dito ao entrar nela, Tab lista o que há na
 sala, as teclas de mais e menos mudam a velocidade (de 50 a 200 por cento, a mesma faixa das salas),
 e ESC volta ao menu. **Enter num ponto de tarefa abre a tarefa**, a mesma da partida, para treinar
 no lugar onde ela fica. **Os painéis de reparo** tocam todos o seu marcador, como se cada sabotagem
@@ -68,7 +72,8 @@ Na lista, **P** diz quem está no saguão, e as teclas do histórico (vírgula, 
 conversa do saguão e os avisos, como na partida.
 
 **Antes de jogar:** no menu inicial existe a opção **Aprender os sons do jogo**. Ela toca cada som
-do jogo com o nome dele. Vale muito a pena passar por ela uma vez — o jogo inteiro depende de
+do jogo com o nome dele. Primeiro você escolhe o mapa (cada um tem os seus ambientes e marcadores) e
+depois a categoria: passos, ambientes, marcadores, a partida, papéis especiais, e menus e conversa. Vale muito a pena passar por ela uma vez — o jogo inteiro depende de
 reconhecer esses sons.
 
 ## Atualizações
@@ -136,6 +141,10 @@ fora do jogo — e se quiser continuar a conversa, é só mandar outro recado.
 
 **Minhas estatísticas.** Na lista de partidas, a opção **Minhas estatísticas** mostra partidas jogadas,
 vitórias (como tripulante, impostor e papel neutro), etapas de tarefa concluídas e assassinatos.
+
+**E-mail da conta.** Na lista de partidas, **E-mail da conta** diz qual é o e-mail da sua conta e
+deixa trocá-lo: digite a senha atual e o e-mail novo, e o jogo manda um código para o novo — ele só
+passa a valer depois do código.
 
 **Apagar a conta.** Na lista de partidas há a opção **Apagar minha conta**. Ela pede a sua senha e
 apaga para sempre a conta, as estatísticas, os recados que você mandou (com as respostas) e as
@@ -427,9 +436,72 @@ com os marcadores das suas tarefas e com o som dos corpos. Sabotagem existe para
 ainda pode perder alguma coisa — e você já perdeu; continuar terminando as tarefas é o que ainda
 ajuda o time.
 
+## A Base Polar
+
+O segundo mapa, a partir da versão 1.0: uma base de pesquisa no gelo. Ao criar a partida, o campo
+**Mapa** escolhe entre a nave e a Base Polar; as regras da sala (tecla **C**) dizem qual é.
+
+**Os prédios e o lado de fora.** A partida começa na **nave de pouso**, e as reuniões são no
+**escritório**, onde fica o botão de emergência. Os prédios — escritório, administração, comunicações,
+armas, O2, elétrica, depósito, sismógrafo, laboratório e a sala dos espécimes — são ligados por
+caminhos de **neve**: lá fora venta, e o passo na neve diz que você está do lado de fora. Os espécimes
+ficam depois da **câmara de descontaminação**, que sai do laboratório.
+
+**A câmara de descontaminação.** Quem entra nela fica preso por 5 segundos, com o spray, e todos por
+perto ouvem. Quem chega com ela fechada espera a vez, e quem entra junto fica preso junto. Quando ela
+abre, há 3 segundos para sair.
+
+**As portas.** O impostor só tranca sete salas: comunicações, elétrica, laboratório, escritório, O2,
+depósito e armas. A porta fica fechada por 20 segundos, mas tem um **painel**: na passagem, Enter o
+abre. Um bipe acende à esquerda, no meio ou à direita, e você aperta a seta daquele lado — esquerda,
+cima ou direita — antes que ele suma. Cinco acertos seguidos abrem a sala para todo mundo; errar ou
+demorar recomeça do zero. Se outra pessoa abrir antes, o seu painel fecha.
+
+**As câmeras** ficam na administração.
+
+**As tarefas da Base Polar:**
+
+- **Inserir as chaves** (nave de pouso; é a tarefa comum) — uma das cinco fechaduras pisca um bipe
+  grave no lado dela. Leve a chave com as setas até o clique soar do mesmo lado, Enter a enfia, e a
+  seta para cima a gira.
+- **Consertar o nó do clima** (lá fora, num dos caminhos de neve) — um labirinto: o lado do clique é a
+  coluna, e o tom é a linha. Bater numa parede não tira você do lugar. Depois, no laboratório, ligue o
+  interruptor do nó consertado. Com dois nós, o laboratório pede os dois, um depois do outro.
+- **Alinhar o telescópio** (laboratório) — o astro pisca com um tique. As setas movem a **mira**, não o
+  astro: aperte para o lado em que o ouve, e ele vem para o meio. Enter trava no centro.
+- **Registrar a temperatura** (laboratório) — a leitura é um tom; mude o registro com as setas para
+  cima e para baixo até ele soar igual, e aperte Enter.
+- **Fazer o exame médico** (laboratório) — fique parado no scanner até ele terminar. É uma tarefa
+  visível, como na nave.
+- **Reiniciar o Wi-Fi** (comunicações) — segure a seta para baixo até a alavanca travar. Volte depois
+  de 45 segundos — o jogo avisa quando dá — e segure a seta para cima.
+- **Trocar o galão de água** — no depósito, bata nos galões com Espaço: o cheio dá um baque surdo, o
+  vazio soa oco. Enter pega. Depois, leve-o ao bebedouro do escritório.
+- **Guardar os artefatos** (espécimes) — as peças chegam uma de cada vez, cada uma com o seu som. Cada
+  buraco da vitrine, quando você chega nele, soa como a peça que encaixa ali: ache o que soa como a
+  peça da mão e aperte Enter.
+- **Encher os cilindros de O2** (O2) — a prateleira e a máquina ficam em lados sorteados. Enter pega o
+  cilindro, encaixa na máquina, tira e devolve. São dois.
+- **Abrir a roda d'água** (lá fora) — gire a manivela com as setas, em roda: cima, direita, baixo,
+  esquerda. Três voltas abrem a água.
+- E também **conectar fiação**, **baixar dados** e **limpar asteroides** (armas), como na nave.
+
+**As sabotagens da Base Polar:**
+
+- **Luzes** (elétrica) e **comunicações** (na sala de comunicações), como na nave.
+- **Sismógrafo** — crítica, 90 segundos. Duas pessoas seguram **Enter** nos dois painéis da sala do
+  sismógrafo ao mesmo tempo, por um instante. Você ouve a mão de quem está no outro painel, do lado
+  dele. Sozinho não se conserta.
+- **Contaminação** — crítica, 120 segundos. Todos ficam contaminados e **tossem** de vez em quando, e
+  quem está perto ouve. A tripulação inteira precisa passar pela câmara de descontaminação: estar
+  dentro quando ela fecha e esperar ela abrir. O impostor não precisa ir — mas continua tossindo, e a
+  tosse o entrega.
+
+Como em toda sabotagem crítica, enquanto uma delas dura ninguém chama reunião nem reporta corpo.
+
 ## As câmeras da segurança
 
-Na **segurança** existe um posto de câmeras. Aperte **Enter** nele para ligar: você passa a ouvir
+Na **segurança** (na Base Polar, na **administração**) existe um posto de câmeras. Aperte **Enter** nele para ligar: você passa a ouvir
 uma sala à distância, como se estivesse lá dentro — os passos, o ambiente, o que acontece.
 
 | Tecla | O que faz |
@@ -675,7 +747,7 @@ morreria de amor de novo.
 
 ## Sabotagem (impostor)
 
-Quatro sabotagens, no menu da tecla **G**. Uma de cada vez, com recarga de 30 segundos, e não dá para
+Na nave, quatro sabotagens, no menu da tecla **G** (as da Base Polar estão na seção dela). Uma de cada vez, com recarga de 30 segundos, e não dá para
 repetir a mesma duas vezes seguidas.
 
 - **Luzes** — os corpos ficam mudos, o radar só alcança quem estiver bem colado, o alcance de
@@ -702,7 +774,7 @@ repetir a mesma duas vezes seguidas.
   setas até a voz ficar sem estática e segure ali um instante. É o único conserto que se faz de
   ouvido — ninguém consegue ditar a resposta de longe.
 
-**Portas (tecla F)** — tranca as portas de uma sala por 12 segundos, com recarga de 25 segundos (em
+**Portas (tecla F)** — tranca as portas de uma sala por 12 segundos (na Base Polar, 20, e com painel: ver a seção dela), com recarga de 25 segundos (em
 recarga, o F diz quanto falta):
 quem está dentro não sai, e quem está fora não entra; os corredores continuam livres. Não tem
 conserto: as portas reabrem sozinhas. Não é sabotagem, então dá para trancar uma sala **e** sabotar

@@ -6,8 +6,8 @@ tasks, or an impostor trying to eliminate everyone without being found out.
 Everything is spoken by the screen reader and positioned in space: you can tell where every person,
 every object and every body is from sound alone.
 
-> **Beta.** The game is playable from start to finish, but still under test. If something breaks,
-> the `crash.log` file in the game folder records what happened — it helps a lot.
+> **If something breaks,** the `crash.log` file in the game folder records what happened, and a
+> feedback message sent from the game takes it along — it helps a lot.
 
 *Este manual também está disponível em português: LEIAME.md, nesta mesma pasta.*
 
@@ -15,9 +15,12 @@ every object and every body is from sound alone.
 
 1. Open the game and choose **Connect** in the main menu. It already knows the server address;
    there is nothing to type.
-2. Create an account (username and password) or sign in with one you already have. The game
-   remembers the last user who signed in on this machine and puts the cursor straight on the
-   password.
+2. Create an account or sign in with one you already have. Registering asks for a username, a
+   password (twice) and an **email**: the game sends it a six-digit code, and the account is created
+   when you type it. The email is only used to recover your password: at login, **Forgot my
+   password** sends it a code, and with the code you choose another one. The game remembers the last
+   user who signed in on this machine and puts the cursor straight on the password; **Show password**
+   reads back what you typed.
 3. Pick a match from the list, or create your own.
 4. In the waiting room, the host presses Enter to start. At least 3 players are required; the
    maximum is 15.
@@ -40,7 +43,7 @@ The name of the last room you created, though, comes back filled in for the next
 another, erase it and type.
 
 **Practice:** the main menu has **Practice tasks and repairs**: any task or sabotage repair, alone,
-with no match — to learn each one calmly before it counts.
+with no match — to learn each one calmly before it counts. First the game asks which map.
 
 **Support the game:** the game is free. If you want to help keep the server running, the main menu
 has **Support the game**: **Pix** (Brazilian bank accounts) copies the random key (9f901a0c-85de-478a-b3d3-6fd08c8fa864)
@@ -48,7 +51,7 @@ for you to paste in your bank app, and **card, from any country** opens the Ko-f
 (ko-fi.com/otaviols).
 
 **Explore the map:** the main menu has an **Explore the map** option that lets you walk around the
-ship alone, with no server and no pressure. Each room is named as you enter it, Tab lists what is in
+map you choose (the ship or the Polar Base) alone, with no server and no pressure. Each room is named as you enter it, Tab lists what is in
 the room, the plus and minus keys change your speed (from 50 to 200 percent, the same range rooms
 allow), and ESC returns to the menu. **Enter on a task spot opens the task**, the same one as in a
 match, to practice it where it actually is. **The repair panels** all play their marker, as if each
@@ -71,7 +74,8 @@ list, **P** says who is in the hall, and the history keys (comma, period, PageUp
 and the announcements, as in a match.
 
 **Before playing:** the main menu has a **Learn the game sounds** option. It plays every sound in
-the game along with its name. It is well worth going through it once — the whole game depends on
+the game along with its name. First you choose the map (each has its own ambiences and markers) and
+then the category: footsteps, ambience, markers, the match, special roles, and menus and chat. It is well worth going through it once — the whole game depends on
 recognising these sounds.
 
 ## Updates
@@ -140,6 +144,10 @@ outside the game — and to keep the conversation going, just send another messa
 
 **My stats.** The match list has a **My stats** option showing matches played, wins (as crewmate,
 impostor and neutral role), task steps completed and kills.
+
+**Account email.** In the match list, **Account email** says which email your account has and lets
+you change it: type your current password and the new email, and the game sends a code to the new
+one — it only takes effect after the code.
 
 **Deleting your account.** The match list has a **Delete my account** option. It asks for your
 password and permanently deletes the account, your stats, the messages you sent (with their
@@ -431,9 +439,73 @@ door but **not** through a wall — and hears the bump against it, so it can sti
 markers and the body sounds. Sabotage exists to pressure those who still have something to lose — and
 you have already lost it; finishing your tasks is what still helps the team.
 
+## The Polar Base
+
+The second map, from version 1.0: a research base on the ice. When creating a match, the **Map**
+field chooses between the ship and the Polar Base; the room rules (**C** key) say which one it is.
+
+**The buildings and the outside.** The match starts at the **dropship**, and meetings happen in the
+**office**, where the emergency button is. The buildings — office, admin, communications, weapons, O2,
+electrical, storage, seismic, laboratory and the specimen room — are linked by **snow** paths: outside
+the wind blows, and footsteps in the snow tell you that you are outdoors. The specimen room is past the
+**decontamination chamber**, which leads from the laboratory.
+
+**The decontamination chamber.** Whoever enters it is held for 5 seconds, with the spray, and everyone
+nearby hears it. Whoever arrives while it is closed waits their turn, and whoever enters together is
+held together. When it opens, there are 3 seconds to leave.
+
+**The doors.** The impostor can only lock seven rooms: communications, electrical, laboratory, office,
+O2, storage and weapons. The door stays closed for 20 seconds, but it has a **panel**: at the doorway,
+Enter opens it. A beep lights up on the left, in the middle or on the right, and you press the arrow
+for that side — left, up or right — before it goes out. Five hits in a row open the room for everyone;
+a miss or a late press starts over from zero. If someone else opens it first, your panel closes.
+
+**The cameras** are in admin.
+
+**The Polar Base tasks:**
+
+- **Insert the keys** (dropship; the common task) — one of the five keyholes blinks a low beep on its
+  side. Move the key with the arrows until its click sounds on the same side, Enter inserts it, and
+  the up arrow turns it.
+- **Fix the weather node** (outside, on one of the snow paths) — a maze: the side of the click is the
+  column, and the pitch is the row. Hitting a wall does not move you. Then, in the laboratory, switch on
+  the fixed node. With two nodes, the laboratory asks for both, one after the other.
+- **Align the telescope** (laboratory) — the star blinks with a tick. The arrows move the
+  **crosshair**, not the star: press toward the side where you hear it, and it comes to the middle.
+  Enter locks it at the center.
+- **Record the temperature** (laboratory) — the reading is a tone; change the log with the up and down
+  arrows until it sounds the same, and press Enter.
+- **Submit scan** (laboratory) — stand still at the scanner until it finishes. It is a visible task, as
+  on the ship.
+- **Reboot the Wi-Fi** (communications) — hold the down arrow until the lever locks. Come back after 45
+  seconds — the game tells you when — and hold the up arrow.
+- **Replace the water jug** — in storage, knock on the jugs with Space: the full one gives a dull thud,
+  an empty one sounds hollow. Enter picks it up. Then take it to the water cooler in the office.
+- **Store the artifacts** (specimen room) — the pieces arrive one at a time, each with its own sound.
+  Each slot of the display case, when you reach it, sounds like the piece that fits there: find the one
+  that sounds like the piece in your hand and press Enter.
+- **Fill the O2 canisters** (O2) — the shelf and the machine are on random sides. Enter picks up the
+  canister, plugs it into the machine, takes it out and puts it back. There are two.
+- **Open the waterwheel** (outside) — turn the crank with the arrows, in a circle: up, right, down,
+  left. Three turns open the water.
+- And also **fix wiring**, **download data** and **clear asteroids** (weapons), as on the ship.
+
+**The Polar Base sabotages:**
+
+- **Lights** (electrical) and **communications** (in the communications room), as on the ship.
+- **Seismic stabilizers** — critical, 90 seconds. Two people hold **Enter** at the two panels of the
+  seismic room at the same time, for a moment. You hear the hand of whoever is at the other panel, on
+  their side. It cannot be fixed alone.
+- **Contamination** — critical, 120 seconds. Everyone gets contaminated and **coughs** now and then,
+  and anyone nearby hears it. The whole crew must go through the decontamination chamber: be inside
+  when it closes and wait for it to open. The impostor does not need to go — but keeps coughing, and
+  the cough gives them away.
+
+As with every critical sabotage, while one of them lasts nobody can call a meeting or report a body.
+
 ## The security cameras
 
-There is a camera station in **security**. Press **Enter** on it to switch on: you start hearing one
+There is a camera station in **security** (on the Polar Base, in **admin**). Press **Enter** on it to switch on: you start hearing one
 room from a distance, as if you were standing in it — the footsteps, the ambience, whatever happens.
 
 | Key | What it does |
@@ -685,7 +757,7 @@ hears that reviving is no use - the person would die of love again.
 
 ## Sabotage (impostor)
 
-Four sabotages, in the **G** menu. One at a time, with a 30-second cooldown, and the same one
+On the ship, four sabotages, in the **G** menu (the Polar Base ones are in its section). One at a time, with a 30-second cooldown, and the same one
 cannot be repeated twice in a row.
 
 - **Lights** — bodies go silent, the radar only reaches whoever is right next to you, general
@@ -712,7 +784,7 @@ cannot be repeated twice in a row.
   arrows until the voice is free of static and hold it there for a moment. It is the only repair done
   by ear — nobody can dictate the answer from afar.
 
-**Doors (F)** — locks a room's doors for 12 seconds, with a 25-second cooldown (on cooldown, F says how
+**Doors (F)** — locks a room's doors for 12 seconds (on the Polar Base, 20, and with a panel: see its section), with a 25-second cooldown (on cooldown, F says how
 long is left): whoever is inside
 cannot get out, and whoever is outside cannot get in; the corridors stay open. There is no fixing
 them: the doors reopen on their own. It is not a sabotage, so you can lock a room **and** sabotage

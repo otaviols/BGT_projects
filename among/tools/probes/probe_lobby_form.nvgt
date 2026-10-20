@@ -80,16 +80,22 @@ void main() {
 	g_settings.last_lobby_name = nome_antes;
 
 	println("== botao de papeis ==");
-	// nome, código, modo, predefinição, kill, jogadores, impostores, neutros -> o 9º é o botão de papéis.
-	array<int> ate_papeis = {KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_RETURN, KEY_ESCAPE, KEY_ESCAPE};
+	// nome, código, modo, predefinição, kill, jogadores, [mapa], impostores, neutros -> o botão de papéis.
+	// O campo do mapa só existe com mais de um mapa (a 1.0 publicou a Base Polar): conta-se quando houver.
+	int tabs_papeis = usable_map_ids().length() > 1 ? 9 : 8;
+	array<int> ate_papeis;
+	for (int i = 0; i < tabs_papeis; i++) ate_papeis.insert_last(KEY_TAB);
+	ate_papeis.insert_last(KEY_RETURN); ate_papeis.insert_last(KEY_ESCAPE); ate_papeis.insert_last(KEY_ESCAPE);
 	roda(ate_papeis);
 	run_lobby_settings_form(c, null, true);
 	confere("o botao de papeis abre a tela de PAPEIS", falou(tr("lobby.roles_title") + " Dialog"));
 	confere("e nao a de modificadores", !falou(tr("lobby.modifiers_title") + " Dialog"));
 
 	println("== tela de modificadores ==");
-	// O 10º controle é o botão de modificadores; a tela abre com a regra deles na morte (2026-10-17).
-	array<int> ate_mods = {KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_TAB, KEY_RETURN, KEY_ESCAPE, KEY_ESCAPE};
+	// O controle seguinte é o botão de modificadores; a tela abre com a regra deles na morte (2026-10-17).
+	array<int> ate_mods;
+	for (int i = 0; i < tabs_papeis + 1; i++) ate_mods.insert_last(KEY_TAB);
+	ate_mods.insert_last(KEY_RETURN); ate_mods.insert_last(KEY_ESCAPE); ate_mods.insert_last(KEY_ESCAPE);
 	roda(ate_mods);
 	run_lobby_settings_form(c, null, true);
 	confere("o botao de modificadores abre a tela deles", falou(tr("lobby.modifiers_title") + " Dialog"));

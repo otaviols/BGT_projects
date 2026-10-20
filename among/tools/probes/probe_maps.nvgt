@@ -109,11 +109,13 @@ void main() {
 	bool mudou = c.validate();
 	confere("mapa que nao existe vira o padrao", mudou && c.map_name == MAP_THE_HUB);
 	confere("a nave de sempre nao exige protocolo novo", c.required_protocol() < MAPS_PROTOCOL);
-	// Mapa em construção não existe para a sala: só o Conhecer o mapa e o treino o oferecem.
+	// Mapa em construção não existe para a sala: só o Conhecer o mapa e o treino o oferecem. Com nenhum
+	// em construção (a 1.0 publicou a Base Polar), confere que a Base Polar publicada a sala aceita.
 	lobby_config t;
-	t.map_name = MAP_POLAR_BASE;
+	t.map_name = MAP_IDS_IN_TEST.length() > 0 ? MAP_IDS_IN_TEST[0] : MAP_POLAR_BASE;
 	t.validate();
-	confere("o servidor nao aceita mapa em construcao (" + t.map_name + ")", t.map_name == MAP_THE_HUB);
+	if (MAP_IDS_IN_TEST.length() > 0) confere("o servidor nao aceita mapa em construcao (" + t.map_name + ")", t.map_name == MAP_THE_HUB);
+	else confere("a sala aceita a Base Polar publicada", t.map_name == MAP_POLAR_BASE && t.required_protocol() >= MAPS_PROTOCOL);
 	lobby_overrides ov;
 	ov.map = MAP_THE_HUB;
 	net_packet@ pkt = net_packet("teste");
