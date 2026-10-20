@@ -98,7 +98,7 @@ if (Test-Path $EmailJson) {
 	finally { Remove-Item $tmp -ErrorAction SilentlyContinue }
 	Vps-Run "chmod 600 $TestData/email.json" | Out-Null
 }
-else { Write-Warning "Sem $EmailJson: o de teste sobe sem e-mail." }
+else { Write-Warning "Sem ${EmailJson}: o de teste sobe sem e-mail." }
 Vps-Run "chown -R 10001:10001 $TestData" | Out-Null
 
 Write-Host "Trocando o contêiner de teste..."
