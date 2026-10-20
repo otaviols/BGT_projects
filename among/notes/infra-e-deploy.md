@@ -307,6 +307,10 @@ volume junto.
 
 ## Operar
 
+**Aspas duplas somem dos textos do `admin.ps1`** (aviso, responder). O Windows PowerShell 5.1 as come ao
+passar o argumento ao `nvgt`, e nem `\"` salva - o aviso da 1.0 (2026-10-20) saiu "the Support the game
+menu", sem as aspas. Escreva os textos sem aspas duplas (ou com apóstrofo).
+
 ```
 ssh -i ~/.ssh/amongus_vps -o IdentitiesOnly=yes root@amongus.blindtabern.com "docker ps; docker logs -f amongus-server"
 infra\admin.ps1 recados [-Depois <id>] [-Crash] [-Saida arquivo]   # recados dos jogadores
