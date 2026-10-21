@@ -94,6 +94,14 @@ do ambiente. Os menus agora têm `g_screen_menu_frame_hook` (`visual_map.nvgt`),
 limite de tempo: a primeira versão daquela sonda saía por `exit(1)` no travamento e deixava o modo
 gráfico ligado e a pergunta marcada como feita nas preferências de quem estava na máquina.
 
+**Sonda que "estoura o tempo" ou para no meio, uma rodada em cada duas, sem erro nenhum: veja se ela lê
+número de JSON com `float(...)` direto.** Posição REDONDA (-1.0) viaja como inteiro no JSON, e o `float()`
+de um inteiro derruba o script calado (o porquê está em `safe_var_to_float`, `src/network/packet.nvgt`) -
+o processo sai, ou fica preso numa janela de erro até o limite da bateria. Só acontece quando o sorteio
+cai num número inteiro, por isso parece intermitente. Foi a `probe_bait_net` (2026-10-21): marcas com
+horário num arquivo, etapa por etapa, mostraram que ela morria ao ler o elenco, e não que travava.
+Use `var@ x = obj["x"]; safe_var_to_float(x)`, como o elenco do jogo (`client_state.nvgt`).
+
 Para coisas que só falham no build compilado (o menu de sons, a atualização, caminhos), compile uma
 sonda com `nvgt -c`, rode o `.exe` e grave o resultado num arquivo — o app compilado não tem console.
 

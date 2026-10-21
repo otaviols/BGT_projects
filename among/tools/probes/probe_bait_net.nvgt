@@ -72,8 +72,12 @@ void main() {
 	for (uint k = 0; k < elenco.length(); k++) {
 		json_object@ e = elenco.get_object(k);
 		uint64 pid = uint64(e["peer_id"]);
-		if (pid == todos[imp].my_peer_id) { ix = float(e["x"]); iy = float(e["y"]); }
-		if (pid == vitima) { vx = float(e["x"]); vy = float(e["y"]); }
+		// safe_var_to_float, e nunca float() direto: posição redonda (-1.0) chega como INTEIRO no JSON, e o
+		// float() direto derruba a sonda em silêncio - foi o "estouro de tempo" de uma rodada em cada duas.
+		var@ ex = e["x"];
+		var@ ey = e["y"];
+		if (pid == todos[imp].my_peer_id) { ix = safe_var_to_float(ex); iy = safe_var_to_float(ey); }
+		if (pid == vitima) { vx = safe_var_to_float(ex); vy = safe_var_to_float(ey); }
 	}
 	// Anda até colar na vítima, devagar o bastante para o servidor aceitar cada passo.
 	timer andando;
