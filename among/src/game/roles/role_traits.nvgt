@@ -111,9 +111,33 @@ bool role_is_guessable(const string&in role_id) { return CONFIGURABLE_ROLE_IDS.f
 const string MOD_LOVERS = "lovers"; // quantos CASAIS; os dois se conhecem, morrem juntos e vencem juntos
 const string MOD_FLASH = "flash";   // anda 50% mais rápido
 const string MOD_GIANT = "giant";   // anda 50% mais devagar
-const array<string> CONFIGURABLE_MODIFIER_IDS = {MOD_LOVERS, MOD_FLASH, MOD_GIANT};
+// Os de "traço" (1.1, Town of Us e decisões do usuário em 2026-10-21): no máximo UM por pessoa, num
+// campo só (game_player.trait_modifier), ao lado da velocidade e do par.
+const string MOD_BAIT = "bait";         // isca: quem a mata reporta o corpo NA HORA
+const string MOD_DISEASED = "diseased"; // doente: quem o mata fica com a recarga do kill mais longa
+const string MOD_TORCH = "torch";       // lanterninha: as luzes apagadas não o atingem
+const array<string> TRAIT_MODIFIER_IDS = {MOD_BAIT, MOD_DISEASED, MOD_TORCH};
+const array<string> CONFIGURABLE_MODIFIER_IDS = {MOD_LOVERS, MOD_FLASH, MOD_GIANT, MOD_BAIT, MOD_DISEASED, MOD_TORCH};
 
 bool is_modifier_id(const string&in id) { return CONFIGURABLE_MODIFIER_IDS.find(id) != -1; }
+
+// O cliente que a sala exige para ligar o modificador: os de traço mudam o que o CLIENTE percebe (o
+// lanterninha enxerga no apagão, o assassino do doente recebe a recarga dele) e um cliente anterior
+// jogaria com a regra velha sem saber.
+int modifier_min_protocol(const string&in id) {
+	return TRAIT_MODIFIER_IDS.find(id) != -1 ? TRAIT_MODIFIERS_PROTOCOL : BODY_ROLES_PROTOCOL;
+}
+
+// O papel COM o que o modificador de traço muda nele. Hoje só o lanterninha, que fica imune às luzes -
+// o ÚNICO: nenhum papel é, nem o impostor, que sofre o apagão que causa. Pela capacidade que já existia
+// (immune_to_lights), e não por um `if` novo em cada lugar que o apagão alcança - som, corpos, radar,
+// testemunha. Os dois lados chamam esta função (o servidor em
+// game_player.role(), o cliente ao montar o my_role): escrita separada, as duas divergiriam.
+role_traits@ role_with_modifier(const string&in role_id, const string&in trait_modifier) {
+	role_traits@ r = role_for(role_id);
+	if (trait_modifier == MOD_TORCH) r.immune_to_lights = true;
+	return r;
+}
 // O que a sala pode ligar: papéis e modificadores, na ordem do formulário e da leitura das regras.
 bool is_configurable_id(const string&in id) { return CONFIGURABLE_ROLE_IDS.find(id) != -1 || is_modifier_id(id); }
 array<string>@ configurable_ids() {
@@ -141,6 +165,8 @@ const int WOLF_MIN_PROTOCOL = 8;
 // (S_BODY_PLACED), o som dos dois (S_BODY_SOUND) e a troca anunciada no resultado da votação. Um
 // cliente anterior continuaria ouvindo um corpo que não está mais ali.
 const int BODY_ROLES_PROTOCOL = 10;
+// Os modificadores de traço: isca, doente e lanterninha (ver modifier_min_protocol).
+const int TRAIT_MODIFIERS_PROTOCOL = 16;
 
 // Um número do papel que a SALA pode ajustar (recarga, duração, janela de gravação).
 //

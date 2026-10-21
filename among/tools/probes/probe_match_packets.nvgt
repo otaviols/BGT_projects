@@ -25,7 +25,8 @@ json_object@ jogador(uint64 peer, const string&in nome, float x, float y) {
 }
 
 match_session@ nova_partida(const string&in papel, const string&in par = "", const string&in velocidade = "",
-		const string&in mapa = "", float x = 0.0, float y = 0.0, bool visiveis = true, json_array@ tarefas = null) {
+		const string&in mapa = "", float x = 0.0, float y = 0.0, bool visiveis = true, json_array@ tarefas = null,
+		const string&in traco = "") {
 	game_client@ c = game_client();
 	@c.net = network();
 	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
@@ -47,6 +48,7 @@ match_session@ nova_partida(const string&in papel, const string&in par = "", con
 	inicio.set_array("players", ps);
 	if (par != "") inicio.set_string("lover_name", par);
 	if (velocidade != "") inicio.set_string("speed_modifier", velocidade);
+	if (traco != "") inicio.set_string("trait_modifier", traco);
 	return match_session(c, inicio);
 }
 
@@ -196,6 +198,24 @@ void main() {
 	fim.set_uint64("ejected_peer", 0);
 	imp.handle_packet(fim);
 	confere("fim da votacao rearma a recarga de kill", imp.my_kill_cooldown_remaining == 25.0);
+	// Matar o DOENTE: a recarga vem do servidor, e não é a da sala.
+	imp.my_kill_cooldown_remaining = 0.0;
+	net_packet@ doente = net_packet(S_PLAYER_KILLED);
+	doente.set_uint64("peer_id", 3); doente.set_uint64("killer_peer", 1); doente.set_float("x", 2.0); doente.set_float("y", 0.0);
+	doente.set_float("killer_cooldown", 50.0);
+	imp.handle_packet(doente);
+	confere("matar o doente: a recarga e a que o servidor mandou (" + imp.my_kill_cooldown_remaining + ")", imp.my_kill_cooldown_remaining == 50.0);
+
+	println("== lanterninha ==");
+	match_session@ lt = nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, true, null, MOD_TORCH);
+	match_session@ sem_lt = nova_partida(ROLE_CREWMATE);
+	confere("o lanterninha e imune ao apagao, e o comum nao", !lights_out_for("lights", lt.my_role, true) && lights_out_for("lights", sem_lt.my_role, true));
+	confere("a abertura e o Ctrl+habilidade falam do lanterninha", lt.trait_modifier_id == MOD_TORCH && lt.current_role_text().find(tr("role.torch")) >= 0);
+	net_packet@ troca = net_packet(S_ROLE_CHANGED);
+	troca.set_string("role_id", ROLE_JESTER);
+	troca.set_string("reason", "executioner_target_lost");
+	lt.handle_packet(troca);
+	confere("trocar de papel nao tira o lanterninha", !lights_out_for("lights", lt.my_role, true));
 
 	println("== barriga do lobo ==");
 	match_session@ b = nova_partida(ROLE_CREWMATE, "ana", "flash");

@@ -134,7 +134,9 @@ mixin class server_ship_part {
 		array<game_player@>@ nearby = lobby.players_in_same_room(me.peer_id);
 		// Luzes apagadas: o radar vira quase um tato - só sente quem está bem colado, mesmo estando
 		// todo mundo na mesma sala.
-		if (blinded_by_sabotage && lobby.active_sabotage == "lights") {
+		// O lanterninha (immune_to_lights pelo modificador, ver role_with_modifier) tem o radar inteiro no
+		// apagão. O impostor também, mas por outro caminho: a imunidade de comunicações (ver acima).
+		if (blinded_by_sabotage && lobby.active_sabotage == "lights" && !olhos.role().immune_to_lights) {
 			array<game_player@> in_reach;
 			for (uint i = 0; i < nearby.length(); i++) {
 				if (distance_2d(me.x, me.y, nearby[i].x, nearby[i].y) <= RADAR_LIGHTS_OUT_RANGE) in_reach.insert_last(nearby[i]);

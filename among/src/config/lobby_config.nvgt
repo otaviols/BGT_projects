@@ -399,7 +399,7 @@ class lobby_config {
 		for (uint i = 0; i < ids.length(); i++) {
 			int n = 0;
 			if (!role_counts.get(ids[i], n) || n <= 0) continue;
-			int exigido = is_modifier_id(ids[i]) ? BODY_ROLES_PROTOCOL : role_for(ids[i]).min_protocol;
+			int exigido = is_modifier_id(ids[i]) ? modifier_min_protocol(ids[i]) : role_for(ids[i]).min_protocol;
 			if (exigido > maior) maior = exigido;
 		}
 		return maior;

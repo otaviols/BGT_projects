@@ -84,6 +84,9 @@ mixin class state_kill_part {
 		// Se era o lobo, quem estava na barriga volta - no lugar onde ele caiu.
 		release_belly(victim, victim.x, victim.y);
 		killer.kill_cooldown_remaining = kill_cooldown_for(killer);
+		// O DOENTE: quem o mata espera mais para matar de novo. O assassino recebe a recarga no pacote
+		// dele (killer_cooldown, abaixo) e não ouve por quê - descobrir é dele.
+		if (victim !is killer && victim.trait_modifier == MOD_DISEASED) killer.kill_cooldown_remaining *= DISEASED_COOLDOWN_MULTIPLIER;
 		// Matar REVELA o fantasma. É o preço inteiro do papel: ele atravessa a nave sem ser
 		// percebido, mas o instante do crime o devolve ao mundo - com som, no lugar onde está, para
 		// quem estiver por perto. Sem isto ele mataria e sumiria de novo, e não haveria jogo do
@@ -103,6 +106,7 @@ mixin class state_kill_part {
 		body.death_time = elapsed_time;
 		body.killer_peer_id = killer.peer_id;
 		body.trail_until = elapsed_time + config.role_value(ROLE_DETECTIVE, TUNABLE_TRAIL);
+		body.bait_report = victim !is killer && victim.trait_modifier == MOD_BAIT && config.meetings_allowed();
 		bodies.insert_last(body);
 		// O carregador morto larga o que carregava ali mesmo.
 		net_packet@ largado = drop_carried_body(victim);
@@ -123,6 +127,9 @@ mixin class state_kill_part {
 		// E o nome verdadeiro não pode entrar NESTE pacote de jeito nenhum: ele é transmitido à
 		// partida inteira. Seria o mesmo erro do `misfire` do xerife.
 		out_event.set_int("killer_color", killer.color);
+		// A recarga que o assassino ficou: ela pode não ser a da sala (o doente). Este pacote completo só
+		// vai ao assassino e à vítima (ver announce_kill).
+		out_event.set_float("killer_cooldown", killer.kill_cooldown_remaining);
 		out_event.set_float("x", victim.x);
 		out_event.set_float("y", victim.y);
 		// O tiro errado NÃO entra neste pacote: ele é transmitido à partida inteira, e qualquer um

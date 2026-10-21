@@ -36,6 +36,7 @@ mixin class match_frame_keys_part {
 			}
 		}
 		if (speed_modifier_id != "") texto += " " + tr("role." + speed_modifier_id) + ".";
+		if (trait_modifier_id != "") texto += " " + tr("role." + trait_modifier_id) + ".";
 		if (lover_name_spoken != "") {
 			dictionary@ lp = dictionary();
 			lp.set("name", lover_name_spoken);

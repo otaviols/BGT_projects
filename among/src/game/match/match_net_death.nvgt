@@ -12,6 +12,7 @@ mixin class match_net_death_part {
 	void lose_modifiers() {
 		if (!death_removes_modifiers) return; // a sala escolheu a regra antiga: os modificadores ficam
 		speed_modifier_id = "";
+		trait_modifier_id = "";
 		lover_name_spoken = "";
 		if (room_move_speed > 0.0) {
 			move_speed = room_move_speed;
@@ -40,7 +41,8 @@ mixin class match_net_death_part {
 			if (!pkt.announced) speak(killed_text);
 			events_log.add("", killed_text);
 		}
-		if (pkt.get_uint64("killer_peer") == client.my_peer_id) my_kill_cooldown_remaining = kill_cooldown_config;
+		// A recarga vem do servidor: matar o DOENTE a alonga. Servidor anterior não manda: a da sala.
+		if (pkt.get_uint64("killer_peer") == client.my_peer_id) my_kill_cooldown_remaining = pkt.get_float("killer_cooldown", kill_cooldown_config);
 	}
 
 	// O alarme toca SEM posição, para a nave inteira: ele não marca um lugar - a sala vai

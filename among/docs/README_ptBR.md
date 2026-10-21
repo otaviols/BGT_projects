@@ -757,7 +757,18 @@ Quem recebe um ouve junto com o papel. Bots não recebem.
   diferentes). Se uma morrer, a outra **morre junto**, onde estiver; se a morte foi na reunião, a outra
   cai quando a reunião acaba. Se sobrarem as duas e no máximo mais uma pessoa, o casal **vence junto**.
 
-**A morte tira os modificadores.** Quem morre deixa de ser Flash, Gigante ou apaixonado. Se o médico
+Mais três, e cada pessoa recebe no máximo um destes:
+
+- **Isca:** quem matar a isca **reporta o corpo na mesma hora**, sem querer: a reunião abre e a mesa
+  ouve que foi ele quem reportou. Se uma sabotagem crítica estiver impedindo reuniões, o reporte sai
+  assim que ela acabar.
+- **Doente:** quem matar o doente demora o **dobro** para poder matar de novo. Ele não ouve por quê.
+- **Lanterninha:** com as **luzes apagadas**, continua ouvindo tudo como sempre: o alcance do som, os
+  corpos, o radar e quem matou ao lado dele. É o único na nave; nem o impostor escapa do apagão. Nunca
+  sai para impostor.
+
+**A morte tira os modificadores.** Quem morre deixa de ser Flash, Gigante, apaixonado, isca, doente ou
+lanterninha. Se o médico
 reviver alguém, a pessoa volta sozinha, na velocidade normal e sem par: o outro apaixonado continua
 morto, e o revivido não morre de amor de novo. Essa é a regra padrão; a sala pode escolher a antiga, no
 começo da tela de modificadores: aí ninguém perde nada na morte, e o médico revive o casal junto. Nessa

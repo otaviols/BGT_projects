@@ -32,7 +32,7 @@ const string GAME_VERSION = "1.0.0";
 // conhece e só é recusado em salas que ligaram o Atirador - a exigência passou a ser POR PAPEL (ver
 // role_traits.min_protocol e lobby_config.required_protocol), e não uma constante única que obrigaria
 // a barrar quem só queria jogar com engenheiro.
-const int PROTOCOL_VERSION = 15; // 15 = a sala escolhe o mapa (ver MAPS_PROTOCOL); 14 = 14 = várias tarefas visíveis ao mesmo tempo, a arma dos asteroides entre elas (ver VISIBLE_TASKS_PROTOCOL); 13 = voltar à partida depois de cair (ver REJOIN_PROTOCOL); 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
+const int PROTOCOL_VERSION = 16; // 16 = isca, doente e lanterninha (ver TRAIT_MODIFIERS_PROTOCOL); 15 = a sala escolhe o mapa (ver MAPS_PROTOCOL); 14 = 14 = várias tarefas visíveis ao mesmo tempo, a arma dos asteroides entre elas (ver VISIBLE_TASKS_PROTOCOL); 13 = voltar à partida depois de cair (ver REJOIN_PROTOCOL); 12 = expulsar e mandar assistir (Ctrl+K do anfitrião); 11 = aviso de quem começa ou para de assistir; 10 = prefeito, trocador, lixeiro e carregador; 6 = S_SERVER_NOTICE (aviso do servidor com som e histórico); 7 = papéis neutros (o Bobo); 8 = o Lobo Mau (engolir e soltar); 9 = saguão ao vivo (lista e avisos)
 // A 1.0 recomeça o banco, e o cadastro passa a exigir e-mail: um cliente anterior não tem como se cadastrar
 // (nem conhece a Base Polar). Ele é recusado no login com o motivo, e o atualizador faz o resto.
 const int MIN_PROTOCOL_VERSION = 15;
@@ -160,6 +160,9 @@ const float PLAYER_MAX_SPEED_TOLERANCE = 1.15; // margem de validação no servi
 const uint MIN_PASSWORD_LENGTH = 6;
 // O ranking (1.0): só entra quem tem este mínimo de partidas - senão quem venceu 1 de 1 seria o primeiro.
 const int RANKING_MIN_GAMES = 20;
+// Quem mata o DOENTE fica com a recarga do kill multiplicada por isto (no Town of Us é 3; 2 dobra a
+// espera sem tirar o impostor da partida).
+const float DISEASED_COOLDOWN_MULTIPLIER = 2.0;
 const int RANKING_TOP = 10;
 // Os rankings por time e por modo (1.0, pedido do usuário). Mínimo menor que o geral: ninguém joga 20
 // partidas de cada time tão cedo, e sem mínimo quem venceu uma de uma ficava em primeiro com 100%.

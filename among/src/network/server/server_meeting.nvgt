@@ -16,7 +16,29 @@ mixin class server_meeting_part {
 		body_info@ body = lobby.find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
 		if (@body == null) return;
 		if (lobby.meetings_blocked_by_sabotage()) { send_error(peer_id, "sabotage.blocks_meeting"); return; }
+		report_body(lobby, peer_id, body);
+	}
 
+	// A ISCA: quem a matou reporta o corpo na hora, pelo mesmo caminho do reporte comum - a mesa ouve
+	// "Fulano reportou", e é o assassino (decisão do usuário: instantâneo, sem atraso). Chamada a cada
+	// tick da sala, depois de anunciar as mortes, então o som do assassinato chega antes da reunião. Com
+	// uma sabotagem crítica barrando reuniões, espera: o reporte sai assim que ela acabar. Assassino que
+	// morreu antes disso leva o reporte com ele.
+	void report_bait_bodies(game_state@ lobby) {
+		for (uint i = 0; i < lobby.bodies.length(); i++) {
+			if (lobby.state != "in_progress") return;
+			body_info@ b = lobby.bodies[i];
+			if (!b.bait_report) continue;
+			game_player@ assassino = lobby.find_player(b.killer_peer_id);
+			if (@assassino == null || !assassino.alive) { b.bait_report = false; continue; }
+			if (lobby.meetings_blocked_by_sabotage()) return;
+			b.bait_report = false;
+			report_body(lobby, assassino.peer_id, b);
+			return; // a reunião começou: os outros corpos esperam a próxima
+		}
+	}
+
+	void report_body(game_state@ lobby, uint64 peer_id, body_info@ body) {
 		net_packet@ reported = net_packet(S_BODY_REPORTED);
 		reported.set_uint64("reporter_peer", peer_id);
 		reported.set_uint64("body_peer", body.victim_peer_id);

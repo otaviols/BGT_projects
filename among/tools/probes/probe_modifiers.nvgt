@@ -1,4 +1,4 @@
-// Sonda dos modificadores (Flash, Gigante, casal de apaixonados), direto no estado da partida, sem rede.
+// Sonda dos modificadores (Flash, Gigante, casal de apaixonados, isca, doente e lanterninha), direto no estado da partida, sem rede.
 //   nvgt tools/probes/probe_modifiers.nvgt
 #include "../../src/core/game_state.nvgt"
 #include "../../src/game/roles/role_traits.nvgt"
@@ -183,6 +183,84 @@ void main() {
 	e.take_heartbreaks();
 	confere("engolido: par e Gigante continuam, e o par nao morre de amor",
 		e.find_player(3).lover == 1 && e.find_player(3).speed_modifier == MOD_GIANT && e.find_player(1).alive);
+
+	println("== isca, doente e lanterninha (sorteio) ==");
+	game_state@ t = mesa();
+	t.config.set_role_count(MOD_BAIT, 1);
+	t.config.set_role_count(MOD_DISEASED, 1);
+	t.config.set_role_count(MOD_TORCH, 5); // mais vagas que gente: o impostor e o bot nunca recebem
+	confere("a sala exige o protocolo deles (" + t.config.required_protocol() + ")", t.config.required_protocol() >= TRAIT_MODIFIERS_PROTOCOL);
+	t.assign_modifiers();
+	int iscas = 0, doentes = 0, lanternas = 0;
+	bool impostor_sem_lanterna = t.find_player(4).trait_modifier != MOD_TORCH;
+	bool bot_sem_traco = t.find_player(6).trait_modifier == "";
+	for (uint i = 0; i < t.players.length(); i++) {
+		string m = t.players[i].trait_modifier;
+		if (m == MOD_BAIT) iscas++;
+		if (m == MOD_DISEASED) doentes++;
+		if (m == MOD_TORCH) lanternas++;
+	}
+	// Isca e doente saem para qualquer humano (o impostor inclusive); com 5 vagas de lanterninha, todo
+	// humano fora do time impostor que ficou sem traço recebe um. Ninguém recebe dois (o campo é um só).
+	bool todos_cobertos = true;
+	for (uint i = 0; i < t.players.length(); i++) {
+		game_player@ p = t.players[i];
+		if (!p.is_bot && p.role().team != TEAM_IMPOSTOR && p.trait_modifier == "") todos_cobertos = false;
+	}
+	confere("uma isca, um doente, e o resto lanterninha (" + iscas + "/" + doentes + "/" + lanternas + ")",
+		iscas == 1 && doentes == 1 && todos_cobertos && iscas + doentes + lanternas <= 5);
+	confere("o lanterninha nunca sai para o impostor, e bot nao recebe traco", impostor_sem_lanterna && bot_sem_traco);
+
+	println("== doente ==");
+	game_state@ d = mesa();
+	d.find_player(1).trait_modifier = MOD_DISEASED;
+	d.find_player(4).kill_cooldown_remaining = 0.0;
+	net_packet@ dk;
+	d.try_kill(4, 1, dk);
+	float normal = d.kill_cooldown_for(d.find_player(4));
+	confere("quem mata o doente fica com a recarga dobrada (" + d.find_player(4).kill_cooldown_remaining + ")",
+		d.find_player(4).kill_cooldown_remaining == normal * DISEASED_COOLDOWN_MULTIPLIER);
+	confere("e o pacote do assassino traz essa recarga", @dk != null && dk.get_float("killer_cooldown") == normal * DISEASED_COOLDOWN_MULTIPLIER);
+	d.find_player(4).kill_cooldown_remaining = 0.0;
+	d.try_kill(4, 2, dk);
+	confere("controle: matar um comum da a recarga da sala", d.find_player(4).kill_cooldown_remaining == normal);
+
+	println("== isca ==");
+	game_state@ i2 = mesa();
+	i2.find_player(1).trait_modifier = MOD_BAIT;
+	i2.find_player(4).kill_cooldown_remaining = 0.0;
+	net_packet@ ik;
+	i2.try_kill(4, 1, ik);
+	i2.find_player(4).kill_cooldown_remaining = 0.0;
+	i2.try_kill(4, 2, ik);
+	bool isca_marcada = false, comum_marcado = false;
+	for (uint b = 0; b < i2.bodies.length(); b++) {
+		if (i2.bodies[b].victim_peer_id == 1) isca_marcada = i2.bodies[b].bait_report && i2.bodies[b].killer_peer_id == 4;
+		if (i2.bodies[b].victim_peer_id == 2) comum_marcado = i2.bodies[b].bait_report;
+	}
+	confere("o corpo da isca fica marcado para o assassino reportar", isca_marcada);
+	confere("controle: o corpo comum nao", !comum_marcado);
+	game_state@ i3 = mesa();
+	i3.find_player(2).set_role(ROLE_SHERIFF);
+	i3.find_player(2).trait_modifier = MOD_BAIT;
+	i3.find_player(2).kill_cooldown_remaining = 0.0;
+	bool errou = false;
+	i3.try_kill(2, 1, ik, errou); // o xerife atira num tripulante e morre ele
+	confere("xerife-isca que erra o tiro: morreu por si, ninguem para reportar", errou && i3.bodies.length() == 1 && !i3.bodies[0].bait_report);
+
+	println("== lanterninha ==");
+	role_traits@ comum = role_with_modifier(ROLE_CREWMATE, "");
+	role_traits@ lanterna = role_with_modifier(ROLE_CREWMATE, MOD_TORCH);
+	confere("as luzes apagadas atingem o comum, e nao o lanterninha",
+		lights_out_for("lights", comum, true) && !lights_out_for("lights", lanterna, true));
+	game_state@ l = mesa();
+	l.find_player(1).trait_modifier = MOD_TORCH;
+	confere("no servidor, o papel do lanterninha vem com a imunidade", l.find_player(1).role().immune_to_lights && !l.find_player(2).role().immune_to_lights);
+	game_state@ lm = mesa();
+	lm.find_player(1).trait_modifier = MOD_BAIT;
+	lm.find_player(1).alive = false;
+	lm.take_heartbreaks();
+	confere("a morte tira o traco, como os outros", lm.find_player(1).trait_modifier == "");
 
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");

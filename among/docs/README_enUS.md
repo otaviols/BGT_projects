@@ -767,7 +767,18 @@ one hears it along with the role. Bots do not get them.
   dies, the other **dies too**, wherever they are; if the death was in a meeting, the other falls when
   the meeting ends. If the two of them and at most one more are left, the couple **wins together**.
 
-**Death removes modifiers.** Whoever dies stops being Flash, Giant or a lover. If the doctor revives
+Three more, and each person gets at most one of these:
+
+- **Bait:** whoever kills the bait **reports the body right away**, without meaning to: the meeting
+  starts and the table hears that they were the one who reported it. If a critical sabotage is blocking
+  meetings, the report goes out as soon as it ends.
+- **Diseased:** whoever kills them takes **twice as long** before they can kill again. They are not
+  told why.
+- **Torch:** with the **lights out**, keeps hearing everything as usual: the sound range, the bodies,
+  the radar and who killed right next to them. They are the only one on the ship; not even the impostor
+  escapes the blackout. Never given to an impostor.
+
+**Death removes modifiers.** Whoever dies stops being Flash, Giant, a lover, bait, diseased or a torch. If the doctor revives
 someone, they come back alone, at normal speed and without a partner: the other lover stays dead, and
 the revived player does not die of love again. That is the default rule; the room can choose the old
 one, at the top of the modifiers screen: then nobody loses anything on death, and the doctor revives the

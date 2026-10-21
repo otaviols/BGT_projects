@@ -156,7 +156,7 @@ mixin class match_net_abilities_part {
 	// O papel mudou no meio da partida (Carrasco que perdeu o alvo, Amnésico que herdou). Tudo que o
 	// começo da partida dava ao papel é refeito aqui: o que as teclas podem, recargas, companheiros.
 	void on_role_changed(net_packet@ pkt) {
-		@my_role = role_for(pkt.get_string("role_id"));
+		@my_role = role_with_modifier(pkt.get_string("role_id"), trait_modifier_id);
 		is_impostor = my_role.team == TEAM_IMPOSTOR;
 		mui.is_impostor = is_impostor;
 		kill_cooldown_config = pkt.get_float("kill_cooldown_seconds", kill_cooldown_config);

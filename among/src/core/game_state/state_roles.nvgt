@@ -440,6 +440,7 @@ mixin class state_roles_part {
 			if (p.alive || p.swallowed()) continue;
 			p.lover = 0;
 			p.speed_modifier = "";
+			p.trait_modifier = "";
 		}
 	}
 
@@ -459,6 +460,25 @@ mixin class state_roles_part {
 					if (!players[i].is_bot && players[i].speed_modifier == "") livres.insert_last(players[i]);
 				if (livres.length() == 0) break;
 				livres[random(0, livres.length() - 1)].speed_modifier = velocidade[v];
+			}
+		}
+		// Os de traço, um por pessoa. O lanterninha nunca sai para o time impostor (como no Town of Us):
+		// o impostor sofre o apagão que ele mesmo causa, e é esse o custo de apagar as luzes - com o
+		// modificador, ele apagaria a nave e seria o único a ouvir.
+		for (uint t = 0; t < TRAIT_MODIFIER_IDS.length(); t++) {
+			string mod = TRAIT_MODIFIER_IDS[t];
+			int vagas = config.role_count(mod);
+			for (int n = 0; n < vagas; n++) {
+				if (random(1, 100) > config.role_chance(mod)) continue;
+				array<game_player@> livres;
+				for (uint i = 0; i < players.length(); i++) {
+					game_player@ p = players[i];
+					if (p.is_bot || p.trait_modifier != "") continue;
+					if (mod == MOD_TORCH && p.role().team == TEAM_IMPOSTOR) continue;
+					livres.insert_last(p);
+				}
+				if (livres.length() == 0) break;
+				livres[random(0, livres.length() - 1)].trait_modifier = mod;
 			}
 		}
 		int casais = config.role_count(MOD_LOVERS);

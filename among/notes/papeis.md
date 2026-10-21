@@ -447,6 +447,28 @@ papéis e dos alvos, só entre humanos.
   Flash, Gigante nem par (relato do usuário, 2026-10-18) - o servidor estava certo, o cliente não.
 Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 
+**Isca, Doente e Lanterninha (2026-10-21, do Town of Us; protocolo 16): os modificadores de TRAÇO.** No
+máximo um por pessoa, num campo só (`game_player.trait_modifier`), ao lado da velocidade e do par; a
+morte tira, como os outros. Decisões e o porquê:
+- **O lanterninha é `immune_to_lights` por cima do papel** (`role_with_modifier`, chamada pelo servidor em
+  `game_player.role()` e pelo cliente ao montar o `my_role`, no começo e no `on_role_changed`). Assim todo
+  lugar que o apagão alcança (som, corpos, radar, testemunha) o poupa sem um `if` novo. **Nenhum papel é
+  imune às luzes, nem o impostor** ("as luzes ele sofre igual"): o lanterninha é o ÚNICO, e nunca sai
+  para o time impostor (no impostor viraria vantagem no apagão que ele mesmo causa). O radar do servidor
+  no apagão olhava só a imunidade de COMUNICAÇÕES (de propósito, para o impostor) e ganhou a dele.
+- **A isca é marcada no CORPO** (`body_info.bait_report`), na hora da morte - porque a morte tira o
+  modificador antes de o servidor agir. `report_bait_bodies`, a cada tick da sala e DEPOIS de anunciar as
+  mortes, reporta pelo mesmo `report_body` do reporte comum, com o assassino como quem reportou
+  (instantâneo, decisão do usuário). Com sabotagem crítica barrando reunião, espera; assassino morto leva
+  o reporte junto. O xerife-isca que erra o tiro morreu por si: não há assassino para reportar.
+- **O doente multiplica a recarga do assassino** (`DISEASED_COOLDOWN_MULTIPLIER`, 2 - o Town of Us usa
+  3). O cliente rearmava a recarga com a da sala ao matar; agora ela vem no pacote do assassino
+  (`killer_cooldown`), senão ele ouviria "pronto" com o servidor recusando.
+- **"Doente", e não "Contaminado"** (o nome que o usuário anotou): contaminado já é quem a sabotagem da
+  Base Polar faz tossir.
+Sondas: `probe_modifiers` (sorteio, doente, isca no corpo, lanterninha), `probe_bait_net` (o reporte pela
+rede) e os casos do cliente em `probe_match_packets`.
+
 **Papel declara o que pode; o código pergunta por capacidade.** `src/game/roles/role_traits.nvgt`
 define cada papel (pode matar, ventilar, sabotar, o que percebe) e `player_abilities` combina isso
 com estar vivo. Nada deve voltar a perguntar "é impostor?" para decidir uma ação — era assim que a

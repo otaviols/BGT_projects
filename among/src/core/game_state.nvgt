@@ -37,6 +37,9 @@ class body_info {
 	uint64 killer_peer_id = 0;   // só para gravar o rastro; NUNCA sai daqui
 	float trail_until = 0.0;     // até quando gravar, no relógio da partida
 	bool examined = false;       // um exame por corpo: cada corpo é uma pista, não uma consulta
+	// A vítima era a ISCA: o assassino reporta este corpo assim que der (ver report_bait_bodies, no
+	// servidor). Gravado na morte porque a morte tira os modificadores (strip_dead_modifiers).
+	bool bait_report = false;
 }
 
 class vote_entry {

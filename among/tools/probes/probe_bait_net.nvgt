@@ -1,0 +1,106 @@
+// Sonda da ISCA pela rede: o impostor mata a isca e a reunião abre NA HORA, reportada por ele.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_bait_net.nvgt
+//
+// Quatro humanos (1 impostor, 3 tripulantes: depois de uma morte ainda são 1 contra 2, e a partida não
+// acaba). Quatro vagas de isca: todo mundo sai isca, o impostor inclusive - não importa, ele
+// é quem mata. O impostor anda até a vítima pelo C_MOVE, como o jogo faria, e espera a recarga do começo
+// (5 s, o mínimo da sala).
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+void bombeia(array<game_client@>@ todos, int ms) { timer t; while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); } }
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	array<game_client@> todos;
+	for (int i = 0; i < 4; i++) {
+		game_client c;
+		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+		string nome = "isca" + i + "x" + sfx;
+		c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(nome, "probe123");
+		net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		c.my_peer_id = lr.get_uint64("peer_id");
+		todos.insert_last(c);
+	}
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.kill_cooldown_seconds = 5.0;
+	ov.role_counts.set(MOD_BAIT, 4); // uma por humano: o impostor também pode sair isca
+	todos[0].send_create_lobby("isca" + sfx, "classic", ov);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(st.get_string("lobby_id")); wf(todos[i], S_JOIN_RESULT, 5000); }
+	bombeia(todos, 300);
+	todos[0].send_start_game();
+
+	array<net_packet@> inicios;
+	int imp = -1;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ s = wf(todos[i], S_GAME_START, 8000);
+		if (@s == null) { println("sem S_GAME_START"); return; }
+		inicios.insert_last(s);
+		if (s.get_string("your_role") == ROLE_IMPOSTOR) imp = int(i);
+	}
+	confere("um impostor", imp >= 0);
+	if (imp < 0) return;
+	int iscas = 0;
+	for (uint i = 0; i < todos.length(); i++) if (int(i) != imp && inicios[i].get_string("trait_modifier") == MOD_BAIT) iscas++;
+	confere("os tres tripulantes sairam isca, e cada um ouve isso no S_GAME_START (" + iscas + ")", iscas == 3);
+
+	// Onde estão o impostor e a vítima, pelo elenco do começo.
+	int alvo = imp == 0 ? 1 : 0;
+	uint64 vitima = todos[alvo].my_peer_id;
+	float ix = 0, iy = 0, vx = 0, vy = 0;
+	json_array@ elenco = inicios[imp].get_array("players");
+	for (uint k = 0; k < elenco.length(); k++) {
+		json_object@ e = elenco.get_object(k);
+		uint64 pid = uint64(e["peer_id"]);
+		if (pid == todos[imp].my_peer_id) { ix = float(e["x"]); iy = float(e["y"]); }
+		if (pid == vitima) { vx = float(e["x"]); vy = float(e["y"]); }
+	}
+	// Anda até colar na vítima, devagar o bastante para o servidor aceitar cada passo.
+	timer andando;
+	while (andando.elapsed < 10000) {
+		float dx = vx - ix, dy = vy - iy;
+		float d = sqrt(dx * dx + dy * dy);
+		if (d <= 0.5) break;
+		float passo = d < 0.08 ? d : 0.08;
+		ix += dx / d * passo; iy += dy / d * passo;
+		todos[imp].send_move(ix, iy);
+		bombeia(todos, 50);
+	}
+	bombeia(todos, 5600); // a recarga do começo
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[imp].send_kill(vitima);
+
+	// Quem NÃO é nem o impostor nem a vítima ouve a morte e, logo em seguida, o reporte.
+	int olho = 0;
+	while (olho == imp || olho == alvo) olho++;
+	net_packet@ morte = wf(todos[olho], S_PLAYER_KILLED, 4000);
+	confere("a morte aconteceu", @morte != null && morte.get_uint64("peer_id") == vitima);
+	net_packet@ rep = wf(todos[olho], S_BODY_REPORTED, 3000);
+	confere("o corpo foi reportado na hora, sem ninguem apertar nada", @rep != null && rep.get_uint64("body_peer") == vitima);
+	confere("e quem reportou foi o assassino", @rep != null && rep.get_uint64("reporter_peer") == todos[imp].my_peer_id);
+	confere("a votacao abriu", @wf(todos[olho], S_VOTING_STARTED, 3000) != null);
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

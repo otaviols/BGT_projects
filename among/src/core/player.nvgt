@@ -107,6 +107,8 @@ class game_player {
 	// de apaixonados (0 = nenhum).
 	string speed_modifier = "";
 	uint64 lover = 0;
+	// O modificador de traço: "" | MOD_BAIT | MOD_DISEASED | MOD_TORCH (no máximo um por pessoa).
+	string trait_modifier = "";
 	// O par SORTEADO, que não muda: `lover` se apaga na morte (strip_dead_modifiers), e o fim da partida
 	// ainda revela o casal.
 	uint64 lover_at_start = 0;
@@ -298,7 +300,8 @@ class game_player {
 		is_impostor = role_for(id).team == TEAM_IMPOSTOR;
 	}
 
-	role_traits@ role() const { return role_for(role_id); }
+	// Com o que o modificador de traço muda no papel (o lanterninha) - ver role_with_modifier.
+	role_traits@ role() const { return role_with_modifier(role_id, trait_modifier); }
 
 	// Apaga tudo que é de UMA partida, deixando o objeto pronto pra próxima. Isto existe porque o
 	// game_player é o objeto de CONEXÃO: ele sobrevive à partida, à lobby, e vai junto com o jogador
@@ -335,6 +338,7 @@ class game_player {
 		execution_target = 0;
 		doused.resize(0);
 		speed_modifier = "";
+		trait_modifier = "";
 		lover = 0;
 		lover_at_start = 0;
 		radar_index = -1;

@@ -139,6 +139,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	// porque a abertura as fala uma vez só, e o papel pode mudar no meio (amnésico, carrasco sem alvo).
 	array<string> impostor_partner_names;
 	string speed_modifier_id;  // "" | MOD_FLASH | MOD_GIANT
+	string trait_modifier_id;  // "" | MOD_BAIT | MOD_DISEASED | MOD_TORCH
 	string lover_name_spoken;  // "" = sem par
 	// A abertura em duas etapas (ver opening_tick): o papel na hora, os modificadores depois. Os
 	// modificadores esperam o som de início acabar e, para quem está apaixonado, a batida de coração.
@@ -193,7 +194,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// O papel diz o que este jogador PODE; o resto do laço pergunta por capacidade ("posso
 		// ventilar?"), não por identidade ("sou impostor?"). É o que permite acrescentar um papel novo
 		// sem revisitar cada condição do jogo - ver game/roles/role_traits.nvgt.
-		@my_role = role_for(start_pkt.get_string("your_role"));
+		trait_modifier_id = start_pkt.get_string("trait_modifier", "");
+		@my_role = role_with_modifier(start_pkt.get_string("your_role"), trait_modifier_id);
 		// "Time impostor", derivado do papel: é o que a reunião e as regras de sabotagem ainda perguntam.
 		is_impostor = my_role.team == TEAM_IMPOSTOR;
 		// Recarga da habilidade do papel, acompanhada localmente como a do kill: o servidor é quem
@@ -392,6 +394,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		opening_modifiers_text = "";
 		// Com as dicas desligadas, os modificadores vêm no nome curto, como o Ctrl + habilidade os repete.
 		if (mod_velocidade != "") opening_modifiers_text += " " + (hints_on() ? tr("modifier.assigned_" + mod_velocidade) : tr("role." + mod_velocidade) + ".");
+		if (trait_modifier_id != "") opening_modifiers_text += " " + (hints_on() ? tr("modifier.assigned_" + trait_modifier_id) : tr("role." + trait_modifier_id) + ".");
 		if (amor != "") {
 			dictionary@ lp = dictionary();
 			lp.set("name", spoken_name(amor));
