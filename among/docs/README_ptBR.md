@@ -747,7 +747,7 @@ quando ele vira um deles. A habilidade do papel herdado começa recarregando.
 
 Um modificador é uma marca **por cima** do papel: um xerife pode ser veloz, um impostor pode estar
 apaixonado por um tripulante. A sala os liga como os papéis (quantos e a chance), e eles vêm desligados.
-Quem recebe um ouve junto com o papel. Bots não recebem.
+Quem recebe um ouve junto com o papel. **Cada pessoa recebe no máximo um modificador.** Bots não recebem.
 
 - **Flash:** anda 50% mais rápido.
 - **Gigante:** anda 50% mais devagar.
@@ -757,11 +757,10 @@ Quem recebe um ouve junto com o papel. Bots não recebem.
   diferentes). Se uma morrer, a outra **morre junto**, onde estiver; se a morte foi na reunião, a outra
   cai quando a reunião acaba. Se sobrarem as duas e no máximo mais uma pessoa, o casal **vence junto**.
 
-Mais três, e cada pessoa recebe no máximo um destes:
-
-- **Isca:** quem matar a isca **reporta o corpo na mesma hora**, sem querer: a reunião abre e a mesa
-  ouve que foi ele quem reportou. Se uma sabotagem crítica estiver impedindo reuniões, o reporte sai
-  assim que ela acabar.
+- **Isca:** quem matar a isca **reporta o corpo na mesma hora**, sem querer. Para a mesa soa como um
+  reporte qualquer ("fulano encontrou o corpo"): só quem estava perto desconfia de quem "achou" o corpo
+  um instante depois do assassinato. Se uma sabotagem crítica estiver impedindo reuniões, o reporte sai
+  assim que ela acabar. Nunca sai para impostor.
 - **Doente:** quem matar o doente demora o **dobro** para poder matar de novo. Ele não ouve por quê.
 - **Lanterninha:** com as **luzes apagadas**, continua ouvindo tudo como sempre: o alcance do som, os
   corpos, o radar e quem matou ao lado dele. É o único na nave; nem o impostor escapa do apagão. Nunca

@@ -757,7 +757,7 @@ impostors when they become one of them. The inherited role's ability starts on c
 
 A modifier is a mark **on top of** the role: a sheriff can be fast, an impostor can be in love with a
 crewmate. The room turns them on like roles (how many and the chance), and they come off. Whoever gets
-one hears it along with the role. Bots do not get them.
+one hears it along with the role. **Each person gets at most one modifier.** Bots do not get them.
 
 - **Flash:** walks 50% faster.
 - **Giant:** walks 50% slower.
@@ -767,11 +767,10 @@ one hears it along with the role. Bots do not get them.
   dies, the other **dies too**, wherever they are; if the death was in a meeting, the other falls when
   the meeting ends. If the two of them and at most one more are left, the couple **wins together**.
 
-Three more, and each person gets at most one of these:
-
-- **Bait:** whoever kills the bait **reports the body right away**, without meaning to: the meeting
-  starts and the table hears that they were the one who reported it. If a critical sabotage is blocking
-  meetings, the report goes out as soon as it ends.
+- **Bait:** whoever kills the bait **reports the body right away**, without meaning to. To the table it
+  sounds like any report ("so-and-so found the body"): only those nearby may wonder about whoever "found"
+  it a moment after the kill. If a critical sabotage is blocking meetings, the report goes out as soon as
+  it ends. Never given to an impostor.
 - **Diseased:** whoever kills them takes **twice as long** before they can kill again. They are not
   told why.
 - **Torch:** with the **lights out**, keeps hearing everything as usual: the sound range, the bodies,

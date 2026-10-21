@@ -446,47 +446,27 @@ mixin class state_roles_part {
 
 	// --- Modificadores ---
 
-	// Sorteia os modificadores depois dos papéis, entre os HUMANOS: Flash e Gigante (um de velocidade por
-	// pessoa) e os casais de apaixonados (cada vaga é um casal). Cada vaga rola a própria chance, como as
-	// dos papéis, e o que não couber simplesmente não sai.
+	// Quem ainda pode receber ESTE modificador. UM modificador por pessoa, no total - par, velocidade ou
+	// traço (decisão do usuário, 2026-10-21; até ali dava para sair Flash, apaixonado e isca ao mesmo
+	// tempo). Bot nunca recebe. Isca e lanterninha nunca saem para o time impostor: o lanterninha seria
+	// vantagem no apagão que ele mesmo causa, e a isca não tem sentido num impostor (decisão do usuário).
+	// O doente pode: quem o matar - o xerife - espera o dobro.
+	private bool modifier_fits(game_player@ p, const string&in mod) const {
+		if (p.is_bot || p.lover != 0 || p.speed_modifier != "" || p.trait_modifier != "") return false;
+		if ((mod == MOD_TORCH || mod == MOD_BAIT) && p.role().team == TEAM_IMPOSTOR) return false;
+		return true;
+	}
+
+	// Sorteia os modificadores depois dos papéis, entre os HUMANOS. Cada vaga rola a própria chance, como
+	// as dos papéis, e o que não couber simplesmente não sai. Os casais primeiro: cada um precisa de DUAS
+	// pessoas livres, e sorteados por último quase nunca achariam.
 	void assign_modifiers() {
-		array<string> velocidade = {MOD_FLASH, MOD_GIANT};
-		for (uint v = 0; v < velocidade.length(); v++) {
-			int vagas = config.role_count(velocidade[v]);
-			for (int n = 0; n < vagas; n++) {
-				if (random(1, 100) > config.role_chance(velocidade[v])) continue;
-				array<game_player@> livres;
-				for (uint i = 0; i < players.length(); i++)
-					if (!players[i].is_bot && players[i].speed_modifier == "") livres.insert_last(players[i]);
-				if (livres.length() == 0) break;
-				livres[random(0, livres.length() - 1)].speed_modifier = velocidade[v];
-			}
-		}
-		// Os de traço, um por pessoa. O lanterninha nunca sai para o time impostor (como no Town of Us):
-		// o impostor sofre o apagão que ele mesmo causa, e é esse o custo de apagar as luzes - com o
-		// modificador, ele apagaria a nave e seria o único a ouvir.
-		for (uint t = 0; t < TRAIT_MODIFIER_IDS.length(); t++) {
-			string mod = TRAIT_MODIFIER_IDS[t];
-			int vagas = config.role_count(mod);
-			for (int n = 0; n < vagas; n++) {
-				if (random(1, 100) > config.role_chance(mod)) continue;
-				array<game_player@> livres;
-				for (uint i = 0; i < players.length(); i++) {
-					game_player@ p = players[i];
-					if (p.is_bot || p.trait_modifier != "") continue;
-					if (mod == MOD_TORCH && p.role().team == TEAM_IMPOSTOR) continue;
-					livres.insert_last(p);
-				}
-				if (livres.length() == 0) break;
-				livres[random(0, livres.length() - 1)].trait_modifier = mod;
-			}
-		}
 		int casais = config.role_count(MOD_LOVERS);
 		for (int n = 0; n < casais; n++) {
 			if (random(1, 100) > config.role_chance(MOD_LOVERS)) continue;
 			array<game_player@> livres;
 			for (uint i = 0; i < players.length(); i++)
-				if (!players[i].is_bot && players[i].lover == 0) livres.insert_last(players[i]);
+				if (modifier_fits(players[i], MOD_LOVERS)) livres.insert_last(players[i]);
 			if (livres.length() < 2) break;
 			int a = random(0, livres.length() - 1);
 			game_player@ pa = livres[a];
@@ -496,6 +476,22 @@ mixin class state_roles_part {
 			pb.lover = pa.peer_id;
 			pa.lover_at_start = pb.peer_id;
 			pb.lover_at_start = pa.peer_id;
+		}
+		array<string> um_por_vez = {MOD_FLASH, MOD_GIANT};
+		for (uint t = 0; t < TRAIT_MODIFIER_IDS.length(); t++) um_por_vez.insert_last(TRAIT_MODIFIER_IDS[t]);
+		for (uint m = 0; m < um_por_vez.length(); m++) {
+			string mod = um_por_vez[m];
+			int vagas = config.role_count(mod);
+			for (int n = 0; n < vagas; n++) {
+				if (random(1, 100) > config.role_chance(mod)) continue;
+				array<game_player@> livres;
+				for (uint i = 0; i < players.length(); i++)
+					if (modifier_fits(players[i], mod)) livres.insert_last(players[i]);
+				if (livres.length() == 0) break;
+				game_player@ quem = livres[random(0, livres.length() - 1)];
+				if (mod == MOD_FLASH || mod == MOD_GIANT) quem.speed_modifier = mod;
+				else quem.trait_modifier = mod;
+			}
 		}
 	}
 

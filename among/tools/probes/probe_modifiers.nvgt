@@ -192,7 +192,7 @@ void main() {
 	confere("a sala exige o protocolo deles (" + t.config.required_protocol() + ")", t.config.required_protocol() >= TRAIT_MODIFIERS_PROTOCOL);
 	t.assign_modifiers();
 	int iscas = 0, doentes = 0, lanternas = 0;
-	bool impostor_sem_lanterna = t.find_player(4).trait_modifier != MOD_TORCH;
+	bool impostor_sem_lanterna = t.find_player(4).trait_modifier != MOD_TORCH && t.find_player(4).trait_modifier != MOD_BAIT;
 	bool bot_sem_traco = t.find_player(6).trait_modifier == "";
 	for (uint i = 0; i < t.players.length(); i++) {
 		string m = t.players[i].trait_modifier;
@@ -200,8 +200,8 @@ void main() {
 		if (m == MOD_DISEASED) doentes++;
 		if (m == MOD_TORCH) lanternas++;
 	}
-	// Isca e doente saem para qualquer humano (o impostor inclusive); com 5 vagas de lanterninha, todo
-	// humano fora do time impostor que ficou sem traço recebe um. Ninguém recebe dois (o campo é um só).
+	// A isca e o lanterninha nunca saem para o impostor (o doente pode); com 5 vagas de lanterninha, todo
+	// humano fora do time impostor que ficou sem traço recebe um.
 	bool todos_cobertos = true;
 	for (uint i = 0; i < t.players.length(); i++) {
 		game_player@ p = t.players[i];
@@ -209,7 +209,30 @@ void main() {
 	}
 	confere("uma isca, um doente, e o resto lanterninha (" + iscas + "/" + doentes + "/" + lanternas + ")",
 		iscas == 1 && doentes == 1 && todos_cobertos && iscas + doentes + lanternas <= 5);
-	confere("o lanterninha nunca sai para o impostor, e bot nao recebe traco", impostor_sem_lanterna && bot_sem_traco);
+	confere("isca e lanterninha nunca saem para o impostor, e bot nao recebe traco", impostor_sem_lanterna && bot_sem_traco);
+
+	println("== um modificador por pessoa ==");
+	// Mais vagas que gente em tudo: cinco humanos, e cada um tem que sair com UM, no máximo.
+	bool nunca_dois = true;
+	int com_algum = 0;
+	for (int rodada = 0; rodada < 30; rodada++) {
+		game_state@ u = mesa();
+		u.config.set_role_count(MOD_LOVERS, 2);
+		u.config.set_role_count(MOD_FLASH, 5);
+		u.config.set_role_count(MOD_GIANT, 5);
+		u.config.set_role_count(MOD_BAIT, 5);
+		u.config.set_role_count(MOD_DISEASED, 5);
+		u.config.set_role_count(MOD_TORCH, 5);
+		u.assign_modifiers();
+		for (uint i = 0; i < u.players.length(); i++) {
+			game_player@ p = u.players[i];
+			int n = (p.lover != 0 ? 1 : 0) + (p.speed_modifier != "" ? 1 : 0) + (p.trait_modifier != "" ? 1 : 0);
+			if (n > 1) nunca_dois = false;
+			if (n == 1) com_algum++;
+		}
+	}
+	confere("em 30 sorteios lotados, ninguem saiu com dois", nunca_dois);
+	confere("e todo humano saiu com um (" + com_algum + " de 150)", com_algum == 150);
 
 	println("== doente ==");
 	game_state@ d = mesa();

@@ -447,9 +447,12 @@ papéis e dos alvos, só entre humanos.
   Flash, Gigante nem par (relato do usuário, 2026-10-18) - o servidor estava certo, o cliente não.
 Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 
-**Isca, Doente e Lanterninha (2026-10-21, do Town of Us; protocolo 16): os modificadores de TRAÇO.** No
-máximo um por pessoa, num campo só (`game_player.trait_modifier`), ao lado da velocidade e do par; a
-morte tira, como os outros. Decisões e o porquê:
+**Isca, Doente e Lanterninha (2026-10-21, do Town of Us; protocolo 16): os modificadores de TRAÇO.** Um
+campo só (`game_player.trait_modifier`), ao lado da velocidade e do par; a morte tira, como os outros.
+**UM modificador por pessoa, no total** - par, velocidade OU traço (decisão do usuário; até ali dava para
+sair Flash, apaixonado e isca juntos). Quem decide é `modifier_fits`, e os casais são sorteados primeiro
+(precisam de duas pessoas livres). **Isca e lanterninha nunca saem para o time impostor**; o doente pode
+(quem o matar, o xerife, espera o dobro). Decisões e o porquê:
 - **O lanterninha é `immune_to_lights` por cima do papel** (`role_with_modifier`, chamada pelo servidor em
   `game_player.role()` e pelo cliente ao montar o `my_role`, no começo e no `on_role_changed`). Assim todo
   lugar que o apagão alcança (som, corpos, radar, testemunha) o poupa sem um `if` novo. **Nenhum papel é
@@ -459,7 +462,8 @@ morte tira, como os outros. Decisões e o porquê:
 - **A isca é marcada no CORPO** (`body_info.bait_report`), na hora da morte - porque a morte tira o
   modificador antes de o servidor agir. `report_bait_bodies`, a cada tick da sala e DEPOIS de anunciar as
   mortes, reporta pelo mesmo `report_body` do reporte comum, com o assassino como quem reportou
-  (instantâneo, decisão do usuário). Com sabotagem crítica barrando reunião, espera; assassino morto leva
+  (instantâneo, decisão do usuário). Para a mesa é um reporte qualquer, "fulano encontrou o corpo" - não
+  denuncia ninguém; a dúvida é de quem estava perto. Com sabotagem crítica barrando reunião, espera; assassino morto leva
   o reporte junto. O xerife-isca que erra o tiro morreu por si: não há assassino para reportar.
 - **O doente multiplica a recarga do assassino** (`DISEASED_COOLDOWN_MULTIPLIER`, 2 - o Town of Us usa
   3). O cliente rearmava a recarga com a da sala ao matar; agora ela vem no pacote do assassino
