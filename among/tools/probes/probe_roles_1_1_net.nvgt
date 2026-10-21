@@ -1,0 +1,151 @@
+// Sonda de rede dos papéis da 1.1: o que cada um recebe pelo servidor.
+//   AMONGUS_SERVER_HOST=127.0.0.1 nvgt tools/probes/probe_roles_1_1_net.nvgt
+//
+// Quatro humanos: 1 impostor (sai Envenenador), e entre os 3 tripulantes um Transportador e um Veterano.
+// Confere: o veneno chega SÓ ao envenenador e a vítima cai depois, para todos; o transporte manda cada
+// um dos dois para o lugar do outro, com o S_TRANSPORTED; o alerta do veterano mata o envenenador que o
+// ataca, e só o veterano ouve que foi o alerta.
+#include "../../src/network/client.nvgt"
+#include "../../src/config/game_constants.nvgt"
+#include "../../src/config/server_address.nvgt"
+#include "../../src/config/lobby_config.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+net_packet@ wf(game_client@ c, const string&in t, int ms) {
+	timer x;
+	while (x.elapsed < ms) { c.update(); net_packet@ p = c.poll_message(); while (@p != null) { if (p.type == t) return p; @p = c.poll_message(); } wait(5); }
+	return null;
+}
+// Sem tirar nada da fila: só confere se algum pacote deste tipo chegou em `ms`.
+bool chegou(game_client@ c, const string&in t, int ms) { return @wf(c, t, ms) != null; }
+void bombeia(array<game_client@>@ todos, int ms) { timer t; while (t.elapsed < ms) { for (uint i = 0; i < todos.length(); i++) todos[i].update(); wait(10); } }
+
+array<game_client@> todos;
+array<float> px, py; // a posição de cada um, como o servidor a vê
+
+// Anda `quem` até colar em `alvo`, devagar o bastante para o servidor aceitar cada passo.
+void anda_ate(int quem, int alvo) {
+	timer andando;
+	while (andando.elapsed < 10000) {
+		float dx = px[alvo] - px[quem], dy = py[alvo] - py[quem];
+		float d = sqrt(dx * dx + dy * dy);
+		if (d <= 0.5) return;
+		float passo = d < 0.08 ? d : 0.08;
+		px[quem] += dx / d * passo; py[quem] += dy / d * passo;
+		todos[quem].send_move(px[quem], py[quem]);
+		bombeia(todos, 50);
+	}
+}
+
+void main() {
+	server_address addr = resolve_server_address();
+	string sfx = "" + random(1000, 9999);
+	for (int i = 0; i < 4; i++) {
+		game_client c;
+		if (!c.connect_to(addr.host, addr.port)) { println("connect falhou"); return; }
+		timer t; while (!c.connected && t.elapsed < 5000) { c.update(); wait(5); }
+		string nome = "p11" + i + "x" + sfx;
+		c.send_register(nome, "probe123"); wf(c, S_REGISTER_RESULT, 3000);
+		c.send_login(nome, "probe123");
+		net_packet@ lr = wf(c, S_LOGIN_RESULT, 5000);
+		if (@lr == null || !lr.get_bool("ok")) { println("login falhou"); return; }
+		c.my_peer_id = lr.get_uint64("peer_id");
+		todos.insert_last(c);
+		px.insert_last(0); py.insert_last(0);
+	}
+	lobby_overrides ov;
+	ov.impostor_count = 1;
+	ov.kill_cooldown_seconds = 5.0;
+	ov.role_counts.set(ROLE_POISONER, 1);
+	ov.role_counts.set(ROLE_TRANSPORTER, 1);
+	ov.role_counts.set(ROLE_VETERAN, 1);
+	ov.role_values.set(ROLE_POISONER + "." + TUNABLE_DURATION, 3.0);
+	todos[0].send_create_lobby("p11" + sfx, "classic", ov);
+	net_packet@ st = wf(todos[0], S_LOBBY_STATE, 5000);
+	if (@st == null) { println("sem sala"); return; }
+	for (uint i = 1; i < todos.length(); i++) { todos[i].send_join_lobby(st.get_string("lobby_id")); wf(todos[i], S_JOIN_RESULT, 5000); }
+	bombeia(todos, 300);
+	todos[0].send_start_game();
+
+	int env = -1, trans = -1, vet = -1, comum = -1;
+	array<net_packet@> inicios;
+	for (uint i = 0; i < todos.length(); i++) {
+		net_packet@ s = wf(todos[i], S_GAME_START, 8000);
+		if (@s == null) { println("sem S_GAME_START"); return; }
+		inicios.insert_last(s);
+		string papel = s.get_string("your_role");
+		if (papel == ROLE_POISONER) env = int(i);
+		else if (papel == ROLE_TRANSPORTER) trans = int(i);
+		else if (papel == ROLE_VETERAN) vet = int(i);
+		else comum = int(i);
+	}
+	confere("sairam envenenador, transportador, veterano e um comum", env >= 0 && trans >= 0 && vet >= 0 && comum >= 0);
+	if (env < 0 || trans < 0 || vet < 0 || comum < 0) return;
+	json_array@ elenco = inicios[0].get_array("players");
+	for (uint k = 0; k < elenco.length(); k++) {
+		json_object@ e = elenco.get_object(k);
+		uint64 pid = uint64(e["peer_id"]);
+		var@ ex = e["x"];
+		var@ ey = e["y"];
+		for (uint i = 0; i < todos.length(); i++)
+			if (todos[i].my_peer_id == pid) { px[i] = safe_var_to_float(ex); py[i] = safe_var_to_float(ey); }
+	}
+
+	println("== transportador ==");
+	// Afasta o comum dos outros, para a troca ser de verdade.
+	// Em passos pequenos: um salto de 1,5 o servidor recusaria, e a sonda acharia que ele está onde não está.
+	for (int k = 0; k < 20; k++) {
+		px[comum] += 0.075;
+		todos[comum].send_move(px[comum], py[comum]);
+		bombeia(todos, 50);
+	}
+	bombeia(todos, 300);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[trans].send_two_targets(ABILITY_TRANSPORT, todos[vet].my_peer_id, todos[comum].my_peer_id);
+	net_packet@ tv = wf(todos[vet], S_TRANSPORTED, 3000);
+	net_packet@ tc = wf(todos[comum], S_TRANSPORTED, 3000);
+	confere("os dois recebem o S_TRANSPORTED", @tv != null && @tc != null);
+	if (@tv != null && @tc != null) {
+		confere("e cada um vai para onde o outro estava",
+			abs(tv.get_float("x") - px[comum]) < 0.01 && abs(tc.get_float("x") - px[vet]) < 0.01);
+		float vx = px[vet], vy = py[vet];
+		px[vet] = tv.get_float("x"); py[vet] = tv.get_float("y");
+		px[comum] = vx; py[comum] = vy;
+	}
+	confere("o transportador ouve que deu certo", chegou(todos[trans], S_ABILITY_RESULT, 2000));
+
+	println("== envenenador ==");
+	bombeia(todos, 5200); // a recarga do começo (5 s)
+	anda_ate(env, comum);
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[env].send_kill(todos[comum].my_peer_id);
+	net_packet@ veneno = wf(todos[env], S_POISON_DONE, 3000);
+	confere("o envenenador recebe o S_POISON_DONE, com a recarga", @veneno != null && veneno.get_float("killer_cooldown") > 0.0);
+	confere("e mais ninguem fica sabendo: ninguem morreu ainda", !chegou(todos[vet], S_PLAYER_KILLED, 1500));
+	net_packet@ caiu = wf(todos[vet], S_PLAYER_KILLED, 4000);
+	confere("passado o tempo do veneno, a vitima cai para todos", @caiu != null && caiu.get_uint64("peer_id") == todos[comum].my_peer_id);
+
+	println("== veterano ==");
+	// Primeiro o envenenador fica pronto (a recarga de 5 s desde o veneno) e encosta no veterano; só então
+	// o alerta liga - ele dura 10 s, e ligado antes acabaria no meio da caminhada.
+	bombeia(todos, 2500);
+	anda_ate(env, vet);
+	todos[vet].send_use_ability(ABILITY_ALERT);
+	net_packet@ al = wf(todos[vet], S_ABILITY_RESULT, 3000);
+	confere("o alerta liga", @al != null && al.get_bool("ok"));
+	for (uint i = 0; i < todos.length(); i++) todos[i].clear_incoming();
+	todos[env].send_kill(todos[vet].my_peer_id);
+	net_packet@ morreu = wf(todos[trans], S_PLAYER_KILLED, 3000);
+	confere("quem cai e o envenenador, e nao o veterano", @morreu != null && morreu.get_uint64("peer_id") == todos[env].my_peer_id);
+	net_packet@ aviso = wf(todos[vet], S_ERROR, 3000);
+	confere("o veterano ouve que o alerta matou", @aviso != null && aviso.get_string(MSG_KEY_FIELD) == "role.alert_killed");
+
+	for (uint i = 0; i < todos.length(); i++) todos[i].disconnect();
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

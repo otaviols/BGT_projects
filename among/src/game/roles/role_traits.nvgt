@@ -44,6 +44,10 @@ const string ROLE_EXECUTIONER = "executioner";
 const string ROLE_ARSONIST = "arsonist";
 const string ROLE_AMNESIAC = "amnesiac";
 const string ROLE_DOCTOR = "doctor";
+const string ROLE_VETERAN = "veteran";
+const string ROLE_POISONER = "poisoner";
+const string ROLE_VULTURE = "vulture";
+const string ROLE_TRANSPORTER = "transporter";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -59,6 +63,9 @@ const string ABILITY_DRAG = "drag";   // carregador: pega o corpo ao alcance, e 
 const string ABILITY_DOUSE = "douse"; // incendiário: encharca quem está colado; com todos encharcados, põe fogo
 const string ABILITY_REMEMBER = "remember"; // amnésico: herda o papel do morto ao alcance
 const string ABILITY_REVIVE = "revive"; // médico: traz de volta o morto ao alcance, se ainda der tempo
+const string ABILITY_ALERT = "alert";         // veterano: por alguns segundos, quem tentar matá-lo morre no lugar
+const string ABILITY_DEVOUR = "devour";       // abutre: come o corpo ao alcance; vence com N corpos
+const string ABILITY_TRANSPORT = "transport"; // transportador: dois jogadores trocam de lugar
 // O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
 // mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
 const string ABILITY_ALARM = "alarm";
@@ -81,6 +88,8 @@ const string SOLO_WIN_LAST_STANDING = "last_standing";
 const string SOLO_WIN_TARGET_EJECTED = "target_ejected";
 // Pôr fogo na nave com todos os vivos encharcados (o Incendiário).
 const string SOLO_WIN_IGNITE = "ignite";
+// Comer N corpos (o Abutre).
+const string SOLO_WIN_DEVOUR = "devour";
 
 // Papéis que a sala pode ligar, na ordem em que aparecem no formulário e na leitura das regras: AGRUPADOS
 // POR TIME - tripulação, impostores, neutros (pedido do usuário, 2026-10-14: antes estavam na ordem em
@@ -88,9 +97,9 @@ const string SOLO_WIN_IGNITE = "ignite";
 // o agrupamento. A ordem não pesa em mais nada: o sorteio embaralha as vagas (draw_special_roles).
 const array<string> CONFIGURABLE_ROLE_IDS = {
 	ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER, ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_MAYOR, ROLE_SWAPPER,
-	ROLE_DOCTOR,
-	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER,
-	ROLE_JESTER, ROLE_WOLF, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC};
+	ROLE_DOCTOR, ROLE_VETERAN, ROLE_TRANSPORTER,
+	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_POISONER,
+	ROLE_JESTER, ROLE_WOLF, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC, ROLE_VULTURE};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
 //
@@ -167,6 +176,9 @@ const int WOLF_MIN_PROTOCOL = 8;
 const int BODY_ROLES_PROTOCOL = 10;
 // Os modificadores de traço: isca, doente e lanterninha (ver modifier_min_protocol).
 const int TRAIT_MODIFIERS_PROTOCOL = 16;
+// Veterano, Envenenador, Abutre e Transportador: pacotes novos (S_POISON_DONE, S_TRANSPORTED) e a recarga
+// do kill vinda do servidor. Saem na mesma versão dos modificadores de traço.
+const int ROLES_1_1_PROTOCOL = 16;
 
 // Um número do papel que a SALA pode ajustar (recarga, duração, janela de gravação).
 //
@@ -180,6 +192,7 @@ const string TUNABLE_KILL_COOLDOWN = "kill_cooldown"; // recarga do tiro (xerife
 const string TUNABLE_TRAIL = "trail";                 // por quanto tempo o rastro do assassino é gravado
 const string TUNABLE_GUESSES = "guesses";             // quantos palpites por reunião (sniper)
 const string TUNABLE_WINDOW = "window";               // até quantos segundos depois da morte ainda dá (médico)
+const string TUNABLE_BODIES = "bodies";               // quantos corpos para vencer (abutre)
 
 class role_tunable {
 	string key;
@@ -216,6 +229,8 @@ class role_traits {
 
 	// --- O que pode fazer ---
 	bool can_kill = false;
+	// O kill deste papel ENVENENA em vez de matar: a vítima cai depois (ver try_kill e tick_poison).
+	bool kill_poisons = false;
 	bool can_vent = false;
 	bool can_sabotage = false;
 	bool can_close_doors = false;
@@ -705,7 +720,67 @@ role_traits@ role_doctor() {
 	return t;
 }
 
+// Veterano (do Town of Us): tripulante que, com H, fica em ALERTA por alguns segundos - quem tentar
+// matá-lo nesse tempo morre no lugar, o xerife inclusive (decisões do usuário, 2026-10-21). Para os
+// outros é um assassinato comum; ele ouve que o alerta matou alguém, e quem estava colado viu quem foi.
+role_traits@ role_veteran() {
+	role_traits t;
+	t.id = ROLE_VETERAN;
+	t.ability_id = ABILITY_ALERT;
+	t.ability_cooldown_seconds = VETERAN_ALERT_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_DURATION, VETERAN_ALERT_SECONDS, 3.0, 30.0));
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, VETERAN_ALERT_COOLDOWN_SECONDS, 10.0, 300.0));
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
+// Envenenador (ideia do jogador Raciel): impostor sem faca. A tecla de kill ENVENENA, e a vítima cai
+// alguns segundos depois, onde estiver - ninguém percebe na hora, nem ela. A recarga é a do kill. O
+// veneno que vence durante a reunião espera: a pessoa cai quando a reunião acaba (decisões do usuário).
+role_traits@ role_poisoner() {
+	role_traits@ t = role_impostor();
+	t.id = ROLE_POISONER;
+	t.kill_poisons = true;
+	t.tunables.insert_last(role_tunable(TUNABLE_DURATION, POISON_DELAY_SECONDS, 3.0, 60.0));
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
+// Abutre (do Goose Goose Duck): neutro que COME corpos (H perto de um: some, como o do lixeiro, com o
+// mesmo som) e vence sozinho ao comer N. Não mata: não é ameaça à tripulação, e o xerife que atirar
+// nele... acerta um neutro, como em qualquer outro.
+role_traits@ role_vulture() {
+	role_traits t;
+	t.id = ROLE_VULTURE;
+	t.team = TEAM_NEUTRAL;
+	t.tasks_count_for_crew = false;
+	t.wins_with_crew = false;
+	t.solo_win = SOLO_WIN_DEVOUR;
+	t.ability_id = ABILITY_DEVOUR;
+	t.ability_cooldown_seconds = VULTURE_EAT_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_BODIES, VULTURE_BODIES_TO_WIN, 1.0, 10.0));
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, VULTURE_EAT_COOLDOWN_SECONDS, 5.0, 120.0));
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
+// Transportador (do Town of Us): com H escolhe dois vivos, de qualquer distância, e os dois trocam de
+// lugar na hora. Os dois ouvem que foram transportados; mais ninguém.
+role_traits@ role_transporter() {
+	role_traits t;
+	t.id = ROLE_TRANSPORTER;
+	t.ability_id = ABILITY_TRANSPORT;
+	t.ability_cooldown_seconds = TRANSPORTER_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, TRANSPORTER_COOLDOWN_SECONDS, 10.0, 300.0));
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_VETERAN) return role_veteran();
+	if (role_id == ROLE_POISONER) return role_poisoner();
+	if (role_id == ROLE_VULTURE) return role_vulture();
+	if (role_id == ROLE_TRANSPORTER) return role_transporter();
 	if (role_id == ROLE_DOCTOR) return role_doctor();
 	if (role_id == ROLE_EXECUTIONER) return role_executioner();
 	if (role_id == ROLE_ARSONIST) return role_arsonist();

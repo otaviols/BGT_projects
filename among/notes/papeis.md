@@ -447,6 +447,31 @@ papéis e dos alvos, só entre humanos.
   Flash, Gigante nem par (relato do usuário, 2026-10-18) - o servidor estava certo, o cliente não.
 Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 
+**Veterano, Envenenador, Abutre e Transportador (2026-10-21, protocolo 16; padrões do usuário).**
+- **Toda morte por assassinato passa por `leave_body`** (state_kill): o kill, o alerta do veterano e o
+  veneno. Eram a mesma coisa escrita três vezes - corpo, marca da isca, rastro do detetive, carregador
+  que larga, pacote da morte - e a primeira diferença esquecida seria um defeito calado.
+- **Veterano:** o alerta é conferido no `try_kill` DEPOIS do escudo e ANTES do tiro errado - o xerife que
+  mira num veterano em alerta morre pelo alerta, não "erra" (decisão do usuário). O pacote sai como
+  assassinato do veterano com `alert`; `announce_kill` avisa só ele (`role.alert_killed`). O `on_kill`
+  conta o assassinato pelo `killer_peer` do PACOTE, e não pelo pedido: no alerta quem pediu morreu.
+- **Envenenador:** `kill_poisons` no papel; o `try_kill` devolve um `S_POISON_DONE` (não um
+  `S_PLAYER_KILLED`), que o servidor manda SÓ a ele - nos dois caminhos, o do jogador (`on_kill`) e o dos
+  eventos do tick. `tick_poison` derruba a vítima pelo `leave_body` com `poison` no pacote, e
+  `announce_kill` não chama testemunha (quem estava ao lado não viu ninguém matar). Vencido na reunião
+  ou dentro do duto, espera. A recarga começa no envenenamento, e o pacote da morte leva a recarga ATUAL
+  dele (`killer_cooldown`), senão a queda da vítima rearmaria a faca.
+- **Abutre:** o corpo some como o do lixeiro (o mesmo som), e a vitória é decidida no próprio
+  `try_devour`, como o fogo do incendiário (`win_reason "vulture_fed"`).
+- **Transportador:** `try_transport` troca as posições e recomeça o relógio do passo dos dois
+  (`last_move_time`); o servidor tira os dois das câmeras e do scanner, manda `S_TRANSPORTED` a cada um e
+  a posição nova aos outros pelo `S_PLAYER_MOVED` (menos a do invisível). Duto e barriga recusam.
+- **A tela de escolher papéis está em 46 dos 50 controles** (22 papéis, dois campos cada). O próximo
+  lote (delator, mineiro, bomba de som, recrutador, bobo duelista) NÃO cabe: antes dele, dividir a tela
+  por time. Ver a armadilha do teto de 50 no CLAUDE.md.
+Sondas: `probe_roles_1_1` (estado, com controles), `probe_roles_1_1_net` (os pacotes pela rede) e os
+casos do cliente em `probe_match_packets`.
+
 **Isca, Doente e Lanterninha (2026-10-21, do Town of Us; protocolo 16): os modificadores de TRAÇO.** Um
 campo só (`game_player.trait_modifier`), ao lado da velocidade e do par; a morte tira, como os outros.
 **UM modificador por pessoa, no total** - par, velocidade OU traço (decisão do usuário; até ali dava para

@@ -78,6 +78,13 @@ class game_player {
 	// Escudo do anjo da guarda: enquanto maior que zero, nenhum ataque contra este jogador acontece
 	// (ver try_kill). Ele NÃO sabe que está protegido, e ninguém mais sabe.
 	float shield_remaining = 0.0;
+	// Alerta do veterano: enquanto maior que zero, quem tentar matá-lo morre no lugar (ver try_kill).
+	float alert_remaining = 0.0;
+	// Veneno: quem envenenou (0 = ninguém) e quanto falta para cair (ver tick_poison).
+	uint64 poisoned_by = 0;
+	float poison_remaining = 0.0;
+	// Corpos que o abutre já comeu.
+	uint bodies_eaten = 0;
 
 	// Disfarce do shapeshifter: o nome com que ele aparece PARA OS OUTROS, e por quanto tempo ainda.
 	// Vazio = ele mesmo. Tudo que conta um nome a outro jogador passa por display_name(), e é isso
@@ -248,6 +255,10 @@ class game_player {
 			shield_remaining -= delta_seconds;
 			if (shield_remaining < 0.0) shield_remaining = 0.0;
 		}
+		if (alert_remaining > 0.0) {
+			alert_remaining -= delta_seconds;
+			if (alert_remaining < 0.0) alert_remaining = 0.0;
+		}
 		// O disfarce NÃO é desfeito aqui: quem o desfaz precisa avisar o jogador e tocar o som, e
 		// isso é do servidor (ver tick_disguises). Aqui só o relógio anda. O mesmo vale para a
 		// invisibilidade.
@@ -328,6 +339,10 @@ class game_player {
 		kill_cooldown_remaining = 0.0;
 		ability_cooldown_remaining = 0.0;
 		shield_remaining = 0.0;
+		alert_remaining = 0.0;
+		poisoned_by = 0;
+		poison_remaining = 0.0;
+		bodies_eaten = 0;
 		disguise_name = "";
 		disguise_remaining = 0.0;
 		invisible_remaining = 0.0;

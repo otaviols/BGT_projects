@@ -349,6 +349,13 @@ const float GUARDIAN_SHIELD_RANGE = PLAYER_KILL_RANGE;
 // e sem corpo não há reunião por reporte - um lobo tão rápido quanto o impostor esvaziaria a nave antes
 // de a mesa perceber que falta gente.
 const float WOLF_EAT_COOLDOWN_SECONDS = 35.0;
+// Os papéis da 1.1 (decisões do usuário, 2026-10-21) - todos ajustáveis pela sala.
+const float VETERAN_ALERT_SECONDS = 10.0;
+const float VETERAN_ALERT_COOLDOWN_SECONDS = 30.0;
+const float POISON_DELAY_SECONDS = 10.0;
+const float VULTURE_EAT_COOLDOWN_SECONDS = 20.0;
+const float VULTURE_BODIES_TO_WIN = 3.0;
+const float TRANSPORTER_COOLDOWN_SECONDS = 30.0;
 
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
 // Alcance de audição normal, fora de apagão. Era um 40 solto repetido em cada ponto que liga e

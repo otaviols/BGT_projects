@@ -82,6 +82,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	json_object@ cfg_roles;
 	float my_disguise_remaining;
 	float my_invisible_remaining;
+	// O alerta do veterano, só para a tecla responder "faltam N segundos" sem gastar a recarga.
+	float my_alert_remaining;
 	bool target_was_in_range;
 	roster_entry@ target_in_range_entry;
 	bool alive;
@@ -222,6 +224,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// Idem para a invisibilidade do fantasma: o servidor é quem manda, isto é só para a tecla
 		// responder na hora e para o microfone não abrir à toa.
 		my_invisible_remaining = 0.0;
+		my_alert_remaining = 0.0;
 		// Bip de alvo ao alcance: guarda se havia alguém no quadro anterior, para o bip tocar na
 		// TRANSIÇÃO e não a cada quadro.
 		target_was_in_range = false;
@@ -586,6 +589,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_HEARTBREAK) on_heartbreak(pkt);
 		else if (t == S_BELLY_RELEASED) on_belly_released(pkt);
 		else if (t == S_ABILITY_RESULT) on_ability_result(pkt);
+		else if (t == S_POISON_DONE) on_poison_done(pkt);
+		else if (t == S_TRANSPORTED) on_transported(pkt);
 		else if (t == S_CAMERA_PLAYERS) on_camera_players(pkt);
 		else if (t == S_CAMERA_WATCHING) on_camera_watching(pkt);
 		else if (t == S_SABOTAGE_PROGRESS) on_sabotage_progress(pkt);

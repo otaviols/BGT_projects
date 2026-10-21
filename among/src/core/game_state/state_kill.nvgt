@@ -70,6 +70,34 @@ mixin class state_kill_part {
 		// No último sobrevivente é o contrário: todos são impostores, e matar qualquer um é o jogo.
 		if (killer_is_impostor && target.is_impostor && config.game_mode != GAME_MODE_LAST_STANDING) return false;
 
+		// VETERANO EM ALERTA: quem ataca morre no lugar - o xerife inclusive (decisão do usuário,
+		// 2026-10-21). Depois do escudo, que vale contra qualquer ataque, e ANTES do tiro errado: o xerife
+		// que mira num veterano em alerta não "erra", morre pelo alerta. Para a partida é um assassinato
+		// comum, com o veterano como quem matou; o `alert` no pacote é para o servidor avisá-lo (ver
+		// announce_kill). O envenenador também cai: o veneno nem chega a sair.
+		if (target.alert_remaining > 0.0) {
+			@out_event = leave_body(target, killer);
+			out_event.set_bool("alert", true);
+			return true;
+		}
+
+		// O ENVENENADOR não mata agora: envenena, e a vítima cai depois, onde estiver (tick_poison).
+		// Ninguém percebe nada na hora - nem ela; quem o avisa de que deu certo é o S_POISON_DONE, só para
+		// ele, com a recarga (que começa agora: o veneno É o kill dele). Quem já está envenenado não
+		// é envenenado de novo, e a tentativa não gasta nada.
+		if (killer.role().kill_poisons) {
+			if (target.poisoned_by != 0) return false;
+			target.poisoned_by = killer.peer_id;
+			target.poison_remaining = config.role_value(ROLE_POISONER, TUNABLE_DURATION);
+			killer.kill_cooldown_remaining = kill_cooldown_for(killer);
+			if (target.trait_modifier == MOD_DISEASED) killer.kill_cooldown_remaining *= DISEASED_COOLDOWN_MULTIPLIER;
+			@out_event = net_packet(S_POISON_DONE);
+			out_event.set_uint64("killer_peer", killer.peer_id);
+			out_event.set_string("name", target.public_name());
+			out_event.set_float("killer_cooldown", killer.kill_cooldown_remaining);
+			return true;
+		}
+
 		// Quem atira pela TRIPULAÇÃO e acerta um TRIPULANTE morre no lugar dele. É o que faz o xerife ser
 		// uma aposta e não uma arma: matar o inocente custa a própria vida, e a tripulação perde duas
 		// pessoas de uma vez. O alvo não fica sabendo de nada - ele só ouve um assassinato do lado,
@@ -80,18 +108,35 @@ mixin class state_kill_part {
 		misfire = !killer_is_impostor && target.role().team == TEAM_CREW;
 		game_player@ victim = misfire ? killer : target;
 
-		victim.alive = false;
-		// Se era o lobo, quem estava na barriga volta - no lugar onde ele caiu.
-		release_belly(victim, victim.x, victim.y);
 		killer.kill_cooldown_remaining = kill_cooldown_for(killer);
 		// O DOENTE: quem o mata espera mais para matar de novo. O assassino recebe a recarga no pacote
-		// dele (killer_cooldown, abaixo) e não ouve por quê - descobrir é dele.
+		// dele (killer_cooldown, em leave_body) e não ouve por quê - descobrir é dele.
 		if (victim !is killer && victim.trait_modifier == MOD_DISEASED) killer.kill_cooldown_remaining *= DISEASED_COOLDOWN_MULTIPLIER;
 		// Matar REVELA o fantasma. É o preço inteiro do papel: ele atravessa a nave sem ser
 		// percebido, mas o instante do crime o devolve ao mundo - com som, no lugar onde está, para
 		// quem estiver por perto. Sem isto ele mataria e sumiria de novo, e não haveria jogo do
 		// outro lado. Quem avisa é o servidor, pelo mesmo caminho da invisibilidade que expira.
 		if (killer.invisible()) killer.invisible_remaining = 0.0;
+
+		@out_event = leave_body(killer, victim);
+		// O tiro errado NÃO entra neste pacote: ele é transmitido à partida inteira, e qualquer um
+		// leria "aquele que morreu era um xerife que errou" - de graça, sem ter visto nada. Quem
+		// precisa saber é só quem morreu, e quem avisa é o servidor, em particular (ver on_kill).
+		// Para todos os outros isto é um assassinato como qualquer outro, e é essa ambiguidade que
+		// faz o xerife valer a pena.
+		return true;
+	}
+
+	// O que toda morte por ASSASSINATO deixa: a vítima morta, a barriga dela aberta, o corpo (com o que o
+	// detetive e a isca leem nele), o corpo que ela carregava largado, e o pacote da morte. Uma função só
+	// para o kill, o alerta do veterano e o veneno - eram a mesma coisa escrita três vezes, e a primeira
+	// diferença esquecida (um corpo sem a marca da isca, um carregador que não larga) seria um defeito calado.
+	net_packet@ leave_body(game_player@ killer, game_player@ victim) {
+		victim.alive = false;
+		victim.poisoned_by = 0;
+		victim.poison_remaining = 0.0;
+		// Se era o lobo, quem estava na barriga volta - no lugar onde ele caiu.
+		release_belly(victim, victim.x, victim.y);
 
 		body_info body;
 		body.id = "body_" + victim.peer_id;
@@ -112,9 +157,9 @@ mixin class state_kill_part {
 		net_packet@ largado = drop_carried_body(victim);
 		if (@largado != null) pending_events.insert_last(largado);
 
-		@out_event = net_packet(S_PLAYER_KILLED);
-		out_event.set_uint64("peer_id", victim.peer_id);
-		out_event.set_uint64("killer_peer", killer.peer_id);
+		net_packet@ ev = net_packet(S_PLAYER_KILLED);
+		ev.set_uint64("peer_id", victim.peer_id);
+		ev.set_uint64("killer_peer", killer.peer_id);
 		// O nome de quem matou NÃO viaja aqui, e isso é decisão, não esquecimento.
 		//
 		// A vítima resolve o nome pelo elenco dela, que não conhece disfarce nenhum - ou seja, quem
@@ -126,18 +171,42 @@ mixin class state_kill_part {
 		//
 		// E o nome verdadeiro não pode entrar NESTE pacote de jeito nenhum: ele é transmitido à
 		// partida inteira. Seria o mesmo erro do `misfire` do xerife.
-		out_event.set_int("killer_color", killer.color);
+		ev.set_int("killer_color", killer.color);
 		// A recarga que o assassino ficou: ela pode não ser a da sala (o doente). Este pacote completo só
 		// vai ao assassino e à vítima (ver announce_kill).
-		out_event.set_float("killer_cooldown", killer.kill_cooldown_remaining);
-		out_event.set_float("x", victim.x);
-		out_event.set_float("y", victim.y);
-		// O tiro errado NÃO entra neste pacote: ele é transmitido à partida inteira, e qualquer um
-		// leria "aquele que morreu era um xerife que errou" - de graça, sem ter visto nada. Quem
-		// precisa saber é só quem morreu, e quem avisa é o servidor, em particular (ver on_kill).
-		// Para todos os outros isto é um assassinato como qualquer outro, e é essa ambiguidade que
-		// faz o xerife valer a pena.
-		return true;
+		ev.set_float("killer_cooldown", killer.kill_cooldown_remaining);
+		ev.set_float("x", victim.x);
+		ev.set_float("y", victim.y);
+		return ev;
+	}
+
+	// O veneno corre no relógio da partida, inclusive na reunião; vencido, a pessoa cai onde estiver -
+	// mas só com a partida andando: na mesa, espera a reunião acabar (decisão do usuário, como o par
+	// apaixonado - um corpo na mesa seria reportado pela reunião seguinte inteira). Dentro do duto também
+	// espera: ninguém morre no duto (ver try_kill). Engolido espera a barriga; morto de outro jeito leva o
+	// veneno junto. O pacote leva `poison`: quem estava ao lado não VIU ninguém matar (ver announce_kill).
+	void tick_poison(float delta_seconds, array<net_packet@>@ events) {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ p = players[i];
+			if (p.poisoned_by == 0) continue;
+			if (!p.alive) {
+				if (!p.swallowed()) { p.poisoned_by = 0; p.poison_remaining = 0.0; }
+				continue;
+			}
+			if (p.poison_remaining > 0.0) {
+				p.poison_remaining -= delta_seconds;
+				if (p.poison_remaining > 0.0) continue;
+				p.poison_remaining = 0.0;
+			}
+			if (state != "in_progress" || winner != "" || p.vented) continue;
+			game_player@ quem = find_player(p.poisoned_by);
+			// O envenenador saiu da partida: o veneno continua, e a morte fica sem assassino (como o tiro
+			// errado), sem rastro para o detetive.
+			if (@quem == null) @quem = p;
+			net_packet@ ev = leave_body(quem, p);
+			ev.set_bool("poison", true);
+			events.insert_last(ev);
+		}
 	}
 
 	// O sniper aponta alguém na mesa e diz qual é o papel dele. Acertou, o alvo morre; errou, morre

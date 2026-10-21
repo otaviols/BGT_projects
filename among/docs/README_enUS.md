@@ -705,6 +705,16 @@ and when the room shows the votes they appear only once. Only the count knows.
 other at the count. One swap per meeting. At the result the table hears that the votes of those two
 were swapped, but never who did it.
 
+**Veteran** (crew). The H key turns on the **alert** for 10 seconds (30-second cooldown; the room
+adjusts both). Whoever tries to kill them during it **dies instead**, even the sheriff. To the ship it is
+an ordinary murder; the Veteran hears that the alert killed someone, and whoever was right next to it
+saw who did it.
+
+**Transporter** (crew). The H key opens the list of the living: they pick **two people**, from anywhere
+on the ship, and those two **swap places** at once. The Transporter can be one of them. Both hear that
+they were transported and where to; nobody else is told. Whoever is inside a vent cannot be
+transported. The default cooldown is 30 seconds.
+
 **Janitor** (impostor). Near a body, the H key makes it **disappear**: nobody finds or reports it
 anymore, and the body sound stops. Whoever is nearby hears the cleaning, where it happens. The default
 cooldown is 30 seconds.
@@ -713,6 +723,12 @@ cooldown is 30 seconds.
 they are. While carried, the body does not exist on the map (it cannot be reported and makes no
 sound), and the Carrier cannot kill or vent. Whoever is nearby hears the **dragging**, at the pace of
 their steps. If the Carrier dies while carrying, the body stays there.
+
+**Poisoner** (impostor). Has no knife: the kill key **poisons** whoever is in range, and the person
+**falls 10 seconds later** (the room adjusts it), wherever they are. Nobody notices anything before
+that, not even them, and whoever is next to them when they fall sees no one killing. If time runs out
+during a meeting, they fall when the meeting ends. The cooldown is the kill cooldown, and it starts at
+the poisoning.
 
 ### Neutral roles
 
@@ -752,6 +768,11 @@ missing.
 **Amnesiac** (neutral). Starts without a role and without a win. Near a body, the H key makes them
 **take the dead player's role** — any role, including impostor. Nobody else is told, except the
 impostors when they become one of them. The inherited role's ability starts on cooldown.
+
+**Vulture** (neutral). Near a body, the H key **eats** it: the body disappears, and whoever is nearby
+hears the same sound as the janitor's cleaning. After eating **3 bodies** (the room adjusts it), they
+win alone. They do not kill: they have to reach the bodies before someone finds them. The default
+cooldown is 20 seconds.
 
 ### Modifiers
 

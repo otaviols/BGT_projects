@@ -471,6 +471,7 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 		tick_bots(delta_seconds, events);
 		follow_wolves();
 		tick_killer_trails();
+		tick_poison(delta_seconds, events);
 
 		if (doors_cooldown_remaining > 0.0) {
 			doors_cooldown_remaining -= delta_seconds;

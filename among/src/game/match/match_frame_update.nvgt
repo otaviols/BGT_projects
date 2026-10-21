@@ -201,6 +201,10 @@ mixin class match_frame_update_part {
 			my_invisible_remaining -= delta;
 			if (my_invisible_remaining < 0.0) my_invisible_remaining = 0.0;
 		}
+		if (my_alert_remaining > 0.0) {
+			my_alert_remaining -= delta;
+			if (my_alert_remaining <= 0.0) { my_alert_remaining = 0.0; if (alive) speak(tr("role.alert_over")); }
+		}
 	}
 
 	// Bip de alvo ao alcance: SÓ para quem pode agir sobre alguém (matar, atirar, proteger), e só

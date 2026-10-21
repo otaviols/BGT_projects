@@ -468,9 +468,12 @@ mixin class server_match_part {
 		net_packet@ event;
 		bool misfire = false;
 		if (lobby.try_kill(peer_id, target_peer, event, misfire)) {
+			// O envenenador não matou ainda: só ele fica sabendo (ver tick_poison).
+			if (event.type == S_POISON_DONE) { send_to(peer_id, event); return; }
 			announce_kill(lobby, event);
 			// Assassinato de quem tem conta. O tiro errado do xerife não conta: quem morreu foi ele.
-			if (!misfire && @killer != null && !killer.is_bot && killer.username != "") killer.match_kills++;
+			// Pelo pacote, e não pelo pedido: no alerta do veterano quem atacou morreu, e quem matou foi ele.
+			if (!misfire && event.get_uint64("killer_peer") == peer_id && @killer != null && !killer.is_bot && killer.username != "") killer.match_kills++;
 			// O tiro errado é dito SÓ a quem errou, depois do pacote da morte: para todos os outros
 			// (inclusive para quem ele mirou) aquilo foi um assassinato qualquer, e é isso que
 			// mantém o xerife sendo uma aposta em vez de um detector.
@@ -522,7 +525,16 @@ mixin class server_match_part {
 		// "na frente de alguém" passa a ter o custo óbvio, e matar a dois passos continua anônimo.
 		// Fantasma, quem está no duto e o invisível não veem. O tiro errado do xerife (atirador ==
 		// vítima) fica de fora: diria a quem estava perto que ali havia um xerife que errou.
-		if (killer_id != victim_peer) notify_witnesses(lobby, killer_id, victim_peer, event.get_float("x"), event.get_float("y"), false);
+		// Quem morre do VENENO cai sozinho: quem estava ao lado não viu ninguém matar.
+		if (killer_id != victim_peer && !event.get_bool("poison")) notify_witnesses(lobby, killer_id, victim_peer, event.get_float("x"), event.get_float("y"), false);
+		// O ALERTA do veterano matou quem o atacou: ele ouve isso, e só ele.
+		if (event.get_bool("alert")) {
+			game_player@ vet = lobby.find_player(killer_id);
+			game_player@ atacante = lobby.find_player(victim_peer);
+			dictionary@ ap = dictionary();
+			ap.set("name", @atacante != null ? atacante.public_name() : "");
+			if (@vet != null && reaches_client(vet)) send_error(killer_id, "role.alert_killed", ap);
+		}
 		// O assassino recebe o completo para rearmar a recarga do kill (ver game_loop).
 		if (killer_id != victim_peer) {
 			game_player@ assassino = lobby.find_player(killer_id);

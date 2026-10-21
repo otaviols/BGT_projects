@@ -1,0 +1,173 @@
+// Sonda dos papéis da 1.1 - Veterano, Envenenador, Abutre e Transportador - direto no estado da partida,
+// sem rede, com o MESMO tick do servidor.
+//   nvgt tools/probes/probe_roles_1_1.nvgt
+#include "../../src/core/game_state.nvgt"
+#include "../../src/game/roles/role_traits.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+// Cinco jogadores, todos colados no centro: 1 a 3 tripulantes, 4 impostor, 5 tripulante. Com tarefa
+// pendente, senão a partida acaba no primeiro tick.
+game_state@ mesa() {
+	game_state@ lobby = game_state();
+	@lobby.config = lobby_config();
+	@lobby.map = build_the_hub_map();
+	lobby.state = "in_progress";
+	lobby.sabotage_cooldown_remaining = 999.0;
+	array<map_object@>@ spots = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+	for (uint i = 1; i <= 5; i++) {
+		game_player@ p = game_player(i, "j" + i);
+		p.set_role(i == 4 ? ROLE_IMPOSTOR : ROLE_CREWMATE);
+		p.x = 0.0; p.y = 0.0;
+		player_task tk; tk.object_id = spots[0].id; tk.task_type = spots[0].task_type; p.tasks.insert_last(tk);
+		lobby.players.insert_last(p);
+	}
+	return lobby;
+}
+
+// Roda o tick por `segundos` e devolve as mortes (S_PLAYER_KILLED) que saíram.
+array<net_packet@>@ roda(game_state@ lobby, float segundos) {
+	array<net_packet@> mortes;
+	for (float t = 0.0; t < segundos; t += 0.05) {
+		array<net_packet@>@ ev = lobby.tick(0.05);
+		for (uint i = 0; i < ev.length(); i++) if (ev[i].type == S_PLAYER_KILLED) mortes.insert_last(ev[i]);
+	}
+	return mortes;
+}
+
+void main() {
+	println("== a sala ==");
+	lobby_config c;
+	c.set_role_count(ROLE_VETERAN, 1);
+	c.set_role_count(ROLE_VULTURE, 1);
+	confere("os papeis novos sao configuraveis e exigem o protocolo deles (" + c.required_protocol() + ")",
+		is_configurable_id(ROLE_VETERAN) && is_configurable_id(ROLE_POISONER) && is_configurable_id(ROLE_VULTURE)
+		&& is_configurable_id(ROLE_TRANSPORTER) && c.required_protocol() >= ROLES_1_1_PROTOCOL);
+	confere("o envenenador e do time impostor, o abutre neutro, os outros tripulacao",
+		role_for(ROLE_POISONER).team == TEAM_IMPOSTOR && role_for(ROLE_VULTURE).team == TEAM_NEUTRAL
+		&& role_for(ROLE_VETERAN).team == TEAM_CREW && role_for(ROLE_TRANSPORTER).team == TEAM_CREW);
+
+	println("== veterano ==");
+	{
+		game_state@ g = mesa();
+		g.find_player(1).set_role(ROLE_VETERAN);
+		string fk;
+		confere("o alerta liga", g.try_alert(1, fk) && g.find_player(1).alert_remaining == VETERAN_ALERT_SECONDS);
+		g.find_player(4).kill_cooldown_remaining = 0.0;
+		net_packet@ ev;
+		bool ok = g.try_kill(4, 1, ev);
+		confere("o impostor que ataca o veterano em alerta morre no lugar", ok && !g.find_player(4).alive && g.find_player(1).alive);
+		confere("o pacote diz que foi o alerta, com o veterano como quem matou",
+			@ev != null && ev.get_bool("alert") && ev.get_uint64("killer_peer") == 1 && ev.get_uint64("peer_id") == 4);
+	}
+	{
+		game_state@ g = mesa();
+		g.find_player(1).set_role(ROLE_VETERAN);
+		g.find_player(2).set_role(ROLE_SHERIFF);
+		g.find_player(1).alert_remaining = 5.0;
+		g.find_player(2).kill_cooldown_remaining = 0.0;
+		net_packet@ ev;
+		bool errou = false;
+		g.try_kill(2, 1, ev, errou);
+		confere("o xerife que mira no veterano em alerta tambem morre (pelo alerta, nao pelo tiro errado)",
+			!g.find_player(2).alive && g.find_player(1).alive && !errou && ev.get_bool("alert"));
+	}
+	{
+		game_state@ g = mesa();
+		g.find_player(1).set_role(ROLE_VETERAN);
+		g.find_player(4).kill_cooldown_remaining = 0.0;
+		net_packet@ ev;
+		g.try_kill(4, 1, ev);
+		confere("controle: sem alerta, o veterano morre como qualquer um", !g.find_player(1).alive && g.find_player(4).alive);
+	}
+
+	println("== envenenador ==");
+	{
+		game_state@ g = mesa();
+		g.find_player(4).set_role(ROLE_POISONER);
+		g.find_player(4).kill_cooldown_remaining = 0.0;
+		net_packet@ ev;
+		bool ok = g.try_kill(4, 1, ev);
+		confere("o kill envenena: a vitima continua viva, e o pacote e so o do veneno",
+			ok && g.find_player(1).alive && @ev != null && ev.type == S_POISON_DONE && g.find_player(1).poisoned_by == 4);
+		confere("e a recarga do kill comeca agora", g.find_player(4).kill_cooldown_remaining == g.kill_cooldown_for(g.find_player(4)));
+		g.find_player(4).kill_cooldown_remaining = 0.0;
+		net_packet@ de_novo;
+		confere("envenenar quem ja esta envenenado nao acontece (e nao gasta)", !g.try_kill(4, 1, de_novo) && g.find_player(4).kill_cooldown_remaining == 0.0);
+		array<net_packet@>@ m = roda(g, POISON_DELAY_SECONDS - 1.0);
+		confere("antes do tempo, ninguem cai", m.length() == 0 && g.find_player(1).alive);
+		@m = roda(g, 1.5);
+		confere("no tempo, a vitima cai onde esta, com corpo", m.length() == 1 && !g.find_player(1).alive && g.bodies.length() == 1);
+		confere("o pacote diz que foi veneno (ninguem ao lado VIU), com o envenenador como quem matou",
+			m.length() == 1 && m[0].get_bool("poison") && m[0].get_uint64("killer_peer") == 4);
+	}
+	{
+		game_state@ g = mesa();
+		g.find_player(4).set_role(ROLE_POISONER);
+		g.find_player(4).kill_cooldown_remaining = 0.0;
+		net_packet@ ev;
+		g.try_kill(4, 2, ev);
+		g.state = "voting";
+		g.voting_timer = 999.0; // sem isto a votação de mentira acabaria no primeiro tick
+		array<net_packet@>@ m = roda(g, POISON_DELAY_SECONDS + 3.0);
+		confere("veneno que vence na reuniao espera: ninguem cai na mesa", m.length() == 0 && g.find_player(2).alive);
+		g.state = "in_progress";
+		@m = roda(g, 0.1);
+		confere("e a pessoa cai assim que a reuniao acaba", m.length() == 1 && !g.find_player(2).alive);
+	}
+	{
+		game_state@ g = mesa();
+		g.find_player(4).set_role(ROLE_POISONER);
+		g.find_player(1).set_role(ROLE_VETERAN);
+		g.find_player(1).alert_remaining = 5.0;
+		g.find_player(4).kill_cooldown_remaining = 0.0;
+		net_packet@ ev;
+		g.try_kill(4, 1, ev);
+		confere("o envenenador que ataca o veterano em alerta morre, e o veneno nem sai",
+			!g.find_player(4).alive && g.find_player(1).poisoned_by == 0);
+	}
+
+	println("== abutre ==");
+	{
+		game_state@ g = mesa();
+		g.find_player(5).set_role(ROLE_VULTURE);
+		float bx, by; uint64 v; uint comidos, precisa; string fk;
+		confere("sem corpo perto, nada", !g.try_devour(5, bx, by, v, comidos, precisa, fk) && fk == "role.no_body_near");
+		net_packet@ ev;
+		for (uint64 alvo = 1; alvo <= 3; alvo++) { g.find_player(4).kill_cooldown_remaining = 0.0; g.try_kill(4, alvo, ev); }
+		confere("tres corpos no chao", g.bodies.length() == 3);
+		confere("come um: o corpo some e conta 1 de 3",
+			g.try_devour(5, bx, by, v, comidos, precisa, fk) && comidos == 1 && precisa == uint(VULTURE_BODIES_TO_WIN) && g.bodies.length() == 2 && g.winner == "");
+		g.find_player(5).ability_cooldown_remaining = 0.0;
+		g.try_devour(5, bx, by, v, comidos, precisa, fk);
+		confere("controle: com 2, ainda nao venceu", g.winner == "");
+		g.try_devour(5, bx, by, v, comidos, precisa, fk);
+		confere("o terceiro corpo da a vitoria ao abutre, sozinho",
+			g.winner == WINNER_NEUTRAL && g.win_reason == "vulture_fed" && g.neutral_winner_peer == 5);
+	}
+
+	println("== transportador ==");
+	{
+		game_state@ g = mesa();
+		g.find_player(1).set_role(ROLE_TRANSPORTER);
+		g.find_player(2).x = 10.0; g.find_player(2).y = 5.0;
+		g.find_player(3).x = -8.0; g.find_player(3).y = 2.0;
+		string fk;
+		confere("troca dois de lugar, de qualquer distancia", g.try_transport(1, 2, 3, fk)
+			&& g.find_player(2).x == -8.0 && g.find_player(2).y == 2.0 && g.find_player(3).x == 10.0 && g.find_player(3).y == 5.0);
+		confere("ele mesmo pode ser um dos dois", g.try_transport(1, 1, 2, fk) && g.find_player(1).x == -8.0);
+		g.find_player(3).vented = true;
+		confere("quem esta no duto nao e transportado", !g.try_transport(1, 2, 3, fk) && fk == "role.transport_invalid");
+		g.find_player(3).vented = false;
+		confere("a mesma pessoa duas vezes, nao", !g.try_transport(1, 2, 2, fk));
+		g.find_player(3).alive = false;
+		confere("morto, nao", !g.try_transport(1, 2, 3, fk));
+	}
+
+	println("");
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

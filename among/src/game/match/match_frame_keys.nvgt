@@ -280,6 +280,13 @@ mixin class match_frame_keys_part {
 					dictionary@ vp = dictionary();
 					vp.set("seconds", "" + int(my_invisible_remaining + 0.5));
 					speak(tr("role.vanish_active", vp));
+				} else if (my_role.ability_id == ABILITY_ALERT && my_alert_remaining > 0.0) {
+					// Já em alerta: diz quanto falta, como a invisibilidade.
+					dictionary@ ap = dictionary();
+					ap.set("seconds", "" + int(my_alert_remaining + 0.5));
+					speak(tr("role.alert_active", ap));
+				} else if (my_role.ability_id == ABILITY_TRANSPORT) {
+					run_transport_menu(client, roster);
 				} else if (my_role.ability_id == ABILITY_SHAPESHIFT) {
 					// Já disfarçado, a tecla não abre o menu de novo: ela diz quanto tempo falta.
 					// Sem isto, apertar por engano gastaria a recarga inteira para trocar de cara.

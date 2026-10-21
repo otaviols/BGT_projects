@@ -699,6 +699,15 @@ todo mundo, e quando a sala mostra os votos ele aparece uma vez só. Só a conta
 para a outra na contagem. Uma troca por reunião. No resultado a mesa ouve que os votos daquelas duas
 foram trocados, mas nunca quem trocou.
 
+**Veterano** (tripulação). A tecla H liga o **alerta** por 10 segundos (recarga de 30; a sala ajusta os
+dois). Quem tentar matá-lo nesse tempo **morre no lugar**, até o xerife. Para a nave é um assassinato
+comum; ele ouve que o alerta matou alguém, e quem estava colado viu quem foi.
+
+**Transportador** (tripulação). A tecla H abre a lista dos vivos: ele escolhe **duas pessoas**, de
+qualquer lugar da nave, e elas **trocam de lugar** na hora. Ele pode ser uma delas. As duas ouvem que
+foram transportadas e para onde; mais ninguém fica sabendo. Quem está num duto não pode ser
+transportado. A recarga padrão é de 30 segundos.
+
 **Lixeiro** (impostor). Perto de um corpo, a tecla H o faz **sumir**: ninguém mais o encontra nem o
 reporta, e o som do corpo para. Quem estiver perto ouve a limpeza, no lugar onde ela acontece. A
 recarga padrão é de 30 segundos.
@@ -707,6 +716,11 @@ recarga padrão é de 30 segundos.
 onde estiver. Enquanto carrega, o corpo não existe no mapa (não se reporta, não faz som), e ele não
 mata nem entra em duto. Quem estiver perto ouve o **arrasto**, no ritmo dos passos dele. Se ele
 morrer carregando, o corpo fica ali.
+
+**Envenenador** (impostor). Não tem faca: a tecla de matar **envenena** quem estiver ao alcance, e a
+pessoa **cai 10 segundos depois** (a sala ajusta), onde estiver. Ninguém percebe nada antes, nem ela, e
+quem estava ao lado quando ela cai não vê ninguém matar. Se o tempo acabar durante uma reunião, ela cai
+quando a reunião termina. A recarga é a do kill, e começa no envenenamento.
 
 ### Papéis neutros
 
@@ -742,6 +756,10 @@ basta para a tripulação vencer, e o xerife pode atirar nele sem errar.
 **Amnésico** (neutro). Começa sem papel e sem vitória. Perto de um corpo, a tecla H faz ele **herdar o
 papel do morto** — qualquer um, inclusive de impostor. Ninguém mais fica sabendo, exceto os impostores
 quando ele vira um deles. A habilidade do papel herdado começa recarregando.
+
+**Abutre** (neutro). Perto de um corpo, a tecla H o **come**: o corpo some, e quem estiver perto ouve o
+mesmo som da limpeza do lixeiro. Ao comer **3 corpos** (a sala ajusta), ele vence sozinho. Ele não mata:
+precisa chegar aos corpos antes que alguém os encontre. A recarga padrão é de 20 segundos.
 
 ### Modificadores
 

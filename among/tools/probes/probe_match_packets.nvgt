@@ -206,6 +206,24 @@ void main() {
 	imp.handle_packet(doente);
 	confere("matar o doente: a recarga e a que o servidor mandou (" + imp.my_kill_cooldown_remaining + ")", imp.my_kill_cooldown_remaining == 50.0);
 
+	println("== envenenador, veterano e transportador (cliente) ==");
+	match_session@ en = nova_partida(ROLE_POISONER);
+	en.my_kill_cooldown_remaining = 0.0;
+	net_packet@ pd = net_packet(S_POISON_DONE);
+	pd.set_uint64("killer_peer", 1); pd.set_string("name", "ana"); pd.set_float("killer_cooldown", 25.0);
+	en.handle_packet(pd);
+	confere("o veneno saiu: a recarga do kill comeca", en.my_kill_cooldown_remaining == 25.0);
+	match_session@ ve = nova_partida(ROLE_VETERAN);
+	net_packet@ ar = net_packet(S_ABILITY_RESULT);
+	ar.set_string("ability", ABILITY_ALERT); ar.set_bool("ok", true); ar.set_float("cooldown_seconds", 30.0); ar.set_float("duration_seconds", 10.0);
+	ve.handle_packet(ar);
+	confere("o alerta ligado: a tecla sabe quanto falta", ve.my_alert_remaining == 10.0 && ve.my_ability_cooldown_remaining == 30.0);
+	match_session@ tr2 = nova_partida(ROLE_CREWMATE);
+	net_packet@ foi = net_packet(S_TRANSPORTED);
+	foi.set_float("x", 7.5); foi.set_float("y", -3.0);
+	tr2.handle_packet(foi);
+	confere("transportado: a posicao e a que o servidor mandou", tr2.my_x == 7.5 && tr2.my_y == -3.0);
+
 	println("== lanterninha ==");
 	match_session@ lt = nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, true, null, MOD_TORCH);
 	match_session@ sem_lt = nova_partida(ROLE_CREWMATE);

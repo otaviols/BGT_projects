@@ -692,6 +692,8 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 				// Morte por bot passa pelo MESMO caminho da morte por jogador: o pacote inteiro diz
 				// quem matou, e não pode ir a todo mundo (ver announce_kill).
 				if (events[e].type == S_PLAYER_KILLED) { announce_kill(lobby, events[e]); continue; }
+				// O veneno de um bot (se um dia houver) só vai a ele, como o do jogador (ver on_kill).
+				if (events[e].type == S_POISON_DONE) { send_to(events[e].get_uint64("killer_peer"), events[e]); continue; }
 				// Movimento (hoje só de bot) vai pelo canal não confiável, igual o dos jogadores de
 				// verdade: chega muitas vezes por segundo e perder um pacote não custa nada.
 				bool reliable = events[e].type != S_PLAYER_MOVED;

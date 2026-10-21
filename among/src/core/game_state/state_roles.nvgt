@@ -234,6 +234,57 @@ mixin class state_roles_part {
 		return true;
 	}
 
+	// --- Veterano, abutre e transportador (1.1) ---
+
+	// O alerta do veterano. Relançar com o alerta ainda ligado não acontece: a recarga é maior que a duração.
+	bool try_alert(uint64 peer, string&out fail_key) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		p.alert_remaining = config.role_value(ROLE_VETERAN, TUNABLE_DURATION);
+		return true;
+	}
+
+	// O abutre come o corpo ao alcance (some, como o do lixeiro). Com N corpos ele vence na hora, sozinho.
+	bool try_devour(uint64 peer, float&out x, float&out y, uint64&out victim, uint&out eaten, uint&out needed,
+			string&out fail_key) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		int i = body_index_near(p.x, p.y);
+		if (i < 0) { fail_key = "role.no_body_near"; return false; }
+		x = bodies[i].x;
+		y = bodies[i].y;
+		victim = bodies[i].victim_peer_id;
+		bodies.remove_at(i);
+		p.bodies_eaten++;
+		eaten = p.bodies_eaten;
+		needed = uint(config.role_value(ROLE_VULTURE, TUNABLE_BODIES) + 0.5);
+		if (eaten >= needed && winner == "") {
+			winner = WINNER_NEUTRAL;
+			win_reason = "vulture_fed";
+			neutral_winner_peer = p.peer_id;
+		}
+		return true;
+	}
+
+	// O transportador troca dois vivos de lugar, de qualquer distância. Ele pode ser um dos dois. Recusa
+	// quem está num duto (a posição dele é segredo, e tirá-lo de lá denunciaria que estava) e quem está na
+	// barriga do lobo (não está no mapa). Os dois param de ser recusados ao andar no instante seguinte: o
+	// relógio do passo recomeça (last_move_time), senão o primeiro passo do novo lugar pareceria um salto.
+	bool try_transport(uint64 peer, uint64 a, uint64 b, string&out fail_key) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		game_player@ pa = find_player(a);
+		game_player@ pb = find_player(b);
+		if (a == b || @pa == null || @pb == null || !pa.alive || !pb.alive || pa.vented || pb.vented
+				|| pa.swallowed() || pb.swallowed()) { fail_key = "role.transport_invalid"; return false; }
+		float ax = pa.x, ay = pa.y;
+		pa.x = pb.x; pa.y = pb.y;
+		pb.x = ax; pb.y = ay;
+		pa.last_move_time = elapsed_time;
+		pb.last_move_time = elapsed_time;
+		return true;
+	}
+
 	bool is_carrying(uint64 peer) const { return carrier_peers.find(peer) != -1; }
 
 	bool try_pick_body(uint64 peer, uint64&out victim, string&out fail_key) {

@@ -149,6 +149,36 @@ void run_swap_menu(game_client@ client, client_roster@ roster) {
 	}
 }
 
+// O transportador escolhe DOIS vivos, de qualquer lugar - ele mesmo pode ser um deles (por isso o "eu"
+// entra na lista). A mesma forma do menu do trocador, fora da reunião.
+void run_transport_menu(game_client@ client, client_roster@ roster) {
+	ui_sound(SND_DIALOG_OPEN);
+	uint64 primeiro = 0;
+	for (int passo = 0; passo < 2; passo++) {
+		screen_menu m;
+		m.intro_text = tr(passo == 0 ? "role.transport_pick_first" : "role.transport_pick_second");
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		@g_game_menu_pump_client = client;
+		@m.background_callback = @pump_client_during_game_menu;
+		if (primeiro != client.my_peer_id) m.add_item(tr("role.transport_me"), "" + client.my_peer_id);
+		for (uint i = 0; i < roster.entries.length(); i++) {
+			roster_entry@ e = roster.entries[i];
+			if (!e.alive || e.peer_id == primeiro || e.peer_id == client.my_peer_id) continue;
+			m.add_item(e.name, "" + e.peer_id);
+		}
+		m.run();
+		string escolha = m.selected_item_id;
+		if (escolha == "") { ui_sound(SND_DIALOG_CLOSE); return; }
+		if (passo == 0) primeiro = uint64(parse_int(escolha));
+		else {
+			ui_sound(SND_DIALOG_CLOSE);
+			client.send_two_targets(ABILITY_TRANSPORT, primeiro, uint64(parse_int(escolha)));
+		}
+	}
+}
+
 void run_sabotage_menu(impostor_controller@ imp, game_map@ map) {
 	ui_sound(SND_DIALOG_OPEN);
 	screen_menu m;
@@ -293,6 +323,7 @@ string game_over_reason_text(const string&in reason) {
 	if (reason == "wolf_survived") return tr("game.reason_wolf_survived");
 	if (reason == "last_wolf") return tr("game.reason_last_wolf");
 	if (reason == "last_standing") return tr("game.reason_last_standing");
+	if (reason == "vulture_fed") return tr("game.reason_vulture_fed");
 	if (reason == "all_caught") return tr("game.reason_all_caught");
 	if (reason == "executioner_won") return tr("game.reason_executioner_won");
 	if (reason == "arsonist_ignited") return tr("game.reason_arsonist_ignited");

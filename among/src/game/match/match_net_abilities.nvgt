@@ -5,6 +5,29 @@
 // servidor, chamado por handle_packet. Enxerga todos os campos da partida; não compila sozinho.
 
 mixin class match_net_abilities_part {
+	// O veneno saiu (só o envenenador recebe): a recarga do kill começa agora, e ele ouve em quem.
+	void on_poison_done(net_packet@ pkt) {
+		my_kill_cooldown_remaining = pkt.get_float("killer_cooldown", kill_cooldown_config);
+		dictionary@ np = dictionary();
+		np.set("name", spoken_name(pkt.get_string("name")));
+		string texto = tr("role.poison_done", np);
+		speak(texto);
+		events_log.add("", texto);
+	}
+
+	// O transportador me trocou de lugar: a posição é do servidor, como a do duto (ver on_vent_state).
+	void on_transported(net_packet@ pkt) {
+		my_x = pkt.get_float("x");
+		my_y = pkt.get_float("y");
+		audio.update_listener(my_x, my_y);
+		map_zone@ z = map.zone_at(my_x, my_y);
+		dictionary@ tp = dictionary();
+		tp.set("room", @z != null ? tr(z.name_key) : tr("game.unknown_room"));
+		string texto = tr("role.transported", tp);
+		speak(texto);
+		events_log.add("", texto);
+	}
+
 	void on_vanish_ended(net_packet@ pkt) {
 		my_invisible_remaining = 0.0;
 		// O som da volta é dele e de mais ninguém - sem posição, porque não é um evento do
@@ -121,6 +144,10 @@ mixin class match_net_abilities_part {
 				}
 				pending_eat_peer = 0;
 				audio.play_wolf_swallow(my_x, my_y);
+			}
+			if (qual == ABILITY_ALERT) {
+				my_alert_remaining = pkt.get_float("duration_seconds", VETERAN_ALERT_SECONDS);
+				task_sound_simple(SND_SHIELD_CAST); // a confirmação, sem posição, como a do escudo
 			}
 			if (qual == ABILITY_VANISH) {
 				my_invisible_remaining = pkt.get_float("duration_seconds", PHANTOM_INVISIBLE_SECONDS);

@@ -409,5 +409,7 @@ string tr_server_message(net_packet@ pkt) {
 	return tr(key, pkt.get_params(MSG_PARAMS_FIELD));
 }
 const string S_VENT_STATE = "s_vent_state";                 // {vented, x, y} - resposta privada (só pra quem usou o vent)
+const string S_POISON_DONE = "s_poison_done";               // {killer_peer, name, killer_cooldown} - só ao envenenador: o veneno saiu
+const string S_TRANSPORTED = "s_transported";               // {x, y} - só a quem o transportador trocou de lugar
 const string S_VENT_SOUND = "s_vent_sound";                 // {vent_id} - tampa do vent abrindo, ouvida por QUEM ESTÁ PERTO (não vai pra quem usou)
 const string S_DOORS_STATE = "s_doors_state";               // {closed, zones: [ids de sala]} - portas fechando ou abrindo

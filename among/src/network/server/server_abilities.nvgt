@@ -123,6 +123,58 @@ mixin class server_abilities_part {
 			message_key = "role.clean_done";
 			return true;
 		}
+		if (ability == ABILITY_ALERT) {
+			if (!lobby.try_alert(p.peer_id, message_key)) return false;
+			// Nada é transmitido: o alerta só aparece como um ataque que mata quem atacou.
+			message_key = "role.alert_on";
+			return true;
+		}
+		if (ability == ABILITY_DEVOUR) {
+			float bx = 0.0, by = 0.0;
+			uint64 morto = 0;
+			uint comidos = 0, faltam = 0;
+			if (!lobby.try_devour(p.peer_id, bx, by, morto, comidos, faltam, message_key)) return false;
+			net_packet@ sumiu = net_packet(S_BODY_REMOVED);
+			sumiu.set_uint64("peer_id", morto);
+			broadcast_to_lobby(lobby, sumiu);
+			// O som da limpeza do lixeiro: quem está perto ouve que um corpo sumiu dali, e não quem foi.
+			broadcast_body_sound(lobby, "clean", bx, by);
+			message_params.set("count", "" + comidos);
+			message_params.set("needed", "" + faltam);
+			message_key = "role.devour_done";
+			return true;
+		}
+		if (ability == ABILITY_TRANSPORT) {
+			uint64 a = pkt.get_uint64("target_a"), b = pkt.get_uint64("target_b");
+			if (!lobby.try_transport(p.peer_id, a, b, message_key)) return false;
+			array<uint64> dois = {a, b};
+			for (uint i = 0; i < dois.length(); i++) {
+				game_player@ quem = lobby.find_player(dois[i]);
+				// Saiu do lugar: larga o posto de câmeras e o scanner, como quem morre ou é engolido.
+				if (lobby.release_cameras(quem.peer_id)) {
+					send_camera_state(quem.peer_id, false, "");
+					broadcast_camera_watching(lobby);
+				}
+				end_visible_task(lobby, quem.peer_id);
+				net_packet@ foi = net_packet(S_TRANSPORTED);
+				foi.set_float("x", quem.x);
+				foi.set_float("y", quem.y);
+				if (reaches_client(quem)) send_to(quem.peer_id, foi);
+				// A posição nova para os outros, pelo mesmo caminho do passo (on_move): o invisível não.
+				if (quem.invisible()) continue;
+				net_packet@ moved = net_packet(S_PLAYER_MOVED);
+				moved.set_uint64("peer_id", quem.peer_id);
+				moved.set_float("x", quem.x);
+				moved.set_float("y", quem.y);
+				broadcast_to_lobby(lobby, moved, quem.peer_id, false);
+			}
+			game_player@ ga = lobby.find_player(a);
+			game_player@ gb = lobby.find_player(b);
+			message_params.set("a", ga.public_name());
+			message_params.set("b", gb.public_name());
+			message_key = "role.transport_done";
+			return true;
+		}
 		if (ability == ABILITY_DRAG) {
 			// A mesma tecla pega e larga: carregando, é largar.
 			if (lobby.is_carrying(p.peer_id)) {
