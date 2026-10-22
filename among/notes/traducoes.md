@@ -21,7 +21,11 @@ que NÓS mudamos (erro nosso, ou sentido novo) muda em todos, na mesma chave - s
 dizendo a coisa errada até o tradutor voltar. Pedido de revisão vai à COMUNIDADE, pelo aviso do saguão,
 nunca a um tradutor pelo nome: a comunidade de cada língua se ajuda, e o peso não cai numa pessoa só. Em 2026-10-14 houve UMA exceção: os três da
 comunidade foram completados de uma vez (126 chaves no espanhol e no turco, 90 no chinês), para ficar
-tudo sincronizado e pedir à comunidade que revise - não é o padrão. Se um dia precisar mexer neles:
+tudo sincronizado e pedir à comunidade que revise - não é o padrão. **E em 2026-10-22 a SEGUNDA e
+ÚLTIMA:** para a 1.1 sair inteira em todos os idiomas (329 chaves no espanhol e no chinês, 111 no turco),
+com a decisão do usuário de que **não vamos mais fazer isso** - custa tempo e recurso manter todas as
+traduções. Daqui em diante, chave nova vai só em `pt_BR` e `en_US`, sem exceção; quem traduz é a
+comunidade, e a tradução chega aos jogadores pelo site, sem esperar versão (ver abaixo). Se um dia precisar mexer neles:
 no repositório de traduções, mantendo o `language.translator` (as `language.*` são o crédito e nunca
 saem), os marcadores `{...}` e a terminologia de cada tradutor (o espanhol diz "alcantarilla" e
 "asesinato", o turco "kurucu" e "Havalandırma", o chinês "通风口" e "主持人"). E **não crie chave nova só
