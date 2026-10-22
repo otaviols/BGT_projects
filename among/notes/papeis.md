@@ -473,9 +473,12 @@ Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 Sondas: `probe_roles_1_1` (estado, com controles), `probe_roles_1_1_net` (os pacotes pela rede) e os
 casos do cliente em `probe_match_packets`.
 
-**Ofuscador (2026-10-22): a surdez é o volume GERAL, nunca a fala.** `game_settings.deafened` entra no
-`apply_master` ao lado do desconto de segundo plano: cala os sons e a voz do chat, e não a fala do
-leitor de tela (que não passa por ele) - surdo não pode ficar perdido nos menus. Ela começa
+**Ofuscador (2026-10-22): a surdez cala o MUNDO, nunca a fala nem o zumbido.** Todo som posicionado passa
+pelo `g_world_mixer` (o `sound_pool` do `spatial_audio` o recebe), e a voz do chat soma -100 dB enquanto
+`g_settings.deafened`; o zumbido (`SND_DEAF_RINGING`) toca num `sound` solto, fora do mixer, e é o único
+som que o surdo ouve. A primeira versão abaixava o volume GERAL, e quando o zumbido chegou ficaria mudo
+justo enquanto devia tocar - o mixer foi a saída. A fala do leitor de tela não passa por nenhum dos dois:
+surdo não pode ficar perdido nos menus. Ela começa
 `GRENADIER_DEAF_DELAY_SECONDS` depois do estouro (começando junto, cortaria a própria explosão), a
 reunião a desfaz, e o `run_game` a desliga no começo e no fim de TODA partida: um jogador que saísse da
 partida no meio dos 10 s ficaria mudo nos menus para sempre. O mineiro ganhou som (a picareta, tipo "dig"

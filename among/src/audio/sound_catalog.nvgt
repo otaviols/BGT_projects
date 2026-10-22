@@ -145,6 +145,10 @@ const string SND_POISON = "sounds/events/poison.ogg";
 // 0 dB), posicionado para quem está perto, como a limpeza do lixeiro.
 const string SND_SOUND_BOMB = "sounds/events/sound_bomb.ogg";
 const string SND_MINER_DIG = "sounds/events/miner_dig.ogg";
+// O zumbido de quem ficou surdo pela bomba (do arquivo do usuário: a explosão do começo cortada, o
+// zumbido esticado de 3,4 s para 10 s sem mudar o tom, +4 dB, e morrendo em fade no fim - dura o mesmo que
+// a surdez padrão). Toca FORA do mixer do mundo: é o único som que o surdo ouve.
+const string SND_DEAF_RINGING = "sounds/events/deaf_ringing.ogg";
 // O médico trazendo alguém de volta: posicionado, no ponto onde a pessoa volta, para todos - voltar já é
 // público (ver S_PLAYER_REVIVED). E o fogo do incendiário, sem posição, que acaba a partida.
 const string SND_DOCTOR_REVIVE = "sounds/events/doctor_revive.ogg";
@@ -708,6 +712,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_POISON);
 	list.insert_last(SND_SOUND_BOMB);
 	list.insert_last(SND_MINER_DIG);
+	list.insert_last(SND_DEAF_RINGING);
 	list.insert_last(SND_DOCTOR_REVIVE);
 	list.insert_last(SND_ARSONIST_FIRE);
 	list.insert_last(SND_NOISEMAKER_ALARM);

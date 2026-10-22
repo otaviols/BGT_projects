@@ -58,6 +58,10 @@ const string CHAT_VOICE_SAME = "same"; // como o resto do jogo
 const string CHAT_VOICE_SR = "sr";     // sempre o leitor de tela
 const string CHAT_VOICE_TTS = "tts";   // sempre a voz do jogo
 
+// O mixer do MUNDO: todo som posicionado do jogo passa por ele (ver spatial_audio). Existe para a surdez
+// do ofuscador calar o mundo sem calar o zumbido, que toca fora dele.
+mixer g_world_mixer;
+
 class game_settings {
 	private settings store;
 	array<int> volumes; // porcentagem por família, 0 a 100
@@ -197,17 +201,19 @@ class game_settings {
 
 	// O volume geral é o volume mestre da engine: pega TODO som que o jogo tocar, venha de onde vier.
 	void apply_master() {
-		sound_master_volume = percent_to_db(volumes[SOUND_FAMILY_MASTER]) + background_offset_db() + (deafened ? -100.0 : 0.0);
+		sound_master_volume = percent_to_db(volumes[SOUND_FAMILY_MASTER]) + background_offset_db();
 	}
 
-	// A bomba do OFUSCADOR: o som do jogo e a voz do chat calam, pelo mesmo volume geral do segundo plano -
-	// e a fala do leitor de tela, que não passa por ele, continua (decisão: surdo não pode ficar perdido nos
-	// menus). Quem liga é a partida; quem garante que nunca fica preso é o fim de toda partida (run_game).
+	// A bomba do OFUSCADOR: cala o MUNDO - os sons posicionados (que passam pelo g_world_mixer, ver
+	// spatial_audio) e a voz do chat (que lê a marca a cada pedaço de fala) - e deixa tocar o zumbido, que
+	// fica fora do mixer. Era o volume GERAL até o zumbido chegar (2026-10-22): ele também passaria por lá,
+	// e ficaria mudo justo enquanto devia tocar. A fala do leitor de tela não passa por nenhum dos dois, e
+	// continua. Quem liga é a partida; quem garante que nunca fica preso é o fim de toda partida (run_game).
 	bool deafened = false;
 	void set_deafened(bool on) {
 		if (deafened == on) return;
 		deafened = on;
-		apply_master();
+		g_world_mixer.volume = on ? -100.0 : 0.0;
 	}
 
 	// SOM COM O JOGO EM SEGUNDO PLANO (recado #127): quem morreu e terminou as tarefas quer usar outra

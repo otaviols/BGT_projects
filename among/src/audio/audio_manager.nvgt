@@ -362,6 +362,16 @@ class audio_manager {
 		spatial.play_once(som, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
+	// O zumbido da surdez: um som solto, FORA do pool (e do mixer do mundo, que a surdez cala).
+	sound deaf_ringing;
+	void start_deaf_ringing() {
+		deaf_ringing.close();
+		if (!deaf_ringing.load(SND_DEAF_RINGING)) return;
+		deaf_ringing.volume = family_db(SOUND_FAMILY_EVENTS);
+		deaf_ringing.play();
+	}
+	void stop_deaf_ringing() { deaf_ringing.close(); }
+
 	// A bomba do ofuscador, no ponto onde explodiu, para todos.
 	void play_sound_bomb(float x, float y) { spatial.play_once(SND_SOUND_BOMB, x, y, family_db(SOUND_FAMILY_EVENTS)); }
 

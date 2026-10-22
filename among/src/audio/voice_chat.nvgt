@@ -481,7 +481,9 @@ class voice_chat : voice_receiver {
 	// lição da sonda. E as pessoas andam enquanto falam.
 	private void place(voice_stream@ s) {
 		// Volume da família de vozes mais o ajuste individual desta pessoa (ver voice_volume_db).
-		s.snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES) + g_settings.voice_volume_db(settings_key_of(s.peer_id));
+		// Surdo pela bomba do ofuscador: a voz cala junto com o mundo (decisão do usuário).
+		s.snd.volume = g_settings.volume_db(SOUND_FAMILY_VOICES) + g_settings.voice_volume_db(settings_key_of(s.peer_id))
+			+ (g_settings.deafened ? -100.0 : 0.0);
 		roster_entry@ me = @roster != null ? roster.find(my_peer_id) : null;
 		roster_entry@ who = @roster != null ? roster.find(s.peer_id) : null;
 		if (!spatial || @me == null || @who == null || inside_me.find(s.peer_id) != -1) {

@@ -750,8 +750,8 @@ ouve a picareta, sem saber quem cavou. Não dá para cavar colado num duto que j
 fim da partida.
 
 **Ofuscador** (impostor). A tecla H solta uma **bomba de som**: todos os vivos na sala dele, menos ele,
-ficam **surdos por 10 segundos** (a sala ajusta) - nenhum som do jogo, nem a voz do chat; a fala do
-leitor de tela continua. O parceiro impostor na sala também fica surdo. Quem está fora da sala ouve a
+ficam **surdos por 10 segundos** (a sala ajusta) - nenhum som do jogo, nem a voz do chat, só um zumbido
+no ouvido; a fala do leitor de tela continua. O parceiro impostor na sala também fica surdo. Quem está fora da sala ouve a
 explosão, e de onde ela veio. Uma reunião desfaz a surdez. Recarga padrão de 40 segundos.
 
 ### Papéis neutros

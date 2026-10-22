@@ -205,13 +205,14 @@ mixin class match_frame_update_part {
 		// precisa ouvir a mesa).
 		if (deaf_delay > 0.0) {
 			deaf_delay -= delta;
-			if (deaf_delay <= 0.0) { deaf_delay = 0.0; g_settings.set_deafened(true); }
+			if (deaf_delay <= 0.0) { deaf_delay = 0.0; g_settings.set_deafened(true); audio.start_deaf_ringing(); }
 		}
 		if (deaf_remaining > 0.0 && deaf_delay <= 0.0) {
 			deaf_remaining -= delta;
 			if (deaf_remaining <= 0.0 || movement_frozen) {
 				deaf_remaining = 0.0;
 				g_settings.set_deafened(false);
+				audio.stop_deaf_ringing();
 				speak(tr("role.deaf_over"));
 			}
 		}

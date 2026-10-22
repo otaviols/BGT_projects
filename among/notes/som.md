@@ -203,6 +203,12 @@ treino; som reservado) vai em `LEARN_SOUNDS_LEFT_OUT`, com o motivo.
 coisa que pega um caminho errado — som que não carrega falha em silêncio, sem erro nenhum.
 
 
+**Calar o jogo sem calar UM som: mixer, não volume geral.** O `sound_master_volume` vale para todo som do
+NVGT, inclusive o que se queria ouvir; um `mixer` cala só o que passa por ele. Todo som posicionado passa
+pelo `g_world_mixer` (`@pool.mixer` no `spatial_audio`), e o que deve escapar toca num `sound` solto, sem
+mixer - foi assim com o zumbido da surdez do ofuscador (ver notes/papeis.md). A voz do chat não está no
+pool: ela soma o desconto no volume que reaplica a cada pedaço de fala (`place`, em voice_chat).
+
 ## Sinais sonoros e preferências de audição
 
 **O bip de alvo ao alcance é SÓ de quem pode agir, e só na TRANSIÇÃO.** Impostor, xerife e anjo

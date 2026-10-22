@@ -273,6 +273,7 @@
   "learn.poison": "The poison going in (only the poisoner hears it)",
   "learn.sound_bomb": "The Grenadier's sound bomb",
   "learn.miner_dig": "The Miner digging a vent",
+  "learn.deaf_ringing": "The ringing of whoever was deafened by the bomb",
   "learn.doctor_revive": "Doctor bringing someone back",
   "learn.noisemaker_alarm": "Noisemaker alarm, when they die",
   "learn.arsonist_fire": "Arsonist fire, when they win (scene made by the player Raciel)",

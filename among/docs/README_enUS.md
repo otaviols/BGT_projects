@@ -757,8 +757,8 @@ Whoever is nearby hears the pickaxe, without knowing who dug. You cannot dig rig
 vent. The vent is gone at the end of the match.
 
 **Grenadier** (impostor). The H key sets off a **sound bomb**: every living player in their room, except
-them, goes **deaf for 10 seconds** (the room adjusts it) - no game sound, no chat voices; the screen
-reader keeps talking. A partner impostor in the room goes deaf too. Whoever is outside the room hears
+them, goes **deaf for 10 seconds** (the room adjusts it) - no game sound, no chat voices, just a ringing
+in the ears; the screen reader keeps talking. A partner impostor in the room goes deaf too. Whoever is outside the room hears
 the blast, and where it came from. A meeting ends the deafness. Default cooldown of 40 seconds.
 
 ### Neutral roles

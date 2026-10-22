@@ -246,16 +246,19 @@ void main() {
 	println("== surdez da bomba (cliente) ==");
 	g_settings.set_deafened(false);
 	match_session@ sd = nova_partida(ROLE_CREWMATE);
+	float geral_antes = sound_master_volume;
 	net_packet@ surdo = net_packet(S_DEAFENED);
 	surdo.set_float("seconds", 2.0);
 	sd.handle_packet(surdo);
 	confere("logo depois do estouro ainda se ouve (a explosao toca inteira o comeco)", !g_settings.deafened);
 	sd.tick_timers(GRENADIER_DEAF_DELAY_SECONDS + 0.05);
-	confere("um instante depois, surdo", g_settings.deafened);
+	confere("um instante depois, surdo: o mundo cala (mixer em " + g_world_mixer.volume + " dB)", g_settings.deafened && g_world_mixer.volume <= -90.0);
+	confere("o volume geral nao e mexido (o zumbido passa por ele)", sound_master_volume == geral_antes);
+	confere("e o zumbido toca, fora do mixer do mundo", sd.audio.deaf_ringing.playing);
 	sd.tick_timers(1.0);
 	confere("ainda surdo no meio", g_settings.deafened);
 	sd.tick_timers(1.2);
-	confere("e volta a ouvir sozinho", !g_settings.deafened);
+	confere("e volta a ouvir sozinho: mundo de volta, zumbido parado", !g_settings.deafened && g_world_mixer.volume == 0.0 && !sd.audio.deaf_ringing.playing);
 	sd.handle_packet(surdo);
 	sd.tick_timers(GRENADIER_DEAF_DELAY_SECONDS + 0.05);
 	sd.movement_frozen = true; // a reunião começou

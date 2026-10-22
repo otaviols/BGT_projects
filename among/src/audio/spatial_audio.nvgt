@@ -21,6 +21,7 @@ class spatial_audio {
 	// toca - num jogo de áudio isso é o jogador ficando cego, e era silencioso pra quem programa.
 	spatial_audio(int max_sounds = 192) {
 		@pool = sound_pool(max_sounds);
+		@pool.mixer = g_world_mixer; // a surdez do ofuscador cala o mundo por aqui (ver game_settings)
 		// O pool baixa o pitch do que está "atrás" do ouvinte (o eixo negativo dele). Como aqui não
 		// existe direção de personagem - anda-se em coordenadas absolutas, W sempre é norte - a gente
 		// trata NORTE como "à frente" invertendo o sinal de y ao falar com o pool (ver world_to_pool_y).
