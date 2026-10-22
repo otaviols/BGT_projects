@@ -16,6 +16,8 @@
 #   infra\admin.ps1 traducoes -Manter          # traz e deixa lá
 #   infra\admin.ps1 status                     # conexões, salas, partidas, quem está online por plataforma
 #   infra\admin.ps1 drenar 120                 # avisa todo mundo e trava partidas novas por 2 minutos
+#   infra\admin.ps1 salas                      # as salas abertas: id, estado, modo, mapa, quem joga, bots, quem assiste
+#   infra\admin.ps1 fechar <id>                # fecha uma sala TRAVADA - só sem ninguém jogando nela
 #   infra\admin.ps1 plataformas 30             # jogadores distintos por plataforma e versão nos últimos 30 dias
 #   infra\admin.ps1 backup                     # copia o banco de contas para %USERPROFILE%\amongus_backups
 #   infra\admin.ps1 senha prajwal novasenha1   # define a senha de quem esqueceu a dele (a conta sai de onde estiver)
@@ -176,8 +178,13 @@ switch ($Comando) {
 		$s = if ($Resto.Count -gt 0) { $Resto[0] } else { "120" }
 		Servidor @("drain", $s)
 	}
+	"salas" { Servidor @("lobbies") }
+	"fechar" {
+		if ($Resto.Count -lt 1) { throw 'Uso: infra\admin.ps1 fechar <id da sala>  (o id sai de: infra\admin.ps1 salas)' }
+		Servidor @("close", $Resto[0])
+	}
 	"plataformas" {
-		$d = if ($Resto.Count -gt 0) { $Resto[0] } else { "30" }
+		$d =if ($Resto.Count -gt 0) { $Resto[0] } else { "30" }
 		Servidor @("platforms", $d)
 	}
 	"senha" {

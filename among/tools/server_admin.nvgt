@@ -65,6 +65,27 @@ void cmd_status(game_client@ c, const string&in token) {
 	for (uint i = 0; i < plataformas.length(); i++) println("online_" + plataformas[i] + "=" + st.get_int("online_" + plataformas[i]));
 }
 
+void cmd_lobbies(game_client@ c, const string&in token) {
+	c.send_admin_list_lobbies(token);
+	net_packet@ r = espera(c, S_ADMIN_LOBBIES, 8000);
+	if (@r == null) { println("erro=" + motivo(null)); return; }
+	json_array@ l = r.get_array("lobbies");
+	if (@l == null || l.length() == 0) { println("(nenhuma sala aberta)"); return; }
+	for (uint i = 0; i < l.length(); i++) {
+		json_object@ o = l.get_object(i);
+		println(string(o["id"]) + "  " + string(o["name"]) + "  |  " + string(o["state"]) + ", " + string(o["mode"]) + ", " + string(o["map"])
+			+ "  |  jogando " + int(o["playing"]) + ", bots " + int(o["bots"]) + ", assistindo " + int(o["watching"])
+			+ (string(o["people"]) != "" ? "  (" + string(o["people"]) + ")" : ""));
+	}
+}
+
+void cmd_close_lobby(game_client@ c, const string&in token) {
+	if (ARGS.length() < 3) { println("erro=falta o id da sala (veja: salas)"); return; }
+	c.send_admin_close_lobby(token, ARGS[2]);
+	net_packet@ r = espera(c, S_ADMIN_RESULT, 8000);
+	println(@r != null && r.get_bool("ok") ? "ok=" + r.get_string("message") : "erro=" + motivo(r));
+}
+
 void cmd_drain(game_client@ c, const string&in token) {
 	int seconds = ARGS.length() > 2 ? parse_int(ARGS[2]) : 120;
 	c.send_admin_drain(token, seconds);
@@ -167,7 +188,7 @@ void main() {
 	string token = read_environment_variable("AMONGUS_ADMIN_TOKEN", "");
 	if (token == "") { println("erro=AMONGUS_ADMIN_TOKEN nao definido - use infra\\admin.ps1"); exit(2); }
 	string cmd = ARGS[1];
-	array<string> conhecidos = {"status", "drain", "notice", "platforms", "reply", "resolve", "translations", "password"};
+	array<string> conhecidos = {"status", "drain", "notice", "platforms", "reply", "resolve", "translations", "password", "lobbies", "close"};
 	if (conhecidos.find(cmd) < 0) { println("erro=comando desconhecido " + cmd); exit(2); }
 
 	server_address address = resolve_server_address();
@@ -185,5 +206,7 @@ void main() {
 	else if (cmd == "resolve") cmd_resolve(c, token);
 	else if (cmd == "translations") cmd_translations(c, token);
 	else if (cmd == "password") cmd_password(c, token);
+	else if (cmd == "lobbies") cmd_lobbies(c, token);
+	else if (cmd == "close") cmd_close_lobby(c, token);
 	c.disconnect();
 }

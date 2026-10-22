@@ -1229,6 +1229,7 @@
   "lobby.info.keys_hint": "P says who is in the lobby, C opens the match rules and E picks your color. F2 switches between playing and only watching. The host changes the rules with O.",
   "spectate.full": "This match already has too many spectators.",
   "spectate.quit_confirm": "Stop watching and leave the room?",
+  "spectate.room_closed": "The room was closed. Back to the match list.",
   "spectate.nobody": "There is nobody alive to follow.",
   "spectate.following": "Following {name}, in {room}.",
   "spectate.notice_started": "{name} started watching the match.",

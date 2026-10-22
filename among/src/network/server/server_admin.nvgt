@@ -280,6 +280,68 @@ mixin class server_admin_part {
 		send_to(peer_id, r);
 	}
 
+	// Quem está JOGANDO de verdade numa sala: humano, não saiu, com ou sem conexão (o lugar guardado conta).
+	array<string>@ people_playing(game_state@ lobby) {
+		array<string> nomes;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (!p.is_bot && !p.left_match) nomes.insert_last(p.username);
+		}
+		return nomes;
+	}
+
+	void on_admin_list_lobbies(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		json_array@ salas = json_array();
+		for (uint i = 0; i < lobbies.length(); i++) {
+			game_state@ l = lobbies[i];
+			json_object@ o = json_object();
+			o.set("id", l.lobby_id);
+			o.set("name", l.lobby_name);
+			o.set("state", l.state);
+			o.set("mode", l.config.game_mode);
+			o.set("map", l.config.map_name);
+			array<string>@ gente = people_playing(l);
+			o.set("playing", int(gente.length()));
+			o.set("bots", int(l.bot_count()));
+			o.set("watching", int(l.spectators.length()));
+			o.set("people", join(gente, ", "));
+			salas.add(o);
+		}
+		net_packet@ r = net_packet(S_ADMIN_LOBBIES);
+		r.set_array("lobbies", salas);
+		send_to(peer_id, r);
+	}
+
+	void on_admin_close_lobby(uint64 peer_id, net_packet@ pkt) {
+		if (!admin_token_ok(peer_id, pkt)) return;
+		string id = pkt.get_string("lobby_id");
+		net_packet@ r = net_packet(S_ADMIN_RESULT);
+		for (uint i = 0; i < lobbies.length(); i++) {
+			if (lobbies[i].lobby_id != id) continue;
+			array<string>@ gente = people_playing(lobbies[i]);
+			if (gente.length() > 0) {
+				r.set_bool("ok", false);
+				r.set_string("message", "ha gente jogando nela (" + join(gente, ", ") + "); espere a partida acabar, ou use drenar");
+				send_to(peer_id, r);
+				return;
+			}
+			string nome = lobbies[i].lobby_name;
+			// Quem só assistia volta ao saguão: o cliente que assiste trata a saída da sala.
+			for (uint s = 0; s < lobbies[i].spectators.length(); s++)
+				if (reaches_client(lobbies[i].spectators[s])) send_to(lobbies[i].spectators[s].peer_id, net_packet(S_KICKED));
+			println("[admin] sala fechada: " + nome + " (" + id + ")");
+			close_lobby(int(i));
+			r.set_bool("ok", true);
+			r.set_string("message", "fechada: " + nome);
+			send_to(peer_id, r);
+			return;
+		}
+		r.set_bool("ok", false);
+		r.set_string("message", "nenhuma sala com o id " + id);
+		send_to(peer_id, r);
+	}
+
 	void on_admin_status(uint64 peer_id, net_packet@ pkt) {
 		if (!admin_token_ok(peer_id, pkt)) return;
 		net_packet@ st = net_packet(S_ADMIN_STATUS);

@@ -176,6 +176,11 @@ const string C_ADMIN_DELETE_TRANSLATION = "c_admin_delete_translation"; // {toke
 const string C_ADMIN_RESOLVE_FEEDBACK = "c_admin_resolve_feedback"; // {token, feedback_id, until, undo}
 const string C_ADMIN_DRAIN = "c_admin_drain";     // {token, seconds}
 const string C_ADMIN_STATUS = "c_admin_status";   // {token}
+// As salas abertas, e fechar uma travada sem derrubar o servidor (2026-10-22). Fechar só vale sem ninguém
+// JOGANDO: o cliente só sabe sair de uma sala fechada estando na sala de espera, e quem estivesse no meio
+// da partida ficaria preso numa partida que não existe mais. Resposta: S_ADMIN_LOBBIES / S_ADMIN_RESULT.
+const string C_ADMIN_LIST_LOBBIES = "c_admin_list_lobbies"; // {token}
+const string C_ADMIN_CLOSE_LOBBY = "c_admin_close_lobby";   // {token, lobby_id}
 const string C_ADMIN_PLATFORMS = "c_admin_platforms"; // {token, days}
 // Recado fixo do saguão. Texto VAZIO apaga. Existe para avisar os jogadores de algo (uma versão
 // nova no site, uma manutenção) sem publicar uma versão do jogo só por causa do aviso.
@@ -362,6 +367,7 @@ const string S_FEEDBACK_HISTORY = "s_feedback_history";     // {messages: [{feed
 const string S_ADMIN_RESULT = "s_admin_result";             // {ok, message} - só para a ferramenta de administração
 const string S_TRANSLATION_ACK = "s_translation_ack";       // {ok, message_key}
 const string S_ADMIN_TRANSLATIONS = "s_admin_translations"; // {items: [{username, code, content, created_at}]}
+const string S_ADMIN_LOBBIES = "s_admin_lobbies";           // {lobbies: [{id, name, state, mode, map, playing, bots, watching, people}]}
 const string S_ADMIN_STATUS = "s_admin_status";             // {connections, lobbies, in_progress, draining_seconds, online_<plataforma>}
 // Jogadores DISTINTOS por plataforma e por versão nos últimos `days` dias (ver record_client_login).
 const string S_ADMIN_PLATFORMS = "s_admin_platforms";       // {days, platforms: [{name, players}], versions: [{name, players}]}

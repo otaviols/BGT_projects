@@ -253,6 +253,10 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 				ui_sound(SND_SERVER_NOTICE);
 				if (!pkt.announced) speak(aviso);
 				events_log.add("", aviso);
+			} else if (t == S_KICKED) {
+				// A administração fechou a sala (só fecha sem ninguém jogando - ver C_ADMIN_CLOSE_LOBBY).
+				speak(tr("spectate.room_closed"));
+				fim = true;
 			} else if (t == S_GAME_OVER) {
 				audio.stop_ship_ambience();
 				audio.stop_room_ambience();

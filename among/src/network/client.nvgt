@@ -497,6 +497,17 @@ class game_client {
 		p.set_int("days", days);
 		send(p);
 	}
+	void send_admin_list_lobbies(const string&in token) {
+		net_packet@ p = net_packet(C_ADMIN_LIST_LOBBIES);
+		p.set_string("token", token);
+		send(p);
+	}
+	void send_admin_close_lobby(const string&in token, const string&in lobby_id) {
+		net_packet@ p = net_packet(C_ADMIN_CLOSE_LOBBY);
+		p.set_string("token", token);
+		p.set_string("lobby_id", lobby_id);
+		send(p);
+	}
 	void send_admin_status(const string&in token) {
 		net_packet@ p = net_packet(C_ADMIN_STATUS);
 		p.set_string("token", token);

@@ -342,6 +342,14 @@ histórico do Azure está no backup `among_users_2026-10-09_105901_final_azure.d
 contas dela (`nb0x...`, `pc...`) logam como Windows na versão do código. Na troca, quatro delas eram
 quase metade dos logins da 0.51.5 - foram tiradas à mão.
 
+**Sala travada: `infra\admin.ps1 salas` lista (id, estado, modo, mapa, quem joga, bots, quem assiste) e
+`infra\admin.ps1 fechar <id>` fecha sem derrubar o servidor** (2026-10-22). Fechar só vale SEM ninguém
+jogando - recusa dizendo quem está lá: o cliente só sabe sair de uma sala fechada estando na sala de
+espera, e quem estivesse no meio da partida ficaria preso numa partida que não existe mais. Quem só
+assistia volta à lista (`S_KICKED`, tratado na tela de assistir). A causa de sala presa que motivou o
+comando (partida só com bots depois de quem assistia sair por último) foi corrigida no mesmo dia: o
+servidor confere a cada volta (`lobby_has_people`). Sonda: `probe_admin_lobbies`.
+
 **Backup do banco: `infra\admin.ps1 backup`, para `%USERPROFILE%\amongus_backups\`**, fora do
 repositório (tem hash de senha), guardando os 30 mais recentes; o `release.ps1` faz um a cada
 publicação, antes do push. Até 2026-10-07 não havia NENHUM - a assinatura desativada mostrou que o
