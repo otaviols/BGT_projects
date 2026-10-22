@@ -182,6 +182,7 @@ class game_player {
 	float bot_target_y = 0.0;
 	bool bot_has_target = false;
 	float bot_action_timer = 0.0;    // > 0: parado (fazendo uma task, pensando, ou esperando pra votar)
+	float bot_strike_wait = -1.0;    // último sobrevivente: quanto o bot ainda hesita com a presa ao alcance (-1 = ninguém ao alcance)
 	bool bot_voted = false;
 	float bot_broadcast_timer = 0.0;
 	float bot_repath_timer = 0.0;   // só bot impostor: a presa se move, a rota tem que ser refeita
@@ -371,6 +372,7 @@ class game_player {
 		bot_has_target = false;
 		bot_path.resize(0);
 		bot_action_timer = 0.0;
+		bot_strike_wait = -1.0;
 		bot_voted = false;
 		bot_fixing = false;
 		bot_hunting = false;

@@ -1,4 +1,4 @@
-// Sonda dos bots no último sobrevivente: só bots, espalhados pelo mapa de verdade, com o MESMO tick do
+// Sonda dos bots que caçam (último sobrevivente, e o caso parado do clássico): só bots, espalhados pelo mapa de verdade, com o MESMO tick do
 // servidor. Eles têm de se caçar até sobrar um - e não ficar fingindo tarefa para sempre.
 //   nvgt tools/probes/probe_last_standing_bots.nvgt
 #include "../../src/core/game_state.nvgt"
@@ -48,11 +48,48 @@ float partida(const string&in mapa, uint bots, float prazo) {
 }
 
 void main() {
+	// Várias rodadas: o sorteio de onde cada um nasce e para onde anda muda a cada uma, e um bot que trava
+	// só trava em alguns sorteios.
+	int rodadas = 6;
 	for (uint m = 0; m < MAP_IDS.length(); m++) {
-		for (uint n = 2; n <= 5; n += 3) {
-			float t = partida(MAP_IDS[m], n, 600.0);
-			confere(MAP_IDS[m] + ", " + n + " bots: sobra um (" + t + " s)", t > 0);
+		array<uint> quantos = {2, 3, 5};
+		for (uint q = 0; q < quantos.length(); q++) {
+			int travou = 0;
+			float pior = 0;
+			for (int r = 0; r < rodadas; r++) {
+				float t = partida(MAP_IDS[m], quantos[q], 600.0);
+				if (t < 0) travou++;
+				else if (t > pior) pior = t;
+			}
+			confere(MAP_IDS[m] + ", " + quantos[q] + " bots: sobra um em todas as " + rodadas + " (pior: " + pior + " s, travaram: " + travou + ")", travou == 0);
 		}
+	}
+	// O caso do relato (2026-10-22), no CLÁSSICO: o bot impostor caçando um humano PARADO a 1,3 - entre o
+	// alcance da faca (1,2) e o de "cheguei" que ele usava (1,4). Ele parava ali e nunca matava.
+	{
+		game_state@ lobby = game_state();
+		@lobby.config = get_preset("classic");
+		lobby.config.validate();
+		@lobby.map = build_map(MAP_THE_HUB);
+		lobby.state = "in_progress";
+		array<map_object@>@ pontos = lobby.map.objects_by_type(OBJ_TASK_SPOT);
+		game_player@ bot = game_player(1, "bot");
+		bot.is_bot = true;
+		bot.set_role(ROLE_IMPOSTOR);
+		bot.kill_cooldown_remaining = 0.0;
+		game_player@ alvo = game_player(2, "parado");
+		alvo.set_role(ROLE_CREWMATE);
+		player_task tk; tk.object_id = pontos[0].id; tk.task_type = pontos[0].task_type; alvo.tasks.insert_last(tk);
+		game_player@ outro = game_player(3, "longe");
+		outro.set_role(ROLE_CREWMATE);
+		player_task tk2; tk2.object_id = pontos[0].id; tk2.task_type = pontos[0].task_type; outro.tasks.insert_last(tk2);
+		alvo.x = 0.0; alvo.y = 0.0;
+		bot.x = 1.3; bot.y = 0.0;
+		outro.x = 0.0; outro.y = -60.0;
+		lobby.players.insert_last(bot); lobby.players.insert_last(alvo); lobby.players.insert_last(outro);
+		float t = 0;
+		while (t < 30.0 && alvo.alive) { lobby.tick(0.05); t += 0.05; alvo.x = 0.0; alvo.y = 0.0; }
+		confere("classico: o bot mata o humano parado a 1,3 (" + t + " s)", !alvo.alive);
 	}
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

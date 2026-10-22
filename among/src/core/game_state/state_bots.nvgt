@@ -134,7 +134,18 @@ mixin class state_bots_part {
 		if (b.can_kill()) {
 			// 1. Oportunidade: alguém ao alcance e sem testemunha.
 			game_player@ ao_lado = prey_for(b, PLAYER_KILL_RANGE, !bot_hunts_openly());
+			// No último sobrevivente o bot HESITA: às vezes mata na hora, às vezes leva uns segundos com a
+			// presa ao alcance - e ela pode fugir. Sem isto ele era imbatível, e uma sala cheia de bots virava
+			// ranking de graça (pedido do usuário, 2026-10-22). Quem sai do alcance zera a hesitação.
+			if (@ao_lado == null) b.bot_strike_wait = -1.0;
+			else if (config.game_mode == GAME_MODE_LAST_STANDING) {
+				if (b.bot_strike_wait < 0.0)
+					b.bot_strike_wait = random(1, 100) <= BOT_LMS_INSTANT_KILL_PERCENT ? 0.0 : random_range(BOT_LMS_HESITATION_MIN, BOT_LMS_HESITATION_MAX);
+				b.bot_strike_wait -= delta_seconds;
+				if (b.bot_strike_wait > 0.0) @ao_lado = null; // ainda hesitando: segue atrás, sem matar
+			}
 			if (@ao_lado != null) {
+				b.bot_strike_wait = -1.0;
 				net_packet@ kill_event;
 				if (try_kill(b.peer_id, ao_lado.peer_id, kill_event)) {
 					events.insert_last(kill_event);
@@ -352,7 +363,12 @@ mixin class state_bots_part {
 
 			// Chegou no destino final: se era uma task, conclui (conta pra vitória dos tripulantes
 			// igual a de qualquer jogador) e descansa antes de escolher o próximo destino.
-			if (b.bot_path.length() == 0 && distance_2d(b.x, b.y, b.bot_target_x, b.bot_target_y) <= PLAYER_INTERACT_RANGE) {
+			// Caçando, "chegou" é chegar ao alcance da FACA, e não ao de usar objetos: o de objetos (1,4) é
+			// maior que o do kill (1,2), e o bot parava antes de poder matar. Com a presa parada nessa faixa
+			// ele nunca dava o último passo - dois bots caçando um ao outro ficavam frente a frente para
+			// sempre, e o humano parado ali estava a salvo (relato do usuário, 2026-10-22).
+			float chegou = b.is_impostor && b.bot_hunting ? BOT_HUNT_ARRIVE_RANGE : PLAYER_INTERACT_RANGE;
+			if (b.bot_path.length() == 0 && distance_2d(b.x, b.y, b.bot_target_x, b.bot_target_y) <= chegou) {
 				if (b.bot_fixing && active_sabotage == "contamination") {
 					// Dentro da câmara: espera ela fechar e abrir (cure_contamination o libera).
 					b.bot_action_timer = 0.5;

@@ -358,6 +358,13 @@ const float VULTURE_BODIES_TO_WIN = 3.0;
 const float TRANSPORTER_COOLDOWN_SECONDS = 30.0;
 const float SNITCH_WARN_TASKS_LEFT = 1.0;
 const float RIVAL_JESTER_TASKS = 3.0;
+// O bot caçando para quando chega a este ponto da presa: dentro do alcance da faca, com folga.
+const float BOT_HUNT_ARRIVE_RANGE = 0.9;
+// Último sobrevivente: em quantos por cento das vezes o bot mata na hora; nas outras, hesita entre os
+// dois tempos com a presa ao alcance.
+const int BOT_LMS_INSTANT_KILL_PERCENT = 35;
+const float BOT_LMS_HESITATION_MIN = 0.8;
+const float BOT_LMS_HESITATION_MAX = 3.5;
 const float GRENADIER_DEAF_SECONDS = 10.0;
 const float GRENADIER_COOLDOWN_SECONDS = 40.0;
 // A surdez começa um instante depois da explosão: quem está na sala ouve o estouro, e o silêncio vem logo
