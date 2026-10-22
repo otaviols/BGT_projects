@@ -179,6 +179,14 @@ rede, então esperar o evento deixaria a sessão velha pendurada na sala. Sonda:
 estando dentro de uma sala, com o anfitrião passando para quem ficou.
 
 
+**A tela de assistir (2026-10-22, o #273 que ficou prometido para depois da 1.0).** Quem assiste fala SÓ
+com outros espectadores, então ele pode ouvir o que quem joga não ouve - desde que não entregue PAPEL
+(decisão do usuário): quem morreu e onde (o pacote público nem traz quem matou), a tarefa visível de quem
+ele acompanha (já pública para quem está perto), o progresso da tripulação na tecla T (que vem no
+`S_SPECTATE_START` como `task_percent`, para quem começa a assistir no meio). Ficou de fora de propósito o
+que entregaria papel: duto, faca, tarefa comum de alguém. E a tela trata `S_KICKED` (a sala fechada pela
+administração), senão ficaria presa. Sonda de ponta a ponta, sem servidor: `probe_spectate_events`.
+
 **Rankings (1.0): o geral sai do `user_stats`; os por time e por modo, da tabela `match_results`** - uma
 linha por pessoa por partida (modo, time no FIM da partida, venceu), gravada em `record_match_stats`,
 inclusive para quem saiu no meio (derrota). O `user_stats` só tinha vitórias por time, e sem as PARTIDAS de

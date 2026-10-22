@@ -425,6 +425,8 @@ mixin class server_lobby_part {
 		pkt.set_array("players", roster);
 		pkt.set_string("map_name", lobby.map.name);
 		pkt.set_array("mined_vents", mined_vents_json(lobby));
+		// O progresso das tarefas de agora: quem começa a assistir no meio não espera a próxima concluída.
+		pkt.set_int("task_percent", lobby.build_task_progress_packet().get_int("percent"));
 		pkt.set_bool("voice_chat", lobby.config.voice_chat);
 		pkt.set_bool("comms_affects_meeting", lobby.config.comms_affects_meeting);
 		pkt.set_bool("color_mode", lobby.config.color_mode);

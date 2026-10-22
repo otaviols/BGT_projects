@@ -1,0 +1,86 @@
+// Sonda da tela de ASSISTIR de ponta a ponta, sem servidor (2026-10-22): entrega pacotes à run_spectate e
+// grava o que ela FALA.
+//   nvgt tools/probes/probe_spectate_events.nvgt
+//
+// Confere: quem assiste ouve QUEM morreu e onde (e nunca quem matou); a tarefa visível de quem ele
+// acompanha é dita, e a de outra pessoa não; a sala fechada pela administração (S_KICKED) tira ele da tela.
+#include "../../src/i18n.nvgt"
+#include "../../src/game/spectate_loop.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+array<string> falado;
+string grava(const string&in t) { falado.insert_last(t); return ""; }
+bool falou(const string&in trecho) {
+	for (uint i = 0; i < falado.length(); i++) if (falado[i].find(trecho) >= 0) return true;
+	return false;
+}
+json_object@ jogador(uint64 peer, const string&in nome, float x, float y) {
+	json_object@ o = json_object();
+	o.set("peer_id", peer); o.set("name", nome); o.set("color", int(peer)); o.set("x", x); o.set("y", y); o.set("alive", true);
+	return o;
+}
+
+void main() {
+	show_window("sonda: assistir");
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	g_i18n.load_language("pt_BR");
+	@tts_default_text_processing_callback = grava;
+	sound_master_volume = -100;
+
+	game_map@ map = build_the_hub_map();
+	map_zone@ cafe = map.find_zone("cafeteria");
+	map_zone@ med = map.find_zone("medbay");
+	game_client@ c = game_client();
+	@c.net = network();
+	c.net.setup_client(MAX_PACKET_CHANNELS, 1);
+	c.my_peer_id = 9;
+	c.connected = true; // a tela desiste com a conexão caída
+
+	net_packet@ inicio = net_packet(S_SPECTATE_START);
+	inicio.set_string("map_name", MAP_THE_HUB);
+	inicio.set_uint64("follow", 2);
+	inicio.set_int("task_percent", 40);
+	json_array@ ps = json_array();
+	ps.add(jogador(2, "Ana", cafe.center_x, cafe.center_y));
+	ps.add(jogador(3, "Bia", med.center_x, med.center_y));
+	ps.add(jogador(4, "Caio", cafe.center_x + 2, cafe.center_y));
+	inicio.set_array("players", ps);
+
+	// A morte da Bia na enfermaria, como o servidor manda a quem assiste: sem quem matou.
+	net_packet@ morte = net_packet(S_PLAYER_KILLED);
+	morte.set_uint64("peer_id", 3); morte.set_float("x", med.center_x); morte.set_float("y", med.center_y);
+	c.deliver_for_probe(morte);
+	// O exame médico: de outra pessoa (o Caio), não é dito; da Ana, que eu acompanho, é.
+	array<map_object@>@ pontos = map.objects_by_type(OBJ_TASK_SPOT);
+	map_object@ exame = null;
+	for (uint i = 0; i < pontos.length(); i++) if (pontos[i].task_type == "submit_scan") @exame = pontos[i];
+	net_packet@ do_caio = net_packet(S_TASK_VISIBLE);
+	do_caio.set_uint64("peer_id", 4); do_caio.set_string("name", "Caio"); do_caio.set_string("object_id", exame.id); do_caio.set_bool("active", true);
+	c.deliver_for_probe(do_caio);
+	net_packet@ da_ana = net_packet(S_TASK_VISIBLE);
+	da_ana.set_uint64("peer_id", 2); da_ana.set_string("name", "Ana"); da_ana.set_string("object_id", exame.id); da_ana.set_bool("active", true);
+	c.deliver_for_probe(da_ana);
+	c.deliver_for_probe(net_packet(S_KICKED));
+
+	timer limite;
+	run_spectate(c, inicio);
+	confere("a sala fechada tira quem assiste da tela (" + limite.elapsed + " ms)", limite.elapsed < 20000 && falou(tr("spectate.room_closed")));
+	dictionary@ mp = dictionary();
+	mp.set("name", "Bia");
+	mp.set("room", tr(med.name_key));
+	confere("quem assiste ouve quem morreu e onde", falou(tr("spectate.died", mp)));
+	confere("a tarefa visivel de quem acompanho e dita", falou("Ana") && falou(exame_texto("Ana")));
+	confere("e a de outra pessoa, nao", !falou(exame_texto("Caio")));
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}
+
+string exame_texto(const string&in nome) {
+	dictionary@ vp = dictionary();
+	vp.set("name", nome);
+	return tr("game.visible_task_scan", vp);
+}

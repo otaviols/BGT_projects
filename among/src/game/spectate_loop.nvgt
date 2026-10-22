@@ -138,6 +138,7 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 	net_packet@ back_to_lobby = null;
 	bool fim = false;
 	string ultima_sala = "";
+	int progresso_equipe = start_pkt.get_int("task_percent", 0);
 	while (!fim) {
 		wait(5);
 		client.update();
@@ -161,12 +162,39 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 					audio.play_footstep(prefix, footstep_variant_count(prefix), x, y);
 				}
 			} else if (t == S_PLAYER_KILLED) {
+				// Quem assiste ouve QUEM morreu e onde (nunca quem matou: o pacote público nem traz). A voz dele
+				// só chega a outros espectadores, então isto não vaza para quem joga - e sem a frase ele só
+				// ouvia um som de assassinato, sem saber de nada (pedido do usuário, 2026-10-22).
+				roster_entry@ morto = roster.find(pkt.get_uint64("peer_id"));
+				if (@morto != null && morto.alive) {
+					map_zone@ zm = map.zone_at(pkt.get_float("x"), pkt.get_float("y"));
+					dictionary@ mp = dictionary();
+					mp.set("name", morto.name);
+					mp.set("room", @zm != null ? tr(zm.name_key) : tr("game.unknown_room"));
+					string frase = tr("spectate.died", mp);
+					if (!pkt.announced) speak(frase, false);
+					events_log.add("", frase);
+				}
 				mui.on_player_killed(pkt); // som do assassinato no ponto, e marca morto
 				spectate_forget_body(corpo_peers, corpo_pos, pkt.get_uint64("peer_id"));
 				corpo_peers.insert_last(pkt.get_uint64("peer_id"));
 				corpo_pos.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0));
 			} else if (t == S_RADAR_RESULT) {
 				radar.handle_result(pkt);
+			} else if (t == S_TASK_PROGRESS) {
+				progresso_equipe = pkt.get_int("percent"); // a tecla das tarefas diz, como na partida
+			} else if (t == S_TASK_VISIBLE) {
+				// A tarefa visível de quem eu acompanho: pública para quem está perto, e é onde eu "estou".
+				if (pkt.get_bool("active") && pkt.get_uint64("peer_id") == seguindo) {
+					map_object@ ponto = map.find_object(pkt.get_string("object_id"));
+					if (@ponto != null) {
+						dictionary@ vp = dictionary();
+						vp.set("name", pkt.get_string("name"));
+						string aviso = tr(ponto.task_type == "clear_asteroids" ? "game.visible_task_asteroids" : "game.visible_task_scan", vp);
+						speak(aviso, false);
+						events_log.add("", aviso);
+					}
+				}
 			} else if (t == S_SOUND_BOMB) {
 				audio.play_sound_bomb(pkt.get_float("x"), pkt.get_float("y"));
 			} else if (t == S_VENT_CREATED) {
@@ -335,6 +363,12 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 			}
 		}
 		if (action_pressed(ACTION_ROOM_INFO)) speak(spectate_where_text(map, roster.find(seguindo)));
+		// O progresso das tarefas da tripulação, pela mesma tecla da partida - é público para todos.
+		if (action_pressed(ACTION_TASK_LIST)) {
+			dictionary@ tp = dictionary();
+			tp.set("percent", "" + progresso_equipe);
+			speak(tr("task.team_progress", tp));
+		}
 		if (action_pressed(ACTION_TASK_LIST) && reuniao) mui.announce_time_remaining();
 		if (action_pressed(ACTION_TALK)) {
 			if ((key_down(KEY_LCTRL) || key_down(KEY_RCTRL)) && (key_down(KEY_LSHIFT) || key_down(KEY_RSHIFT)))

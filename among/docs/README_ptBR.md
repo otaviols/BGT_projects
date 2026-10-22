@@ -291,7 +291,11 @@ Assistindo, você acompanha um jogador vivo por vez e ouve a partida de onde ele
 sons, a voz que chega até ele. **Setas para os lados** trocam de quem acompanhar, e a tecla de **onde
 estou** diz quem e em que sala. O **radar** (Tab, com Shift, Ctrl e Q como na partida) funciona do
 ponto de quem você acompanha, e enxerga o que ele enxerga. Com o **modo gráfico** ligado, a tela mostra a
-nave centrada em quem você acompanha, com quem está na mesma sala, e na reunião mostra a mesa. Na reunião você ouve a mesa. Você não sabe o papel de ninguém até o
+nave centrada em quem você acompanha, com quem está na mesma sala, e na reunião mostra a mesa. Na reunião você ouve a mesa.
+
+Você ouve **quem morreu e onde** (nunca quem matou), as reuniões, os votos, as sabotagens e, quando quem
+você acompanha faz o exame médico ou a arma dos asteroides, que ele está fazendo. Tudo fica no histórico
+(PageUp), como na partida. A tecla das **tarefas** (T) diz o progresso da tripulação. Você não sabe o papel de ninguém até o
 fim, como todo mundo, e não pode fazer nada na partida. A sua voz chega só a outros espectadores. Quando
 a partida acaba, você volta para a sala de espera como os outros; quem entrou pelo código fica para
 jogar a próxima.

@@ -1230,6 +1230,7 @@
   "spectate.full": "This match already has too many spectators.",
   "spectate.quit_confirm": "Stop watching and leave the room?",
   "spectate.room_closed": "The room was closed. Back to the match list.",
+  "spectate.died": "{name} died in: {room}.",
   "spectate.nobody": "There is nobody alive to follow.",
   "spectate.following": "Following {name}, in {room}.",
   "spectate.notice_started": "{name} started watching the match.",

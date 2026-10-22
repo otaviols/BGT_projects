@@ -1230,6 +1230,7 @@
   "spectate.full": "Essa partida já tem espectadores demais.",
   "spectate.quit_confirm": "Parar de assistir e sair da sala?",
   "spectate.room_closed": "A sala foi fechada. De volta à lista de partidas.",
+  "spectate.died": "{name} morreu em: {room}.",
   "spectate.nobody": "Não há ninguém vivo para acompanhar.",
   "spectate.following": "Acompanhando {name}, em {room}.",
   "spectate.notice_started": "{name} começou a assistir a partida.",

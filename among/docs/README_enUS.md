@@ -297,7 +297,10 @@ While watching, you follow one living player at a time and hear the match from w
 footsteps, the sounds, the voices that reach them. **Left and right** switch who you follow, and the
 **where am I** key says who and in which room. At a meeting you hear the table. You do not know anyone's
 role until the end, like everyone else, and you cannot do anything in the match. Your voice only reaches
-other spectators. When the match ends you go back to the waiting room like everyone else; whoever came
+other spectators. You hear **who died and where** (never who killed), the meetings, the votes, the
+sabotages and, when the player you follow does the medical scan or the asteroid weapon, that they are
+doing it. Everything goes into the history (PageUp), as in a match. The **tasks** key (T) tells the crew's
+progress. When the match ends you go back to the waiting room like everyone else; whoever came
 in with the code stays to play the next one.
 
 ## If your connection drops mid-match
