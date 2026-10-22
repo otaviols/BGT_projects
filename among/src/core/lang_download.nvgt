@@ -1,0 +1,79 @@
+// lang_download.nvgt
+// Os idiomas da COMUNIDADE chegam pelo site, sem esperar uma versão nova do jogo (1.1, pedido de jogadores:
+// uma tradução corrigida só chegava a quem atualizasse o jogo, semanas depois).
+//
+// O site tem, em idiomas/, os arquivos dos idiomas da comunidade e um `revisions.list` com a revisão de
+// cada um (publicados por tools/publish_translations.ps1). Ao abrir, o jogo lê esse índice - um arquivo
+// pequeno, como o version.json - e baixa só o idioma cuja revisão no site for maior que a que ele tem
+// (embutida ou já baixada). Português e inglês NÃO vêm por aqui: nascem junto com o código, e cada versão
+// traz frases novas que só existem nela.
+//
+// Tudo falha em silêncio, como o updater: sem internet, site fora, arquivo estragado - o jogo segue com
+// o idioma que tem. O arquivo baixado é conferido ANTES de ir para o disco: JSON de objeto, com nome do
+// idioma, tamanho razoável. Um arquivo ruim no site não chega a ser usado.
+
+#include "../i18n.nvgt"
+#include "../config/game_constants.nvgt"
+
+const string LANGUAGES_URL = DOWNLOAD_PAGE_URL + "idiomas/";
+// Teto de um arquivo de idioma (o maior hoje tem uns 95 KB). Acima disto, é outra coisa.
+const uint LANGUAGE_FILE_MAX_BYTES = 600000;
+
+// O conteúdo baixado serve como idioma? "" = serve; senão, o motivo (para a sonda).
+string language_download_problem(const string&in content) {
+	if (content.empty()) return "vazio";
+	if (content.length() > LANGUAGE_FILE_MAX_BYTES) return "grande demais";
+	json_object@ obj = null;
+	try {
+		var@ parsed = parse_json(content);
+		if (@parsed != null) @obj = cast<json_object@>(parsed);
+	} catch {
+		return "JSON malformado";
+	}
+	if (@obj == null) return "nao e um objeto";
+	if (!obj.exists(LANGUAGE_NAME_KEY) || string(obj[LANGUAGE_NAME_KEY]) == "") return "sem language.name";
+	return "";
+}
+
+// Lê o índice do site e baixa o que for mais novo. Devolve quantos idiomas baixou. `embutidos_path` é
+// para a sonda fingir que o jogo tem revisões velhas, sem mexer nos arquivos dele.
+int refresh_downloaded_languages(const string&in embutidos_path = "lang/revisions.list") {
+	http_response r;
+	string indice = url_get(LANGUAGES_URL + "revisions.list", r);
+	if (r.status != 200 || indice.empty() || indice.length() > 8192) return 0;
+	dictionary@ no_site = parse_revisions(indice);
+	dictionary@ embutidos = parse_revisions(file_get_contents(embutidos_path));
+	string pasta = downloaded_lang_dir();
+	dictionary@ baixados = parse_revisions(file_get_contents(pasta + "revisions.list"));
+
+	int novos = 0;
+	bool o_atual_mudou = false;
+	array<string>@ codigos = no_site.get_keys();
+	for (uint i = 0; i < codigos.length(); i++) {
+		string code = codigos[i];
+		if (code == DEFAULT_LANGUAGE || code == "pt_BR") continue; // embutidos: só vêm com o jogo
+		int rev = revision_in(no_site, code);
+		int tenho = revision_in(embutidos, code);
+		int ja_baixado = revision_in(baixados, code);
+		if (ja_baixado > tenho) tenho = ja_baixado;
+		if (rev <= tenho) continue;
+		http_response rf;
+		string conteudo = url_get(LANGUAGES_URL + code + ".json", rf);
+		if (rf.status != 200 || language_download_problem(conteudo) != "") continue;
+		if (!directory_exists(pasta)) directory_create(pasta);
+		if (!file_put_contents(pasta + code + ".json", conteudo)) continue;
+		baixados.set(code, rev);
+		novos++;
+		if (code == g_i18n.get_current_language()) o_atual_mudou = true;
+	}
+	if (novos == 0) return 0;
+	// O índice dos baixados vai por ÚLTIMO, depois dos arquivos: se o jogo fechar no meio, um arquivo
+	// sem revisão no índice é ignorado, e nunca o contrário (revisão nova apontando para arquivo velho).
+	string lista = "";
+	array<string>@ todos = baixados.get_keys();
+	for (uint i = 0; i < todos.length(); i++) lista += todos[i] + "=" + revision_in(baixados, todos[i]) + "\n";
+	file_put_contents(pasta + "revisions.list", lista);
+	// O idioma em uso mudou: recarrega já, e o menu que vem a seguir sai com o texto novo.
+	if (o_atual_mudou) g_i18n.load_language(g_i18n.get_current_language());
+	return novos;
+}

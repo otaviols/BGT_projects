@@ -70,7 +70,7 @@ Antes de afirmar algo, **verifique contra o código**, não contra a memória da
 | `src/` | **todo** o código: `config/`, `core/`, `game/`, `network/`, `ui/`, `database/`, `audio/`, `i18n.nvgt` |
 | `lang/` | **só dados** de tradução (`pt_BR.json`, `en_US.json`) — o motor de i18n fica em `src/` |
 | `sounds/` | áudio fonte; vira `sounds.dat` no build |
-| `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `check_translation.py`, ferramentas de administração, `probes/` (sondas que conversam com um servidor de verdade) |
+| `tools/` | `build_pack` (gera o `sounds.dat`), `check_sounds`, `bots`, `build_clients.ps1`, `sync_translations.ps1`, `publish_translations.ps1` (idiomas da comunidade para o site, sem versão nova - ver [notes/traducoes.md](notes/traducoes.md)), `check_translation.py`, ferramentas de administração, `probes/` (sondas que conversam com um servidor de verdade) |
 | `docs/` | manuais e histórico de versões, distribuídos com o jogo numa pasta `docs/` |
 | `notes/` | as notas de projeto por área (som, papéis, mapa, partida, rede, voz, sondas, infra, traduções). **Não** vai para o jogador — é `docs/` que vai |
 | `infra/` | Dockerfile, `deploy.ps1`, `admin.ps1` (recados, avisos, traduções, status - tudo da administração), `vps.ps1` (o acesso à VPS); Terraform e manifests do Kubernetes são da época do Azure |

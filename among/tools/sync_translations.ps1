@@ -81,4 +81,24 @@ if (-not [string]::IsNullOrWhiteSpace("$pendente")) {
 	if ($LASTEXITCODE -ne 0) { throw "git push do repositório de traduções falhou." }
 	Write-Host "Referência (en_US, pt_BR) enviada ao repositório."
 }
+
+# A REVISÃO de cada idioma da comunidade: a hora (unix) do último commit dele no repositório de
+# traduções. Vai em lang/revisions.list, dentro do jogo, e é com ela que o jogo decide se o idioma que o
+# site oferece é mais novo que o que ele já tem (ver src/core/lang_download.nvgt). O commit, e não a data
+# do arquivo: a do arquivo muda a cada clone, e a do commit é a mesma em qualquer máquina.
+$linhas = @()
+foreach ($f in Get-ChildItem $repoLang -Filter *.json | Sort-Object Name) {
+	if ($builtin -contains $f.Name) { continue }
+	$rev = git -C $RepoDir log -1 --format=%ct -- "$Game/lang/$($f.Name)" 2>$null
+	if ($LASTEXITCODE -ne 0 -or "$rev".Trim() -eq "") { continue }
+	$linhas += "$($f.BaseName)=$("$rev".Trim())"
+}
 $ErrorActionPreference = "Stop"
+$revisoes = Join-Path $gameLang "revisions.list"
+$novo = ($linhas -join "`n") + "`n"
+$atual = if (Test-Path $revisoes) { [System.IO.File]::ReadAllText($revisoes) } else { "" }
+if ($novo -ne $atual) {
+	# Sem BOM: o jogo lê "codigo=numero" e um BOM grudaria na primeira linha.
+	[System.IO.File]::WriteAllText($revisoes, $novo, (New-Object System.Text.UTF8Encoding($false)))
+	Write-Host "Revisões dos idiomas atualizadas (lang/revisions.list)."
+}

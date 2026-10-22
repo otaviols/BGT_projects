@@ -238,8 +238,12 @@ Qualquer pessoa pode acrescentar um idioma, sem programar e sem esperar por uma 
    `language.translator`, ponha o seu nome — ele é dito ao lado do idioma na lista.
 4. Abra o jogo. O idioma já aparece em **Configurações → Idioma**.
 5. Para que todo mundo receba a sua tradução, na lista de partidas escolha **Enviar uma tradução
-   para quem faz o jogo** e selecione o idioma. Ela é revisada e entra na versão seguinte; você
-   recebe uma resposta dentro do jogo. Para atualizar depois, edite o arquivo e envie de novo.
+   para quem faz o jogo** e selecione o idioma. Ela é revisada e publicada; você recebe uma resposta
+   dentro do jogo. Para atualizar depois, edite o arquivo e envie de novo.
+
+**As traduções chegam sozinhas.** Ao abrir, o jogo confere no site se algum idioma da comunidade tem
+uma revisão mais nova e a baixa, sem precisar de uma versão nova do jogo. Um idioma novo aparece na
+lista do mesmo jeito. Português e inglês vêm sempre dentro do jogo.
 
 As traduções ficam em github.com/otaviols/game-translations — quem preferir pode mandar por lá.
 

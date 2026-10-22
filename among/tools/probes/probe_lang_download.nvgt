@@ -1,0 +1,81 @@
+// Sonda dos idiomas baixados pelo site (1.1).
+//   nvgt tools/probes/probe_lang_download.nvgt          # a escolha e a conferência, sem rede
+//   nvgt tools/probes/probe_lang_download.nvgt site     # e o download de verdade, do site no ar
+//
+// Usa uma pasta temporária no lugar da pasta de dados do jogador (g_downloaded_lang_dir): nada do jogador
+// é tocado. Confere:
+//   1. o baixado MAIS NOVO que o embutido é o usado; o mais velho (ou igual) não;
+//   2. um baixado estragado no disco cai no embutido - o jogo nunca fica sem idioma;
+//   3. um idioma que só existe baixado aparece na lista;
+//   4. a conferência do download recusa vazio, JSON malformado, sem nome, grande demais;
+//   5. (com "site") fingindo revisões velhas, o jogo baixa os idiomas do site, e baixa só uma vez.
+#include "../../src/i18n.nvgt"
+#include "../../src/core/lang_download.nvgt"
+
+int falhas = 0;
+void confere(const string&in o_que, bool ok) {
+	println((ok ? "  ok     " : "  FALHA  ") + o_que);
+	if (!ok) falhas++;
+}
+
+string pasta;
+void limpa() {
+	array<string>@ fs = find_files(pasta + "*");
+	for (uint i = 0; i < fs.length(); i++) file_delete(pasta + fs[i]);
+}
+
+void main() {
+	if (!directory_exists("lang")) chdir("..");
+	if (!directory_exists("lang")) chdir("..");
+	pasta = DIRECTORY_TEMP + "probe_lang_download/";
+	if (!directory_exists(pasta)) directory_create(pasta);
+	limpa();
+	g_downloaded_lang_dir = pasta;
+	int embutida = revision_in(parse_revisions(file_get_contents("lang/revisions.list")), "es_LATAM");
+	confere("o jogo sabe a revisao do espanhol embutido (" + embutida + ")", embutida > 0);
+
+	println("== 1. o mais novo vale ==");
+	string original = file_get_contents("lang/es_LATAM.json");
+	string mexido = original.replace("\"language.name\": \"", "\"language.name\": \"BAIXADO ", false);
+	file_put_contents(pasta + "es_LATAM.json", mexido);
+	file_put_contents(pasta + "revisions.list", "es_LATAM=" + (embutida + 10) + "\n");
+	i18n a;
+	confere("baixado mais novo: e ele que carrega", a.display_name_of("es_LATAM").find("BAIXADO") == 0);
+	file_put_contents(pasta + "revisions.list", "es_LATAM=" + embutida + "\n");
+	confere("controle: com a mesma revisao, fica o embutido", a.display_name_of("es_LATAM").find("BAIXADO") < 0);
+
+	println("== 2. estragado cai no embutido ==");
+	file_put_contents(pasta + "es_LATAM.json", "{ isto nao e json");
+	file_put_contents(pasta + "revisions.list", "es_LATAM=" + (embutida + 10) + "\n");
+	confere("baixado estragado: o embutido carrega", a.display_name_of("es_LATAM") != "es_LATAM" && a.display_name_of("es_LATAM").find("BAIXADO") < 0);
+
+	println("== 3. idioma novo so pelo site ==");
+	file_put_contents(pasta + "fr_FR.json", "{\"language.name\": \"Français\", \"menu.play\": \"Jouer\"}");
+	file_put_contents(pasta + "revisions.list", "fr_FR=100\n");
+	array<string>@ lista = a.get_available_languages();
+	confere("o frances baixado aparece na lista", lista.find("fr_FR") >= 0 && lista.find("pt_BR") >= 0);
+	confere("e carrega pelo nome", a.display_name_of("fr_FR") == "Français");
+
+	println("== 4. a conferencia do download ==");
+	confere("aceita um idioma de verdade", language_download_problem(original) == "");
+	confere("recusa vazio, JSON malformado e sem nome",
+		language_download_problem("") != "" && language_download_problem("{ ruim") != "" && language_download_problem("{\"menu.play\": \"x\"}") != "");
+	string enorme = "{\"language.name\": \"x\", \"k\": \"";
+	while (enorme.length() < LANGUAGE_FILE_MAX_BYTES + 10) enorme += "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+	confere("recusa grande demais", language_download_problem(enorme + "\"}") != "");
+
+	if (ARGS.length() > 1 && ARGS[1] == "site") {
+		println("== 5. do site no ar ==");
+		limpa();
+		string velhas = pasta + "embutidos_velhos.list";
+		file_put_contents(velhas, "es_LATAM=1\ntr_TR=1\nzh_CN=1\n");
+		int baixou = refresh_downloaded_languages(velhas);
+		confere("fingindo revisoes velhas, baixa os idiomas do site (" + baixou + ")", baixou >= 3);
+		confere("e o que baixou e um idioma valido", language_download_problem(file_get_contents(pasta + "es_LATAM.json")) == "");
+		confere("na segunda vez, nada a baixar", refresh_downloaded_languages(velhas) == 0);
+		confere("controle: com as revisoes do jogo, nada a baixar", refresh_downloaded_languages() == 0);
+	}
+
+	limpa();
+	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
+}

@@ -220,4 +220,7 @@ if (-not $SkipSite) {
 	ssh @ssh "root@$SiteHost" ($renomes -join " && ")
 	if ($LASTEXITCODE -ne 0) { throw "Falhou a troca dos arquivos em $SiteHost." }
 	Write-Host "Site publicado: https://$SiteHost/"
+	# E os idiomas da comunidade, que o jogo baixa do site ao abrir (src/core/lang_download.nvgt). Sem
+	# sincronizar de novo: as conferências do release já sincronizaram, e o lang/ commitado é o que vai.
+	& (Join-Path $root "tools\publish_translations.ps1") -SemSync -SiteHost $SiteHost
 }

@@ -6,6 +6,42 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 1.1.0
+
+**Nove papéis novos**, para ligar na sala:
+- **Veterano** (tripulação): liga um alerta por alguns segundos, e quem tentar matá-lo morre no lugar.
+- **Transportador** (tripulação): troca duas pessoas de lugar, de qualquer ponto da nave.
+- **Delator** (tripulação): terminando as tarefas, descobre quem são os impostores. Mas, faltando pouco,
+  eles descobrem quem ele é.
+- **Envenenador** (impostor): a faca envenena, e a vítima cai alguns segundos depois.
+- **Recrutador** (impostor): uma vez por partida, transforma um tripulante em impostor.
+- **Mineiro** (impostor): uma vez por partida, cava um duto novo, ligado à rede mais próxima.
+- **Ofuscador** (impostor): solta uma bomba de som que deixa a sala surda por alguns segundos.
+- **Abutre** (neutro): vence comendo corpos antes que sejam encontrados.
+- **Bobo rival** (neutro): o Carrasco que perde o alvo com um Bobo em jogo vira rival dele, e pode
+  matá-lo depois de fazer algumas tarefas.
+
+**Cinco modificadores novos:** Isca (quem a mata reporta o corpo na hora), Doente (quem o mata demora o
+dobro para matar de novo), Lanterninha (as luzes apagadas não o atingem), Bêbado (anda com as direções
+invertidas) e Viciado (ouve mortes, passos e corpos que não existem). Agora cada pessoa recebe no
+máximo um modificador, e o casal nunca é de dois impostores.
+
+**A escolha de papéis** abre primeiro os três times, cada um com a sua tela.
+
+**Contaminação:** quando o tempo acaba, morre só quem ainda está contaminado, e a partida segue. Com as
+tarefas visuais desligadas, ninguém ouve mais quantos faltam descontaminar, porque o número entregava
+quem não era tripulante. E a sua própria tosse não soa mais atrás de você.
+
+**Assistindo** uma partida, você ouve quem morreu e onde, e quando quem você acompanha faz o exame
+médico ou a arma. A tecla T diz o progresso das tarefas.
+
+**Também:**
+- Os bots não ficam mais parados diante de quem caçam. No último sobrevivente eles às vezes hesitam,
+  e dá para escapar.
+- Apertar R longe de um corpo agora diz que não há corpo ao alcance.
+- Uma partida que fica só com bots fecha sozinha.
+- As traduções da comunidade agora chegam sozinhas ao abrir o jogo, sem esperar uma atualização.
+
 ## 1.0.0
 
 **Chegou a versão 1.0, o lançamento!** Obrigado a todo mundo que jogou, testou e mandou recado na beta.

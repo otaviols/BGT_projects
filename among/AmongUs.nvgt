@@ -38,6 +38,7 @@
 #include "src/network/client.nvgt"
 #include "src/core/crash_log.nvgt"
 #include "src/core/updater.nvgt"
+#include "src/core/lang_download.nvgt"
 #include "src/core/platform.nvgt"
 #include "src/core/touch_input.nvgt"
 #include "src/ui/onboarding_screens.nvgt"
@@ -120,6 +121,10 @@ void main() {
 	// sempre fez.
 	if (launched_by_launcher()) file_put_contents(game_started_marker_path(), GAME_VERSION);
 	else if (run_update_check()) return;
+	// Os idiomas da comunidade que mudaram no site desde que este jogo foi feito (ver
+	// src/core/lang_download.nvgt). Também aberto pelo iniciador: o iniciador confere a versão do jogo,
+	// não os idiomas.
+	refresh_downloaded_languages();
 
 	// Se a verificação acima NÃO iniciou uma atualização, então nenhuma está em curso e é seguro
 	// varrer o que uma anterior possa ter deixado para trás na pasta do jogo.

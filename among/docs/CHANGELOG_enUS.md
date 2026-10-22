@@ -6,6 +6,42 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 1.1.0
+
+**Nine new roles**, to turn on in the room:
+- **Veteran** (crew): turns on an alert for a few seconds, and whoever tries to kill them dies instead.
+- **Transporter** (crew): swaps two people's places, from anywhere on the ship.
+- **Snitch** (crew): finishing their tasks reveals who the impostors are. But when they are close,
+  the impostors find out who they are.
+- **Poisoner** (impostor): the knife poisons, and the victim falls a few seconds later.
+- **Recruiter** (impostor): once per match, turns a crewmate into an impostor.
+- **Miner** (impostor): once per match, digs a new vent, linked to the nearest network.
+- **Grenadier** (impostor): sets off a sound bomb that leaves the room deaf for a few seconds.
+- **Vulture** (neutral): wins by eating bodies before they are found.
+- **Rival Jester** (neutral): an Executioner who loses their target while a Jester is in play becomes
+  that Jester's rival, and can kill them after doing a few tasks.
+
+**Five new modifiers:** Bait (whoever kills them reports the body at once), Diseased (whoever kills them
+takes twice as long to kill again), Torch (the lights sabotage does not affect them), Drunk (walks with
+the directions reversed) and Addict (hears deaths, footsteps and bodies that do not exist). Each person
+now gets at most one modifier, and the lovers are never two impostors.
+
+**Choosing roles** now opens the three teams first, each with its own screen.
+
+**Contamination:** when time runs out, only whoever is still contaminated dies, and the match goes on.
+With visible tasks off, nobody hears how many are left to decontaminate anymore, because the number gave
+away who was not a crewmate. And your own cough no longer sounds behind you.
+
+**Watching** a match, you hear who died and where, and when the player you follow does the medical scan
+or the weapon. The T key tells the task progress.
+
+**Also:**
+- Bots no longer freeze in front of whoever they are hunting. In last man standing they sometimes
+  hesitate, and you can get away.
+- Pressing R away from a body now says there is no body in range.
+- A match left with only bots closes by itself.
+- Community translations now arrive by themselves when you open the game, without waiting for an update.
+
 ## 1.0.0
 
 **Version 1.0 is here — the launch!** Thank you to everyone who played, tested and sent feedback

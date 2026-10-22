@@ -240,8 +240,12 @@ Anyone can add a language, with no programming and without waiting for a new rel
    "French". In `language.translator`, put your name — it is spoken next to the language in the list.
 4. Open the game. The language is already there under **Settings → Language**.
 5. So that everyone gets your translation, in the match list choose **Send a translation to the
-   people who make the game** and pick the language. It is reviewed and ships with the next version;
-   you get a reply inside the game. To update it later, edit the file and send it again.
+   people who make the game** and pick the language. It is reviewed and published; you get a reply
+   inside the game. To update it later, edit the file and send it again.
+
+**Translations arrive by themselves.** When it opens, the game checks the site for a newer revision of
+any community language and downloads it, without needing a new version of the game. A new language shows
+up in the list the same way. Portuguese and English always come inside the game.
 
 Translations live at github.com/otaviols/game-translations — pull requests are welcome too.
 

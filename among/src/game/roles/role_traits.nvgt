@@ -750,7 +750,7 @@ role_traits@ role_veteran() {
 	return t;
 }
 
-// Envenenador (ideia do jogador Raciel): impostor sem faca. A tecla de kill ENVENENA, e a vítima cai
+// Envenenador (ideia de vários, o usuário inclusive): impostor sem faca. A tecla de kill ENVENENA, e a vítima cai
 // alguns segundos depois, onde estiver - ninguém percebe na hora, nem ela. A recarga é a do kill. O
 // veneno que vence durante a reunião espera: a pessoa cai quando a reunião acaba (decisões do usuário).
 role_traits@ role_poisoner() {

@@ -30,6 +30,55 @@ const string LANGUAGE_TRANSLATOR_KEY = "language.translator"; // opcional: quem 
 // parâmetro de toda frase, então nenhum ponto que fala um nome precisa lembrar dela.
 const string COLOR_MARK_PREFIX = "#cor:";
 
+// IDIOMAS BAIXADOS (1.1): os da comunidade chegam pelo SITE, sem esperar uma versão nova do jogo (ver
+// src/core/lang_download.nvgt e tools/publish_translations.ps1). Ficam na pasta de dados do jogador, que
+// é gravável em todo sistema (no Android, a pasta do jogo é o APK, só de leitura).
+//
+// Cada idioma tem uma REVISÃO: a hora do último commit dele no repositório de traduções, escrita em
+// `revisions.list` ("codigo=numero", uma por linha) - um ao lado dos embutidos (lang/, gerado pelo
+// tools/sync_translations.ps1) e outro ao lado dos baixados. Vale o arquivo de revisão MAIOR: o baixado
+// ganha do que veio no jogo até o jogo atualizar com um ainda mais novo. A revisão não vai dentro do
+// JSON do idioma de propósito: seria uma chave que o inglês não tem, e a conferência a acusaria.
+//
+// Vazio = o caminho ainda não foi resolvido; as sondas o apontam para uma pasta temporária.
+string g_downloaded_lang_dir = "";
+string downloaded_lang_dir() {
+	if (g_downloaded_lang_dir == "") g_downloaded_lang_dir = DIRECTORY_PREFERENCES("BGT", "AmongUsAudiogame") + "/lang/";
+	return g_downloaded_lang_dir;
+}
+
+// "codigo=numero" por linha -> dicionário código -> revisão. Linha que não tem essa cara é ignorada.
+dictionary@ parse_revisions(const string&in content) {
+	dictionary revs;
+	array<string>@ lines = content.replace("\r", "", true).split("\n");
+	for (uint i = 0; i < lines.length(); i++) {
+		string linha = lines[i].trim_whitespace();
+		int eq = linha.find("=");
+		if (eq <= 0) continue;
+		string code = linha.substr(0, eq);
+		string num = linha.substr(eq + 1);
+		if (!is_language_code(code) || num == "" || !num.is_digits()) continue;
+		revs.set(code, parse_int(num));
+	}
+	return revs;
+}
+
+// Um código de idioma tem cara de código (letras e "_", curto): ele vira nome de arquivo e parte de URL.
+bool is_language_code(const string&in code) {
+	if (code.length() < 2 || code.length() > 12) return false;
+	for (uint i = 0; i < code.length(); i++) {
+		string c = code.substr(i, 1);
+		if (!((c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c == "_")) return false;
+	}
+	return true;
+}
+
+int revision_in(dictionary@ revs, const string&in code) {
+	int r = 0;
+	if (!revs.get(code, r)) return 0;
+	return r;
+}
+
 class i18n {
 	private dictionary strings;
 	// Textos do idioma de reserva (o inglês), carregados uma vez e mantidos à parte. É o que cobre
@@ -45,7 +94,20 @@ class i18n {
 	// um JSON de objeto - nos dois casos quem chama decide o que fazer, porque falhar ao carregar o
 	// idioma escolhido e falhar ao carregar a reserva têm consequências bem diferentes.
 	private bool load_into(const string&in lang_code, dictionary@ target) {
-		string file_path = "lang/" + lang_code + ".json";
+		// O baixado, se for mais novo que o embutido; se ele não abrir (arquivo estragado no disco), o
+		// embutido - um download ruim nunca pode deixar o jogo sem idioma.
+		if (downloaded_is_newer(lang_code) && load_file_into(downloaded_lang_dir() + lang_code + ".json", target)) return true;
+		return load_file_into("lang/" + lang_code + ".json", target);
+	}
+
+	// O baixado ganha do embutido? Revisão estritamente maior (igual = o mesmo arquivo, fica o embutido).
+	bool downloaded_is_newer(const string&in lang_code) const {
+		int baixado = revision_in(parse_revisions(file_get_contents(downloaded_lang_dir() + "revisions.list")), lang_code);
+		if (baixado <= 0) return false;
+		return baixado > revision_in(parse_revisions(file_get_contents("lang/revisions.list")), lang_code);
+	}
+
+	private bool load_file_into(const string&in file_path, dictionary@ target) {
 		// Sem file_exists() antes, de propósito: no Android os arquivos de idioma ficam DENTRO do
 		// APK, e as duas perguntas não concordam. `file_exists` usa stat() no sistema de arquivos e
 		// responde false para um asset empacotado; `file_get_contents` passa pelo SDL, que sabe abrir
@@ -160,6 +222,18 @@ class i18n {
 	// aparece na hora, sem ninguém precisar regerar nada - e um índice velho nunca esconde um arquivo
 	// que está ali.
 	array<string>@ get_available_languages() const {
+		array<string>@ languages = bundled_languages();
+		// E os que chegaram pelo site: um idioma novo da comunidade aparece sem o jogo atualizar.
+		array<string>@ baixados = parse_revisions(file_get_contents(downloaded_lang_dir() + "revisions.list")).get_keys();
+		for (uint i = 0; i < baixados.length(); i++) {
+			if (languages.find(baixados[i]) >= 0) continue;
+			if (file_get_contents(downloaded_lang_dir() + baixados[i] + ".json").empty()) continue;
+			languages.insert_last(baixados[i]);
+		}
+		return languages;
+	}
+
+	private array<string>@ bundled_languages() const {
 		array<string> languages;
 		array<string>@ files = find_files("lang/*.json");
 		if (files.length() == 0) return languages_from_index();

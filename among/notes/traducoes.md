@@ -35,6 +35,19 @@ commit, push -> responder ao jogador com `admin.ps1 responder` se ele mandou rec
 traz. O `build_clients.ps1` recolhe a caixa de entrada sozinho e PARA se houver algo para revisar
 (`-SkipInbox` pula). Pull request no repositório também serve para quem sabe usar GitHub.
 
+**Idiomas da comunidade chegam PELO SITE, sem versão nova do jogo (1.1, pedido de jogadores).** Depois de
+promover no repositório de traduções, `tools\publish_translations.ps1` sincroniza, confere e sobe os
+idiomas para `https://amongus.blindtabern.com/idiomas/` (arquivos + `revisions.list`), trocando a pasta
+inteira de uma vez - não compila nada nem toca no servidor do jogo. O jogo, ao abrir (logo depois do
+updater), lê o `revisions.list` do site e baixa o idioma com revisão MAIOR que a dele para a pasta de
+dados do jogador (`DIRECTORY_PREFERENCES`, gravável também no Android); o i18n usa o baixado só se for
+mais novo que o embutido, e cai no embutido se o baixado não abrir. A REVISÃO é a hora unix do último
+commit do idioma no repositório de traduções - igual em qualquer máquina - e o `sync_translations.ps1` a
+grava em `lang/revisions.list`, que vai DENTRO do jogo (e é rastreado: mudou, commite). Ela fica fora do
+JSON de propósito: seria uma chave que o inglês não tem, e a conferência a acusaria como sobra.
+`pt_BR`/`en_US` nunca vêm pelo site: nascem com o código. O deploy publica os idiomas junto do site, para
+o site nunca ficar atrás do jogo. Sonda: `probe_lang_download` (com o argumento `site`, baixa do ar).
+
 **O deploy CONFERE as traduções antes de qualquer outra coisa, e recusa.**
 `python tools/check_translations_all.py` (exit 1 = não sobe). A regra de o que é erro vem de quem
 mantém cada idioma: `pt_BR` fora de sincronia com `en_US` - em qualquer direção, faltando ou
