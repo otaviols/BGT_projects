@@ -96,7 +96,9 @@ foreach ($f in Get-ChildItem $repoLang -Filter *.json | Sort-Object Name) {
 $ErrorActionPreference = "Stop"
 $revisoes = Join-Path $gameLang "revisions.list"
 $novo = ($linhas -join "`n") + "`n"
-$atual = if (Test-Path $revisoes) { [System.IO.File]::ReadAllText($revisoes) } else { "" }
+# Sem o "\r": o git no Windows devolve o arquivo com fim de linha CRLF no checkout, e comparar com ele
+# reescreveria o arquivo a toda execução - sujando a árvore que o release exige limpa.
+$atual = if (Test-Path $revisoes) { [System.IO.File]::ReadAllText($revisoes).Replace("`r", "") } else { "" }
 if ($novo -ne $atual) {
 	# Sem BOM: o jogo lê "codigo=numero" e um BOM grudaria na primeira linha.
 	[System.IO.File]::WriteAllText($revisoes, $novo, (New-Object System.Text.UTF8Encoding($false)))
