@@ -59,6 +59,7 @@ void main() {
 	sound_master_volume = -100;
 	game_client@ c = cliente_offline();
 	@g_client_frame_hook = dirige;
+	@g_screen_menu_frame_hook = dirige; // o botão de papéis abre um MENU de times antes da tela
 
 	println("== confirmar ==");
 	array<int> so_enter = {KEY_RETURN};
@@ -85,11 +86,25 @@ void main() {
 	int tabs_papeis = usable_map_ids().length() > 1 ? 9 : 8;
 	array<int> ate_papeis;
 	for (int i = 0; i < tabs_papeis; i++) ate_papeis.insert_last(KEY_TAB);
-	ate_papeis.insert_last(KEY_RETURN); ate_papeis.insert_last(KEY_ESCAPE); ate_papeis.insert_last(KEY_ESCAPE);
+	// Enter no botão abre o menu dos TIMES; Enter no primeiro (tripulação) abre a tela dela; três Esc voltam.
+	ate_papeis.insert_last(KEY_RETURN); ate_papeis.insert_last(KEY_RETURN);
+	ate_papeis.insert_last(KEY_ESCAPE); ate_papeis.insert_last(KEY_ESCAPE); ate_papeis.insert_last(KEY_ESCAPE);
 	roda(ate_papeis);
 	run_lobby_settings_form(c, null, true);
-	confere("o botao de papeis abre a tela de PAPEIS", falou(tr("lobby.roles_title") + " Dialog"));
+	confere("o botao de papeis abre o menu dos times", falou(tr("lobby.roles_title")));
+	confere("e o primeiro time abre a tela dos papeis da tripulacao", falou(tr("lobby.roles_team_title.crew") + " Dialog"));
 	confere("e nao a de modificadores", !falou(tr("lobby.modifiers_title") + " Dialog"));
+	// O teto de 50 controles do audio_form: cada tela de time e a de modificadores têm que caber com folga
+	// (dois campos por papel, mais confirmar e cancelar, mais a regra da morte nos modificadores). Passando,
+	// o confirmar não é criado e nada avisa - foi por isso que a tela foi dividida por time (1.1).
+	array<string> times = {TEAM_CREW, TEAM_IMPOSTOR, TEAM_NEUTRAL};
+	int maior = 0;
+	for (uint t = 0; t < times.length(); t++) {
+		int n = int(configurable_roles_of_team(times[t]).length()) * 2 + 2;
+		if (n > maior) maior = n;
+	}
+	int mods = int(CONFIGURABLE_MODIFIER_IDS.length()) * 2 + 3;
+	confere("cada tela de papeis cabe no audio_form (a maior: " + maior + " de 50; modificadores: " + mods + ")", maior <= 44 && mods <= 44);
 
 	println("== tela de modificadores ==");
 	// O controle seguinte é o botão de modificadores; a tela abre com a regra deles na morte (2026-10-17).

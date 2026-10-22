@@ -436,8 +436,9 @@ e recusa o build se ele fechar sozinho.
 `create_*` devolve -1 e a tela segue sem os campos do fim. Sintoma (0.50.0, com os papéis novos no
 formulário de sala): "só consigo mexer nos campos, nunca criar a sala" - o botão de confirmar era o
 51º, não existia, e o Enter não tinha o que apertar. Papéis e modificadores foram para telas próprias,
-abertas por botão (`run_role_choice_form`), e os formulários de sala registram no `crash.log` se
-ficarem sem o confirmar. Formulário que cresce com uma lista (papéis, idiomas): conte. Sonda:
+abertas por botão (`run_role_choice_form`), e na 1.1 os papéis ainda se dividiram por TIME
+(`run_role_team_menu`): numa tela só, chegaram a 46 dos 50. Os formulários de sala registram no
+`crash.log` se ficarem sem o confirmar, e a `probe_lobby_form` confere que cada tela cabe. Formulário que cresce com uma lista (papéis, idiomas): conte. Sonda:
 `probe_lobby_form.nvgt`, que aperta Enter de dentro do laço da tela.
 
 **Desenhar na janela: use `window.renderer`, nunca o `graphics_renderer()` solto.** O NVGT tem gráficos

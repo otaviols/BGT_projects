@@ -467,9 +467,9 @@ Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 - **Transportador:** `try_transport` troca as posições e recomeça o relógio do passo dos dois
   (`last_move_time`); o servidor tira os dois das câmeras e do scanner, manda `S_TRANSPORTED` a cada um e
   a posição nova aos outros pelo `S_PLAYER_MOVED` (menos a do invisível). Duto e barriga recusam.
-- **A tela de escolher papéis está em 46 dos 50 controles** (22 papéis, dois campos cada). O próximo
-  lote (delator, mineiro, bomba de som, recrutador, bobo duelista) NÃO cabe: antes dele, dividir a tela
-  por time. Ver a armadilha do teto de 50 no CLAUDE.md.
+- **A tela de escolher papéis chegou a 46 dos 50 controles** (22 papéis, dois campos cada), e foi
+  dividida por TIME (`run_role_team_menu`): o botão abre os três times, cada um com a tela dele. A
+  `probe_lobby_form` confere que cada tela cabe com folga. Ver a armadilha do teto de 50 no CLAUDE.md.
 Sondas: `probe_roles_1_1` (estado, com controles), `probe_roles_1_1_net` (os pacotes pela rede) e os
 casos do cliente em `probe_match_packets`.
 

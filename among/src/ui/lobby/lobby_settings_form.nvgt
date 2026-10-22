@@ -282,8 +282,8 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 		if (apertou_papeis || apertou_mods) {
 			bool papeis = apertou_papeis;
 			int botao = papeis ? f_roles_btn : f_mods_btn;
-			run_role_choice_form(client, escolha, papeis ? CONFIGURABLE_ROLE_IDS : CONFIGURABLE_MODIFIER_IDS,
-				papeis ? "lobby.roles_title" : "lobby.modifiers_title");
+			if (papeis) run_role_team_menu(client, escolha);
+			else run_role_choice_form(client, escolha, CONFIGURABLE_MODIFIER_IDS, "lobby.modifiers_title");
 			f.set_caption(botao, role_choice_caption(papeis ? "lobby.roles_button" : "lobby.modifiers_button", escolha,
 				papeis ? CONFIGURABLE_ROLE_IDS : CONFIGURABLE_MODIFIER_IDS));
 			f.focus(botao); // de volta ao botão, que já diz quantos ficaram ligados
@@ -399,7 +399,39 @@ string role_choice_caption(const string&in key, role_choice@ escolha, const arra
 	return tr(key, p);
 }
 
-// A tela de papéis (ou de modificadores): dois campos por id, quantos e a chance de cada vaga. Vazio =
+// Os papéis de UM time, na ordem de CONFIGURABLE_ROLE_IDS.
+array<string>@ configurable_roles_of_team(const string&in team) {
+	array<string> ids;
+	for (uint i = 0; i < CONFIGURABLE_ROLE_IDS.length(); i++)
+		if (role_for(CONFIGURABLE_ROLE_IDS[i]).team == team) ids.insert_last(CONFIGURABLE_ROLE_IDS[i]);
+	return ids;
+}
+
+// O botão "Papéis especiais" abre primeiro os TIMES, e cada time a tela dele. Com todos numa tela só,
+// a 1.1 chegou a 46 dos 50 controles do audio_form (dois por papel) - e o que passa de 50 não é criado,
+// em silêncio: o botão de confirmar sumiria (ver o CLAUDE.md). Cada time diz quantos papéis estão ligados.
+void run_role_team_menu(game_client@ client, role_choice@ escolha) {
+	array<string> times = {TEAM_CREW, TEAM_IMPOSTOR, TEAM_NEUTRAL};
+	while (true) {
+		screen_menu m;
+		m.intro_text = tr("lobby.roles_title");
+		m.focus_first_item = true; // sem isto o menu abre sem foco, e o Enter o fecha sem escolher nada
+		m.click_sound = "ui/menu_click.ogg";
+		m.select_sound = "ui/menu_confirm.ogg";
+		m.sounds_prefix = "sounds/";
+		@g_lobby_pump_client = client;
+		@m.background_callback = @pump_client_during_menu;
+		for (uint i = 0; i < times.length(); i++)
+			m.add_item(role_choice_caption("lobby.roles_team." + times[i], escolha, configurable_roles_of_team(times[i])), times[i]);
+		m.add_item(tr("menu.back"), "__back__");
+		m.run();
+		string id = m.selected_item_id;
+		if (id == "" || id == "__back__") return;
+		run_role_choice_form(client, escolha, configurable_roles_of_team(id), "lobby.roles_team_title." + id);
+	}
+}
+
+// A tela de papéis (de um time) ou de modificadores: dois campos por id, quantos e a chance de cada vaga. Vazio =
 // zero, e zero é o jogo de sempre; chance vazia (ou 100) é "sempre", o óbvio para quem só quer ligar e
 // jogar. A chance é o que impede a tripulação de assumir que o papel existe. Confirmar grava em
 // `escolha`; cancelar deixa como estava.

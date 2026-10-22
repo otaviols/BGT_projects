@@ -568,7 +568,9 @@ Além de tripulante e impostor, a sala pode ligar **papéis especiais** — prof
 habilidade própria. Eles vêm **desligados**: uma sala que não mexer nisso joga exatamente o jogo de
 sempre.
 
-Quem cria a sala escolhe, para cada papel, **quantos** existem e a **chance** de cada um aparecer
+O botão **Papéis especiais**, na tela da sala, abre primeiro os três times (tripulação, impostor e
+neutros), cada um dizendo quantos papéis estão ligados; Enter num time abre os papéis dele. Quem cria
+a sala escolhe, para cada papel, **quantos** existem e a **chance** de cada um aparecer
 (vazio = sempre). A chance importa: com 50%, ninguém pode assumir que o papel está em jogo, e é
 essa dúvida que o torna interessante. As regras da sala (tecla **O**) dizem o que está ligado e com
 que chance — mas nunca dizem quem saiu.

@@ -572,7 +572,9 @@ even between impostors.
 Besides crewmate and impostor, a room can turn on **special roles** — jobs with an ability of their
 own. They come **turned off**: a room that doesn't touch this plays exactly the game you know.
 
-Whoever creates the room chooses, for each role, **how many** there are and the **chance** each one
+The **Special roles** button, on the room screen, first opens the three teams (crew, impostor and
+neutral), each saying how many roles are on; Enter on a team opens its roles. Whoever creates the
+room chooses, for each role, **how many** there are and the **chance** each one
 appears (empty = always). The chance matters: at 50%, nobody can assume the role is in play, and
 that doubt is what makes it interesting. The room rules (**O** key) say what is turned on and at
 what chance — but never say who got it.
