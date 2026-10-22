@@ -137,8 +137,8 @@ mixin class server_abilities_part {
 			net_packet@ sumiu = net_packet(S_BODY_REMOVED);
 			sumiu.set_uint64("peer_id", morto);
 			broadcast_to_lobby(lobby, sumiu);
-			// O som da limpeza do lixeiro: quem está perto ouve que um corpo sumiu dali, e não quem foi.
-			broadcast_body_sound(lobby, "clean", bx, by);
+			// Quem está perto ouve o corpo sendo comido, e não quem foi - como a limpeza do lixeiro, com som próprio.
+			broadcast_body_sound(lobby, "devour", bx, by);
 			message_params.set("count", "" + comidos);
 			message_params.set("needed", "" + faltam);
 			message_key = "role.devour_done";

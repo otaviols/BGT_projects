@@ -269,6 +269,8 @@
   "learn.wolf_swallow": "Big Bad Wolf swallowing someone",
   "learn.body_clean": "Janitor cleaning a body",
   "learn.body_drag": "Carrier dragging a body",
+  "learn.body_eaten": "Vulture eating a body",
+  "learn.poison": "The poison going in (only the poisoner hears it)",
   "learn.doctor_revive": "Doctor bringing someone back",
   "learn.noisemaker_alarm": "Noisemaker alarm, when they die",
   "learn.arsonist_fire": "Arsonist fire, when they win (scene made by the player Raciel)",

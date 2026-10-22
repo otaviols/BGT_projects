@@ -461,7 +461,8 @@ Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
   `announce_kill` não chama testemunha (quem estava ao lado não viu ninguém matar). Vencido na reunião
   ou dentro do duto, espera. A recarga começa no envenenamento, e o pacote da morte leva a recarga ATUAL
   dele (`killer_cooldown`), senão a queda da vítima rearmaria a faca.
-- **Abutre:** o corpo some como o do lixeiro (o mesmo som), e a vitória é decidida no próprio
+- **Abutre:** o corpo some como o do lixeiro, com som próprio (`SND_BODY_EATEN`, tipo "devour" do
+  `S_BODY_SOUND`), e a vitória é decidida no próprio
   `try_devour`, como o fogo do incendiário (`win_reason "vulture_fed"`).
 - **Transportador:** `try_transport` troca as posições e recomeça o relógio do passo dos dois
   (`last_move_time`); o servidor tira os dois das câmeras e do scanner, manda `S_TRANSPORTED` a cada um e

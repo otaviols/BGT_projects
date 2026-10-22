@@ -353,9 +353,10 @@ class audio_manager {
 
 	bool is_playing(int slot) { return slot >= 0 && spatial.pool.sound_is_playing(slot); }
 
-	// Limpar ("clean") ou arrastar ("drag") um corpo, no ponto onde acontece.
+	// Limpar ("clean"), arrastar ("drag") ou comer ("devour", o abutre) um corpo, no ponto onde acontece.
 	void play_body_sound(const string&in kind, float x, float y) {
-		spatial.play_once(kind == "clean" ? SND_BODY_CLEAN : SND_BODY_DRAG, x, y, family_db(SOUND_FAMILY_EVENTS));
+		string som = kind == "clean" ? SND_BODY_CLEAN : (kind == "devour" ? SND_BODY_EATEN : SND_BODY_DRAG);
+		spatial.play_once(som, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
 
 	// Posicionado: para o lobo e o engolido o ponto é onde eles mesmos estão, então soa "em cima".

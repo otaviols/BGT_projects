@@ -269,6 +269,8 @@
   "learn.wolf_swallow": "Lobo Mau engolindo alguém",
   "learn.body_clean": "Lixeiro limpando um corpo",
   "learn.body_drag": "Carregador arrastando um corpo",
+  "learn.body_eaten": "Abutre comendo um corpo",
+  "learn.poison": "O veneno saindo (só o envenenador ouve)",
   "learn.doctor_revive": "Médico trazendo alguém de volta",
   "learn.noisemaker_alarm": "Alarme do alarmista, quando ele morre",
   "learn.arsonist_fire": "Fogo do incendiário, quando ele vence (cena feita pelo jogador Raciel)",

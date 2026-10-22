@@ -770,7 +770,7 @@ missing.
 impostors when they become one of them. The inherited role's ability starts on cooldown.
 
 **Vulture** (neutral). Near a body, the H key **eats** it: the body disappears, and whoever is nearby
-hears the same sound as the janitor's cleaning. After eating **3 bodies** (the room adjusts it), they
+hears the body being eaten, without knowing who did it. After eating **3 bodies** (the room adjusts it), they
 win alone. They do not kill: they have to reach the bodies before someone finds them. The default
 cooldown is 20 seconds.
 

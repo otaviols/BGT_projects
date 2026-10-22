@@ -10,6 +10,7 @@ mixin class match_net_abilities_part {
 		my_kill_cooldown_remaining = pkt.get_float("killer_cooldown", kill_cooldown_config);
 		dictionary@ np = dictionary();
 		np.set("name", spoken_name(pkt.get_string("name")));
+		task_sound_simple(SND_POISON); // a confirmação dele, sem posição: ninguém mais percebe
 		string texto = tr("role.poison_done", np);
 		speak(texto);
 		events_log.add("", texto);

@@ -758,7 +758,7 @@ papel do morto** — qualquer um, inclusive de impostor. Ninguém mais fica sabe
 quando ele vira um deles. A habilidade do papel herdado começa recarregando.
 
 **Abutre** (neutro). Perto de um corpo, a tecla H o **come**: o corpo some, e quem estiver perto ouve o
-mesmo som da limpeza do lixeiro. Ao comer **3 corpos** (a sala ajusta), ele vence sozinho. Ele não mata:
+corpo sendo comido, sem saber quem foi. Ao comer **3 corpos** (a sala ajusta), ele vence sozinho. Ele não mata:
 precisa chegar aos corpos antes que alguém os encontre. A recarga padrão é de 20 segundos.
 
 ### Modificadores
