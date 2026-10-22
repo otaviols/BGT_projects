@@ -417,6 +417,12 @@ Para manter linhas em branco é o TERCEIRO parâmetro (`split("\n", true, true)`
 que os separam tinham sumido. E texto vazio vira lista VAZIA, sem o item 0 - o crash do colar da
 `form.nvgt`, acima.
 
+**Parâmetro `&out` é gravado na volta SEMPRE - também quando a função sai antes de preenchê-lo.** O
+valor que chega é o padrão do tipo (`""`, `0`), e o que a variável tinha antes some. Sintoma (1.1, na
+`probe_roles_1_1`): depois de uma chamada RECUSADA, o `id` e o `link` que a sonda guardava de uma chamada
+anterior viraram vazios, e a conferência seguinte falhou num mapa que estava certo. Não reaproveite como
+dado a variável que você passou como `&out` a uma chamada que pode recusar - guarde uma cópia antes.
+
 **`sound.stream_pcm` BLOQUEIA quando o buffer do stream enche - e para sempre se o som parou.** É o
 "o jogo não responde" sem `crash.log`: não é exceção, é o jogo preso numa chamada nativa. Nunca
 escreva num stream sem saber quanto ainda cabe (a voz descarta acima de 1 s esperando e refaz o som

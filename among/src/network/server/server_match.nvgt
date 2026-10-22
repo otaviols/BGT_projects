@@ -91,6 +91,15 @@ mixin class server_match_part {
 			lobby.players.remove_at(i);
 		}
 
+		// O mapa é REFEITO a cada partida. Ele era montado só quando a sala nascia (ou trocava de mapa), e o
+		// que uma partida mudava nele passava para a seguinte - o duto do mineiro, a primeira coisa a mudar
+		// o mapa de verdade, sobreviveria à partida que o cavou.
+		@lobby.map = build_map(lobby.config.map_name);
+		lobby.mined_vent_ids.resize(0);
+		lobby.mined_vent_links.resize(0);
+		lobby.mined_vent_x.resize(0);
+		lobby.mined_vent_y.resize(0);
+
 		// Sorteio dos papéis, bot e gente no mesmo bolo: a IA de impostor caça, mata quando ninguém
 		// está vendo e sabota (ver game_state.update_bot_impostor), então um bot impostor é uma
 		// partida de verdade - e do outro lado, um humano sozinho contra bots tem quem o cace.
@@ -465,6 +474,19 @@ mixin class server_match_part {
 			return;
 		}
 
+		// O bobo rival ouve por que não matou: as tarefas que faltam, ou que aquele não é o Bobo.
+		if (@killer != null && killer.role_id == ROLE_RIVAL_JESTER) {
+			string recusa = lobby.rival_kill_refusal(killer, lobby.find_player(target_peer));
+			if (recusa != "") {
+				uint faltam = 0;
+				for (uint i = 0; i < killer.tasks.length(); i++) if (!killer.tasks[i].completed) faltam++;
+				dictionary@ rp = dictionary();
+				rp.set("count", "" + faltam);
+				send_error(peer_id, recusa, rp);
+				return;
+			}
+		}
+
 		net_packet@ event;
 		bool misfire = false;
 		if (lobby.try_kill(peer_id, target_peer, event, misfire)) {
@@ -668,11 +690,26 @@ mixin class server_match_part {
 		return roster;
 	}
 
+	// Os dutos do mineiro desta partida, para quem monta o mapa do zero (volta depois de cair, quem assiste).
+	json_array@ mined_vents_json(game_state@ lobby) {
+		json_array@ a = json_array();
+		for (uint i = 0; i < lobby.mined_vent_ids.length(); i++) {
+			json_object@ v = json_object();
+			v.set("id", lobby.mined_vent_ids[i]);
+			v.set("link", lobby.mined_vent_links[i]);
+			v.set("x", lobby.mined_vent_x[i]);
+			v.set("y", lobby.mined_vent_y[i]);
+			a.add(v);
+		}
+		return a;
+	}
+
 	// O S_GAME_START de UM jogador. Uma função só para o começo da partida e para quem volta depois de
 	// cair: escrito duas vezes, o da volta esqueceria o próximo campo que o começo ganhasse.
 	net_packet@ build_game_start(game_state@ lobby, game_player@ p, json_array@ roster) {
 		net_packet@ start = net_packet(S_GAME_START);
 		start.set_string("map_name", lobby.map.name);
+		start.set_array("mined_vents", mined_vents_json(lobby));
 		start.set_string("your_role", p.role_id);
 		// O incendiário que volta depois de cair continua sabendo quem já encharcou (ver doused_of).
 		if (p.doused.length() > 0) start.set_array("doused", peer_list_json(p.doused));

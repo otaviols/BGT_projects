@@ -305,6 +305,27 @@ mixin class state_roles_part {
 		return true;
 	}
 
+	// O MINEIRO cava um duto onde está, na rede do duto mais próximo. Recusa dentro de um duto, fora de
+	// sala ou corredor, e colado num duto que já existe. Os dutos cavados ficam guardados em `mined_vents`
+	// para ir no começo de partida de quem voltar depois de cair (que monta o mapa do zero).
+	bool try_mine(uint64 peer, string&out vent_id, string&out link_id, string&out fail_key) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive || p.vented) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (p.mine_used) { fail_key = "role.mine_used"; return false; }
+		link_id = map.nearest_vent_id(p.x, p.y);
+		map_object@ perto = map.find_object(link_id);
+		if (@perto == null) { fail_key = "role.mine_no_network"; return false; }
+		if (distance_2d(p.x, p.y, perto.x, perto.y) < MINER_MIN_VENT_DISTANCE) { fail_key = "role.mine_too_close"; return false; }
+		vent_id = "vent_mined_" + p.peer_id;
+		if (!map.add_mined_vent(vent_id, p.x, p.y, link_id)) { fail_key = "role.mine_bad_spot"; return false; }
+		p.mine_used = true;
+		mined_vent_ids.insert_last(vent_id);
+		mined_vent_links.insert_last(link_id);
+		mined_vent_x.insert_last(p.x);
+		mined_vent_y.insert_last(p.y);
+		return true;
+	}
+
 	// O DELATOR, conferido a cada tick da sala: faltando poucas tarefas, os impostores vivos descobrem
 	// quem ele é (uma vez); com todas feitas, ele descobre quem são os impostores (uma vez). Só o delator
 	// VIVO: morto, ele já não conta a ninguém, e os impostores não precisam mais caçá-lo. Devolve os avisos
@@ -399,10 +420,50 @@ mixin class state_roles_part {
 			bool perdido = @alvo == null || alvo.left_match || (!alvo.alive && !alvo.swallowed());
 			if (!perdido) continue;
 			c.execution_target = 0;
-			c.set_role(ROLE_JESTER);
+			// Com um Bobo vivo em jogo, vira o RIVAL dele (com as tarefas que liberam a faca); sem, vira Bobo.
+			bool ha_bobo = false;
+			for (uint k = 0; k < players.length(); k++)
+				if (players[k].alive && players[k].role_id == ROLE_JESTER && players[k].peer_id != c.peer_id) ha_bobo = true;
+			if (ha_bobo) {
+				c.set_role(ROLE_RIVAL_JESTER);
+				c.kill_cooldown_remaining = 0.0; // quem trava a faca são as tarefas
+				give_rival_tasks(c, uint(config.role_value(ROLE_EXECUTIONER, TUNABLE_RIVAL_TASKS) + 0.5));
+			} else c.set_role(ROLE_JESTER);
 			convertidos.insert_last(c.peer_id);
 		}
 		return convertidos;
+	}
+
+	// As tarefas do bobo rival, sorteadas na hora em que ele vira: curtas, de uma fase, individuais e NÃO
+	// visíveis - a tarefa visível é prova de inocência, e o rival não é inocente. Não contam para a
+	// tripulação (o papel não é dela); servem só para liberar a faca dele.
+	void give_rival_tasks(game_player@ p, uint quantas) {
+		p.tasks.resize(0);
+		array<map_object@>@ pontos = map.objects_by_type(OBJ_TASK_SPOT);
+		array<map_object@> livres;
+		for (uint i = 0; i < pontos.length(); i++) {
+			map_object@ o = pontos[i];
+			if (COMMON_TASK_TYPES.find(o.task_type) != -1 || task_is_visible(o.task_type) || task_is_long(o.task_type)
+				|| map.object_in_chain(o.id)) continue;
+			livres.insert_last(o);
+		}
+		for (uint n = 0; n < quantas && livres.length() > 0; n++) {
+			int k = random(0, int(livres.length()) - 1);
+			player_task t;
+			t.object_id = livres[k].id;
+			t.task_type = livres[k].task_type;
+			p.tasks.insert_last(t);
+			livres.remove_at(k);
+		}
+	}
+
+	// O bobo rival pode matar AGORA este alvo? "" = pode; senão, a chave do porquê (dita a ele).
+	string rival_kill_refusal(game_player@ rival, game_player@ alvo) const {
+		uint faltam = 0;
+		for (uint i = 0; i < rival.tasks.length(); i++) if (!rival.tasks[i].completed) faltam++;
+		if (faltam > 0) return "role.rival_tasks_left";
+		if (@alvo == null || alvo.role_id != ROLE_JESTER) return "role.rival_only_jester";
+		return "";
 	}
 
 	// --- Incendiário ---

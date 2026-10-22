@@ -733,6 +733,11 @@ impostor, do time dele. Neutro não pode ser recrutado. O recrutado ouve que vir
 os parceiros, e os impostores ouvem quem entrou. Recrutar gasta a faca daquela vez: a recarga do kill
 recomeça.
 
+**Mineiro** (impostor). **Uma vez por partida**, a tecla H cava um **duto** onde ele está, ligado à rede
+de dutos mais próxima: dele se chega a todos daquela rede, e de todos se chega a ele. Em silêncio - o
+duto novo se descobre como qualquer outro, pelo marcador e pela tampa de quem o usar. Não dá para cavar
+colado num duto que já existe. O duto some no fim da partida.
+
 ### Papéis neutros
 
 Um papel **neutro** não é da tripulação nem dos impostores: ele tem uma vitória **só dele**. Quando
@@ -757,7 +762,10 @@ O xerife pode atirar nele sem errar. Engolir tem recarga, e ela começa correndo
 
 **Carrasco** (neutro). Começa com um **alvo**, um tripulante sorteado, dito junto com o papel. Vence
 sozinho se o alvo for **expulso na votação**. Se o alvo morrer de outro jeito, ele vira **Bobo** e
-fica sabendo na hora. O alvo engolido pelo lobo não conta: ele pode voltar.
+fica sabendo na hora - ou, se já houver um Bobo vivo na nave, vira o **Bobo rival** dele: também vence
+sendo expulso, e ganha algumas tarefas (3, a sala ajusta na tela do Carrasco); terminadas, a tecla de
+matar passa a funcionar, mas **só contra o outro Bobo**. O Bobo fica sabendo que apareceu um rival, mas
+não quem é. O alvo engolido pelo lobo não conta: ele pode voltar.
 
 **Incendiário** (neutro). A tecla H **encharca** quem estiver colado nele, sem som e sem a pessoa
 perceber. Cada vez ele ouve quantos vivos faltam, e Ctrl+H diz **quem** falta encharcar. Com **todos os vivos encharcados**, a mesma tecla

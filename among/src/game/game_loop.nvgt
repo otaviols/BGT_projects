@@ -189,6 +189,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// diagnóstico em client.update) - é a suspeita do celular que cai quando a partida começa.
 		g_net_stall_context = "carregando a partida";
 		@map = build_map(start_pkt.get_string("map_name", MAP_THE_HUB));
+		apply_mined_vents(map, start_pkt.get_array("mined_vents")); // quem volta depois de cair
 		@audio = audio_manager();
 		@roster = client_roster();
 		@radar = radar_ui(client, audio);
@@ -603,6 +604,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_ABILITY_RESULT) on_ability_result(pkt);
 		else if (t == S_POISON_DONE) on_poison_done(pkt);
 		else if (t == S_TRANSPORTED) on_transported(pkt);
+		else if (t == S_VENT_CREATED) on_vent_created(pkt);
 		else if (t == S_CAMERA_PLAYERS) on_camera_players(pkt);
 		else if (t == S_CAMERA_WATCHING) on_camera_watching(pkt);
 		else if (t == S_SABOTAGE_PROGRESS) on_sabotage_progress(pkt);

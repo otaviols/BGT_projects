@@ -63,6 +63,9 @@ mixin class state_kill_part {
 		// exceção para explicar no manual.
 		if (target.shield_remaining > 0.0) return false;
 
+		// O BOBO RIVAL só mata o outro Bobo, e só com as tarefas dele feitas (on_kill diz o porquê a ele).
+		if (killer.role_id == ROLE_RIVAL_JESTER && rival_kill_refusal(killer, target) != "") return false;
+
 		bool killer_is_impostor = killer.role().team == TEAM_IMPOSTOR;
 		// Impostor não mata impostor. Além de não fazer sentido (são do mesmo time e se conhecem
 		// desde o começo da partida), um mata-mata entre parceiros por engano entregava a rodada

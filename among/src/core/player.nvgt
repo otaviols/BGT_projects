@@ -88,8 +88,9 @@ class game_player {
 	// O delator: os impostores já foram avisados de quem ele é, e ele já soube quem são eles.
 	bool snitch_exposed = false;
 	bool snitch_told = false;
-	// O recrutador já usou o recrutamento desta partida.
+	// O recrutador já usou o recrutamento desta partida, e o mineiro já cavou o duto dele.
 	bool recruit_used = false;
+	bool mine_used = false;
 
 	// Disfarce do shapeshifter: o nome com que ele aparece PARA OS OUTROS, e por quanto tempo ainda.
 	// Vazio = ele mesmo. Tudo que conta um nome a outro jogador passa por display_name(), e é isso
@@ -351,6 +352,7 @@ class game_player {
 		snitch_exposed = false;
 		snitch_told = false;
 		recruit_used = false;
+		mine_used = false;
 		disguise_name = "";
 		disguise_remaining = 0.0;
 		invisible_remaining = 0.0;

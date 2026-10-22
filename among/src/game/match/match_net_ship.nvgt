@@ -83,6 +83,12 @@ mixin class match_net_ship_part {
 		if (my_role.can_sabotage) my_sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 	}
 
+	// O mineiro cavou um duto: entra no mapa, e os marcadores se refazem para ele começar a soar.
+	void on_vent_created(net_packet@ pkt) {
+		if (!map.add_mined_vent(pkt.get_string("id"), pkt.get_float("x"), pkt.get_float("y"), pkt.get_string("link"))) return;
+		refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
+	}
+
 	void on_vent_state(net_packet@ pkt) {
 		bool was_vented = is_vented;
 		is_vented = pkt.get_bool("vented");

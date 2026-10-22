@@ -741,6 +741,11 @@ impostor on their team. Neutrals cannot be recruited. The recruit hears that the
 and who their partners are, and the impostors hear who joined. Recruiting uses up the knife that time:
 the kill cooldown starts over.
 
+**Miner** (impostor). **Once per match**, the H key digs a **vent** where they stand, linked to the
+nearest vent network: from it you reach every vent of that network, and from each of them you reach it.
+Silently - the new vent is found like any other, by its marker and by the lid of whoever uses it. You
+cannot dig right next to an existing vent. The vent is gone at the end of the match.
+
 ### Neutral roles
 
 A **neutral** role is neither crew nor impostor: it has a win **of its own**. When that happens, the
@@ -767,7 +772,10 @@ recharge, already running when the match starts.
 
 **Executioner** (neutral). Starts with a **target**, a drawn crewmate, told along with the role. Wins
 alone if the target is **voted out**. If the target dies any other way, they become the **Jester** and
-are told right away. A target swallowed by the wolf does not count: they may come back.
+are told right away - or, if there is already a living Jester on the ship, they become that Jester's
+**Rival Jester**: they also win by being voted out, and get a few tasks (3, the room adjusts it on the
+Executioner screen); once done, the kill key starts working, but **only against the other Jester**. The
+Jester is told a rival appeared, but not who. A target swallowed by the wolf does not count: they may come back.
 
 **Arsonist** (neutral). The H key **douses** whoever is right next to them, with no sound and without
 the person noticing. Each time they hear how many living players are left, and Ctrl+H says **who** is

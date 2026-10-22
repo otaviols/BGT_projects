@@ -171,6 +171,10 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	string win_reason = "";
 	// Quem venceu SOZINHO quando o vencedor é um neutro (o Bobo expulso). 0 = nenhum.
 	uint64 neutral_winner_peer = 0;
+	// Os dutos que o mineiro cavou nesta partida (id, o duto em cuja rede entrou, onde fica). O mapa já os
+	// tem; isto é para o começo de partida de quem VOLTA depois de cair, que monta o mapa do zero.
+	array<string> mined_vent_ids, mined_vent_links;
+	array<float> mined_vent_x, mined_vent_y;
 	float elapsed_time = 0.0;
 
 	// Pacotes que nascem FORA do tick (uma morte pedida por um jogador, por exemplo) e que o tick

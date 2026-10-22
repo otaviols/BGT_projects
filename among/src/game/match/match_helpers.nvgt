@@ -156,6 +156,17 @@ void refresh_body_beacons(audio_manager@ audio, array<uint64>@ body_peers, array
 // equivalente daqui ao "esconder as tasks" do jogo original.
 // Fantasma mantém os marcadores mesmo com as comunicações fora: ele continua fazendo tarefas pelo
 // time e não tem como consertar painel nenhum - ver core/sabotage_rules.nvgt.
+// Os dutos do mineiro que já existiam quando este mapa foi montado (volta depois de cair, quem assiste).
+void apply_mined_vents(game_map@ map, json_array@ vents) {
+	for (uint i = 0; @vents != null && i < vents.length(); i++) {
+		json_object@ v = vents.get_object(i);
+		if (@v == null) continue;
+		var@ vx = v["x"];
+		var@ vy = v["y"];
+		map.add_mined_vent(string(v["id"]), safe_var_to_float(vx), safe_var_to_float(vy), string(v["link"]));
+	}
+}
+
 void refresh_landmark_beacons(audio_manager@ audio, game_map@ map, array<string>@ my_task_object_ids,
 		const string&in active_sabotage_id, role_traits@ role, bool alive) {
 	bool comms_down = player_abilities(role, alive).blinded_by_comms(active_sabotage_id);

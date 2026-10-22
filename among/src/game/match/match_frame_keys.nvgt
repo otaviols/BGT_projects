@@ -288,6 +288,8 @@ mixin class match_frame_keys_part {
 					dictionary@ ap = dictionary();
 					ap.set("seconds", "" + int(my_alert_remaining + 0.5));
 					speak(tr("role.alert_active", ap));
+				} else if (my_role.ability_id == ABILITY_MINE && is_vented) {
+					speak(tr("game.ghost_cannot_interact"));
 				} else if (my_role.ability_id == ABILITY_RECRUIT) {
 					// Mirado como o kill: o mais perto ao alcance, menos os parceiros.
 					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE, impostor_partner_peers, map);

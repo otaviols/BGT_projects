@@ -357,6 +357,9 @@ const float VULTURE_EAT_COOLDOWN_SECONDS = 20.0;
 const float VULTURE_BODIES_TO_WIN = 3.0;
 const float TRANSPORTER_COOLDOWN_SECONDS = 30.0;
 const float SNITCH_WARN_TASKS_LEFT = 1.0;
+const float RIVAL_JESTER_TASKS = 3.0;
+// O mineiro não cava colado num duto que já existe: seria um duto inútil, e dois marcadores no mesmo ponto.
+const float MINER_MIN_VENT_DISTANCE = 4.0;
 // O viciado: o intervalo entre uma alucinação e outra, e quanto dura o corpo falso. Os corpos falsos usam
 // ids a partir daqui, longe de qualquer peer de verdade, para o marcador deles nunca calar um corpo real.
 const float ADDICT_MIN_SECONDS = 40.0;

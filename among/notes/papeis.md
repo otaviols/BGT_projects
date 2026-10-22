@@ -473,6 +473,19 @@ Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 Sondas: `probe_roles_1_1` (estado, com controles), `probe_roles_1_1_net` (os pacotes pela rede) e os
 casos do cliente em `probe_match_packets`.
 
+**Mineiro e Bobo rival (2026-10-21, terceiro lote).**
+- **Mineiro:** `game_map.add_mined_vent` é a ÚNICA função que liga o duto novo à rede (ele leva a todos
+  da rede do duto mais próximo, e cada um passa a levar a ele) - o servidor (`try_mine`) e cada cliente
+  (`S_VENT_CREATED`; e o `mined_vents` do começo de partida e do assistir, para quem monta o mapa do zero)
+  chamam a mesma. **O mapa do servidor passou a ser REFEITO a cada partida** (`on_start_game`): era
+  montado só na criação da sala, e o duto cavado passaria para a partida seguinte.
+- **Bobo rival:** não é ligado na sala - nasce em `convert_lost_executioners` quando há um Bobo vivo; o
+  número de tarefas dele mora no CARRASCO (é na tela dele que o anfitrião o acha). As tarefas são dadas
+  na hora (`give_rival_tasks`: curtas, de uma fase, individuais, não visíveis - a visível é prova de
+  inocência) e não contam para a tripulação. `rival_kill_refusal` é a regra da faca dele, usada pelo
+  `try_kill` (recusa) e pelo `on_kill` (diz o porquê); a vitória é a do Bobo, pela capacidade
+  `SOLO_WIN_EJECTED`, sem código novo.
+
 **Delator, Recrutador, Bêbado e Viciado (2026-10-21, terceiro lote; protocolo 16).**
 - **Delator:** `snitch_news` (state_roles), conferido a cada tick da sala, devolve os avisos (quem ouve,
   chave, nomes) e o servidor manda; marcas `snitch_exposed`/`snitch_told` para cada aviso sair uma vez.

@@ -740,6 +740,13 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 			for (uint c = 0; c < viraram_bobo.length(); c++) {
 				game_player@ quem = lobby.find_player(viraram_bobo[c]);
 				if (@quem != null && reaches_client(quem)) send_role_changed(lobby, quem, "executioner_target_lost");
+				// Virou o RIVAL: os Bobos vivos ficam sabendo que ele existe, e não quem é.
+				if (@quem != null && quem.role_id == ROLE_RIVAL_JESTER) {
+					for (uint b = 0; b < lobby.players.length(); b++) {
+						game_player@ bobo = lobby.players[b];
+						if (bobo.alive && bobo.role_id == ROLE_JESTER && reaches_client(bobo)) send_error(bobo.peer_id, "role.rival_appeared");
+					}
+				}
 			}
 			// O que os bots PEDIRAM neste tick, executado pelos MESMOS tratadores dos jogadores (ver
 			// bot_request em game_state). Um pacote igual ao que o cliente mandaria, e nenhum atalho.

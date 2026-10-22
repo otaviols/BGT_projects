@@ -123,6 +123,19 @@ mixin class server_abilities_part {
 			message_key = "role.clean_done";
 			return true;
 		}
+		if (ability == ABILITY_MINE) {
+			string vent_id, link_id;
+			if (!lobby.try_mine(p.peer_id, vent_id, link_id, message_key)) return false;
+			// Todo mundo põe o duto no mapa dele (marcador incluído); ninguém ouve nada agora.
+			net_packet@ novo = net_packet(S_VENT_CREATED);
+			novo.set_string("id", vent_id);
+			novo.set_string("link", link_id);
+			novo.set_float("x", p.x);
+			novo.set_float("y", p.y);
+			broadcast_to_lobby(lobby, novo);
+			message_key = "role.mine_done";
+			return true;
+		}
 		if (ability == ABILITY_RECRUIT) {
 			string nome;
 			game_player@ alvo = lobby.find_player(pkt.get_uint64("target_peer_id"));

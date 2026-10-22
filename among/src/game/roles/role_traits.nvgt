@@ -50,6 +50,9 @@ const string ROLE_VULTURE = "vulture";
 const string ROLE_TRANSPORTER = "transporter";
 const string ROLE_SNITCH = "snitch";
 const string ROLE_RECRUITER = "recruiter";
+const string ROLE_MINER = "miner";
+// Não se liga na sala: nasce do Carrasco que perde o alvo com um Bobo já em jogo (convert_lost_executioners).
+const string ROLE_RIVAL_JESTER = "rival_jester";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -69,6 +72,7 @@ const string ABILITY_ALERT = "alert";         // veterano: por alguns segundos, 
 const string ABILITY_DEVOUR = "devour";       // abutre: come o corpo ao alcance; vence com N corpos
 const string ABILITY_TRANSPORT = "transport"; // transportador: dois jogadores trocam de lugar
 const string ABILITY_RECRUIT = "recruit";     // recrutador: um tripulante colado vira impostor (uma vez)
+const string ABILITY_MINE = "mine";           // mineiro: cava um duto onde está, na rede mais próxima (uma vez)
 // O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
 // mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
 const string ABILITY_ALARM = "alarm";
@@ -101,7 +105,7 @@ const string SOLO_WIN_DEVOUR = "devour";
 const array<string> CONFIGURABLE_ROLE_IDS = {
 	ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER, ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_MAYOR, ROLE_SWAPPER,
 	ROLE_DOCTOR, ROLE_VETERAN, ROLE_TRANSPORTER, ROLE_SNITCH,
-	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_POISONER, ROLE_RECRUITER,
+	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_POISONER, ROLE_RECRUITER, ROLE_MINER,
 	ROLE_JESTER, ROLE_WOLF, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC, ROLE_VULTURE};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
@@ -199,6 +203,7 @@ const string TUNABLE_GUESSES = "guesses";             // quantos palpites por re
 const string TUNABLE_WINDOW = "window";               // até quantos segundos depois da morte ainda dá (médico)
 const string TUNABLE_BODIES = "bodies";               // quantos corpos para vencer (abutre)
 const string TUNABLE_TASKS_LEFT = "tasks_left";       // faltando quantas tarefas os impostores descobrem o delator
+const string TUNABLE_RIVAL_TASKS = "rival_tasks";     // quantas tarefas o bobo rival faz para poder matar (no carrasco)
 
 class role_tunable {
 	string key;
@@ -669,6 +674,9 @@ role_traits@ role_carrier() {
 role_traits@ role_executioner() {
 	role_traits t;
 	t.id = ROLE_EXECUTIONER;
+	// O número é do bobo rival, mas mora aqui: o rival não se liga na sala, nasce do carrasco - e é na
+	// tela do carrasco que o anfitrião o encontra.
+	t.tunables.insert_last(role_tunable(TUNABLE_RIVAL_TASKS, RIVAL_JESTER_TASKS, 1.0, 10.0));
 	t.team = TEAM_NEUTRAL;
 	t.tasks_count_for_crew = false;
 	t.wins_with_crew = false;
@@ -804,7 +812,36 @@ role_traits@ role_recruiter() {
 	return t;
 }
 
+// Mineiro (do Town of Us): impostor que, UMA vez por partida (decisão do usuário), cava um duto onde
+// está, ligado à rede de dutos mais próxima. Em silêncio: o duto novo é descoberto como qualquer outro,
+// pelo marcador e pela tampa de quem o usar.
+role_traits@ role_miner() {
+	role_traits@ t = role_impostor();
+	t.id = ROLE_MINER;
+	t.ability_id = ABILITY_MINE;
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
+// Bobo rival (o "Dueling Dodo" do Goose Goose Duck, ideia do usuário): o Carrasco que perde o alvo com
+// um Bobo já em jogo vira rival dele. Vence como o Bobo, sendo expulso; ganha tarefas ao virar, e
+// terminadas elas o K mata - mas só o outro Bobo (em qualquer outro, "não dá"). O outro Bobo sabe que há
+// um rival, não quem (decisões do usuário, 2026-10-21).
+role_traits@ role_rival_jester() {
+	role_traits t;
+	t.id = ROLE_RIVAL_JESTER;
+	t.team = TEAM_NEUTRAL;
+	t.tasks_count_for_crew = false;
+	t.wins_with_crew = false;
+	t.solo_win = SOLO_WIN_EJECTED;
+	t.can_kill = true;
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_RIVAL_JESTER) return role_rival_jester();
+	if (role_id == ROLE_MINER) return role_miner();
 	if (role_id == ROLE_SNITCH) return role_snitch();
 	if (role_id == ROLE_RECRUITER) return role_recruiter();
 	if (role_id == ROLE_VETERAN) return role_veteran();

@@ -182,6 +182,84 @@ void main() {
 		confere("uma vez por partida", !g.try_recruit(4, 2, nome, fk) && fk == "role.recruit_used" && !g.find_player(2).is_impostor);
 	}
 
+	println("== mineiro ==");
+	{
+		game_state@ g = mesa();
+		game_player@ m = g.find_player(4);
+		m.set_role(ROLE_MINER);
+		map_object@ duto = g.map.find_object("vent_weapons");
+		m.x = duto.x + 1.0; m.y = duto.y;
+		string id, link, fk;
+		confere("colado num duto, nao cava", !g.try_mine(4, id, link, fk) && fk == "role.mine_too_close");
+		// Um ponto de tarefa qualquer longe dos dutos: dá para andar ali, e não é colado em duto.
+		array<map_object@>@ pontos = g.map.objects_by_type(OBJ_TASK_SPOT);
+		map_object@ longe = null;
+		for (uint i = 0; i < pontos.length(); i++) {
+			map_object@ v = g.map.find_object(g.map.nearest_vent_id(pontos[i].x, pontos[i].y));
+			if (distance_2d(pontos[i].x, pontos[i].y, v.x, v.y) > MINER_MIN_VENT_DISTANCE + 1.0) { @longe = pontos[i]; break; }
+		}
+		m.x = longe.x; m.y = longe.y;
+		bool cavou = g.try_mine(4, id, link, fk);
+		map_object@ novo = g.map.find_object(id);
+		confere("longe dos dutos, cava um duto ali, ligado a rede mais proxima (" + link + ")",
+			cavou && @novo != null && novo.obj_type == OBJ_VENT && novo.x == longe.x);
+		map_object@ base = g.map.find_object(link);
+		array<string>@ do_novo = g.map.vent_connections(novo);
+		array<string>@ da_base = g.map.vent_connections(base);
+		confere("a rede liga nos dois sentidos: o novo leva a base e a base leva ao novo",
+			do_novo.find(link) >= 0 && da_base.find(id) >= 0);
+		bool rede_toda = true;
+		for (uint i = 0; i < do_novo.length(); i++)
+			if (g.map.vent_connections(g.map.find_object(do_novo[i])).find(id) < 0) rede_toda = false;
+		confere("e todo duto daquela rede leva ao novo", rede_toda);
+		// Parâmetro &out é gravado na volta MESMO quando a função recusa antes de preenchê-lo: a recusa abaixo
+		// zera `id` e `link`. Guardados antes.
+		string id_cavado = id, link_cavado = link;
+		confere("uma vez por partida", !g.try_mine(4, id, link, fk) && fk == "role.mine_used");
+		id = id_cavado; link = link_cavado;
+		// Quem volta depois de cair monta o mapa do zero e aplica os dutos cavados: tem que dar o MESMO mapa.
+		game_map@ outro = build_the_hub_map();
+		outro.add_mined_vent(g.mined_vent_ids[0], g.mined_vent_x[0], g.mined_vent_y[0], g.mined_vent_links[0]);
+		confere("um mapa montado do zero com os mesmos dados fica com a mesma rede",
+			g.map.vent_connections(base).length() == outro.vent_connections(outro.find_object(link)).length()
+			&& @outro.find_object(id) != null);
+		confere("controle: o mapa novo de outra partida nao tem o duto", @build_the_hub_map().find_object(id) == null);
+	}
+
+	println("== bobo rival ==");
+	{
+		game_state@ g = mesa();
+		game_player@ carrasco = g.find_player(5);
+		carrasco.set_role(ROLE_EXECUTIONER);
+		carrasco.execution_target = 1;
+		g.find_player(2).set_role(ROLE_JESTER);
+		g.find_player(1).alive = false; // o alvo morreu sem ser expulso
+		array<uint64>@ viraram = g.convert_lost_executioners();
+		confere("com um Bobo em jogo, o carrasco sem alvo vira o Bobo RIVAL, com tarefas",
+			viraram.length() == 1 && carrasco.role_id == ROLE_RIVAL_JESTER && carrasco.tasks.length() == uint(RIVAL_JESTER_TASKS));
+		bool tarefas_validas = true;
+		for (uint i = 0; i < carrasco.tasks.length(); i++)
+			if (task_is_visible(carrasco.tasks[i].task_type) || task_is_common(carrasco.tasks[i].task_type)) tarefas_validas = false;
+		confere("e as tarefas dele nao sao visiveis nem comuns", tarefas_validas);
+		carrasco.x = 0.0; carrasco.y = 0.0;
+		net_packet@ ev;
+		confere("antes das tarefas, nao mata nem o Bobo", !g.try_kill(5, 2, ev) && g.find_player(2).alive
+			&& g.rival_kill_refusal(carrasco, g.find_player(2)) == "role.rival_tasks_left");
+		for (uint i = 0; i < carrasco.tasks.length(); i++) carrasco.tasks[i].completed = true;
+		confere("com as tarefas feitas, outro que nao o Bobo: nao da", !g.try_kill(5, 3, ev) && g.find_player(3).alive
+			&& g.rival_kill_refusal(carrasco, g.find_player(3)) == "role.rival_only_jester");
+		confere("e o Bobo, sim", g.try_kill(5, 2, ev) && !g.find_player(2).alive);
+	}
+	{
+		game_state@ g = mesa();
+		game_player@ carrasco = g.find_player(5);
+		carrasco.set_role(ROLE_EXECUTIONER);
+		carrasco.execution_target = 1;
+		g.find_player(1).alive = false;
+		g.convert_lost_executioners();
+		confere("controle: sem Bobo em jogo, o carrasco sem alvo vira Bobo comum, como antes", carrasco.role_id == ROLE_JESTER);
+	}
+
 	println("== delator ==");
 	{
 		game_state@ g = mesa();

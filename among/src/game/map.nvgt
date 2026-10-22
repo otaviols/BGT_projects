@@ -439,6 +439,38 @@ class game_map {
 		return null;
 	}
 
+	// O duto mais perto de um ponto ("" = o mapa não tem duto).
+	string nearest_vent_id(float x, float y) const {
+		string melhor = "";
+		float menor = 1e9;
+		for (uint i = 0; i < objects.length(); i++) {
+			map_object@ o = objects[i];
+			if (o.obj_type != OBJ_VENT) continue;
+			float d = distance_2d(x, y, o.x, o.y);
+			if (d < menor) { menor = d; melhor = o.id; }
+		}
+		return melhor;
+	}
+
+	// O duto que o MINEIRO cava, entrando na rede de `link_vent_id`: ele passa a levar a todos daquela
+	// rede, e cada um deles passa a levar a ele. O servidor e cada cliente chamam ESTA função com os
+	// mesmos dados (S_VENT_CREATED, e o `mined_vents` do começo de partida para quem volta) - escrita
+	// duas vezes, uma rede divergiria da outra e o duto levaria a lugares diferentes em cada máquina.
+	bool add_mined_vent(const string&in id, float x, float y, const string&in link_vent_id) {
+		map_object@ base = find_object(link_vent_id);
+		map_zone@ z = zone_at(x, y);
+		if (@base == null || base.obj_type != OBJ_VENT || @find_object(id) != null || @z == null) return false;
+		array<string>@ rede = vent_connections(base);
+		rede.insert_last(base.id);
+		for (uint i = 0; i < rede.length(); i++) {
+			map_object@ o = find_object(rede[i]);
+			if (@o != null) o.linked_object_id += "," + id;
+		}
+		objects.insert_last(map_object(id, "object.vent_mined", x, y, z.id, OBJ_VENT, SND_VENT_DOOR_1, "",
+			join(rede, ","), SND_VENT_BEACON));
+		return true;
+	}
+
 	// IDs de todo vent conectado a este (mesma rede) - ver linked_object_id, que guarda vários IDs
 	// separados por vírgula em vez de um destino fixo só.
 	array<string>@ vent_connections(map_object@ vent) const {
