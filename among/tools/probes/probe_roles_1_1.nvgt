@@ -168,6 +168,42 @@ void main() {
 		confere("morto, nao", !g.try_transport(1, 2, 3, fk));
 	}
 
+	println("== recrutador ==");
+	{
+		game_state@ g = mesa();
+		g.find_player(4).set_role(ROLE_RECRUITER);
+		g.find_player(5).set_role(ROLE_JESTER);
+		g.find_player(4).kill_cooldown_remaining = 0.0;
+		string nome, fk;
+		confere("neutro nao e recrutado, e a recusa e a mesma do ninguem ao alcance",
+			!g.try_recruit(4, 5, nome, fk) && fk == "role.recruit_no_target" && g.find_player(5).role_id == ROLE_JESTER);
+		confere("recruta o tripulante colado: ele vira impostor", g.try_recruit(4, 1, nome, fk) && g.find_player(1).is_impostor);
+		confere("e recrutar gasta a faca daquela recarga", g.find_player(4).kill_cooldown_remaining == g.kill_cooldown_for(g.find_player(4)));
+		confere("uma vez por partida", !g.try_recruit(4, 2, nome, fk) && fk == "role.recruit_used" && !g.find_player(2).is_impostor);
+	}
+
+	println("== delator ==");
+	{
+		game_state@ g = mesa();
+		game_player@ d = g.find_player(1);
+		d.set_role(ROLE_SNITCH);
+		array<map_object@>@ spots = g.map.objects_by_type(OBJ_TASK_SPOT);
+		for (uint k = 1; k <= 2; k++) { player_task tk; tk.object_id = spots[k].id; tk.task_type = spots[k].task_type; d.tasks.insert_last(tk); }
+		array<uint64> quem; array<string> chave, nomes;
+		g.snitch_news(quem, chave, nomes);
+		confere("com 3 tarefas pendentes, ninguem fica sabendo de nada", quem.length() == 0);
+		d.tasks[0].completed = true; d.tasks[1].completed = true;
+		g.snitch_news(quem, chave, nomes);
+		confere("faltando 1, o impostor (e so ele) descobre quem e o delator",
+			quem.length() == 1 && quem[0] == 4 && chave[0] == "role.snitch_exposed" && nomes[0] == "j1");
+		quem.resize(0); chave.resize(0); nomes.resize(0);
+		g.snitch_news(quem, chave, nomes);
+		confere("e o aviso nao se repete", quem.length() == 0);
+		d.tasks[2].completed = true;
+		g.snitch_news(quem, chave, nomes);
+		confere("terminou tudo: o delator descobre os impostores", quem.length() == 1 && quem[0] == 1 && chave[0] == "role.snitch_found" && nomes[0] == "j4");
+	}
+
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

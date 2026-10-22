@@ -1,0 +1,82 @@
+// match_addict.nvgt
+// O VICIADO (modificador): de tempos em tempos ele ouve o que não aconteceu.
+//
+// Parte da match_session (src/game/game_loop.nvgt), como `mixin class`. Os campos moram lá; os métodos
+// aqui. Tudo é do cliente DELE: o servidor nem sabe que houve alucinação, e nenhum outro jogador ouve.
+//
+// Decisões do usuário (2026-10-21): ele SABE que é viciado (sem saber, acharia que o jogo está com
+// defeito); a alucinação é uma morte ao lado, passos passando ou um corpo no chão; reportar o corpo falso
+// responde "não há corpo ao seu alcance" (é o servidor, que não acha corpo nenhum); e NADA disto entra no
+// histórico (PageUp), que é o registro do que aconteceu de verdade.
+
+mixin class match_addict_part {
+	void addict_tick(float delta) {
+		// Os passos já agendados de uma alucinação, um a um.
+		for (int i = int(addict_step_at.length()) - 1; i >= 0; i--) {
+			addict_step_at[i] -= delta;
+			if (addict_step_at[i] > 0.0) continue;
+			float sx = addict_step_x[i], sy = addict_step_y[i];
+			map_zone@ z = map.zone_at(sx, sy);
+			string piso = @z != null ? z.floor_sound_prefix : "Tile";
+			audio.play_footstep(piso, footstep_variant_count(piso), sx, sy);
+			addict_step_at.remove_at(i);
+			addict_step_x.remove_at(i);
+			addict_step_y.remove_at(i);
+		}
+		// O corpo falso some sozinho depois de um tempo.
+		for (int i = int(addict_body_left.length()) - 1; i >= 0; i--) {
+			addict_body_left[i] -= delta;
+			if (addict_body_left[i] > 0.0) continue;
+			audio.stop_body_beacon(addict_body_peers[i]);
+			addict_forget_body(i);
+		}
+		if (trait_modifier_id != MOD_ADDICT || !alive || movement_frozen || is_vented || swallowed) return;
+		addict_next -= delta;
+		if (addict_next > 0.0) return;
+		addict_next = random_range(ADDICT_MIN_SECONDS, ADDICT_MAX_SECONDS);
+
+		// Um ponto ao redor dele, perto o bastante para soar, longe o bastante para ele ter que ir ver.
+		float angulo = random_range(0.0, 6.2832);
+		float dist = random_range(4.0, 9.0);
+		float x = my_x + cos(angulo) * dist, y = my_y + sin(angulo) * dist;
+		int tipo = random(0, 2);
+		// O corpo só onde dá para andar: um corpo dentro da parede seria a pista de que é alucinação.
+		if (tipo == 2 && @map.zone_at(x, y) == null) tipo = 0;
+		if (tipo == 0) {
+			array<int>@ cores = all_color_ids();
+			audio.play_death(cores[random(0, int(cores.length()) - 1)], x, y);
+		} else if (tipo == 1) {
+			// Seis passos atravessando, perpendiculares à direção dele, no ritmo de quem anda.
+			float px = -sin(angulo), py = cos(angulo);
+			for (int k = 0; k < 6; k++) {
+				addict_step_at.insert_last(0.45 * k);
+				addict_step_x.insert_last(x + px * (k - 2.5) * 0.7);
+				addict_step_y.insert_last(y + py * (k - 2.5) * 0.7);
+			}
+		} else {
+			addict_body_serial++;
+			uint64 id = ADDICT_FAKE_BODY_BASE + addict_body_serial;
+			audio.start_body_beacon(id, x, y);
+			addict_body_peers.insert_last(id);
+			addict_body_x.insert_last(x);
+			addict_body_y.insert_last(y);
+			addict_body_left.insert_last(ADDICT_BODY_SECONDS);
+		}
+	}
+
+	// Ele foi reportar: o corpo falso ao alcance some (e o servidor responde que não há corpo ali).
+	void addict_forget_bodies_near() {
+		for (int i = int(addict_body_peers.length()) - 1; i >= 0; i--) {
+			if (distance_2d(my_x, my_y, addict_body_x[i], addict_body_y[i]) > PLAYER_REPORT_RANGE * 2.0) continue;
+			audio.stop_body_beacon(addict_body_peers[i]);
+			addict_forget_body(i);
+		}
+	}
+
+	private void addict_forget_body(int i) {
+		addict_body_peers.remove_at(i);
+		addict_body_x.remove_at(i);
+		addict_body_y.remove_at(i);
+		addict_body_left.remove_at(i);
+	}
+}

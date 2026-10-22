@@ -724,6 +724,17 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 				if (reaches_client(quem)) send_to(quem.peer_id, dele);
 			}
 			report_bait_bodies(lobby);
+			// O delator: os avisos de quem ele é (aos impostores) e de quem são eles (a ele).
+			array<uint64> quem_ouve;
+			array<string> chaves, nomes_delator;
+			lobby.snitch_news(quem_ouve, chaves, nomes_delator);
+			for (uint d = 0; d < quem_ouve.length(); d++) {
+				game_player@ ouvinte = lobby.find_player(quem_ouve[d]);
+				if (@ouvinte == null || !reaches_client(ouvinte)) continue;
+				dictionary@ dp = dictionary();
+				dp.set("names", nomes_delator[d]);
+				send_error(quem_ouve[d], chaves[d], dp);
+			}
 			// O carrasco que perdeu o alvo neste tick vira Bobo, e só ele fica sabendo.
 			array<uint64>@ viraram_bobo = lobby.convert_lost_executioners();
 			for (uint c = 0; c < viraram_bobo.length(); c++) {

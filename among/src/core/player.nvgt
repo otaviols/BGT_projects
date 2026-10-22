@@ -85,6 +85,11 @@ class game_player {
 	float poison_remaining = 0.0;
 	// Corpos que o abutre já comeu.
 	uint bodies_eaten = 0;
+	// O delator: os impostores já foram avisados de quem ele é, e ele já soube quem são eles.
+	bool snitch_exposed = false;
+	bool snitch_told = false;
+	// O recrutador já usou o recrutamento desta partida.
+	bool recruit_used = false;
 
 	// Disfarce do shapeshifter: o nome com que ele aparece PARA OS OUTROS, e por quanto tempo ainda.
 	// Vazio = ele mesmo. Tudo que conta um nome a outro jogador passa por display_name(), e é isso
@@ -343,6 +348,9 @@ class game_player {
 		poisoned_by = 0;
 		poison_remaining = 0.0;
 		bodies_eaten = 0;
+		snitch_exposed = false;
+		snitch_told = false;
+		recruit_used = false;
 		disguise_name = "";
 		disguise_remaining = 0.0;
 		invisible_remaining = 0.0;

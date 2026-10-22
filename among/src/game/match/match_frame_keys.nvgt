@@ -240,7 +240,10 @@ mixin class match_frame_keys_part {
 
 			if (action_pressed(ACTION_REPORT)) {
 				// Capacidade, e não "está vivo?": um papel futuro pode não poder reportar mesmo vivo.
-				if (player_abilities(my_role, alive).can_report_bodies()) crew.report_body();
+				if (player_abilities(my_role, alive).can_report_bodies()) {
+					addict_forget_bodies_near(); // o corpo alucinado some ao ser tocado
+					crew.report_body();
+				}
 				else speak(tr("game.ghost_cannot_interact")); // fantasma não reporta corpo, só faz task
 			}
 
@@ -285,6 +288,11 @@ mixin class match_frame_keys_part {
 					dictionary@ ap = dictionary();
 					ap.set("seconds", "" + int(my_alert_remaining + 0.5));
 					speak(tr("role.alert_active", ap));
+				} else if (my_role.ability_id == ABILITY_RECRUIT) {
+					// Mirado como o kill: o mais perto ao alcance, menos os parceiros.
+					roster_entry@ alvo = roster.nearest_alive(my_x, my_y, client.my_peer_id, PLAYER_KILL_RANGE, impostor_partner_peers, map);
+					if (@alvo == null) speak(tr("role.recruit_no_target"));
+					else client.send_use_ability(my_role.ability_id, alvo.peer_id);
 				} else if (my_role.ability_id == ABILITY_TRANSPORT) {
 					run_transport_menu(client, roster);
 				} else if (my_role.ability_id == ABILITY_SHAPESHIFT) {

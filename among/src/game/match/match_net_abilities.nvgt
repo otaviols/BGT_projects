@@ -209,7 +209,8 @@ mixin class match_net_abilities_part {
 		// Marcadores e sabotagem dependem do papel (o impostor não ouve as próprias tarefas como tripulante).
 		apply_sabotage_effects(audio, mui, map, my_task_object_ids, active_sabotage_id,
 			my_role, alive, known_body_peers, known_body_positions);
-		string texto = tr(pkt.get_string("reason") == "executioner_target_lost" ? "role.executioner_lost_target" : "role.remembered");
+		string motivo = pkt.get_string("reason");
+		string texto = tr(motivo == "executioner_target_lost" ? "role.executioner_lost_target" : (motivo == "recruited" ? "role.recruited" : "role.remembered"));
 		texto += " " + role_intro_text(my_role);
 		if (nomes.length() > 0) {
 			dictionary@ np = dictionary();

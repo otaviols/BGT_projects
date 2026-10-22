@@ -473,6 +473,22 @@ Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 Sondas: `probe_roles_1_1` (estado, com controles), `probe_roles_1_1_net` (os pacotes pela rede) e os
 casos do cliente em `probe_match_packets`.
 
+**Delator, Recrutador, Bêbado e Viciado (2026-10-21, terceiro lote; protocolo 16).**
+- **Delator:** `snitch_news` (state_roles), conferido a cada tick da sala, devolve os avisos (quem ouve,
+  chave, nomes) e o servidor manda; marcas `snitch_exposed`/`snitch_told` para cada aviso sair uma vez.
+  Só o delator VIVO.
+- **Recrutador:** `try_recruit` troca o papel do alvo para impostor e o servidor reaproveita o
+  `send_role_changed` do amnésico, com o motivo `recruited` - que escolhe a frase dos impostores
+  (`role.teammate_recruited`, e não a do amnésico, "se lembrou de quem é"). Mirar em neutro recusa com a
+  MESMA frase do "ninguém ao alcance", para não contar que aquela pessoa é neutra.
+- **Bêbado:** a inversão é no `move()` do cliente, depois de ler as teclas - os gestos do Android viram
+  as mesmas teclas e invertem junto.
+- **Viciado:** tudo no cliente dele (`match_addict.nvgt`); o servidor nem sabe. Os corpos falsos usam
+  ids a partir de `ADDICT_FAKE_BODY_BASE`, longe de qualquer peer, para o marcador nunca calar um corpo
+  real. **O reporte sem corpo deixou de ser calado** (`role.no_body_near`, para todo mundo): era o único
+  jeito de o viciado separar o que ouviu do que existe.
+Sondas: os casos em `probe_roles_1_1` e em `probe_match_packets` (viciado, com controle; bêbado).
+
 **Isca, Doente e Lanterninha (2026-10-21, do Town of Us; protocolo 16): os modificadores de TRAÇO.** Um
 campo só (`game_player.trait_modifier`), ao lado da velocidade e do par; a morte tira, como os outros.
 **UM modificador por pessoa, no total** - par, velocidade OU traço (decisão do usuário; até ali dava para

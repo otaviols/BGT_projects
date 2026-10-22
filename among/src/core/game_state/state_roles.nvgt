@@ -285,6 +285,52 @@ mixin class state_roles_part {
 		return true;
 	}
 
+	// O recrutador transforma o tripulante colado nele em impostor, uma vez por partida. Recrutar gasta a
+	// faca daquela recarga (decisão do usuário): o time ganha um, e ele perde o próximo kill.
+	bool try_recruit(uint64 peer, uint64 target_peer, string&out target_name, string&out fail_key) {
+		game_player@ p = find_player(peer);
+		game_player@ t = find_player(target_peer);
+		if (@p == null || !p.alive) { fail_key = "game.ghost_cannot_interact"; return false; }
+		if (p.recruit_used) { fail_key = "role.recruit_used"; return false; }
+		if (@t == null || !t.alive || t.peer_id == p.peer_id || distance_2d(p.x, p.y, t.x, t.y) > PLAYER_KILL_RANGE
+				|| map.door_blocks(p.x, p.y, t.x, t.y)) { fail_key = "role.recruit_no_target"; return false; }
+		// Só tripulante. Mirar num neutro ou num parceiro não acontece e não gasta - e a recusa é a mesma
+		// do "ninguém ao alcance", para não contar ao recrutador que aquela pessoa é neutra.
+		if (t.role().team != TEAM_CREW) { fail_key = "role.recruit_no_target"; return false; }
+		t.set_role(ROLE_IMPOSTOR);
+		t.kill_cooldown_remaining = kill_cooldown_for(t);
+		p.recruit_used = true;
+		p.kill_cooldown_remaining = kill_cooldown_for(p);
+		target_name = t.public_name();
+		return true;
+	}
+
+	// O DELATOR, conferido a cada tick da sala: faltando poucas tarefas, os impostores vivos descobrem
+	// quem ele é (uma vez); com todas feitas, ele descobre quem são os impostores (uma vez). Só o delator
+	// VIVO: morto, ele já não conta a ninguém, e os impostores não precisam mais caçá-lo. Devolve os avisos
+	// como pares (quem ouve, chave, nome) - quem manda é o servidor.
+	void snitch_news(array<uint64>@ quem, array<string>@ chave, array<string>@ nomes) {
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ d = players[i];
+			if (!d.alive || d.role_id != ROLE_SNITCH) continue;
+			uint faltam = 0;
+			for (uint k = 0; k < d.tasks.length(); k++) if (!d.tasks[k].completed) faltam++;
+			if (!d.snitch_exposed && faltam <= uint(config.role_value(ROLE_SNITCH, TUNABLE_TASKS_LEFT) + 0.5)) {
+				d.snitch_exposed = true;
+				for (uint k = 0; k < players.length(); k++) {
+					if (!players[k].alive || !players[k].is_impostor) continue;
+					quem.insert_last(players[k].peer_id); chave.insert_last("role.snitch_exposed"); nomes.insert_last(d.public_name());
+				}
+			}
+			if (!d.snitch_told && faltam == 0) {
+				d.snitch_told = true;
+				array<string> impostores;
+				for (uint k = 0; k < players.length(); k++) if (players[k].is_impostor) impostores.insert_last(players[k].public_name());
+				quem.insert_last(d.peer_id); chave.insert_last("role.snitch_found"); nomes.insert_last(join(impostores, ", "));
+			}
+		}
+	}
+
 	bool is_carrying(uint64 peer) const { return carrier_peers.find(peer) != -1; }
 
 	bool try_pick_body(uint64 peer, uint64&out victim, string&out fail_key) {

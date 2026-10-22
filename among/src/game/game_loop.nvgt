@@ -42,6 +42,7 @@
 #include "match/match_net_end.nvgt"
 #include "match/match_frame_update.nvgt"
 #include "match/match_frame_keys.nvgt"
+#include "match/match_addict.nvgt"
 
 // As teclas do jogo não são mais constantes: vêm do mapa remapeável do jogador, em
 // config/keybindings.nvgt. Aqui se pergunta pela AÇÃO (action_pressed(ACTION_KILL)), nunca pela
@@ -62,7 +63,7 @@
 // Era uma função só (run_game) com dezenas de variáveis locais; virou classe para poder ser dividida
 // por assunto e exercitada por sonda sem teclado nem janela. O porquê de cada campo está onde ele é
 // inicializado, no construtor - que é o antigo começo da função, na mesma ordem.
-class match_session : match_net_presence_part, match_net_death_part, match_net_meeting_part, match_net_tasks_part, match_net_ship_part, match_net_abilities_part, match_net_end_part, match_frame_update_part, match_frame_keys_part {
+class match_session : match_net_presence_part, match_net_death_part, match_net_meeting_part, match_net_tasks_part, match_net_ship_part, match_net_abilities_part, match_net_end_part, match_frame_update_part, match_frame_keys_part, match_addict_part {
 	game_client@ client;
 	net_packet@ start_pkt;
 	game_map@ map;
@@ -84,6 +85,13 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	float my_invisible_remaining;
 	// O alerta do veterano, só para a tecla responder "faltam N segundos" sem gastar a recarga.
 	float my_alert_remaining;
+	// O viciado (ver match_addict): quanto falta para a próxima alucinação, os passos agendados de uma, e
+	// os corpos falsos no chão (o id do marcador, onde está e quanto ainda dura).
+	float addict_next;
+	array<float> addict_step_at, addict_step_x, addict_step_y;
+	array<uint64> addict_body_peers;
+	array<float> addict_body_x, addict_body_y, addict_body_left;
+	uint64 addict_body_serial;
 	bool target_was_in_range;
 	roster_entry@ target_in_range_entry;
 	bool alive;
@@ -225,6 +233,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// responder na hora e para o microfone não abrir à toa.
 		my_invisible_remaining = 0.0;
 		my_alert_remaining = 0.0;
+		// A primeira alucinação não vem logo de cara: o começo da partida já tem barulho que chegue.
+		addict_next = ADDICT_MIN_SECONDS;
+		addict_body_serial = 0;
 		// Bip de alvo ao alcance: guarda se havia alguém no quadro anterior, para o bip tocar na
 		// TRANSIÇÃO e não a cada quadro.
 		target_was_in_range = false;
@@ -520,6 +531,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		tick_timers(delta);
 		audio.tick_visible_tasks(); // os disparos da arma de quem limpa asteroides por perto
 		opening_tick();
+		addict_tick(delta);
 
 		target_in_range_beep();
 

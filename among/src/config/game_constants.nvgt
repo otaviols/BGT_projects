@@ -356,6 +356,13 @@ const float POISON_DELAY_SECONDS = 10.0;
 const float VULTURE_EAT_COOLDOWN_SECONDS = 20.0;
 const float VULTURE_BODIES_TO_WIN = 3.0;
 const float TRANSPORTER_COOLDOWN_SECONDS = 30.0;
+const float SNITCH_WARN_TASKS_LEFT = 1.0;
+// O viciado: o intervalo entre uma alucinação e outra, e quanto dura o corpo falso. Os corpos falsos usam
+// ids a partir daqui, longe de qualquer peer de verdade, para o marcador deles nunca calar um corpo real.
+const float ADDICT_MIN_SECONDS = 40.0;
+const float ADDICT_MAX_SECONDS = 90.0;
+const float ADDICT_BODY_SECONDS = 40.0;
+const uint64 ADDICT_FAKE_BODY_BASE = 0x7FFF000000000000;
 
 const float LIGHTS_OUT_AUDIO_RANGE_MULTIPLIER = 0.4; // reduz alcance de áudio ambiente durante sabotagem
 // Alcance de audição normal, fora de apagão. Era um 40 solto repetido em cada ponto que liga e

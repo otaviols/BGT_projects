@@ -717,6 +717,10 @@ on the ship, and those two **swap places** at once. The Transporter can be one o
 they were transported and where to; nobody else is told. Whoever is inside a vent cannot be
 transported. The default cooldown is 30 seconds.
 
+**Snitch** (crew). An ordinary crewmate, until the tasks: after finishing **all** of them, they find
+out who the impostors are. But with **one** left (the room adjusts it), the impostors find out who they
+are. That is the race: finish before being found.
+
 **Janitor** (impostor). Near a body, the H key makes it **disappear**: nobody finds or reports it
 anymore, and the body sound stops. Whoever is nearby hears the cleaning, where it happens. The default
 cooldown is 30 seconds.
@@ -731,6 +735,11 @@ their steps. If the Carrier dies while carrying, the body stays there.
 that, not even them, and whoever is next to them when they fall sees no one killing. If time runs out
 during a meeting, they fall when the meeting ends. The cooldown is the kill cooldown, and it starts at
 the poisoning.
+
+**Recruiter** (impostor). **Once per match**, the H key turns the **crewmate** right next to them into an
+impostor on their team. Neutrals cannot be recruited. The recruit hears that they became an impostor
+and who their partners are, and the impostors hear who joined. Recruiting uses up the knife that time:
+the kill cooldown starts over.
 
 ### Neutral roles
 
@@ -799,6 +808,11 @@ one hears it along with the role. **Each person gets at most one modifier.** Bot
 - **Torch:** with the **lights out**, keeps hearing everything as usual: the sound range, the bodies,
   the radar and who killed right next to them. They are the only one on the ship; not even the impostor
   escapes the blackout. Never given to an impostor.
+- **Drunk:** walks with the directions **reversed** - to go north, walk south. Only the walking: menus,
+  tasks and voting stay normal.
+- **Addict:** every now and then hears a death nearby, footsteps passing or a body on the floor that
+  **do not exist**. Only they hear it, and none of it goes into the history. Reporting the body that does
+  not exist answers that there is no body there (and, for anyone, pressing R away from a body now says so).
 
 **Death removes modifiers.** Whoever dies stops being Flash, Giant, a lover, bait, diseased or a torch. If the doctor revives
 someone, they come back alone, at normal speed and without a partner: the other lover stays dead, and

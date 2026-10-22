@@ -256,6 +256,9 @@ mixin class match_frame_update_part {
 			if (action_down(ACTION_MOVE_SOUTH)) dy += 1.0;
 			if (action_down(ACTION_MOVE_WEST)) dx -= 1.0;
 			if (action_down(ACTION_MOVE_EAST)) dx += 1.0;
+			// O BÊBADO anda ao contrário - só o andar: menus, tarefas e votação seguem normais, senão ele
+			// nem conseguiria votar. Os gestos do Android viram as mesmas teclas, e invertem junto.
+			if (trait_modifier_id == MOD_DRUNK) { dx = -dx; dy = -dy; }
 
 			if (dx != 0.0 || dy != 0.0) {
 				float len = sqrt(dx * dx + dy * dy);

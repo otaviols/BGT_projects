@@ -224,6 +224,25 @@ void main() {
 	tr2.handle_packet(foi);
 	confere("transportado: a posicao e a que o servidor mandou", tr2.my_x == 7.5 && tr2.my_y == -3.0);
 
+	println("== viciado e bebado (cliente) ==");
+	match_session@ vi = nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, true, null, MOD_ADDICT);
+	uint historico = vi.events_log.lines.length();
+	// Força trinta alucinações seguidas: cada uma sorteia morte, passos ou corpo.
+	for (int k = 0; k < 30; k++) { vi.addict_next = 0.0; vi.addict_tick(0.01); }
+	confere("o viciado alucina (corpos falsos: " + vi.addict_body_peers.length() + ", passos: " + vi.addict_step_at.length() + ")",
+		vi.addict_body_peers.length() > 0 && vi.addict_step_at.length() > 0);
+	confere("e nada disso entra no historico", vi.events_log.lines.length() == historico);
+	confere("a proxima alucinacao fica para depois", vi.addict_next >= ADDICT_MIN_SECONDS);
+	vi.my_x = vi.addict_body_x[0]; vi.my_y = vi.addict_body_y[0];
+	uint antes = vi.addict_body_peers.length();
+	vi.addict_forget_bodies_near();
+	confere("indo reportar, o corpo falso some", vi.addict_body_peers.length() < antes);
+	match_session@ sem_vicio = nova_partida(ROLE_CREWMATE);
+	for (int k = 0; k < 30; k++) { sem_vicio.addict_next = 0.0; sem_vicio.addict_tick(0.01); }
+	confere("controle: quem nao e viciado nao alucina", sem_vicio.addict_body_peers.length() == 0 && sem_vicio.addict_step_at.length() == 0);
+	match_session@ be = nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, true, null, MOD_DRUNK);
+	confere("o bebado sabe que e bebado", be.trait_modifier_id == MOD_DRUNK && be.current_role_text().find(tr("role.drunk")) >= 0);
+
 	println("== lanterninha ==");
 	match_session@ lt = nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, true, null, MOD_TORCH);
 	match_session@ sem_lt = nova_partida(ROLE_CREWMATE);

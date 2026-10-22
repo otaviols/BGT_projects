@@ -710,6 +710,10 @@ qualquer lugar da nave, e elas **trocam de lugar** na hora. Ele pode ser uma del
 foram transportadas e para onde; mais ninguém fica sabendo. Quem está num duto não pode ser
 transportado. A recarga padrão é de 30 segundos.
 
+**Delator** (tripulação). Um tripulante comum, até as tarefas: ao terminar **todas**, ele descobre
+quem são os impostores. Mas, faltando **uma** (a sala ajusta), os impostores descobrem quem ele é. A
+corrida é essa: terminar antes que o achem.
+
 **Lixeiro** (impostor). Perto de um corpo, a tecla H o faz **sumir**: ninguém mais o encontra nem o
 reporta, e o som do corpo para. Quem estiver perto ouve a limpeza, no lugar onde ela acontece. A
 recarga padrão é de 30 segundos.
@@ -723,6 +727,11 @@ morrer carregando, o corpo fica ali.
 pessoa **cai 10 segundos depois** (a sala ajusta), onde estiver. Ninguém percebe nada antes, nem ela, e
 quem estava ao lado quando ela cai não vê ninguém matar. Se o tempo acabar durante uma reunião, ela cai
 quando a reunião termina. A recarga é a do kill, e começa no envenenamento.
+
+**Recrutador** (impostor). **Uma vez por partida**, a tecla H transforma o **tripulante** colado nele em
+impostor, do time dele. Neutro não pode ser recrutado. O recrutado ouve que virou impostor e quem são
+os parceiros, e os impostores ouvem quem entrou. Recrutar gasta a faca daquela vez: a recarga do kill
+recomeça.
 
 ### Papéis neutros
 
@@ -785,6 +794,11 @@ Quem recebe um ouve junto com o papel. **Cada pessoa recebe no máximo um modifi
 - **Lanterninha:** com as **luzes apagadas**, continua ouvindo tudo como sempre: o alcance do som, os
   corpos, o radar e quem matou ao lado dele. É o único na nave; nem o impostor escapa do apagão. Nunca
   sai para impostor.
+- **Bêbado:** anda com as direções **invertidas** - para ir ao norte, ande para o sul. Só o andar: os
+  menus, as tarefas e a votação continuam normais.
+- **Viciado:** de vez em quando ouve uma morte ao lado, passos passando ou um corpo no chão que **não
+  existem**. Só ele ouve, e nada disso fica no histórico. Reportar o corpo que não existe responde que
+  não há corpo ali (e, para qualquer um, apertar R longe de um corpo agora diz isso).
 
 **A morte tira os modificadores.** Quem morre deixa de ser Flash, Gigante, apaixonado, isca, doente ou
 lanterninha. Se o médico

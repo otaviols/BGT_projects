@@ -48,6 +48,8 @@ const string ROLE_VETERAN = "veteran";
 const string ROLE_POISONER = "poisoner";
 const string ROLE_VULTURE = "vulture";
 const string ROLE_TRANSPORTER = "transporter";
+const string ROLE_SNITCH = "snitch";
+const string ROLE_RECRUITER = "recruiter";
 
 // Ids das habilidades ativas, despachadas no servidor por este nome (ver run_ability).
 const string ABILITY_REMOTE_FIX = "remote_fix";
@@ -66,6 +68,7 @@ const string ABILITY_REVIVE = "revive"; // médico: traz de volta o morto ao alc
 const string ABILITY_ALERT = "alert";         // veterano: por alguns segundos, quem tentar matá-lo morre no lugar
 const string ABILITY_DEVOUR = "devour";       // abutre: come o corpo ao alcance; vence com N corpos
 const string ABILITY_TRANSPORT = "transport"; // transportador: dois jogadores trocam de lugar
+const string ABILITY_RECRUIT = "recruit";     // recrutador: um tripulante colado vira impostor (uma vez)
 // O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
 // mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
 const string ABILITY_ALARM = "alarm";
@@ -97,8 +100,8 @@ const string SOLO_WIN_DEVOUR = "devour";
 // o agrupamento. A ordem não pesa em mais nada: o sorteio embaralha as vagas (draw_special_roles).
 const array<string> CONFIGURABLE_ROLE_IDS = {
 	ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER, ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_MAYOR, ROLE_SWAPPER,
-	ROLE_DOCTOR, ROLE_VETERAN, ROLE_TRANSPORTER,
-	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_POISONER,
+	ROLE_DOCTOR, ROLE_VETERAN, ROLE_TRANSPORTER, ROLE_SNITCH,
+	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_POISONER, ROLE_RECRUITER,
 	ROLE_JESTER, ROLE_WOLF, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC, ROLE_VULTURE};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
@@ -125,8 +128,10 @@ const string MOD_GIANT = "giant";   // anda 50% mais devagar
 const string MOD_BAIT = "bait";         // isca: quem a mata reporta o corpo NA HORA
 const string MOD_DISEASED = "diseased"; // doente: quem o mata fica com a recarga do kill mais longa
 const string MOD_TORCH = "torch";       // lanterninha: as luzes apagadas não o atingem
-const array<string> TRAIT_MODIFIER_IDS = {MOD_BAIT, MOD_DISEASED, MOD_TORCH};
-const array<string> CONFIGURABLE_MODIFIER_IDS = {MOD_LOVERS, MOD_FLASH, MOD_GIANT, MOD_BAIT, MOD_DISEASED, MOD_TORCH};
+const string MOD_DRUNK = "drunk";       // bêbado: o andar sai invertido (só o andar - ver match_frame_update)
+const string MOD_ADDICT = "addict";     // viciado: ouve mortes, passos e corpos que não existem (match_addict)
+const array<string> TRAIT_MODIFIER_IDS = {MOD_BAIT, MOD_DISEASED, MOD_TORCH, MOD_DRUNK, MOD_ADDICT};
+const array<string> CONFIGURABLE_MODIFIER_IDS = {MOD_LOVERS, MOD_FLASH, MOD_GIANT, MOD_BAIT, MOD_DISEASED, MOD_TORCH, MOD_DRUNK, MOD_ADDICT};
 
 bool is_modifier_id(const string&in id) { return CONFIGURABLE_MODIFIER_IDS.find(id) != -1; }
 
@@ -193,6 +198,7 @@ const string TUNABLE_TRAIL = "trail";                 // por quanto tempo o rast
 const string TUNABLE_GUESSES = "guesses";             // quantos palpites por reunião (sniper)
 const string TUNABLE_WINDOW = "window";               // até quantos segundos depois da morte ainda dá (médico)
 const string TUNABLE_BODIES = "bodies";               // quantos corpos para vencer (abutre)
+const string TUNABLE_TASKS_LEFT = "tasks_left";       // faltando quantas tarefas os impostores descobrem o delator
 
 class role_tunable {
 	string key;
@@ -776,7 +782,31 @@ role_traits@ role_transporter() {
 	return t;
 }
 
+// Delator (do Town of Us): tripulante comum, até as tarefas. Faltando poucas (a sala ajusta; 1 por
+// padrão), os IMPOSTORES descobrem quem ele é - e ao terminar todas, ELE descobre quem são os impostores.
+// A corrida é essa: ele precisa terminar antes que o achem.
+role_traits@ role_snitch() {
+	role_traits t;
+	t.id = ROLE_SNITCH;
+	t.tunables.insert_last(role_tunable(TUNABLE_TASKS_LEFT, SNITCH_WARN_TASKS_LEFT, 0.0, 5.0));
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
+// Recrutador: impostor que, UMA vez por partida, transforma um tripulante colado nele em impostor. Só
+// tripulante, nunca neutro; recrutar gasta a faca daquela recarga; o recrutado ouve que virou impostor e
+// quem são os parceiros, e os impostores ouvem quem entrou (decisões do usuário, 2026-10-21).
+role_traits@ role_recruiter() {
+	role_traits@ t = role_impostor();
+	t.id = ROLE_RECRUITER;
+	t.ability_id = ABILITY_RECRUIT;
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_SNITCH) return role_snitch();
+	if (role_id == ROLE_RECRUITER) return role_recruiter();
 	if (role_id == ROLE_VETERAN) return role_veteran();
 	if (role_id == ROLE_POISONER) return role_poisoner();
 	if (role_id == ROLE_VULTURE) return role_vulture();

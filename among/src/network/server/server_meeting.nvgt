@@ -14,7 +14,9 @@ mixin class server_meeting_part {
 		if (!lobby.config.meetings_allowed()) { send_error(peer_id, "mode.no_meetings"); return; }
 
 		body_info@ body = lobby.find_body_near(p.x, p.y, PLAYER_REPORT_RANGE);
-		if (@body == null) return;
+		// Sem corpo, diz. Era calado, e apertar R à toa não dava retorno nenhum; com o viciado, que alucina
+		// corpos, a resposta passou a ser o que separa o que ele ouviu do que existe (decisão do usuário).
+		if (@body == null) { send_error(peer_id, "role.no_body_near"); return; }
 		if (lobby.meetings_blocked_by_sabotage()) { send_error(peer_id, "sabotage.blocks_meeting"); return; }
 		report_body(lobby, peer_id, body);
 	}

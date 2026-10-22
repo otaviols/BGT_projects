@@ -123,6 +123,16 @@ mixin class server_abilities_part {
 			message_key = "role.clean_done";
 			return true;
 		}
+		if (ability == ABILITY_RECRUIT) {
+			string nome;
+			game_player@ alvo = lobby.find_player(pkt.get_uint64("target_peer_id"));
+			if (!lobby.try_recruit(p.peer_id, pkt.get_uint64("target_peer_id"), nome, message_key)) return false;
+			// Ele ouve que virou impostor e quem são os parceiros; os impostores ouvem que ele entrou.
+			send_role_changed(lobby, alvo, "recruited");
+			message_params.set("name", nome);
+			message_key = "role.recruit_done";
+			return true;
+		}
 		if (ability == ABILITY_ALERT) {
 			if (!lobby.try_alert(p.peer_id, message_key)) return false;
 			// Nada é transmitido: o alerta só aparece como um ataque que mata quem atacou.
@@ -429,7 +439,7 @@ mixin class server_abilities_part {
 				parceiros.add(j);
 				dictionary@ np = dictionary();
 				np.set("name", p.public_name());
-				if (reaches_client(o)) send_error(o.peer_id, "role.teammate_joined", np);
+				if (reaches_client(o)) send_error(o.peer_id, reason == "recruited" ? "role.teammate_recruited" : "role.teammate_joined", np);
 			}
 		}
 		r.set_array("impostor_partners", parceiros);
