@@ -510,6 +510,18 @@ mixin class server_match_part {
 		// QUEM morreu sai do pacote, e não do alvo pedido: no tiro errado do xerife quem cai é o
 		// atirador, e limpar o estado do alvo deixaria o morto de verdade preso na câmera.
 		uint64 victim_peer = event.get_uint64("peer_id");
+		// Morreu DENTRO do duto (a faca não alcança lá, mas a contaminação sim): sai do duto, nos dois lados
+		// - fantasma com `vented` ligado não anda nem sai, e ficaria preso pelo resto da partida.
+		game_player@ no_duto = lobby.find_player(victim_peer);
+		if (@no_duto != null && no_duto.vented) {
+			no_duto.vented = false;
+			no_duto.current_vent_id = "";
+			net_packet@ saiu = net_packet(S_VENT_STATE);
+			saiu.set_bool("vented", false);
+			saiu.set_float("x", no_duto.x);
+			saiu.set_float("y", no_duto.y);
+			if (reaches_client(no_duto)) send_to(victim_peer, saiu);
+		}
 		// A vítima larga o posto: fantasma não opera equipamento, e um posto preso a quem morreu
 		// ficaria bloqueado para o resto da partida. Ela também precisa ser AVISADA, ou o cliente
 		// dela continua na câmera, sem andar, agora como fantasma.

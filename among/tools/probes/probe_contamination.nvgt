@@ -6,7 +6,9 @@
 //   2. quem está contaminado tosse, de vez em quando, onde está; fantasma não;
 //   3. sara quem passa por uma rodada inteira da câmara - e a partida fica sabendo quantos faltam;
 //   4. o impostor não conta: com a tripulação sarada, a sabotagem acaba, mesmo com ele contaminado;
-//   5. o tempo acabando é derrota pela contaminação;
+//   5. o tempo acabando mata SÓ quem ficou contaminado (menos o impostor), e a partida segue (2026-10-22);
+//   5b. com as tarefas visuais desligadas, a cura não diz quantos faltam (o número denunciava quem não é
+//       tripulante);
 //   6. um bot contaminado vai à câmara e sara sozinho.
 #include "../../src/core/game_state.nvgt"
 #include "../../src/game/roles/role_traits.nvgt"
@@ -97,10 +99,47 @@ void main() {
 
 	println("== 5. o tempo ==");
 	game_state@ outra = partida();
+	// Mais tripulação, para a maioria não decidir a partida no mesmo tick.
+	array<map_object@>@ spots = outra.map.objects_by_type(OBJ_TASK_SPOT);
+	for (uint64 id = 5; id <= 7; id++) {
+		game_player@ h = game_player(id, "humano" + id);
+		h.set_role(ROLE_CREWMATE);
+		player_task t; t.object_id = spots[0].id; t.task_type = spots[0].task_type; h.tasks.insert_last(t);
+		h.x = 0; h.y = -22;
+		outra.players.insert_last(h);
+	}
 	sabota(outra);
+	array<net_packet@> lixo;
+	outra.cure_contamination(2, lixo); // o humano2 passou pela câmara a tempo
 	outra.sabotage_timer = 0.1;
-	roda(outra, 0.2);
-	confere("acabou o tempo: impostores, pela contaminacao", outra.winner == "impostors" && outra.win_reason == "contamination");
+	array<net_packet@> mortes;
+	bool expirou = false;
+	for (float t = 0.0; t < 0.2; t += DT) {
+		array<net_packet@>@ ev = outra.tick(DT);
+		for (uint i = 0; i < ev.length(); i++) {
+			if (ev[i].type == S_PLAYER_KILLED) mortes.insert_last(ev[i]);
+			if (ev[i].type == S_SABOTAGE_FIXED && ev[i].get_bool("expired")) expirou = true;
+		}
+	}
+	confere("acabou o tempo: morrem os contaminados (" + mortes.length() + "), e cada morte diz que foi a contaminacao",
+		mortes.length() == 5 && mortes[0].get_bool("contamination")); // do 3 ao 7: o 2 sarou
+	confere("quem sarou a tempo vive, e o impostor tambem (" + outra.find_player(2).alive + "/" + outra.find_player(1).alive + ")",
+		outra.find_player(2).alive && outra.find_player(1).alive);
+	confere("a sabotagem acaba como vencida, e a partida segue sem vencedor pela contaminacao",
+		expirou && outra.active_sabotage == "" && outra.win_reason != "contamination");
+
+	println("== 5b. tarefas visuais desligadas ==");
+	game_state@ cega = partida();
+	cega.config.visible_tasks = false;
+	sabota(cega);
+	array<net_packet@> ev_cura;
+	cega.cure_contamination(2, ev_cura);
+	confere("a cura nao diz quantos faltam", ev_cura.length() == 1 && !ev_cura[0].exists("left"));
+	game_state@ vista = partida();
+	sabota(vista);
+	array<net_packet@> ev_vista;
+	vista.cure_contamination(2, ev_vista);
+	confere("controle: com elas ligadas, diz", ev_vista.length() == 1 && ev_vista[0].get_int("left") == 2);
 
 	println("== 6. o bot ==");
 	game_state@ comum = partida();

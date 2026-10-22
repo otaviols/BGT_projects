@@ -274,7 +274,7 @@ class meeting_ui {
 	}
 
 	void on_sabotage_fixed(net_packet@ pkt) {
-		announce(sabotage_fixed_text(), !pkt.announced);
+		announce(sabotage_ended_text(pkt), !pkt.announced);
 		// Desligar o alarme e devolver o alcance de audição é de apply_sabotage_effects (ver acima).
 	}
 

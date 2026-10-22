@@ -537,7 +537,9 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 				}
 			}
 
-			if (sabotage_timer <= 0.0) {
+			if (sabotage_timer <= 0.0 && active_sabotage == "contamination") {
+				expire_contamination(events);
+			} else if (sabotage_timer <= 0.0) {
 				winner = "impostors";
 				win_reason = active_sabotage == "seismic" ? "seismic_collapse" : active_sabotage == "reactor" ? "reactor_meltdown"
 					: active_sabotage == "contamination" ? "contamination" : "oxygen_depleted";

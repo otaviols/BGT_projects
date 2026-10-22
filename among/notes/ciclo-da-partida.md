@@ -243,6 +243,14 @@ de terminar a contagem". **O pegador é revelado a todos** (`tagger_name` no `S_
 abertura no lugar da contagem de impostores; decisão do usuário, como no original). Decisões do usuário; sonda: `probe_game_modes.nvgt` (sem rede,
 com os controles de cada regra) e `probe_game_modes_net.nvgt`.
 
+**A contaminação deixou de ser derrota (2026-10-22, proposta de jogador).** O fim do tempo chama
+`expire_contamination`: morre quem ainda está contaminado, MENOS os impostores, cada um pelo `leave_body`
+com a própria pessoa no lugar do assassino (corpo sem rastro, sem testemunha) e `contamination` no pacote
+para a vítima ouvir do que morreu; a sabotagem termina com `S_SABOTAGE_FIXED` + `expired` (o cliente diz
+"o tempo acabou", não "consertada"). A morte pode cair DENTRO de um duto - a faca nunca alcança lá - e o
+`announce_kill` passou a tirar do duto quem morre nele, nos dois lados. A contagem "faltam N" só sai com
+as tarefas visuais ligadas: ela só cai quando sara um TRIPULANTE, e entregava quem não é.
+
 **O último sobrevivente (`GAME_MODE_LAST_STANDING`, 1.0)** é o todos lobos com a faca: TODOS são
 impostores (bots também, e o bot impostor caça qualquer um, sem temer testemunha, como no pega-pega) e
 vence o último vivo, como neutro sozinho (`win_reason "last_standing"`, o nome em `survivor` no fim, e a

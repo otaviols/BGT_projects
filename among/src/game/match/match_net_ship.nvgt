@@ -119,7 +119,10 @@ mixin class match_net_ship_part {
 
 	// A contaminação: a tosse sai onde a pessoa está (a própria também, no lugar de quem ouve).
 	void on_cough(net_packet@ pkt) {
-		audio.play_cough(pkt.get_float("x"), pkt.get_float("y"));
+		// A PRÓPRIA tosse, sem posição: tocada no ponto onde ele estava, a cauda do som ficava para trás
+		// enquanto ele andava, e ele ouvia a si mesmo tossindo "lá atrás" (relato do usuário, 2026-10-22).
+		if (pkt.get_uint64("peer_id") == client.my_peer_id) audio.play_cough_self();
+		else audio.play_cough(pkt.get_float("x"), pkt.get_float("y"));
 	}
 
 	// Alguém sarou na câmara: a própria pessoa ouve que sarou; todos ouvem quantos da tripulação faltam.

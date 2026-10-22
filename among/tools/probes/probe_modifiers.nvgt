@@ -211,6 +211,23 @@ void main() {
 		iscas == 1 && doentes == 1 && todos_cobertos && iscas + doentes + lanternas <= 5);
 	confere("isca e lanterninha nunca saem para o impostor, e bot nao recebe traco", impostor_sem_lanterna && bot_sem_traco);
 
+	println("== casal nunca de dois impostores ==");
+	bool dois_impostores = false;
+	int casais_feitos = 0;
+	for (int rodada = 0; rodada < 60; rodada++) {
+		game_state@ c = mesa();
+		c.find_player(1).set_role(ROLE_IMPOSTOR); // dois impostores humanos: o 1 e o 4
+		c.config.set_role_count(MOD_LOVERS, 1);
+		c.assign_modifiers();
+		for (uint i = 0; i < c.players.length(); i++) {
+			game_player@ p = c.players[i];
+			if (p.lover == 0) continue;
+			casais_feitos++;
+			if (p.is_impostor && c.find_player(p.lover).is_impostor) dois_impostores = true;
+		}
+	}
+	confere("em 60 sorteios, nenhum casal de dois impostores (" + casais_feitos / 2 + " casais)", !dois_impostores && casais_feitos == 120);
+
 	println("== um modificador por pessoa ==");
 	// Mais vagas que gente em tudo: cinco humanos, e cada um tem que sair com UM, no máximo.
 	bool nunca_dois = true;

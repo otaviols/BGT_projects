@@ -950,6 +950,8 @@
   "sabotage.contamination.fix_hint": "Go to the decontamination chamber, between the laboratory and the specimen room, and wait for it to close and open.",
   "contamination.you_cured": "You have been decontaminated.",
   "contamination.left": "{count} crew members left to decontaminate.",
+  "contamination.you_died": "The contamination killed you: you did not get through the chamber in time.",
+  "contamination.expired": "The contamination ran out of time: whoever was not decontaminated died.",
   "game.reason_contamination": "The contamination took over the base.",
   "learn.cough": "Cough of someone contaminated",
   "sabotage.reactor.name": "Sabotage: Reactor",

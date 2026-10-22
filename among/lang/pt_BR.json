@@ -950,6 +950,8 @@
   "sabotage.contamination.fix_hint": "Vá à câmara de descontaminação, entre o laboratório e os espécimes, e espere ela fechar e abrir.",
   "contamination.you_cured": "Você foi descontaminado.",
   "contamination.left": "Faltam {count} da tripulação para descontaminar.",
+  "contamination.you_died": "A contaminação matou você: você não passou pela câmara a tempo.",
+  "contamination.expired": "O tempo da contaminação acabou: quem não se descontaminou morreu.",
   "game.reason_contamination": "A contaminação tomou conta da base.",
   "learn.cough": "Tosse de quem está contaminado",
   "sabotage.reactor.name": "Sabotagem: Reator",

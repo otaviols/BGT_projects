@@ -242,6 +242,16 @@ mixin class server_ship_part {
 			// sem nenhuma pista de que a lobby simplesmente não permite sabotagem (preset "rápido"),
 			// de que ainda está em recarga, ou de que é a mesma da vez passada.
 			send_error(peer_id, fail_key);
+			// "Alguém está com versão antiga" apareceu numa sala com espectador, e o código não mostra o
+			// caminho (todo cliente da 1.0 tem o protocolo exigido). Até descobrir: o log diz QUEM tinha qual.
+			if (fail_key == "game.sabotage_needs_update") {
+				string quem = "";
+				for (uint i = 0; i < lobby.players.length(); i++)
+					quem += " " + lobby.players[i].username + (lobby.players[i].is_bot ? "(bot)" : "") + "=" + lobby.players[i].protocol_version;
+				for (uint i = 0; i < lobby.spectators.length(); i++)
+					quem += " assiste:" + lobby.spectators[i].username + "=" + lobby.spectators[i].protocol_version;
+				println("[versao] sabotagem " + sabotage_id + " recusada na sala " + lobby.lobby_name + ":" + quem);
+			}
 		}
 	}
 

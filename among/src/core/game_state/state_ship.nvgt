@@ -145,8 +145,36 @@ mixin class state_ship_part {
 		if (@p != null && p.is_bot) { p.bot_fixing = false; p.bot_has_target = false; p.bot_action_timer = 0.0; }
 		net_packet@ pkt = net_packet(S_DECONTAMINATED);
 		pkt.set_uint64("peer_id", peer_id);
-		pkt.set_int("left", contaminated_crew_left());
+		// "Faltam N da tripulação" só com as tarefas visuais LIGADAS: o número só cai quando sara um
+		// tripulante, e quem viu um impostor ou um neutro passar pela câmara sem o número mudar ficava
+		// sabendo (pedido do usuário, 2026-10-22). É o mesmo princípio do exame médico, que a sala desliga
+		// junto. Desligadas, o número nem sai daqui - um cliente alterado o leria.
+		if (config.visible_tasks) pkt.set_int("left", contaminated_crew_left());
 		events.insert_last(pkt);
+	}
+
+	// O tempo da contaminação acabou: morre SÓ quem ficou contaminado - menos os impostores, que a soltaram
+	// (proposta de um jogador, decisão do usuário em 2026-10-22: era a vitória dos impostores na hora, e
+	// agora é uma baixa, às vezes grande). Cada um cai onde está, com corpo, sem assassino; o pacote leva
+	// `contamination` para a vítima ouvir do que morreu. A sabotagem termina como se consertada, com
+	// `expired`, e a partida segue - a maioria que sobrar decide.
+	void expire_contamination(array<net_packet@>@ events) {
+		for (uint i = 0; i < contaminated_peers.length(); i++) {
+			game_player@ p = find_player(contaminated_peers[i]);
+			if (@p == null || !p.alive || p.is_impostor || p.swallowed()) continue;
+			net_packet@ ev = leave_body(p, p);
+			ev.set_bool("contamination", true);
+			events.insert_last(ev);
+		}
+		net_packet@ fim = net_packet(S_SABOTAGE_FIXED);
+		fim.set_string("sabotage_id", active_sabotage);
+		fim.set_bool("expired", true);
+		events.insert_last(fim);
+		active_sabotage = "";
+		sabotage_fixed_panels.resize(0);
+		contaminated_peers.resize(0);
+		cough_timers.resize(0);
+		sabotage_cooldown_remaining = SABOTAGE_COOLDOWN_SECONDS;
 	}
 
 	void tick_contamination(float delta_seconds, array<net_packet@>@ events) {

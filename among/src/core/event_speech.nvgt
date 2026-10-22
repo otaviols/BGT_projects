@@ -58,6 +58,11 @@ string vote_cast_text(net_packet@ pkt) {
 	return tr("game.vote_cast", params);
 }
 
+// A sabotagem acabou SEM conserto: o tempo da contaminação venceu, e quem estava contaminado morreu.
+string sabotage_ended_text(net_packet@ pkt) {
+	return pkt.get_bool("expired") ? tr("contamination.expired") : sabotage_fixed_text();
+}
+
 string sabotage_fixed_text() {
 	return tr("sabotage.fixed");
 }
@@ -171,6 +176,7 @@ string player_left_text(net_packet@ pkt) {
 
 // "Você foi eliminado por fulano" - só para a vítima, e só ela recebe o nome do assassino.
 string you_were_killed_text(net_packet@ pkt, client_roster@ roster) {
+	if (pkt.get_bool("contamination")) return tr("contamination.you_died");
 	uint64 killer_peer = pkt.get_uint64("killer_peer");
 	// Quem matou é você mesmo: é o tiro errado do xerife, que morre no lugar de quem mirou. Dizer
 	// "você foi eliminado por <seu nome>" seria ridículo; o porquê chega logo atrás, em particular
@@ -255,7 +261,7 @@ string background_event_text(net_packet@ pkt, game_client@ client) {
 	if (t == S_CHAT_MESSAGE) return chat_message_text(pkt);
 	if (t == S_SABOTAGE_STARTED) return sabotage_started_text(pkt);
 	if (t == S_SABOTAGE_COUNTDOWN) return sabotage_countdown_text(pkt);
-	if (t == S_SABOTAGE_FIXED) return sabotage_fixed_text();
+	if (t == S_SABOTAGE_FIXED) return sabotage_ended_text(pkt);
 	if (t == S_PLAYER_LEFT) return player_left_text(pkt);
 	if (t == S_ERROR) return tr_server_message(pkt);
 	if (t == S_SERVER_NOTICE) return tr_server_message(pkt); // o reinício tem que chegar até a quem está numa tarefa

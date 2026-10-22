@@ -514,7 +514,10 @@ demorar recomeça do zero. Se outra pessoa abrir antes, o seu painel fecha.
 - **Contaminação** — crítica, 120 segundos. Todos ficam contaminados e **tossem** de vez em quando, e
   quem está perto ouve. A tripulação inteira precisa passar pela câmara de descontaminação: estar
   dentro quando ela fecha e esperar ela abrir. O impostor não precisa ir — mas continua tossindo, e a
-  tosse o entrega.
+  tosse o entrega. Se o tempo acabar, **morre quem ainda estiver contaminado**, onde estiver, e a
+  partida segue (o impostor não morre). Cada um que sara ouve que foi descontaminado; quantos da
+  tripulação ainda faltam só é dito se a sala deixou as tarefas visuais ligadas - o número só cai
+  quando sara um tripulante, e diria quem não é.
 
 Como em toda sabotagem crítica, enquanto uma delas dura ninguém chama reunião nem reporta corpo.
 
@@ -796,7 +799,7 @@ Quem recebe um ouve junto com o papel. **Cada pessoa recebe no máximo um modifi
 
   O som dos passos é o mesmo; o que muda é o ritmo, e é por ele que os outros percebem.
 - **Casal de apaixonados:** duas pessoas sorteadas, que sabem uma da outra (podem ser de times
-  diferentes). Se uma morrer, a outra **morre junto**, onde estiver; se a morte foi na reunião, a outra
+  diferentes, mas nunca dois impostores). Se uma morrer, a outra **morre junto**, onde estiver; se a morte foi na reunião, a outra
   cai quando a reunião acaba. Se sobrarem as duas e no máximo mais uma pessoa, o casal **vence junto**.
 
 - **Isca:** quem matar a isca **reporta o corpo na mesma hora**, sem querer. Para a mesa soa como um

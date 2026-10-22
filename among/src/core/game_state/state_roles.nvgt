@@ -645,6 +645,13 @@ mixin class state_roles_part {
 			int a = random(0, livres.length() - 1);
 			game_player@ pa = livres[a];
 			livres.remove_at(a);
+			// Nunca os DOIS impostores (decisão do usuário, 2026-10-22): eles já se conhecem e já vencem
+			// juntos, e o casal não acrescentaria nada além de confundir a vitória dele. A graça é o casal
+			// dividido - impostor e tripulante. Com o primeiro impostor, o par sai de quem não é.
+			if (pa.is_impostor) {
+				for (int k = int(livres.length()) - 1; k >= 0; k--) if (livres[k].is_impostor) livres.remove_at(k);
+				if (livres.length() == 0) break;
+			}
 			game_player@ pb = livres[random(0, livres.length() - 1)];
 			pa.lover = pb.peer_id;
 			pb.lover = pa.peer_id;

@@ -518,7 +518,10 @@ a miss or a late press starts over from zero. If someone else opens it first, yo
 - **Contamination** — critical, 120 seconds. Everyone gets contaminated and **coughs** now and then,
   and anyone nearby hears it. The whole crew must go through the decontamination chamber: be inside
   when it closes and wait for it to open. The impostor does not need to go — but keeps coughing, and
-  the cough gives them away.
+  the cough gives them away. If time runs out, **whoever is still contaminated dies**, wherever they
+  are, and the match goes on (the impostor does not die). Each person who is cured hears it; how many
+  of the crew are left is only said if the room kept visible tasks on - the number only drops when a
+  crewmate is cured, and would tell who is not one.
 
 As with every critical sabotage, while one of them lasts nobody can call a meeting or report a body.
 
@@ -808,7 +811,8 @@ one hears it along with the role. **Each person gets at most one modifier.** Bot
 - **Giant:** walks 50% slower.
 
   Footsteps sound the same; what changes is the pace, and that is how the others notice.
-- **Lovers:** two drawn people who know about each other (they can be on different teams). If one
+- **Lovers:** two drawn people who know about each other (they can be on different teams, but never two
+  impostors). If one
   dies, the other **dies too**, wherever they are; if the death was in a meeting, the other falls when
   the meeting ends. If the two of them and at most one more are left, the couple **wins together**.
 
