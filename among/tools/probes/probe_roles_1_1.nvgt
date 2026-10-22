@@ -226,6 +226,20 @@ void main() {
 		confere("controle: o mapa novo de outra partida nao tem o duto", @build_the_hub_map().find_object(id) == null);
 	}
 
+	println("== ofuscador ==");
+	{
+		game_state@ g = mesa();
+		g.find_player(4).set_role(ROLE_GRENADIER);
+		g.find_player(3).alive = false;                      // fantasma: não é atingido
+		g.find_player(5).x = 40.0; g.find_player(5).y = 0.0; // em outra sala
+		array<uint64> surdos;
+		string fk;
+		bool ok = g.try_sound_bomb(4, surdos, fk);
+		confere("a bomba deixa surdos so os vivos da sala dele, menos ele (" + surdos.length() + ")",
+			ok && surdos.length() == 2 && surdos.find(1) >= 0 && surdos.find(2) >= 0 && surdos.find(4) < 0);
+		confere("controle: quem esta em outra sala e o fantasma ficam de fora", surdos.find(5) < 0 && surdos.find(3) < 0);
+	}
+
 	println("== bobo rival ==");
 	{
 		game_state@ g = mesa();

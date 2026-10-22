@@ -356,8 +356,12 @@ class audio_manager {
 	// Limpar ("clean"), arrastar ("drag") ou comer ("devour", o abutre) um corpo, no ponto onde acontece.
 	void play_body_sound(const string&in kind, float x, float y) {
 		string som = kind == "clean" ? SND_BODY_CLEAN : (kind == "devour" ? SND_BODY_EATEN : SND_BODY_DRAG);
+		if (kind == "dig") som = SND_MINER_DIG;
 		spatial.play_once(som, x, y, family_db(SOUND_FAMILY_EVENTS));
 	}
+
+	// A bomba do ofuscador, no ponto onde explodiu, para todos.
+	void play_sound_bomb(float x, float y) { spatial.play_once(SND_SOUND_BOMB, x, y, family_db(SOUND_FAMILY_EVENTS)); }
 
 	// Posicionado: para o lobo e o engolido o ponto é onde eles mesmos estão, então soa "em cima".
 	void play_wolf_swallow(float x, float y) {

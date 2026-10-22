@@ -473,6 +473,15 @@ Sonda: `probe_modifiers.nvgt`, com controle em cada caso.
 Sondas: `probe_roles_1_1` (estado, com controles), `probe_roles_1_1_net` (os pacotes pela rede) e os
 casos do cliente em `probe_match_packets`.
 
+**Ofuscador (2026-10-22): a surdez é o volume GERAL, nunca a fala.** `game_settings.deafened` entra no
+`apply_master` ao lado do desconto de segundo plano: cala os sons e a voz do chat, e não a fala do
+leitor de tela (que não passa por ele) - surdo não pode ficar perdido nos menus. Ela começa
+`GRENADIER_DEAF_DELAY_SECONDS` depois do estouro (começando junto, cortaria a própria explosão), a
+reunião a desfaz, e o `run_game` a desliga no começo e no fim de TODA partida: um jogador que saísse da
+partida no meio dos 10 s ficaria mudo nos menus para sempre. O mineiro ganhou som (a picareta, tipo "dig"
+do `S_BODY_SOUND`) para quem está perto: cavar um duto permanente de graça destoava das outras
+habilidades que mexem no mapa (tampa, limpeza, arrasto).
+
 **Mineiro e Bobo rival (2026-10-21, terceiro lote).**
 - **Mineiro:** `game_map.add_mined_vent` é a ÚNICA função que liga o duto novo à rede (ele leva a todos
   da rede do duto mais próximo, e cada um passa a levar a ele) - o servidor (`try_mine`) e cada cliente

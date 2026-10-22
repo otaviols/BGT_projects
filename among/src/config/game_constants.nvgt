@@ -358,6 +358,11 @@ const float VULTURE_BODIES_TO_WIN = 3.0;
 const float TRANSPORTER_COOLDOWN_SECONDS = 30.0;
 const float SNITCH_WARN_TASKS_LEFT = 1.0;
 const float RIVAL_JESTER_TASKS = 3.0;
+const float GRENADIER_DEAF_SECONDS = 10.0;
+const float GRENADIER_COOLDOWN_SECONDS = 40.0;
+// A surdez começa um instante depois da explosão: quem está na sala ouve o estouro, e o silêncio vem logo
+// atrás - começando junto, ela cortaria a própria explosão.
+const float GRENADIER_DEAF_DELAY_SECONDS = 0.4;
 // O mineiro não cava colado num duto que já existe: seria um duto inútil, e dois marcadores no mesmo ponto.
 const float MINER_MIN_VENT_DISTANCE = 4.0;
 // O viciado: o intervalo entre uma alucinação e outra, e quanto dura o corpo falso. Os corpos falsos usam

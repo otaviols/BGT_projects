@@ -167,6 +167,8 @@ net_packet@ run_spectate(game_client@ client, net_packet@ start_pkt) {
 				corpo_pos.insert_last(vector(pkt.get_float("x"), pkt.get_float("y"), 0));
 			} else if (t == S_RADAR_RESULT) {
 				radar.handle_result(pkt);
+			} else if (t == S_SOUND_BOMB) {
+				audio.play_sound_bomb(pkt.get_float("x"), pkt.get_float("y"));
 			} else if (t == S_VENT_CREATED) {
 				map.add_mined_vent(pkt.get_string("id"), pkt.get_float("x"), pkt.get_float("y"), pkt.get_string("link"));
 			} else if (t == S_BODY_SOUND) {

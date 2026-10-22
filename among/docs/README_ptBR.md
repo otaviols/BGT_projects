@@ -734,9 +734,14 @@ os parceiros, e os impostores ouvem quem entrou. Recrutar gasta a faca daquela v
 recomeça.
 
 **Mineiro** (impostor). **Uma vez por partida**, a tecla H cava um **duto** onde ele está, ligado à rede
-de dutos mais próxima: dele se chega a todos daquela rede, e de todos se chega a ele. Em silêncio - o
-duto novo se descobre como qualquer outro, pelo marcador e pela tampa de quem o usar. Não dá para cavar
-colado num duto que já existe. O duto some no fim da partida.
+de dutos mais próxima: dele se chega a todos daquela rede, e de todos se chega a ele. Quem estiver perto
+ouve a picareta, sem saber quem cavou. Não dá para cavar colado num duto que já existe. O duto some no
+fim da partida.
+
+**Ofuscador** (impostor). A tecla H solta uma **bomba de som**: todos os vivos na sala dele, menos ele,
+ficam **surdos por 10 segundos** (a sala ajusta) - nenhum som do jogo, nem a voz do chat; a fala do
+leitor de tela continua. O parceiro impostor na sala também fica surdo. Quem está fora da sala ouve a
+explosão, e de onde ela veio. Uma reunião desfaz a surdez. Recarga padrão de 40 segundos.
 
 ### Papéis neutros
 

@@ -743,8 +743,13 @@ the kill cooldown starts over.
 
 **Miner** (impostor). **Once per match**, the H key digs a **vent** where they stand, linked to the
 nearest vent network: from it you reach every vent of that network, and from each of them you reach it.
-Silently - the new vent is found like any other, by its marker and by the lid of whoever uses it. You
-cannot dig right next to an existing vent. The vent is gone at the end of the match.
+Whoever is nearby hears the pickaxe, without knowing who dug. You cannot dig right next to an existing
+vent. The vent is gone at the end of the match.
+
+**Grenadier** (impostor). The H key sets off a **sound bomb**: every living player in their room, except
+them, goes **deaf for 10 seconds** (the room adjusts it) - no game sound, no chat voices; the screen
+reader keeps talking. A partner impostor in the room goes deaf too. Whoever is outside the room hears
+the blast, and where it came from. A meeting ends the deafness. Default cooldown of 40 seconds.
 
 ### Neutral roles
 

@@ -85,6 +85,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	float my_invisible_remaining;
 	// O alerta do veterano, só para a tecla responder "faltam N segundos" sem gastar a recarga.
 	float my_alert_remaining;
+	// A surdez da bomba do ofuscador: quanto falta para ela começar (logo depois do estouro) e para acabar.
+	float deaf_delay;
+	float deaf_remaining;
 	// O viciado (ver match_addict): quanto falta para a próxima alucinação, os passos agendados de uma, e
 	// os corpos falsos no chão (o id do marcador, onde está e quanto ainda dura).
 	float addict_next;
@@ -234,6 +237,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		// responder na hora e para o microfone não abrir à toa.
 		my_invisible_remaining = 0.0;
 		my_alert_remaining = 0.0;
+		deaf_delay = 0.0;
+		deaf_remaining = 0.0;
 		// A primeira alucinação não vem logo de cara: o começo da partida já tem barulho que chegue.
 		addict_next = ADDICT_MIN_SECONDS;
 		addict_body_serial = 0;
@@ -605,6 +610,8 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_POISON_DONE) on_poison_done(pkt);
 		else if (t == S_TRANSPORTED) on_transported(pkt);
 		else if (t == S_VENT_CREATED) on_vent_created(pkt);
+		else if (t == S_SOUND_BOMB) audio.play_sound_bomb(pkt.get_float("x"), pkt.get_float("y"));
+		else if (t == S_DEAFENED) on_deafened(pkt);
 		else if (t == S_CAMERA_PLAYERS) on_camera_players(pkt);
 		else if (t == S_CAMERA_WATCHING) on_camera_watching(pkt);
 		else if (t == S_SABOTAGE_PROGRESS) on_sabotage_progress(pkt);
@@ -641,8 +648,10 @@ bool g_match_connection_lost = false;
 
 net_packet@ run_game(game_client@ client, net_packet@ start_pkt) {
 	menu_music_stop(); // na partida o som é o jogo
+	g_settings.set_deafened(false); // nunca começa surdo
 	match_session partida(client, start_pkt);
 	while (partida.frame()) {}
+	g_settings.set_deafened(false); // a partida acabou no meio da surdez: o som volta
 	g_visual_map.clear_if_needed(); // fim da partida, por qualquer saída: a janela não fica com a nave parada
 	return partida.finish();
 }

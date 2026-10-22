@@ -201,6 +201,20 @@ mixin class match_frame_update_part {
 			my_invisible_remaining -= delta;
 			if (my_invisible_remaining < 0.0) my_invisible_remaining = 0.0;
 		}
+		// A surdez: começa um instante depois do estouro e acaba sozinha; a reunião a desfaz (lá todo mundo
+		// precisa ouvir a mesa).
+		if (deaf_delay > 0.0) {
+			deaf_delay -= delta;
+			if (deaf_delay <= 0.0) { deaf_delay = 0.0; g_settings.set_deafened(true); }
+		}
+		if (deaf_remaining > 0.0 && deaf_delay <= 0.0) {
+			deaf_remaining -= delta;
+			if (deaf_remaining <= 0.0 || movement_frozen) {
+				deaf_remaining = 0.0;
+				g_settings.set_deafened(false);
+				speak(tr("role.deaf_over"));
+			}
+		}
 		if (my_alert_remaining > 0.0) {
 			my_alert_remaining -= delta;
 			if (my_alert_remaining <= 0.0) { my_alert_remaining = 0.0; if (alive) speak(tr("role.alert_over")); }

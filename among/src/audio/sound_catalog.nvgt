@@ -140,6 +140,11 @@ const string SND_BODY_DRAG = "sounds/events/body_drag.ogg";
 // só para o envenenador e sem posição: é a confirmação dele, e ninguém mais percebe (+3 dB na conversão).
 const string SND_BODY_EATEN = "sounds/events/body_eaten.ogg";
 const string SND_POISON = "sounds/events/poison.ogg";
+// A bomba de som do ofuscador (som do usuário, -7 dB na conversão: vinha 12 dB acima do kill e estourava
+// colado), posicionada para todos. E o mineiro cavando (picareta, do Pixabay, -3 dB para tirar o pico de
+// 0 dB), posicionado para quem está perto, como a limpeza do lixeiro.
+const string SND_SOUND_BOMB = "sounds/events/sound_bomb.ogg";
+const string SND_MINER_DIG = "sounds/events/miner_dig.ogg";
 // O médico trazendo alguém de volta: posicionado, no ponto onde a pessoa volta, para todos - voltar já é
 // público (ver S_PLAYER_REVIVED). E o fogo do incendiário, sem posição, que acaba a partida.
 const string SND_DOCTOR_REVIVE = "sounds/events/doctor_revive.ogg";
@@ -701,6 +706,8 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_BODY_DRAG);
 	list.insert_last(SND_BODY_EATEN);
 	list.insert_last(SND_POISON);
+	list.insert_last(SND_SOUND_BOMB);
+	list.insert_last(SND_MINER_DIG);
 	list.insert_last(SND_DOCTOR_REVIVE);
 	list.insert_last(SND_ARSONIST_FIRE);
 	list.insert_last(SND_NOISEMAKER_ALARM);

@@ -51,6 +51,7 @@ const string ROLE_TRANSPORTER = "transporter";
 const string ROLE_SNITCH = "snitch";
 const string ROLE_RECRUITER = "recruiter";
 const string ROLE_MINER = "miner";
+const string ROLE_GRENADIER = "grenadier";
 // Não se liga na sala: nasce do Carrasco que perde o alvo com um Bobo já em jogo (convert_lost_executioners).
 const string ROLE_RIVAL_JESTER = "rival_jester";
 
@@ -73,6 +74,7 @@ const string ABILITY_DEVOUR = "devour";       // abutre: come o corpo ao alcance
 const string ABILITY_TRANSPORT = "transport"; // transportador: dois jogadores trocam de lugar
 const string ABILITY_RECRUIT = "recruit";     // recrutador: um tripulante colado vira impostor (uma vez)
 const string ABILITY_MINE = "mine";           // mineiro: cava um duto onde está, na rede mais próxima (uma vez)
+const string ABILITY_SOUND_BOMB = "sound_bomb"; // ofuscador: quem está na sala dele fica surdo por alguns segundos
 // O alarme do alarmista NÃO passa por on_use_ability: ele É o botão de emergência, e o cliente manda o
 // mesmo C_CALL_MEETING (ver role_noisemaker). O id existe para a tecla H saber o que fazer.
 const string ABILITY_ALARM = "alarm";
@@ -105,7 +107,7 @@ const string SOLO_WIN_DEVOUR = "devour";
 const array<string> CONFIGURABLE_ROLE_IDS = {
 	ROLE_ENGINEER, ROLE_SHERIFF, ROLE_NOISEMAKER, ROLE_GUARDIAN_ANGEL, ROLE_DETECTIVE, ROLE_MAYOR, ROLE_SWAPPER,
 	ROLE_DOCTOR, ROLE_VETERAN, ROLE_TRANSPORTER, ROLE_SNITCH,
-	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_POISONER, ROLE_RECRUITER, ROLE_MINER,
+	ROLE_SHAPESHIFTER, ROLE_PHANTOM, ROLE_SNIPER, ROLE_JANITOR, ROLE_CARRIER, ROLE_POISONER, ROLE_RECRUITER, ROLE_MINER, ROLE_GRENADIER,
 	ROLE_JESTER, ROLE_WOLF, ROLE_EXECUTIONER, ROLE_ARSONIST, ROLE_AMNESIAC, ROLE_VULTURE};
 
 // Os papéis que o sniper pode CHUTAR: os especiais que a sala ligou, e nunca "tripulante".
@@ -839,7 +841,23 @@ role_traits@ role_rival_jester() {
 	return t;
 }
 
+// Ofuscador (ideia do usuário: a granada de luz do Town of Us, de ouvido): com H solta uma BOMBA DE SOM
+// - todos na sala dele, menos ele, ficam surdos por 10 s (parceiro impostor incluído), voz do chat
+// inclusive; quem está fora ouve a explosão, posicionada, e é o rastro que o denuncia. Recarga de 40 s
+// (decisões do usuário, 2026-10-21). A surdez cala o SOM, nunca a fala do leitor de tela.
+role_traits@ role_grenadier() {
+	role_traits@ t = role_impostor();
+	t.id = ROLE_GRENADIER;
+	t.ability_id = ABILITY_SOUND_BOMB;
+	t.ability_cooldown_seconds = GRENADIER_COOLDOWN_SECONDS;
+	t.tunables.insert_last(role_tunable(TUNABLE_DURATION, GRENADIER_DEAF_SECONDS, 3.0, 20.0));
+	t.tunables.insert_last(role_tunable(TUNABLE_COOLDOWN, GRENADIER_COOLDOWN_SECONDS, 15.0, 300.0));
+	t.min_protocol = ROLES_1_1_PROTOCOL;
+	return t;
+}
+
 role_traits@ role_for(const string&in role_id) {
+	if (role_id == ROLE_GRENADIER) return role_grenadier();
 	if (role_id == ROLE_RIVAL_JESTER) return role_rival_jester();
 	if (role_id == ROLE_MINER) return role_miner();
 	if (role_id == ROLE_SNITCH) return role_snitch();

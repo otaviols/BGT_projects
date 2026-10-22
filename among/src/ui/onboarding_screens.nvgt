@@ -304,6 +304,8 @@ array<learn_category@>@ learn_sound_categories(game_map@ map) {
 	sfx.add(tr("learn.body_drag"), SND_BODY_DRAG);
 	sfx.add(tr("learn.body_eaten"), SND_BODY_EATEN);
 	sfx.add(tr("learn.poison"), SND_POISON);
+	sfx.add(tr("learn.sound_bomb"), SND_SOUND_BOMB);
+	sfx.add(tr("learn.miner_dig"), SND_MINER_DIG);
 	sfx.add(tr("learn.doctor_revive"), SND_DOCTOR_REVIVE);
 	sfx.add(tr("learn.noisemaker_alarm"), SND_NOISEMAKER_ALARM);
 	sfx.add(tr("learn.arsonist_fire"), SND_ARSONIST_FIRE);

@@ -326,6 +326,22 @@ mixin class state_roles_part {
 		return true;
 	}
 
+	// A bomba do OFUSCADOR: quem está VIVO na mesma sala que ele, menos ele, fica surdo. No duto e na
+	// barriga não se está na sala; fantasma não é atingido (como em toda sabotagem). Fora de sala (num
+	// ponto sem sala, que não deveria existir) recusa.
+	bool try_sound_bomb(uint64 peer, array<uint64>@ surdos, string&out fail_key) {
+		game_player@ p = find_player(peer);
+		if (@p == null || !p.alive || p.vented) { fail_key = "game.ghost_cannot_interact"; return false; }
+		string sala = map.room_id_at(p.x, p.y);
+		if (sala == "") { fail_key = "role.ability_unavailable"; return false; }
+		for (uint i = 0; i < players.length(); i++) {
+			game_player@ o = players[i];
+			if (o is p || !o.alive || o.vented || o.swallowed()) continue;
+			if (map.room_id_at(o.x, o.y) == sala) surdos.insert_last(o.peer_id);
+		}
+		return true;
+	}
+
 	// O DELATOR, conferido a cada tick da sala: faltando poucas tarefas, os impostores vivos descobrem
 	// quem ele é (uma vez); com todas feitas, ele descobre quem são os impostores (uma vez). Só o delator
 	// VIVO: morto, ele já não conta a ninguém, e os impostores não precisam mais caçá-lo. Devolve os avisos

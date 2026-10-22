@@ -123,10 +123,32 @@ mixin class server_abilities_part {
 			message_key = "role.clean_done";
 			return true;
 		}
+		if (ability == ABILITY_SOUND_BOMB) {
+			array<uint64> surdos;
+			if (!lobby.try_sound_bomb(p.peer_id, surdos, message_key)) return false;
+			// A explosão para todos, no ponto dele - quem está fora da sala ouve de onde veio.
+			net_packet@ bum = net_packet(S_SOUND_BOMB);
+			bum.set_float("x", p.x);
+			bum.set_float("y", p.y);
+			broadcast_to_lobby(lobby, bum);
+			float duracao = lobby.config.role_value(ROLE_GRENADIER, TUNABLE_DURATION);
+			for (uint i = 0; i < surdos.length(); i++) {
+				game_player@ quem = lobby.find_player(surdos[i]);
+				if (@quem == null || !reaches_client(quem)) continue;
+				net_packet@ surdo = net_packet(S_DEAFENED);
+				surdo.set_float("seconds", duracao);
+				send_to(quem.peer_id, surdo);
+			}
+			message_params.set("count", "" + surdos.length());
+			message_key = "role.sound_bomb_done";
+			return true;
+		}
 		if (ability == ABILITY_MINE) {
 			string vent_id, link_id;
 			if (!lobby.try_mine(p.peer_id, vent_id, link_id, message_key)) return false;
-			// Todo mundo põe o duto no mapa dele (marcador incluído); ninguém ouve nada agora.
+			// Todo mundo põe o duto no mapa dele (marcador incluído). Quem está perto ouve a picareta,
+			// posicionada e sem nome, como a limpeza do lixeiro: cavar um duto permanente não sai de graça.
+			broadcast_body_sound(lobby, "dig", p.x, p.y);
 			net_packet@ novo = net_packet(S_VENT_CREATED);
 			novo.set_string("id", vent_id);
 			novo.set_string("link", link_id);

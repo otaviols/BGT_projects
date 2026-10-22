@@ -16,6 +16,13 @@ mixin class match_net_abilities_part {
 		events_log.add("", texto);
 	}
 
+	// A bomba do ofuscador me deixou surdo. Sem histórico: é uma sensação, não um acontecimento a reler.
+	void on_deafened(net_packet@ pkt) {
+		deaf_delay = GRENADIER_DEAF_DELAY_SECONDS;
+		deaf_remaining = pkt.get_float("seconds", GRENADIER_DEAF_SECONDS);
+		speak(tr("role.deafened"));
+	}
+
 	// O transportador me trocou de lugar: a posição é do servidor, como a do duto (ver on_vent_state).
 	void on_transported(net_packet@ pkt) {
 		my_x = pkt.get_float("x");
