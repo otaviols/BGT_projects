@@ -450,6 +450,20 @@ mixin class server_abilities_part {
 		broadcast_to_lobby(lobby, som);
 	}
 
+	// Os OUTROS impostores da partida, vistos por `p`, no formato que o cliente guarda.
+	json_array@ impostor_partners_json(game_state@ lobby, game_player@ p) {
+		json_array@ parceiros = json_array();
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ o = lobby.players[i];
+			if (o.peer_id == p.peer_id || !o.is_impostor) continue;
+			json_object@ j = json_object();
+			j.set("peer_id", o.peer_id);
+			j.set("name", o.public_name());
+			parceiros.add(j);
+		}
+		return parceiros;
+	}
+
 	// Conta ao jogador que o papel dele mudou, com tudo que o cliente só recebia no começo. Se o papel
 	// novo é de impostor, os companheiros ficam sabendo também - senão um mataria o outro.
 	void send_role_changed(game_state@ lobby, game_player@ p, const string&in reason) {
@@ -463,18 +477,18 @@ mixin class server_abilities_part {
 			game_player@ alvo = lobby.find_player(p.execution_target);
 			if (@alvo != null) r.set_string("execution_target_name", alvo.public_name());
 		}
-		json_array@ parceiros = json_array();
+		json_array@ parceiros = p.role().knows_teammates ? impostor_partners_json(lobby, p) : json_array();
 		if (p.role().knows_teammates) {
 			for (uint i = 0; i < lobby.players.length(); i++) {
 				game_player@ o = lobby.players[i];
-				if (o.peer_id == p.peer_id || !o.is_impostor) continue;
-				json_object@ j = json_object();
-				j.set("peer_id", o.peer_id);
-				j.set("name", o.public_name());
-				parceiros.add(j);
+				if (o.peer_id == p.peer_id || !o.is_impostor || !reaches_client(o)) continue;
 				dictionary@ np = dictionary();
 				np.set("name", p.public_name());
-				if (reaches_client(o)) send_error(o.peer_id, reason == "recruited" ? "role.teammate_recruited" : "role.teammate_joined", np);
+				send_error(o.peer_id, reason == "recruited" ? "role.teammate_recruited" : "role.teammate_joined", np);
+				// O aviso falado não muda a lista que o cliente dele guarda: ela vai junto.
+				net_packet@ lista = net_packet(S_IMPOSTOR_PARTNERS);
+				lista.set_array("impostor_partners", impostor_partners_json(lobby, o));
+				send_to(o.peer_id, lista);
 			}
 		}
 		r.set_array("impostor_partners", parceiros);

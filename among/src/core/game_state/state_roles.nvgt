@@ -298,6 +298,9 @@ mixin class state_roles_part {
 		// do "ninguém ao alcance", para não contar ao recrutador que aquela pessoa é neutra.
 		if (t.role().team != TEAM_CREW) { fail_key = "role.recruit_no_target"; return false; }
 		t.set_role(ROLE_IMPOSTOR);
+		// Impostor não tem tarefas (só finge): as dele saem, ou continuariam soando e valendo para ele.
+		// Para o progresso do time já não contavam - a conta é pelo papel.
+		t.tasks.resize(0);
 		t.kill_cooldown_remaining = kill_cooldown_for(t);
 		p.recruit_used = true;
 		p.kill_cooldown_remaining = kill_cooldown_for(p);

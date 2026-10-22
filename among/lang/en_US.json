@@ -620,6 +620,7 @@
   "lobby.role_tunable.snitch.tasks_left": "Snitch: with how many tasks left the impostors find out who they are (blank = default)",
   "role.snitch_exposed": "Watch out: {names} is the Snitch, and is almost done with their tasks. When they finish, they will know who you are.",
   "role.snitch_found": "You finished your tasks. The impostors are: {names}.",
+  "role.snitch_knows": "The impostors are: {names}.",
   "role.recruiter": "Recruiter",
   "role.assigned_recruiter": "You are the Recruiter, an impostor: once per match, the ability key turns the crewmate right next to you into an impostor on your team. Recruiting uses up your knife that time.",
   "lobby.role_count.recruiter": "Recruiters (impostor: once, turns a crewmate into an impostor)",

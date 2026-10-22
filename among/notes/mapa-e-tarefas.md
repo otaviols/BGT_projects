@@ -87,7 +87,10 @@ ataque). Ataque novo de contato: ponha a porta nos dois lados.
 oferecer o Enter e o servidor (`open_door_by_panel`, com o dobro da folga) para aceitar - uma regra só.
 Abrir solta a sala inteira para todos, pelo mesmo `S_DOORS_STATE` do tempo acabando; o servidor recusa
 calado, porque o caso comum é a porta ter aberto sozinha durante o minijogo (o painel fecha avisando,
-pelo `doors_opened_count` do cliente). Sonda: `probe_door_panel`.
+pelo `doors_opened_in(sala)` do cliente). Sonda: `probe_door_panel`. **Esse aviso conta a abertura da
+SALA do painel, não de qualquer porta** (1.1.1): era um contador só, e a câmara de descontaminação, que
+abre a cada um que passa, fechava o painel de todo mundo dizendo "a porta já abriu" com ela trancada
+(relato do usuário, 2026-10-22). Pacote novo de portas que abrem: ele passa pelo mesmo contador.
 
 **A câmara de descontaminação (`game_map.decontamination_zone`) é uma porta trancada que se tranca
 sozinha.** Quem entra vivo dispara `tick_decontamination` (`state_ship`), que fecha a sala por

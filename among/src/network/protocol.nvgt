@@ -388,6 +388,10 @@ const string S_CAMERA_PLAYERS = "s_camera_players";         // {names: [...]}
 // recebia no começo: recargas, palpites, companheiros de impostor.
 const string S_ROLE_CHANGED = "s_role_changed";           // {role_id, reason, kill_cooldown_seconds, ability_cooldown_seconds, ability_guesses, impostor_partners: [{peer_id, name}], execution_target_name?}
 const string S_ABILITY_RESULT = "s_ability_result";         // {ability, ok, message_key, message_params?, cooldown_seconds}
+// O time impostor ganhou alguém no meio da partida (o recrutado, o amnésico que lembrou de impostor):
+// a lista nova de parceiros, a CADA impostor que já estava. Sem ela, o Ctrl+H não citava o novo e a
+// faca do recrutador continuava mirando nele. Cliente antigo ignora o pacote e fica só com o aviso falado.
+const string S_IMPOSTOR_PARTNERS = "s_impostor_partners";   // {impostor_partners: [{peer_id, name}]}
 
 // --- Mensagens traduzíveis vindas do servidor -------------------------------
 //

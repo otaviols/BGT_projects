@@ -165,6 +165,9 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 	uint64 role_card_until;
 	float role_card_x, role_card_y;
 	string executioner_target_name;
+	// O X9 que terminou as tarefas: quem são os impostores, como o servidor disse ("" = ainda não sabe).
+	// Guardado do aviso para o Ctrl + habilidade repetir - o aviso fala uma vez só.
+	string snitch_impostor_names;
 	map_zone@ start_zone;
 	string last_zone_id;
 	string last_interactable_id;
@@ -603,6 +606,7 @@ class match_session : match_net_presence_part, match_net_death_part, match_net_m
 		else if (t == S_BODY_PLACED) on_body_placed(pkt);
 		else if (t == S_BODY_SOUND) on_body_sound(pkt);
 		else if (t == S_ROLE_CHANGED) on_role_changed(pkt);
+		else if (t == S_IMPOSTOR_PARTNERS) on_impostor_partners(pkt);
 		else if (t == S_PLAYER_REVIVED) on_player_revived(pkt);
 		else if (t == S_HEARTBREAK) on_heartbreak(pkt);
 		else if (t == S_BELLY_RELEASED) on_belly_released(pkt);

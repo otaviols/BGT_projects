@@ -47,6 +47,12 @@ mixin class match_frame_keys_part {
 			ap.set("name", executioner_target_name);
 			texto += " " + tr("role.executioner_target", ap);
 		}
+		// O X9 que já descobriu (pedido do usuário, 2026-10-22): a pergunta dele dali em diante é essa.
+		if (snitch_impostor_names != "") {
+			dictionary@ sp = dictionary();
+			sp.set("names", snitch_impostor_names);
+			texto += " " + tr("role.snitch_knows", sp);
+		}
 		// O incendiário: quem falta encharcar, entre os vivos (pedido do usuário, 2026-10-16) - é a
 		// pergunta que ele faz a partida inteira, e o "faltam N" de cada encharcada não diz QUEM.
 		if (my_role.ability_id == ABILITY_DOUSE) {
@@ -230,7 +236,7 @@ mixin class match_frame_keys_part {
 					// resultado vai ao servidor, que confere de novo e abre a sala para todos.
 					string porta = map.door_panel_at(my_x, my_y);
 					audio.stop_landmark_beacons();
-					bool abriu = run_door_panel(client);
+					bool abriu = run_door_panel(client, porta);
 					refresh_landmark_beacons(audio, map, my_task_object_ids, active_sabotage_id, my_role, alive);
 					if (abriu) client.send_open_door(porta);
 				} else {

@@ -728,8 +728,9 @@ they were transported and where to; nobody else is told. Whoever is inside a ven
 transported. The default cooldown is 30 seconds.
 
 **Snitch** (crew). An ordinary crewmate, until the tasks: after finishing **all** of them, they find
-out who the impostors are. But with **one** left (the room adjusts it), the impostors find out who they
-are. That is the race: finish before being found.
+out who the impostors are, and from then on Ctrl + ability repeats them. But with **one** left (the room
+adjusts it, from 0 to 5; with 0, they only find out when the Snitch finishes), the impostors find out who
+they are. That is the race: finish before being found.
 
 **Janitor** (impostor). Near a body, the H key makes it **disappear**: nobody finds or reports it
 anymore, and the body sound stops. Whoever is nearby hears the cleaning, where it happens. The default

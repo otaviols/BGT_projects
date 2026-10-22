@@ -6,6 +6,17 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 1.1.1
+
+- **O Delator agora se chama X9.** Depois de terminar as tarefas, Ctrl + habilidade repete quem são os
+  impostores.
+- **Recrutador:** quem é recrutado perde as tarefas, como todo impostor. E os impostores que já estavam
+  passam a contar com ele: Ctrl + habilidade o cita, e a faca deixa de mirar nele.
+- **Porta com painel (Base Polar):** o painel não fecha mais dizendo que a porta já abriu quando foi
+  outra porta da nave que abriu, como a câmara de descontaminação.
+- **Mudando as regras com a sala aberta (O),** dá para salvar a configuração com um nome, e a próxima
+  sala já parte do que você ajustou.
+
 ## 1.1.0
 
 **Nove papéis novos**, para ligar na sala:

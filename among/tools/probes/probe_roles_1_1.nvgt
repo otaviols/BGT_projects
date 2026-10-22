@@ -177,7 +177,10 @@ void main() {
 		string nome, fk;
 		confere("neutro nao e recrutado, e a recusa e a mesma do ninguem ao alcance",
 			!g.try_recruit(4, 5, nome, fk) && fk == "role.recruit_no_target" && g.find_player(5).role_id == ROLE_JESTER);
+		uint tinha = g.find_player(1).tasks.length();
 		confere("recruta o tripulante colado: ele vira impostor", g.try_recruit(4, 1, nome, fk) && g.find_player(1).is_impostor);
+		// Relato de 2026-10-22: as tarefas do recrutado continuavam com ele.
+		confere("e as tarefas dele saem (tinha " + tinha + ")", tinha > 0 && g.find_player(1).tasks.length() == 0);
 		confere("e recrutar gasta a faca daquela recarga", g.find_player(4).kill_cooldown_remaining == g.kill_cooldown_for(g.find_player(4)));
 		confere("uma vez por partida", !g.try_recruit(4, 2, nome, fk) && fk == "role.recruit_used" && !g.find_player(2).is_impostor);
 	}

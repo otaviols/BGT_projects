@@ -188,6 +188,26 @@ mixin class match_net_abilities_part {
 		radar.handle_result(pkt);
 	}
 
+	// Troca a lista de parceiros impostores pela que veio; devolve os nomes como se falam.
+	array<string> load_impostor_partners(json_array@ parceiros) {
+		impostor_partner_peers.resize(0);
+		impostor_partner_names.resize(0);
+		array<string> nomes;
+		if (@parceiros != null) for (uint i = 0; i < parceiros.length(); i++) {
+			json_object@ o = parceiros.get_object(i);
+			if (@o == null) continue;
+			impostor_partner_peers.insert_last(uint64(o["peer_id"]));
+			nomes.insert_last(spoken_name(string(o["name"])));
+			impostor_partner_names.insert_last(string(o["name"]));
+		}
+		return nomes;
+	}
+
+	// O time ganhou alguém (o recrutado): só a lista muda, calada - o aviso falado veio junto, à parte.
+	void on_impostor_partners(net_packet@ pkt) {
+		load_impostor_partners(pkt.get_array("impostor_partners"));
+	}
+
 	// O papel mudou no meio da partida (Carrasco que perdeu o alvo, Amnésico que herdou). Tudo que o
 	// começo da partida dava ao papel é refeito aqui: o que as teclas podem, recargas, companheiros.
 	void on_role_changed(net_packet@ pkt) {
@@ -199,17 +219,7 @@ mixin class match_net_abilities_part {
 		ability_cooldown_config = pkt.get_float("ability_cooldown_seconds", 0.0);
 		my_ability_cooldown_remaining = 0.0;
 		my_guess_count = uint(pkt.get_int("ability_guesses", 0));
-		json_array@ parceiros = pkt.get_array("impostor_partners");
-		impostor_partner_peers.resize(0);
-		impostor_partner_names.resize(0);
-		array<string> nomes;
-		if (@parceiros != null) for (uint i = 0; i < parceiros.length(); i++) {
-			json_object@ o = parceiros.get_object(i);
-			if (@o == null) continue;
-			impostor_partner_peers.insert_last(uint64(o["peer_id"]));
-			nomes.insert_last(spoken_name(string(o["name"])));
-			impostor_partner_names.insert_last(string(o["name"]));
-		}
+		array<string> nomes = load_impostor_partners(pkt.get_array("impostor_partners"));
 		// As tarefas que o papel novo trouxe (o amnésico herda as do morto). Servidor antigo não manda o
 		// campo: aí fica a lista que já havia.
 		if (pkt.exists("tasks")) load_tasks_from_json(pkt.get_array("tasks"), my_tasks, my_task_object_ids);

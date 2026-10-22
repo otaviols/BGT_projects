@@ -56,6 +56,12 @@ mixin class match_net_presence_part {
 	// Traduzido AQUI, no idioma deste jogador: o servidor manda a chave, não a frase
 	// (ver network/protocol.nvgt).
 	void on_error(net_packet@ pkt) {
+		// O aviso do X9 é o único lugar onde o cliente fica sabendo dos impostores: guarda para o Ctrl+H.
+		if (pkt.get_string(MSG_KEY_FIELD) == "role.snitch_found") {
+			dictionary@ np = pkt.get_params(MSG_PARAMS_FIELD);
+			string nomes;
+			if (@np != null && np.get("names", nomes)) snitch_impostor_names = nomes;
+		}
 		if (!pkt.announced) speak(tr_server_message(pkt));
 	}
 

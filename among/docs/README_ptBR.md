@@ -721,8 +721,9 @@ qualquer lugar da nave, e elas **trocam de lugar** na hora. Ele pode ser uma del
 foram transportadas e para onde; mais ninguém fica sabendo. Quem está num duto não pode ser
 transportado. A recarga padrão é de 30 segundos.
 
-**Delator** (tripulação). Um tripulante comum, até as tarefas: ao terminar **todas**, ele descobre
-quem são os impostores. Mas, faltando **uma** (a sala ajusta), os impostores descobrem quem ele é. A
+**X9** (tripulação). Um tripulante comum, até as tarefas: ao terminar **todas**, ele descobre
+quem são os impostores, e dali em diante Ctrl + habilidade os repete. Mas, faltando **uma** (a sala
+ajusta, de 0 a 5; com 0, eles só descobrem quando ele termina), os impostores descobrem quem ele é. A
 corrida é essa: terminar antes que o achem.
 
 **Lixeiro** (impostor). Perto de um corpo, a tecla H o faz **sumir**: ninguém mais o encontra nem o

@@ -125,4 +125,6 @@ mas só durante um som curto. E dê folga: com a máquina ocupada (logo depois d
 `probe_fill_canisters`, a 350 quadros entre teclas, contou UMA vez um erro a mais que nas rodadas
 seguintes - a causa não foi achada; a 450 quadros não se repetiu. A `probe_lobby_form` também falhou
 UMA vez em quatro (2026-10-19, "o botão de papéis abre a tela de PAPÉIS") e passou nas outras, com e sem
-a mudança da vez: falha isolada numa sonda de teclas simuladas é rodar de novo antes de investigar.
+a mudança da vez: falha isolada numa sonda de teclas simuladas é rodar de novo antes de investigar. Em
+2026-10-22 ela falhou em 2 de 4 rodadas, e o commit ANTERIOR, numa cópia (`git worktree`), em 1 de 4 - com
+um "wwwwww" grudado no nome lembrado. Para saber se foi a mudança, compare assim, várias rodadas de cada.

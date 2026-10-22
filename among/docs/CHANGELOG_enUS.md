@@ -6,6 +6,16 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 1.1.1
+
+- **Snitch:** after finishing their tasks, Ctrl + ability repeats who the impostors are.
+- **Recruiter:** whoever is recruited loses their tasks, like every impostor. And the impostors who were
+  already there now count them in: Ctrl + ability names them, and the knife no longer aims at them.
+- **Doors with a panel (Polar Base):** the panel no longer closes saying the door already opened when it
+  was another door on the ship that opened, like the decontamination chamber.
+- **Changing the rules with the room open (O)** now lets you save the settings under a name, and the
+  next room starts from what you adjusted.
+
 ## 1.1.0
 
 **Nine new roles**, to turn on in the room:

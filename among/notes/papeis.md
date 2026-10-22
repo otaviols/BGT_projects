@@ -505,7 +505,16 @@ habilidades que mexem no mapa (tampa, limpeza, arrasto).
 - **Recrutador:** `try_recruit` troca o papel do alvo para impostor e o servidor reaproveita o
   `send_role_changed` do amnésico, com o motivo `recruited` - que escolhe a frase dos impostores
   (`role.teammate_recruited`, e não a do amnésico, "se lembrou de quem é"). Mirar em neutro recusa com a
-  MESMA frase do "ninguém ao alcance", para não contar que aquela pessoa é neutra.
+  MESMA frase do "ninguém ao alcance", para não contar que aquela pessoa é neutra. **Os impostores que já
+  estavam recebem a lista nova (`S_IMPOSTOR_PARTNERS`), e não só o aviso falado** (1.1.1): até ali o
+  cliente deles guardava a lista do começo, e o Ctrl+H não citava o recrutado - pior, a faca do
+  recrutador continuava mirando nele (o `nearest_alive` pula só quem está na lista). **E as tarefas do
+  recrutado saem** no `try_recruit`: impostor não tem tarefas, e o `send_role_changed` manda as que
+  ele tiver.
+- **X9:** é o nome do Delator em português (pedido do usuário, 2026-10-22); o id continua `snitch`. O
+  cliente guarda os nomes do aviso `role.snitch_found` (`snitch_impostor_names`, no `on_error`) para o
+  Ctrl+H repetir - é a única vez que o servidor conta. O ajuste aceita 0: os impostores só descobrem
+  quando ele termina.
 - **Bêbado:** a inversão é no `move()` do cliente, depois de ler as teclas - os gestos do Android viram
   as mesmas teclas e invertem junto.
 - **Viciado:** tudo no cliente dele (`match_addict.nvgt`); o servidor nem sabe. Os corpos falsos usam

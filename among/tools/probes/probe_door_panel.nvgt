@@ -38,13 +38,14 @@ void dirige() {
 	if (abrir_no_bipe >= 0 && int(bipe) == abrir_no_bipe && @g_cliente != null) {
 		abrir_no_bipe = -1;
 		net_packet@ abriu = net_packet(S_DOORS_STATE);
-		json_array@ z = json_array(); z.add("laboratory");
+		json_array@ z = json_array(); z.add(sala_que_abre);
 		abriu.set_bool("closed", false);
 		abriu.set_array("zones", z);
 		g_cliente.deliver_for_probe(abriu);
 	}
 }
 int abrir_no_bipe = -1;
+string sala_que_abre = "laboratory";
 game_client@ g_cliente = null;
 
 // O ponto do meio de uma das passagens da sala, e um passo para dentro ou para fora.
@@ -114,7 +115,7 @@ void main() {
 	g_door_panel_sides_next = lados;
 	array<int> teclas = {KEY_LEFT, KEY_UP, 0, KEY_RIGHT, KEY_LEFT, KEY_LEFT, KEY_UP, KEY_RIGHT};
 	respostas = teclas;
-	bool abriu = run_door_panel(c);
+	bool abriu = run_door_panel(c, "laboratory");
 	// O último bipe não chega a ser contado pela sonda: a porta abre no aperto, e o painel sai.
 	confere("errar zera: cinco SEGUIDOS abrem, no oitavo bipe (" + bipe + ")", abriu && bipe == teclas.length() - 1);
 	confere("a demora contou como erro (" + g_door_panel_last_misses + ")", g_door_panel_last_misses == 1);
@@ -127,8 +128,21 @@ void main() {
 	respostas = teclas2;
 	bipe = 0;
 	abrir_no_bipe = 2;
-	bool abriu2 = run_door_panel(c);
+	bool abriu2 = run_door_panel(c, "laboratory");
 	confere("a porta abriu por outro: o painel fecha sem contar como aberto", !abriu2 && bipe <= 3);
+
+	println("== outra sala abrindo nao fecha o painel ==");
+	// Na Base Polar a descontaminacao abre a cada um que passa: so a porta DESTE painel fecha o minijogo
+	// (relato de 2026-10-22: o painel dizia que a porta ja abriu, com ela trancada).
+	array<int> lados3 = {0, 1, 2, 0, 1};
+	g_door_panel_sides_next = lados3;
+	array<int> teclas3 = {KEY_LEFT, KEY_UP, KEY_RIGHT, KEY_LEFT, KEY_UP};
+	respostas = teclas3;
+	bipe = 0;
+	sala_que_abre = "decontamination";
+	abrir_no_bipe = 2;
+	bool abriu3 = run_door_panel(c, "laboratory");
+	confere("a descontaminacao abriu no meio: o painel segue e abre (" + bipe + ")", abriu3 && abrir_no_bipe == -1);
 
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }

@@ -85,9 +85,27 @@ class game_client {
 	// painel de quem segura ouve o colega chegar e soltar. Marcado aqui, ao receber, pela mesma razão do
 	// sabotage_ended: o painel é um laço bloqueante e não lê a fila.
 	array<string> sabotage_held_panels;
-	// Quantas vezes alguma porta ABRIU desde o começo: o painel da porta compara com o número de quando
-	// abriu, e fecha se a porta se abriu sozinha (ou por outro) no meio do minijogo.
+	// Quantas vezes as portas de cada SALA abriram desde o começo (sala -> int): o painel da porta compara
+	// com o número de quando abriu, e fecha se a SUA porta se abriu sozinha (ou por outro) no meio do
+	// minijogo. Era um contador só, de qualquer porta: na Base Polar a câmara de descontaminação abre a
+	// cada um que passa, e o painel fechava dizendo "a porta já abriu" com ela trancada (relato de
+	// 2026-10-22). O total fica para o treino, que não tem sala. Duas listas, e não um dictionary de
+	// int: o int de dictionary já devolveu lixo neste projeto.
+	array<string> doors_opened_rooms;
+	array<int> doors_opened_counts;
 	int doors_opened_count = 0;
+
+	int doors_opened_in(const string&in room) {
+		if (room == "") return doors_opened_count;
+		int i = doors_opened_rooms.find(room);
+		return i < 0 ? 0 : doors_opened_counts[i];
+	}
+
+	private void count_door_opened(const string&in room) {
+		int i = doors_opened_rooms.find(room);
+		if (i < 0) { doors_opened_rooms.insert_last(room); doors_opened_counts.insert_last(1); }
+		else doors_opened_counts[i]++;
+	}
 
 	uint64 last_update_ticks = 0;
 
@@ -178,7 +196,11 @@ class game_client {
 		if (type == S_VOTE_RESULT) voting_ended = true;
 		if (type == S_SABOTAGE_PROGRESS) panel_fixed_id = pkt.get_string("object_id");
 		if (type == S_SABOTAGE_STARTED || type == S_SABOTAGE_FIXED) sabotage_held_panels.resize(0);
-		if (type == S_DOORS_STATE && !pkt.get_bool("closed")) doors_opened_count++;
+		if (type == S_DOORS_STATE && !pkt.get_bool("closed")) {
+			doors_opened_count++;
+			json_array@ salas = pkt.get_array("zones");
+			if (@salas != null) for (uint i = 0; i < salas.length(); i++) count_door_opened(string(salas[i]));
+		}
 		if (type == S_SABOTAGE_HOLD) {
 			string painel = pkt.get_string("object_id");
 			int i = sabotage_held_panels.find(painel);

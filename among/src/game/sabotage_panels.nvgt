@@ -255,10 +255,14 @@ array<int> g_door_panel_sides_next;
 int g_door_panel_last_misses = 0;
 // O lado aceso AGORA (-1 = nenhum): é como a sonda aperta a seta enquanto o bipe está no ar.
 int g_door_panel_lit = -1;
+// A sala do painel aberto agora, para as pausas conferirem a porta certa sem passar o nome adiante.
+string g_door_panel_room = "";
 
-bool run_door_panel(game_client@ client) {
+// `room` é a sala da porta: só a abertura DELA fecha o painel ("" = qualquer uma, o treino).
+bool run_door_panel(game_client@ client, const string&in room = "") {
 	speak_hint("game.door_panel.intro");
-	int abertas = client.doors_opened_count;
+	g_door_panel_room = room;
+	int abertas = client.doors_opened_in(room);
 	array<int> lados = g_door_panel_sides_next;
 	g_door_panel_sides_next.resize(0);
 	g_door_panel_last_misses = 0;
@@ -309,7 +313,7 @@ bool door_panel_pause(game_client@ client, int ms, int abertas) {
 }
 
 bool door_opened_meanwhile(game_client@ client, int abertas) {
-	if (client.doors_opened_count == abertas) return false;
+	if (client.doors_opened_in(g_door_panel_room) == abertas) return false;
 	speak(tr("game.door_panel.opened_meanwhile"));
 	return true;
 }

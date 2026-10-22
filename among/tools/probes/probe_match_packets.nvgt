@@ -338,6 +338,28 @@ void main() {
 	string papel_agora = am.current_role_text();
 	confere("Ctrl + habilidade diz o papel atual, com o companheiro", papel_agora.find("bia") >= 0 && papel_agora == papel_agora.trim_whitespace());
 
+	println("== recrutador: o time ganhou alguem ==");
+	// Relato de 2026-10-22: o Ctrl+H do recrutador nao citava o recrutado, e a faca mirava nele.
+	match_session@ rc = nova_partida(ROLE_RECRUITER);
+	net_packet@ time_novo = net_packet(S_IMPOSTOR_PARTNERS);
+	json_array@ novos = json_array();
+	json_object@ recrutado = json_object(); recrutado.set("peer_id", 4); recrutado.set("name", "caio"); novos.add(recrutado);
+	time_novo.set_array("impostor_partners", novos);
+	rc.handle_packet(time_novo);
+	confere("a lista de parceiros ganha o recrutado (a faca deixa de mirar nele)",
+		rc.impostor_partner_peers.length() == 1 && rc.impostor_partner_peers[0] == 4);
+	confere("e o Ctrl + habilidade o cita", rc.current_role_text().find("caio") >= 0);
+
+	println("== X9 que ja sabe ==");
+	match_session@ x9 = nova_partida(ROLE_SNITCH);
+	confere("antes de terminar, o Ctrl + habilidade nao diz impostor nenhum", x9.current_role_text().find("dani") < 0);
+	dictionary@ quem_sao = dictionary(); quem_sao.set("names", "dani, edu");
+	net_packet@ achou = net_packet(S_ERROR);
+	achou.set_string(MSG_KEY_FIELD, "role.snitch_found");
+	achou.set_params(MSG_PARAMS_FIELD, quem_sao);
+	x9.handle_packet(achou);
+	confere("depois do aviso, o Ctrl + habilidade repete quem sao", x9.current_role_text().find("dani, edu") >= 0);
+
 	println("== abertura em duas etapas ==");
 	// O papel sozinho na abertura; os modificadores numa entrada PRÓPRIA do histórico, e, para o
 	// apaixonado, só depois do som de início E da batida de coração (pedido do usuário).

@@ -792,7 +792,7 @@ role_traits@ role_transporter() {
 	return t;
 }
 
-// Delator (do Town of Us): tripulante comum, até as tarefas. Faltando poucas (a sala ajusta; 1 por
+// Delator - o "X9" em português (do Town of Us; o nome, pedido do usuário em 2026-10-22): tripulante comum, até as tarefas. Faltando poucas (a sala ajusta; 1 por
 // padrão), os IMPOSTORES descobrem quem ele é - e ao terminar todas, ELE descobre quem são os impostores.
 // A corrida é essa: ele precisa terminar antes que o achem.
 role_traits@ role_snitch() {

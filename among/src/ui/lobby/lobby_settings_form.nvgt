@@ -226,10 +226,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 	f.add_list_item(f_voice, tr("lobby.override.disabled"), "off");
 	if (@current != null && current.exists("voice_chat")) f.set_list_position(f_voice, bool(current["voice_chat"]) ? 1 : 2);
 	int f_speed = f.create_input_box(tr("lobby.move_speed_override"), current_int_text(current, "move_speed_percent"));
-	// Salvar estas regras, por último e só na criação: é a pergunta que só faz sentido depois de
-	// tudo estar preenchido. Vazio = não salva - a última usada é guardada sozinha de qualquer jeito
-	// (ver run_create_lobby_screen), então ninguém precisa digitar nada para ter "a de ontem".
-	int f_save_as = creating ? f.create_input_box(tr("lobby.preset_save_as"), "") : -1;
+	// Salvar estas regras, por último: é a pergunta que só faz sentido depois de tudo estar preenchido.
+	// Vazio = não salva - a última usada é guardada sozinha de qualquer jeito (ver
+	// remember_lobby_settings), então ninguém precisa digitar nada para ter "a de ontem". Também com a
+	// sala aberta (pedido do usuário, 2026-10-22): é ali, jogando, que se acerta a regra que se quer guardar.
+	int f_save_as = f.create_input_box(tr("lobby.preset_save_as"), "");
 	int f_ok = f.create_button(tr("menu.confirm"), true);
 	int f_cancel = f.create_button(tr("menu.cancel"), false, true);
 
@@ -293,15 +294,18 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			g_voice.typing = false;
 			r.ok = true;
 			r.join_code = f.get_text(f_code);
+			r.save_as = f.get_text(f_save_as);
 			if (creating) {
 				r.lobby_name = f.get_text(f_name);
-				r.save_as = f.get_text(f_save_as);
 				int preset_index = f.get_list_position(f_preset);
 				r.preset_id = preset_index >= 0 ? f.get_list_item_id(f_preset, preset_index) : "classic";
 				// Fora do clássico o modo É o preset (é o que o servidor entende na criação).
 				if (modo != GAME_MODE_CLASSIC) r.preset_id = modo;
 			} else {
 				r.ov.game_mode = modo;
+				// Para salvar: a configuração guardada se lê como "preset + ajustes", e fora do clássico
+				// o preset É o modo - como na criação, logo acima.
+				r.preset_id = modo != GAME_MODE_CLASSIC ? modo : "classic";
 			}
 			// -1 em número e "" em texto significam "não mexi nisto": é o servidor que decide o
 			// valor final. Mandar 0 no lugar seria pedir uma partida com zero tarefas por engano.
@@ -515,6 +519,18 @@ string current_float_text(json_object@ cfg, const string&in key) {
 // Devolve o primeiro S_LOBBY_STATE da partida criada, ou null se o jogador desistiu ou o servidor não
 // respondeu. O pacote é DEVOLVIDO, e não descartado, porque é o único retrato da sala que o anfitrião
 // recebe enquanto estiver sozinho nela.
+// Guarda as regras que acabaram de ser confirmadas, ao criar a sala e ao mudá-la aberta (O). A última
+// usada vai SEMPRE, sem o jogador pedir: é o caso comum ("quero a de ontem") e não custa uma decisão a
+// ele. Com um nome, também como configuração nomeada.
+void remember_lobby_settings(lobby_form_result@ r) {
+	lobby_preset_save(LOBBY_PRESET_LAST_USED, r.preset_id, r.ov);
+	if (r.save_as == "") return;
+	lobby_preset_save(r.save_as, r.preset_id, r.ov);
+	dictionary@ p = dictionary();
+	p.set("name", r.save_as);
+	speak(tr("lobby.preset_saved", p));
+}
+
 net_packet@ run_create_lobby_screen(game_client@ client) {
 	// De onde partir: os padrões, a última sala que ele criou, ou uma configuração salva. O menu só
 	// aparece se houver algo salvo - quem nunca salvou nada cai direto no formulário, como antes.
@@ -536,22 +552,13 @@ net_packet@ run_create_lobby_screen(game_client@ client) {
 	lobby_form_result r = run_lobby_settings_form(client, partida_inicial, true, partida_base.preset_id);
 	if (!r.ok) return null;
 
-	// A última usada é guardada SEMPRE, sem o jogador pedir: é o caso comum ("quero a de ontem") e
-	// não custa uma decisão a ele. O nome só é gravado se ele digitou um.
-	lobby_preset_save(LOBBY_PRESET_LAST_USED, r.preset_id, r.ov);
+	remember_lobby_settings(r);
 	// O nome também, pelo mesmo motivo. Vazio não apaga o lembrado: quem apagou o campo para usar o
 	// padrão do servidor ("Partida de fulano") só desta vez não perde o nome de sempre.
 	if (r.lobby_name != "") {
 		g_settings.last_lobby_name = r.lobby_name;
 		g_settings.save();
 	}
-	if (r.save_as != "") {
-		lobby_preset_save(r.save_as, r.preset_id, r.ov);
-		dictionary@ p = dictionary();
-		p.set("name", r.save_as);
-		speak(tr("lobby.preset_saved", p));
-	}
-
 	client.send_create_lobby(r.lobby_name, r.preset_id, r.ov, r.join_code);
 	return wait_for_lobby_state_after_create(client);
 }
