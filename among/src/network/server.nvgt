@@ -358,6 +358,17 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 	// Há alguém do outro lado deste registro? Bot não tem conexão; quem saiu da partida tem uma
 	// conexão que já não pertence a esta sala; e quem caiu e está com o lugar guardado não tem conexão
 	// nenhuma até voltar.
+	// Alguém de carne e osso ainda tem a ver com esta partida: quem joga (mesmo caído, enquanto o lugar
+	// dele está guardado para a volta), ou quem assiste.
+	bool lobby_has_people(game_state@ lobby) const {
+		if (lobby.spectators.length() > 0) return true;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			game_player@ p = lobby.players[i];
+			if (!p.is_bot && !p.left_match) return true;
+		}
+		return false;
+	}
+
 	bool reaches_client(game_player@ p) const {
 		return !p.is_bot && !p.left_match && !p.held;
 	}
@@ -678,6 +689,11 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		for (int i = int(lobbies.length()) - 1; i >= 0; i--) {
 			game_state@ lobby = lobbies[i];
 			if (lobby.state == "waiting" || lobby.state == "ended") continue;
+			// Partida sem ninguém - só bots, sem quem jogue, assista ou possa voltar: fecha. Conferido AQUI,
+			// a cada volta, e não em cada caminho de saída: havia o do jogador saindo, mas não o de quem
+			// ASSISTIA sair por último, e a partida seguia só com bots para sempre (relato do usuário,
+			// 2026-10-22; antes, recados #182, #190, #198, #200).
+			if (!lobby_has_people(lobby)) { close_lobby(i); continue; }
 			array<net_packet@>@ events = lobby.tick(delta);
 			// A partida acabou neste tick: o posto de câmeras e o scanner fecham ANTES do S_GAME_OVER
 			// sair. Antes o posto só era liberado ao reabrir a sala, sem aviso a ninguém - quem estava

@@ -109,7 +109,32 @@ void main() {
 	@todos[2] = null;
 	confere("saiu o ultimo humano: a sala sai da lista", !na_lista(obs, todos, sala));
 
-	obs.disconnect(); dono.disconnect();
+	// 3. Quem ASSISTIA sai por último (relato do usuário, 2026-10-22): o dono joga com bots, o outro
+	// assiste; o dono sai - a sala continua, porque há quem assista; o espectador sai - a sala fecha. Até
+	// ali ninguém conferia nesse caminho, e a partida seguia só com bots para sempre.
+	game_client@ espectador = entra(addr, "bae" + sfx);
+	@todos[2] = espectador;
+	string sala2 = "assistida" + sfx;
+	lobby_overrides ov2;
+	ov2.impostor_count = 1;
+	dono.send_create_lobby(sala2, "wolves", ov2); // todos lobos: só com bots, nunca acaba sozinha
+	net_packet@ c2 = wf(dono, S_LOBBY_STATE, 5000);
+	espectador.send_join_lobby(c2.get_string("lobby_id"));
+	espera(todos, 600);
+	espectador.send_set_spectate(true);
+	espera(todos, 400);
+	for (int b = 0; b < 3; b++) { dono.send_add_bot(); espera(todos, 200); }
+	dono.send_start_game();
+	confere("a partida assistida comecou", @wf(dono, S_GAME_START, 8000) != null);
+	espera(todos, 800);
+	dono.send_leave_lobby();
+	espera(todos, 1000);
+	confere("controle: o ultimo jogador saiu, mas ha quem assista - a sala continua", na_lista(obs, todos, sala2));
+	espectador.send_leave_lobby();
+	espera(todos, 1500);
+	confere("quem assistia saiu por ultimo: a sala sai da lista", !na_lista(obs, todos, sala2));
+
+	obs.disconnect(); dono.disconnect(); espectador.disconnect();
 	println("");
 	println(falhas == 0 ? "RESULTADO: ok" : "RESULTADO: FALHA (" + falhas + ")");
 }
