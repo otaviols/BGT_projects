@@ -6,6 +6,17 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 1.2.2
+
+Sons novos:
+- O **alerta do veterano** tem som próprio (antes tocava o do escudo do anjo).
+- O **bêbado** e o **viciado** ganharam um som na abertura da partida, antes de ouvirem os modificadores,
+  como a batida de coração do apaixonado.
+- As **contagens regressivas** fora da reunião (os últimos segundos de uma sabotagem, como o oxigênio e a
+  contaminação, e a largada do pega-pega) têm um som próprio, diferente do da votação.
+
+Todos estão no menu Aprender os sons do jogo.
+
 ## 1.2.1
 
 - **Ranking mais justo:** só contam para os rankings as partidas com pelo menos 3 pessoas e em que os bots

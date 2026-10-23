@@ -6,6 +6,17 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 1.2.2
+
+New sounds:
+- The **veteran's alert** has its own sound (it used the guardian angel's shield before).
+- The **drunk** and the **addict** get a sound at the start of the match, before hearing their
+  modifiers, like the lover's heartbeat.
+- **Countdowns** outside meetings (the last seconds of a sabotage, like oxygen and contamination, and the
+  start of tag) have their own sound, different from the voting one.
+
+They are all in the Learn the game's sounds menu.
+
 ## 1.2.1
 
 - **Fairer ranking:** only matches with at least 3 people, where bots are less than half of the players,

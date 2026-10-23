@@ -1,8 +1,8 @@
 {
-	"version": "1.2.1",
+	"version": "1.2.2",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "Ranking mais justo: só contam para os rankings as partidas com pelo menos 3 pessoas e em que os bots são menos da metade. Vale também para as partidas já jogadas: as de uma ou duas pessoas saíram do ranking. Jogar com bots continua contando para as suas estatísticas. Minhas estatísticas diz quantas das suas partidas contam para o ranking.",
-		"en_US": "Fairer ranking: only matches with at least 3 people, where bots are less than half of the players, count for the rankings. This also applies to matches already played: the ones with one or two people left the ranking. Playing with bots still counts for your own stats. My stats tells how many of your matches count for the ranking."
+		"pt_BR": "Sons novos: O alerta do veterano tem som próprio (antes tocava o do escudo do anjo). O bêbado e o viciado ganharam um som na abertura da partida, antes de ouvirem os modificadores, como a batida de coração do apaixonado. As contagens regressivas fora da reunião (os últimos segundos de uma sabotagem, como o oxigênio e a contaminação, e a largada do pega-pega) têm um som próprio, diferente do da votação. Todos estão no menu Aprender os sons do jogo.",
+		"en_US": "New sounds: The veteran's alert has its own sound (it used the guardian angel's shield before). The drunk and the addict get a sound at the start of the match, before hearing their modifiers, like the lover's heartbeat. Countdowns outside meetings (the last seconds of a sabotage, like oxygen and contamination, and the start of tag) have their own sound, different from the voting one. They are all in the Learn the game's sounds menu."
 	}
 }
