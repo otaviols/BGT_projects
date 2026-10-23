@@ -206,6 +206,12 @@ parágrafo (é o título dele); depois de gerar, confira que o `version.json` n�
 
 ## Infra — o que não é óbvio
 
+**"O jogo compilado NÃO ficou aberto" no release pode ser só a máquina lenta.** O `build_clients.ps1`
+abre o pacote pelo iniciador e procura o `AmongUsGame.exe` depois de 8 s. Na 1.2.2 (2026-10-23) ele
+falhou logo depois de o Docker Desktop abrir, com a máquina ocupada; o jogo abria normal do fonte e
+compilado à parte, e o release seguinte passou sem mudar nada. Antes de caçar a ordem das globais (a
+causa da 0.45.0), abra o jogo do fonte e o executável à parte: se os dois ficam de pé, rode de novo.
+
 **Servidor de TESTE na VPS (2026-10-19): `infra\test_server.ps1 subir|status|desligar`.** Um segundo
 contêiner (`amongus-test`), porta UDP **8935**, banco PRÓPRIO em `/opt/amongus/test-data` - as contas de
 lá não são as do jogo, e o oficial (`amongus-server`, 8934) não é tocado. Aceita os mapas em construção (o
