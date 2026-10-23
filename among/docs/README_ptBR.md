@@ -279,7 +279,8 @@ existe nem no seu arquivo nem no inglês — vale mandar um recado avisando.
 | F2 | alterna entre jogar e só **assistir** a próxima partida (ver "Assistir uma partida") |
 | B | adicionar um bot (só o anfitrião, até 8) |
 | Shift + B | remover o último bot |
-| Ctrl + K | gerenciar jogadores (só o anfitrião): escolha alguém para **expulsar** da sala, mandar **assistir** a próxima partida ou **passar o anfitrião** para essa pessoa. Quem é expulso não pode entrar de novo naquela sala |
+| Ctrl + K | gerenciar jogadores (só o anfitrião): escolha alguém para **expulsar** da sala (pode voltar), **banir** (não entra mais naquela sala), mandar **assistir** a próxima partida ou **passar o anfitrião** para essa pessoa. Havendo banidos, o fim da lista os mostra, para **desbanir** |
+| Esc | sair da sala, depois de confirmar |
 | Y | escrever no chat |
 | Vírgula / Ponto | navegar pelas mensagens |
 | ESC | sair da partida |

@@ -207,9 +207,13 @@ computador seguiria "dentro" de uma conta que não existe. `user_stats` é apaga
 saiu do banco, e não só a sessão).
 
 **Expulsar e mandar assistir (Ctrl+K do anfitrião, protocolo 12) só na sala de espera**, como no
-original: no meio da partida o anfitrião impostor expulsaria quem o viu. Quem é expulso entra em
-`game_state.kicked_accounts` e não volta à MESMA sala, nem assistindo pelo código - sem isso, numa sala
-pública, voltava no segundo seguinte. O "mandar assistir" reaproveita o `C_SET_SPECTATE` com um
+original: no meio da partida o anfitrião impostor expulsaria quem o viu. **Expulsar e banir são duas
+escolhas desde a 1.2** (pedido do usuário): `C_KICK_PLAYER` com `ban`; sem o campo vale banir, que era o
+que o Ctrl+K anterior fazia. Quem é BANIDO entra em `game_state.kicked_accounts` (e `kicked_names`, para
+mostrar) e não volta à MESMA sala, nem assistindo pelo código - sem isso, numa sala pública, voltava no
+segundo seguinte. A lista vai no `S_LOBBY_STATE` (`banned`) e o anfitrião desbane pelo `C_UNBAN_PLAYER`,
+no fim da lista do Ctrl+K. O Esc da sala de espera pergunta antes de sair (`confirm_leave_lobby`, "Não"
+primeiro), num `screen_menu` que bombeia a rede - o `yes_no` do NVGT, usado na partida, não bombeia. O "mandar assistir" reaproveita o `C_SET_SPECTATE` com um
 `peer_id`; a tecla de assistir (F2) continua do jogador (quem insiste em jogar é caso de expulsar). **Passar o
 anfitrião** (`C_TRANSFER_HOST`, 2026-10-16) só troca o `host_peer_id` e manda o `S_LOBBY_STATE` de
 sempre: todo cliente, até o antigo, já anuncia o anfitrião novo por ele (`apply_host_change`), então não

@@ -4,8 +4,10 @@
 // A cria a sala; B e C entram.
 //   1. C (não anfitrião) tenta mandar B assistir e é recusado;
 //   2. A manda B assistir: B fica marcado e ouve que foi o anfitrião; A volta B a jogar;
-//   3. C tenta expulsar B e é recusado; A expulsa B: B recebe S_KICKED, sai da sala, e quem ficou ouve;
-//   4. B tenta entrar de novo e é recusado com o motivo;
+//   3. C tenta expulsar B e é recusado; A expulsa B (sem banir): B recebe S_KICKED, sai, e quem ficou
+//      ouve - e B ENTRA de novo;
+//   4. A bane B: o retrato da sala lista B, e B tenta entrar e é recusado com o motivo; C não desbane,
+//      A desbane, a lista esvazia e B entra de novo (1.2);
 //   5. silenciar no chat: com o gancho dizendo que C está silenciado, a mensagem de C não chega a A, e a
 //      do próprio A chega (a gente nunca silencia a si mesmo).
 #include "../../src/network/client.nvgt"
@@ -85,6 +87,7 @@ void main() {
 	string sfx = "" + random(1000, 9999);
 	for (int i = 0; i < 3; i++) if (!entra(addr, "ht" + i + "x" + sfx)) { println("login falhou"); return; }
 	const uint A = 0, B = 1, C = 2;
+	string nome_b = "ht1x" + sfx; // a conta de B: é por ela que a sala bane e desbane
 	lobby_overrides ov;
 	ov.max_players = 6;
 	todos[A].send_create_lobby("anfitriao" + sfx, "classic", ov);
@@ -114,26 +117,56 @@ void main() {
 	confere("e B esta jogando de novo", situacao(B) == 0);
 
 	esvazia();
-	todos[C].send_kick_player(todos[B].my_peer_id);
+	todos[C].send_kick_player(todos[B].my_peer_id, true);
 	confere("quem nao e anfitriao nao expulsa", ouviu(C, "lobby.host_players_host_only", 3000));
 	pausa(300);
 	confere("e B continua na sala", situacao(B) == 0);
 
+	// Expulsar SEM banir (1.2): sai, e pode voltar.
 	esvazia();
-	todos[A].send_kick_player(todos[B].my_peer_id);
+	todos[A].send_kick_player(todos[B].my_peer_id, false);
 	confere("B recebe S_KICKED", @espera(B, S_KICKED, 3000) != null);
 	confere("quem ficou ouve a expulsao", ouviu(C, "lobby.player_kicked", 3000));
 	pausa(300);
 	confere("B saiu da sala", situacao(B) == -1);
-	todos[A].send_kick_player(todos[A].my_peer_id);
+	todos[A].send_kick_player(todos[A].my_peer_id, true);
 	pausa(300);
 	confere("o anfitriao nao expulsa a si mesmo", situacao(A) == 0);
+	esvazia();
+	todos[B].send_join_lobby(id);
+	net_packet@ voltou_expulso = espera(B, S_JOIN_RESULT, 5000);
+	confere("expulso sem banir, B entra de novo", @voltou_expulso != null && voltou_expulso.get_bool("ok"));
+	pausa(300);
+
+	// Banir: sai, aparece na lista do retrato, e nao volta.
+	esvazia();
+	todos[A].send_kick_player(todos[B].my_peer_id, true);
+	confere("banido, B recebe S_KICKED", @espera(B, S_KICKED, 3000) != null);
+	confere("quem ficou ouve o banimento", ouviu(C, "lobby.player_banned", 3000));
+	pausa(300);
+	json_array@ banidos = @g_retrato == null ? null : g_retrato.get_array("banned");
+	confere("o retrato da sala lista B entre os banidos", @banidos != null && banidos.length() == 1 && string(banidos[0]) == nome_b);
 
 	esvazia();
 	todos[B].send_join_lobby(id);
 	net_packet@ volta = espera(B, S_JOIN_RESULT, 5000);
 	confere("B nao entra de novo, e sabe por que", @volta != null && !volta.get_bool("ok")
 		&& volta.get_string(MSG_KEY_FIELD) == "lobby.kicked_cannot_return");
+
+	// Desbanir: so o anfitriao, pelo nome (em qualquer caixa de letras).
+	esvazia();
+	todos[C].send_unban_player(nome_b);
+	confere("quem nao e anfitriao nao desbane", ouviu(C, "lobby.host_players_host_only", 3000));
+	todos[A].send_unban_player(nome_b.upper());
+	confere("o anfitriao desbane e ouve", ouviu(A, "lobby.player_unbanned", 3000));
+	pausa(300);
+	json_array@ depois = @g_retrato == null ? null : g_retrato.get_array("banned");
+	confere("e a lista de banidos esvazia", @depois != null && depois.length() == 0);
+	esvazia();
+	todos[B].send_join_lobby(id);
+	net_packet@ desbanido = espera(B, S_JOIN_RESULT, 5000);
+	confere("desbanido, B entra de novo", @desbanido != null && desbanido.get_bool("ok"));
+	pausa(300);
 
 	// O filtro é do cliente de A: o gancho é global, então vale para todos os clientes desta sonda -
 	// por isso a conta é olhar a caixa de A e a de C, cada uma com o que deveria ter.
@@ -166,7 +199,7 @@ void main() {
 	confere("o retrato novo diz que C e o anfitriao", @passou != null && passou.get_uint64("host_peer_id") == todos[C].my_peer_id);
 	pausa(300);
 	confere("e A ve o mesmo", @g_retrato != null && g_retrato.get_uint64("host_peer_id") == todos[C].my_peer_id);
-	todos[A].send_kick_player(todos[C].my_peer_id);
+	todos[A].send_kick_player(todos[C].my_peer_id, true);
 	confere("A, que deixou de ser anfitriao, nao expulsa mais", ouviu(A, "lobby.host_players_host_only", 3000));
 	esvazia(); // o retrato da primeira passagem ainda está na caixa de A
 	todos[C].send_transfer_host(todos[A].my_peer_id);

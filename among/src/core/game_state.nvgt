@@ -89,10 +89,26 @@ class game_state : state_kill_part, state_meeting_part, state_ship_part, state_t
 	// votos, kill, vitória, tarefas, papéis - procura em `players`, então um espectador não tem como
 	// influenciar nada por acidente. O que ele recebe é escolhido no servidor, caso a caso.
 	array<game_player@> spectators;
-	// Contas que o anfitrião expulsou (em minúsculas): não entram de novo nesta sala enquanto ela
+	// Contas que o anfitrião BANIU (em minúsculas): não entram de novo nesta sala enquanto ela
 	// existir, nem jogando nem assistindo pelo código. Vive com a sala, não com o anfitrião - passar o
-	// posto adiante não reabre a porta.
+	// posto adiante não reabre a porta; só o desbanir (1.2). `kicked_names` é o nome como se escreve,
+	// na mesma posição, para a lista que o anfitrião ouve. Expulsar sem banir não passa por aqui.
 	array<string> kicked_accounts;
+	array<string> kicked_names;
+
+	void ban_account(const string&in name) {
+		if (kicked_accounts.find(name.lower()) != -1) return;
+		kicked_accounts.insert_last(name.lower());
+		kicked_names.insert_last(name);
+	}
+
+	bool unban_account(const string&in name) {
+		int i = kicked_accounts.find(name.lower());
+		if (i < 0) return false;
+		kicked_accounts.remove_at(i);
+		kicked_names.remove_at(i);
+		return true;
+	}
 	// Quantos impostores a partida começou com (o S_GAME_START diz a todos). Guardado porque quem VOLTA
 	// depois de cair recebe o início de novo (ver server_rejoin.nvgt), e contar agora daria os VIVOS.
 	int start_impostor_count = 0;

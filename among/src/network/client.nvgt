@@ -495,9 +495,16 @@ class game_client {
 		send(p);
 	}
 	// Anfitrião: tirar alguém da sala (Ctrl+K).
-	void send_kick_player(uint64 peer) {
+	void send_kick_player(uint64 peer, bool ban) {
 		net_packet@ p = net_packet(C_KICK_PLAYER);
 		p.set_uint64("peer_id", peer);
+		p.set_bool("ban", ban);
+		send(p);
+	}
+	// Anfitrião: tirar alguém da lista de banidos da sala (pelo nome, como a lista chega).
+	void send_unban_player(const string&in name) {
+		net_packet@ p = net_packet(C_UNBAN_PLAYER);
+		p.set_string("name", name);
 		send(p);
 	}
 	// Anfitrião: passar a vez a outra pessoa da sala (Ctrl+K).

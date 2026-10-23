@@ -6,6 +6,13 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 1.2.0
+
+- **Expulsar ou banir:** no Ctrl + K, o anfitrião escolhe entre expulsar da sala, e a pessoa pode voltar,
+  ou banir, e ela não entra mais naquela sala.
+- **Desbanir:** havendo banidos, o fim da lista do Ctrl + K os mostra, e escolher um permite desbanir.
+- **Sair da sala de espera** com o Esc agora pede confirmação, para não sair sem querer.
+
 ## 1.1.1
 
 - **O Delator agora se chama X9.** Depois de terminar as tarefas, Ctrl + habilidade repete quem são os

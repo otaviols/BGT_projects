@@ -281,7 +281,8 @@ your file and English — worth sending a message about it.
 | F2 | switches between playing and only **watching** the next match (see "Watching a match") |
 | B | add a bot (host only, up to 8) |
 | Shift + B | remove the last bot |
-| Ctrl + K | manage players (host only): choose someone to **kick** from the room, to **spectate** the next match, or to **make them the host**. A kicked player can't join that room again |
+| Ctrl + K | manage players (host only): choose someone to **kick** from the room (they can come back), to **ban** (they can't join that room again), to **spectate** the next match, or to **make them the host**. If anyone is banned, the end of the list shows them, to **unban** |
+| Esc | leave the room, after confirming |
 | Y | write in chat |
 | Comma / Period | move through messages |
 | ESC | leave the match |

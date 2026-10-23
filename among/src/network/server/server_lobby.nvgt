@@ -310,6 +310,11 @@ mixin class server_lobby_part {
 			players_json.add(pj);
 		}
 		pkt.set_array("players", players_json);
+		// Os banidos, pelo nome: é de onde a tela do anfitrião tira a lista para desbanir. Vai a todos,
+		// como o resto do retrato - quem foi banido é anunciado à sala de qualquer jeito.
+		json_array@ banidos = json_array();
+		for (uint i = 0; i < lobby.kicked_names.length(); i++) banidos.add(lobby.kicked_names[i]);
+		pkt.set_array("banned", banidos);
 
 		if (target_peer != 0) send_to(target_peer, pkt);
 		else broadcast_to_lobby(lobby, pkt);
@@ -359,8 +364,10 @@ mixin class server_lobby_part {
 		game_player@ p = lobby.find_player(alvo);
 		if (@p == null || p.is_bot) return;
 		string nome = p.username;
-		lobby.kicked_accounts.insert_last(nome.lower());
-		println("[expulsao] " + nome + " expulso da sala \"" + lobby.lobby_name + "\" pelo anfitriao");
+		// Sem o campo, banir: é o que o Ctrl+K de um cliente anterior à 1.2 queria dizer.
+		bool banir = pkt.get_bool("ban", true);
+		if (banir) lobby.ban_account(nome);
+		println("[expulsao] " + nome + (banir ? " banido" : " expulso") + " da sala \"" + lobby.lobby_name + "\" pelo anfitriao");
 		if (p.protocol_version >= HOST_TOOLS_PROTOCOL) {
 			// Avisado ANTES de sair: depois, fora da sala, ele não receberia mais nada dela.
 			send_to(alvo, net_packet(S_KICKED));
@@ -373,7 +380,27 @@ mixin class server_lobby_part {
 		}
 		dictionary@ np = dictionary();
 		np.set("name", nome);
-		broadcast_to_lobby(lobby, build_message(S_ERROR, "lobby.player_kicked", np));
+		broadcast_to_lobby(lobby, build_message(S_ERROR, banir ? "lobby.player_banned" : "lobby.player_kicked", np));
+		// A lista de banidos mudou: o anfitrião a recebe no retrato da sala (para o desbanir).
+		if (banir) send_lobby_state(lobby, 0);
+	}
+
+	// O anfitrião tira alguém da lista de banidos: a pessoa pode entrar de novo. Só a lista muda - ela
+	// não é chamada de volta. Em qualquer momento (a lista só vale na entrada), mas só o anfitrião.
+	void on_unban_player(uint64 peer_id, net_packet@ pkt) {
+		game_state@ lobby = find_lobby_of_peer(peer_id);
+		if (@lobby == null) return;
+		if (lobby.host_peer_id != peer_id) { send_error(peer_id, "lobby.host_players_host_only"); return; }
+		string nome = pkt.get_string("name");
+		int i = lobby.kicked_accounts.find(nome.lower());
+		if (i < 0) return;
+		nome = lobby.kicked_names[i];
+		lobby.unban_account(nome);
+		println("[expulsao] " + nome + " desbanido da sala \"" + lobby.lobby_name + "\"");
+		dictionary@ np = dictionary();
+		np.set("name", nome);
+		send_error(peer_id, "lobby.player_unbanned", np);
+		send_lobby_state(lobby, 0);
 	}
 
 	// O anfitrião passa a vez a outra pessoa da sala. Só na sala de espera, como expulsar: é lá que o

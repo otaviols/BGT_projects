@@ -1,8 +1,8 @@
 {
-	"version": "1.1.1",
+	"version": "1.2.0",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "O Delator agora se chama X9. Depois de terminar as tarefas, Ctrl + habilidade repete quem são os impostores. Recrutador: quem é recrutado perde as tarefas, como todo impostor. E os impostores que já estavam passam a contar com ele: Ctrl + habilidade o cita, e a faca deixa de mirar nele. Porta com painel (Base Polar): o painel não fecha mais dizendo que a porta já abriu quando foi outra porta da nave que abriu, como a câmara de descontaminação. Mudando as regras com a sala aberta (O), dá para salvar a configuração com um nome, e a próxima sala já parte do que você ajustou.",
-		"en_US": "Snitch: after finishing their tasks, Ctrl + ability repeats who the impostors are. Recruiter: whoever is recruited loses their tasks, like every impostor. And the impostors who were already there now count them in: Ctrl + ability names them, and the knife no longer aims at them. Doors with a panel (Polar Base): the panel no longer closes saying the door already opened when it was another door on the ship that opened, like the decontamination chamber. Changing the rules with the room open (O) now lets you save the settings under a name, and the next room starts from what you adjusted."
+		"pt_BR": "Expulsar ou banir: no Ctrl + K, o anfitrião escolhe entre expulsar da sala, e a pessoa pode voltar, ou banir, e ela não entra mais naquela sala. Desbanir: havendo banidos, o fim da lista do Ctrl + K os mostra, e escolher um permite desbanir. Sair da sala de espera com o Esc agora pede confirmação, para não sair sem querer.",
+		"en_US": "Kick or ban: with Ctrl + K, the host chooses between kicking from the room, and the person can come back, or banning, and they can't join that room again. Unban: if anyone is banned, the end of the Ctrl + K list shows them, and choosing one lets you unban. Leaving the waiting room with Escape now asks for confirmation, so you don't leave by accident."
 	}
 }

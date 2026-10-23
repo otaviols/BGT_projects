@@ -6,6 +6,13 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 1.2.0
+
+- **Kick or ban:** with Ctrl + K, the host chooses between kicking from the room, and the person can come
+  back, or banning, and they can't join that room again.
+- **Unban:** if anyone is banned, the end of the Ctrl + K list shows them, and choosing one lets you unban.
+- **Leaving the waiting room** with Escape now asks for confirmation, so you don't leave by accident.
+
 ## 1.1.1
 
 - **Snitch:** after finishing their tasks, Ctrl + ability repeats who the impostors are.

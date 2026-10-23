@@ -316,7 +316,12 @@ const string C_SET_SPECTATE = "c_set_spectate";             // {on, peer_id?} - 
 // --- Ferramentas do anfitrião (protocolo 12) ---
 // Ctrl+K na sala de espera: expulsar alguém. Quem sai não volta à MESMA sala (a lista dela guarda a
 // conta) - sem isso, numa sala pública a pessoa entrava de novo no segundo seguinte.
-const string C_KICK_PLAYER = "c_kick_player";               // {peer_id}
+// Desde a 1.2, expulsar e banir são duas escolhas (pedido do usuário): `ban` false tira da sala e deixa
+// voltar. Sem o campo vale banir - é o que o Ctrl+K de um cliente anterior pedia. Os banidos vão no
+// S_LOBBY_STATE (`banned`, nomes), e o anfitrião desbane pelo C_UNBAN_PLAYER. Nada disso pede versão de
+// protocolo: o campo novo tem o padrão antigo, e só quem PEDE (o anfitrião) precisa ser novo.
+const string C_KICK_PLAYER = "c_kick_player";               // {peer_id, ban?}
+const string C_UNBAN_PLAYER = "c_unban_player";             // {name}
 // A quem foi expulso: o servidor já o tirou da sala, e o cliente volta à lista de partidas. Cliente
 // anterior ao 12 não conhece o pacote e ficaria numa sala que não é mais dele - a esse o servidor
 // derruba a conexão (ver on_kick_player).

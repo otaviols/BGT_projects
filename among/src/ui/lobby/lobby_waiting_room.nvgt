@@ -16,10 +16,14 @@ class lobby_snapshot {
 	json_object@ config = null;
 	uint max_players = MAX_PLAYERS;
 	string join_code = ""; // vazio = pública
+	array<string> banned; // os banidos da sala, pelo nome (a lista do desbanir, no Ctrl+K)
 
 	void apply(net_packet@ pkt) {
 		if (@pkt == null) return;
 		join_code = pkt.get_string("join_code", "");
+		banned.resize(0);
+		json_array@ b = pkt.get_array("banned");
+		if (@b != null) for (uint i = 0; i < b.length(); i++) banned.insert_last(string(b[i]));
 		@players = pkt.get_array("players");
 		@config = pkt.get_object("config");
 		max_players = uint(pkt.get_int("max_players", int(MAX_PLAYERS)));
@@ -453,11 +457,17 @@ void run_host_players_screen(game_client@ client, lobby_snapshot@ snapshot) {
 		m.add_item(texto, "" + peer);
 		listed++;
 	}
-	if (listed == 0) { speak(tr("lobby.host_players_nobody")); return; }
+	// Os banidos, no fim, para desbanir (1.2): só quando há algum, e a tela abre mesmo sem ninguém na sala.
+	if (snapshot.banned.length() > 0) {
+		dictionary@ bp = dictionary();
+		bp.set("count", "" + snapshot.banned.length());
+		m.add_item(tr("lobby.host_banned_item", bp), "__banned__");
+	} else if (listed == 0) { speak(tr("lobby.host_players_nobody")); return; }
 	m.add_item(tr("menu.back"), "__back__");
 	if (run_menu_until_next_match(m, client)) return;
 	string id = m.selected_item_id;
 	if (id == "" || id == "__back__") return;
+	if (id == "__banned__") { run_host_banned_screen(client, snapshot); return; }
 	uint64 alvo = parse_int(id);
 	string nome = snapshot.name_of(alvo);
 	bool assistindo = snapshot.is_spectating(alvo);
@@ -470,18 +480,71 @@ void run_host_players_screen(game_client@ client, lobby_snapshot@ snapshot) {
 	a.focus_first_item = true;
 	@a.background_callback = @pump_client_during_menu;
 	a.add_item(tr(assistindo ? "lobby.host_action_play" : "lobby.host_action_watch"), "spectate");
+	// Expulsar deixa voltar; banir não (1.2, pedido do usuário - até ali expulsar era sempre banir).
 	a.add_item(tr("lobby.host_action_kick"), "kick");
+	a.add_item(tr("lobby.host_action_ban"), "ban");
 	a.add_item(tr("lobby.host_action_transfer"), "transfer");
 	a.add_item(tr("menu.back"), "__back__");
 	if (run_menu_until_next_match(a, client)) return;
 	string acao = a.selected_item_id;
-	if (acao == "kick") client.send_kick_player(alvo);
+	if (acao == "kick" || acao == "ban") client.send_kick_player(alvo, acao == "ban");
 	else if (acao == "transfer") client.send_transfer_host(alvo);
 	else if (acao == "spectate") {
 		// Voltar a jogar ocupa uma vaga: com a sala cheia nem pede, como a tecla F2.
 		if (assistindo && seated_in(snapshot.players) >= snapshot.max_players) speak(tr("lobby.full_cannot_play"));
 		else client.send_set_spectate(!assistindo, alvo);
 	}
+}
+
+// Os banidos da sala, para o anfitrião desbanir: escolher o nome e confirmar. Duas escolhas pelo mesmo
+// motivo do expulsar - a segunda é a confirmação. O servidor confere e responde (on_unban_player).
+void run_host_banned_screen(game_client@ client, lobby_snapshot@ snapshot) {
+	screen_menu m;
+	m.intro_text = tr("lobby.host_banned_title");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+	for (uint i = 0; i < snapshot.banned.length(); i++) m.add_item(snapshot.banned[i], "" + i);
+	m.add_item(tr("menu.back"), "__back__");
+	if (run_menu_until_next_match(m, client)) return;
+	string id = m.selected_item_id;
+	if (id == "" || id == "__back__") return;
+	string nome = snapshot.banned[parse_int(id)];
+
+	screen_menu a;
+	dictionary@ np = dictionary();
+	np.set("name", nome);
+	a.intro_text = tr("lobby.host_unban_confirm", np);
+	a.click_sound = "ui/menu_click.ogg";
+	a.select_sound = "ui/menu_confirm.ogg";
+	a.sounds_prefix = "sounds/";
+	a.focus_first_item = true;
+	@a.background_callback = @pump_client_during_menu;
+	a.add_item(tr("lobby.host_action_unban"), "unban");
+	a.add_item(tr("menu.back"), "__back__");
+	if (run_menu_until_next_match(a, client)) return;
+	if (a.selected_item_id == "unban") client.send_unban_player(nome);
+}
+
+// Esc na sala de espera pergunta antes (pedido do usuário, 2026-10-22): sair perde o lugar, e numa sala
+// cheia ou privada voltar pode não dar. "Não" vem primeiro, para um Esc e um Enter apressados não tirarem
+// ninguém. Bombeia a rede como os outros menus da sala, e a partida começando fecha a pergunta sem sair.
+bool confirm_leave_lobby(game_client@ client, bool is_host) {
+	screen_menu m;
+	m.intro_text = tr(is_host ? "lobby.leave_confirm_host" : "lobby.leave_confirm");
+	m.click_sound = "ui/menu_click.ogg";
+	m.select_sound = "ui/menu_confirm.ogg";
+	m.sounds_prefix = "sounds/";
+	m.focus_first_item = true;
+	@g_lobby_pump_client = client;
+	@m.background_callback = @pump_client_during_menu;
+	m.add_item(tr("menu.no"), "no");
+	m.add_item(tr("menu.yes"), "yes");
+	if (run_menu_until_next_match(m, client)) return false;
+	return m.selected_item_id == "yes";
 }
 
 net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
@@ -682,7 +745,7 @@ net_packet@ run_waiting_room_screen(game_client@ client, bool is_host,
 		// Leitura do histórico: a mesma função da partida e dos menus (ver chat_review).
 		chat_review_keys();
 
-		if (key_pressed(KEY_ESCAPE)) {
+		if (key_pressed(KEY_ESCAPE) && confirm_leave_lobby(client, is_host)) {
 			client.send_leave_lobby();
 			end_chat_review();
 			return null;

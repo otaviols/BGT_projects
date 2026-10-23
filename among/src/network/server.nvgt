@@ -594,6 +594,7 @@ class game_server : server_accounts_part, server_hall_part, server_lobby_part, s
 		else if (t == C_ADMIN_PLATFORMS) on_admin_platforms(peer_id, pkt);
 		else if (t == C_SET_SPECTATE) on_set_spectate(peer_id, pkt);
 		else if (t == C_KICK_PLAYER) on_kick_player(peer_id, pkt);
+		else if (t == C_UNBAN_PLAYER) on_unban_player(peer_id, pkt);
 		else if (t == C_TRANSFER_HOST) on_transfer_host(peer_id, pkt);
 		else if (t == C_SPECTATE_FOLLOW) on_spectate_follow(peer_id, pkt);
 		else if (t == C_ADMIN_SET_NOTICE) on_admin_set_notice(peer_id, pkt);
