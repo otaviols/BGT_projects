@@ -108,6 +108,16 @@ void main() {
 		cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('trio" + i + "', 'classic', 'crew', 1, '2026-10-21 11:00:00')");
 	// Mesmo horario, OUTRO modo: outra partida.
 	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('outro_modo', 'tag', 'crew', 1, '2026-10-21 11:00:00')");
+	// A partida de 3 gravada na VIRADA do segundo (aconteceu no banco de 2026-10-22): 1 + 2 pelo horário,
+	// 3 pela sequência.
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('virada1', 'classic', 'crew', 1, '2026-10-21 12:00:00')");
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('virada2', 'classic', 'crew', 1, '2026-10-21 12:00:01')");
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('virada3', 'classic', 'crew', 0, '2026-10-21 12:00:01')");
+	// Duas partidas no mesmo segundo e modo, com a mesma pessoa: ninguém joga a mesma partida duas vezes.
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('repete', 'classic', 'crew', 1, '2026-10-21 13:00:00')");
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('par_a', 'classic', 'crew', 1, '2026-10-21 13:00:00')");
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('repete', 'classic', 'crew', 1, '2026-10-21 13:00:00')");
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('par_b', 'classic', 'crew', 1, '2026-10-21 13:00:00')");
 	cru.close();
 	user_database db2;
 	db2.open(arquivo); // a abertura reconstroi
@@ -116,6 +126,9 @@ void main() {
 	confere("trio: conta", db2.ranked_games("trio1") == 1 && db2.ranked_games("trio3") == 1);
 	confere("mesmo segundo em outro modo e outra partida: nao conta", db2.ranked_games("outro_modo") == 0);
 	confere("as novas nao sao refeitas: o fazendeiro continua fora", db2.ranked_games("fazendeiro") == 0);
+	confere("a partida na virada do segundo e uma so, de 3: conta", db2.ranked_games("virada1") == 1 && db2.ranked_games("virada3") == 1);
+	confere("a mesma pessoa de novo comeca outra partida: duas de 2, nenhuma conta",
+		db2.ranked_games("repete") == 0 && db2.ranked_games("par_a") == 0 && db2.ranked_games("par_b") == 0);
 	db2.close();
 	file_delete(arquivo);
 	file_delete(arquivo + "-wal");

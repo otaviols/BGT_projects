@@ -191,10 +191,13 @@ administração), senão ficaria presa. Sonda de ponta a ponta, sem servidor: `p
 usuário: jogar sozinho com bots enchia o aproveitamento). A regra é `match_counts_for_ranking`
 (`user_db.nvgt`), gravada em cada linha (`match_results.humans`, `bots`, `ranked`); por isso o ranking
 GERAL também passou a sair do `match_results` - o `user_stats` conta tudo e continua sendo o das
-estatísticas da pessoa. As linhas de antes não sabiam quantos bots havia: `backfill_ranked_matches`
-reconstrói as pessoas pelo horário (a partida grava todo mundo na mesma transação, então mesmo segundo e
-mesmo modo = mesma partida) e aplica só o mínimo de pessoas. No banco de 2026-10-22 eram 158 partidas de
-uma pessoa e 88 de duas; das 2.802 linhas, 2.468 ficaram contando. Sonda: `probe_ranking`.
+estatísticas da pessoa. As linhas de antes não sabiam quantos bots havia, nem tinham número de partida:
+`backfill_ranked_matches` reconstrói as pessoas pela SEQUÊNCIA dos ids (a partida grava todo mundo numa
+transação; nova partida quando muda o modo, o horário pula mais de 1 s ou a pessoa se repete) e aplica só
+o mínimo de pessoas. **Agrupar pelo horário ao segundo parece suficiente e não é:** a partida gravada na
+virada do segundo se parte, e no banco de 2026-10-22 uma de 3 pessoas viraria 1 + 2 e sairia do ranking
+(outra, de 9, virava 4 + 5). Ali eram 158 partidas de uma pessoa e 88 de duas; das 2.802 linhas, 2.471
+ficaram contando - conferido rodando a própria reconstrução numa cópia do backup. Sonda: `probe_ranking`.
 
 **Rankings (1.0): o geral saía do `user_stats` (até a 1.2.0, ver acima); os por time e por modo, da tabela `match_results`** - uma
 linha por pessoa por partida (modo, time no FIM da partida, venceu), gravada em `record_match_stats`,

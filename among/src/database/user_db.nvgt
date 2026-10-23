@@ -630,18 +630,48 @@ class user_database {
 	}
 
 	// As partidas gravadas antes da regra (1.0 a 1.2.0) não guardaram quantas pessoas nem quantos bots
-	// tinham. As PESSOAS se reconstroem: a partida grava todo mundo numa transação só, então quem tem o
-	// mesmo horário (ao segundo) e o mesmo modo jogou junto - bot não tem linha. Os bots não estão em lugar
-	// nenhum, e por isso a regra delas é só o mínimo de pessoas (decisão do usuário, 2026-10-23): com uma
-	// ou duas, sai; com três ou mais, conta (para chegar à metade de bots, seriam três ou mais bots). Roda
-	// em toda abertura, mas só toca nas linhas ainda sem `ranked` - as novas já nascem com ele.
+	// tinham, nem um número de partida. As PESSOAS se reconstroem pela SEQUÊNCIA: a partida grava todo
+	// mundo de uma vez, numa transação, então as linhas dela têm ids seguidos (os buracos são contas
+	// apagadas). Percorrendo em ordem, começa uma partida nova quando muda o modo, quando o horário pula mais
+	// de 1 s, ou quando a pessoa já está na partida de agora. Agrupar só pelo horário (ao segundo) foi a
+	// primeira versão e partia em duas a partida gravada na virada do segundo: no banco de 2026-10-22, uma
+	// de 3 pessoas virou 1 + 2 e sairia do ranking. Os bots não estão em lugar nenhum, e por isso a regra
+	// das antigas é só o mínimo de pessoas (decisão do usuário, 2026-10-23). Roda em toda abertura, mas só
+	// toca nas linhas ainda sem `ranked` - as novas já nascem com ele.
 	void backfill_ranked_matches() {
-		db.execute("UPDATE match_results SET humans = (SELECT COUNT(*) FROM match_results m2 " +
-			"WHERE m2.played_at = match_results.played_at AND m2.mode = match_results.mode) WHERE ranked IS NULL");
-		sqlite3statement@ st = db.prepare("UPDATE match_results SET ranked = CASE WHEN humans >= ? THEN 1 ELSE 0 END WHERE ranked IS NULL");
+		sqlite3statement@ st = db.prepare("SELECT id, username, mode, CAST(strftime('%s', played_at) AS INTEGER) " +
+			"FROM match_results WHERE ranked IS NULL ORDER BY id");
 		if (@st == null) return;
-		st.bind_int(1, RANKING_MIN_HUMANS);
-		st.step();
+		array<int> ids, partida_de; // partida_de[i]: o índice da partida da linha i
+		array<int> tamanhos;
+		array<string> nomes_da_atual;
+		string modo_antes = "";
+		int hora_antes = 0;
+		while (st.step() == SQLITE_ROW) {
+			string nome = st.column_text(1).lower();
+			string modo = st.column_text(2);
+			int hora = st.column_int(3);
+			bool nova = tamanhos.length() == 0 || modo != modo_antes || hora - hora_antes > 1 || nomes_da_atual.find(nome) >= 0;
+			if (nova) { tamanhos.insert_last(0); nomes_da_atual.resize(0); }
+			ids.insert_last(st.column_int(0));
+			partida_de.insert_last(int(tamanhos.length()) - 1);
+			tamanhos[tamanhos.length() - 1]++;
+			nomes_da_atual.insert_last(nome);
+			modo_antes = modo;
+			hora_antes = hora;
+		}
+		if (ids.length() == 0) return;
+		begin_batch();
+		for (uint i = 0; i < ids.length(); i++) {
+			int pessoas = tamanhos[partida_de[i]];
+			sqlite3statement@ up = db.prepare("UPDATE match_results SET humans = ?, ranked = ? WHERE id = ?");
+			if (@up == null) continue;
+			up.bind_int(1, pessoas);
+			up.bind_int(2, pessoas >= RANKING_MIN_HUMANS ? 1 : 0);
+			up.bind_int(3, ids[i]);
+			up.step();
+		}
+		end_batch();
 	}
 
 	// Quantas das partidas de uma pessoa contam para os rankings - para Minhas estatísticas explicar por
