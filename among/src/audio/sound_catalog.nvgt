@@ -162,6 +162,16 @@ const string SND_NOISEMAKER_ALARM = "sounds/events/noisemaker_alarm.ogg";
 // papel do dos modificadores (ver match_session.opening_tick). Cortadas de um arquivo de 2min30s que
 // o usuário trouxe; o corpo fica no nível do som de início (-18,7 dB), que toca logo antes.
 const string SND_HEARTBEAT = "sounds/events/heartbeat.ogg";
+// A latinha abrindo, só para o BÊBADO, na abertura da partida: faz para ele o que a batida faz para o
+// apaixonado (ver match_session.opening_tick). Trazida pelo usuário (2026-10-23).
+const string SND_DRUNK_CAN = "sounds/events/drunk_can.ogg";
+// O alerta do VETERANO ligando. Só ele ouve, sem posição, como o escudo do anjo - que era o que tocava
+// até ter o som próprio (trazido pelo usuário, 2026-10-23; 7 dB abaixo do original, no nível do escudo).
+const string SND_VETERAN_ALERT = "sounds/events/veteran_alert.ogg";
+// O tique das contagens que NÃO são da reunião: os 10 segundos finais de uma sabotagem crítica (oxigênio,
+// reator, contaminação, sismógrafo) e a largada do pega-pega - que usavam o tique da votação. Trazido pelo
+// usuário (2026-10-23), 7 dB abaixo do original, perto do tique da votação.
+const string SND_COUNTDOWN_TICK = "sounds/ui/countdown_tick.ogg";
 
 // --- Painéis de reparo (o que toca DENTRO do conserto - ver game/sabotage_panels.nvgt) ---
 const string SND_BREAKER_SWITCH = "world/breaker_switch.ogg";     // luzes: estalo de um disjuntor
@@ -717,6 +727,9 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_ARSONIST_FIRE);
 	list.insert_last(SND_NOISEMAKER_ALARM);
 	list.insert_last(SND_HEARTBEAT);
+	list.insert_last(SND_DRUNK_CAN);
+	list.insert_last(SND_VETERAN_ALERT);
+	list.insert_last(SND_COUNTDOWN_TICK);
 	list.insert_last(SND_VOTE_SELECT);
 	list.insert_last(SND_VOTE_TIMER);
 	list.insert_last(SND_VICTORY_DISCONNECT);

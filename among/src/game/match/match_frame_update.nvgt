@@ -5,13 +5,14 @@
 // frame(), chamado por ele nesta ordem. Enxerga todos os campos da partida; não compila sozinho.
 
 mixin class match_frame_update_part {
-	// A segunda etapa da abertura, para quem está apaixonado: espera o som de início acabar, toca a
-	// batida de coração, espera ELA acabar e só então diz os modificadores. Espera o som, e não um tempo
-	// fixo (ver notes/som.md): som de início e batida tocados juntos viravam um só. A fala dos
-	// modificadores vai na fila, sem interromper: se o papel ainda estiver sendo lido, ela espera.
+	// A segunda etapa da abertura, para quem tem modificador com som (o apaixonado, o bêbado): espera o
+	// som de início acabar, toca o do modificador, espera ELE acabar e só então diz os modificadores.
+	// Espera o som, e não um tempo fixo (ver notes/som.md): som de início e batida tocados juntos viravam
+	// um só. A fala dos modificadores vai na fila, sem interromper: se o papel ainda estiver sendo lido,
+	// ela espera.
 	void opening_tick() {
 		if (opening_stage == 1 && !audio.is_playing(opening_sound_slot)) {
-			opening_sound_slot = audio.play_heartbeat();
+			opening_sound_slot = audio.play_opening_modifier(opening_modifier_sound);
 			opening_stage = 2;
 		} else if (opening_stage == 2 && !audio.is_playing(opening_sound_slot)) {
 			opening_stage = 0;
@@ -185,7 +186,7 @@ mixin class match_frame_update_part {
 			int falta = int(head_start + 0.999);
 			if (falta < head_start_said && falta > 0 && falta <= 5) {
 				head_start_said = falta;
-				ui_sound(SND_VOTE_TIMER);
+				ui_sound(SND_COUNTDOWN_TICK); // o da votação é da reunião; este, das outras contagens
 				dictionary@ hp = dictionary();
 				hp.set("seconds", "" + falta);
 				speak(tr("tag.countdown", hp), true);

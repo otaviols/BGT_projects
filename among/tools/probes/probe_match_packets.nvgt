@@ -374,6 +374,10 @@ void main() {
 		ab.events_log.lines.length() == 2 && ab.events_log.lines[1].text.find("ana") >= 0);
 	match_session@ sem_par = nova_partida(ROLE_CREWMATE, "", MOD_GIANT);
 	confere("sem par, os modificadores vem logo, sem batida", sem_par.opening_stage == 0 && sem_par.events_log.lines.length() == 2);
+	// O bebado tem o som dele, a latinha, no lugar da batida (pedido do usuario, 2026-10-23).
+	match_session@ bebado = nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, true, null, MOD_DRUNK);
+	confere("o bebado espera a latinha antes dos modificadores", bebado.opening_stage == 1 && bebado.opening_modifier_sound == SND_DRUNK_CAN);
+	confere("e o apaixonado, a batida", ab.opening_modifier_sound == SND_HEARTBEAT);
 	string ctrl_h = ab.current_role_text();
 	confere("Ctrl + habilidade: so os nomes (" + ctrl_h + ")", ctrl_h.find(tr("role.crewmate")) == 0
 		&& ctrl_h.find(tr("role.flash")) >= 0 && ctrl_h.find("ana") >= 0 && ctrl_h.find(tr(ab.my_role.assignment_key())) < 0);

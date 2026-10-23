@@ -106,6 +106,14 @@ fechar a task com sucesso (e de `run_sabotage_panel` para reparos). Nenhuma task
 aceito) e só entram onde a etapa existe. Antes cada task tocava um som diferente no fim, por cima do
 som certo.
 
+**Contagem da reunião e contagem do resto são dois sons** (2026-10-23, pedido do usuário). O
+`SND_VOTE_TIMER` é só da votação; os 10 segundos finais de uma sabotagem crítica e a largada do
+pega-pega tocam o `SND_COUNTDOWN_TICK`. O da sabotagem sai de `sabotage_countdown_tick`
+(`event_speech`), chamada pelos DOIS caminhos que dizem o número - o laço da partida e a tela bloqueante
+(`announce_background_events`) -, porque cada pacote é dito por um só. **Som de modificador na abertura**
+(a batida do apaixonado, a latinha do bêbado) sai de `opening_modifier_sound_for`: modificador novo com
+som entra ali, e a abertura já espera ele acabar antes de dizer os modificadores.
+
 **Cada som tem UM ouvinte pretendido — decida quem antes de tocar.** Num jogo em que a informação é o
 som, tocar para todo mundo entrega de graça o que devia custar. O assassinato são dois sons com
 públicos diferentes: a **morte** é pessoal e só a vítima ouve; o **kill** é espacial e é o único

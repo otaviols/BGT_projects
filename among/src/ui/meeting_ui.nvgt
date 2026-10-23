@@ -268,6 +268,7 @@ class meeting_ui {
 			// E sem esperar a fala anterior terminar - numa contagem, um número atrasado é pior do que
 			// um número interrompido.
 			speak(sabotage_countdown_text(pkt));
+			sabotage_countdown_tick(pkt);
 			return;
 		}
 		announce(sabotage_countdown_text(pkt));

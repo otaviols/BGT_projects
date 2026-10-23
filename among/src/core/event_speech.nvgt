@@ -23,6 +23,8 @@
 #include "client_state.nvgt"
 #include "speech.nvgt"
 #include "../game/roles/role_traits.nvgt" // o nome do papel neutro no fim da partida
+#include "../audio/sound_catalog.nvgt" // o tique da contagem
+#include "../config/game_settings.nvgt" // ui_sound
 
 string sabotage_started_text(net_packet@ pkt) {
 	string sabotage_id = pkt.get_string("sabotage_id");
@@ -36,6 +38,13 @@ string sabotage_started_text(net_packet@ pkt) {
 		text += " " + tr(critical_sabotage_key(sabotage_id, "critical_warning"), p);
 	}
 	return text;
+}
+
+// O tique dos segundos finais de uma sabotagem crítica (SND_COUNTDOWN_TICK). Junto da fala do número, nos
+// dois caminhos que a dizem (o laço da partida e uma tela bloqueante, ver announce_background_events) -
+// por isso numa função só: cada pacote é dito por um dos dois, nunca pelos dois.
+void sabotage_countdown_tick(net_packet@ pkt) {
+	if (pkt.type == S_SABOTAGE_COUNTDOWN && pkt.get_bool("final")) ui_sound(SND_COUNTDOWN_TICK);
 }
 
 string sabotage_countdown_text(net_packet@ pkt) {
@@ -304,6 +313,7 @@ void announce_background_events(game_client@ client) {
 		// A conversa vai pela voz escolhida para ela (ver speak_chat); o resto, pela do jogo.
 		if (pkt.type == S_CHAT_MESSAGE) speak_chat(text);
 		else speak(text, pkt.type == S_SABOTAGE_COUNTDOWN && pkt.get_bool("final"));
+		sabotage_countdown_tick(pkt);
 		// E entra no histórico JÁ, para ser relido sem fechar a tela (ver chat_review em chat_log).
 		if (@g_background_log_sink != null && !pkt.logged) {
 			g_background_log_sink(pkt, text);
