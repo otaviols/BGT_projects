@@ -183,6 +183,12 @@ void run_stats_screen(game_client@ client) {
 	if (s.get_int("rank") > 0) linhas.insert_last(tr("stats.my_rank", rk));
 	else if (!s.get_bool("visible", true)) linhas.insert_last(tr("stats.my_rank_hidden"));
 	else linhas.insert_last(tr("stats.my_rank_none", rk));
+	// Servidor anterior à 1.2.1 não manda: aí a linha não aparece.
+	if (s.exists("ranked_games")) {
+		dictionary@ rg = dictionary();
+		rg.set("count", "" + s.get_int("ranked_games"));
+		linhas.insert_last(tr("stats.ranked_games", rg));
+	}
 	for (uint i = 0; i < campos.length(); i++) {
 		dictionary@ p = dictionary();
 		p.set("count", "" + s.get_int(campos[i]));

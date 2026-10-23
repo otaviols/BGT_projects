@@ -1,8 +1,8 @@
 {
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "Expulsar ou banir: no Ctrl + K, o anfitrião escolhe entre expulsar da sala, e a pessoa pode voltar, ou banir, e ela não entra mais naquela sala. Desbanir: havendo banidos, o fim da lista do Ctrl + K os mostra, e escolher um permite desbanir. Sair da sala de espera com o Esc agora pede confirmação, para não sair sem querer.",
-		"en_US": "Kick or ban: with Ctrl + K, the host chooses between kicking from the room, and the person can come back, or banning, and they can't join that room again. Unban: if anyone is banned, the end of the Ctrl + K list shows them, and choosing one lets you unban. Leaving the waiting room with Escape now asks for confirmation, so you don't leave by accident."
+		"pt_BR": "Ranking mais justo: só contam para os rankings as partidas com pelo menos 3 pessoas e em que os bots são menos da metade. Vale também para as partidas já jogadas: as de uma ou duas pessoas saíram do ranking. Jogar com bots continua contando para as suas estatísticas. Minhas estatísticas diz quantas das suas partidas contam para o ranking.",
+		"en_US": "Fairer ranking: only matches with at least 3 people, where bots are less than half of the players, count for the rankings. This also applies to matches already played: the ones with one or two people left the ranking. Playing with bots still counts for your own stats. My stats tells how many of your matches count for the ranking."
 	}
 }

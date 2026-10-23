@@ -787,6 +787,7 @@
   "stats.my_rank": "Your ranking position: #{rank}.",
   "stats.my_rank_none": "You are not in the ranking yet: it needs {min} matches.",
   "stats.my_rank_hidden": "You hid your stats, so you are out of the ranking.",
+  "stats.ranked_games": "Matches that count for the ranking: {count}. Matches where half or more of the players are bots, or with fewer than 3 people, do not count.",
   "stats.ranking_item": "See the ranking",
   "stats.ranking_title": "Ranking: the best by win rate.",
   "stats.ranking_line": "#{rank}: {name}, {percent}% wins in {games} matches",

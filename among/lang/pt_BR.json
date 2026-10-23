@@ -787,6 +787,7 @@
   "stats.my_rank": "Sua posição no ranking: {rank}º.",
   "stats.my_rank_none": "Você ainda não está no ranking: ele precisa de {min} partidas.",
   "stats.my_rank_hidden": "Você escondeu as suas estatísticas, então está fora do ranking.",
+  "stats.ranked_games": "Partidas que contam para o ranking: {count}. Não contam as partidas com metade ou mais de bots, nem as com menos de 3 pessoas.",
   "stats.ranking_item": "Ver o ranking",
   "stats.ranking_title": "Ranking: os melhores por aproveitamento.",
   "stats.ranking_line": "{rank}º: {name}, {percent}% de vitórias em {games} partidas",

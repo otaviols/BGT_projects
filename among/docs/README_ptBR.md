@@ -148,13 +148,17 @@ concluídas e assassinatos, a sua **posição no ranking**, e o aproveitamento p
 por modo de jogo. Enter numa linha a copia, e **Copiar todas as estatísticas** copia tudo.
 
 **Ver o ranking** abre a lista de rankings, cada um com os 10 melhores por aproveitamento e a sua posição:
-- **Geral**, com todas as partidas: entra quem tem pelo menos 20;
+- **Geral**, com todas as partidas que contam (veja abaixo): entra quem tem pelo menos 20;
 - por time: **tripulante**, **impostor** e **neutro**, contando só o modo clássico (nos outros modos o
   time vem da regra, e não do sorteio);
 - por modo: **clássico**, **pega-pega**, **todos lobos** e **último sobrevivente**.
 
 Nos rankings por time e por modo entra quem tem pelo menos 10 partidas daquele time ou modo. Em todos, só
 quem deixa as estatísticas à mostra.
+
+**Só contam para os rankings as partidas com pelo menos 3 pessoas e em que os bots são menos da metade.**
+Jogar com bots continua valendo para as suas estatísticas, mas não sobe ninguém no ranking. Minhas
+estatísticas diz quantas das suas partidas contam.
 
 **Mostrar minhas estatísticas aos outros** (em Minha conta) vem ligado. Desligado, ninguém vê as suas na
 sala, e você sai do ranking. Os outros nunca veem os seus assassinatos nem as suas tarefas: só partidas,

@@ -205,6 +205,9 @@ mixin class server_accounts_part {
 		r.set_bool("visible", g_user_db.stats_visible(conn.username));
 		r.set_int("rank", ranking_position(g_user_db.ranking(), conn.username));
 		r.set_int("rank_min_games", RANKING_MIN_GAMES);
+		// Quantas das partidas contam para o ranking (1.2.1): sem isto, quem joga com bots via 30 partidas
+		// e nenhuma posição, sem saber por quê.
+		r.set_int("ranked_games", g_user_db.ranked_games(conn.username));
 		// Por time (só o clássico, como os rankings) e por modo - ver RANKING_KINDS.
 		// Contadores por posição em RANKING_KINDS, e não num dictionary: a primeira versão somava num
 		// dictionary (get num `int`, set da soma) e devolveu lixo - 731 partidas numa conta com uma. A causa
@@ -311,20 +314,27 @@ mixin class server_accounts_part {
 	void record_match_stats(game_state@ lobby) {
 		g_user_db.begin_batch(); // uma transação para a partida inteira (ver begin_batch)
 		record_match_counters(lobby);
+		// Quem a partida teve, para a regra do ranking (match_counts_for_ranking): quem saiu no meio
+		// continua na lista e conta como pessoa - começou a partida.
+		int pessoas = 0, bots = 0;
+		for (uint i = 0; i < lobby.players.length(); i++) {
+			if (lobby.players[i].is_bot) bots++;
+			else if (lobby.players[i].username != "") pessoas++;
+		}
 		for (uint i = 0; i < lobby.players.length(); i++) {
 			game_player@ p = lobby.players[i];
 			if (p.is_bot || p.username == "") continue;
 			g_user_db.increment_stat(p.username, "games_played", 1);
 			role_traits@ r = p.role();
 			// Quem saiu no meio também ganha a linha, como derrota: é uma partida jogada, como no games_played.
-			if (p.left_match) { g_user_db.record_match_result(p.username, lobby.config.game_mode, r.team, false); continue; }
+			if (p.left_match) { g_user_db.record_match_result(p.username, lobby.config.game_mode, r.team, false, pessoas, bots); continue; }
 			string coluna = "";
 			if (lobby.winner == "crewmates" && r.wins_with_crew) coluna = "crewmate_wins";
 			else if (lobby.winner == "impostors" && r.team == TEAM_IMPOSTOR) coluna = "impostor_wins";
 			else if (lobby.winner == WINNER_NEUTRAL && p.peer_id == lobby.neutral_winner_peer) coluna = "neutral_wins";
 			else if (lobby.winner == WINNER_LOVERS && p.lover != 0 && p.alive) coluna = "neutral_wins";
 			// A linha do match_results vai para toda partida, vencida ou não (é dela que sai o aproveitamento).
-			g_user_db.record_match_result(p.username, lobby.config.game_mode, r.team, coluna != "");
+			g_user_db.record_match_result(p.username, lobby.config.game_mode, r.team, coluna != "", pessoas, bots);
 			if (coluna == "") continue;
 			g_user_db.increment_stat(p.username, "games_won", 1);
 			g_user_db.increment_stat(p.username, coluna, 1);

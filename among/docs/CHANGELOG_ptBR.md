@@ -6,6 +6,13 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 1.2.1
+
+- **Ranking mais justo:** só contam para os rankings as partidas com pelo menos 3 pessoas e em que os bots
+  são menos da metade. Vale também para as partidas já jogadas: as de uma ou duas pessoas saíram do
+  ranking. Jogar com bots continua contando para as suas estatísticas.
+- **Minhas estatísticas** diz quantas das suas partidas contam para o ranking.
+
 ## 1.2.0
 
 - **Expulsar ou banir:** no Ctrl + K, o anfitrião escolhe entre expulsar da sala, e a pessoa pode voltar,

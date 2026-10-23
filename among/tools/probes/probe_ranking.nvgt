@@ -1,5 +1,6 @@
 // Sonda da ORDEM do ranking (1.0), direto no banco, num arquivo temporário: por aproveitamento, o empate
-// por quem jogou mais, o mínimo de partidas, e quem escondeu as estatísticas fica de fora.
+// por quem jogou mais, o mínimo de partidas, e quem escondeu as estatísticas fica de fora. E (1.2.1) só as
+// partidas que contam: 3 pessoas ou mais e bots em menos da metade - inclusive as antigas, reconstruídas.
 //   nvgt tools/probes/probe_ranking.nvgt
 #include "../../src/database/user_db.nvgt"
 #include "../../src/config/game_constants.nvgt"
@@ -10,11 +11,23 @@ void confere(const string&in o_que, bool ok) {
 	if (!ok) falhas++;
 }
 
+// O ranking geral sai das partidas (match_results) desde a 1.2.1: cada uma com 4 pessoas e nenhum bot,
+// no pega-pega - para não se misturar aos casos por time e do clássico, mais abaixo.
 void cria(user_database@ db, const string&in nome, int jogos, int vitorias) {
 	string err;
 	db.create_user(nome, "senha123", err);
-	db.increment_stat(nome, "games_played", jogos);
-	db.increment_stat(nome, "games_won", vitorias);
+	for (int i = 0; i < jogos; i++) db.record_match_result(nome, GAME_MODE_TAG, "crew", i < vitorias, 4, 0);
+}
+
+bool ranking_tem(array<ranking_entry@>@ r, const string&in nome) {
+	for (uint i = 0; i < r.length(); i++) if (r[i].username == nome) return true;
+	return false;
+}
+int total_de(user_database@ db, const string&in nome) {
+	array<match_split@>@ m = db.match_breakdown(nome);
+	int n = 0;
+	for (uint i = 0; i < m.length(); i++) n += m[i].games;
+	return n;
 }
 
 void main() {
@@ -44,11 +57,11 @@ void main() {
 
 	println("== por time e por modo (match_results) ==");
 	// "imp": 10 de impostor no clássico, 7 vencidas; e 10 de último sobrevivente (impostor por regra), 10 vencidas.
-	for (int i = 0; i < 10; i++) db.record_match_result("metade", GAME_MODE_CLASSIC, "impostor", i < 7);
-	for (int i = 0; i < 10; i++) db.record_match_result("metade", GAME_MODE_LAST_STANDING, "impostor", true);
+	for (int i = 0; i < 10; i++) db.record_match_result("metade", GAME_MODE_CLASSIC, "impostor", i < 7, 4, 0);
+	for (int i = 0; i < 10; i++) db.record_match_result("metade", GAME_MODE_LAST_STANDING, "impostor", true, 4, 0);
 	// "muito": 10 de impostor no clássico, 5 vencidas; e só 9 de tripulante (abaixo do mínimo).
-	for (int i = 0; i < 10; i++) db.record_match_result("muito", GAME_MODE_CLASSIC, "impostor", i < 5);
-	for (int i = 0; i < 9; i++) db.record_match_result("muito", GAME_MODE_CLASSIC, "crew", true);
+	for (int i = 0; i < 10; i++) db.record_match_result("muito", GAME_MODE_CLASSIC, "impostor", i < 5, 4, 0);
+	for (int i = 0; i < 9; i++) db.record_match_result("muito", GAME_MODE_CLASSIC, "crew", true, 4, 0);
 	array<ranking_entry@>@ imp = db.ranking("team_impostor");
 	confere("impostor: 70% na frente de 50%, e o ultimo sobrevivente NAO entra (" + imp.length() + ")",
 		imp.length() == 2 && imp[0].username == "metade" && imp[0].games == 10 && imp[0].wins == 7 && imp[1].username == "muito");
@@ -62,9 +75,48 @@ void main() {
 	confere("quem escondeu sai tambem destes", db.ranking("team_impostor").length() == 1);
 	confere("tipo desconhecido vira o geral", db.ranking("qualquer").length() == db.ranking().length());
 	array<match_split@>@ meu = db.match_breakdown("muito");
-	confere("o detalhe da pessoa sai por modo e time (" + meu.length() + ")", meu.length() == 2);
+	confere("o detalhe da pessoa sai por modo e time (" + meu.length() + ")", meu.length() == 3); // pega-pega, e o clássico de impostor e de tripulante
 	db.delete_account("muito");
 	confere("apagar a conta apaga as linhas", db.match_breakdown("muito").length() == 0);
+
+	println("== partidas com bots nao contam (1.2.1) ==");
+	confere("3 pessoas sem bot conta", match_counts_for_ranking(3, 0));
+	confere("3 pessoas e 2 bots conta (bots em menos da metade)", match_counts_for_ranking(3, 2));
+	confere("3 pessoas e 3 bots NAO conta (metade exata)", !match_counts_for_ranking(3, 3));
+	confere("2 pessoas e 1 bot NAO conta (menos de 3 pessoas)", !match_counts_for_ranking(2, 1));
+	confere("1 pessoa e 5 bots NAO conta", !match_counts_for_ranking(1, 5));
+	string err;
+	db.create_user("fazendeiro", "senha123", err);
+	for (int i = 0; i < 30; i++) db.record_match_result("fazendeiro", GAME_MODE_CLASSIC, "impostor", true, 1, 5);
+	for (int i = 0; i < 12; i++) db.record_match_result("fazendeiro", GAME_MODE_LAST_STANDING, "impostor", true, 3, 3);
+	confere("30 vitorias sozinho com bots: fora do geral", db.ranking().length() > 0 && db.ranking()[0].username != "fazendeiro"
+		&& ranking_tem(db.ranking(), "fazendeiro") == false);
+	confere("e fora do por time e do por modo", !ranking_tem(db.ranking("team_impostor"), "fazendeiro")
+		&& !ranking_tem(db.ranking("mode_last_standing"), "fazendeiro"));
+	confere("nenhuma das partidas dele conta", db.ranked_games("fazendeiro") == 0);
+	confere("mas a historia dele tem todas (" + total_de(db, "fazendeiro") + ")", total_de(db, "fazendeiro") == 42);
+	db.close();
+
+	println("== as partidas antigas, reconstruidas pelo horario ==");
+	// Gravadas como antes da 1.2.1: sem pessoas, bots nem `ranked`. Quem jogou junto tem o mesmo horario.
+	sqlite3 cru;
+	cru.open(arquivo);
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('sozinho', 'classic', 'crew', 1, '2026-10-21 10:00:00')");
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('dupla1', 'classic', 'crew', 1, '2026-10-21 10:05:00')");
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('dupla2', 'classic', 'impostor', 0, '2026-10-21 10:05:00')");
+	for (int i = 1; i <= 3; i++)
+		cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('trio" + i + "', 'classic', 'crew', 1, '2026-10-21 11:00:00')");
+	// Mesmo horario, OUTRO modo: outra partida.
+	cru.execute("INSERT INTO match_results (username, mode, team, won, played_at) VALUES ('outro_modo', 'tag', 'crew', 1, '2026-10-21 11:00:00')");
+	cru.close();
+	user_database db2;
+	db2.open(arquivo); // a abertura reconstroi
+	confere("sozinho: nao conta", db2.ranked_games("sozinho") == 0);
+	confere("dupla: nao conta (menos de 3 pessoas)", db2.ranked_games("dupla1") == 0 && db2.ranked_games("dupla2") == 0);
+	confere("trio: conta", db2.ranked_games("trio1") == 1 && db2.ranked_games("trio3") == 1);
+	confere("mesmo segundo em outro modo e outra partida: nao conta", db2.ranked_games("outro_modo") == 0);
+	confere("as novas nao sao refeitas: o fazendeiro continua fora", db2.ranked_games("fazendeiro") == 0);
+	db2.close();
 	file_delete(arquivo);
 	file_delete(arquivo + "-wal");
 	file_delete(arquivo + "-shm");

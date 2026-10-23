@@ -20,6 +20,12 @@ array<string>@ allowed_stat_columns() {
 	return cols;
 }
 
+// A partida conta para os rankings? Pelo menos RANKING_MIN_HUMANS pessoas e bots em MENOS da metade
+// (metade exata já não conta: duas pessoas e dois bots ficam de fora).
+bool match_counts_for_ranking(int humans, int bots) {
+	return humans >= RANKING_MIN_HUMANS && bots * 2 < humans + bots;
+}
+
 class user_database {
 	private sqlite3@ db;
 
@@ -113,6 +119,13 @@ class user_database {
 			"won INTEGER NOT NULL, " +
 			"played_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
 		db.execute("CREATE INDEX IF NOT EXISTS idx_match_results_user ON match_results(username)");
+		// Quantas pessoas e quantos bots a partida teve, e se ela conta para os rankings (1.2.1): jogar
+		// sozinho com bots enchia o aproveitamento (ver match_counts_for_ranking). ALTER à parte pelo mesmo
+		// motivo do resolved_at; erro ignorado de propósito.
+		db.execute("ALTER TABLE match_results ADD COLUMN humans INTEGER");
+		db.execute("ALTER TABLE match_results ADD COLUMN bots INTEGER");
+		db.execute("ALTER TABLE match_results ADD COLUMN ranked INTEGER");
+		backfill_ranked_matches();
 
 		// Respostas de quem faz o jogo aos recados. Fecham o ciclo com quem está testando: sem isto o
 		// jogador manda um recado e nunca fica sabendo se alguém leu, e quem oferece ajuda (uma
@@ -580,13 +593,15 @@ class user_database {
 
 	// O ranking inteiro: quem deixa mostrar e tem o mínimo de partidas, por aproveitamento (e, no empate,
 	// por quem jogou mais). Inteiro, e não só o topo, porque a posição de cada um sai daqui também.
+	// Só as partidas que CONTAM (match_results.ranked, 1.2.1): por isso sai do match_results, e não mais
+	// do user_stats, que conta tudo - as estatísticas da pessoa continuam com as partidas com bots.
 	array<ranking_entry@>@ ranking() {
 		array<ranking_entry@> r;
 		if (@db == null) return r;
 		sqlite3statement@ st = db.prepare(
-			"SELECT u.username, s.games_played, s.games_won FROM users u JOIN user_stats s ON s.user_id = u.id " +
-			"WHERE COALESCE(u.show_stats, 1) = 1 AND s.games_played >= ? " +
-			"ORDER BY CAST(s.games_won AS REAL) / s.games_played DESC, s.games_played DESC, u.username");
+			"SELECT m.username, COUNT(*), SUM(m.won) FROM match_results m JOIN users u ON u.username = m.username " +
+			"WHERE COALESCE(u.show_stats, 1) = 1 AND m.ranked = 1 GROUP BY m.username HAVING COUNT(*) >= ? " +
+			"ORDER BY CAST(SUM(m.won) AS REAL) / COUNT(*) DESC, COUNT(*) DESC, m.username");
 		if (@st == null) return r;
 		st.bind_int(1, RANKING_MIN_GAMES);
 		while (st.step() == SQLITE_ROW) {
@@ -599,15 +614,44 @@ class user_database {
 		return r;
 	}
 
-	bool record_match_result(const string&in username, const string&in mode, const string&in team, bool won) {
+	bool record_match_result(const string&in username, const string&in mode, const string&in team, bool won,
+			int humans, int bots) {
 		if (@db == null) return false;
-		sqlite3statement@ st = db.prepare("INSERT INTO match_results (username, mode, team, won) VALUES (?, ?, ?, ?)");
+		sqlite3statement@ st = db.prepare("INSERT INTO match_results (username, mode, team, won, humans, bots, ranked) VALUES (?, ?, ?, ?, ?, ?, ?)");
 		if (@st == null) return false;
 		st.bind_text(1, username, false);
 		st.bind_text(2, mode, false);
 		st.bind_text(3, team, false);
 		st.bind_int(4, won ? 1 : 0);
+		st.bind_int(5, humans);
+		st.bind_int(6, bots);
+		st.bind_int(7, match_counts_for_ranking(humans, bots) ? 1 : 0);
 		return st.step() == SQLITE_DONE;
+	}
+
+	// As partidas gravadas antes da regra (1.0 a 1.2.0) não guardaram quantas pessoas nem quantos bots
+	// tinham. As PESSOAS se reconstroem: a partida grava todo mundo numa transação só, então quem tem o
+	// mesmo horário (ao segundo) e o mesmo modo jogou junto - bot não tem linha. Os bots não estão em lugar
+	// nenhum, e por isso a regra delas é só o mínimo de pessoas (decisão do usuário, 2026-10-23): com uma
+	// ou duas, sai; com três ou mais, conta (para chegar à metade de bots, seriam três ou mais bots). Roda
+	// em toda abertura, mas só toca nas linhas ainda sem `ranked` - as novas já nascem com ele.
+	void backfill_ranked_matches() {
+		db.execute("UPDATE match_results SET humans = (SELECT COUNT(*) FROM match_results m2 " +
+			"WHERE m2.played_at = match_results.played_at AND m2.mode = match_results.mode) WHERE ranked IS NULL");
+		sqlite3statement@ st = db.prepare("UPDATE match_results SET ranked = CASE WHEN humans >= ? THEN 1 ELSE 0 END WHERE ranked IS NULL");
+		if (@st == null) return;
+		st.bind_int(1, RANKING_MIN_HUMANS);
+		st.step();
+	}
+
+	// Quantas das partidas de uma pessoa contam para os rankings - para Minhas estatísticas explicar por
+	// que alguém com muitas partidas ainda não aparece.
+	int ranked_games(const string&in username) {
+		if (@db == null) return 0;
+		sqlite3statement@ st = db.prepare("SELECT COUNT(*) FROM match_results WHERE username = ? AND ranked = 1");
+		if (@st == null) return 0;
+		st.bind_text(1, username, false);
+		return st.step() == SQLITE_ROW ? st.column_int(0) : 0;
 	}
 
 	// Um ranking por tipo (RANKING_KINDS): "general" é o de sempre; "team_<time>" e "mode_<modo>" contam
@@ -621,7 +665,7 @@ class user_database {
 		string filtro = por_time ? "m.mode = '" + GAME_MODE_CLASSIC + "' AND m.team = ?" : "m.mode = ?";
 		sqlite3statement@ st = db.prepare(
 			"SELECT m.username, COUNT(*), SUM(m.won) FROM match_results m JOIN users u ON u.username = m.username " +
-			"WHERE COALESCE(u.show_stats, 1) = 1 AND " + filtro + " GROUP BY m.username HAVING COUNT(*) >= ? " +
+			"WHERE COALESCE(u.show_stats, 1) = 1 AND m.ranked = 1 AND " + filtro + " GROUP BY m.username HAVING COUNT(*) >= ? " +
 			"ORDER BY CAST(SUM(m.won) AS REAL) / COUNT(*) DESC, COUNT(*) DESC, m.username");
 		if (@st == null) return r;
 		st.bind_text(1, valor, false);

@@ -151,13 +151,17 @@ position**, and your win rate by team (in classic mode) and by game mode. Enter 
 **Copy all stats** copies everything.
 
 **See the ranking** opens the list of rankings, each with the top 10 by win rate and your position:
-- **Overall**, with every match: it includes whoever has at least 20;
+- **Overall**, with every match that counts (see below): it includes whoever has at least 20;
 - by team: **crewmate**, **impostor** and **neutral**, counting only classic mode (in the other modes the
   team comes from the rules, not from the draw);
 - by mode: **classic**, **tag**, **all wolves** and **last man standing**.
 
 The team and mode rankings include whoever has at least 10 matches of that team or mode. All of them
 include only those who keep their stats visible.
+
+**Only matches with at least 3 people, where bots are less than half of the players, count for the
+rankings.** Playing with bots still counts for your own stats, but it doesn't move anyone up the ranking.
+My stats tells how many of your matches count.
 
 **Show my stats to others** (in My account) starts on. Turned off, nobody sees yours in the room, and you
 leave the ranking. Others never see your kills or your tasks: only matches, wins and the side you win

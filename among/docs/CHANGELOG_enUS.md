@@ -6,6 +6,13 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 1.2.1
+
+- **Fairer ranking:** only matches with at least 3 people, where bots are less than half of the players,
+  count for the rankings. This also applies to matches already played: the ones with one or two people
+  left the ranking. Playing with bots still counts for your own stats.
+- **My stats** tells how many of your matches count for the ranking.
+
 ## 1.2.0
 
 - **Kick or ban:** with Ctrl + K, the host chooses between kicking from the room, and the person can come
