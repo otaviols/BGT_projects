@@ -6,6 +6,14 @@ Everything that changed in the game, newest first.
 
 ---
 
+## 1.2.3
+
+- **Zero in the room rules now means zero:** 0 neutrals leaves the match with no neutrals (before, every
+  neutral turned on could show up), and the same for 0 long tasks, 0 cooldown on the emergency button and
+  0 in the Snitch's "with how many tasks left".
+- **Changing the rules with the room open (O)** can now start from saved settings, the last ones used or
+  the default rules. The room's current rules come first.
+
 ## 1.2.2
 
 New sounds:

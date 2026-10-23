@@ -61,9 +61,10 @@ bool run_role_tunables_form(game_client@ client, lobby_overrides@ ov, json_objec
 		if (f.is_pressed(f_ok)) {
 			g_voice.typing = false;
 			for (uint i = 0; i < campos.length(); i++) {
-				float v = text_to_float_or_default(f.get_text(campos[i]));
-				// Campo apagado volta ao padrão do papel, em vez de virar zero: zero numa duração é
-				// uma habilidade que não faz nada, e ninguém pede isso de propósito.
+				// Zero é lido como zero (o X9 com 0 tarefas é uma regra); o servidor o leva ao mínimo de
+				// cada ajuste (validate), então zero numa duração vira a menor duração, e não uma
+				// habilidade que não faz nada. Campo apagado volta ao padrão do papel.
+				float v = text_to_amount_or_default(f.get_text(campos[i]));
 				if (v < 0.0) continue;
 				ov.role_values.set(chaves[i], v);
 			}
@@ -332,12 +333,11 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 				r.ov.death_modifiers = escolha.death_modifiers;
 				// Sempre mandado, pela mesma razão dos papéis: é como se desliga. Vazio = cada neutro pelas
 				// próprias vagas; 0 = nenhum neutro (o que o 0 parece dizer, e até 2026-10-20 não dizia).
-				string texto_vagas = f.get_text(f_neutrals).trim_whitespace();
-				int vagas = text_to_int_or_default(texto_vagas);
-				r.ov.neutral_count = texto_vagas == "" || vagas < 0 ? NEUTRALS_BY_ROLE : vagas;
+				int vagas = text_to_count_or_default(f.get_text(f_neutrals));
+				r.ov.neutral_count = vagas < 0 ? NEUTRALS_BY_ROLE : vagas;
 			}
 			r.ov.task_count_per_crewmate = text_to_int_or_default(visible_text(f, f_tasks));
-			r.ov.long_task_count = text_to_int_or_default(visible_text(f, f_long_tasks));
+			r.ov.long_task_count = text_to_count_or_default(visible_text(f, f_long_tasks)); // 0 = nenhuma longa
 			int visible_index = f.get_list_position(f_visible);
 			r.ov.visible_tasks = visible_index >= 0 && f.is_visible(f_visible) ? f.get_list_item_id(f_visible, visible_index) : "";
 			r.ov.meeting_time_seconds = text_to_float_or_default(visible_text(f, f_meeting_time));
@@ -357,7 +357,7 @@ lobby_form_result run_lobby_settings_form(game_client@ client, json_object@ curr
 			r.ov.show_votes = votes_index >= 0 ? f.get_list_item_id(f_votes, votes_index) : "";
 			int voice_index = f.get_list_position(f_voice);
 			r.ov.voice_chat = voice_index >= 0 ? f.get_list_item_id(f_voice, voice_index) : "";
-			r.ov.emergency_cooldown_seconds = text_to_float_or_default(visible_text(f, f_emergency_cd));
+			r.ov.emergency_cooldown_seconds = text_to_amount_or_default(visible_text(f, f_emergency_cd)); // 0 = sem recarga
 			int cm_index = f.get_list_position(f_comms_meeting);
 			r.ov.comms_in_meeting = cm_index >= 0 ? f.get_list_item_id(f_comms_meeting, cm_index) : "";
 				// Os tempos das profissoes vem numa SEGUNDA tela, e so das que foram ligadas aqui: numa
@@ -531,6 +531,28 @@ void remember_lobby_settings(lobby_form_result@ r) {
 	speak(tr("lobby.preset_saved", p));
 }
 
+// Uma configuração salva como configuração RESOLVIDA, que é o formato que o formulário já sabe preencher
+// (o mesmo da edição de uma sala aberta). Assim não há um segundo caminho de pré-preenchimento para manter
+// em sincronia - nem entre criar a sala e mudá-la aberta.
+json_object@ lobby_preset_config_json(lobby_preset@ p) {
+	lobby_config base = get_preset(p.preset_id);
+	p.ov.apply_to(base);
+	base.validate();
+	return base.to_json(base.max_players);
+}
+
+// O O da sala de espera: de onde partir (as regras de agora, a última usada, as de fábrica ou uma salva),
+// e o formulário da sala aberta já preenchido com isso - o anfitrião confere e confirma, nada muda antes.
+// Devolve o resultado do formulário (ok = false se desistiu).
+lobby_form_result run_edit_lobby_screen(game_client@ client, json_object@ regras_atuais, const string&in codigo_atual) {
+	lobby_preset base;
+	string escolha = run_lobby_preset_picker(client, base, true);
+	if (escolha == "__cancel__") { lobby_form_result nada; return nada; }
+	json_object@ regras = regras_atuais;
+	if (escolha != "__current__") @regras = lobby_preset_config_json(base); // "__default__" vem com o preset vazio
+	return run_lobby_settings_form(client, regras, false, "classic", codigo_atual);
+}
+
 net_packet@ run_create_lobby_screen(game_client@ client) {
 	// De onde partir: os padrões, a última sala que ele criou, ou uma configuração salva. O menu só
 	// aparece se houver algo salvo - quem nunca salvou nada cai direto no formulário, como antes.
@@ -539,15 +561,7 @@ net_packet@ run_create_lobby_screen(game_client@ client) {
 	if (base_escolhida == "__cancel__") return null;
 
 	json_object@ partida_inicial = null;
-	if (base_escolhida != "__default__") {
-		// Os ajustes salvos viram uma configuração RESOLVIDA, que é o formato que o formulário já
-		// sabe preencher (o mesmo da edição de uma sala aberta). Assim não há um segundo caminho de
-		// pré-preenchimento para manter em sincronia.
-		lobby_config base = get_preset(partida_base.preset_id);
-		partida_base.ov.apply_to(base);
-		base.validate();
-		@partida_inicial = base.to_json(base.max_players);
-	}
+	if (base_escolhida != "__default__") @partida_inicial = lobby_preset_config_json(partida_base);
 
 	lobby_form_result r = run_lobby_settings_form(client, partida_inicial, true, partida_base.preset_id);
 	if (!r.ok) return null;
@@ -568,11 +582,15 @@ net_packet@ run_create_lobby_screen(game_client@ client) {
 //
 // A tela inteira é pulada quando não há nada salvo: ninguém deve atravessar um menu para dizer "a
 // única opção que existe".
-string run_lobby_preset_picker(game_client@ client, lobby_preset@ destino) {
+//
+// `editing` é a tela do O, com a sala aberta (pedido do usuário, 2026-10-23): a primeira opção passa a ser
+// "as regras atuais da sala" (devolve "__current__"), que é o que o O fazia antes, e sem nada salvo a
+// escolha é pulada direto para ela.
+string run_lobby_preset_picker(game_client@ client, lobby_preset@ destino, bool editing = false) {
 	while (true) {
 		array<string> nomes = lobby_preset_names();
 		bool tem_ultima = lobby_preset_exists(LOBBY_PRESET_LAST_USED);
-		if (nomes.length() == 0 && !tem_ultima) return "__default__";
+		if (nomes.length() == 0 && !tem_ultima) return editing ? "__current__" : "__default__";
 
 		screen_menu m;
 		m.intro_text = tr("lobby.preset_picker_hint");
@@ -583,7 +601,8 @@ string run_lobby_preset_picker(game_client@ client, lobby_preset@ destino) {
 		@m.background_callback = @pump_client_during_menu;
 
 		// A última usada vem primeiro: é a que mais gente vai querer, e num menu falado a primeira
-		// posição é a única que não custa navegação.
+		// posição é a única que não custa navegação. Com a sala aberta, antes dela vêm as regras de agora.
+		if (editing) m.add_item(tr("lobby.preset_current_rules"), "__current__");
 		if (tem_ultima) m.add_item(tr("lobby.preset_last_used"), "__last__");
 		m.add_item(tr("lobby.preset_defaults"), "__default__");
 		for (uint i = 0; i < nomes.length(); i++) m.add_item(nomes[i], nomes[i]);
@@ -593,7 +612,7 @@ string run_lobby_preset_picker(game_client@ client, lobby_preset@ destino) {
 
 		string id = m.selected_item_id;
 		if (id == "" || id == "__cancel__") return "__cancel__";
-		if (id == "__default__") return "__default__";
+		if (id == "__default__" || id == "__current__") return id;
 		if (id == "__delete__") { run_lobby_preset_delete(client); continue; }
 
 		string chave = id == "__last__" ? LOBBY_PRESET_LAST_USED : id;
@@ -643,6 +662,32 @@ int text_to_int_or_default(const string&in text) {
 	if (text == "") return -1;
 	int value = parse_int(text);
 	return value > 0 ? value : -1;
+}
+
+// Para os campos em que ZERO é uma resposta (nenhum neutro, nenhuma tarefa longa, botão sem recarga, o X9
+// que só é descoberto ao terminar): as duas de cima jogam o 0 fora como "não mexi", e foi assim que o 0 de
+// neutros virava "cada neutro pelas próprias vagas" (relato do usuário, 2026-10-23). Só número de verdade
+// conta - "zero" escrito, ou lixo, continua sendo "não mexi", e não um 0 que ninguém quis.
+bool is_number_text(const string&in text, bool allow_decimal) {
+	if (text == "") return false;
+	bool ponto = false;
+	for (uint i = 0; i < text.length(); i++) {
+		int c = character_to_ascii(text.substr(i, 1));
+		if (c >= 48 && c <= 57) continue;
+		if (allow_decimal && !ponto && (c == 46 || c == 44)) { ponto = true; continue; }
+		return false;
+	}
+	return true;
+}
+
+int text_to_count_or_default(const string&in text) {
+	string t = text.trim_whitespace();
+	return is_number_text(t, false) ? parse_int(t) : -1;
+}
+
+float text_to_amount_or_default(const string&in text) {
+	string t = text.trim_whitespace().replace(",", ".", true);
+	return is_number_text(t, true) ? parse_float(t) : -1.0;
 }
 
 // A criação é confirmada pelo primeiro S_LOBBY_STATE. Ele é DEVOLVIDO a quem chamou, não descartado:

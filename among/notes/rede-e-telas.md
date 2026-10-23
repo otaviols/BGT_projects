@@ -218,6 +218,14 @@ computador seguiria "dentro" de uma conta que não existe. `user_stats` é apaga
 `tools/probes/probe_delete_account.nvgt` (o nome ficar livre para cadastro é a prova de que a linha
 saiu do banco, e não só a sessão).
 
+**No formulário de sala, ZERO é resposta em alguns campos - e `text_to_int_or_default` o joga fora.** Ela
+devolve "não mexi" (-1) para tudo que não for maior que zero. Sintoma (relato do usuário, 2026-10-23): 0
+neutros saía como "cada neutro pelas próprias vagas", e o servidor estava certo o tempo todo. O mesmo valia
+para 0 tarefas longas, botão sem recarga e o 0 do X9. Campo em que 0 tem sentido lê com
+`text_to_count_or_default`/`text_to_amount_or_default`, que só aceitam número de verdade (sonda:
+`probe_lobby_form`). **O O da sala de espera parte de uma configuração salva também** (`run_edit_lobby_screen`):
+a mesma escolha da criação, com "as regras atuais da sala" primeiro, e o mesmo `lobby_preset_config_json`.
+
 **Expulsar e mandar assistir (Ctrl+K do anfitrião, protocolo 12) só na sala de espera**, como no
 original: no meio da partida o anfitrião impostor expulsaria quem o viu. **Expulsar e banir são duas
 escolhas desde a 1.2** (pedido do usuário): `C_KICK_PLAYER` com `ban`; sem o campo vale banir, que era o

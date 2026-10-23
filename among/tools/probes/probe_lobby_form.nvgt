@@ -61,6 +61,21 @@ void main() {
 	@g_client_frame_hook = dirige;
 	@g_screen_menu_frame_hook = dirige; // o botão de papéis abre um MENU de times antes da tela
 
+	println("== zero e uma resposta ==");
+	// Relato de 2026-10-23: 0 neutros saía como "cada neutro pelas próprias vagas" - o 0 era lido como vazio.
+	confere("0 vale 0", text_to_count_or_default("0") == 0 && text_to_count_or_default(" 0 ") == 0);
+	confere("vazio e lixo continuam 'nao mexi'", text_to_count_or_default("") == -1 && text_to_count_or_default("zero") == -1
+		&& text_to_count_or_default("-2") == -1);
+	confere("numero e numero", text_to_count_or_default("3") == 3);
+	confere("em segundos, 0 e 2,5 tambem", text_to_amount_or_default("0") == 0.0 && text_to_amount_or_default("2,5") == 2.5
+		&& text_to_amount_or_default("2.5") == 2.5 && text_to_amount_or_default("1.2.3") < 0.0);
+	lobby_overrides zero;
+	zero.neutral_count = text_to_count_or_default("0") < 0 ? NEUTRALS_BY_ROLE : text_to_count_or_default("0");
+	lobby_config sala = get_preset("classic");
+	zero.apply_to(sala);
+	sala.validate();
+	confere("e a sala fica com nenhum neutro (" + sala.neutral_count + ")", sala.neutral_count == 0);
+
 	println("== confirmar ==");
 	array<int> so_enter = {KEY_RETURN};
 	roda(so_enter);

@@ -1189,6 +1189,7 @@
   "lobby.info.role_tunable": "{what}: {seconds} seconds",
   "lobby.info.role_chance": "at {percent}% chance",
   "lobby.preset_picker_hint": "Which configuration do you want to start from?",
+  "lobby.preset_current_rules": "The room's current rules",
   "lobby.preset_last_used": "The last one I used",
   "lobby.preset_defaults": "Start fresh (default rules)",
   "lobby.preset_delete": "Delete a saved configuration",

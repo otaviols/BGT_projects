@@ -6,6 +6,14 @@ Tudo que mudou no jogo, da versão mais nova para a mais antiga.
 
 ---
 
+## 1.2.3
+
+- **Zero nas regras da sala agora vale zero:** 0 neutros deixa a partida sem neutros (antes cada neutro
+  ligado podia sair), e o mesmo para 0 tarefas longas, 0 de recarga no botão de emergência e 0 no
+  "faltando quantas tarefas" do X9.
+- **Mudando as regras com a sala aberta (O),** dá para partir de uma configuração salva, da última usada ou
+  das regras padrão. As regras atuais da sala vêm primeiro.
+
 ## 1.2.2
 
 Sons novos:

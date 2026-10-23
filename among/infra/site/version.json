@@ -1,8 +1,8 @@
 {
-	"version": "1.2.2",
+	"version": "1.2.3",
 	"url": "AmongUs.zip",
 	"notes_by_language": {
-		"pt_BR": "Sons novos: O alerta do veterano tem som próprio (antes tocava o do escudo do anjo). O bêbado e o viciado ganharam um som na abertura da partida, antes de ouvirem os modificadores, como a batida de coração do apaixonado. As contagens regressivas fora da reunião (os últimos segundos de uma sabotagem, como o oxigênio e a contaminação, e a largada do pega-pega) têm um som próprio, diferente do da votação. Todos estão no menu Aprender os sons do jogo.",
-		"en_US": "New sounds: The veteran's alert has its own sound (it used the guardian angel's shield before). The drunk and the addict get a sound at the start of the match, before hearing their modifiers, like the lover's heartbeat. Countdowns outside meetings (the last seconds of a sabotage, like oxygen and contamination, and the start of tag) have their own sound, different from the voting one. They are all in the Learn the game's sounds menu."
+		"pt_BR": "Zero nas regras da sala agora vale zero: 0 neutros deixa a partida sem neutros (antes cada neutro ligado podia sair), e o mesmo para 0 tarefas longas, 0 de recarga no botão de emergência e 0 no \"faltando quantas tarefas\" do X9. Mudando as regras com a sala aberta (O), dá para partir de uma configuração salva, da última usada ou das regras padrão. As regras atuais da sala vêm primeiro.",
+		"en_US": "Zero in the room rules now means zero: 0 neutrals leaves the match with no neutrals (before, every neutral turned on could show up), and the same for 0 long tasks, 0 cooldown on the emergency button and 0 in the Snitch's \"with how many tasks left\". Changing the rules with the room open (O) can now start from saved settings, the last ones used or the default rules. The room's current rules come first."
 	}
 }

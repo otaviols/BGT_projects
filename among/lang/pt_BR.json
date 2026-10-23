@@ -1189,6 +1189,7 @@
   "lobby.info.role_tunable": "{what}: {seconds} segundos",
   "lobby.info.role_chance": "com {percent}% de chance",
   "lobby.preset_picker_hint": "De qual configuração você quer partir?",
+  "lobby.preset_current_rules": "As regras atuais da sala",
   "lobby.preset_last_used": "A última que eu usei",
   "lobby.preset_defaults": "Começar do zero (regras padrão)",
   "lobby.preset_delete": "Apagar uma configuração salva",
