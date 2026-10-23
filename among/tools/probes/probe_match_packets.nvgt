@@ -378,6 +378,8 @@ void main() {
 	match_session@ bebado = nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, true, null, MOD_DRUNK);
 	confere("o bebado espera a latinha antes dos modificadores", bebado.opening_stage == 1 && bebado.opening_modifier_sound == SND_DRUNK_CAN);
 	confere("e o apaixonado, a batida", ab.opening_modifier_sound == SND_HEARTBEAT);
+	match_session@ viciado = nova_partida(ROLE_CREWMATE, "", "", "", 0.0, 0.0, true, null, MOD_ADDICT);
+	confere("e o viciado, a musica dele", viciado.opening_stage == 1 && viciado.opening_modifier_sound == SND_ADDICT_SONG);
 	string ctrl_h = ab.current_role_text();
 	confere("Ctrl + habilidade: so os nomes (" + ctrl_h + ")", ctrl_h.find(tr("role.crewmate")) == 0
 		&& ctrl_h.find(tr("role.flash")) >= 0 && ctrl_h.find("ana") >= 0 && ctrl_h.find(tr(ab.my_role.assignment_key())) < 0);

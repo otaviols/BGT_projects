@@ -111,7 +111,7 @@ som certo.
 pega-pega tocam o `SND_COUNTDOWN_TICK`. O da sabotagem sai de `sabotage_countdown_tick`
 (`event_speech`), chamada pelos DOIS caminhos que dizem o número - o laço da partida e a tela bloqueante
 (`announce_background_events`) -, porque cada pacote é dito por um só. **Som de modificador na abertura**
-(a batida do apaixonado, a latinha do bêbado) sai de `opening_modifier_sound_for`: modificador novo com
+(a batida do apaixonado, a latinha do bêbado, a música distorcida do viciado) sai de `opening_modifier_sound_for`: modificador novo com
 som entra ali, e a abertura já espera ele acabar antes de dizer os modificadores.
 
 **Cada som tem UM ouvinte pretendido — decida quem antes de tocar.** Num jogo em que a informação é o

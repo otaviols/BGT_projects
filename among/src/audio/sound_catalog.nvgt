@@ -165,6 +165,10 @@ const string SND_HEARTBEAT = "sounds/events/heartbeat.ogg";
 // A latinha abrindo, só para o BÊBADO, na abertura da partida: faz para ele o que a batida faz para o
 // apaixonado (ver match_session.opening_tick). Trazida pelo usuário (2026-10-23).
 const string SND_DRUNK_CAN = "sounds/events/drunk_can.ogg";
+// A do VICIADO: um trecho de "Three Little Birds" trazido pelo usuário (2026-10-23), mais lento e grave,
+// com oscilação no tom e eco - soa como coisa da cabeça dele, e não tocando na nave (é o papel: ouvir o
+// que não existe). Escolhido entre quatro versões; 6,3 s, a frase inteira.
+const string SND_ADDICT_SONG = "sounds/events/addict_song.ogg";
 // O alerta do VETERANO ligando. Só ele ouve, sem posição, como o escudo do anjo - que era o que tocava
 // até ter o som próprio (trazido pelo usuário, 2026-10-23; 7 dB abaixo do original, no nível do escudo).
 const string SND_VETERAN_ALERT = "sounds/events/veteran_alert.ogg";
@@ -728,6 +732,7 @@ array<string>@ all_sound_paths() {
 	list.insert_last(SND_NOISEMAKER_ALARM);
 	list.insert_last(SND_HEARTBEAT);
 	list.insert_last(SND_DRUNK_CAN);
+	list.insert_last(SND_ADDICT_SONG);
 	list.insert_last(SND_VETERAN_ALERT);
 	list.insert_last(SND_COUNTDOWN_TICK);
 	list.insert_last(SND_VOTE_SELECT);

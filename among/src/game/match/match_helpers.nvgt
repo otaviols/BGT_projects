@@ -202,6 +202,7 @@ string sabotage_fix_hint_text(game_map@ map, const string&in sabotage_id, array<
 string opening_modifier_sound_for(bool lover, const string&in trait_modifier) {
 	if (lover) return SND_HEARTBEAT;
 	if (trait_modifier == MOD_DRUNK) return SND_DRUNK_CAN;
+	if (trait_modifier == MOD_ADDICT) return SND_ADDICT_SONG;
 	return "";
 }
 

@@ -280,6 +280,7 @@
   "learn.arsonist_fire": "Arsonist fire, when they win (scene made by the player Raciel)",
   "learn.heartbeat": "Heartbeat, at the start of the match: you are in love with someone",
   "learn.drunk_can": "A can opening, at the start of the match: you are the drunk",
+  "learn.addict_song": "Distorted song, at the start of the match: you are the addict",
   "learn.victory_neutral": "A neutral role wins",
   "learn.message_sent": "Chat message sent",
   "learn.message_received": "Chat message received",
